@@ -116,5 +116,7 @@ public interface Constants {
     String IS_HEAD_OF_HOUSEHOLD = "isHeadOfHousehold";
     String AGE_IN_MONTHS = "ageInMonths";
 
+    String LOCALITY = "locality";
+
 
 }

@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.project.ProjectBeneficiary;
 
 import javax.validation.Valid;
 import java.util.Map;
@@ -20,10 +21,8 @@ import java.util.Map;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ProjectBeneficiaryIndexV1 {
-    @JsonProperty("id")
-    private String id = null;
-    @JsonProperty("tenantId")
-    private String tenantId = null;
+    @JsonProperty("projectBeneficiary")
+    private ProjectBeneficiary projectBeneficiary;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
     @JsonProperty("boundaryHierarchyCode")
@@ -42,30 +41,6 @@ public class ProjectBeneficiaryIndexV1 {
     private String syncedDate;
     @JsonProperty("syncedTimeStamp")
     private String syncedTimeStamp;
-    @JsonProperty("projectId")
-    private String projectId = null;
-    @JsonProperty("beneficiaryId")
-    private String beneficiaryId = null;
-    @JsonProperty("dateOfRegistration")
-    private Long dateOfRegistration = null;
-    @JsonProperty("clientReferenceId")
-    private String clientReferenceId = null;
-    @JsonProperty("beneficiaryClientReferenceId")
-    private String beneficiaryClientReferenceId = null;
-    @JsonProperty("additionalFields")
-    private @Valid AdditionalFields additionalFields = null;
-    @JsonProperty("isDeleted")
-    private Boolean isDeleted;
-    @JsonProperty("rowVersion")
-    private Integer rowVersion;
-    @JsonProperty("auditDetails")
-    private @Valid AuditDetails auditDetails;
-    @JsonProperty("clientAuditDetails")
-    private @Valid AuditDetails clientAuditDetails;
-    @JsonIgnore
-    private Boolean hasErrors;
-    @JsonProperty("tag")
-    private String tag;
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;
 

@@ -73,7 +73,8 @@ public class ProjectBeneficiaryTransformationService {
                 .map(this::transform)
                 .collect(Collectors.toList());
         log.info("transformation success for BENEFICIARY id's {}", beneficiaryIndexV1List.stream()
-                .map(ProjectBeneficiaryIndexV1::getId)
+                .map(ProjectBeneficiaryIndexV1::getProjectBeneficiary)
+                .map(ProjectBeneficiary::getId)
                 .collect(Collectors.toList()));
         producer.push(topic, beneficiaryIndexV1List);
     }
@@ -81,13 +82,7 @@ public class ProjectBeneficiaryTransformationService {
     private ProjectBeneficiaryIndexV1 transform(ProjectBeneficiary beneficiary) {
         String projectId = beneficiary.getProjectId();
 
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, beneficiary.getTenantId());
-
-        Map<String, String> boundaryHierarchy = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchy() : null;
-        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchyCode() : null;
-
-        Map<String, String> userInfoMap = userService.getUserInfo(beneficiary.getTenantId(), beneficiary.getClientAuditDetails().getLastModifiedBy());
-
+        BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
 
@@ -97,16 +92,23 @@ public class ProjectBeneficiaryTransformationService {
                 && !CollectionUtils.isEmpty(beneficiary.getAdditionalFields().getFields())) {
             additionalFieldsToDetails(beneficiary.getAdditionalFields().getFields(), additionalDetails);
         }
+        JsonNode boundaryCode = additionalDetails.get(LOCALITY);
+        if (isMissing(boundaryCode)) {
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, beneficiary.getTenantId());
+        }
+        else {
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(String.valueOf(boundaryCode), beneficiary.getTenantId());
+        }
+
+        Map<String, String> boundaryHierarchy = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchy() : null;
+        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchyCode() : null;
+
+        Map<String, String> userInfoMap = userService.getUserInfo(beneficiary.getTenantId(), beneficiary.getClientAuditDetails().getLastModifiedBy());
+
 
         checkMandatoryFieldExists(additionalDetails, beneficiary.getBeneficiaryClientReferenceId(), beneficiary.getTenantId());
         return ProjectBeneficiaryIndexV1.builder()
-                .id(beneficiary.getId())
-                .tenantId(beneficiary.getTenantId())
-                .beneficiaryId(beneficiary.getBeneficiaryId())
-                .beneficiaryClientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
-                .projectId(beneficiary.getProjectId())
-                .dateOfRegistration(beneficiary.getDateOfRegistration())
-                .additionalFields(beneficiary.getAdditionalFields())
+                .projectBeneficiary(beneficiary)
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .userName(userInfoMap.get(USERNAME))
@@ -116,13 +118,14 @@ public class ProjectBeneficiaryTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(beneficiary.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(beneficiary.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(beneficiary.getAuditDetails().getLastModifiedTime()))
-                .auditDetails(beneficiary.getAuditDetails())
-                .clientAuditDetails(beneficiary.getClientAuditDetails())
-                .tag(beneficiary.getTag())
-                .rowVersion(beneficiary.getRowVersion())
                 .additionalDetails(additionalDetails)
-                .isDeleted(beneficiary.getIsDeleted())
                 .build();
+    }
+
+    private boolean isMissing(JsonNode value) {
+        return value == null ||
+                value.isNull() ||
+                (value.isTextual() && value.asText().trim().isEmpty());
     }
 
     private void checkMandatoryFieldExists(ObjectNode additionalDetails, String beneficiaryClientReferenceId, String tenantId) {
@@ -130,7 +133,7 @@ public class ProjectBeneficiaryTransformationService {
         for (String key : mandatoryFields) {
             JsonNode value = additionalDetails.get(key);
             //Check if the value exists or if it is null or empty
-            if (value == null || value.isNull() || (value.isTextual() && value.asText().trim().isEmpty())) {
+            if (isMissing(value)) {
                 missingKeys.add(key);
             }
         }
