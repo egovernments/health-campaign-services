@@ -59,13 +59,9 @@ install_pkg() {
   esac
 }
 
-c_g "[2/7] Checking / installing CLI prerequisites"
+c_g "[2/7] Checking / installing prerequisites"
 install_pkg curl     curl
 install_pkg python3  python3
-install_pkg pip      python3-pip
-install_pkg psql     postgresql-client
-install_pkg jq       jq
-install_pkg openssl  openssl
 
 # Docker
 if ! command -v docker >/dev/null 2>&1; then
