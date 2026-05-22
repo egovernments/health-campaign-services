@@ -23,8 +23,6 @@ public enum BeneficiaryType {
 
 	SIX_ELEVEN_MONTH("6-11MONTH"),
 
-	PRODUCT("PRODUCT"),
-
 	VAS_RED("VAS-RED"),
 
 	VAS_BLUE("VAS-BLUE");
