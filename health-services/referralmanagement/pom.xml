@@ -11,7 +11,7 @@
 		<java.version>17</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
-		<lombok.version>1.18.22</lombok.version>
+		<lombok.version>1.18.30</lombok.version>
 	</properties>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -107,6 +107,11 @@
 		<dependency>
 			<groupId>com.fasterxml.jackson.datatype</groupId>
 			<artifactId>jackson-datatype-jsr310</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>2.25.11</version>
 		</dependency>
 	</dependencies>
 

@@ -6,11 +6,12 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.ds.Tuple;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.Pagination;
@@ -53,6 +54,7 @@ import org.egov.common.models.service.ServiceSearchRequest;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.repository.HouseholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -81,6 +83,8 @@ public class DownsyncService {
 
     private final MultiStateInstanceUtil multiStateInstanceUtil;
 
+    private HouseholdRepository householdRepository;
+
     @Autowired
     public DownsyncService( ServiceRequestClient serviceRequestClient,
                             ReferralManagementConfiguration referralManagementConfiguration,
@@ -88,7 +92,9 @@ public class DownsyncService {
                             SideEffectService sideEffectService,
                             ReferralManagementService referralService,
                             HFReferralService hfReferralService,
-                            MasterDataService masterDataService, MultiStateInstanceUtil multiStateInstanceUtil) {
+                            MasterDataService masterDataService,
+                            MultiStateInstanceUtil multiStateInstanceUtil,
+                            HouseholdRepository householdRepository) {
 
         this.restClient = serviceRequestClient;
         this.configs = referralManagementConfiguration;
@@ -98,7 +104,7 @@ public class DownsyncService {
         this.hfReferralService = hfReferralService;
         this.masterDataService = masterDataService;
         this.multiStateInstanceUtil = multiStateInstanceUtil;
-
+        this.householdRepository = householdRepository;
     }
 
     /**
@@ -111,14 +117,19 @@ public class DownsyncService {
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
 
+        List<Household> households = null;
+        List<String> householdClientRefIds = null;
         List<String> individualClientRefIds = null;
         List<String> beneficiaryClientRefIds = null;
         List<String> taskClientRefIds = null;
-        List<String> householdClientRefIds = null;
 
 
-        downsync.setDownsyncCriteria(downsyncCriteria);
         boolean isSyncTimeAvailable = null != downsyncCriteria.getLastSyncedTime();
+        // removing incremental downsync for matview flow — mutate after capturing isSyncTimeAvailable
+        if (configs.isEnableMatviewSearch()) {
+            downsyncCriteria.setLastSyncedTime(null);
+        }
+        downsync.setDownsyncCriteria(downsyncCriteria);
 
         //Project project = getProjectType(downsyncRequest);
         LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
@@ -183,10 +194,18 @@ public class DownsyncService {
      * @param downsync
      * @return household client reference ids list
      */
-    private List<String> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) {
+    private List<String> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+
+        if (configs.isEnableMatviewSearch()) {
+            Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), criteria.getTenantId());
+            List<Household> households = res.getY();
+            downsync.getDownsyncCriteria().setTotalCount(res.getX());
+            downsync.setHouseholds(households);
+            return households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
+        }
 
         StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
                 .append(configs.getHouseholdSearchUrl());
@@ -250,10 +269,10 @@ public class DownsyncService {
                     .id(batch)
                     .build();
 
-            IndividualSearchRequest searchRequest = IndividualSearchRequest.builder()
-                    .individual(individualSearch)
-                    .requestInfo(requestInfo)
-                    .build();
+        IndividualSearchRequest searchRequest = IndividualSearchRequest.builder()
+                .individual(individualSearch)
+                .requestInfo(requestInfo)
+                .build();
 
             List<Individual> individuals = restClient.fetchResult(url, searchRequest, IndividualBulkResponse.class).getIndividual();
             allIndividuals.addAll(individuals);
@@ -554,7 +573,7 @@ public class DownsyncService {
         int batchSize = configs.getReferralSearchBatchSize();
 
         int fetched = 0;
-        Long totalCount;
+        long totalCount = 0;
 
         do {
             ReferralSearch search = ReferralSearch.builder()
@@ -575,11 +594,12 @@ public class DownsyncService {
                     criteria.getIncludeDeleted()
             );
 
-            totalCount = searchResponse.getTotalCount();
+            totalCount = searchResponse.getTotalCount() != null ? searchResponse.getTotalCount() : 0L;
             List<Referral> referrals = searchResponse.getResponse();
+            if (CollectionUtils.isEmpty(referrals)) break;
             allReferrals.addAll(referrals);
 
-            fetched += batchSize;
+            fetched += referrals.size();
         } while (fetched < totalCount);
 
         downsync.setReferrals(allReferrals);
@@ -716,4 +736,5 @@ public class DownsyncService {
 
         return url;
     }
+
 }

@@ -151,4 +151,43 @@ public class ReferralManagementConfiguration {
     @Value("${egov.service.request.service.search.url}")
     private String serviceRequestServiceSearchUrl;
 
+    @Value("${egov.enable.matview.search}")
+    private boolean enableMatviewSearch;
+
+    @Value("${egov.s3.bucket}")
+    private String s3Bucket;
+
+    @Value("${egov.s3.region}")
+    private String s3Region;
+
+    @Value("${egov.s3.endpoint}")
+    private String s3Endpoint;
+
+    @Value("${egov.s3.access-key}")
+    private String s3AccessKey;
+
+    @Value("${egov.s3.secret-key}")
+    private String s3SecretKey;
+
+    @Value("${egov.s3.presign.endpoint:}")
+    private String s3PresignEndpoint;
+
+    @Value("${egov.wardfilegen.ward.pool.size:8}")
+    private int wardPoolSize;
+
+    @Value("${egov.wardfilegen.file.pool.size:32}")
+    private int filePoolSize;
+
+    @Value("${egov.downsync.presigned.url.expiry.secs:86400}")
+    private int presignedUrlExpirySecs;
+
+    @Value("${egov.enc.host:}")
+    private String encHost;
+
+    @Value("${egov.enc.decrypt.endpoint:/egov-enc-service/crypto/v1/_decrypt}")
+    private String encDecryptEndpoint;
+
+    @Value("${egov.downsync.stale.threshold.hours:8}")
+    private int downsyncStaleThresholdHours;
+
 }
