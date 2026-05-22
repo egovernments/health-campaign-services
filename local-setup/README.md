@@ -10,11 +10,11 @@ This guide is written for someone who has **never set up a developer environment
 
 ### Hardware (your machine)
 
-| | Minimum | Recommended |
-|---|---|---|
-| **Free RAM** for Docker | **12 GB** | 16 GB |
-| **Free disk space** | **20 GB** | 30 GB |
-| Internet | Required for the first run (~16 GB of downloads) | — |
+| | Required |
+|---|---|
+| **Free RAM** for Docker | **12 GB** |
+| **Free disk space** | **20 GB** |
+| Internet | Required for the first run (~16 GB of downloads) |
 
 > Why 12 GB? The full stack idles at about **5.9 GB of RAM** across 45 containers, and briefly peaks at about **10 GB** when the admin UI loads for the first time. 12 GB leaves comfortable headroom for your operating system and browser.
 
