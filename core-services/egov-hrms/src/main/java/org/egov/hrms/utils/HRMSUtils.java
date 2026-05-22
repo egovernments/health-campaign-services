@@ -24,6 +24,12 @@ public class HRMSUtils {
 	@Value("${egov.pwd.allowed.special.characters}")
 	private String allowedPasswordSpecialCharacters;
 
+	@Value("${egov.hrms.mobile.number.default.min}")
+	private Long defaultMobileNumberMin;
+
+	@Value("${egov.hrms.mobile.number.default.max}")
+	private Long defaultMobileNumberMax;
+
 	@Autowired
 	private MDMSService mdmsService;
 	
@@ -77,46 +83,57 @@ public class HRMSUtils {
 		// Fetch mobile pattern from MDMS
 		String pattern = mdmsService.fetchMobileNumberPattern(requestInfo, tenantId);
 
-		// Default values
-		long min = 6000000000L;
-		long max = 9999999999L;
-
 		try {
-			// If pattern exists, parse it and generate number based on pattern
-			if (pattern != null && pattern.matches("\\^\\[\\d+-\\d+\\]\\[0-9\\]\\{\\d+\\}\\$")) {
-				// Extract first digit range (e.g., from "^[6-9][0-9]{9}$" extract 6-9)
-				int startIdx = pattern.indexOf('[');
-				int endIdx = pattern.indexOf(']');
-				String firstDigitRange = pattern.substring(startIdx + 1, endIdx);
-				String[] range = firstDigitRange.split("-");
-				int minFirstDigit = Integer.parseInt(range[0]);
-				int maxFirstDigit = Integer.parseInt(range[1]);
-
-				// Extract remaining digits count (e.g., from {9} extract 9)
-				int braceStart = pattern.indexOf('{');
-				int braceEnd = pattern.indexOf('}');
-				String digitCountStr = pattern.substring(braceStart + 1, braceEnd);
-				int remainingDigits = Integer.parseInt(digitCountStr);
-
-				// Generate first digit
-				int firstDigit = minFirstDigit + random.nextInt(maxFirstDigit - minFirstDigit + 1);
-
-				// Generate remaining digits
-				StringBuilder mobileNumber = new StringBuilder();
-				mobileNumber.append(firstDigit);
-
-				for (int i = 0; i < remainingDigits; i++) {
-					mobileNumber.append(random.nextInt(10));
-				}
-
-				return mobileNumber.toString();
+			String generatedNumber = generateNumberFromPattern(pattern, random);
+			if (generatedNumber != null) {
+				return generatedNumber;
 			}
 		} catch (Exception e) {
 			log.warn("Failed to parse mobile pattern: " + pattern + ". Using default generation.", e);
 		}
 
 		// Default generation if pattern is not available or parsing fails
-		long mobileNumber = Math.abs(random.nextLong() % (max - min + 1)) + min;
+		long mobileNumber = Math.abs(random.nextLong() % (defaultMobileNumberMax - defaultMobileNumberMin + 1)) + defaultMobileNumberMin;
 		return Long.toString(mobileNumber);
+	}
+
+	/**
+	 * Generates a mobile number based on the provided pattern.
+	 *
+	 * @param pattern The pattern to use for generating the mobile number
+	 * @param random  The Random instance to use for generation
+	 * @return The generated mobile number string, or null if pattern is invalid
+	 */
+	private String generateNumberFromPattern(String pattern, Random random) {
+		// If pattern exists, parse it and generate number based on pattern
+		if (pattern != null && pattern.matches("\\^\\[\\d+-\\d+\\]\\[0-9\\]\\{\\d+\\}\\$")) {
+			// Extract first digit range (e.g., from "^[6-9][0-9]{9}$" extract 6-9)
+			int startIdx = pattern.indexOf('[');
+			int endIdx = pattern.indexOf(']');
+			String firstDigitRange = pattern.substring(startIdx + 1, endIdx);
+			String[] range = firstDigitRange.split("-");
+			int minFirstDigit = Integer.parseInt(range[0]);
+			int maxFirstDigit = Integer.parseInt(range[1]);
+
+			// Extract remaining digits count (e.g., from {9} extract 9)
+			int braceStart = pattern.indexOf('{');
+			int braceEnd = pattern.indexOf('}');
+			String digitCountStr = pattern.substring(braceStart + 1, braceEnd);
+			int remainingDigits = Integer.parseInt(digitCountStr);
+
+			// Generate first digit
+			int firstDigit = minFirstDigit + random.nextInt(maxFirstDigit - minFirstDigit + 1);
+
+			// Generate remaining digits
+			StringBuilder mobileNumber = new StringBuilder();
+			mobileNumber.append(firstDigit);
+
+			for (int i = 0; i < remainingDigits; i++) {
+				mobileNumber.append(random.nextInt(10));
+			}
+
+			return mobileNumber.toString();
+		}
+		return null;
 	}
 }

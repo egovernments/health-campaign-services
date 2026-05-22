@@ -170,11 +170,11 @@ public class MDMSService {
 			// Create MDMS request for UserValidation
 			List<ModuleDetail> moduleDetails = new ArrayList<>();
 			ModuleDetail moduleDetail = new ModuleDetail();
-			moduleDetail.setModuleName("common-masters");
+			moduleDetail.setModuleName(HRMSConstants.HRMS_MDMS_COMMON_MASTERS_CODE);
 
 			List<MasterDetail> masterDetails = new ArrayList<>();
 			MasterDetail masterDetail = MasterDetail.builder()
-					.name("UserValidation")
+					.name(HRMSConstants.HRMS_MDMS_USER_VALIDATION_CODE)
 					.filter("[?(@.fieldType == 'mobile')]")
 					.build();
 			masterDetails.add(masterDetail);
@@ -196,17 +196,17 @@ public class MDMSService {
 
 			// Extract pattern from response
 			if (response != null && response.getMdmsRes() != null) {
-				Object commonMastersObj = response.getMdmsRes().get("common-masters");
+				Object commonMastersObj = response.getMdmsRes().get(HRMSConstants.HRMS_MDMS_COMMON_MASTERS_CODE);
 				if (commonMastersObj != null) {
 					Map<String, Object> commonMasters = (Map<String, Object>) commonMastersObj;
-					Object userValidationObj = commonMasters.get("UserValidation");
+					Object userValidationObj = commonMasters.get(HRMSConstants.HRMS_MDMS_USER_VALIDATION_CODE);
 					if (userValidationObj != null && userValidationObj instanceof List) {
 						List<Map<String, Object>> userValidations = (List<Map<String, Object>>) userValidationObj;
 						if (!userValidations.isEmpty()) {
 							Map<String, Object> userValidation = userValidations.get(0);
-							Map<String, Object> rules = (Map<String, Object>) userValidation.get("rules");
+							Map<String, Object> rules = (Map<String, Object>) userValidation.get(HRMSConstants.HRMS_MDMS_RULES_KEY);
 							if (rules != null) {
-								return (String) rules.get("pattern");
+								return (String) rules.get(HRMSConstants.HRMS_MDMS_PATTERN_KEY);
 							}
 						}
 					}
