@@ -105,9 +105,11 @@ public class EnrichmentService {
      */
     public void enrichSearchRequest(RequestInfo requestInfo, RequestSearchCriteria criteria){
 
-        if(criteria.isEmpty() && requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_CITIZEN)){
-            String citizenMobileNumber = requestInfo.getUserInfo().getUserName();
-            criteria.setMobileNumber(citizenMobileNumber);
+        if(criteria.isEmpty()
+                && (requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_CITIZEN)
+                || requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_EMPLOYEE))){
+            String userMobileNumber = requestInfo.getUserInfo().getUserName();
+            criteria.setMobileNumber(userMobileNumber);
         }
 
         criteria.setAccountId(requestInfo.getUserInfo().getUuid());
