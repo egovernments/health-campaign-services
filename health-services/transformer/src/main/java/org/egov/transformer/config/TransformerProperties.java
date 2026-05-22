@@ -86,4 +86,19 @@ public class TransformerProperties {
     @Value("${egov.boundary.hierarchy.name}")
     private String boundaryHierarchyName;
 
+    @Value("${egov.elastic.search.host.name}")
+    private String esHostName;
+
+    @Value("${egov.elastic.search.port.no}")
+    private String esPortNo;
+
+    @Value("${egov.elastic.search.username}")
+    private String esUsername;
+
+    @Value("${egov.elastic.search.password}")
+    private String esPassword;
+
+    @Value("${project.staff.index.name}")
+    private String projectStaffIndexName;
+
 }
