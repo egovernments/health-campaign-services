@@ -3,6 +3,7 @@ package org.egov.transformer.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.egov.transformer.Constants;
 import org.egov.transformer.service.ElasticsearchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,8 +23,8 @@ public class UserStatusChangeConsumer {
 
     private static final String USER_UUID_KEY = "userUuid";
     private static final String TENANT_ID_KEY = "tenantId";
-    private static final String ACTIVE_KEY = "active";
-    private static final String EFFECTIVE_DATE_KEY = "effectiveDate";
+    private static final String ACTIVE_KEY = Constants.ES_FIELD_ACTIVE;
+    private static final String EFFECTIVE_DATE_KEY = Constants.ES_FIELD_EFFECTIVE_DATE;
 
     @Autowired
     public UserStatusChangeConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
