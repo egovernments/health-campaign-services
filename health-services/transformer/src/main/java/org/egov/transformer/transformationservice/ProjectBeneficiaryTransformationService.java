@@ -97,7 +97,7 @@ public class ProjectBeneficiaryTransformationService {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, beneficiary.getTenantId());
         }
         else {
-            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(String.valueOf(boundaryCode), beneficiary.getTenantId());
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode.asText(), beneficiary.getTenantId());
         }
 
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchy() : null;
