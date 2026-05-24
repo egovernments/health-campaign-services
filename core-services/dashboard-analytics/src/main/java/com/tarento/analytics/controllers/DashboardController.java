@@ -57,6 +57,9 @@ public class DashboardController {
 	@Autowired
 	private ClientServiceFactory clientServiceFactory;
 
+	@Autowired
+	private com.tarento.analytics.ConfigurationLoader configurationLoader;
+
 	@RequestMapping(value = PathRoutes.DashboardApi.FILE_PATH, method = RequestMethod.POST)
 	public Map<String, String> uploadFile(@RequestPart(value = "file") MultipartFile file)
 	{
@@ -163,7 +166,14 @@ public class DashboardController {
 				requestInfo.setModuleLevel(Constants.Modules.HOME_REVENUE);
 			}
 
-				Object responseData = clientServiceFactory.get(requestInfo.getVisualizationCode()).getAggregatedData(requestInfo, user.getRoles());
+			String tenantId = (String) headers.get("tenantId");
+			com.tarento.analytics.ConfigurationLoader.setCurrentTenant(tenantId);
+			Object responseData;
+			try {
+				responseData = clientServiceFactory.get(requestInfo.getVisualizationCode()).getAggregatedData(requestInfo, user.getRoles());
+			} finally {
+				com.tarento.analytics.ConfigurationLoader.clearCurrentTenant();
+			}
 			response = ResponseGenerator.successResponse(responseData);
 
 		} catch (AINException e) {

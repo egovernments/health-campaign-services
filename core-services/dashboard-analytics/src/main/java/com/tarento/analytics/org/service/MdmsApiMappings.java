@@ -72,9 +72,17 @@ public class MdmsApiMappings {
      */
 
     private Map<String, String> getMappings() {
-        ObjectNode objectNode = configurationLoader.get(MDMS_CITY_NAME_CONFIG_FILE_NAME);
-        ArrayNode objectArrayNode = (ArrayNode) objectNode.get("ulbCityNamesMappings");
         Map<String, String> ulbCityNamesMappings = new HashMap<String, String>();
+        ObjectNode objectNode = configurationLoader.get(MDMS_CITY_NAME_CONFIG_FILE_NAME);
+        if (objectNode == null) {
+            logger.warn("{} not found in config — ulbCityNamesMappings will be empty", MDMS_CITY_NAME_CONFIG_FILE_NAME);
+            return ulbCityNamesMappings;
+        }
+        ArrayNode objectArrayNode = (ArrayNode) objectNode.get("ulbCityNamesMappings");
+        if (objectArrayNode == null) {
+            logger.warn("'ulbCityNamesMappings' key missing in {} — returning empty map", MDMS_CITY_NAME_CONFIG_FILE_NAME);
+            return ulbCityNamesMappings;
+        }
         for (JsonNode node : objectArrayNode) {
             ulbCityNamesMappings.put(node.get("tenantCode").asText(), node.get("tenantValue").asText());
         }
