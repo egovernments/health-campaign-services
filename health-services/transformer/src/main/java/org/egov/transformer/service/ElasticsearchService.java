@@ -41,7 +41,7 @@ public class ElasticsearchService {
      * @return ES base URL (e.g., http://localhost:9200)
      */
     private String getESBaseUrl() {
-        return "https://"+ properties.getEsHostName() + ":" + properties.getEsPortNo();
+        return "http://"+ properties.getEsHostName() + ":" + properties.getEsPortNo();
     }
 
     /**
