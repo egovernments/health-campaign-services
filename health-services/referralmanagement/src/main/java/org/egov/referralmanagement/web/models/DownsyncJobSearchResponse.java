@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.web.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,6 +12,7 @@ import org.egov.common.contract.response.ResponseInfo;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DownsyncJobSearchResponse {
+    @JsonProperty("ResponseInfo")
     private ResponseInfo responseInfo;
     private DownsyncJobDetail job;
 }
