@@ -1478,10 +1478,7 @@ async function processUsersSimple(
     tenantId: string
 ): Promise<number> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
-    // Use the mandatory boundary key — this is what validation, transforms, and
-    // downstream mapping logic all read.  The non-mandatory _BOUNDARY_CODE key
-    // is an alias that only exists on some sheet layouts.
-    const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY';
+    const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_USER_USAGE';
     
     // Step 1: Get existing users from current campaign
