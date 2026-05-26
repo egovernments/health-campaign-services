@@ -70,7 +70,6 @@ public class ElasticsearchService {
             String indexName = properties.getProjectStaffIndexName();
             log.info("Updating user status in Elasticsearch for userUuid: {}, index: {}, active: {}",
                     userUuid, indexName, active);
-            log.info("ES URL = {}", getESBaseUrl());
 
             String updateByQueryUrl = String.format("%s/%s/_update_by_query",
                     getESBaseUrl(),
