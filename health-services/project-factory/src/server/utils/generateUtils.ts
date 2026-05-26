@@ -36,40 +36,231 @@ function isCampaignTypeSame(request: any) {
     return _.isEqual(existingCampaignType, currentCampaignType);
 }
 
-export async function callExcelIngestionService(requestBody: any, referenceIdOverride?: string, referenceTypeOverride?: string, typeOverride?: string, additionalDetailsOverride?: Record<string, any>) {
-    try {
-        const campaignDetails = requestBody?.CampaignDetails;
-        const tenantId = campaignDetails?.tenantId;
-        const campaignId = campaignDetails?.id;
-        const hierarchyType = campaignDetails?.hierarchyType;
-        const excelIngestionUrl = config.host.excelIngestionHost + config.paths.excelIngestionGenerate;
+/**
+ * Checks the generation status by polling the Excel ingestion search API
+ * @param requestBody - Request body containing campaign details
+ * @param generationId - The specific generation ID to check status for
+ * @param generationType - The type of generation (e.g., 'unified-console')
+ * @param timeout - Maximum time to wait for generation completion in milliseconds
+ * @param pollingInterval - Time between status checks in milliseconds
+ * @returns 'completed' | 'failed' | 'timeout' - the final status
+ */
+async function checkGenerationStatus(
+    requestBody: any,
+    generationId: string,
+    generationType: string,
+    timeout: number,
+    pollingInterval: number
+): Promise<'completed' | 'failed' | 'timeout'> {
+    const startTime = Date.now();
+    const campaignDetails = requestBody?.CampaignDetails;
+    const campaignId = campaignDetails?.id;
+    const tenantId = campaignDetails?.tenantId;
 
-        const generateResource = {
-            tenantId: tenantId,
-            type: typeOverride || 'unified-console',
-            hierarchyType: hierarchyType,
-            locale: getLocaleFromRequestInfo (requestBody?.RequestInfo),
-            referenceId: referenceIdOverride || campaignId,
-            referenceType: referenceTypeOverride || 'campaign',
-            additionalDetails: additionalDetailsOverride || {}
-        };
+    while (Date.now() - startTime < timeout) {
+        try {
+            const excelIngestionSearchUrl = config.host.excelIngestionHost + config.paths.excelIngestionGenerateSearch;
+            const searchRequest = {
+                RequestInfo: requestBody?.RequestInfo,
+                GenerationSearchCriteria: {
+                    tenantId: tenantId,
+                    ids: [generationId],
+                    referenceTypes: ['campaign'],
+                    limit: 5,
+                    offset: 0
+                }
+            };
 
-        const requestBodyToCallGenerate = {
-            RequestInfo: requestBody?.RequestInfo,
-            GenerateResource: generateResource
-        };
+            const response = await httpRequest(
+                excelIngestionSearchUrl,
+                searchRequest,
+                undefined,
+                'post',
+                undefined
+            );
 
-        await httpRequest(
-            excelIngestionUrl,
-            requestBodyToCallGenerate,
-            undefined,
-            'post',
-            undefined
-        );
-        logger.info(`Successfully called excel-ingestion generate API for campaign ${campaignId}`);
-    } catch (error: any) {
-        logger.error(`Error calling excel-ingestion generate API: ${error.message}`);
-        // Decide if we want to throw the error or just log it
+            const generationDetails = response?.GenerationDetails || [];
+            const targetGeneration = generationDetails.find((g: any) =>
+                g.id === generationId &&
+                g.tenantId === tenantId &&
+                g.referenceId === campaignId &&
+                g.type === generationType
+            );
+
+            if (targetGeneration) {
+                const status = targetGeneration.status?.toLowerCase();
+                logger.info(`Excel generation status for ID ${generationId} (campaign ${campaignId}): ${status}`);
+
+                if (status === 'completed') {
+                    logger.info(`Excel generation completed successfully for ID ${generationId} (campaign ${campaignId})`);
+                    if (targetGeneration.fileStoreId) {
+                        logger.info(`Generated file stored with ID: ${targetGeneration.fileStoreId}`);
+                    }
+                    return 'completed';
+                } else if (status === 'failed' || status === 'error') {
+                    logger.error(`Excel generation failed for ID ${generationId} (campaign ${campaignId}) with status: ${status}`);
+                    return 'failed';
+                }
+                // Status is pending or in-progress, continue polling
+                logger.debug(`Generation ${generationId} is still in progress with status: ${status}`);
+            } else {
+                logger.debug(`Generation ${generationId} not found in response, continuing to poll...`);
+            }
+
+            // Wait before next polling attempt
+            await new Promise(resolve => setTimeout(resolve, pollingInterval));
+
+        } catch (error: any) {
+            logger.error(`Error checking generation status for ID ${generationId}: ${error.message}`);
+            // Continue polling on error
+            await new Promise(resolve => setTimeout(resolve, pollingInterval));
+        }
+    }
+
+    logger.error(`Excel generation timed out after ${timeout}ms for ID ${generationId} (campaign ${campaignId})`);
+    return 'timeout';
+}
+
+/**
+ * Initiates Excel generation with the Excel ingestion service
+ * @returns Object containing generation ID and type from the response
+ */
+async function initiateExcelGeneration(
+    requestBody: any,
+    referenceIdOverride?: string,
+    referenceTypeOverride?: string,
+    typeOverride?: string,
+    additionalDetailsOverride?: Record<string, any>
+): Promise<{ generationId: string; type: string }> {
+    const campaignDetails = requestBody?.CampaignDetails;
+    const tenantId = campaignDetails?.tenantId;
+    const campaignId = campaignDetails?.id;
+    const hierarchyType = campaignDetails?.hierarchyType;
+    const excelIngestionUrl = config.host.excelIngestionHost + config.paths.excelIngestionGenerate;
+
+    const generationType = typeOverride || 'unified-console';
+    const generateResource = {
+        tenantId: tenantId,
+        type: generationType,
+        hierarchyType: hierarchyType,
+        locale: getLocaleFromRequestInfo(requestBody?.RequestInfo),
+        referenceId: referenceIdOverride || campaignId,
+        referenceType: referenceTypeOverride || 'campaign',
+        additionalDetails: additionalDetailsOverride || {}
+    };
+
+    const requestBodyToCallGenerate = {
+        RequestInfo: requestBody?.RequestInfo,
+        GenerateResource: generateResource
+    };
+
+    const response = await httpRequest(
+        excelIngestionUrl,
+        requestBodyToCallGenerate,
+        undefined,
+        'post',
+        undefined
+    );
+
+    const generationResource = response?.GenerateResource;
+    const generationId = generationResource?.id;
+
+    if (!generationId) {
+        throw new Error(`No generation ID received from Excel ingestion service for campaign ${campaignId}`);
+    }
+
+    logger.info(`Successfully initiated excel-ingestion generate API for campaign ${campaignId}`);
+    logger.info(`Generation details - ID: ${generationId}, Type: ${generationType}, Status: ${generationResource?.status}`);
+
+    return {
+        generationId,
+        type: generationType
+    };
+}
+
+/**
+ * Calls Excel ingestion service with timeout and retry logic
+ */
+export async function callExcelIngestionService(
+    requestBody: any,
+    referenceIdOverride?: string,
+    referenceTypeOverride?: string,
+    typeOverride?: string,
+    additionalDetailsOverride?: Record<string, any>
+) {
+    const campaignId = requestBody?.CampaignDetails?.id;
+    const { generationTimeout, pollingInterval, maxRetries } = config.excelIngestionConfig;
+
+    let retryCount = 0;
+    let generationCompleted = false;
+
+    while (retryCount <= maxRetries && !generationCompleted) {
+        try {
+            if (retryCount > 0) {
+                logger.info(`Retry attempt ${retryCount}/${maxRetries} for Excel generation of campaign ${campaignId}`);
+            }
+
+            // Initiate the generation and get the generation ID and type
+            const { generationId, type } = await initiateExcelGeneration(
+                requestBody,
+                referenceIdOverride,
+                referenceTypeOverride,
+                typeOverride,
+                additionalDetailsOverride
+            );
+
+            // Check generation status with polling using the specific generation ID
+            const status = await checkGenerationStatus(
+                requestBody,
+                generationId,
+                type,
+                generationTimeout,
+                pollingInterval
+            );
+
+            if (status === 'completed') {
+                logger.info(`Excel generation completed successfully for campaign ${campaignId}, generation ID: ${generationId}`);
+                generationCompleted = true;
+                return;
+            } else if (status === 'failed') {
+                // Generation failed - immediately retry if attempts remaining
+                logger.warn(`Excel generation failed for generation ID ${generationId} (campaign ${campaignId})`);
+                if (retryCount < maxRetries) {
+                    logger.info(`Immediately retrying Excel generation for campaign ${campaignId}...`);
+                    // Small delay before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } else {
+                    throw new Error(`Excel generation failed for campaign ${campaignId} after ${retryCount + 1} attempts`);
+                }
+            } else if (status === 'timeout') {
+                // Generation timed out - retry if attempts remaining
+                logger.warn(`Excel generation timed out for generation ID ${generationId} (campaign ${campaignId})`);
+                if (retryCount < maxRetries) {
+                    logger.info(`Retrying Excel generation for campaign ${campaignId} after timeout...`);
+                    // Small delay before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } else {
+                    throw new Error(`Excel generation timed out for campaign ${campaignId} after ${retryCount + 1} attempts`);
+                }
+            }
+
+        } catch (error: any) {
+            logger.error(`Error in Excel generation attempt ${retryCount + 1} for campaign ${campaignId}: ${error.message}`);
+
+            if (retryCount < maxRetries) {
+                logger.info(`Retrying after error for campaign ${campaignId}...`);
+                // Small delay before retry
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            } else {
+                throw new Error(`Excel generation failed after ${maxRetries + 1} attempts for campaign ${campaignId}: ${error.message}`);
+            }
+        }
+
+        retryCount++;
+    }
+
+    if (!generationCompleted) {
+        throw new Error(`Excel generation failed to complete after ${maxRetries + 1} attempts for campaign ${campaignId}`);
     }
 }
 
