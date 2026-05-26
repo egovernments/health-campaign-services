@@ -2,7 +2,6 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
-import org.egov.excelingestion.cache.GenerationCacheService;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
@@ -21,9 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -34,29 +31,25 @@ public class GenerationService {
     private final ExcelGenerationValidationService validationService;
     private final RequestInfoConverter requestInfoConverter;
     private final KafkaTopicConfig kafkaTopicConfig;
-    private final GenerationCacheService generationCacheService;
 
     public GenerationService(GeneratedFileRepository generatedFileRepository,
                              Producer producer,
                              ExcelGenerationValidationService validationService,
                              RequestInfoConverter requestInfoConverter,
-                             KafkaTopicConfig kafkaTopicConfig,
-                             GenerationCacheService generationCacheService) {
+                             KafkaTopicConfig kafkaTopicConfig) {
         this.generatedFileRepository = generatedFileRepository;
         this.producer = producer;
         this.validationService = validationService;
         this.requestInfoConverter = requestInfoConverter;
         this.kafkaTopicConfig = kafkaTopicConfig;
-        this.generationCacheService = generationCacheService;
     }
 
     /**
-     * Init is now strictly async:
+     * Init is strictly async:
      *  - validate synchronously (so bad requests get an immediate 4xx)
      *  - expire ALL prior non-expired records for (tenantId, referenceId, type) - this
      *    is what implements the "retry invalidates old rows" requirement
      *  - publish save event with status = QUEUED so the persister creates the row
-     *  - invalidate the by-reference Redis cache so the next search rehydrates
      *  - publish the GenerateResourceRequest to the init Kafka topic; the in-process
      *    consumer (single poll, manual ack) drives the actual generation
      */
@@ -102,10 +95,6 @@ public class GenerationService {
                     kafkaTopicConfig.getGenerationSaveTopic(),
                     generateResource);
 
-            // Cache becomes stale the moment we write a new save event - drop it so the
-            // next search picks up the just-queued row.
-            generationCacheService.invalidate(generateResource.getTenantId(), generateResource.getReferenceId());
-
             // Hand off to the async consumer. The HTTP call returns as soon as this push
             // succeeds; no work happens on the request thread.
             GenerateResourceRequest initEvent = GenerateResourceRequest.builder()
@@ -147,11 +136,10 @@ public class GenerationService {
                 criteria.setLocale(locale);
             }
 
-            List<GenerateResource> results = searchWithCache(criteria);
-            int totalCount = results.size();
-
-            // Apply pagination after cache-aware fetch so cached list stays whole.
-            List<GenerateResource> page = paginate(results, criteria.getOffset(), criteria.getLimit());
+            List<GenerateResource> dbResults = generatedFileRepository.search(criteria);
+            List<GenerateResource> sorted = sortByLastModifiedDesc(dbResults);
+            int totalCount = sorted.size();
+            List<GenerateResource> page = paginate(sorted, criteria.getOffset(), criteria.getLimit());
 
             ResponseInfo responseInfo = ResponseInfo.builder()
                     .apiId(request.getRequestInfo().getApiId())
@@ -173,68 +161,6 @@ public class GenerationService {
             log.error("Error searching generations: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to search generations", e);
         }
-    }
-
-    /**
-     * Cache-aware search. We only consult Redis for the common project-factory
-     * pattern (search by a single tenant+referenceId), because that's the access
-     * pattern that benefits from per-reference invalidation. All other criteria
-     * fall through to the DB - simpler and safe.
-     */
-    private List<GenerateResource> searchWithCache(GenerationSearchCriteria criteria) throws InvalidTenantIdException {
-        boolean cacheable = isSingleReferenceLookup(criteria);
-        String tenantId = criteria.getTenantId();
-        String referenceId = cacheable ? criteria.getReferenceIds().get(0) : null;
-
-        if (cacheable) {
-            List<GenerateResource> cached = generationCacheService.getByReference(tenantId, referenceId);
-            if (cached != null) {
-                log.debug("Generation search cache HIT for tenantId={} referenceId={}", tenantId, referenceId);
-                return filterAndSort(cached, criteria);
-            }
-            log.debug("Generation search cache MISS for tenantId={} referenceId={}", tenantId, referenceId);
-        }
-
-        // Hit DB without pagination/sort filters so we can populate the by-ref cache
-        // with the full live set. The DB query already orders by createdTime DESC.
-        GenerationSearchCriteria fetchCriteria = criteria;
-        if (cacheable) {
-            fetchCriteria = GenerationSearchCriteria.builder()
-                    .tenantId(tenantId)
-                    .referenceIds(criteria.getReferenceIds())
-                    .build();
-        }
-        List<GenerateResource> dbResults = generatedFileRepository.search(fetchCriteria);
-
-        if (cacheable) {
-            generationCacheService.putByReference(tenantId, referenceId, dbResults);
-            return filterAndSort(dbResults, criteria);
-        }
-        return sortByLastModifiedDesc(dbResults);
-    }
-
-    private boolean isSingleReferenceLookup(GenerationSearchCriteria criteria) {
-        return criteria.getTenantId() != null
-                && criteria.getReferenceIds() != null
-                && criteria.getReferenceIds().size() == 1
-                && (criteria.getIds() == null || criteria.getIds().isEmpty())
-                && (criteria.getAdditionalDetails() == null || criteria.getAdditionalDetails().isEmpty());
-    }
-
-    private List<GenerateResource> filterAndSort(List<GenerateResource> records, GenerationSearchCriteria criteria) {
-        Set<String> types = criteria.getTypes() == null ? null : new java.util.HashSet<>(criteria.getTypes());
-        Set<String> statuses = criteria.getStatuses() == null ? null : new java.util.HashSet<>(criteria.getStatuses());
-        Set<String> referenceTypes = criteria.getReferenceTypes() == null ? null : new java.util.HashSet<>(criteria.getReferenceTypes());
-        String locale = criteria.getLocale();
-
-        List<GenerateResource> filtered = records.stream()
-                .filter(r -> types == null || (r.getType() != null && types.contains(r.getType())))
-                .filter(r -> statuses == null || (r.getStatus() != null && statuses.contains(r.getStatus())))
-                .filter(r -> referenceTypes == null || (r.getReferenceType() != null && referenceTypes.contains(r.getReferenceType())))
-                .filter(r -> locale == null || locale.isEmpty() || locale.equals(r.getLocale()))
-                .collect(Collectors.toList());
-
-        return sortByLastModifiedDesc(filtered);
     }
 
     private List<GenerateResource> sortByLastModifiedDesc(List<GenerateResource> records) {
@@ -309,8 +235,6 @@ public class GenerationService {
                 producer.push(tenantId, kafkaTopicConfig.getGenerationUpdateTopic(), record);
                 log.info("Expired generation record id={}", record.getId());
             }
-
-            generationCacheService.invalidate(tenantId, referenceId);
         } catch (Exception e) {
             // Expiring prior records is best-effort; a new run is still safe to proceed.
             log.error("Error expiring previous records: {}", e.getMessage(), e);

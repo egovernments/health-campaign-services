@@ -164,12 +164,6 @@
         <artifactId>spring-boot-starter-cache</artifactId>
     </dependency>
 
-    <!-- Spring Data Redis (for generation status cache) -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-redis</artifactId>
-    </dependency>
-
     <!-- Caffeine Cache -->
     <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>

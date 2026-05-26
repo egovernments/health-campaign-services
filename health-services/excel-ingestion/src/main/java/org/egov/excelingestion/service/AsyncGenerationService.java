@@ -1,7 +1,6 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.excelingestion.cache.GenerationCacheService;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.util.EnrichmentUtil;
@@ -29,18 +28,15 @@ public class AsyncGenerationService {
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
     private final EnrichmentUtil enrichmentUtil;
-    private final GenerationCacheService generationCacheService;
 
     public AsyncGenerationService(ExcelWorkflowService excelWorkflowService,
                                   Producer producer,
                                   KafkaTopicConfig kafkaTopicConfig,
-                                  EnrichmentUtil enrichmentUtil,
-                                  GenerationCacheService generationCacheService) {
+                                  EnrichmentUtil enrichmentUtil) {
         this.excelWorkflowService = excelWorkflowService;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
         this.enrichmentUtil = enrichmentUtil;
-        this.generationCacheService = generationCacheService;
     }
 
     public void processGeneration(GenerateResource generateResource, RequestInfo requestInfo) {
@@ -66,7 +62,6 @@ public class AsyncGenerationService {
 
             stampAudit(generateResource, requestInfo);
             publishUpdate(generateResource);
-            generationCacheService.invalidate(generateResource.getTenantId(), generateResource.getReferenceId());
             log.info("Generation completed successfully for id: {}", generateResource.getId());
         } catch (Exception e) {
             log.error("Error during generation for id: {}", generateResource.getId(), e);
@@ -78,7 +73,6 @@ public class AsyncGenerationService {
 
             stampAudit(generateResource, requestInfo);
             publishUpdate(generateResource);
-            generationCacheService.invalidate(generateResource.getTenantId(), generateResource.getReferenceId());
         }
     }
 
@@ -86,7 +80,6 @@ public class AsyncGenerationService {
         generateResource.setStatus(GenerationConstants.STATUS_IN_PROGRESS);
         stampAudit(generateResource, requestInfo);
         publishUpdate(generateResource);
-        generationCacheService.invalidate(generateResource.getTenantId(), generateResource.getReferenceId());
         log.info("Marked generation id={} as IN_PROGRESS", generateResource.getId());
     }
 

@@ -1,7 +1,6 @@
 package org.egov.excelingestion.service;
 
 import org.egov.common.producer.Producer;
-import org.egov.excelingestion.cache.GenerationCacheService;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.util.EnrichmentUtil;
@@ -24,7 +23,6 @@ class AsyncGenerationServiceTest {
     @Mock private Producer producer;
     @Mock private KafkaTopicConfig kafkaTopicConfig;
     @Mock private EnrichmentUtil enrichmentUtil;
-    @Mock private GenerationCacheService generationCacheService;
 
     private AsyncGenerationService asyncGenerationService;
 
@@ -32,7 +30,7 @@ class AsyncGenerationServiceTest {
     void setUp() {
         when(kafkaTopicConfig.getGenerationUpdateTopic()).thenReturn("test-update-topic");
         asyncGenerationService = new AsyncGenerationService(
-                excelWorkflowService, producer, kafkaTopicConfig, enrichmentUtil, generationCacheService);
+                excelWorkflowService, producer, kafkaTopicConfig, enrichmentUtil);
     }
 
     @Test
@@ -54,7 +52,6 @@ class AsyncGenerationServiceTest {
             return GenerationConstants.STATUS_COMPLETED.equals(gr.getStatus())
                     && "file-store-id-123".equals(gr.getFileStoreId());
         }));
-        verify(generationCacheService, atLeastOnce()).invalidate(eq("dev"), any());
     }
 
     @Test
