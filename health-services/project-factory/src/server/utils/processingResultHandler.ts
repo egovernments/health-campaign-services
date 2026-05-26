@@ -275,7 +275,7 @@ export async function handleProcessingResult(messageObject: any) {
         if (totalRowsProcessed > 0) {
             logger.info(`=== WAITING FOR INGESTION PERSISTER: expecting ${totalRowsProcessed} rows ===`);
             await pollUntilCount(
-                () => searchSheetData(messageObject.tenantId, messageObject.referenceId, messageObject.fileStoreId, 5000),
+                () => searchSheetData(messageObject.tenantId, messageObject.referenceId, messageObject.fileStoreId, config.excelIngestionConfig.searchSheetProcessingRowLimit),
                 totalRowsProcessed,
                 { label: 'ingestion sheet data', timeoutMs: 180_000 }
             );
@@ -308,7 +308,7 @@ export async function handleProcessingResult(messageObject: any) {
                 messageObject.tenantId,
                 messageObject.referenceId,
                 messageObject.fileStoreId,
-                5000 // Increased limit for processing
+                config.excelIngestionConfig.searchSheetProcessingRowLimit // Using configurable row limit
             );
             
             if (tempData && tempData.length > 0) {
