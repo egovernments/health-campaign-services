@@ -87,7 +87,7 @@ public class IngestionController {
                 .hierarchyType(inputResource.getHierarchyType())
                 .referenceId(inputResource.getReferenceId())
                 .referenceType(inputResource.getReferenceType())
-                .status(GenerationConstants.STATUS_PENDING)
+                .status(GenerationConstants.STATUS_QUEUED)
                 .locale(locale)
                 .additionalDetails(inputResource.getAdditionalDetails())
                 .createdTime(System.currentTimeMillis())

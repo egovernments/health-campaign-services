@@ -1,6 +1,7 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.cache.GenerationCacheService;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.util.EnrichmentUtil;
@@ -8,11 +9,18 @@ import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
-import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+/**
+ * Performs the actual generation work. Invoked synchronously from the
+ * {@code GenerationInitConsumer} (which already enforces single-record polling
+ * + manual acknowledgement, so we don't need {@code @Async} here).
+ *
+ * Transitions emitted:
+ *   QUEUED  -> IN_PROGRESS  (just before the heavy work starts)
+ *   IN_PROGRESS -> COMPLETED (on success)
+ *   IN_PROGRESS -> FAILED    (on any throwable)
+ */
 @Service
 @Slf4j
 public class AsyncGenerationService {
@@ -21,80 +29,89 @@ public class AsyncGenerationService {
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
     private final EnrichmentUtil enrichmentUtil;
+    private final GenerationCacheService generationCacheService;
 
     public AsyncGenerationService(ExcelWorkflowService excelWorkflowService,
-                                Producer producer,
-                                KafkaTopicConfig kafkaTopicConfig,
-                                EnrichmentUtil enrichmentUtil) {
+                                  Producer producer,
+                                  KafkaTopicConfig kafkaTopicConfig,
+                                  EnrichmentUtil enrichmentUtil,
+                                  GenerationCacheService generationCacheService) {
         this.excelWorkflowService = excelWorkflowService;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
         this.enrichmentUtil = enrichmentUtil;
+        this.generationCacheService = generationCacheService;
     }
 
-    @Async("taskExecutor")
-    public void processGenerationAsync(GenerateResource generateResource, RequestInfo requestInfo) {
-        log.info("Starting async generation for id: {}", generateResource.getId());
-        
+    public void processGeneration(GenerateResource generateResource, RequestInfo requestInfo) {
+        log.info("Starting generation for id: {}", generateResource.getId());
+
+        markInProgress(generateResource, requestInfo);
+
         try {
-            // Note: Status remains PENDING during processing, no intermediate status update needed
-            
-            // Create the request object for the workflow service with passed RequestInfo
             GenerateResourceRequest request = GenerateResourceRequest.builder()
-                .generateResource(generateResource)
-                .requestInfo(requestInfo)
-                .build();
-            
-            // Call the actual generation service (this is the heavy operation)
-            // Note: Validations have already been done in GenerationService
+                    .generateResource(generateResource)
+                    .requestInfo(requestInfo)
+                    .build();
+
             GenerateResource processedResource = excelWorkflowService.generateAndUploadExcel(request);
-            
-            // Update with success status and fileStoreId via Kafka
+
             generateResource.setStatus(GenerationConstants.STATUS_COMPLETED);
             generateResource.setFileStoreId(processedResource.getFileStoreId());
-            
-            // Clear any error details from additionalDetails on success
+
             if (generateResource.getAdditionalDetails() != null) {
                 generateResource.getAdditionalDetails().remove("errorCode");
                 generateResource.getAdditionalDetails().remove("errorMessage");
             }
-            //Update audit details
-            if (generateResource.getAuditDetails() != null) {
-                generateResource.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
-                if (requestInfo != null && requestInfo.getUserInfo() != null) {
-                    generateResource.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
-                }
-            }
 
-            log.info("Pushing COMPLETED update to Kafka topic: {} - ID: {}, Status: {}, LastModifiedBy: {}",
-                    producer.getResolvedTopicName(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic()),
-                    generateResource.getId(), generateResource.getStatus(),
-                    generateResource.getAuditDetails() != null ? generateResource.getAuditDetails().getLastModifiedBy() : null);
-            producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic(), generateResource);
-            
-            log.info("Async generation completed successfully for id: {}", generateResource.getId());
-            
+            stampAudit(generateResource, requestInfo);
+            publishUpdate(generateResource);
+            generationCacheService.invalidate(generateResource.getTenantId(), generateResource.getReferenceId());
+            log.info("Generation completed successfully for id: {}", generateResource.getId());
         } catch (Exception e) {
-            log.error("Error during async generation for id: {}", generateResource.getId(), e);
-            
-            // Enrich additionalDetails with error code and error message (standardized approach)
+            log.error("Error during generation for id: {}", generateResource.getId(), e);
+
             enrichmentUtil.enrichErrorDetailsInAdditionalDetails(generateResource, e);
-            
-            // Update status to FAILED via Kafka
+
             generateResource.setStatus(GenerationConstants.STATUS_FAILED);
             generateResource.setFileStoreId(null);
-            if (generateResource.getAuditDetails() != null) {
-                generateResource.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
-                if (requestInfo != null && requestInfo.getUserInfo() != null) {
-                    generateResource.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
-                }
-            }
-            log.info("Pushing FAILED update to Kafka topic: {} - ID: {}, Status: {}, LastModifiedBy: {}",
-                    producer.getResolvedTopicName(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic()),
-                    generateResource.getId(), generateResource.getStatus(),
-                    generateResource.getAuditDetails() != null ? generateResource.getAuditDetails().getLastModifiedBy() : null);
-            producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic(), generateResource);
+
+            stampAudit(generateResource, requestInfo);
+            publishUpdate(generateResource);
+            generationCacheService.invalidate(generateResource.getTenantId(), generateResource.getReferenceId());
         }
     }
 
+    private void markInProgress(GenerateResource generateResource, RequestInfo requestInfo) {
+        generateResource.setStatus(GenerationConstants.STATUS_IN_PROGRESS);
+        stampAudit(generateResource, requestInfo);
+        publishUpdate(generateResource);
+        generationCacheService.invalidate(generateResource.getTenantId(), generateResource.getReferenceId());
+        log.info("Marked generation id={} as IN_PROGRESS", generateResource.getId());
+    }
+
+    private void stampAudit(GenerateResource generateResource, RequestInfo requestInfo) {
+        long now = System.currentTimeMillis();
+        generateResource.setLastModifiedTime(now);
+        if (generateResource.getAuditDetails() != null) {
+            generateResource.getAuditDetails().setLastModifiedTime(now);
+        }
+        if (requestInfo != null && requestInfo.getUserInfo() != null && requestInfo.getUserInfo().getUuid() != null) {
+            String userUuid = requestInfo.getUserInfo().getUuid();
+            generateResource.setLastModifiedBy(userUuid);
+            if (generateResource.getAuditDetails() != null) {
+                generateResource.getAuditDetails().setLastModifiedBy(userUuid);
+            }
+        }
+    }
+
+    private void publishUpdate(GenerateResource generateResource) {
+        log.info("Pushing {} update to Kafka topic: {} - ID: {}",
+                generateResource.getStatus(),
+                producer.getResolvedTopicName(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic()),
+                generateResource.getId());
+        producer.push(generateResource.getTenantId(),
+                kafkaTopicConfig.getGenerationUpdateTopic(),
+                generateResource);
+    }
 }
