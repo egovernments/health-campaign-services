@@ -360,6 +360,7 @@ export const errorCodes = {
     validationError: "VALIDATION_ERROR",
     processingFailed: "PROCESSING_FAILED",
     validationErrorUnifiedConsoleTemplate: "VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE",
+    hrmsPhoneReusedDifferentUser: "HRMS_PHONE_REUSED_DIFFERENT_USER",
 } as const;
 
 // Error worksheet name in credential xlsx

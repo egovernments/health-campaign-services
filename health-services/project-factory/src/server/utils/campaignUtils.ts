@@ -2557,6 +2557,43 @@ async function copyResourcesFromParentToChildInDB(
   return false;
 }
 
+/**
+ * Fetches the unified-console-resources filestoreId from the cloneFrom campaign and injects it
+ * into campaignDetails.resources so the clone can be processed as a unified template campaign.
+ * Returns true if a filestoreId was successfully borrowed, false otherwise.
+ */
+async function borrowUnifiedSheetFromCloneCampaign(campaignDetails: any): Promise<boolean> {
+  const cloneFromNumber = campaignDetails?.additionalDetails?.cloneFrom;
+  if (!cloneFromNumber) return false;
+
+  const resp = await searchProjectTypeCampaignService({ tenantId: campaignDetails.tenantId, campaignNumber: cloneFromNumber });
+  const cloneFromCampaign = resp?.CampaignDetails?.[0];
+  const cloneFromUnified = cloneFromCampaign?.resources?.find((r: any) => r?.type === resourceTypes.unifiedConsoleResources);
+
+  if (!cloneFromUnified?.filestoreId) {
+    logger.warn(`Clone source campaign ${cloneFromNumber} has no unified-console-resources; cannot borrow sheet`);
+    return false;
+  }
+
+  if (!Array.isArray(campaignDetails.resources)) {
+    campaignDetails.resources = [];
+  }
+  const existing = campaignDetails.resources.find((r: any) => r?.type === resourceTypes.unifiedConsoleResources);
+  if (existing) {
+    existing.filestoreId = cloneFromUnified.filestoreId;
+  } else {
+    campaignDetails.resources.push({
+      type: resourceTypes.unifiedConsoleResources,
+      filestoreId: cloneFromUnified.filestoreId,
+      filename: cloneFromUnified.filename || null,
+      additionalDetails: {},
+    });
+  }
+
+  logger.info(`Borrowed unified sheet from clone source ${cloneFromNumber}: filestoreId=${cloneFromUnified.filestoreId}`);
+  return true;
+}
+
 export async function processAfterPersistNew(request: any, actionInUrl: any) {
   try {
     if (request?.body?.CampaignDetails?.action == "create") {
@@ -2583,6 +2620,13 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
         }
       } else if (isUnfiedTemplateCamapign(campaignDetails)) {
         await processUnifiedTemplateCampaign(request);
+      } else if (campaignDetails?.additionalDetails?.cloneFrom) {
+        const borrowed = await borrowUnifiedSheetFromCloneCampaign(campaignDetails);
+        if (borrowed) {
+          await processUnifiedTemplateCampaign(request);
+        } else {
+          await processRegularCampaign(request);
+        }
       } else {
         await processRegularCampaign(request);
       }

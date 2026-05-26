@@ -1408,6 +1408,29 @@ async function processFacilityBoundaryMappings(
 }
 
 /**
+ * Returns true when the clone campaign has a newly uploaded sheet (filestoreId differs from the source campaign).
+ * Returns false when the borrowed sheet is reused (same filestoreId), allowing HRMS account reuse.
+ */
+async function isNewSheetUploadedForClone(campaignDetails: any, tenantId: string, currentFileStoreId: string): Promise<boolean> {
+    const cloneFromNumber = campaignDetails.additionalDetails.cloneFrom;
+    try {
+        const resp = await searchProjectTypeCampaignService({ tenantId, campaignNumber: cloneFromNumber });
+        const cloneFromCampaign = resp?.CampaignDetails?.[0];
+        const cloneFromUnified = cloneFromCampaign?.resources?.find((r: any) => r?.type === 'unified-console-resources');
+        if (!cloneFromUnified?.filestoreId) {
+            logger.warn(`Clone source campaign ${cloneFromNumber} has no unified-console-resources; treating as new sheet`);
+            return true;
+        }
+        const isNew = cloneFromUnified.filestoreId !== currentFileStoreId;
+        logger.info(`Clone campaign (cloneFrom=${cloneFromNumber}): isNewSheet=${isNew}`);
+        return isNew;
+    } catch (err) {
+        logger.warn(`Could not fetch cloneFrom campaign ${cloneFromNumber}; defaulting to skip reuse`, err);
+        return true;
+    }
+}
+
+/**
  * Process campaign users from excel data
  */
 async function processCampaignUsersFromExcelData(
@@ -1457,7 +1480,13 @@ async function processCampaignUsersFromExcelData(
 
         logger.info(`Processing ${phoneNumbers.length} unique phone numbers`);
 
-        const count = await processUsersSimple(userSheetData, phoneNumbers, campaignNumber, tenantId);
+        let skipOtherCampaignReuse = false;
+        const isCloneCampaign = !!campaignDetails?.additionalDetails?.cloneFrom && !campaignDetails?.parentId;
+        if (isCloneCampaign) {
+            skipOtherCampaignReuse = await isNewSheetUploadedForClone(campaignDetails, tenantId, fileStoreId);
+        }
+
+        const count = await processUsersSimple(userSheetData, phoneNumbers, campaignNumber, tenantId, skipOtherCampaignReuse);
 
         logger.info('=== CAMPAIGN USERS PROCESSING COMPLETED ===');
         return count;
@@ -1475,25 +1504,22 @@ async function processUsersSimple(
     userSheetData: any[],
     phoneNumbers: any[],
     campaignNumber: string,
-    tenantId: string
+    tenantId: string,
+    skipOtherCampaignReuse: boolean = false
 ): Promise<number> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
-    // Use the mandatory boundary key — this is what validation, transforms, and
-    // downstream mapping logic all read.  The non-mandatory _BOUNDARY_CODE key
-    // is an alias that only exists on some sheet layouts.
-    const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY';
+    const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_USER_USAGE';
-    
+
     // Step 1: Get existing users from current campaign
     const currentCampaignUsers = await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
     const currentUserMap = new Map(
         currentCampaignUsers.map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
     );
-    
-    // Step 2: Get completed users from other campaigns to reuse
-    const otherCampaignUsers = await getRelatedDataWithUniqueIdentifiers(
-        "user", phoneNumbers, tenantId, dataRowStatuses.completed
-    );
+
+    const otherCampaignUsers = skipOtherCampaignReuse
+        ? []
+        : await getRelatedDataWithUniqueIdentifiers("user", phoneNumbers, tenantId, dataRowStatuses.completed);
     const otherUserMap = new Map(
         otherCampaignUsers
             .filter((u: any) => u.campaignNumber !== campaignNumber)
@@ -1724,8 +1750,11 @@ async function triggerBackgroundResourceCreationFlow(
             logger.info(`With parent campaign: ${parentCampaign.campaignName}`);
         }
 
-        // Prepare DB setup synchronously
-        await prepareProcessesInDb(campaignNumber, tenantId, useruuid);
+        const excludeForUnifiedFlow = [
+            allProcesses.attendanceRegisterCreation,
+            allProcesses.attendanceRegisterAttendeeCreation,
+        ];
+        await prepareProcessesInDb(campaignNumber, tenantId, useruuid, excludeForUnifiedFlow);
         
         // Use setImmediate to run resource creation in background without blocking
         setImmediate(async () => {

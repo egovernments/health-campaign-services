@@ -4,7 +4,7 @@ import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign, getRelatedDataWithUniqueIdentifiers } from "../utils/genericUtils";
-import { dataRowStatuses, mappingStatuses, sheetDataRowStatuses, usageColumnStatus } from "../config/constants";
+import { dataRowStatuses, mappingStatuses, sheetDataRowStatuses, usageColumnStatus, campaignDataRowFields, userDataFields, userCredentialFields, errorCodes } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { DataTransformer } from "../utils/transFormUtil";
@@ -14,7 +14,7 @@ import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, searchWorkersByIds } from "../utils/workerRegistryUtils";
 import { validatePaymentFields } from "../utils/paymentValidationUtils";
-import type { CampaignRecord } from "../utils/userBatchHandler";
+import { fetchExistingUsersByPhone, normalizeNameForCompare, type CampaignRecord } from "../utils/userBatchHandler";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -492,14 +492,77 @@ export class TemplateClass {
         const userUuid = campaign?.auditDetails?.createdBy;
 
         const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber, resourceDetails?.tenantId);
-        const usersToCreate = allCurrentUsers?.filter(
+        const usersToCreate: any[] = (allCurrentUsers || []).filter(
             (user: any) =>
                 (user?.status === dataRowStatuses.pending || user?.status === dataRowStatuses.failed) &&
-                user?.data?.["#status#"] !== sheetDataRowStatuses.INVALID
+                user?.data?.[campaignDataRowFields.status] !== sheetDataRowStatuses.INVALID
         );
 
-        logger.info(`${usersToCreate?.length} users to create`);
-        const userRowDatas = usersToCreate?.map((u: any) => u?.data);
+        logger.info(`${usersToCreate.length} users to create (pre HRMS-idempotency check)`);
+        const requestInfo = resourceDetails?.requestInfo;
+        if (!requestInfo?.userInfo) {
+            throw new Error('RequestInfo with userInfo is required in resourceDetails for user transformation');
+        }
+
+        // HRMS idempotency pre-check (mirror of userBatchHandler retry semantics):
+        // for each row we're about to attempt, search Individual service by phone.
+        // If HRMS already has the user, mark the row completed and skip HRMS create.
+        // Detect phone-reused-for-different-user and treat HRMS as source of truth.
+        const phonesToCheck = usersToCreate
+            .map((u: any) => {
+                const raw = u?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
+                return raw != null ? String(raw) : '';
+            })
+            .filter((p: string) => !!p && p !== 'undefined');
+
+        const alreadyExistingMap = await fetchExistingUsersByPhone(phonesToCheck, tenantId, requestInfo);
+
+        const absorbedRecords: any[] = [];
+        const stillNeedCreate: any[] = [];
+        const retryCandidateCount = usersToCreate.filter((u: any) => u?.status === dataRowStatuses.failed).length;
+        for (const u of usersToCreate) {
+            const phone = String(u?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"] ?? '');
+            const existing = phone ? alreadyExistingMap[phone] : undefined;
+            if (!existing) {
+                stillNeedCreate.push(u);
+                continue;
+            }
+            const wasRetry = u?.status === dataRowStatuses.failed;
+            const sheetName = normalizeNameForCompare(u?.data?.[userDataFields.name]);
+            const hrmsName = normalizeNameForCompare(existing.existingName);
+
+            u.status = dataRowStatuses.completed;
+            u.data = {
+                ...u.data,
+                [userCredentialFields.userServiceUuids]: existing.serviceUuid,
+            };
+            u.uniqueIdAfterProcess = existing.serviceUuid;
+
+            if (sheetName && hrmsName && sheetName !== hrmsName) {
+                const reason = `${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS as '${existing.existingName}' but sheet provided '${u?.data?.[userDataFields.name] ?? ''}'. HRMS user kept as source of truth.`;
+                logger.warn(`Phone ${phone} → ${reason}`);
+                u.data[campaignDataRowFields.errorDetails] = reason;
+            } else {
+                logger.info(`Row for phone ${phone} already in HRMS (serviceUuid ${existing.serviceUuid}) — marking completed without create${wasRetry ? ' (retry=true)' : ''}`);
+            }
+            absorbedRecords.push(u);
+        }
+
+        logger.info(`HRMS pre-check (sync template path): absorbed ${absorbedRecords.length}, ${stillNeedCreate.length} need HRMS create, ${retryCandidateCount} of original input were retries of previously-failed rows`);
+
+        if (absorbedRecords.length > 0) {
+            await this.persistInBatches(absorbedRecords, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
+        }
+
+        if (stillNeedCreate.length === 0) {
+            logger.info("All retry candidates resolved by HRMS pre-check; nothing to send to HRMS");
+            const earlyWait = 5000;
+            await new Promise((res) => setTimeout(res, earlyWait));
+            return;
+        }
+
+        logger.info(`${stillNeedCreate.length} users to create via HRMS`);
+        const userRowDatas = stillNeedCreate.map((u: any) => u?.data);
 
         const transformConfig = { ...transformConfigs?.["employeeHrms"] };
         transformConfig.metadata.tenantId = tenantId;
@@ -508,10 +571,6 @@ export class TemplateClass {
         const transformer = new DataTransformer(transformConfig);
 
         logger.info("Transforming user data...");
-        const requestInfo = resourceDetails?.requestInfo;
-        if (!requestInfo?.userInfo) {
-            throw new Error('RequestInfo with userInfo is required in resourceDetails for user transformation');
-        }
         const transformedUsers = await transformer.transform(userRowDatas, requestInfo);
         logger.info(`${transformedUsers.length} users transformed`);
 
@@ -609,8 +668,8 @@ export class TemplateClass {
                                     const records = individualIdToRecords.get(w.individualId) || [];
                                     for (const record of records) {
                                         record.status = dataRowStatuses.failed;
-                                        record.data["#status#"] = sheetDataRowStatuses.FAILED;
-                                        record.data["#errorDetails#"] = errMsg;
+                                        record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
+                                        record.data[campaignDataRowFields.errorDetails] = errMsg;
                                     }
                                 }
                             }
@@ -625,8 +684,8 @@ export class TemplateClass {
                             const records = individualIdToRecords.get(w.individualId) || [];
                             for (const record of records) {
                                 record.status = dataRowStatuses.failed;
-                                record.data["#status#"] = sheetDataRowStatuses.FAILED;
-                                record.data["#errorDetails#"] = errMsg;
+                                record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
+                                record.data[campaignDataRowFields.errorDetails] = errMsg;
                             }
                         }
                     }
@@ -634,10 +693,12 @@ export class TemplateClass {
 
                 await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
             } catch (err) {
+                // Non-blocking: a partial HRMS batch failure must not abort the rest of the create loop
+                // and must not propagate up to fail the campaign. Mark this batch's rows failed (with
+                // error history chained) and continue to the next batch — retries can reconcile later.
                 const errMsg = err instanceof Error ? err.message : String(err);
-                console.error("Error in batch creation:", err);
-                await this.handleBatchFailure(batch, usersToCreate, resourceDetails.tenantId, errMsg);
-                throw new Error(`Error in user batch creation: ${errMsg}`);
+                logger.error(`User batch creation failed (non-blocking): ${errMsg}`);
+                await this.handleBatchFailure(batch, stillNeedCreate, resourceDetails.tenantId, errMsg);
             }
         }
         const waitTime = Math.max(5000, transformedUsers.length * 8);

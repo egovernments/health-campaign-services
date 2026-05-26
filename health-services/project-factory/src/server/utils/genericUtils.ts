@@ -1567,12 +1567,12 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 }
 
 
-export async function prepareProcessesInDb(campaignNumber: any, tenantId: string, userUuid?: string) {
+export async function prepareProcessesInDb(campaignNumber: any, tenantId: string, userUuid?: string, excludeProcessNames: string[] = []) {
   logger.info("Preparing processes in DB...");
   let allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
-  
+
   const currentTime = Date.now();
-  
+
   // Add audit details to existing processes being updated
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
       allCurrentProcesses[i].status = processStatuses.pending;
@@ -1583,17 +1583,19 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
         lastModifiedTime: currentTime
       };
   }
-  
+
   produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
-  
+
   let allProcessesJson: any = JSON.parse(JSON.stringify(allProcesses))
   let newProcesses = [];
   for (let processKey in allProcesses) {
-    let isProcessNameAvailableInAllCurrentProcesses = allCurrentProcesses.find((process: any) => process?.processName == allProcessesJson[processKey]);
+    const processName = allProcessesJson[processKey];
+    if (excludeProcessNames.includes(processName)) continue;
+    let isProcessNameAvailableInAllCurrentProcesses = allCurrentProcesses.find((process: any) => process?.processName == processName);
     if (!isProcessNameAvailableInAllCurrentProcesses) {
       newProcesses.push({
         campaignNumber: campaignNumber,
-        processName: allProcessesJson[processKey],
+        processName: processName,
         status: processStatuses.pending,
         auditDetails: {
           createdBy: userUuid,
@@ -1604,7 +1606,7 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
       })
     }
   }
-  
+
   produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
   // wait for 2 second
   logger.info("Waiting for 10 seconds for processes to get updated...");
