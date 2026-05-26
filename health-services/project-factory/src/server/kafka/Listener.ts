@@ -38,7 +38,7 @@ async function ensureTopicsExist(topics: string[]) {
     }
 }
 
-const groupId = 'project-factory';
+const groupId = config?.kafka?.CONSUMER_GROUP_ID;
 
 const consumer = kafka.consumer({ groupId });
 

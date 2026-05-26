@@ -60,6 +60,7 @@ const config = {
     redisPort: process.env.REDIS_PORT || "6379",
   },
   kafka: {
+    CONSUMER_GROUP_ID: process.env.KAFKA_CONSUMER_GROUP_ID || "project-factory",
     // Kafka topics
     KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "save-project-campaign-details",
     KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "update-project-campaign-details",
