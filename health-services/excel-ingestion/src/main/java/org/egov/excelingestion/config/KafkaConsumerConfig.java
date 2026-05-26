@@ -21,12 +21,18 @@ import java.util.Map;
  * Kafka consumer configuration for the generation init flow.
  *
  * <ul>
- *   <li>max.poll.records = 1 — handle one event at a time per partition.</li>
  *   <li>enable.auto.commit = false + AckMode.MANUAL_IMMEDIATE — the listener
  *       acknowledges only after a successful (or terminally handled) run.</li>
- *   <li>max.poll.interval.ms is configurable high so long-running generations
- *       don't trigger consumer rebalance.</li>
+ *   <li>max.poll.interval.ms / session.timeout.ms are tunable via
+ *       spring.kafka.consumer.properties.*.</li>
  * </ul>
+ *
+ * <p><b>WARNING — max.poll.records and listener.concurrency are configurable
+ * but must stay at 1 until DB-level locking is added.</b> The consumer reads
+ * the row, checks status == queued, then writes IN_PROGRESS. Without a
+ * compare-and-set, raising either of these settings allows two consumers (or
+ * two records in the same poll) to both observe a queued row and both start
+ * generating — duplicate output, races on the terminal status.</p>
  */
 @Configuration
 @EnableKafka
@@ -38,13 +44,18 @@ public class KafkaConsumerConfig {
     @Value("${spring.kafka.consumer.group-id:excel-ingestion}")
     private String groupId;
 
-    @Value("${excel.ingestion.consumer.max.poll.records:1}")
+    // WARNING: see class-level javadoc before raising above 1.
+    @Value("${spring.kafka.consumer.max-poll-records:1}")
     private int maxPollRecords;
 
-    @Value("${excel.ingestion.consumer.max.poll.interval.ms:900000}")
+    // WARNING: see class-level javadoc before raising above 1.
+    @Value("${spring.kafka.listener.concurrency:1}")
+    private int listenerConcurrency;
+
+    @Value("${spring.kafka.consumer.properties.max.poll.interval.ms:900000}")
     private int maxPollIntervalMs;
 
-    @Value("${excel.ingestion.consumer.session.timeout.ms:120000}")
+    @Value("${spring.kafka.consumer.properties.session.timeout.ms:120000}")
     private int sessionTimeoutMs;
 
     @Bean
@@ -75,7 +86,7 @@ public class KafkaConsumerConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(generationInitConsumerFactory);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setConcurrency(1);
+        factory.setConcurrency(listenerConcurrency);
         return factory;
     }
 }
