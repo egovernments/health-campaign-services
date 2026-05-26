@@ -2,7 +2,6 @@ package org.egov.excelingestion.service;
 
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.producer.Producer;
-import org.egov.excelingestion.cache.GenerationCacheService;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.util.RequestInfoConverter;
@@ -30,7 +29,6 @@ class GenerationServiceTest {
     @Mock private ExcelGenerationValidationService validationService;
     @Mock private RequestInfoConverter requestInfoConverter;
     @Mock private KafkaTopicConfig kafkaTopicConfig;
-    @Mock private GenerationCacheService generationCacheService;
 
     private GenerationService generationService;
 
@@ -41,16 +39,15 @@ class GenerationServiceTest {
                 producer,
                 validationService,
                 requestInfoConverter,
-                kafkaTopicConfig,
-                generationCacheService);
+                kafkaTopicConfig);
     }
 
     @Test
     void shouldReturnValidResponseForBasicSearch() throws InvalidTenantIdException {
-        GenerationSearchRequest request = createSearchRequest("dev", null, null);
+        GenerationSearchRequest request = createSearchRequest("dev");
         List<GenerateResource> mockData = Arrays.asList(
-                createGenerateResource("id1", "dev"),
-                createGenerateResource("id2", "dev"));
+                createGenerateResource("id1", "dev", 100L),
+                createGenerateResource("id2", "dev", 200L));
 
         when(generatedFileRepository.search(any())).thenReturn(mockData);
 
@@ -59,12 +56,15 @@ class GenerationServiceTest {
         assertNotNull(response);
         assertEquals(2, response.getTotalCount());
         assertEquals(2, response.getGenerationDetails().size());
+        // sorted by lastModifiedTime desc
+        assertEquals("id2", response.getGenerationDetails().get(0).getId());
+        assertEquals("id1", response.getGenerationDetails().get(1).getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
     @Test
     void shouldReturnEmptyResultsWhenNoDataFound() throws InvalidTenantIdException {
-        GenerationSearchRequest request = createSearchRequest("dev", null, null);
+        GenerationSearchRequest request = createSearchRequest("dev");
         when(generatedFileRepository.search(any())).thenReturn(Collections.emptyList());
 
         GenerationSearchResponse response = generationService.searchGenerations(request);
@@ -75,63 +75,16 @@ class GenerationServiceTest {
     }
 
     @Test
-    void shouldHitCacheForSingleReferenceLookup() throws InvalidTenantIdException {
-        GenerationSearchCriteria criteria = GenerationSearchCriteria.builder()
-                .tenantId("dev")
-                .referenceIds(Collections.singletonList("ref-1"))
-                .build();
-        RequestInfo requestInfo = RequestInfo.builder().apiId("a").ver("1").ts(0L).build();
-        GenerationSearchRequest request = GenerationSearchRequest.builder()
-                .requestInfo(requestInfo)
-                .generationSearchCriteria(criteria)
-                .build();
-
-        List<GenerateResource> cached = Arrays.asList(
-                createGenerateResource("id1", "dev"),
-                createGenerateResource("id2", "dev"));
-        when(generationCacheService.getByReference("dev", "ref-1")).thenReturn(cached);
-
-        GenerationSearchResponse response = generationService.searchGenerations(request);
-
-        assertEquals(2, response.getGenerationDetails().size());
-        verify(generatedFileRepository, never()).search(any());
-    }
-
-    @Test
-    void shouldFallThroughToDbAndPopulateCacheOnMiss() throws InvalidTenantIdException {
-        GenerationSearchCriteria criteria = GenerationSearchCriteria.builder()
-                .tenantId("dev")
-                .referenceIds(Collections.singletonList("ref-2"))
-                .build();
-        RequestInfo requestInfo = RequestInfo.builder().apiId("a").ver("1").ts(0L).build();
-        GenerationSearchRequest request = GenerationSearchRequest.builder()
-                .requestInfo(requestInfo)
-                .generationSearchCriteria(criteria)
-                .build();
-
-        when(generationCacheService.getByReference("dev", "ref-2")).thenReturn(null);
-        when(generatedFileRepository.search(any())).thenReturn(
-                Collections.singletonList(createGenerateResource("id1", "dev")));
-
-        GenerationSearchResponse response = generationService.searchGenerations(request);
-
-        assertEquals(1, response.getGenerationDetails().size());
-        verify(generationCacheService).putByReference(eq("dev"), eq("ref-2"), any());
-    }
-
-    @Test
     void shouldThrowExceptionForInvalidTenantId() throws InvalidTenantIdException {
-        GenerationSearchRequest request = createSearchRequest("invalid-tenant", null, null);
+        GenerationSearchRequest request = createSearchRequest("invalid-tenant");
         when(generatedFileRepository.search(any())).thenThrow(new InvalidTenantIdException("Invalid tenant"));
 
         assertThrows(InvalidTenantIdException.class, () -> generationService.searchGenerations(request));
     }
 
-    private GenerationSearchRequest createSearchRequest(String tenantId, Integer limit, Integer offset) {
+    private GenerationSearchRequest createSearchRequest(String tenantId) {
         GenerationSearchCriteria criteria = GenerationSearchCriteria.builder()
                 .tenantId(tenantId)
-                .limit(limit)
-                .offset(offset)
                 .build();
 
         RequestInfo requestInfo = RequestInfo.builder()
@@ -146,14 +99,14 @@ class GenerationServiceTest {
                 .build();
     }
 
-    private GenerateResource createGenerateResource(String id, String tenantId) {
+    private GenerateResource createGenerateResource(String id, String tenantId, long lastModifiedTime) {
         return GenerateResource.builder()
                 .id(id)
                 .tenantId(tenantId)
                 .status("completed")
                 .type("EXCEL")
                 .createdTime(System.currentTimeMillis())
-                .lastModifiedTime(System.currentTimeMillis())
+                .lastModifiedTime(lastModifiedTime)
                 .build();
     }
 }

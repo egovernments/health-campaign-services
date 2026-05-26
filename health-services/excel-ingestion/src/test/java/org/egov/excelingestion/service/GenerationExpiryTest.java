@@ -1,7 +1,6 @@
 package org.egov.excelingestion.service;
 
 import org.egov.common.producer.Producer;
-import org.egov.excelingestion.cache.GenerationCacheService;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
@@ -36,7 +35,6 @@ class GenerationExpiryTest {
     @Mock private ExcelGenerationValidationService validationService;
     @Mock private RequestInfoConverter requestInfoConverter;
     @Mock private KafkaTopicConfig kafkaTopicConfig;
-    @Mock private GenerationCacheService generationCacheService;
 
     private GenerationService generationService;
     private Method expirePreviousRecordsMethod;
@@ -50,8 +48,7 @@ class GenerationExpiryTest {
                 producer,
                 validationService,
                 requestInfoConverter,
-                kafkaTopicConfig,
-                generationCacheService);
+                kafkaTopicConfig);
 
         expirePreviousRecordsMethod = GenerationService.class
                 .getDeclaredMethod("expirePreviousRecords", GenerateResource.class);
@@ -76,7 +73,6 @@ class GenerationExpiryTest {
         assertEquals("tenant-01", criteria.getTenantId());
         assertEquals(Arrays.asList("campaign-123"), criteria.getReferenceIds());
         assertEquals(Arrays.asList("EXCEL"), criteria.getTypes());
-        // New contract: expire queued/pending/in_progress/completed/failed
         assertTrue(criteria.getStatuses().contains(GenerationConstants.STATUS_COMPLETED));
         assertTrue(criteria.getStatuses().contains(GenerationConstants.STATUS_FAILED));
         assertTrue(criteria.getStatuses().contains(GenerationConstants.STATUS_IN_PROGRESS));
@@ -89,8 +85,6 @@ class GenerationExpiryTest {
             assertEquals(GenerationConstants.STATUS_EXPIRED, expired.getStatus());
             assertNotNull(expired.getLastModifiedTime());
         }
-
-        verify(generationCacheService).invalidate("tenant-01", "campaign-123");
     }
 
     @Test
