@@ -49,7 +49,7 @@ public class GenerationInitConsumer {
 
     @KafkaListener(
             topics = "${excel.ingestion.generation.init.topic}",
-            groupId = "${excel.ingestion.consumer.group.id}",
+            groupId = "${spring.kafka.consumer.group-id:excel-ingestion}",
             containerFactory = "generationInitListenerContainerFactory"
     )
     public void consume(GenerateResourceRequest event, Acknowledgment acknowledgment) {

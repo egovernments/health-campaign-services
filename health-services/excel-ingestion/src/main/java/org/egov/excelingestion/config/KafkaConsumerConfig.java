@@ -35,7 +35,7 @@ public class KafkaConsumerConfig {
     @Value("${kafka.config.bootstrap_server_config}")
     private String bootstrapServers;
 
-    @Value("${excel.ingestion.consumer.group.id}")
+    @Value("${spring.kafka.consumer.group-id:excel-ingestion}")
     private String groupId;
 
     @Value("${excel.ingestion.consumer.max.poll.records:1}")
