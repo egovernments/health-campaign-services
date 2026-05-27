@@ -118,5 +118,9 @@ public interface Constants {
 
     String LOCALITY = "locality";
 
+    String ES_FIELD_ACTIVE = "active";
+    
+    String ES_FIELD_EFFECTIVE_DATE = "effectiveDate";
+
 
 }
