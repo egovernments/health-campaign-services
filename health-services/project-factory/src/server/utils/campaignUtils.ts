@@ -3075,6 +3075,10 @@ async function getTemplateModules(
     isActive: true,
   };
 
+  logger.info(
+    `MDMS SEARCH [getTemplateModules] schemaCode=${schemaCode} | request body: ${JSON.stringify({ MdmsCriteria: criteria })}`
+  );
+
   const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
 
   return (response?.mdms || [])
@@ -3284,12 +3288,20 @@ async function fetchCloneModules(
   configSchema: string,
   cloneFromCampaignNumber: string
 ): Promise<any> {
+  if (!cloneFromCampaignNumber) {
+    throw new Error(`fetchCloneModules: cloneFromCampaignNumber is required but got: ${cloneFromCampaignNumber}`);
+  }
+
   const cloneCriteria = {
     tenantId,
     schemaCode: configSchema,
     filters: { project: cloneFromCampaignNumber },
     isActive: true,
   };
+
+  logger.info(
+    `MDMS SEARCH [fetchCloneModules] schemaCode=${configSchema} | request body: ${JSON.stringify({ MdmsCriteria: cloneCriteria })}`
+  );
 
   return await searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria });
 }
