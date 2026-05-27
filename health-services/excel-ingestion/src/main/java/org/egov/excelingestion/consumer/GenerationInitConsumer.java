@@ -47,11 +47,7 @@ public class GenerationInitConsumer {
         this.generatedFileRepository = generatedFileRepository;
     }
 
-    @KafkaListener(
-            topics = "${excel.ingestion.generation.init.topic}",
-            groupId = "${spring.kafka.consumer.group-id:excel-ingestion}",
-            containerFactory = "generationInitListenerContainerFactory"
-    )
+    @KafkaListener(topics = "${excel.ingestion.generation.init.topic}")
     public void consume(GenerateResourceRequest event, Acknowledgment acknowledgment) {
         if (event == null || event.getGenerateResource() == null) {
             log.warn("Received null/invalid generation init event; acking and skipping");
