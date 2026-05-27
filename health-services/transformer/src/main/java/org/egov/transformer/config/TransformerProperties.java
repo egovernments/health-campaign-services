@@ -234,10 +234,10 @@ public class TransformerProperties {
     @Value("${transformer.error.topic}")
     private String transformerErrorTopic;
 
-    @Value("${egov.elastic.search.host.name}")
+    @Value("${egov.elastic.search.host}")
     private String esHostName;
 
-    @Value("${egov.elastic.search.port.no}")
+    @Value("${egov.elastic.search.port}")
     private String esPortNo;
 
     @Value("${egov.elastic.search.username}")
