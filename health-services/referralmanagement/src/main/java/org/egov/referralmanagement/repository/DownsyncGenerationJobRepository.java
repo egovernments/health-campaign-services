@@ -260,9 +260,11 @@ public class DownsyncGenerationJobRepository {
             "SELECT pa.projectid " +
             "FROM {schema}.project_address pa " +
             "JOIN {schema}.project p ON p.id = pa.projectid " +
-            "WHERE p.projecthierarchy LIKE '%' || :rootProjectId || '%' " +
-            "  AND p.id != :rootProjectId " +
-            "  AND pa.boundary = :locality " +
+            "WHERE (" +
+            "  (p.projecthierarchy LIKE '%' || :rootProjectId || '%' AND p.id != :rootProjectId)" +
+            "  OR p.id = :rootProjectId" +
+            ") AND pa.boundary = :locality " +
+            "ORDER BY CASE WHEN p.id != :rootProjectId THEN 0 ELSE 1 END " +
             "LIMIT 1";
 
     private static final String FIND_RESUMABLE_FILE_TYPES =
