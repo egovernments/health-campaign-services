@@ -3182,6 +3182,12 @@ export async function createAppConfig(
   RequestInfo: any
 ): Promise<void> {
   try {
+    if (!campaignNumber) {
+      throw new Error(`createAppConfig: campaignNumber is required but got: ${campaignNumber}`);
+    }
+    if (!campaignType) {
+      throw new Error(`createAppConfig: campaignType is required but got: ${campaignType}`);
+    }
     logger.info("Creating app configuration...");
 
     const moduleName = config.values.moduleName;
@@ -3224,6 +3230,12 @@ export async function createAppConfigFromClone(
   RequestInfo: any
 ): Promise<void> {
   try {
+    if (!newCampaignNumber) {
+      throw new Error(`createAppConfigFromClone: newCampaignNumber is required but got: ${newCampaignNumber}`);
+    }
+    if (!cloneFromCampaignNumber) {
+      throw new Error(`createAppConfigFromClone: cloneFromCampaignNumber is required but got: ${cloneFromCampaignNumber}`);
+    }
     logger.info("Started creating app config from clone...");
 
     const moduleName = config.values.moduleName;
