@@ -104,6 +104,9 @@ public class UserActionTransformationService {
             }
         }
 
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, project.getProjectTypeId(), userAction.getAuditDetails().getCreatedTime());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+
         Map<String, String> userInfoMap = userService.getUserInfo(userAction.getTenantId(), userAction.getClientAuditDetails().getCreatedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(userAction.getAuditDetails().getLastModifiedTime());
 

@@ -41,6 +41,7 @@ public class CommonUtils {
     private final ProjectFactoryService projectFactoryService;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
     private static Map<String, ProjectInfo> userIdVsProjectInfoCache = new ConcurrentHashMap<>();
+    private static Map<String, ArrayNode> projectIdVsCycleInfoCache = new ConcurrentHashMap<>();
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService, ProjectFactoryService projectFactoryService) {
         this.properties = properties;
@@ -217,6 +218,82 @@ public class CommonUtils {
             }
         });
         return boundaryHierarchy;
+    }
+
+
+    public String fetchCycleIndexFromProjectAdditionalDetails(String tenantId, String projectId, String projectTypeId, Long createdTime) {
+        ArrayNode cachedCycles = projectIdVsCycleInfoCache.get(projectId);
+        if (cachedCycles != null) {
+            return findCycleIndex(cachedCycles, createdTime);
+        }
+
+        Project project = projectService.getProject(projectId, tenantId);
+        if (project == null) {
+            return null;
+        }
+
+        JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+        if (additionalDetails == null || additionalDetails.isMissingNode()) {
+            return null;
+        }
+
+        JsonNode projectTypeNode = additionalDetails.path("projectType");
+        if (projectTypeNode.isMissingNode() || projectTypeNode.isNull()) {
+            return fetchCycleIndexFromTime(tenantId, projectTypeId, createdTime);
+        }
+
+        ArrayNode campCycles = objectMapper.createArrayNode();
+        JsonNode cyclesNode = projectTypeNode.path("cycles");
+
+        if (!cyclesNode.isArray() || cyclesNode.isEmpty()) {
+            projectIdVsCycleInfoCache.put(projectId, campCycles);
+            return null;
+        }
+
+        for (JsonNode cycle : cyclesNode) {
+            if (!cycle.has("id") || !cycle.has("startDate") || !cycle.has("endDate")) {
+                continue;
+            }
+
+            ObjectNode normalized = objectMapper.createObjectNode();
+            normalized.put("id", cycle.path("id").asInt(0));
+            normalized.put(START_DATE, cycle.path("startDate").asLong(0));
+            normalized.put(END_DATE, cycle.path("endDate").asLong(0));
+
+            campCycles.add(normalized);
+        }
+
+        if (campCycles.isEmpty()) {
+            return null;
+        }
+        projectIdVsCycleInfoCache.put(projectId, campCycles);
+        return findCycleIndex(campCycles, createdTime);
+    }
+
+    public String fetchCycleIndexFromTime(String tenantId, String projectTypeId, Long createdTime) {
+        JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
+        if (projectType.has(CYCLES)) {
+            ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
+            return findCycleIndex(cycles, createdTime);
+        }
+        return null;
+    }
+    private String findCycleIndex(ArrayNode cycles, Long createdTime) {
+        if (cycles == null || cycles.isEmpty()) {
+            return null;
+        }
+
+        for (int i = 0; i < cycles.size(); i++) {
+            JsonNode cycle = cycles.get(i);
+            long start = cycle.get(START_DATE).asLong(0);
+            long end = cycle.get(END_DATE).asLong(0);
+
+            if (isWithinCycle(createdTime, start, end) || isBetweenCycles(createdTime, cycles, i)) {
+                return String.format("%02d", cycle.path(ID).asInt(0));
+            }
+        }
+
+        return null;
     }
 
     //TODO move below cycle fetching logic to mdmsService

@@ -111,7 +111,7 @@ public class HouseholdTransformationService {
                 household.getClientAuditDetails().getLastModifiedBy(),
                 household.getTenantId());
 
-        String cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), householdIndexV1.getProjectId(), household.getClientAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(household.getTenantId(), householdIndexV1.getProjectId(), householdIndexV1.getProjectTypeId(), household.getClientAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         householdIndexV1.setAdditionalDetails(additionalDetails);
         return householdIndexV1;

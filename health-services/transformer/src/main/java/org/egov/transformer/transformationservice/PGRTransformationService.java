@@ -1,9 +1,13 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.PGRIndex;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.pgr.Service;
 import org.egov.transformer.models.pgr.Address;
 import org.egov.transformer.models.pgr.Boundary;
@@ -30,8 +34,9 @@ public class PGRTransformationService {
     private final MdmsService mdmsService;
     private final ProjectService projectService;
     private final BoundaryService boundaryService;
+    private final ObjectMapper objectMapper;
 
-    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService, BoundaryService boundaryService) {
+    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService, BoundaryService boundaryService, ObjectMapper objectMapper) {
 
         this.userService = userService;
         this.transformerProperties = transformerProperties;
@@ -40,6 +45,7 @@ public class PGRTransformationService {
         this.mdmsService = mdmsService;
         this.projectService = projectService;
         this.boundaryService = boundaryService;
+        this.objectMapper = objectMapper;
     }
 
     public void transform(List<Service> pgrList) {
@@ -89,6 +95,11 @@ public class PGRTransformationService {
                 .localityCode(localityCode)
                 .build();
         commonUtils.addProjectDetailsForUserIdAndTenantId(pgrIndex, service.getAuditDetails().getLastModifiedBy(), tenantId);
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(service.getTenantId(), pgrIndex.getProjectId(), pgrIndex.getProjectTypeId(), service.getAuditDetails().getCreatedTime());
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        pgrIndex.setAdditionalDetails(additionalDetails);
+
         return pgrIndex;
     }
 

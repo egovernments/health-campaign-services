@@ -98,6 +98,8 @@ public class StockReconciliationTransformationService {
                 && !CollectionUtils.isEmpty(stockReconciliation.getAdditionalFields().getFields())) {
             additionalDetails = additionalFieldsToDetails(stockReconciliation.getAdditionalFields().getFields());
         }
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, project.getProjectTypeId(), stockReconciliation.getAuditDetails().getCreatedTime());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());

@@ -47,6 +47,7 @@ public class ProjectService {
     private final MdmsService mdmsService;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
+    private static List<JsonNode> cachedProjectTypes = new ArrayList<>();
 
 
     public ProjectService(TransformerProperties transformerProperties,
@@ -317,6 +318,35 @@ public class ProjectService {
         return null;
     }
 
+    public JsonNode fetchProjectTypes(String tenantId, String filter, String projectTypeId) {
+
+        JsonNode requiredProjectType = cachedProjectTypes.stream()
+                .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
+                .findFirst()
+                .orElse(null);
+
+        if (requiredProjectType != null) {
+            log.info("Fetched projectType from cache {}", projectTypeId);
+            return requiredProjectType;
+        }
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
+            List<JsonNode> projectTypes = convertToProjectTypeJsonNodeList(response);
+            cachedProjectTypes.addAll(projectTypes);
+            return projectTypes.stream()
+                    .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
+                    .findFirst()
+                    .orElseGet(() -> objectMapper.createObjectNode());
+//            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
+//            return requiredProjectType;
+        } catch (IOException e) {
+            return objectMapper.createObjectNode();
+//            throw new RuntimeException(e);
+        }
+    }
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,
                                        String moduleName, String filter) {
         MdmsCriteriaReq serviceRegistry = getMdmsRequest(requestInfo, tenantId, name, moduleName, filter);
@@ -386,10 +416,22 @@ public class ProjectService {
 
         JsonNode additionalDetails = null;
         JsonNode requiredProjectType = fetchProjectTypeFromProject(tenantId, projectId);
-        if (requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
+        if (requiredProjectType != null && requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
             additionalDetails = extractProjectCycleAndDoseIndexes(requiredProjectType);
         }
         return additionalDetails;
+    }
+
+    public JsonNode fetchProjectAdditionalDetails(Project project) {
+        JsonNode projectAdditionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+        if (projectAdditionalDetails == null || projectAdditionalDetails.isEmpty() || !projectAdditionalDetails.has(PROJECT_TYPE)) {
+            return null;
+        }
+        JsonNode projectType = projectAdditionalDetails.get(PROJECT_TYPE);
+        if (projectType.has(CYCLES) && !projectType.get(CYCLES).isEmpty()) {
+            return extractProjectCycleAndDoseIndexes(projectType);
+        }
+        return null;
     }
 
     private JsonNode extractProjectCycleAndDoseIndexes(JsonNode projectType) {

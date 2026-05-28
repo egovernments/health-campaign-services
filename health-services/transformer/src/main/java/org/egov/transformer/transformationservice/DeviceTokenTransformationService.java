@@ -1,5 +1,7 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -27,14 +29,16 @@ public class DeviceTokenTransformationService {
     private final UserService userService;
     private final BoundaryService boundaryService;
     private final CommonUtils commonUtils;
+    private final ObjectMapper objectMapper;
 
 
-    public DeviceTokenTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils) {
+    public DeviceTokenTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
         this.commonUtils = commonUtils;
+        this.objectMapper = objectMapper;
     }
 
     public void transform(List<DeviceToken> payloadList) {
@@ -72,6 +76,11 @@ public class DeviceTokenTransformationService {
                 projectInfo.getProjectTypeId(), projectInfo.getProjectName());
         deviceTokenIndexV1.setCampaignNumber(projectInfo.getCampaignNumber());
         deviceTokenIndexV1.setCampaignId(projectInfo.getCampaignId());
+
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, deviceTokenIndexV1.getProjectId(), deviceTokenIndexV1.getProjectTypeId(), deviceToken.getAuditDetails().getCreatedTime());
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        deviceTokenIndexV1.setAdditionalDetails(additionalDetails);
 
         return deviceTokenIndexV1;
     }

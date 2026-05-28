@@ -149,33 +149,6 @@ public class TransformerProperties {
     @Value("${project.staff.role.mdms.module}")
     private String projectStaffRolesMdmsModule;
 
-    @Value("${boundary.label.name.province}")
-    private String province;
-
-    @Value("${boundary.label.name.locality}")
-    private String locality;
-
-    @Value("${boundary.label.name.district}")
-    private String district;
-
-    @Value("${boundary.label.name.village}")
-    private String Village;
-
-    @Value("${boundary.label.name.healthFacility}")
-    private String healthFacility;
-
-    @Value("${boundary.label.name.administrativeProvince}")
-    private String administrativeProvince;
-
-    @Value("${egov.program.mandate.limit}")
-    private Integer programMandateLimit;
-
-    @Value("${egov.program.mandate.dividing.factor}")
-    private Double programMandateDividingFactor;
-
-    @Value("${egov.program.mandate.comment}")
-    private String programMandateComment;
-
     @Value("${egov.timestamp.timeZone}")
     private String timeZone;
 
@@ -199,12 +172,6 @@ public class TransformerProperties {
 
     @Value("${egov.boundary.v2.auth.token}")
     private String boundaryV2AuthToken;
-
-    @Value("${egov.boundary.type}")
-    private String boundaryType;
-
-    @Value("${egov.boundary.temp.code}")
-    private String boundaryCodeTemp;
 
     //Localization
     @Value("${egov.localization.host}")
