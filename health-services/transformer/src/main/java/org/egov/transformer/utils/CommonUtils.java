@@ -293,6 +293,13 @@ public class CommonUtils {
             }
         }
 
+        JsonNode earliestCycle = cycles.get(0);
+        long earliestStart = earliestCycle.get(START_DATE).asLong(0);
+        if (createdTime < earliestStart) {
+            log.info("createdTime {} is before first cycle startDate {}, assigning earliest cycleIndex", createdTime, earliestStart);
+            return String.format("%02d", earliestCycle.path(ID).asInt(0));
+        }
+
         return null;
     }
 
