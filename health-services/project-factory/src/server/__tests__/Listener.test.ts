@@ -6,16 +6,13 @@
  * - Topics use exact subscription when prefix is empty
  * - Message routing strips prefix and dispatches to the correct handler
  * - Startup throws when central instance enabled but prefix empty
- * - Failed messages are routed to DLQ (no partition block)
+ * - Handler errors are caught and logged without crashing the consumer
  */
 
 const mockSubscribe = jest.fn().mockResolvedValue(undefined);
 const mockConnect = jest.fn().mockResolvedValue(undefined);
 const mockRun = jest.fn().mockResolvedValue(undefined);
-const mockCommitOffsets = jest.fn().mockResolvedValue(undefined);
 const mockConsumerOn = jest.fn();
-const mockDLQConnect = jest.fn().mockResolvedValue(undefined);
-const mockDLQSend = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('kafkajs', () => {
   return {
@@ -24,14 +21,8 @@ jest.mock('kafkajs', () => {
         connect: mockConnect,
         subscribe: mockSubscribe,
         run: mockRun,
-        commitOffsets: mockCommitOffsets,
         on: mockConsumerOn,
         events: { CRASH: 'consumer.crash', DISCONNECT: 'consumer.disconnect' },
-      }),
-      producer: jest.fn().mockReturnValue({
-        connect: mockDLQConnect,
-        send: mockDLQSend,
-        disconnect: jest.fn().mockResolvedValue(undefined),
       }),
       admin: jest.fn().mockReturnValue({
         connect: jest.fn().mockResolvedValue(undefined),
@@ -54,7 +45,6 @@ jest.mock('../config', () => {
       },
       kafka: {
         CONSUMER_GROUP_ID: 'test-group',
-        KAFKA_CONSUMER_CONCURRENCY_LIMIT: 5,
         KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC: 'start-admin-console-task',
         KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC: 'start-admin-console-mapping-task',
         KAFKA_TEST_TOPIC: 'test-topic-project-factory',
@@ -112,6 +102,7 @@ import { listener } from '../kafka/Listener';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Returns the eachMessage callback registered with consumer.run() */
 function getEachMessageCallback(): (payload: any) => Promise<void> {
   const runCall = mockRun.mock.calls[0][0];
   return runCall.eachMessage;
@@ -127,6 +118,9 @@ function createMessage(topic: string, data: any, offset = '0') {
     },
   };
 }
+
+/** Flush pending microtasks so fire-and-forget handlers complete. */
+const flushPromises = () => new Promise(resolve => setImmediate(resolve));
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -220,15 +214,15 @@ describe('Kafka Listener', () => {
   // ── MESSAGE ROUTING ────────────────────────────────────────────────────────
 
   describe('Message Routing', () => {
-    it('Scenario 7: no prefix — routes unprefixed topic to correct handler and commits offset', async () => {
+    it('Scenario 7: no prefix — routes unprefixed topic to correct handler', async () => {
       (config as any).kafkaConsumerTopicPrefix = '';
       await listener();
 
       const eachMessage = getEachMessageCallback();
       await eachMessage(createMessage('hcm-mapping-batch', { test: true }, '5'));
+      await flushPromises();
 
       expect(mockHandleMappingBatch).toHaveBeenCalledWith({ test: true });
-      expect(mockCommitOffsets).toHaveBeenCalledWith([{ topic: 'hcm-mapping-batch', partition: 0, offset: '6' }]);
     });
 
     it('Scenario 8: single-state prefix — strips prefix and routes correctly', async () => {
@@ -237,6 +231,7 @@ describe('Kafka Listener', () => {
 
       const eachMessage = getEachMessageCallback();
       await eachMessage(createMessage('ng-hcm-mapping-batch', { test: true }));
+      await flushPromises();
 
       expect(mockHandleMappingBatch).toHaveBeenCalledWith({ test: true });
     });
@@ -248,10 +243,12 @@ describe('Kafka Listener', () => {
       const eachMessage = getEachMessageCallback();
 
       await eachMessage(createMessage('ba-hcm-facility-create-batch', { state: 'ba' }));
+      await flushPromises();
       expect(mockHandleFacilityBatch).toHaveBeenCalledWith({ state: 'ba' });
 
       mockHandleUserBatch.mockClear();
       await eachMessage(createMessage('ke-hcm-user-create-batch', { state: 'ke' }));
+      await flushPromises();
       expect(mockHandleUserBatch).toHaveBeenCalledWith({ state: 'ke' });
     });
 
@@ -261,6 +258,7 @@ describe('Kafka Listener', () => {
 
       const eachMessage = getEachMessageCallback();
       await eachMessage(createMessage('unknown-topic', { test: true }));
+      await flushPromises();
 
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Unhandled topic'));
       expect(mockHandleMappingBatch).not.toHaveBeenCalled();
@@ -284,6 +282,7 @@ describe('Kafka Listener', () => {
       for (const { topic, handler } of testCases) {
         handler.mockClear();
         await eachMessage(createMessage(topic, { from: topic }));
+        await flushPromises();
         expect(handler).toHaveBeenCalledWith({ from: topic });
       }
     });
@@ -306,6 +305,7 @@ describe('Kafka Listener', () => {
       for (const { topic, handler } of testCases) {
         handler.mockClear();
         await eachMessage(createMessage(topic, { from: topic }));
+        await flushPromises();
         expect(handler).toHaveBeenCalledWith({ from: topic });
       }
     });
@@ -326,6 +326,7 @@ describe('Kafka Listener', () => {
 
       const eachMessage = getEachMessageCallback();
       await eachMessage(createMessage('ng-hcm-processing-result', { result: 'done' }));
+      await flushPromises();
       expect(mockHandleProcessingResult).toHaveBeenCalledWith({ result: 'done' });
     });
 
@@ -338,14 +339,15 @@ describe('Kafka Listener', () => {
 
       const eachMessage = getEachMessageCallback();
       await eachMessage(createMessage('hcm-processing-result', { result: 'done' }));
+      await flushPromises();
       expect(mockHandleProcessingResult).toHaveBeenCalledWith({ result: 'done' });
     });
   });
 
-  // ── DLQ & PARTIAL FAILURE ──────────────────────────────────────────────────
+  // ── ERROR HANDLING ─────────────────────────────────────────────────────────
 
-  describe('DLQ and Partial Failure Handling', () => {
-    it('Scenario 15: handler throws — DLQ send called, offset still committed', async () => {
+  describe('Error Handling', () => {
+    it('Scenario 15: handler throws — error logged, eachMessage resolves without crash', async () => {
       (config as any).kafkaConsumerTopicPrefix = '';
       mockHandleTaskForCampaign.mockRejectedValueOnce(new Error('unexpected crash'));
       await listener();
@@ -355,93 +357,40 @@ describe('Kafka Listener', () => {
         eachMessage(createMessage('start-admin-console-task', { campaignId: '123' }, '3'))
       ).resolves.toBeUndefined();
 
-      expect(mockDLQSend).toHaveBeenCalledWith(
-        expect.objectContaining({ topic: 'start-admin-console-task-dlq' })
+      await flushPromises();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error processing message')
       );
-      expect(mockCommitOffsets).toHaveBeenCalledWith([{ topic: 'start-admin-console-task', partition: 0, offset: '4' }]);
     });
 
-    it('Scenario 16: two sequential messages — second failure DLQ-ed independently', async () => {
+    it('Scenario 16: two sequential messages — second failure logged independently, first succeeds', async () => {
       (config as any).kafkaConsumerTopicPrefix = '';
       mockHandleTaskForCampaign
-        .mockResolvedValueOnce(undefined)           // msg1 succeeds
-        .mockRejectedValueOnce(new Error('crash')); // msg2 fails
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('crash'));
       await listener();
 
       const eachMessage = getEachMessageCallback();
       await eachMessage(createMessage('start-admin-console-task', { id: 'msg1' }));
+      await flushPromises();
+      expect(mockHandleTaskForCampaign).toHaveBeenCalledWith({ id: 'msg1' });
+
       await eachMessage(createMessage('start-admin-console-task', { id: 'msg2' }));
-
-      expect(mockDLQSend).toHaveBeenCalledTimes(1);
-      expect(mockDLQSend).toHaveBeenCalledWith(
-        expect.objectContaining({ topic: 'start-admin-console-task-dlq' })
-      );
+      await flushPromises();
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error processing message'));
     });
 
-    it('Scenario 17: unknown topic — no DLQ sent', async () => {
+    it('Scenario 17: unknown topic — logs warning, eachMessage resolves', async () => {
       (config as any).kafkaConsumerTopicPrefix = '';
-      await listener();
-
-      const eachMessage = getEachMessageCallback();
-      await eachMessage(createMessage('totally-unknown-topic', { data: 1 }));
-
-      expect(mockDLQSend).not.toHaveBeenCalled();
-    });
-
-    it('Scenario 18: DLQ send fails all 3 attempts — logs exhaustion, offset still committed', async () => {
-      (config as any).kafkaConsumerTopicPrefix = '';
-      mockHandleTaskForCampaign.mockRejectedValueOnce(new Error('handler crash'));
-      mockDLQSend
-        .mockRejectedValueOnce(new Error('DLQ broker down'))
-        .mockRejectedValueOnce(new Error('DLQ broker down'))
-        .mockRejectedValueOnce(new Error('DLQ broker down'));
       await listener();
 
       const eachMessage = getEachMessageCallback();
       await expect(
-        eachMessage(createMessage('start-admin-console-task', { campaignId: '456' }))
+        eachMessage(createMessage('totally-unknown-topic', { data: 1 }))
       ).resolves.toBeUndefined();
 
-      expect(mockDLQSend).toHaveBeenCalledTimes(3);
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('exhausted retries')
-      );
-      expect(mockCommitOffsets).toHaveBeenCalledTimes(1);
-    });
-
-    it('Scenario 19: commitOffsets fails twice then succeeds — retries with backoff, no crash', async () => {
-      (config as any).kafkaConsumerTopicPrefix = '';
-      await listener();
-
-      mockCommitOffsets
-        .mockRejectedValueOnce(new Error('broker timeout'))
-        .mockRejectedValueOnce(new Error('broker timeout'))
-        .mockResolvedValueOnce(undefined);
-
-      const eachMessage = getEachMessageCallback();
-      await expect(
-        eachMessage(createMessage('hcm-mapping-batch', { id: 'msg1' }))
-      ).resolves.toBeUndefined();
-
-      expect(mockCommitOffsets).toHaveBeenCalledTimes(3);
-      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('COMMIT'));
-    });
-
-    it('Scenario 20: commitOffsets fails all 3 attempts — throws so KafkaJS can crash and restart', async () => {
-      (config as any).kafkaConsumerTopicPrefix = '';
-      await listener();
-
-      mockCommitOffsets
-        .mockRejectedValueOnce(new Error('broker down'))
-        .mockRejectedValueOnce(new Error('broker down'))
-        .mockRejectedValueOnce(new Error('broker down'));
-
-      const eachMessage = getEachMessageCallback();
-      await expect(
-        eachMessage(createMessage('hcm-mapping-batch', { id: 'msg1' }))
-      ).rejects.toThrow('broker down');
-
-      expect(mockCommitOffsets).toHaveBeenCalledTimes(3);
+      await flushPromises();
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Unhandled topic'));
     });
   });
 });
