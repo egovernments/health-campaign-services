@@ -153,7 +153,8 @@ public class BoundaryService {
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
                 + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
                 + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
-                + "&codes=" + locationCode);
+//                + "&codes=" + locationCode
+        );
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
         try {
             // Fetch boundary details from the service
