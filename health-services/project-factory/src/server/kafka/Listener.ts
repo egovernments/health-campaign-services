@@ -1,5 +1,4 @@
-import { Kafka, logLevel, EachBatchPayload, KafkaMessage } from 'kafkajs';
-import pLimit from 'p-limit';
+import { Kafka, logLevel, KafkaMessage } from 'kafkajs';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
@@ -45,11 +44,6 @@ const groupId = config?.kafka?.CONSUMER_GROUP_ID;
 const consumer = kafka.consumer({ groupId });
 const dlqProducer = kafka.producer();
 
-/**
- * Builds a map of base topic name -> handler function.
- * Message routing uses stripTopicPrefix() on the incoming topic
- * to resolve the base topic and look up the handler.
- */
 function buildTopicHandlerMap(): Map<string, (msg: any) => Promise<void>> {
     const entries: [string, (msg: any) => Promise<void>][] = [
         [config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, handleTaskForCampaign],
@@ -88,40 +82,42 @@ export async function listener() {
             logger.info(`KAFKA :: LISTENER :: Subscribed to topic: ${String(topicPattern)}`);
         }
 
-        // p-limit caps concurrent in-flight handlers across all batches
-        const limit = pLimit(config.kafka.KAFKA_CONSUMER_CONCURRENCY_LIMIT);
-
         await consumer.run({
-            eachBatch: async ({ batch, resolveOffset, heartbeat }: EachBatchPayload) => {
-                await Promise.allSettled(
-                    batch.messages.map((message: KafkaMessage) =>
-                        limit(async () => {
-                            try {
-                                await processMessageKJS(batch.topic, message, topicHandlerMap);
-                            } catch (error) {
-                                logger.error(`KAFKA :: DLQ :: topic=${batch.topic} error=${error}`);
-                                let dlqSent = false;
-                                for (let attempt = 1; attempt <= 3; attempt++) {
-                                    try {
-                                        await dlqProducer.send({
-                                            topic: `${batch.topic}-dlq`,
-                                            messages: [{ value: message.value, headers: { error: String(error) } }],
-                                        });
-                                        dlqSent = true;
-                                        break;
-                                    } catch (dlqError) {
-                                        logger.error(`KAFKA :: DLQ :: attempt ${attempt}/3 failed for topic=${batch.topic}: ${dlqError}`);
-                                    }
-                                }
-                                if (!dlqSent) {
-                                    logger.error(`KAFKA :: DLQ :: exhausted retries for topic=${batch.topic}, skipping message to prevent partition stall`);
-                                }
-                            }
-                            resolveOffset(message.offset);
-                            await heartbeat();
-                        })
-                    )
-                );
+            autoCommit: false,
+            partitionsConsumedConcurrently: config.kafka.KAFKA_CONSUMER_CONCURRENCY_LIMIT,
+            eachMessage: async ({ topic, partition, message }) => {
+                try {
+                    await processMessageKJS(topic, message, topicHandlerMap);
+                } catch (error) {
+                    logger.error(`KAFKA :: DLQ :: topic=${topic} error=${error}`);
+                    let dlqSent = false;
+                    for (let attempt = 1; attempt <= 3; attempt++) {
+                        try {
+                            await dlqProducer.send({
+                                topic: `${topic}-dlq`,
+                                messages: [{ value: message.value, headers: { error: String(error) } }],
+                            });
+                            dlqSent = true;
+                            break;
+                        } catch (dlqError) {
+                            logger.error(`KAFKA :: DLQ :: attempt ${attempt}/3 failed for topic=${topic}: ${dlqError}`);
+                        }
+                    }
+                    if (!dlqSent) {
+                        logger.error(`KAFKA :: DLQ :: exhausted retries for topic=${topic}, skipping message to prevent partition stall`);
+                    }
+                }
+                const offsetToCommit = [{ topic, partition, offset: (Number(message.offset) + 1).toString() }];
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        await consumer.commitOffsets(offsetToCommit);
+                        break;
+                    } catch (commitError) {
+                        if (attempt === 3) throw commitError;
+                        logger.error(`KAFKA :: COMMIT :: attempt ${attempt}/3 failed for topic=${topic}: ${commitError}`);
+                        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+                    }
+                }
             },
         });
 
@@ -149,8 +145,7 @@ async function processMessageKJS(
 ) {
     const messageObject = JSON.parse(message.value?.toString() || '{}');
 
-    // Extract context from message — handles both uppercase (RequestInfo) and lowercase (requestInfo) casing,
-    // and the campaignFailure message which carries correlationId at top level (no requestInfo).
+    // message shape varies: RequestInfo (campaign) vs requestInfo (task) vs top-level correlationId (failure)
     const requestInfo = messageObject.RequestInfo ?? messageObject.requestInfo;
     const correlationId: string | null = requestInfo?.correlationId ?? messageObject.correlationId ?? null;
     const tenantId: string | null = requestInfo?.userInfo?.tenantId ?? messageObject.tenantId ?? null;
@@ -159,7 +154,6 @@ async function processMessageKJS(
         logger.info(`KAFKA :: LISTENER :: Received a message from topic ${topic}`);
         logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
 
-        // Strip prefix from incoming topic to resolve the base topic for routing
         const baseTopic = stripTopicPrefix(topic);
         const handler = topicHandlerMap.get(baseTopic);
         if (handler) {
