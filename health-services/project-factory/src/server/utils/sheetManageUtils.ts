@@ -286,10 +286,10 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
 
             await freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
             manageMultiSelectUnlocalised(worksheet, schema);
-            await handledropdownthingsUnLocalised(worksheet, schema);
+            await handledropdownthingsUnLocalised(workBook, worksheet, schema);
             updateFontNameToRoboto(worksheet);
         }
-        
+
         await lockSheetAccordingToConfig(workBook, templateConfig, localizationMap);
     } catch (error) {
         logger.error(`Error importing or calling process function from ${classFilePath}`);
@@ -428,7 +428,7 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
 
             await freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
             manageMultiSelectUnlocalised(worksheet, schema);
-            await handledropdownthingsUnLocalised(worksheet, schema);
+            await handledropdownthingsUnLocalised(newWorkbook, worksheet, schema);
             updateFontNameToRoboto(worksheet);
             await lockSheetAccordingToConfig(newWorkbook, templateConfig, localizationMap);
             logger.info(`Sheet ${sheetName} generated successfully`);

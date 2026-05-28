@@ -10,7 +10,7 @@ import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { enrichProcessTemplateConfig, handleErrorDuringProcess, processRequest } from "./sheetManageUtils";
 import { fetchFileFromFilestore } from "../api/coreApis";
 import { getExcelWorkbookFromFileURL, getLocaleFromWorkbook, enrichTemplateMetaData } from "./excelUtils";
-import { getLocalisationModuleName } from "./localisationUtils";
+import { getLocalisationModuleName, getLocaleFromRequestInfo } from "./localisationUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { createAndUploadFileWithOutRequest } from "../api/genericApis";
 import config from "../config";
@@ -52,7 +52,9 @@ export async function handleTaskForCampaign(messageObject: any) {
         // Graceful fallback: use campaign locale or default locale if metadata missing
         if (!locale) {
             logger.warn(`Locale metadata not found in workbook for resource type ${resourceType}. Using fallback locale.`);
-            locale = CampaignDetails?.additionalDetails?.locale || config.localisation.defaultLocale || "en_IN";
+            locale = CampaignDetails?.additionalDetails?.locale
+                || getLocaleFromRequestInfo(messageObject?.requestInfo)
+                || config.localisation.defaultLocale || "en_IN";
             logger.info(`Using fallback locale: ${locale}`);
 
             // Enrich the workbook metadata with locale and campaign ID for future use

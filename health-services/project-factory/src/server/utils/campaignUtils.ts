@@ -100,7 +100,7 @@ import {
   fetchUserData,
 } from "./microplanIntergration";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
-import { getLocaleFromRequest } from "./localisationUtils";
+import { getLocaleFromRequest, getLocaleFromRequestInfo } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
 import { CampaignResource, toCampaignResource } from "../config/models/resourceTypes";
 import Localisation from "../controllers/localisationController/localisation.controller";
@@ -665,6 +665,7 @@ async function updateStatusFileForEachSheets(
   }
 
   localizedSheetNames.forEach((sheetName: any) => {
+    if (sheetName.startsWith('_h_') && sheetName.endsWith('_h_')) return;
     if (
       sheetName !==
       getLocalizedName(config?.boundary?.boundaryTab, localizationMap) &&
@@ -1081,8 +1082,11 @@ async function enrichAndPersistCampaignForCreate(
     request?.body?.CampaignDetails?.hierarchyType || null;
   request.body.CampaignDetails.parentId =
     request?.body?.CampaignDetails?.parentId || null;
-  request.body.CampaignDetails.additionalDetails =
-    request?.body?.CampaignDetails?.additionalDetails || {};
+  const existingAdditionalForCreate = request?.body?.CampaignDetails?.additionalDetails || {};
+  request.body.CampaignDetails.additionalDetails = {
+    ...existingAdditionalForCreate,
+    locale: existingAdditionalForCreate.locale || getLocaleFromRequestInfo(request?.body?.RequestInfo),
+  };
   request.body.CampaignDetails.startDate =
     request?.body?.CampaignDetails?.startDate || null;
   request.body.CampaignDetails.endDate =
@@ -1211,10 +1215,13 @@ async function enrichAndPersistCampaignForUpdate(
     ?.hierarchyType
     ? request?.body?.CampaignDetails?.hierarchyType
     : ExistingCampaignDetails?.hierarchyType;
-  request.body.CampaignDetails.additionalDetails = request?.body
-    ?.CampaignDetails?.additionalDetails
-    ? request?.body?.CampaignDetails?.additionalDetails
-    : ExistingCampaignDetails?.additionalDetails;
+  const existingAdditionalForUpdate = request?.body?.CampaignDetails?.additionalDetails
+    ?? ExistingCampaignDetails?.additionalDetails
+    ?? {};
+  request.body.CampaignDetails.additionalDetails = {
+    ...existingAdditionalForUpdate,
+    locale: existingAdditionalForUpdate.locale || getLocaleFromRequestInfo(request?.body?.RequestInfo),
+  };
   request.body.CampaignDetails.auditDetails = {
     createdBy: ExistingCampaignDetails?.createdBy,
     createdTime: ExistingCampaignDetails?.createdTime,

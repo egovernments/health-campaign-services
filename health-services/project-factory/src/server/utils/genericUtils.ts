@@ -684,7 +684,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  await handledropdownthings(facilitySheet, schema, localizationMap);
+  await handledropdownthings(workbook, facilitySheet, schema, localizationMap);
   protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
@@ -698,7 +698,24 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-export async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
+const DROPDOWN_HELPER_SHEET = "_h_Dropdowns_h_";
+const INLINE_LIST_CHAR_LIMIT = 255;
+
+function getOrCreateDropdownHelperSheet(workbook: any): any {
+  const existing = workbook.getWorksheet(DROPDOWN_HELPER_SHEET);
+  if (existing) return existing;
+  const ws = workbook.addWorksheet(DROPDOWN_HELPER_SHEET);
+  ws.state = "veryHidden";
+  return ws;
+}
+
+function writeEnumToDropdownSheet(helperSheet: any, values: string[]): string {
+  const colIdx = helperSheet.columnCount + 1;
+  helperSheet.getColumn(colIdx).values = values;
+  return helperSheet.getColumn(colIdx).letter;
+}
+
+export async function handledropdownthings(workbook: any, sheet: any, schema: any, localizationMap: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
@@ -725,6 +742,15 @@ export async function handledropdownthings(sheet: any, schema: any, localization
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
+          const values: string[] = dropdowns[key];
+          let resolvedFormulae: string[];
+          if (values.join(',').length > INLINE_LIST_CHAR_LIMIT) {
+            const helperSheet = getOrCreateDropdownHelperSheet(workbook);
+            const colLetter = writeEnumToDropdownSheet(helperSheet, values);
+            resolvedFormulae = [`'${DROPDOWN_HELPER_SHEET}'!$${colLetter}$1:$${colLetter}$${values.length}`];
+          } else {
+            resolvedFormulae = [`"${values.join(',')}"`];
+          }
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
               if (cell.protection?.locked) { // Check if the cell is locked
@@ -732,7 +758,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
                 // Set dropdown list with no typing allowed
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -744,7 +770,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
               else {
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -765,7 +791,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
   }
 }
 
-export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
+export async function handledropdownthingsUnLocalised(workbook: any, sheet: any, schema: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
@@ -791,6 +817,15 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
+          const values: string[] = dropdowns[key];
+          let resolvedFormulae: string[];
+          if (values.join(',').length > INLINE_LIST_CHAR_LIMIT) {
+            const helperSheet = getOrCreateDropdownHelperSheet(workbook);
+            const colLetter = writeEnumToDropdownSheet(helperSheet, values);
+            resolvedFormulae = [`'${DROPDOWN_HELPER_SHEET}'!$${colLetter}$1:$${colLetter}$${values.length}`];
+          } else {
+            resolvedFormulae = [`"${values.join(',')}"`];
+          }
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 2) {
               if (cell.protection?.locked) { // Check if the cell is locked
@@ -798,7 +833,7 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
                 // Set dropdown list with no typing allowed
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -810,7 +845,7 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
               else {
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -875,7 +910,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
   //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
   // }
-  await handledropdownthings(userSheet, schema, localizationMap);
+  await handledropdownthings(workbook, userSheet, schema, localizationMap);
   protectSheet(userSheet);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
@@ -1069,7 +1104,7 @@ async function generateUserSheetForMicroPlan(
     // Create a sheet for each role, using the role name as the sheet name
     const userSheet: any = workbook.addWorksheet(role);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
-    await handledropdownthings(userSheet, schema, localizationMap);
+    await handledropdownthings(workbook, userSheet, schema, localizationMap);
     protectSheet(userSheet);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   }
