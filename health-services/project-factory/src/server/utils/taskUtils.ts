@@ -16,10 +16,11 @@ import { createAndUploadFileWithOutRequest } from "../api/genericApis";
 import config from "../config";
 
 export async function handleTaskForCampaign(messageObject: any) {
+    const taskStartTime = Date.now();
     try {
         const { CampaignDetails, task } = messageObject;
         const processName = task?.processName
-        logger.info(`Task for campaign ${CampaignDetails?.id} : ${processName} started..`);
+        logger.info(`Task START campaign=${CampaignDetails?.id} process=${processName}`);
         const resourceType : string = getResourceType(processName);
         if(!resourceType) {
             logger.error(`Resource type not found for process ${processName}`);
@@ -118,6 +119,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, CampaignDetails?.tenantId);
+        logger.info(`Task COMPLETE campaign=${CampaignDetails?.id} process=${task?.processName} duration=${((Date.now() - taskStartTime) / 1000).toFixed(1)}s`);
     } catch (error) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
@@ -130,7 +132,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
-        logger.error(`Error in campaign creation process: ${(error as Error)?.stack || error}`);
+        logger.error(`Task FAILED campaign=${messageObject?.CampaignDetails?.id} process=${task?.processName} duration=${((Date.now() - taskStartTime) / 1000).toFixed(1)}s error=${(error as Error)?.stack || error}`);
         // Record error on the resource entry
         try {
             const failedResourceType = getResourceType(messageObject?.task?.processName);
