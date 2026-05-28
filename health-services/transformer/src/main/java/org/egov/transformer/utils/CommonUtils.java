@@ -299,6 +299,20 @@ public class CommonUtils {
         }
     }
 
+    public void addProjectDetailsFromProjectId(ProjectInfo projectInfo, String projectId, String tenantId) {
+        Project project = projectService.getProject(projectId, tenantId);
+        if (ObjectUtils.isNotEmpty(project)) {
+            String campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
+            projectInfo.setProjectTypeId(project.getProjectTypeId());
+            projectInfo.setProjectId(projectId);
+            projectInfo.setProjectType(project.getProjectType());
+            projectInfo.setProjectName(project.getName());
+            projectInfo.setCampaignNumber(project.getReferenceID());
+            projectInfo.setCampaignId(campaignId);
+        }
+
+    }
+
 //    public ObjectNode additionalFieldsToDetails(List<Object> fields) {
 //        ObjectNode additionalDetails = objectMapper.createObjectNode();
 //

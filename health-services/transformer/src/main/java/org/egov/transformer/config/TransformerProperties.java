@@ -71,6 +71,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.device.token.index.v1.topic}")
     private String transformerProducerDeviceTokenIndexV1Topic;
 
+    @Value("${transformer.producer.project.beneficiary.index.v1.topic}")
+    private String transformerProducerProjectBeneficiaryIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
