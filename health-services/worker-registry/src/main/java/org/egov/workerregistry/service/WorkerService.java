@@ -98,7 +98,7 @@ public class WorkerService {
             }
         });
 
-        List<Worker> encryptedWorkers = workerEncryptionService.encrypt(validWorkers, WorkerRegistryConstants.ENCRYPT_WORKER);
+        List<Worker> encryptedWorkers = workerEncryptionService.encrypt(tenantId, validWorkers, WorkerRegistryConstants.ENCRYPT_WORKER);
         workerRepository.putInCache(encryptedWorkers);
         workerRepository.save(encryptedWorkers, tenantId);
 
@@ -109,7 +109,7 @@ public class WorkerService {
         }
 
         CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
-        return workerEncryptionService.decrypt(encryptedWorkers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
+        return workerEncryptionService.decrypt(tenantId, encryptedWorkers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
     }
 
     public List<Worker> update(WorkerBulkRequest request) {
@@ -133,7 +133,7 @@ public class WorkerService {
         try {
             WorkerSearch search = WorkerSearch.builder().id(ids).tenantId(tenantId).build();
             List<Worker> existing = workerRepository.find(search);
-            List<Worker> decryptedExisting = workerEncryptionService.decrypt(existing, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
+            List<Worker> decryptedExisting = workerEncryptionService.decrypt(tenantId, existing, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
             decryptedExisting.forEach(w -> existingMap.put(w.getId(), w));
         } catch (InvalidTenantIdException e) {
             throw new CustomException(WorkerRegistryConstants.INVALID_TENANT_EXCEPTION, WorkerRegistryConstants.MSG_TENANT_ID_NOT_VALID);
@@ -146,12 +146,12 @@ public class WorkerService {
         });
 
         enrichmentService.enrichUpdate(validWorkers, request.getRequestInfo());
-        List<Worker> encryptedWorkers = workerEncryptionService.encrypt(validWorkers, WorkerRegistryConstants.ENCRYPT_WORKER);
+        List<Worker> encryptedWorkers = workerEncryptionService.encrypt(tenantId, validWorkers, WorkerRegistryConstants.ENCRYPT_WORKER);
         workerRepository.putInCache(encryptedWorkers);
         workerRepository.update(encryptedWorkers, tenantId);
 
         CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
-        return workerEncryptionService.decrypt(encryptedWorkers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
+        return workerEncryptionService.decrypt(tenantId, encryptedWorkers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
     }
 
     public List<WorkerIndividualMap> mapIndividual(WorkerIndividualMapBulkRequest request) {
@@ -181,10 +181,10 @@ public class WorkerService {
             throw new CustomException(WorkerRegistryConstants.INVALID_REQUEST, WorkerRegistryConstants.MSG_TENANT_ID_REQUIRED);
         }
 
-        WorkerSearch encryptedSearch = workerEncryptionService.encrypt(searchCriteria, WorkerRegistryConstants.ENCRYPT_WORKER_SEARCH);
+        String tenantId = searchCriteria.getTenantId();
+        WorkerSearch encryptedSearch = workerEncryptionService.encrypt(tenantId, searchCriteria, WorkerRegistryConstants.ENCRYPT_WORKER_SEARCH);
         request.setWorkerSearch(encryptedSearch);
         Map<String, List<String>> workerIdIndividualIdsMap = new HashMap<>();
-        String tenantId = searchCriteria.getTenantId();
         List<String> individualIds = searchCriteria.getIndividualId();
 
         if (!CollectionUtils.isEmpty(request.getWorkerSearch().getIndividualId())) {
@@ -240,7 +240,7 @@ public class WorkerService {
             worker.setIndividualIds(indIds);
         });
 
-        return workerEncryptionService.decrypt(workers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
+        return workerEncryptionService.decrypt(tenantId, workers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
     }
 
     private void mergeWorker(Worker incoming, Worker existing) {
