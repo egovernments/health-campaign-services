@@ -547,9 +547,10 @@ public class ExcelDataPopulator {
                 formulaBuilder.append(")))");
                 
                 String formula = formulaBuilder.toString();
-                
+
                 // Apply formula starting from row 3 (first data row) to match validation expectations
-                for (int row = 3; row <= 101; row++) { // Apply to first 100 data rows (3-102)
+                int maxFormulaRow = config.getExcelRowLimit() + 2; // +2 because data starts at row 3 (0-based index 2)
+                for (int row = 3; row <= maxFormulaRow; row++) {
                     String rowFormula = formula.replace("3", String.valueOf(row));
                     Row excelRow = sheet.getRow(row - 1); // POI rows are 0-indexed, so row 3 = index 2
                     if (excelRow == null) {
