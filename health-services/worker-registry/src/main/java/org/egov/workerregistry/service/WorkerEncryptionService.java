@@ -23,17 +23,17 @@ public class WorkerEncryptionService {
         this.encryptionDecryptionUtil = encryptionDecryptionUtil;
     }
 
-    public List<Worker> encrypt(List<Worker> entities, String key) {
+    public List<Worker> encrypt(String tenantId, List<Worker> entities, String key) {
         return (List<Worker>) encryptionDecryptionUtil
-                .encryptObject(entities, key, Worker.class);
+                .encryptObject(tenantId, entities, key, Worker.class);
     }
 
-    public WorkerSearch encrypt(WorkerSearch search, String key) {
+    public WorkerSearch encrypt(String tenantId, WorkerSearch search, String key) {
         return (WorkerSearch) encryptionDecryptionUtil
-                .encryptObject(search, key, WorkerSearch.class);
+                .encryptObject(tenantId, search, key, WorkerSearch.class);
     }
 
-    public List<Worker> decrypt(List<Worker> entities, String key, RequestInfo requestInfo) {
+    public List<Worker> decrypt(String tenantId, List<Worker> entities, String key, RequestInfo requestInfo) {
         List<Worker> encryptedEntities = entities.stream()
                 .filter(e -> isCipherText(e.getName()))
                 .collect(Collectors.toList());
@@ -43,7 +43,7 @@ public class WorkerEncryptionService {
         }
 
         List<Worker> decryptedEntities = (List<Worker>) encryptionDecryptionUtil
-                .decryptObject(encryptedEntities, key, Worker.class, requestInfo);
+                .decryptObject(tenantId, encryptedEntities, key, Worker.class, requestInfo);
 
         if (entities.size() > decryptedEntities.size()) {
             List<String> decryptedIds = decryptedEntities.stream()
