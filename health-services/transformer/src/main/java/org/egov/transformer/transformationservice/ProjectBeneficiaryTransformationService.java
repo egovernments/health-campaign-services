@@ -121,7 +121,7 @@ public class ProjectBeneficiaryTransformationService {
                 .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(beneficiary.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        commonUtils.addProjectDetailsFromProjectId(projectInfo, projectId, beneficiary.getTenantId());
+        commonUtils.addProjectDetailsFromProjectId(projectBeneficiaryIndexV1, projectId, beneficiary.getTenantId());
         return projectBeneficiaryIndexV1;
     }
 
