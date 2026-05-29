@@ -3,6 +3,7 @@ import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
 import { enrichAndPersistCampaignWithError } from './campaignUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
+import { getRequestContext } from './requestContext';
 
 /**
  * Send campaign failure message to Kafka topic
@@ -16,6 +17,7 @@ export async function sendCampaignFailureMessage(
         const failureMessage = {
             campaignId,
             tenantId,
+            correlationId: getRequestContext().correlationId,
             error: error.message || error.toString(),
             errorCode: error?.code,
             errorDescription: error?.description,

@@ -28,6 +28,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ExcelDataPopulator {
 
+    private static final String DROPDOWN_HELPER_SHEET_NAME = "_h_Dropdowns_h_";
+    private static final int INLINE_LIST_CHAR_LIMIT = 255;
+
     private final ExcelIngestionConfig config;
     private final ExcelStyleHelper excelStyleHelper;
     private final CellProtectionManager cellProtectionManager;
@@ -385,10 +388,17 @@ public class ExcelDataPopulator {
             int colIndex = startCol + i;
             ColumnDef column = columns.get(i);
             
-            // Apply enum dropdown validation - keep as is (no changes for dropdowns)
+            // Apply enum dropdown validation
             if (column.getEnumValues() != null && !column.getEnumValues().isEmpty()) {
-                String[] enumArray = column.getEnumValues().toArray(new String[0]);
-                DataValidationConstraint constraint = dvHelper.createExplicitListConstraint(enumArray);
+                DataValidationConstraint constraint;
+                if (String.join(",", column.getEnumValues()).length() > INLINE_LIST_CHAR_LIMIT) {
+                    Sheet dropdownSheet = getOrCreateDropdownSheet(workbook);
+                    int dropColIdx = writeEnumToDropdownSheet(dropdownSheet, column.getEnumValues());
+                    String rangeName = createDropdownNamedRange(workbook, column.getTechnicalName(), dropColIdx, column.getEnumValues().size());
+                    constraint = dvHelper.createFormulaListConstraint(rangeName);
+                } else {
+                    constraint = dvHelper.createExplicitListConstraint(column.getEnumValues().toArray(new String[0]));
+                }
                 // Use actual data row count or config limit, whichever is larger to cover all rows
                 // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
                 int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
@@ -591,6 +601,42 @@ public class ExcelDataPopulator {
             index /= 26;
         }
         return sb.toString();
+    }
+
+    private Sheet getOrCreateDropdownSheet(Workbook workbook) {
+        Sheet existing = workbook.getSheet(DROPDOWN_HELPER_SHEET_NAME);
+        if (existing != null) {
+            return existing;
+        }
+        Sheet sheet = workbook.createSheet(DROPDOWN_HELPER_SHEET_NAME);
+        workbook.setSheetHidden(workbook.getSheetIndex(DROPDOWN_HELPER_SHEET_NAME), true);
+        return sheet;
+    }
+
+    private int writeEnumToDropdownSheet(Sheet dropdownSheet, List<String> values) {
+        Row firstRow = dropdownSheet.getRow(0);
+        int colIdx = (firstRow != null && firstRow.getLastCellNum() > 0) ? firstRow.getLastCellNum() : 0;
+        for (int rowIdx = 0; rowIdx < values.size(); rowIdx++) {
+            Row row = dropdownSheet.getRow(rowIdx);
+            if (row == null) row = dropdownSheet.createRow(rowIdx);
+            row.createCell(colIdx).setCellValue(values.get(rowIdx));
+        }
+        return colIdx;
+    }
+
+    private String createDropdownNamedRange(Workbook workbook, String technicalName, int colIdx, int rowCount) {
+        String safeName = (technicalName != null ? technicalName : "col_" + colIdx)
+                .replaceAll("[^A-Za-z0-9_]", "_");
+        String rangeName = "_DR_" + safeName;
+        Name existing = workbook.getName(rangeName);
+        if (existing != null) {
+            workbook.removeName(existing);
+        }
+        String colLetter = columnIndexToLetter(colIdx);
+        Name name = workbook.createName();
+        name.setNameName(rangeName);
+        name.setRefersToFormula("'" + DROPDOWN_HELPER_SHEET_NAME + "'!$" + colLetter + "$1:$" + colLetter + "$" + rowCount);
+        return rangeName;
     }
 
     /**

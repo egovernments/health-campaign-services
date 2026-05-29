@@ -6,6 +6,7 @@
  * - Topics use exact subscription when prefix is empty
  * - Message routing strips prefix and dispatches to the correct handler
  * - Startup throws when central instance enabled but prefix empty
+ * - Handler errors are caught and logged without crashing the consumer
  */
 
 const mockSubscribe = jest.fn().mockResolvedValue(undefined);
@@ -23,6 +24,12 @@ jest.mock('kafkajs', () => {
         on: mockConsumerOn,
         events: { CRASH: 'consumer.crash', DISCONNECT: 'consumer.disconnect' },
       }),
+      admin: jest.fn().mockReturnValue({
+        connect: jest.fn().mockResolvedValue(undefined),
+        listTopics: jest.fn().mockResolvedValue([]),
+        createTopics: jest.fn().mockResolvedValue(undefined),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+      }),
     })),
     logLevel: { NOTHING: 0 },
   };
@@ -36,9 +43,8 @@ jest.mock('../config', () => {
       host: {
         KAFKA_BROKER_HOST: 'localhost:9092',
       },
-      app: {
-      },
       kafka: {
+        CONSUMER_GROUP_ID: 'test-group',
         KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC: 'start-admin-console-task',
         KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC: 'start-admin-console-mapping-task',
         KAFKA_TEST_TOPIC: 'test-topic-project-factory',
@@ -67,6 +73,12 @@ jest.mock('../utils/genericUtils', () => ({
   shutdownGracefully: jest.fn(),
 }));
 
+jest.mock('../utils/requestContext', () => ({
+  requestContextStore: {
+    run: jest.fn().mockImplementation((_ctx: any, fn: () => Promise<any>) => fn()),
+  },
+}));
+
 // Mock all handler modules
 const mockHandleTaskForCampaign = jest.fn().mockResolvedValue(undefined);
 const mockHandleMappingTaskForCampaign = jest.fn().mockResolvedValue(undefined);
@@ -88,6 +100,30 @@ import config from '../config';
 import { logger } from '../utils/logger';
 import { listener } from '../kafka/Listener';
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns the eachMessage callback registered with consumer.run() */
+function getEachMessageCallback(): (payload: any) => Promise<void> {
+  const runCall = mockRun.mock.calls[0][0];
+  return runCall.eachMessage;
+}
+
+function createMessage(topic: string, data: any, offset = '0') {
+  return {
+    topic,
+    partition: 0,
+    message: {
+      value: Buffer.from(JSON.stringify(data)),
+      offset,
+    },
+  };
+}
+
+/** Flush pending microtasks so fire-and-forget handlers complete. */
+const flushPromises = () => new Promise(resolve => setImmediate(resolve));
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 describe('Kafka Listener', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -95,18 +131,7 @@ describe('Kafka Listener', () => {
     (config as any).kafkaConsumerTopicPrefix = '';
   });
 
-  function getEachMessageCallback(): (payload: any) => Promise<void> {
-    const runCall = mockRun.mock.calls[0][0];
-    return runCall.eachMessage;
-  }
-
-  const createMessage = (data: any) => ({
-    value: Buffer.from(JSON.stringify(data)),
-  });
-
-  // -------------------------------------------------------------------
-  // SUBSCRIPTION TESTS
-  // -------------------------------------------------------------------
+  // ── SUBSCRIPTION ───────────────────────────────────────────────────────────
 
   describe('Topic Subscription', () => {
     it('Scenario 1: no prefix — all topics subscribed as exact strings', async () => {
@@ -124,7 +149,6 @@ describe('Kafka Listener', () => {
       expect(subscribedTopics).toContain('hcm-campaign-mark-failed');
       expect(subscribedTopics).toContain('test-topic-project-factory');
       expect(subscribedTopics).toHaveLength(8);
-      // All should be strings, not RegExp
       subscribedTopics.forEach((t: any) => expect(typeof t).toBe('string'));
     });
 
@@ -137,7 +161,6 @@ describe('Kafka Listener', () => {
       expect(subscribedTopics).toHaveLength(8);
       subscribedTopics.forEach((t: any) => expect(t).toBeInstanceOf(RegExp));
 
-      // Verify the regex matches the prefixed topic
       const mappingBatchRegex = subscribedTopics.find((t: any) =>
         t instanceof RegExp && t.test('ng-hcm-mapping-batch')
       );
@@ -161,9 +184,7 @@ describe('Kafka Listener', () => {
     });
   });
 
-  // -------------------------------------------------------------------
-  // STARTUP VALIDATION
-  // -------------------------------------------------------------------
+  // ── STARTUP VALIDATION ─────────────────────────────────────────────────────
 
   describe('Startup Validation', () => {
     it('Scenario 4: central instance enabled + empty prefix — throws error', async () => {
@@ -190,9 +211,7 @@ describe('Kafka Listener', () => {
     });
   });
 
-  // -------------------------------------------------------------------
-  // MESSAGE ROUTING TESTS
-  // -------------------------------------------------------------------
+  // ── MESSAGE ROUTING ────────────────────────────────────────────────────────
 
   describe('Message Routing', () => {
     it('Scenario 7: no prefix — routes unprefixed topic to correct handler', async () => {
@@ -200,11 +219,8 @@ describe('Kafka Listener', () => {
       await listener();
 
       const eachMessage = getEachMessageCallback();
-      await eachMessage({
-        topic: 'hcm-mapping-batch',
-        message: createMessage({ test: true }),
-        partition: 0,
-      });
+      await eachMessage(createMessage('hcm-mapping-batch', { test: true }, '5'));
+      await flushPromises();
 
       expect(mockHandleMappingBatch).toHaveBeenCalledWith({ test: true });
     });
@@ -214,11 +230,8 @@ describe('Kafka Listener', () => {
       await listener();
 
       const eachMessage = getEachMessageCallback();
-      await eachMessage({
-        topic: 'ng-hcm-mapping-batch',
-        message: createMessage({ test: true }),
-        partition: 0,
-      });
+      await eachMessage(createMessage('ng-hcm-mapping-batch', { test: true }));
+      await flushPromises();
 
       expect(mockHandleMappingBatch).toHaveBeenCalledWith({ test: true });
     });
@@ -229,19 +242,13 @@ describe('Kafka Listener', () => {
 
       const eachMessage = getEachMessageCallback();
 
-      await eachMessage({
-        topic: 'ba-hcm-facility-create-batch',
-        message: createMessage({ state: 'ba' }),
-        partition: 0,
-      });
+      await eachMessage(createMessage('ba-hcm-facility-create-batch', { state: 'ba' }));
+      await flushPromises();
       expect(mockHandleFacilityBatch).toHaveBeenCalledWith({ state: 'ba' });
 
       mockHandleUserBatch.mockClear();
-      await eachMessage({
-        topic: 'ke-hcm-user-create-batch',
-        message: createMessage({ state: 'ke' }),
-        partition: 0,
-      });
+      await eachMessage(createMessage('ke-hcm-user-create-batch', { state: 'ke' }));
+      await flushPromises();
       expect(mockHandleUserBatch).toHaveBeenCalledWith({ state: 'ke' });
     });
 
@@ -250,11 +257,8 @@ describe('Kafka Listener', () => {
       await listener();
 
       const eachMessage = getEachMessageCallback();
-      await eachMessage({
-        topic: 'unknown-topic',
-        message: createMessage({ test: true }),
-        partition: 0,
-      });
+      await eachMessage(createMessage('unknown-topic', { test: true }));
+      await flushPromises();
 
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Unhandled topic'));
       expect(mockHandleMappingBatch).not.toHaveBeenCalled();
@@ -277,7 +281,8 @@ describe('Kafka Listener', () => {
 
       for (const { topic, handler } of testCases) {
         handler.mockClear();
-        await eachMessage({ topic, message: createMessage({ from: topic }), partition: 0 });
+        await eachMessage(createMessage(topic, { from: topic }));
+        await flushPromises();
         expect(handler).toHaveBeenCalledWith({ from: topic });
       }
     });
@@ -299,35 +304,29 @@ describe('Kafka Listener', () => {
 
       for (const { topic, handler } of testCases) {
         handler.mockClear();
-        await eachMessage({ topic, message: createMessage({ from: topic }), partition: 0 });
+        await eachMessage(createMessage(topic, { from: topic }));
+        await flushPromises();
         expect(handler).toHaveBeenCalledWith({ from: topic });
       }
     });
   });
 
-  // -------------------------------------------------------------------
-  // CROSS-SERVICE TESTS (excel-ingestion -> project-factory)
-  // -------------------------------------------------------------------
+  // ── CROSS-SERVICE ──────────────────────────────────────────────────────────
 
   describe('Cross-Service Topic Matching', () => {
     it('Scenario 13: prefix set — excel-ingestion prefixed topic matches subscription + routes', async () => {
       (config as any).kafkaConsumerTopicPrefix = 'ng-';
       await listener();
 
-      // Verify subscription regex matches the topic excel-ingestion would produce
       const subscribedTopics = mockSubscribe.mock.calls.map((c: any[]) => c[0].topic);
       const processingResultRegex = subscribedTopics.find((t: any) =>
         t instanceof RegExp && t.test('ng-hcm-processing-result')
       );
       expect(processingResultRegex).toBeDefined();
 
-      // Verify routing works
       const eachMessage = getEachMessageCallback();
-      await eachMessage({
-        topic: 'ng-hcm-processing-result',
-        message: createMessage({ result: 'done' }),
-        partition: 0,
-      });
+      await eachMessage(createMessage('ng-hcm-processing-result', { result: 'done' }));
+      await flushPromises();
       expect(mockHandleProcessingResult).toHaveBeenCalledWith({ result: 'done' });
     });
 
@@ -339,12 +338,59 @@ describe('Kafka Listener', () => {
       expect(subscribedTopics).toContain('hcm-processing-result');
 
       const eachMessage = getEachMessageCallback();
-      await eachMessage({
-        topic: 'hcm-processing-result',
-        message: createMessage({ result: 'done' }),
-        partition: 0,
-      });
+      await eachMessage(createMessage('hcm-processing-result', { result: 'done' }));
+      await flushPromises();
       expect(mockHandleProcessingResult).toHaveBeenCalledWith({ result: 'done' });
+    });
+  });
+
+  // ── ERROR HANDLING ─────────────────────────────────────────────────────────
+
+  describe('Error Handling', () => {
+    it('Scenario 15: handler throws — error logged, eachMessage resolves without crash', async () => {
+      (config as any).kafkaConsumerTopicPrefix = '';
+      mockHandleTaskForCampaign.mockRejectedValueOnce(new Error('unexpected crash'));
+      await listener();
+
+      const eachMessage = getEachMessageCallback();
+      await expect(
+        eachMessage(createMessage('start-admin-console-task', { campaignId: '123' }, '3'))
+      ).resolves.toBeUndefined();
+
+      await flushPromises();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error processing message')
+      );
+    });
+
+    it('Scenario 16: two sequential messages — second failure logged independently, first succeeds', async () => {
+      (config as any).kafkaConsumerTopicPrefix = '';
+      mockHandleTaskForCampaign
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('crash'));
+      await listener();
+
+      const eachMessage = getEachMessageCallback();
+      await eachMessage(createMessage('start-admin-console-task', { id: 'msg1' }));
+      await flushPromises();
+      expect(mockHandleTaskForCampaign).toHaveBeenCalledWith({ id: 'msg1' });
+
+      await eachMessage(createMessage('start-admin-console-task', { id: 'msg2' }));
+      await flushPromises();
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error processing message'));
+    });
+
+    it('Scenario 17: unknown topic — logs warning, eachMessage resolves', async () => {
+      (config as any).kafkaConsumerTopicPrefix = '';
+      await listener();
+
+      const eachMessage = getEachMessageCallback();
+      await expect(
+        eachMessage(createMessage('totally-unknown-topic', { data: 1 }))
+      ).resolves.toBeUndefined();
+
+      await flushPromises();
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Unhandled topic'));
     });
   });
 });

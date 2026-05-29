@@ -10,16 +10,17 @@ import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { enrichProcessTemplateConfig, handleErrorDuringProcess, processRequest } from "./sheetManageUtils";
 import { fetchFileFromFilestore } from "../api/coreApis";
 import { getExcelWorkbookFromFileURL, getLocaleFromWorkbook, enrichTemplateMetaData } from "./excelUtils";
-import { getLocalisationModuleName } from "./localisationUtils";
+import { getLocalisationModuleName, getLocaleFromRequestInfo } from "./localisationUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { createAndUploadFileWithOutRequest } from "../api/genericApis";
 import config from "../config";
 
 export async function handleTaskForCampaign(messageObject: any) {
+    const taskStartTime = Date.now();
     try {
         const { CampaignDetails, task } = messageObject;
         const processName = task?.processName
-        logger.info(`Task for campaign ${CampaignDetails?.id} : ${processName} started..`);
+        logger.info(`Task START campaign=${CampaignDetails?.id} process=${processName}`);
         const resourceType : string = getResourceType(processName);
         if(!resourceType) {
             logger.error(`Resource type not found for process ${processName}`);
@@ -52,7 +53,9 @@ export async function handleTaskForCampaign(messageObject: any) {
         // Graceful fallback: use campaign locale or default locale if metadata missing
         if (!locale) {
             logger.warn(`Locale metadata not found in workbook for resource type ${resourceType}. Using fallback locale.`);
-            locale = CampaignDetails?.additionalDetails?.locale || config.localisation.defaultLocale || "en_IN";
+            locale = CampaignDetails?.additionalDetails?.locale
+                || getLocaleFromRequestInfo(messageObject?.requestInfo)
+                || config.localisation.defaultLocale || "en_IN";
             logger.info(`Using fallback locale: ${locale}`);
 
             // Enrich the workbook metadata with locale and campaign ID for future use
@@ -116,6 +119,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, CampaignDetails?.tenantId);
+        logger.info(`Task COMPLETE campaign=${CampaignDetails?.id} process=${task?.processName} duration=${((Date.now() - taskStartTime) / 1000).toFixed(1)}s`);
     } catch (error) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
@@ -128,7 +132,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
-        logger.error(`Error in campaign creation process: ${(error as Error)?.stack || error}`);
+        logger.error(`Task FAILED campaign=${messageObject?.CampaignDetails?.id} process=${task?.processName} duration=${((Date.now() - taskStartTime) / 1000).toFixed(1)}s error=${(error as Error)?.stack || error}`);
         // Record error on the resource entry
         try {
             const failedResourceType = getResourceType(messageObject?.task?.processName);

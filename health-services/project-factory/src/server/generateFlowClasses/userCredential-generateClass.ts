@@ -62,6 +62,22 @@ export class TemplateClass {
                 localizedData[key] = rawData[key];
             }
 
+            // Ensure _MULTISELECT_N keys exist for role columns — the sheet schema expands
+            // HCM_ADMIN_CONSOLE_USER_ROLE into individual _MULTISELECT_N columns, so the combined
+            // string must be split when individual keys are absent (legacy or combined-only storage).
+            const hasMultiSelectKeys = Object.keys(localizedData).some(
+                (k: string) => k.startsWith("HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_")
+            );
+            if (!hasMultiSelectKeys) {
+                const combinedRole: string = localizedData["HCM_ADMIN_CONSOLE_USER_ROLE"] || "";
+                if (combinedRole.trim()) {
+                    combinedRole.split(",").map((r: string) => r.trim()).filter(Boolean).slice(0, 5)
+                        .forEach((role: string, i: number) => {
+                            localizedData[`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${i + 1}`] = role;
+                        });
+                }
+            }
+
             localizedData[campaignDataRowFields.status] = sheetDataRowStatuses.CREATED;
             localizedData[userCredentialFields.userName] = decrypt(rawData[userCredentialFields.userName]);
             localizedData[userCredentialFields.password] = decrypt(rawData[userCredentialFields.password]);

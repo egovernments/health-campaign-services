@@ -100,7 +100,7 @@ import {
   fetchUserData,
 } from "./microplanIntergration";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
-import { getLocaleFromRequest } from "./localisationUtils";
+import { getLocaleFromRequest, getLocaleFromRequestInfo } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
 import { CampaignResource, toCampaignResource } from "../config/models/resourceTypes";
 import Localisation from "../controllers/localisationController/localisation.controller";
@@ -665,6 +665,7 @@ async function updateStatusFileForEachSheets(
   }
 
   localizedSheetNames.forEach((sheetName: any) => {
+    if (sheetName.startsWith('_h_') && sheetName.endsWith('_h_')) return;
     if (
       sheetName !==
       getLocalizedName(config?.boundary?.boundaryTab, localizationMap) &&
@@ -1081,8 +1082,11 @@ async function enrichAndPersistCampaignForCreate(
     request?.body?.CampaignDetails?.hierarchyType || null;
   request.body.CampaignDetails.parentId =
     request?.body?.CampaignDetails?.parentId || null;
-  request.body.CampaignDetails.additionalDetails =
-    request?.body?.CampaignDetails?.additionalDetails || {};
+  const existingAdditionalForCreate = request?.body?.CampaignDetails?.additionalDetails || {};
+  request.body.CampaignDetails.additionalDetails = {
+    ...existingAdditionalForCreate,
+    locale: existingAdditionalForCreate.locale || getLocaleFromRequestInfo(request?.body?.RequestInfo),
+  };
   request.body.CampaignDetails.startDate =
     request?.body?.CampaignDetails?.startDate || null;
   request.body.CampaignDetails.endDate =
@@ -1211,10 +1215,13 @@ async function enrichAndPersistCampaignForUpdate(
     ?.hierarchyType
     ? request?.body?.CampaignDetails?.hierarchyType
     : ExistingCampaignDetails?.hierarchyType;
-  request.body.CampaignDetails.additionalDetails = request?.body
-    ?.CampaignDetails?.additionalDetails
-    ? request?.body?.CampaignDetails?.additionalDetails
-    : ExistingCampaignDetails?.additionalDetails;
+  const existingAdditionalForUpdate = request?.body?.CampaignDetails?.additionalDetails
+    ?? ExistingCampaignDetails?.additionalDetails
+    ?? {};
+  request.body.CampaignDetails.additionalDetails = {
+    ...existingAdditionalForUpdate,
+    locale: existingAdditionalForUpdate.locale || getLocaleFromRequestInfo(request?.body?.RequestInfo),
+  };
   request.body.CampaignDetails.auditDetails = {
     createdBy: ExistingCampaignDetails?.createdBy,
     createdTime: ExistingCampaignDetails?.createdTime,
@@ -3075,6 +3082,10 @@ async function getTemplateModules(
     isActive: true,
   };
 
+  logger.info(
+    `MDMS SEARCH [getTemplateModules] schemaCode=${schemaCode} | request body: ${JSON.stringify({ MdmsCriteria: criteria })}`
+  );
+
   const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
 
   return (response?.mdms || [])
@@ -3178,6 +3189,12 @@ export async function createAppConfig(
   RequestInfo: any
 ): Promise<void> {
   try {
+    if (!campaignNumber) {
+      throw new Error(`createAppConfig: campaignNumber is required but got: ${campaignNumber}`);
+    }
+    if (!campaignType) {
+      throw new Error(`createAppConfig: campaignType is required but got: ${campaignType}`);
+    }
     logger.info("Creating app configuration...");
 
     const moduleName = config.values.moduleName;
@@ -3220,6 +3237,12 @@ export async function createAppConfigFromClone(
   RequestInfo: any
 ): Promise<void> {
   try {
+    if (!newCampaignNumber) {
+      throw new Error(`createAppConfigFromClone: newCampaignNumber is required but got: ${newCampaignNumber}`);
+    }
+    if (!cloneFromCampaignNumber) {
+      throw new Error(`createAppConfigFromClone: cloneFromCampaignNumber is required but got: ${cloneFromCampaignNumber}`);
+    }
     logger.info("Started creating app config from clone...");
 
     const moduleName = config.values.moduleName;
@@ -3284,12 +3307,20 @@ async function fetchCloneModules(
   configSchema: string,
   cloneFromCampaignNumber: string
 ): Promise<any> {
+  if (!cloneFromCampaignNumber) {
+    throw new Error(`fetchCloneModules: cloneFromCampaignNumber is required but got: ${cloneFromCampaignNumber}`);
+  }
+
   const cloneCriteria = {
     tenantId,
     schemaCode: configSchema,
     filters: { project: cloneFromCampaignNumber },
     isActive: true,
   };
+
+  logger.info(
+    `MDMS SEARCH [fetchCloneModules] schemaCode=${configSchema} | request body: ${JSON.stringify({ MdmsCriteria: cloneCriteria })}`
+  );
 
   return await searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria });
 }

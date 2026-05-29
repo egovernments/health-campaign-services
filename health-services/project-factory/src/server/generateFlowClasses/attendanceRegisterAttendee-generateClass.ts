@@ -275,14 +275,16 @@ export class TemplateClass {
      */
     private static buildRowData(rawData: any, registerServiceCode: string, localizationMap: any, includeTeamCode: boolean): any {
         const boundaryCode = rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] || rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] || "";
-        // Combine roles into a single comma-separated string for display
-        const roleDisplayStr = this.getRoleCodes(rawData).join(", ");
+        const roleCodes = this.getRoleCodes(rawData);
+        const roleMultiSelectEntries = roleCodes.slice(0, 5).map(
+            (code, i) => [`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${i + 1}`, code] as [string, string]
+        );
         const row: any = {
             "HCM_ADMIN_CONSOLE_USER_WORKER_ID": rawData["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
             "HCM_ADMIN_CONSOLE_USER_NAME": rawData["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
             "UserName": rawData["UserName"] ? decrypt(rawData["UserName"]) : "",
             "Password": rawData["Password"] ? decrypt(rawData["Password"]) : "",
-            "HCM_ADMIN_CONSOLE_USER_ROLE": roleDisplayStr,
+            ...Object.fromEntries(roleMultiSelectEntries),
             "HCM_ADMIN_CONSOLE_BOUNDARY_NAME": rawData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] || getLocalizedName(boundaryCode, localizationMap),
             "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY": boundaryCode,
             "HCM_ATTENDANCE_REGISTER_ID": registerServiceCode,

@@ -2,6 +2,7 @@ import { Kafka, logLevel, EachMessagePayload } from 'kafkajs';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
+import { requestContextStore } from '../utils/requestContext';
 import { handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
 import { handleTaskForCampaign } from '../utils/taskUtils';
 import { handleProcessingResult } from '../utils/processingResultHandler';
@@ -38,7 +39,7 @@ async function ensureTopicsExist(topics: string[]) {
     }
 }
 
-const groupId = 'project-factory';
+const groupId = config?.kafka?.CONSUMER_GROUP_ID;
 
 const consumer = kafka.consumer({ groupId });
 
@@ -142,17 +143,26 @@ async function processMessageKJS(
     try {
         const messageObject = JSON.parse(message.value?.toString() || '{}');
 
-        // Strip prefix from incoming topic to resolve the base topic for routing
-        const baseTopic = stripTopicPrefix(topic);
-        const handler = topicHandlerMap.get(baseTopic);
-        if (handler) {
-            await handler(messageObject);
-        } else {
-            logger.warn(`Unhandled topic: ${topic}`);
-        }
+        // message shape varies: RequestInfo (campaign) vs requestInfo (task) vs top-level correlationId (failure)
+        const requestInfo = messageObject.RequestInfo ?? messageObject.requestInfo;
+        const correlationId: string | null = requestInfo?.correlationId ?? messageObject.correlationId ?? null;
+        const tenantId: string | null = requestInfo?.userInfo?.tenantId ?? messageObject.tenantId ?? null;
 
-        logger.info(`KAFKA :: LISTENER :: Received a message from topic ${topic}`);
-        logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
+        await requestContextStore.run({ correlationId, tenantId }, async () => {
+            logger.info(`KAFKA :: LISTENER :: Received a message from topic ${topic}`);
+            logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
+
+            // Strip prefix from incoming topic to resolve the base topic for routing
+            const baseTopic = stripTopicPrefix(topic);
+            const handler = topicHandlerMap.get(baseTopic);
+            if (handler) {
+                await handler(messageObject);
+            } else {
+                logger.warn(`Unhandled topic: ${topic}`);
+            }
+
+            logger.info(`KAFKA :: LISTENER :: Processed message from topic ${topic}`);
+        });
     } catch (error) {
         logger.error(`KAFKA :: LISTENER :: Error processing message: ${error}`);
         console.error(error);
