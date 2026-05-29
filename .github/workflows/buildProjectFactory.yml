@@ -5,7 +5,6 @@ on:
     branches:
       - allValidations
       - master
-      - nigeria-go-deep-2-userRetryCampaign
       - nigeria-do-deep-2
 
 env:
