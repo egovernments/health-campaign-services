@@ -11,7 +11,6 @@ on:
     branches: 
       - "console"
       - "master"
-      - "nigeria-do-deep-2"
 
 jobs:
   build:
