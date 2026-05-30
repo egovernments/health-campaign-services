@@ -232,6 +232,18 @@ const config = {
     maxAttemptsForResourceCreationOrMapping: Number(process.env.MAX_RESOURCE_CREATION_ATTEMPTS || 200),
     // wait time between each polling attempt in milliseconds (default: 60 sec)
     waitTimeOfEachAttemptOfResourceCreationOrMappping: Number(process.env.WAIT_TIME_OF_EACH_ATTEMPT_MS || 40000),
+  },
+  excelIngestion: {
+    // Page size for paginated sheet-data reads from the excel-ingestion service.
+    sheetFetchPageSize: process.env.EXCEL_INGESTION_PAGE_SIZE ? parseInt(process.env.EXCEL_INGESTION_PAGE_SIZE, 10) : 2000,
+    // Stall timeout (ms): how long to keep waiting for the ingestion persister
+    // WITHOUT the persisted row count increasing. As long as rows keep landing the
+    // wait continues; it only fails once progress stalls for this long. Default 2 min.
+    persistenceStallTimeoutMs: process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS, 10) : 120000,
+    // Interval (ms) between persistence-count polls. 10s — persisting thousands of
+    // rows is slow, so polling every second only adds needless count-query load.
+    // Shared by the ingestion gate and the background boundary/user persistence polls.
+    persistencePollIntervalMs: process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS, 10) : 10000,
   }
 };
 

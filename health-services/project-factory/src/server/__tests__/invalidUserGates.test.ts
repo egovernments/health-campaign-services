@@ -87,6 +87,7 @@ jest.mock('../config', () => ({
         },
         localisation: { defaultLocale: 'en_IN' },
         DB_CONFIG: { DB_CAMPAIGN_DATA_TABLE_NAME: 'eg_cm_campaign_data' },
+        excelIngestion: { sheetFetchPageSize: 2000, persistenceStallTimeoutMs: 120000, persistencePollIntervalMs: 10000 },
     },
 }));
 

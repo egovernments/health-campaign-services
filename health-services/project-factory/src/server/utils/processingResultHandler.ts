@@ -1,8 +1,8 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
-import { searchSheetData } from './excelIngestionUtils';
+import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, deleteCampaignDataFailedAndInvalid } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
@@ -271,13 +271,20 @@ export async function handleProcessingResult(messageObject: any) {
             logger.info(`Proceeding with campaign despite user-sheet validation errors: campaignNumber=${campaignDetails.campaignName}`);
         }
         
-        // Poll until the ingestion service has persisted all rows before reading
+        // Poll until the ingestion service has persisted all rows before reading.
+        // Compare against the service's true TotalCount (count-only call) rather than
+        // a capped Data.length — the latter silently stalls for files > the fetch limit.
         if (totalRowsProcessed > 0) {
             logger.info(`=== WAITING FOR INGESTION PERSISTER: expecting ${totalRowsProcessed} rows ===`);
-            await pollUntilCount(
-                () => searchSheetData(messageObject.tenantId, messageObject.referenceId, messageObject.fileStoreId, 5000),
+            await pollUntilCountFn(
+                () => getSheetDataCount(messageObject.tenantId, messageObject.referenceId, messageObject.fileStoreId),
                 totalRowsProcessed,
-                { label: 'ingestion sheet data', timeoutMs: 180_000 }
+                {
+                    label: 'ingestion sheet data',
+                    // Wait as long as rows keep landing; fail only if persistence stalls.
+                    stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs,
+                    pollIntervalMs: config.excelIngestion.persistencePollIntervalMs,
+                }
             );
         }
         
@@ -304,14 +311,16 @@ export async function handleProcessingResult(messageObject: any) {
         logger.info('=== SEARCHING TEMP DATA AND PROCESSING CAMPAIGN DATA ===');
         
         if (messageObject.referenceId && messageObject.fileStoreId && messageObject.tenantId) {
-            const tempData = await searchSheetData(
+            // Presence check only — use the true count instead of fetching (and
+            // discarding) thousands of rows. The per-type processors below read
+            // their own sheets via bounded pagination.
+            const tempDataCount = await getSheetDataCount(
                 messageObject.tenantId,
                 messageObject.referenceId,
-                messageObject.fileStoreId,
-                5000 // Increased limit for processing
+                messageObject.fileStoreId
             );
-            
-            if (tempData && tempData.length > 0) {
+
+            if (tempDataCount && tempDataCount > 0) {
                 
                 // Process campaign data from all sheets in parallel
                 logger.info('=== PROCESSING ALL CAMPAIGN DATA TYPES IN PARALLEL ===');
@@ -433,26 +442,28 @@ async function processCampaignBoundariesFromExcelData(
 
         logger.info(`Enriched ${boundaries.length} boundaries with includeChildren=true`);
 
-        // Step 4: Search specific boundary hierarchy sheet data  
+        // Step 4: Search specific boundary hierarchy sheet data (paginated to bound
+        // memory). Only the {boundaryCode, target-columns} projection is retained
+        // across pages — never the full rowjson for the whole sheet.
         const boundarySheetName = getLocalizedSheetName('HCM_CONSOLE_BOUNDARY_HIERARCHY', localizationMap);
         logger.info(`Searching ${boundarySheetName} sheet data...`);
-        const boundarySheetData = await searchSheetData(
-            tenantId, 
-            campaignId, 
+
+        const sheetTargetData: any[] = [];
+        const boundaryRowTotal = await forEachSheetDataPage(
+            tenantId,
+            campaignId,
             fileStoreId,
-            null,
-            boundarySheetName
+            boundarySheetName,
+            getSheetFetchPageSize(),
+            (rows) => { extractTargetDataFromBoundarySheet(rows, targetColumns, sheetTargetData); }
         );
 
-        if (!boundarySheetData || boundarySheetData.length === 0) {
+        if (boundaryRowTotal === 0) {
             logger.warn('No boundary hierarchy sheet data found');
             return 0;
         }
 
-        logger.info(`Found ${boundarySheetData.length} records in boundary hierarchy sheet`);
-
-        // Step 5: Extract target data from sheet (only lowest level boundaries have targets)
-        const sheetTargetData = extractTargetDataFromBoundarySheet(boundarySheetData, targetColumns);
+        logger.info(`Found ${boundaryRowTotal} records in boundary hierarchy sheet`);
 
         if (sheetTargetData.length === 0) {
             logger.warn('No boundary target data found in sheets');
@@ -481,41 +492,44 @@ async function processCampaignBoundariesFromExcelData(
 }
 
 /**
- * Extract target data from boundary hierarchy sheet records (only lowest level boundaries)
+ * Extract target data from a page of boundary hierarchy sheet records (only
+ * lowest-level boundaries carry targets) and push it into `accumulator`.
+ *
+ * Pushes a lightweight {boundaryCode, target-columns} projection rather than the
+ * full rowjson, so the cross-row target cascade can run over the accumulated
+ * leaves without retaining the entire sheet in memory.
  */
-function extractTargetDataFromBoundarySheet(sheetData: any[], targetColumns: string[]): any[] {
-    const boundaryDataList: any[] = [];
+function extractTargetDataFromBoundarySheet(sheetData: any[], targetColumns: string[], accumulator: any[]): void {
     const BOUNDARY_CODE_COLUMN = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
-    
+
     sheetData.forEach(record => {
         const rowJson = record.rowjson || record.rowJson || {};
         const boundaryCode = rowJson[BOUNDARY_CODE_COLUMN];
-        
+
         if (!boundaryCode) {
             logger.warn(`No boundary code found in row`);
             return;
         }
 
-        // Check if row has any target data
+        // Keep only the target columns that have a value (plus the boundary code).
+        const projected: any = {};
         let hasTargets = false;
         targetColumns.forEach(targetColumn => {
             const targetValue = rowJson[targetColumn];
             if (targetValue !== undefined && targetValue !== null && targetValue !== '') {
+                projected[targetColumn] = targetValue;
                 hasTargets = true;
             }
         });
 
         if (hasTargets) {
-            boundaryDataList.push({
+            accumulator.push({
                 boundaryCode,
-                data: rowJson
+                data: projected
             });
             logger.debug(`Extracted boundary: ${boundaryCode} with targets`);
         }
     });
-
-    logger.info(`Extracted ${boundaryDataList.length} boundary records with targets from boundary hierarchy sheet`);
-    return boundaryDataList;
 }
 
 /**
@@ -1203,26 +1217,44 @@ async function processCampaignFacilitiesFromExcelData(
         const campaignId = campaignDetails.id;
         logger.info(`Processing facilities for campaign: ${campaignDetails.campaignName}`);
 
-        // Search facilities sheet data
+        // Search facilities sheet data (paginated to bound memory).
         const facilitySheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_FACILITIES_LIST', localizationMap);
         logger.info(`Searching ${facilitySheetName} sheet data...`);
-        const facilitySheetData = await searchSheetData(
-            tenantId, 
-            campaignId, 
-            fileStoreId,
-            null,
-            facilitySheetName
+
+        const FACILITY_NAME_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_NAME';
+
+        // Existing facilities come from the DB (not the sheet) — fetch once and
+        // reuse across every page.
+        const existingFacilities = await getRelatedDataWithCampaign('facility', campaignNumber, tenantId);
+        logger.info(`Found ${existingFacilities.length} existing facility records in eg_cm_campaign_data`);
+        const existingFacilityMap = new Map(
+            existingFacilities.map((f: any) => [f?.data?.[FACILITY_NAME_KEY], f])
         );
 
-        if (!facilitySheetData || facilitySheetData.length === 0) {
+        // Accumulate only the lightweight {facilityName, boundaryCode, active}
+        // mappings across pages; the demap diff needs the complete set.
+        const facilityBoundaryMappings: any[] = [];
+
+        const facilityRowTotal = await forEachSheetDataPage(
+            tenantId,
+            campaignId,
+            fileStoreId,
+            facilitySheetName,
+            getSheetFetchPageSize(),
+            (rows) => processFacilityDataAndMappings(campaignNumber, tenantId, rows, existingFacilityMap, facilityBoundaryMappings)
+        );
+
+        if (facilityRowTotal === 0) {
             logger.info('No facilities sheet data found');
             return;
         }
 
-        logger.info(`Found ${facilitySheetData.length} records in facilities sheet`);
+        logger.info(`Found ${facilityRowTotal} records in facilities sheet`);
 
-        // Process facilities and their mappings
-        await processFacilityDataAndMappings(campaignNumber, tenantId, facilitySheetData);
+        // Process facility-boundary mappings once, against the full accumulated set.
+        if (facilityBoundaryMappings.length > 0) {
+            await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings);
+        }
 
         logger.info('=== CAMPAIGN FACILITIES PROCESSING COMPLETED ===');
 
@@ -1233,32 +1265,29 @@ async function processCampaignFacilitiesFromExcelData(
 }
 
 /**
- * Process facility data and update campaign data and mapping tables
+ * Process a page of facility sheet rows: classify into new/updated, persist this
+ * page, and append this page's boundary mappings to the shared accumulator.
+ *
+ * `existingFacilityMap` (DB state) and `facilityBoundaryMappings` (cross-page
+ * accumulator) are supplied by the caller so the function can run per page while
+ * the demap diff still sees the complete mapping set afterwards.
  */
 async function processFacilityDataAndMappings(
     campaignNumber: string,
     tenantId: string,
-    sheetData: any[]
+    sheetData: any[],
+    existingFacilityMap: Map<any, any>,
+    facilityBoundaryMappings: any[]
 ): Promise<void> {
     const FACILITY_NAME_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_NAME';
     const FACILITY_CODE_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_CODE';
     const BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_USAGE';
-    
-    // Get existing facility data
-    const existingFacilities = await getRelatedDataWithCampaign('facility', campaignNumber, tenantId);
-    logger.info(`Found ${existingFacilities.length} existing facility records in eg_cm_campaign_data`);
-    
-    // Create map for existing facilities
-    const existingFacilityMap = new Map(
-        existingFacilities.map((f: any) => [f?.data?.[FACILITY_NAME_KEY], f])
-    );
-    
-    // Process facilities from sheet
+
+    // Process facilities from this page
     const newFacilities: any[] = [];
     const updatedFacilities: any[] = [];
-    const facilityBoundaryMappings: any[] = [];
-    
+
     sheetData.forEach(record => {
         const rowJson = record.rowjson || record.rowJson || {};
         const facilityName = rowJson[FACILITY_NAME_KEY];
@@ -1328,23 +1357,20 @@ async function processFacilityDataAndMappings(
         }
     });
     
-    // Persist facility data changes
+    // Persist this page's facility data changes
     if (newFacilities.length > 0) {
         logger.info(`Persisting ${newFacilities.length} new facility entries`);
         await persistDataInBatches(newFacilities, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
     }
-    
+
     if (updatedFacilities.length > 0) {
         logger.info(`Updating ${updatedFacilities.length} existing facility entries`);
         await persistDataInBatches(updatedFacilities, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
     }
-    
-    // Process facility-boundary mappings
-    if (facilityBoundaryMappings.length > 0) {
-        await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings);
-    }
-    
-    logger.info(`Facility processing completed: ${newFacilities.length} new, ${updatedFacilities.length} updated`);
+
+    // Boundary mappings are accumulated and diffed once by the caller after all
+    // pages — the demap step needs the complete sheet-wide mapping set.
+    logger.info(`Facility page processed: ${newFacilities.length} new, ${updatedFacilities.length} updated`);
 }
 
 /**
@@ -1446,32 +1472,38 @@ async function processCampaignUsersFromExcelData(
         const campaignId = campaignDetails.id;
         logger.info(`Processing users for campaign: ${campaignDetails.campaignName}`);
 
-        // Search users sheet data
+        // Search users sheet data. Two-pass paginated to keep memory bounded:
+        //   Pass A (here) — collect phone numbers only (cheap strings).
+        //   Pass B (processUsersSimple) — classify + persist per page.
         const userSheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_USERS_LIST', localizationMap);
         logger.info(`Searching ${userSheetName} sheet data...`);
-        const userSheetData = await searchSheetData(
-            tenantId, 
-            campaignId, 
+
+        const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
+
+        // Pass A — collect phone numbers across all pages (no rowjson retained).
+        const phoneNumbers: string[] = [];
+        const userRowTotal = await forEachSheetDataPage(
+            tenantId,
+            campaignId,
             fileStoreId,
-            null,
-            userSheetName
+            userSheetName,
+            getSheetFetchPageSize(),
+            (rows) => {
+                for (const row of rows) {
+                    const rowJson = row?.rowjson || {};
+                    const phone = rowJson[PHONE_KEY];
+                    const trimmed = phone ? String(phone).trim() : null;
+                    if (trimmed && trimmed !== "") phoneNumbers.push(trimmed);
+                }
+            }
         );
 
-        if (!userSheetData || userSheetData.length === 0) {
+        if (userRowTotal === 0) {
             logger.info('No users sheet data found');
             return 0;
         }
 
-        logger.info(`Found ${userSheetData.length} records in users sheet`);
-
-        // Extract phone numbers from sheet data
-        const phoneNumbers = userSheetData
-            .map((row: any) => {
-                const rowJson = row?.rowjson || {};
-                const phone = rowJson["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
-                return phone ? String(phone).trim() : null;
-            })
-            .filter((phone: string | null) => phone && phone !== "");
+        logger.info(`Found ${userRowTotal} records in users sheet`);
 
         if (phoneNumbers.length === 0) {
             logger.info('No phone numbers found in user sheet data');
@@ -1486,7 +1518,7 @@ async function processCampaignUsersFromExcelData(
             skipOtherCampaignReuse = await isNewSheetUploadedForClone(campaignDetails, tenantId, fileStoreId);
         }
 
-        const count = await processUsersSimple(userSheetData, phoneNumbers, campaignNumber, tenantId, skipOtherCampaignReuse);
+        const count = await processUsersSimple(tenantId, campaignId, fileStoreId, userSheetName, phoneNumbers, campaignNumber, skipOtherCampaignReuse);
 
         logger.info('=== CAMPAIGN USERS PROCESSING COMPLETED ===');
         return count;
@@ -1501,17 +1533,20 @@ async function processCampaignUsersFromExcelData(
  * Simple user processing - handles both data persistence and mappings
  */
 async function processUsersSimple(
-    userSheetData: any[],
+    tenantId: string,
+    referenceId: string,
+    fileStoreId: string,
+    userSheetName: string,
     phoneNumbers: any[],
     campaignNumber: string,
-    tenantId: string,
     skipOtherCampaignReuse: boolean = false
 ): Promise<number> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
     const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_USER_USAGE';
 
-    // Step 1: Get existing users from current campaign
+    // Step 1: Get existing users from current campaign (DB) and the cross-campaign
+    // reuse map (one batched lookup over all phones collected in Pass A). Built once.
     const currentCampaignUsers = await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
     const currentUserMap = new Map(
         currentCampaignUsers.map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
@@ -1525,17 +1560,30 @@ async function processUsersSimple(
             .filter((u: any) => u.campaignNumber !== campaignNumber)
             .map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
     );
-    
-    // Step 3: Process each user from sheet
-    const usersToSave: any[] = [];
-    const usersToUpdate: any[] = [];
+
+    // Cross-page accumulators: mappings, sheet-invalid phones, and running counts.
+    // usersToSave/usersToUpdate are page-local (persisted per page).
     const userBoundaryMappings: any[] = [];
     // Phones whose sheet row is sheet-invalid. handleUserBoundaryMappings uses
     // this to preserve their existing mappings (don't demap a user just because
     // a later sheet upload had a validation error on their row).
     const invalidUserPhones = new Set<string>();
+    let savedCount = 0;
+    let updatedCount = 0;
 
-    userSheetData.forEach(record => {
+    // Step 3 (Pass B): classify + persist each page using the prebuilt lookups,
+    // so the full user sheet is never held in memory at once.
+    await forEachSheetDataPage(
+        tenantId,
+        referenceId,
+        fileStoreId,
+        userSheetName,
+        getSheetFetchPageSize(),
+        async (rows) => {
+    const usersToSave: any[] = [];
+    const usersToUpdate: any[] = [];
+
+    rows.forEach(record => {
         const rowJson = record.rowjson || {};
         const phoneNumber = String(rowJson[PHONE_KEY]).trim();
         const boundaryCode = rowJson[BOUNDARY_KEY];
@@ -1643,24 +1691,28 @@ async function processUsersSimple(
             });
         }
     });
-    
-    // Step 4: Persist user data
-    if (usersToSave.length > 0) {
-        logger.info(`Persisting ${usersToSave.length} user records`);
-        await persistDataInBatches(usersToSave, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
-    }
-    
-    if (usersToUpdate.length > 0) {
-        logger.info(`Updating ${usersToUpdate.length} user records`);
-        await persistDataInBatches(usersToUpdate, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
-    }
-    
-    // Step 5: Handle boundary mappings — invalidUserPhones lets the helper
-    // preserve mappings for users whose sheet row failed validation.
+
+            // Step 4: Persist this page's user data
+            if (usersToSave.length > 0) {
+                logger.info(`Persisting ${usersToSave.length} user records`);
+                await persistDataInBatches(usersToSave, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
+                savedCount += usersToSave.length;
+            }
+
+            if (usersToUpdate.length > 0) {
+                logger.info(`Updating ${usersToUpdate.length} user records`);
+                await persistDataInBatches(usersToUpdate, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+                updatedCount += usersToUpdate.length;
+            }
+        }
+    );
+
+    // Step 5: Handle boundary mappings once across all pages — invalidUserPhones
+    // lets the helper preserve mappings for users whose sheet row failed validation.
     await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings, invalidUserPhones);
-    
-    logger.info(`User processing completed: ${usersToSave.length} saved, ${usersToUpdate.length} updated, ${userBoundaryMappings.length} mappings processed`);
-    return usersToSave.length + usersToUpdate.length;
+
+    logger.info(`User processing completed: ${savedCount} saved, ${updatedCount} updated, ${userBoundaryMappings.length} mappings processed`);
+    return savedCount + updatedCount;
 }
 
 /**
@@ -1896,7 +1948,8 @@ async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: st
             ? await pollUntilCount(
                 () => getRelatedDataWithCampaign('boundary', campaignNumber, tenantId),
                 expectedBoundaryCount,
-                { label: 'boundary data', timeoutMs: 120_000 }
+                // Stall-based: wait as long as rows keep landing; fail only on no progress.
+                { label: 'boundary data', stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs, pollIntervalMs: config.excelIngestion.persistencePollIntervalMs }
               )
             : await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
 
@@ -2584,7 +2637,8 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
             ? await pollUntilCount(
                 () => getRelatedDataWithCampaign("user", campaignNumber, tenantId),
                 expectedUserCount,
-                { label: 'user data', timeoutMs: 120_000 }
+                // Stall-based: wait as long as rows keep landing; fail only on no progress.
+                { label: 'user data', stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs, pollIntervalMs: config.excelIngestion.persistencePollIntervalMs }
               )
             : await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
         

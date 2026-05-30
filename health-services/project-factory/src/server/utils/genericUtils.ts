@@ -2075,23 +2075,102 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
   }
 }
 
-export async function pollUntilCount<T>(
-  fetchFn: () => Promise<T[] | null>,
+/**
+ * Shared polling loop for "wait until enough has been persisted".
+ *
+ * Two waiting modes (both shared by pollUntilCount and pollUntilCountFn):
+ *  - `stallTimeoutMs` set → progress-based: the wait continues as long as the
+ *    observed count keeps increasing, and only fails if it makes NO progress for
+ *    that long. Right for a persister streaming thousands of rows — a large,
+ *    steadily-filling source is never failed for being slow. The count is
+ *    monotonic (rows are only added), so there is no absolute cap.
+ *  - otherwise → absolute deadline `timeoutMs` (default 2 min). Backward-compatible.
+ *
+ * `getCount` maps each fetch result to a numeric progress value; the resolved
+ * fetch result is returned so array callers get their data back.
+ */
+async function waitUntilCountReached<R>(
+  fetchFn: () => Promise<R>,
+  getCount: (result: R) => number,
   expectedCount: number,
-  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string } = {}
-): Promise<T[]> {
-  const { timeoutMs = 120_000, pollIntervalMs = 1_000, label = 'data' } = options;
-  const deadline = Date.now() + timeoutMs;
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number }
+): Promise<R> {
+  const { timeoutMs = 120_000, pollIntervalMs = 1_000, label = 'data', stallTimeoutMs } = options;
 
+  // Progress-based (stall) waiting: reset the clock whenever the count grows.
+  if (stallTimeoutMs !== undefined) {
+    let lastCount = -1;
+    let lastProgressAt = Date.now();
+    while (true) {
+      const result = await fetchFn();
+      const count = getCount(result);
+      if (count >= expectedCount) return result;
+      const now = Date.now();
+      if (count > lastCount) {
+        lastCount = count;
+        lastProgressAt = now;
+      } else if (now - lastProgressAt >= stallTimeoutMs) {
+        throw new Error(`Persistence stalled: ${label} stuck at ${count}/${expectedCount} for ${stallTimeoutMs}ms`);
+      }
+      logger.info(`Waiting for ${label}: ${count}/${expectedCount} persisted`);
+      await new Promise(r => setTimeout(r, pollIntervalMs));
+    }
+  }
+
+  // Absolute-deadline waiting (legacy).
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const result = await fetchFn();
-    const count = result?.length ?? 0;
-    if (count >= expectedCount) return result as T[];
+    const count = getCount(result);
+    if (count >= expectedCount) return result;
     logger.info(`Waiting for ${label}: ${count}/${expectedCount} persisted`);
     await new Promise(r => setTimeout(r, pollIntervalMs));
   }
 
   throw new Error(`Persistence timeout: ${label} not ready within ${timeoutMs}ms`);
+}
+
+/**
+ * Poll an array-returning fetch until it reports at least `expectedCount` items,
+ * then return that array. Supports `stallTimeoutMs` (progress-based) — see
+ * waitUntilCountReached. A null fetch result counts as length 0.
+ */
+export async function pollUntilCount<T>(
+  fetchFn: () => Promise<T[] | null>,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number } = {}
+): Promise<T[]> {
+  const result = await waitUntilCountReached<T[] | null>(
+    fetchFn,
+    (r) => r?.length ?? 0,
+    expectedCount,
+    options
+  );
+  return result as T[];
+}
+
+/**
+ * Like pollUntilCount, but polls a function that returns a COUNT (number | null)
+ * rather than an array. Resolves once the count reaches expectedCount.
+ *
+ * Use this when the underlying source can report a true total independent of any
+ * fetch limit (e.g. excel-ingestion's TotalCount). pollUntilCount measures an
+ * array's length, which silently caps at the fetch `limit` and therefore never
+ * reaches expectations larger than that limit (the >5000-row persistence bug).
+ *
+ * A null count is treated as 0 (not ready, keep polling).
+ */
+export async function pollUntilCountFn(
+  fetchCountFn: () => Promise<number | null>,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number } = {}
+): Promise<void> {
+  await waitUntilCountReached<number | null>(
+    fetchCountFn,
+    (c) => c ?? 0,
+    expectedCount,
+    options
+  );
 }
 
 export {
