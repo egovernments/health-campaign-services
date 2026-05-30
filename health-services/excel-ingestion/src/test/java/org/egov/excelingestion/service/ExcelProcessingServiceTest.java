@@ -283,25 +283,76 @@ class ExcelProcessingServiceTest {
     }
 
 
+    @Test
+    void testProcessExcelFile_RowLimitExceeded_FailsFast() {
+        // Given - workbook with 5 data rows but a max limit of 2
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenReturn(createWorkbookWithDataRows(5));
+        when(config.getMaxProcessRowLimit()).thenReturn(2);
+        // Mimic the real handler: throwing stops processing
+        doThrow(new org.egov.tracer.model.CustomException(
+                org.egov.excelingestion.config.ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED, "too many rows"))
+                .when(exceptionHandler)
+                .throwCustomException(eq(org.egov.excelingestion.config.ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED), anyString());
+
+        // When & Then - guard trips before any validation/schema work
+        assertThrows(org.egov.tracer.model.CustomException.class, () -> {
+            excelProcessingService.processExcelFile(request);
+        });
+
+        verify(exceptionHandler).throwCustomException(
+                eq(org.egov.excelingestion.config.ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED), anyString());
+        // Guard runs before schema pre-validation
+        verify(configBasedProcessingService, never()).preValidateAndFetchSchemas(any(), any(), any(), any());
+    }
+
+    @Test
+    void testProcessExcelFile_UnderRowLimit_PassesGuard() {
+        // Given - workbook with 5 data rows and a generous limit
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenReturn(createWorkbookWithDataRows(5));
+        when(config.getMaxProcessRowLimit()).thenReturn(100000);
+        // Stop right after the guard so we don't run the full pipeline
+        when(configBasedProcessingService.preValidateAndFetchSchemas(any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("stop after guard"));
+
+        // When
+        assertThrows(RuntimeException.class, () -> {
+            excelProcessingService.processExcelFile(request);
+        });
+
+        // Then - guard let it through to schema pre-validation, and never raised the limit error
+        verify(configBasedProcessingService).preValidateAndFetchSchemas(any(), any(), any(), any());
+        verify(exceptionHandler, never()).throwCustomException(
+                eq(org.egov.excelingestion.config.ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED), anyString());
+    }
+
     private Workbook createTestWorkbook() {
+        return createWorkbookWithDataRows(1);
+    }
+
+    /**
+     * Builds a workbook with the two header rows (row 0 technical, row 1 localized) plus
+     * {@code dataRows} data rows starting at row index 2 — matching the service's layout.
+     */
+    private Workbook createWorkbookWithDataRows(int dataRows) {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("TestSheet");
-        
-        // Create header row
+
         Row headerRow = sheet.createRow(0);
         headerRow.createCell(0).setCellValue("Field1");
         headerRow.createCell(1).setCellValue("Field2");
-        
-        // Create second header row (as expected by the service)
+
         Row secondHeaderRow = sheet.createRow(1);
         secondHeaderRow.createCell(0).setCellValue("Header1");
         secondHeaderRow.createCell(1).setCellValue("Header2");
-        
-        // Create data row
-        Row dataRow = sheet.createRow(2);
-        dataRow.createCell(0).setCellValue("Value1");
-        dataRow.createCell(1).setCellValue("Value2");
-        
+
+        for (int i = 0; i < dataRows; i++) {
+            Row dataRow = sheet.createRow(2 + i);
+            dataRow.createCell(0).setCellValue("Value1_" + i);
+            dataRow.createCell(1).setCellValue("Value2_" + i);
+        }
+
         return workbook;
     }
 }
