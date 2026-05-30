@@ -1,4 +1,4 @@
-import { Kafka, logLevel, LogEntry } from 'kafkajs';
+import { Kafka, logLevel, LogEntry, CompressionTypes } from 'kafkajs';
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { shutdownGracefully, throwError } from '../utils/genericUtils';
 import config from '../config';
@@ -7,6 +7,13 @@ import { getTopicName } from '../utils/kafkaTopicUtils';
 let kafka: Kafka;
 let producer: ReturnType<Kafka['producer']>;
 let isProducerReady = false;
+
+// Compress messages so large campaign-detail payloads (up to ~35k boundaries) stay under the
+// broker's max message size. Repetitive boundary JSON compresses heavily; consumers (Java
+// persister, KafkaJS) auto-decompress GZIP transparently.
+const PRODUCER_COMPRESSION = config?.kafka?.KAFKA_PRODUCER_COMPRESSION_ENABLED
+    ? CompressionTypes.GZIP
+    : CompressionTypes.None;
 
 const createKafkaClientAndProducer = async () => {
     kafka = new Kafka({
@@ -86,6 +93,7 @@ const sendWithReconnect = async (payloads: any[]): Promise<void> => {
     try {
         await producer.send({
             topic,
+            compression: PRODUCER_COMPRESSION,
             messages: [
                 key ? { key, value: messages } : { value: messages }
             ],
@@ -105,6 +113,7 @@ const sendWithReconnect = async (payloads: any[]): Promise<void> => {
         try {
             await producer.send({
                 topic,
+                compression: PRODUCER_COMPRESSION,
                 messages: [
                     key ? { key, value: messages } : { value: messages }
                 ],

@@ -13,15 +13,16 @@ const mockOn = jest.fn();
 const mockDescribeCluster = jest.fn().mockResolvedValue({ brokers: [{ nodeId: 0 }] });
 const mockAdminConnect = jest.fn().mockResolvedValue(undefined);
 const mockAdminDisconnect = jest.fn().mockResolvedValue(undefined);
+const mockProducerFactory = jest.fn(() => ({
+  connect: mockConnect,
+  disconnect: mockDisconnect,
+  send: mockSend,
+  on: mockOn,
+}));
 
 jest.mock('kafkajs', () => ({
   Kafka: jest.fn().mockImplementation(() => ({
-    producer: () => ({
-      connect: mockConnect,
-      disconnect: mockDisconnect,
-      send: mockSend,
-      on: mockOn,
-    }),
+    producer: mockProducerFactory,
     admin: () => ({
       connect: mockAdminConnect,
       disconnect: mockAdminDisconnect,
@@ -29,12 +30,16 @@ jest.mock('kafkajs', () => ({
     }),
   })),
   logLevel: { INFO: 5, NOTHING: 0 },
+  CompressionTypes: { None: 0, GZIP: 1, Snappy: 2, LZ4: 3, ZSTD: 4 },
 }));
 
 jest.mock('../config', () => ({
   default: {
     isEnvironmentCentralInstance: false,
-    kafka: { KAFKA_NON_CENTRAL_INSTANCE_TOPICS: [] },
+    kafka: {
+      KAFKA_NON_CENTRAL_INSTANCE_TOPICS: [],
+      KAFKA_PRODUCER_COMPRESSION_ENABLED: true,
+    },
     host: {
       KAFKA_BROKER_HOST: 'localhost:9092',
     },
@@ -64,6 +69,7 @@ describe('produceModifiedMessages', () => {
 
   beforeEach(async () => {
     mockSend.mockClear();
+    mockProducerFactory.mockClear();
     // Re-import to get fresh module with producer initialized
     jest.isolateModules(() => {
       const mod = require('../kafka/Producer');
@@ -106,6 +112,17 @@ describe('produceModifiedMessages', () => {
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
         topic: 'ng-save-sheet-data',
+      })
+    );
+  });
+
+  it('should send with GZIP compression', async () => {
+    const { CompressionTypes } = require('kafkajs');
+    await produceModifiedMessages({ data: 'test' }, 'save-sheet-data', 'ng');
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        compression: CompressionTypes.GZIP,
       })
     );
   });

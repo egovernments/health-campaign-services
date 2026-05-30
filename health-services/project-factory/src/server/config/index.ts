@@ -87,6 +87,13 @@ const config = {
     KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: process.env.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC || "hcm-campaign-mark-failed",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
     KAFKA_NON_CENTRAL_INSTANCE_TOPICS: process.env.KAFKA_NON_CENTRAL_INSTANCE_TOPICS || "egov.core.notification.email",
+    // Kafka message size / compression tuning.
+    // Producer side: KafkaJS has no client-side max request size; GZIP compression keeps large
+    // campaign-detail payloads (up to ~35k boundaries) small. The hard ceiling is the broker's
+    // `message.max.bytes` / topic `max.message.bytes` (infra config) — must be raised there.
+    // Consumer side: maxBytesPerPartition must be large enough to fetch those messages.
+    KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION: parseInt(process.env.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION || "5242880", 10) || 5242880, // 5 MB
+    KAFKA_PRODUCER_COMPRESSION_ENABLED: (process.env.KAFKA_PRODUCER_COMPRESSION_ENABLED || "true").toLowerCase() !== "false",
   },
 
   // Database configuration

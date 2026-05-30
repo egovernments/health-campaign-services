@@ -41,7 +41,12 @@ async function ensureTopicsExist(topics: string[]) {
 
 const groupId = config?.kafka?.CONSUMER_GROUP_ID;
 
-const consumer = kafka.consumer({ groupId });
+// Raise the per-partition fetch limit so the consumer can read large messages
+// (default ~1 MB would silently block oversized messages).
+const consumer = kafka.consumer({
+    groupId,
+    maxBytesPerPartition: config?.kafka?.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION,
+});
 
 // Add a simple semaphore for concurrency control
 const MAX_CONCURRENT = 10;
