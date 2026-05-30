@@ -497,33 +497,37 @@ public class HierarchicalBoundaryUtil {
             // The helper column is located immediately to the left of the visible column
             int helperColIdx = currentVisibleColIdx - 1;
 
-            // Build the CONCATENATE formula to create the lookup key from previous selections
-            // e.g., for District: CONCATENATE(Country, "#", State)
-            StringBuilder keyBuilder = new StringBuilder();
-            for (int i = 0; i < level; i++) {
-                if (i > 0) keyBuilder.append(", \"").append(BOUNDARY_SEPARATOR).append("\", ");
-                String colLetter = CellReference.convertNumToColString(visibleColIndices.get(i));
-                // Use INDIRECT("A"&ROW()) to get value from the correct row dynamically
-                // This works in CELL FORMULAS (helper column) but NOT in data validation
-                keyBuilder.append("INDIRECT(\"").append(colLetter).append("\"&ROW())");
-            }
-
-            // Helper formula: finds the concatenated key in Col H (keys), returns hash from Col I (hashes)
-            // Uses the SEPARATE key-to-hash table, NOT the children rows
-            String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
-                                                 lookupRangeHashes, keyBuilder.toString(), lookupRangeKeys);
-
             // Data validation formula: simple relative reference to helper column
             // Uses row 3 as template - Excel automatically adjusts for each row
             String helperColLetter = CellReference.convertNumToColString(helperColIdx);
             String validationFormula = String.format("INDIRECT(IF(%s3<>\"\", %s3 & \"%s\", \"_h_EmptyList\"))",
                                                      helperColLetter, helperColLetter, LIST_SUFFIX);
 
-            // Apply the helper formula to every cell in the helper column
+            // Apply the helper formula to every cell in the helper column.
+            // The lookup key is built with literal relative cell references (e.g. B3, C3) for the
+            // current row instead of INDIRECT("B"&ROW()). INDIRECT is a volatile function, so the
+            // previous approach forced every helper cell to recalculate on every edit/open/scroll
+            // across the whole sheet. Plain relative references are non-volatile and auto-adjust per
+            // row, so a cell now recalculates only when its own parent selections change. This keeps
+            // the cascade behaviour identical while removing the dominant recalculation cost.
             for (int r = 2; r <= config.getExcelRowLimit(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) row = sheet.createRow(r);
                 Cell helperCell = row.createCell(helperColIdx);
+
+                int excelRow = r + 1; // POI row index is 0-based; Excel rows are 1-based
+                // Build the CONCATENATE key from previous selections, e.g. CONCATENATE(B3, "#", C3)
+                StringBuilder keyBuilder = new StringBuilder();
+                for (int i = 0; i < level; i++) {
+                    if (i > 0) keyBuilder.append(", \"").append(BOUNDARY_SEPARATOR).append("\", ");
+                    String colLetter = CellReference.convertNumToColString(visibleColIndices.get(i));
+                    keyBuilder.append(colLetter).append(excelRow);
+                }
+
+                // Helper formula: finds the concatenated key in Col H (keys), returns hash from Col I (hashes)
+                // Uses the SEPARATE key-to-hash table, NOT the children rows
+                String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
+                                                     lookupRangeHashes, keyBuilder.toString(), lookupRangeKeys);
                 helperCell.setCellFormula(helperFormula);
             }
 
