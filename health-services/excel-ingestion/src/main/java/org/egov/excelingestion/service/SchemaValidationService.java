@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.egov.excelingestion.util.LocalizationUtil;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -15,7 +16,14 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class SchemaValidationService {
-    
+
+    /**
+     * Cache of compiled regex patterns keyed by the raw pattern string. Validation calls
+     * Pattern.compile per row × per patterned field, so memoizing avoids recompiling the same
+     * regex thousands of times on large sheets. Compiled Patterns are immutable + thread-safe.
+     */
+    private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
+
     private final MDMSService mdmsService;
     
     public SchemaValidationService(MDMSService mdmsService) {
@@ -374,7 +382,7 @@ public class SchemaValidationService {
         // Pattern validation
         if (rule.getPattern() != null && !rule.getPattern().trim().isEmpty()) {
             try {
-                Pattern pattern = Pattern.compile(rule.getPattern());
+                Pattern pattern = PATTERN_CACHE.computeIfAbsent(rule.getPattern(), Pattern::compile);
                 if (!pattern.matcher(strValue).matches()) {
                     String errorMessage;
                     if (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty()) {

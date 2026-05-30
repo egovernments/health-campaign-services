@@ -31,13 +31,23 @@ public class ExcelUtil {
      * @return String value of the cell (empty string if null or error)
      */
     public static String getCellValueAsString(Cell cell) {
-        return getCellValueAsString(cell, ZoneId.systemDefault());
+        return getCellValueAsString(cell, (FormulaEvaluator) null);
     }
 
     /**
-     * Get cell value as string using the specified timezone for date cells.
+     * Backward-compatible overload. zoneId is not used (dates use the JVM default zone to preserve
+     * the calendar date); retained so existing callers keep compiling.
      */
     public static String getCellValueAsString(Cell cell, ZoneId zoneId) {
+        return getCellValueAsString(cell, (FormulaEvaluator) null);
+    }
+
+    /**
+     * Get cell value as string, reusing the supplied FormulaEvaluator for formula cells. Pass a
+     * single evaluator when reading many cells of the same workbook to avoid re-creating an
+     * evaluator per formula cell; a null evaluator falls back to a lazily created one.
+     */
+    public static String getCellValueAsString(Cell cell, FormulaEvaluator evaluator) {
         if (cell == null) return "";
 
         switch (cell.getCellType()) {
@@ -59,8 +69,9 @@ public class ExcelUtil {
             case FORMULA:
                 // Evaluate formula and get the result value, not the formula itself
                 try {
-                    FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
-                    CellValue cellValue = evaluator.evaluate(cell);
+                    FormulaEvaluator eval = (evaluator != null) ? evaluator
+                            : cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+                    CellValue cellValue = eval.evaluate(cell);
 
                     switch (cellValue.getCellType()) {
                         case STRING: {
@@ -96,8 +107,16 @@ public class ExcelUtil {
      * @return Object value of the cell (null if empty or error)
      */
     public static Object getCellValue(Cell cell) {
+        return getCellValue(cell, null);
+    }
+
+    /**
+     * Get cell value as a typed object, reusing the supplied FormulaEvaluator for formula cells.
+     * A null evaluator falls back to a lazily created one.
+     */
+    public static Object getCellValue(Cell cell, FormulaEvaluator evaluator) {
         if (cell == null) return null;
-        
+
         switch (cell.getCellType()) {
             case STRING: {
                 String raw = cell.getStringCellValue();
@@ -114,8 +133,9 @@ public class ExcelUtil {
             case FORMULA:
                 // Evaluate formula and get the result value
                 try {
-                    FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
-                    CellValue cellValue = evaluator.evaluate(cell);
+                    FormulaEvaluator eval = (evaluator != null) ? evaluator
+                            : cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+                    CellValue cellValue = eval.evaluate(cell);
 
                     switch (cellValue.getCellType()) {
                         case STRING: {
@@ -190,6 +210,10 @@ public class ExcelUtil {
         // Pre-allocate with actual capacity - no resizing overhead
         final List<Map<String, Object>> data = new ArrayList<>(actualLastRow - 1);
 
+        // One evaluator reused for every formula cell in this sheet (POI caches compiled exprs);
+        // avoids creating a new evaluator per formula cell.
+        final FormulaEvaluator evaluator = sheet.getWorkbook().getCreationHelper().createFormulaEvaluator();
+
         // Ultra-fast loop - only process rows with actual data
         for (int rowNum = 2; rowNum <= actualLastRow; rowNum++) {
             Row row = sheet.getRow(rowNum);
@@ -228,8 +252,8 @@ public class ExcelUtil {
                         hasData = true;
                     } else {
                         // Handle other types (formulas etc) - fallback to string
-                        String stringValue = getCellValueAsString(cell);
-                        value = stringValue.trim().isEmpty() ? null : getCellValue(cell);
+                        String stringValue = getCellValueAsString(cell, evaluator);
+                        value = stringValue.trim().isEmpty() ? null : getCellValue(cell, evaluator);
                         if (value != null) hasData = true;
                     }
                 }
@@ -254,8 +278,9 @@ public class ExcelUtil {
      */
     public static void reconstructMultiSelectValues(List<Map<String, Object>> data) {
         for (Map<String, Object> row : data) {
-            // TreeMap with suffix index as key preserves column order (_MULTISELECT_1 before _MULTISELECT_2)
-            Map<String, TreeMap<Integer, String>> parentToValues = new HashMap<>();
+            // TreeMap with suffix index as key preserves column order (_MULTISELECT_1 before _MULTISELECT_2).
+            // Allocated lazily — rows with no _MULTISELECT_ columns never allocate a map.
+            Map<String, TreeMap<Integer, String>> parentToValues = null;
 
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 String key = entry.getKey();
@@ -271,10 +296,17 @@ public class ExcelUtil {
                     }
                     Object val = entry.getValue();
                     if (val != null && !val.toString().trim().isEmpty()) {
+                        if (parentToValues == null) {
+                            parentToValues = new HashMap<>();
+                        }
                         parentToValues.computeIfAbsent(parent, k -> new TreeMap<>())
                                 .put(suffixIndex, val.toString().trim());
                     }
                 }
+            }
+
+            if (parentToValues == null) {
+                continue;
             }
 
             for (Map.Entry<String, TreeMap<Integer, String>> entry : parentToValues.entrySet()) {

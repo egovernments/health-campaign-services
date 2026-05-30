@@ -210,6 +210,11 @@ public class ExcelDataPopulator {
             }
         }
 
+        // Map column name -> ColumnDef once (O(1) lookup inside the row loop instead of a per-cell
+        // stream scan). Merge fn keeps the first def on duplicate names, matching the prior findFirst().
+        Map<String, ColumnDef> colDefByName = columnProperties.stream()
+                .collect(Collectors.toMap(ColumnDef::getName, col -> col, (a, b) -> a));
+
         // Fill data rows using header mapping
         for (int rowIdx = 0; rowIdx < dataRows.size(); rowIdx++) {
             Map<String, Object> dataRow = dataRows.get(rowIdx);
@@ -248,11 +253,8 @@ public class ExcelDataPopulator {
                         cell = excelRow.createCell(colIdx);
                     }
 
-                    // Find corresponding ColumnDef for validation/formatting
-                    ColumnDef columnDef = columnProperties.stream()
-                        .filter(col -> col.getName().equals(dataKey))
-                        .findFirst()
-                        .orElse(null);
+                    // Find corresponding ColumnDef for validation/formatting (O(1))
+                    ColumnDef columnDef = colDefByName.get(dataKey);
 
                     setCellValue(cell, value, columnDef);
                 } else if (colIdx == null) {
