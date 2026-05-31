@@ -194,7 +194,7 @@ public class ProjectTaskTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_ID) : null)
                 .memberCount(beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null)
-                .age(beneficiaryInfo.containsKey(AGE_IN_MONTHS) ? (Integer) beneficiaryInfo.get(AGE) : null)
+                .age(beneficiaryInfo.containsKey(AGE_IN_MONTHS) ? (Integer) beneficiaryInfo.get(AGE_IN_MONTHS) : null)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .build();
