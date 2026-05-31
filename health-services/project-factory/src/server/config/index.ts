@@ -228,6 +228,12 @@ const config = {
     latLongColumns: process.env.LAT_LONG_SUBSTRINGS || "HCM_ADMIN_CONSOLE_FACILITY_LATITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_FACILITY_LONGITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_TARGET_LAT_OPT,HCM_ADMIN_CONSOLE_TARGET_LONG_OPT",
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true",
   },
+  excelIngestionConfig: {
+    generationTimeout: Number(process.env.EXCEL_INGESTION_GENERATION_TIMEOUT_MS || 600000),
+    pollingInterval: Number(process.env.EXCEL_INGESTION_POLLING_INTERVAL_MS || 60000),
+    maxRetries: Number(process.env.EXCEL_INGESTION_MAX_RETRIES || 3),
+    searchSheetProcessingRowLimit: Number(process.env.EXCEL_INGESTION_SEARCH_SHEET_PROCESSING_ROW_LIMIT || 5000),
+  },
   resourceCreationConfig: {
     maxAttemptsForResourceCreationOrMapping: Number(process.env.MAX_RESOURCE_CREATION_ATTEMPTS || 200),
     // wait time between each polling attempt in milliseconds (default: 60 sec)
