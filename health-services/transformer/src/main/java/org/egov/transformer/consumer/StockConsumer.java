@@ -36,7 +36,7 @@ public class StockConsumer {
             List<Stock> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Stock[].class));
-            stockTransformationService.transform(payloadList);
+            stockTransformationService.transform(payloadList, topic);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in stockConsumer {}", ExceptionUtils.getStackTrace(exception));
         }

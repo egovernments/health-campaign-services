@@ -54,27 +54,20 @@ public interface Constants {
     String TIME_STAMP_SPLIT = "T";
     Long DAY_MILLIS = 86400000L;
     String AGE = "age";
+    String AGE_IN_MONTHS = "ageInMonths";
     String DATE_OF_BIRTH = "dateOfBirth";
     String GENDER = "gender";
     String USERNAME = "userName";
     String NAME = "name";
     String ROLE = "role";
 
+    String INDIVIDUAL_CLIENT_REFERENCE_ID = "individualClientReferenceId";
+    String HOUSEHOLD_CLIENT_REFERENCE_ID = "householdClientReferenceId";
+    String UNIQUE_BENEFICIARY_ID = "uniqueBeneficiaryId";
+
     String CITY = "city";
     String INDIVIDUAL_ID = "individualId";
     String ADDRESS_CODE = "addressLocalityCode";
-    String CHILDREN_PRESENTED_US = "childrenPresentedUS";
-    String MALARIA_POSITIVE_US = "malariaPositiveUS";
-    String MALARIA_NEGATIVE_US = "malariaNegativeUS";
-    String CHILDREN_PRESENTED_APE = "childrenPresentedAPE";
-    String MALARIA_POSITIVE_APE = "malariaPositiveAPE";
-    String MALARIA_NEGATIVE_APE = "malariaNegativeAPE";
-    String HF_TESTED_FOR_MALARIA = "testedForMalaria";
-    String HF_MALARIA_RESULT = "malariaResult";
-    String HF_ADMITTED_WITH_ILLNESS = "admittedWithSeriousIllness";
-    String HF_NEGATIVE_ADMITTED_WITH_ILLNESS = "negativeAndAdmittedWithSeriousIllness";
-    String HF_TREATED_WITH_ANTI_MALARIALS = "treatedWithAntiMalarials";
-    String HF_NAME_OF_ANTI_MALARIALS = "nameOfAntiMalarials";
     String DEFAULT_FACILITY_NAME = "APS";
     String START_DATE = "startDate";
     String END_DATE = "endDate";

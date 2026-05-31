@@ -39,6 +39,12 @@ public class ProjectTaskTransformationService {
     private final ProjectFactoryService projectFactoryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY));
+    private static final Set<String> BENEFICIARY_INFO_STRING_KEYS = new HashSet<>(Arrays.asList(
+            INDIVIDUAL_CLIENT_REFERENCE_ID, GENDER, HOUSEHOLD_CLIENT_REFERENCE_ID, UNIQUE_BENEFICIARY_ID, DISABILITY_TYPE
+    ));
+    private static final Set<String> BENEFICIARY_INFO_INTEGER_KEYS = new HashSet<>(Arrays.asList(
+            AGE, MEMBER_COUNT, HEIGHT, AGE_IN_MONTHS
+    ));
     private static final Map<String, Class<?>> campaignSpecificFieldsTypeMap = new HashMap<>();
     static {
         campaignSpecificFieldsTypeMap.put(AGE, Integer.class);
@@ -94,9 +100,41 @@ public class ProjectTaskTransformationService {
         Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();
 
-        String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
+        AdditionalFields taskAdditionalFields = task.getAdditionalFields();
+
+        boolean hasIndividualOrHousehold = false;
+
+        if (taskAdditionalFields != null && taskAdditionalFields.getFields() != null
+                && !taskAdditionalFields.getFields().isEmpty()) {
+            hasIndividualOrHousehold = taskAdditionalFields.getFields().stream()
+                    .anyMatch(field -> INDIVIDUAL_CLIENT_REFERENCE_ID.equals(field.getKey()) || HOUSEHOLD_CLIENT_REFERENCE_ID.equals(field.getKey()));
+        }
+        Map<String, Object> beneficiaryInfo = new HashMap<>();
+
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
-        Map<String, Object> beneficiaryInfo = getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId);
+        if (hasIndividualOrHousehold) {
+            log.info("Fetching BeneficiaryInfo from task addFields");
+            List<Field> fields = taskAdditionalFields.getFields();
+            if (fields != null) {
+                fields.forEach(field -> {
+                    String key = field.getKey();
+                    String value = field.getValue();
+                    if (BENEFICIARY_INFO_STRING_KEYS.contains(key)) {
+                        beneficiaryInfo.put(key, value);
+                    } else if (BENEFICIARY_INFO_INTEGER_KEYS.contains(key)) {
+                        try {
+                            beneficiaryInfo.put(key, Integer.parseInt(value));
+                        } catch (NumberFormatException e) {
+                            log.warn("Invalid integer for key '{}': '{}', defaulting to null", key, value);
+                            beneficiaryInfo.put(key, null);
+                        }
+                    }
+                });
+            }
+        } else {
+            String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
+            beneficiaryInfo.putAll(getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId));
+        }
 
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
@@ -156,8 +194,9 @@ public class ProjectTaskTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_ID) : null)
                 .memberCount(beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null)
+                .age(beneficiaryInfo.containsKey(AGE_IN_MONTHS) ? (Integer) beneficiaryInfo.get(AGE) : null)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
-                .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
+                .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .build();
         projectTaskIndexV1.setProjectInfo(task.getId(), project.getProjectType(), projectTypeId, project.getName());
         projectTaskIndexV1.setCampaignNumber(project.getReferenceID());
@@ -169,7 +208,7 @@ public class ProjectTaskTransformationService {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
             addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, project.getId(), projectTypeId);
         }
-        enrichWithCampaignSpecificFields(additionalDetails, beneficiaryInfo);
+//        enrichWithCampaignSpecificFields(additionalDetails, beneficiaryInfo);
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
 //        if (taskResource.getAdditionalFields() != null) {
 //            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
@@ -308,16 +347,16 @@ public class ProjectTaskTransformationService {
         return projectBenfInfoMap;
     }
 
-    private void enrichWithCampaignSpecificFields(ObjectNode additionalDetails, Map<String, Object> beneficiaryInfo){
-        for (Map.Entry<String, Object> entry : beneficiaryInfo.entrySet()) {
-            String key = entry.getKey();
-            Object value = entry.getValue();
-
-            if (campaignSpecificFieldsTypeMap.containsKey(key)) {
-                putValueBasedOnType(additionalDetails, key, value, campaignSpecificFieldsTypeMap.get(key));
-            }
-        }
-    }
+//    private void enrichWithCampaignSpecificFields(ObjectNode additionalDetails, Map<String, Object> beneficiaryInfo){
+//        for (Map.Entry<String, Object> entry : beneficiaryInfo.entrySet()) {
+//            String key = entry.getKey();
+//            Object value = entry.getValue();
+//
+//            if (campaignSpecificFieldsTypeMap.containsKey(key)) {
+//                putValueBasedOnType(additionalDetails, key, value, campaignSpecificFieldsTypeMap.get(key));
+//            }
+//        }
+//    }
 
     private void putValueBasedOnType(ObjectNode additionalDetails, String key, Object value, Class<?> type) {
         if (value == null) {
