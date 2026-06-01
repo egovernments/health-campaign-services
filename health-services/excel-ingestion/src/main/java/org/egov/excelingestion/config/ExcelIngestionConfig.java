@@ -45,6 +45,9 @@ public class ExcelIngestionConfig {
     @Value("${excel.row.limit:5000}")
     private int excelRowLimit;
 
+    @Value("${excel.max.process.row.limit:100000}")
+    private int maxProcessRowLimit;
+
     @Value("${excel.sheet.name.max.length:64}")
     private int sheetNameMaxLength;
 

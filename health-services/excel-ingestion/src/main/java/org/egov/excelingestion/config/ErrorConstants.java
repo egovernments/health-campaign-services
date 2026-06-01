@@ -60,6 +60,9 @@ public class ErrorConstants {
     public static final String EXCEL_PROCESSING_ERROR = "EXCEL_PROCESSING_ERROR";
     public static final String EXCEL_PROCESSING_ERROR_MESSAGE = "Error processing Excel file";
     public static final String EXCEL_PROCESSING_ERROR_DESCRIPTION = "An error occurred while processing the Excel file: {0}";
+
+    public static final String EXCEL_ROW_LIMIT_EXCEEDED = "EXCEL_ROW_LIMIT_EXCEEDED";
+    public static final String EXCEL_ROW_LIMIT_EXCEEDED_MESSAGE = "Sheet '{0}' exceeds the maximum allowed rows ({1}). Please split the data and retry.";
     
     public static final String INVALID_SCHEMA_FORMAT = "INVALID_SCHEMA_FORMAT";
     public static final String INVALID_SCHEMA_FORMAT_MESSAGE = "Invalid schema format received from MDMS";

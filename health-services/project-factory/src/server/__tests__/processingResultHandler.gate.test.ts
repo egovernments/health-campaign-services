@@ -37,6 +37,7 @@ jest.mock('../utils/genericUtils', () => ({
     }),
     getCurrentProcesses: jest.fn().mockResolvedValue([]),
     pollUntilCount: jest.fn().mockResolvedValue(undefined),
+    pollUntilCountFn: jest.fn().mockResolvedValue(undefined),
     deleteCampaignDataFailedAndInvalid: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -92,6 +93,9 @@ jest.mock('../controllers/localisationController/localisation.controller', () =>
 
 jest.mock('../utils/excelIngestionUtils', () => ({
     searchSheetData: jest.fn().mockResolvedValue([]),
+    getSheetDataCount: jest.fn().mockResolvedValue(0),
+    forEachSheetDataPage: jest.fn().mockResolvedValue(0),
+    getSheetFetchPageSize: jest.fn().mockReturnValue(2000),
 }));
 
 jest.mock('../utils/onGoingCampaignUpdateUtils', () => ({
@@ -109,9 +113,14 @@ jest.mock('../utils/transforms/projectTypeUtils', () => ({
 // ── imports that must come after all mocks ───────────────────────────────────
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { sendCampaignFailureMessage } from '../utils/campaignFailureHandler';
+import { pollUntilCount, pollUntilCountFn } from '../utils/genericUtils';
+import { getSheetDataCount } from '../utils/excelIngestionUtils';
 
 const searchCampaignMock = searchProjectTypeCampaignService as jest.MockedFunction<typeof searchProjectTypeCampaignService>;
 const sendFailureMock = sendCampaignFailureMessage as jest.MockedFunction<typeof sendCampaignFailureMessage>;
+const pollUntilCountMock = pollUntilCount as jest.MockedFunction<typeof pollUntilCount>;
+const pollUntilCountFnMock = pollUntilCountFn as jest.MockedFunction<typeof pollUntilCountFn>;
+const getSheetDataCountMock = getSheetDataCount as jest.MockedFunction<typeof getSheetDataCount>;
 
 const CAMPAIGN_STUB = {
     id: 'campaign-x',
@@ -334,5 +343,73 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
         expect(logger.info).toHaveBeenCalledWith(
             expect.stringContaining('Proceeding with campaign despite user-sheet validation errors')
         );
+    });
+});
+
+describe('processingResultHandler: persistence gate uses true count (no 5000 cap)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        searchCampaignMock.mockResolvedValue({ CampaignDetails: [CAMPAIGN_STUB] } as any);
+    });
+
+    /**
+     * G1 (>5000 REGRESSION): with totalRowsProcessed > 5000 the gate must poll a
+     * COUNT function (pollUntilCountFn) for the true expected count — not the old
+     * array-length pollUntilCount capped at limit=5000 that hung and failed the campaign.
+     */
+    it('G1: polls pollUntilCountFn with the full expected count for >5000 rows', async () => {
+        getSheetDataCountMock.mockResolvedValue(7000);
+
+        const messageObject = {
+            tenantId: 'test-tenant',
+            referenceId: 'campaign-big',
+            fileStoreId: 'file-big',
+            status: 'completed',
+            additionalDetails: {
+                [additionalDetailKeys.boundarySheetStatus]: 'valid',
+                [additionalDetailKeys.facilitySheetStatus]: 'valid',
+                [additionalDetailKeys.userSheetStatus]: 'valid',
+                totalRowsProcessed: 7000,
+            },
+        };
+
+        await handleProcessingResult(messageObject);
+
+        // The new count-based poll fired with the true expected count and the
+        // progress-based (stall) timeout sourced from config — not a fixed deadline.
+        expect(pollUntilCountFnMock).toHaveBeenCalledWith(
+            expect.any(Function),
+            7000,
+            expect.objectContaining({ stallTimeoutMs: 120_000, pollIntervalMs: 10_000 })
+        );
+        // … and the old array-length poll was NOT used for the gate.
+        expect(pollUntilCountMock).not.toHaveBeenCalled();
+
+        // The polled function must resolve the true count via getSheetDataCount.
+        const fetchFn = pollUntilCountFnMock.mock.calls[0][0] as () => Promise<number | null>;
+        await fetchFn();
+        expect(getSheetDataCountMock).toHaveBeenCalledWith('test-tenant', 'campaign-big', 'file-big');
+    });
+
+    /**
+     * G2: gate is skipped entirely when totalRowsProcessed = 0.
+     */
+    it('G2: does not poll when totalRowsProcessed is 0', async () => {
+        const messageObject = {
+            tenantId: 'test-tenant',
+            referenceId: 'campaign-zero',
+            fileStoreId: 'file-zero',
+            status: 'completed',
+            additionalDetails: {
+                [additionalDetailKeys.boundarySheetStatus]: 'valid',
+                [additionalDetailKeys.facilitySheetStatus]: 'valid',
+                [additionalDetailKeys.userSheetStatus]: 'valid',
+                totalRowsProcessed: 0,
+            },
+        };
+
+        await handleProcessingResult(messageObject);
+
+        expect(pollUntilCountFnMock).not.toHaveBeenCalled();
     });
 });

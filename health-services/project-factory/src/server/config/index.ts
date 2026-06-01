@@ -87,6 +87,13 @@ const config = {
     KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: process.env.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC || "hcm-campaign-mark-failed",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
     KAFKA_NON_CENTRAL_INSTANCE_TOPICS: process.env.KAFKA_NON_CENTRAL_INSTANCE_TOPICS || "egov.core.notification.email",
+    // Kafka message size / compression tuning.
+    // Producer side: KafkaJS has no client-side max request size; GZIP compression keeps large
+    // campaign-detail payloads (up to ~35k boundaries) small. The hard ceiling is the broker's
+    // `message.max.bytes` / topic `max.message.bytes` (infra config) — must be raised there.
+    // Consumer side: maxBytesPerPartition must be large enough to fetch those messages.
+    KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION: parseInt(process.env.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION || "5242880", 10) || 5242880, // 5 MB
+    KAFKA_PRODUCER_COMPRESSION_ENABLED: (process.env.KAFKA_PRODUCER_COMPRESSION_ENABLED || "true").toLowerCase() !== "false",
   },
 
   // Database configuration
@@ -232,6 +239,18 @@ const config = {
     maxAttemptsForResourceCreationOrMapping: Number(process.env.MAX_RESOURCE_CREATION_ATTEMPTS || 200),
     // wait time between each polling attempt in milliseconds (default: 60 sec)
     waitTimeOfEachAttemptOfResourceCreationOrMappping: Number(process.env.WAIT_TIME_OF_EACH_ATTEMPT_MS || 40000),
+  },
+  excelIngestion: {
+    // Page size for paginated sheet-data reads from the excel-ingestion service.
+    sheetFetchPageSize: process.env.EXCEL_INGESTION_PAGE_SIZE ? parseInt(process.env.EXCEL_INGESTION_PAGE_SIZE, 10) : 2000,
+    // Stall timeout (ms): how long to keep waiting for the ingestion persister
+    // WITHOUT the persisted row count increasing. As long as rows keep landing the
+    // wait continues; it only fails once progress stalls for this long. Default 2 min.
+    persistenceStallTimeoutMs: process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS, 10) : 120000,
+    // Interval (ms) between persistence-count polls. 10s — persisting thousands of
+    // rows is slow, so polling every second only adds needless count-query load.
+    // Shared by the ingestion gate and the background boundary/user persistence polls.
+    persistencePollIntervalMs: process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS, 10) : 10000,
   }
 };
 
