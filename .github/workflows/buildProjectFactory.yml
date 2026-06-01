@@ -5,7 +5,7 @@ on:
     branches:
       - allValidations
       - master
-      - nigeria-go-deep-2-init-event
+      - nigeria-go-deep-2
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
