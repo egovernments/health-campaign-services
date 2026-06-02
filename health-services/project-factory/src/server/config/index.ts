@@ -20,7 +20,8 @@ const config = {
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   isEnvironmentCentralInstance: process.env.IS_ENVIRONMENT_CENTRAL_INSTANCE === "true",
-  kafkaConsumerTopicPrefix: process.env.KAFKA_CONSUMER_TOPIC_PREFIX || "", // when central instance enabled use "(ba|ke|cg)-"
+  kafkaConsumerTopicPrefix: process.env.KAFKA_CONSUMER_TOPIC_PREFIX || "", // explicit override; when empty the consumer regex is derived from centralInstanceTenantIds
+  centralInstanceTenantIds: process.env.CENTRAL_INSTANCE_TENANT_IDS || "", // comma-separated tenant ids (e.g. "ba,oy,ko"); single source for startup topic creation + consumer regex in central instance
   masterNameForSplitBoundariesOn: "HierarchySchema",
   basesecret: process.env.BASE_SECRET,
   boundary: {

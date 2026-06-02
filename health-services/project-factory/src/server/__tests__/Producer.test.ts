@@ -37,7 +37,7 @@ jest.mock('../config', () => ({
   default: {
     isEnvironmentCentralInstance: false,
     kafka: {
-      KAFKA_NON_CENTRAL_INSTANCE_TOPICS: [],
+      KAFKA_NON_CENTRAL_INSTANCE_TOPICS: '',
       KAFKA_PRODUCER_COMPRESSION_ENABLED: true,
     },
     host: {

@@ -10,7 +10,7 @@ import { handleFacilityBatch } from '../utils/facilityBatchHandler';
 import { handleUserBatch } from '../utils/userBatchHandler';
 import { handleMappingBatch } from '../utils/mappingBatchHandler';
 import { handleCampaignFailure } from '../utils/campaignFailureHandler';
-import { getConsumerTopicPattern, stripTopicPrefix, validateConsumerTopicPrefix } from '../utils/kafkaTopicUtils';
+import { getConsumerTopicPattern, stripTopicPrefix, validateConsumerTopicPrefix, getStartupTopicsToCreate } from '../utils/kafkaTopicUtils';
 
 
 const kafka = new Kafka({
@@ -105,7 +105,10 @@ export async function listener() {
             config.kafka.KAFKA_TEST_TOPIC,
         ];
 
-        await ensureTopicsExist(baseTopics);
+        // In central instance, expand to tenant-prefixed topics so every required topic
+        // exists before the regex subscription is evaluated (KafkaJS only matches topics
+        // that exist at subscribe time and does not rediscover new ones afterwards).
+        await ensureTopicsExist(getStartupTopicsToCreate(baseTopics));
 
         await consumer.connect();
         for (const baseTopic of baseTopics) {

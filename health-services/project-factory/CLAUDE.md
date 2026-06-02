@@ -80,6 +80,7 @@ Multiple states share one deployment. Isolation is enforced at Kafka and DB leve
 - **Kafka produce**: prefix topic with `{tenantId}-` using `kafkaTopicUtils.getTopicName(baseTopic, tenantId)`.
 - **Kafka consume**: subscribe via regex pattern from `getConsumerTopicPattern(baseTopic)` — matches all tenant prefixes.
 - **Incoming topic**: strip prefix with `stripTopicPrefix(topic)` before handler lookup.
+- **Startup topic creation**: `Listener.ensureTopicsExist(getStartupTopicsToCreate(baseTopics))` pre-creates every `{tenant}-{baseTopic}` before subscribing. This is mandatory — KafkaJS regex subscriptions only match topics that exist at subscribe time and never rediscover new ones, so a tenant whose prefixed topic did not pre-exist would silently never be consumed until a restart.
 - **DB schema**: `getTableName(tableName, tenantId)` returns `{tenantId.split(".")[0]}.{tableName}` (e.g., `"ng.kaduna"` → `"ng.tablename"`).
 - **Exception**: topics listed in `config.kafka.KAFKA_NON_CENTRAL_INSTANCE_TOPICS` (e.g., email) are never prefixed.
 
@@ -90,7 +91,8 @@ All tenants share one DB schema (`config.DB_CONFIG.DB_SCHEMA`) and unprefixed Ka
 - Always use `kafkaTopicUtils.ts` for produce/subscribe — never build topic names inline.
 - Always use `getTableName(config.DB_CONFIG.DB_*_TABLE_NAME, tenantId)` — never inline schema strings.
 - `tenantId` must be typed as `TenantId` (branded) and passed explicitly — never read from module-level state.
-- `kafkaConsumerTopicPrefix` env var sets the regex prefix pattern for central-instance consumers.
+- **`CENTRAL_INSTANCE_TENANT_IDS`** (comma-separated, e.g. `ba,oy,ko`) is the single source of truth for central-instance Kafka: it drives both startup topic creation (`getStartupTopicsToCreate`) and the consumer subscription regex (`getEffectiveConsumerPrefix`), so the two can never drift. Parsing trims whitespace and ignores empty/extra commas.
+- `KAFKA_CONSUMER_TOPIC_PREFIX` is an explicit override of the derived regex (back-compat); when set it wins over `CENTRAL_INSTANCE_TENANT_IDS`. Startup fails fast if central instance is on and neither is set.
 
 ---
 

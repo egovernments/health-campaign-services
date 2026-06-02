@@ -13,6 +13,8 @@ const mockSubscribe = jest.fn().mockResolvedValue(undefined);
 const mockConnect = jest.fn().mockResolvedValue(undefined);
 const mockRun = jest.fn().mockResolvedValue(undefined);
 const mockConsumerOn = jest.fn();
+const mockListTopics = jest.fn().mockResolvedValue([]);
+const mockCreateTopics = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('kafkajs', () => {
   return {
@@ -26,8 +28,8 @@ jest.mock('kafkajs', () => {
       }),
       admin: jest.fn().mockReturnValue({
         connect: jest.fn().mockResolvedValue(undefined),
-        listTopics: jest.fn().mockResolvedValue([]),
-        createTopics: jest.fn().mockResolvedValue(undefined),
+        listTopics: mockListTopics,
+        createTopics: mockCreateTopics,
         disconnect: jest.fn().mockResolvedValue(undefined),
       }),
     })),
@@ -40,6 +42,7 @@ jest.mock('../config', () => {
     default: {
       isEnvironmentCentralInstance: false,
       kafkaConsumerTopicPrefix: '',
+      centralInstanceTenantIds: '',
       host: {
         KAFKA_BROKER_HOST: 'localhost:9092',
       },
@@ -53,6 +56,7 @@ jest.mock('../config', () => {
         KAFKA_USER_CREATE_BATCH_TOPIC: 'hcm-user-create-batch',
         KAFKA_MAPPING_BATCH_TOPIC: 'hcm-mapping-batch',
         KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: 'hcm-campaign-mark-failed',
+        KAFKA_NON_CENTRAL_INSTANCE_TOPICS: '',
       },
     },
     __esModule: true,
@@ -129,6 +133,8 @@ describe('Kafka Listener', () => {
     jest.clearAllMocks();
     (config as any).isEnvironmentCentralInstance = false;
     (config as any).kafkaConsumerTopicPrefix = '';
+    (config as any).centralInstanceTenantIds = '';
+    (config as any).kafka.KAFKA_NON_CENTRAL_INSTANCE_TOPICS = '';
   });
 
   // ── SUBSCRIPTION ───────────────────────────────────────────────────────────
@@ -182,6 +188,33 @@ describe('Kafka Listener', () => {
       expect(mappingBatchRegex.test('cg-hcm-mapping-batch')).toBe(true);
       expect(mappingBatchRegex.test('ng-hcm-mapping-batch')).toBe(false);
     });
+
+    it('Scenario 3b: central instance + tenant ids (no explicit prefix) — creates prefixed topics and subscribes via derived regex', async () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).kafkaConsumerTopicPrefix = '';
+      (config as any).centralInstanceTenantIds = 'ba,ko';
+      await listener();
+
+      // All required topics are pre-created per tenant before subscribing
+      const createdTopics: string[] = mockCreateTopics.mock.calls
+        .flatMap((c: any[]) => c[0].topics.map((t: any) => t.topic));
+      expect(createdTopics).toContain('ba-hcm-processing-result');
+      expect(createdTopics).toContain('ko-hcm-processing-result');
+      expect(createdTopics).toContain('ba-start-admin-console-task');
+      expect(createdTopics).toContain('ko-start-admin-console-task');
+      // Bare base topics must not be created in central instance
+      expect(createdTopics).not.toContain('hcm-processing-result');
+
+      // Subscription uses a regex derived from the same tenant list
+      const subscribedTopics = mockSubscribe.mock.calls.map((c: any[]) => c[0].topic);
+      subscribedTopics.forEach((t: any) => expect(t).toBeInstanceOf(RegExp));
+      const processingRegex = subscribedTopics.find((t: any) =>
+        t instanceof RegExp && t.test('ko-hcm-processing-result')
+      ) as RegExp;
+      expect(processingRegex).toBeDefined();
+      expect(processingRegex.test('ba-hcm-processing-result')).toBe(true);
+      expect(processingRegex.test('ng-hcm-processing-result')).toBe(false);
+    });
   });
 
   // ── STARTUP VALIDATION ─────────────────────────────────────────────────────
@@ -191,7 +224,7 @@ describe('Kafka Listener', () => {
       (config as any).isEnvironmentCentralInstance = true;
       (config as any).kafkaConsumerTopicPrefix = '';
 
-      await expect(async () => listener()).rejects.toThrow('KAFKA_CONSUMER_TOPIC_PREFIX must be set');
+      await expect(async () => listener()).rejects.toThrow('CENTRAL_INSTANCE_TENANT_IDS');
     });
 
     it('Scenario 5: central instance enabled + prefix set — no error', async () => {
