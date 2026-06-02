@@ -224,7 +224,7 @@ export class TemplateClass {
             }
         }
 
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.attendanceRegister.registerPersistBatchSize;
 
         for (let i = 0; i < toSave.length; i += BATCH_SIZE) {
             const batch = toSave.slice(i, i + BATCH_SIZE);
@@ -508,7 +508,7 @@ export class TemplateClass {
 
             logger.info(`${newRegisters.length} new registers to create, ${registersToUpdate.length} existing to update`);
 
-            const BATCH_SIZE = 100;
+            const BATCH_SIZE = config.attendanceRegister.registerApiBatchSize;
 
             // Step 4: Create new registers in batches of 100
             if (newRegisters.length > 0) {

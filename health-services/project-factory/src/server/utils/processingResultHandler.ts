@@ -1193,7 +1193,7 @@ async function markCampaignCompletedConditionally(
  * Persist data in batches using Kafka
  */
 async function persistDataInBatches(dataList: any[], topic: string, tenantId: string): Promise<void> {
-    const batchSize = 100;
+    const batchSize = config.sheetData.persistBatchSize;
 
     for (let i = 0; i < dataList.length; i += batchSize) {
         const batch = dataList.slice(i, i + batchSize);
@@ -2222,8 +2222,8 @@ async function processLevelInBatches(
     levelNumber: number,
     requestInfo?: RequestInfo
 ) {
-    const BATCH_SIZE = 20;
-    
+    const BATCH_SIZE = config.project.creationBatchSize;
+
     for (let i = 0; i < levelBoundaries.length; i += BATCH_SIZE) {
         const batch = levelBoundaries.slice(i, i + BATCH_SIZE);
         const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
@@ -2489,7 +2489,7 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
         logger.info(`${facilitiesToCreate.length} facilities to create via Kafka batches`);
         
         // Send facility batches to Kafka topic for processing
-        const BATCH_SIZE = 30;
+        const BATCH_SIZE = config.facility.kafkaCreateBatchSize;
         const totalBatches = Math.ceil(facilitiesToCreate.length / BATCH_SIZE);
         
         for (let i = 0; i < facilitiesToCreate.length; i += BATCH_SIZE) {
@@ -2576,8 +2576,8 @@ async function startAllMappingsInBatches(
         logger.info(`Found ${allMappings.length} total mappings to process`);
         logger.info(`Resource: ${resourceToBeMapped.length + resourceToBeDeMapped.length}, Facility: ${facilityToBeMapped.length + facilityToBeDeMapped.length}, User: ${userToBeMapped.length + userToBeDeMapped.length}`);
         
-        // Send mappings in batches of 30
-        const BATCH_SIZE = 30;
+        // Send mappings in batches
+        const BATCH_SIZE = config.mapping.kafkaBatchSize;
         const totalBatches = Math.ceil(allMappings.length / BATCH_SIZE);
         
         for (let i = 0; i < allMappings.length; i += BATCH_SIZE) {
@@ -2667,7 +2667,7 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
         logger.info(`${usersToCreate.length} users to create via Kafka batches`);
         
         // Send user batches to Kafka topic for processing
-        const BATCH_SIZE = 30;
+        const BATCH_SIZE = config.user.kafkaCreateBatchSize;
         const totalBatches = Math.ceil(usersToCreate.length / BATCH_SIZE);
         
         for (let i = 0; i < usersToCreate.length; i += BATCH_SIZE) {

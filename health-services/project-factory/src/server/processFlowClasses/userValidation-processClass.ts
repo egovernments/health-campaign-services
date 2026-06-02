@@ -136,13 +136,13 @@ export class TemplateClass {
             Individual: {
             },
         };
+        const searchBatchlimit = config.user.individualSearchBatchSize;
         const params = {
-            limit: 55,
+            limit: searchBatchlimit + 5,
             offset: 0,
             tenantId,
             includeDeleted: true,
         };
-        const searchBatchlimit = 50;
         for (let i = 0; i < allPhoneNumbersNotInCampaignData.length; i += searchBatchlimit) {
             const batch = allPhoneNumbersNotInCampaignData.slice(i, i + searchBatchlimit);
             searchBody.Individual.mobileNumber = batch;
@@ -211,7 +211,7 @@ export class TemplateClass {
 
         // const tenantId = request?.body?.ResourceDetails?.tenantId;
         const searchUrl = config.host.healthIndividualHost + config.paths.healthIndividualSearch;
-        const chunkSize = 50;
+        const chunkSize = config.user.validationSearchBatchSize;
 
         for (let i = 0; i < allUserNamesToCheck.length; i += chunkSize) {
             const chunk = allUserNamesToCheck.slice(i, i + chunkSize);
@@ -308,7 +308,7 @@ export class TemplateClass {
         const allWorkerIds = Object.keys(workerIdToRowMap);
         if (!allWorkerIds.length) return;
 
-        const chunkSize = 50;
+        const chunkSize = config.workerRegistry.searchBatchSize;
         const foundIds = new Set<string>();
         for (let i = 0; i < allWorkerIds.length; i += chunkSize) {
             const chunk = allWorkerIds.slice(i, i + chunkSize);

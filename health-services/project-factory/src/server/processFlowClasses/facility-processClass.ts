@@ -147,7 +147,7 @@ export class TemplateClass {
     }
 
     private static async persistInBatches(facilities: any[], topic: string, tenantId: string): Promise<void> {
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.facility.persistBatchSize;
         for (let i = 0; i < facilities.length; i += BATCH_SIZE) {
             const batch = facilities.slice(i, i + BATCH_SIZE);
             await produceModifiedMessages({ datas: batch }, topic, tenantId);
@@ -196,7 +196,7 @@ export class TemplateClass {
         const transformedFacilities = await transformer.transform(facilityRowDatas, requestInfo);
         logger.info(`${transformedFacilities?.length} transformed facilities`);
 
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.facility.creationBatchSize;
         const successfullyCreatedFacilities: any[] = [];
         for (let i = 0; i < transformedFacilities.length; i += BATCH_SIZE) {
             const batch = transformedFacilities.slice(i, i + BATCH_SIZE);

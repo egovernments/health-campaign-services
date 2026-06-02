@@ -229,6 +229,7 @@ Never cast inside business logic.
 for (let i = 0; i < items.length; i += config.batchSize)
   await Promise.all(items.slice(i, i + config.batchSize).map(fn));
 ```
+- **Never hardcode a batch/chunk size.** Every batch/chunk/parallel-window size is env-configurable in `config/index.ts` (one key per operation, e.g. `config.project.creationBatchSize`, `config.facility.kafkaCreateBatchSize`, `config.user.individualSearchBatchSize`). New batching code must read from a config key and add the env var there (pattern `process.env.X ? parseInt(process.env.X, 10) : <default>`) — never a numeric literal in the loop. Defaults stay equal to the previous literal so behavior is unchanged until tuned.
 - Kafka concurrency capped at `MAX_CONCURRENT=10` (semaphore in `Listener.ts`). Do not raise without OOM analysis.
 - Release workbook / large object references after use — process memory limit is 3072 MB.
 

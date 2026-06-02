@@ -212,7 +212,7 @@ export class TemplateClass {
                 }
             }
         }
-        let batchSize = 100;
+        let batchSize = config.user.mappingPersistBatchSize;
         for(let i = 0; i < newMappingRow.length; i += batchSize){
             const batch = newMappingRow.slice(i, i + batchSize);
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, tenantId);
@@ -274,7 +274,7 @@ export class TemplateClass {
         }
 
         // Send updates in batches
-        const batchSize = 100;
+        const batchSize = config.user.mappingPersistBatchSize;
 
         for (let i = 0; i < boundariesToBeDemappedRow.length; i += batchSize) {
             const batch = boundariesToBeDemappedRow.slice(i, i + batchSize);
@@ -294,7 +294,7 @@ export class TemplateClass {
         resourceDetails: any,
         localizationMap: Record<string, string>
     ): Promise<void> {
-        const WORKER_BATCH_SIZE = 100;
+        const WORKER_BATCH_SIZE = config.workerRegistry.updateBatchSize;
         const workerFieldKeys = [
             "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
             "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
@@ -469,7 +469,7 @@ export class TemplateClass {
     }
 
     private static async persistInBatches(users: any[], topic: string, tenantId: string): Promise<void> {
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.user.persistBatchSize;
         for (let i = 0; i < users.length; i += BATCH_SIZE) {
             const batch = users.slice(i, i + BATCH_SIZE);
             await produceModifiedMessages({ datas: batch }, topic, tenantId);
@@ -575,7 +575,7 @@ export class TemplateClass {
         logger.info(`${transformedUsers.length} users transformed`);
 
         const mobileToCampaignMap = this.buildMobileNumberToCampaignUserMap(allCurrentUsers);
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.user.creationBatchSize;
         for (let i = 0; i < transformedUsers.length; i += BATCH_SIZE) {
             const batch = transformedUsers.slice(i, i + BATCH_SIZE);
             try {

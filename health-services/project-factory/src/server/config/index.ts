@@ -9,7 +9,7 @@ if (!HOST) {
 
 // Configuration object containing various environment variables
 const config = {
-  batchSize: 100,
+  batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 100,
   cacheTime: 300,
   isProduction: process.env ? true : false,
   token: "", // add default token if core services are not port forwarded
@@ -31,18 +31,72 @@ const config = {
     boundaryCodeOld: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",
     boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
     // default configurable number of data of boundary type on which generate different tabs
-    numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2"
+    numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
+    // Batch size for persisting boundary mapping data to Kafka.
+    mappingPersistBatchSize: process.env.BOUNDARY_MAPPING_PERSIST_BATCH_SIZE ? parseInt(process.env.BOUNDARY_MAPPING_PERSIST_BATCH_SIZE, 10) : 100,
+    // Batch size for the generic boundary-data persistInBatches helper.
+    persistBatchSize: process.env.BOUNDARY_PERSIST_BATCH_SIZE ? parseInt(process.env.BOUNDARY_PERSIST_BATCH_SIZE, 10) : 100,
+  },
+  project: {
+    // Number of projects created in parallel per hierarchy-level batch.
+    creationBatchSize: process.env.PROJECT_CREATION_BATCH_SIZE ? parseInt(process.env.PROJECT_CREATION_BATCH_SIZE, 10) : 100,
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
     facilityCodeColumn: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
-    facilityType: "facility"
+    facilityType: "facility",
+    // Batch size for persisting facility data to Kafka.
+    persistBatchSize: process.env.FACILITY_PERSIST_BATCH_SIZE ? parseInt(process.env.FACILITY_PERSIST_BATCH_SIZE, 10) : 100,
+    // Batch size for creating facilities via the facility service API.
+    creationBatchSize: process.env.FACILITY_CREATION_BATCH_SIZE ? parseInt(process.env.FACILITY_CREATION_BATCH_SIZE, 10) : 100,
+    // Batch size for facility-create batches dispatched to Kafka.
+    kafkaCreateBatchSize: process.env.FACILITY_KAFKA_CREATE_BATCH_SIZE ? parseInt(process.env.FACILITY_KAFKA_CREATE_BATCH_SIZE, 10) : 30,
+    // Chunk size for facility-id search calls.
+    searchBatchSize: process.env.FACILITY_SEARCH_BATCH_SIZE ? parseInt(process.env.FACILITY_SEARCH_BATCH_SIZE, 10) : 50,
   },
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE === "true",
     phoneNumberLength: process.env.PHONE_NUMBER_LENGTH ? parseInt(process.env.PHONE_NUMBER_LENGTH, 10) : 10,
+    // Batch size for persisting user mapping/demapping data to Kafka.
+    mappingPersistBatchSize: process.env.USER_MAPPING_PERSIST_BATCH_SIZE ? parseInt(process.env.USER_MAPPING_PERSIST_BATCH_SIZE, 10) : 100,
+    // Batch size for the generic user persistInBatches Kafka helper.
+    persistBatchSize: process.env.USER_PERSIST_BATCH_SIZE ? parseInt(process.env.USER_PERSIST_BATCH_SIZE, 10) : 100,
+    // Batch size for creating users (HRMS employees + workers) from table data.
+    creationBatchSize: process.env.USER_CREATION_BATCH_SIZE ? parseInt(process.env.USER_CREATION_BATCH_SIZE, 10) : 100,
+    // Batch size for user-create batches dispatched to Kafka.
+    kafkaCreateBatchSize: process.env.USER_KAFKA_CREATE_BATCH_SIZE ? parseInt(process.env.USER_KAFKA_CREATE_BATCH_SIZE, 10) : 30,
+    // Chunk size for user search-by-mobile-number calls.
+    searchBatchSize: process.env.USER_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_SEARCH_BATCH_SIZE, 10) : 50,
+    // Chunk size for individual-id lookups during user validation.
+    validationSearchBatchSize: process.env.USER_VALIDATION_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_VALIDATION_SEARCH_BATCH_SIZE, 10) : 50,
+    // Chunk size for individual-service search-by-phone-number calls during validation/retry.
+    individualSearchBatchSize: process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE, 10) : 50,
+  },
+  workerRegistry: {
+    // Chunk size for worker-id lookups during user validation.
+    searchBatchSize: process.env.WORKER_REGISTRY_SEARCH_BATCH_SIZE ? parseInt(process.env.WORKER_REGISTRY_SEARCH_BATCH_SIZE, 10) : 50,
+    // Batch size for worker-registry search + create/update of completed users.
+    updateBatchSize: process.env.WORKER_REGISTRY_UPDATE_BATCH_SIZE ? parseInt(process.env.WORKER_REGISTRY_UPDATE_BATCH_SIZE, 10) : 100,
+  },
+  mapping: {
+    // Batch size for facility/user mapping batches dispatched to Kafka.
+    kafkaBatchSize: process.env.MAPPING_KAFKA_BATCH_SIZE ? parseInt(process.env.MAPPING_KAFKA_BATCH_SIZE, 10) : 30,
+    // Batch size for the mappingBatchHandler persistInBatches Kafka helper.
+    persistBatchSize: process.env.MAPPING_PERSIST_BATCH_SIZE ? parseInt(process.env.MAPPING_PERSIST_BATCH_SIZE, 10) : 100,
+  },
+  resource: {
+    // Chunk size for resource-activity messages produced to Kafka.
+    activityBatchSize: process.env.RESOURCE_ACTIVITY_BATCH_SIZE ? parseInt(process.env.RESOURCE_ACTIVITY_BATCH_SIZE, 10) : 10,
+  },
+  productVariant: {
+    // Chunk size for product-variant search calls.
+    searchBatchSize: process.env.PRODUCT_VARIANT_SEARCH_BATCH_SIZE ? parseInt(process.env.PRODUCT_VARIANT_SEARCH_BATCH_SIZE, 10) : 100,
+  },
+  sheetData: {
+    // Batch size for the generic sheet-data persistDataInBatches helper.
+    persistBatchSize: process.env.SHEET_DATA_PERSIST_BATCH_SIZE ? parseInt(process.env.SHEET_DATA_PERSIST_BATCH_SIZE, 10) : 100,
   },
   attendanceRegister: {
     defaultEventType: process.env.ATTENDANCE_REGISTER_DEFAULT_EVENT_TYPE || "Training",
@@ -51,9 +105,19 @@ const config = {
     serviceCodeParallelSearchLimit: process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT, 10) : 50,
     attendeeSearchPageSize: process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE, 10) : 100,
     staffSearchPageSize: process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE, 10) : 100,
+    // Batch size for persisting attendee sheet data to Kafka.
+    attendeePersistBatchSize: process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE, 10) : 100,
+    // Batch size for persisting attendance-register sheet data to Kafka.
+    registerPersistBatchSize: process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE, 10) : 100,
+    // Batch size for creating/updating attendance registers via the attendance service API.
+    registerApiBatchSize: process.env.ATTENDANCE_REGISTER_API_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_API_BATCH_SIZE, 10) : 100,
   },
   hrms: {
     hrmsParallelSearchLimit: process.env.HRMS_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.HRMS_PARALLEL_SEARCH_LIMIT, 10) : 100,
+    // Chunk size for HRMS employee search-by-uuid calls.
+    searchByUuidBatchSize: process.env.HRMS_SEARCH_BY_UUID_BATCH_SIZE ? parseInt(process.env.HRMS_SEARCH_BY_UUID_BATCH_SIZE, 10) : 50,
+    // Chunk size for HRMS employee search-by-username calls.
+    searchByUsernameBatchSize: process.env.HRMS_SEARCH_BY_USERNAME_BATCH_SIZE ? parseInt(process.env.HRMS_SEARCH_BY_USERNAME_BATCH_SIZE, 10) : 50,
   },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,
@@ -134,6 +198,8 @@ const config = {
     localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
     localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "30000"),
     localizationChunkSizeForBoundaryCreation: parseInt(process.env.LOCALIZATION_CHUNK_SIZE_FOR_BOUNDARY_CREATION || "2000"),
+    // Chunk size for upserting localization messages per locale.
+    messageChunkSize: process.env.LOCALIZATION_MESSAGE_CHUNK_SIZE ? parseInt(process.env.LOCALIZATION_MESSAGE_CHUNK_SIZE, 10) : 100,
   },
 
   host: {

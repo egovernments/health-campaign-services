@@ -912,8 +912,9 @@ async function generateProcessedFileAndPersist(
     logger.info(`Waiting for 2 seconds`);
     await new Promise((resolve) => setTimeout(resolve, 2000));
     const activities = request?.body?.Activities;
-    for (let i = 0; i < activities.length; i += 10) {
-      const chunk = activities.slice(i, Math.min(i + 10, activities.length));
+    const activityBatchSize = config.resource.activityBatchSize;
+    for (let i = 0; i < activities.length; i += activityBatchSize) {
+      const chunk = activities.slice(i, Math.min(i + activityBatchSize, activities.length));
       const activityObject: any = { Activities: chunk };
       await produceModifiedMessages(
         activityObject,
@@ -3102,7 +3103,7 @@ async function upsertLocalisations(
   localisation: any,
   RequestInfo: any
 ): Promise<void> {
-  const chunkSize = 100;
+  const chunkSize = config.localisation.messageChunkSize;
 
   for (const locale of locales) {
     let messages: any[] = [];

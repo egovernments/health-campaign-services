@@ -34,6 +34,7 @@ jest.mock('../config', () => ({
             KAFKA_UPDATE_MAPPING_DATA_TOPIC: 'update-mapping',
             KAFKA_DELETE_MAPPING_DATA_TOPIC: 'delete-mapping',
         },
+        mapping: { kafkaBatchSize: 30, persistBatchSize: 100 },
     },
 }));
 
