@@ -17,6 +17,11 @@ const kafka = new Kafka({
     clientId: 'project-factory-consumer',
     brokers: config?.host?.KAFKA_BROKER_HOST?.split(',').map(b => b.trim()),
     logLevel: logLevel.NOTHING,
+    // Client-level retry governs the cluster metadata operations used by admin createTopics and by
+    // consumer.connect()/subscribe() (the consumer's own `retry` only covers the fetch loop). Raising
+    // it lets startup ride out the brief leadership election triggered by bulk topic creation instead
+    // of throwing KafkaJSNumberOfRetriesExceeded.
+    retry: { retries: config?.kafka?.KAFKA_CONSUMER_RETRIES, initialRetryTime: 1000 },
 });
 
 async function ensureTopicsExist(topics: string[]) {
@@ -26,8 +31,14 @@ async function ensureTopicsExist(topics: string[]) {
         const existing = new Set(await admin.listTopics());
         const missing = topics.filter(t => !existing.has(t));
         if (missing.length > 0) {
+            // Use broker defaults (-1) for replication — never hardcode replicationFactor=1 on a
+            // multi-broker cluster.
             await admin.createTopics({
-                topics: missing.map(topic => ({ topic, numPartitions: 1, replicationFactor: 1 })),
+                topics: missing.map(topic => ({
+                    topic,
+                    numPartitions: config.kafka.KAFKA_TOPIC_NUM_PARTITIONS,
+                    replicationFactor: config.kafka.KAFKA_TOPIC_REPLICATION_FACTOR,
+                })),
                 waitForLeaders: true,
             });
             logger.info(`KAFKA :: ADMIN :: Created missing topics: ${missing.join(', ')}`);

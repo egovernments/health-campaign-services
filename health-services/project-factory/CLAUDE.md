@@ -80,7 +80,7 @@ Multiple states share one deployment. Isolation is enforced at Kafka and DB leve
 - **Kafka produce**: prefix topic with `{tenantId}-` using `kafkaTopicUtils.getTopicName(baseTopic, tenantId)`.
 - **Kafka consume**: subscribe via regex pattern from `getConsumerTopicPattern(baseTopic)` — matches all tenant prefixes.
 - **Incoming topic**: strip prefix with `stripTopicPrefix(topic)` before handler lookup.
-- **Startup topic creation**: `Listener.ensureTopicsExist(getStartupTopicsToCreate(baseTopics))` pre-creates every `{tenant}-{baseTopic}` before subscribing. This is mandatory — KafkaJS regex subscriptions only match topics that exist at subscribe time and never rediscover new ones, so a tenant whose prefixed topic did not pre-exist would silently never be consumed until a restart.
+- **Startup topic creation**: `Listener.ensureTopicsExist(getStartupTopicsToCreate(baseTopics))` pre-creates every `{tenant}-{baseTopic}` before subscribing. This is mandatory — KafkaJS regex subscriptions only match topics that exist at subscribe time and never rediscover new ones, so a tenant whose prefixed topic did not pre-exist would silently never be consumed until a restart. Create with broker-default replication (`KAFKA_TOPIC_REPLICATION_FACTOR` default `-1`) — never hardcode `replicationFactor: 1` on a multi-broker cluster. Client-level Kafka `retry` (`KAFKA_CONSUMER_RETRIES`) must be high enough for `subscribe()` to ride out the brief leadership election that bulk topic creation triggers.
 - **DB schema**: `getTableName(tableName, tenantId)` returns `{tenantId.split(".")[0]}.{tableName}` (e.g., `"ng.kaduna"` → `"ng.tablename"`).
 - **Exception**: topics listed in `config.kafka.KAFKA_NON_CENTRAL_INSTANCE_TOPICS` (e.g., email) are never prefixed.
 
