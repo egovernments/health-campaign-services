@@ -63,7 +63,6 @@ public class HouseholdTransformationService {
     }
 
     private HouseholdIndexV1 transform(Household household) {
-        DeviceToken deviceToken = deviceTokenService.searchDeviceToken("026e5119-d2ce-4911-996d-a7b132ef34d5", "ba");
         householdService.searchHousehold(household.getClientReferenceId(), household.getTenantId());
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;

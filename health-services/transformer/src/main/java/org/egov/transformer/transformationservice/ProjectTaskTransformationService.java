@@ -267,9 +267,23 @@ public class ProjectTaskTransformationService {
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
     private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectId, String projectTypeId) {
-        if (!additionalDetails.has(CYCLE_INDEX)) {
-            String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, auditDetails.getCreatedTime());
-            additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        if (additionalDetails.has(CYCLE_INDEX)) {
+            additionalDetails.put(CYCLE_INDEX, formatCycleIndex(additionalDetails.get(CYCLE_INDEX).asText()));
+            return;
+        }
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, auditDetails.getCreatedTime());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+    }
+
+    private String formatCycleIndex(String cycleIndex) {
+        if (StringUtils.isBlank(cycleIndex)) {
+            return cycleIndex;
+        }
+        try {
+            return String.format("%02d", Integer.parseInt(cycleIndex.trim()));
+        } catch (NumberFormatException e) {
+            log.warn("Invalid cycleIndex format: '{}', keeping original value", cycleIndex);
+            return cycleIndex;
         }
     }
 
