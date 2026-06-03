@@ -159,10 +159,10 @@ const config = {
     // Consumer side: maxBytesPerPartition must be large enough to fetch those messages.
     KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION: parseInt(process.env.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION || "5242880", 10) || 5242880, // 5 MB
     KAFKA_PRODUCER_COMPRESSION_ENABLED: (process.env.KAFKA_PRODUCER_COMPRESSION_ENABLED || "true").toLowerCase() !== "false",
-    // Startup topic-creation tuning. -1 = use broker defaults (`num.partitions` / `default.replication.factor`)
-    // — never hardcode replicationFactor=1 on a multi-broker cluster.
-    KAFKA_TOPIC_NUM_PARTITIONS: parseInt(process.env.KAFKA_TOPIC_NUM_PARTITIONS || "6", 10),
-    KAFKA_TOPIC_REPLICATION_FACTOR: parseInt(process.env.KAFKA_TOPIC_REPLICATION_FACTOR || "-1", 10),
+    // Topics that carry full CampaignDetails (complete boundaries array, up to 35k entries) are
+    // created/updated with max.message.bytes=4MB + compression.type=gzip to prevent produce failures
+    // on large campaigns. Overridable via env var.
+    KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES: parseInt(process.env.KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES || "4194304", 10),
     // Client retries must tolerate the brief leadership election that follows bulk topic creation
     // (governs cluster metadata used by admin createTopics and consumer subscribe).
     KAFKA_CONSUMER_RETRIES: parseInt(process.env.KAFKA_CONSUMER_RETRIES || "10", 10) || 10,

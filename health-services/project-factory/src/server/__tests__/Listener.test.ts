@@ -15,6 +15,8 @@ const mockRun = jest.fn().mockResolvedValue(undefined);
 const mockConsumerOn = jest.fn();
 const mockListTopics = jest.fn().mockResolvedValue([]);
 const mockCreateTopics = jest.fn().mockResolvedValue(undefined);
+const mockAlterConfigs = jest.fn().mockResolvedValue(undefined);
+const mockDescribeConfigs = jest.fn().mockResolvedValue({ resources: [], throttleTime: 0 });
 
 jest.mock('kafkajs', () => {
   return {
@@ -30,10 +32,13 @@ jest.mock('kafkajs', () => {
         connect: jest.fn().mockResolvedValue(undefined),
         listTopics: mockListTopics,
         createTopics: mockCreateTopics,
+        describeConfigs: mockDescribeConfigs,
+        alterConfigs: mockAlterConfigs,
         disconnect: jest.fn().mockResolvedValue(undefined),
       }),
     })),
     logLevel: { NOTHING: 0 },
+    ConfigResourceTypes: { TOPIC: 2 },
   };
 });
 
@@ -56,9 +61,10 @@ jest.mock('../config', () => {
         KAFKA_USER_CREATE_BATCH_TOPIC: 'hcm-user-create-batch',
         KAFKA_MAPPING_BATCH_TOPIC: 'hcm-mapping-batch',
         KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: 'hcm-campaign-mark-failed',
+        KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC: 'save-project-campaign-details',
+        KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC: 'update-project-campaign-details',
         KAFKA_NON_CENTRAL_INSTANCE_TOPICS: '',
-        KAFKA_TOPIC_NUM_PARTITIONS: -1,
-        KAFKA_TOPIC_REPLICATION_FACTOR: -1,
+        KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES: 4194304,
         KAFKA_CONSUMER_RETRIES: 10,
       },
     },
@@ -377,6 +383,191 @@ describe('Kafka Listener', () => {
       await eachMessage(createMessage('hcm-processing-result', { result: 'done' }));
       await flushPromises();
       expect(mockHandleProcessingResult).toHaveBeenCalledWith({ result: 'done' });
+    });
+  });
+
+  // ── LARGE MESSAGE TOPIC CONFIG ─────────────────────────────────────────────
+
+  describe('Large Message Topic Config', () => {
+    const largeTopics = [
+      'save-project-campaign-details',
+      'update-project-campaign-details',
+      'start-admin-console-task',
+      'start-admin-console-mapping-task',
+    ];
+    const smallTopics = [
+      'hcm-facility-create-batch',
+      'hcm-user-create-batch',
+      'hcm-mapping-batch',
+    ];
+
+    it('Scenario L1: new large-message topics get max.message.bytes + gzip configEntries on create', async () => {
+      mockListTopics.mockResolvedValueOnce([]);
+      await listener();
+
+      const createdTopics: any[] = mockCreateTopics.mock.calls
+        .flatMap((c: any[]) => c[0].topics);
+
+      for (const name of largeTopics) {
+        const topic = createdTopics.find((t: any) => t.topic === name);
+        expect(topic).toBeDefined();
+        expect(topic.configEntries).toEqual(
+          expect.arrayContaining([
+            { name: 'max.message.bytes', value: '4194304' },
+            { name: 'compression.type', value: 'gzip' },
+          ])
+        );
+      }
+    });
+
+    it('Scenario L2: non-large topics are created without configEntries', async () => {
+      mockListTopics.mockResolvedValueOnce([]);
+      await listener();
+
+      const createdTopics: any[] = mockCreateTopics.mock.calls
+        .flatMap((c: any[]) => c[0].topics);
+
+      for (const name of smallTopics) {
+        const topic = createdTopics.find((t: any) => t.topic === name);
+        if (topic) {
+          expect(topic.configEntries).toBeUndefined();
+        }
+      }
+    });
+
+    it('Scenario L3: already-existing large-message topics without target config get alterConfigs', async () => {
+      mockListTopics.mockResolvedValueOnce(largeTopics);
+      // describeConfigs returns no max.message.bytes entry → all need updating
+      mockDescribeConfigs.mockResolvedValueOnce({
+        resources: largeTopics.map(name => ({ resourceName: name, configEntries: [], errorCode: 0, errorMessage: null, resourceType: 2 })),
+        throttleTime: 0,
+      });
+      await listener();
+
+      expect(mockAlterConfigs).toHaveBeenCalledTimes(1);
+      const call = mockAlterConfigs.mock.calls[0][0];
+      const alteredNames: string[] = call.resources.map((r: any) => r.name);
+
+      for (const name of largeTopics) {
+        expect(alteredNames).toContain(name);
+      }
+      for (const r of call.resources) {
+        expect(r.configEntries).toEqual(
+          expect.arrayContaining([
+            { name: 'max.message.bytes', value: '4194304' },
+            { name: 'compression.type', value: 'gzip' },
+          ])
+        );
+      }
+    });
+
+    it('Scenario L4: non-large existing topics are not passed to describeConfigs or alterConfigs', async () => {
+      mockListTopics.mockResolvedValueOnce([...largeTopics, ...smallTopics]);
+      mockDescribeConfigs.mockResolvedValueOnce({
+        resources: largeTopics.map(name => ({ resourceName: name, configEntries: [], errorCode: 0, errorMessage: null, resourceType: 2 })),
+        throttleTime: 0,
+      });
+      await listener();
+
+      const describedNames: string[] = mockDescribeConfigs.mock.calls[0][0].resources.map((r: any) => r.name);
+      for (const name of smallTopics) {
+        expect(describedNames).not.toContain(name);
+      }
+
+      const alteredNames: string[] = mockAlterConfigs.mock.calls[0][0].resources.map((r: any) => r.name);
+      for (const name of smallTopics) {
+        expect(alteredNames).not.toContain(name);
+      }
+    });
+
+    it('Scenario L4b: topics already at 4MB are skipped — alterConfigs not called for them', async () => {
+      const alreadyConfigured = largeTopics.slice(0, 2);
+      const needsUpdate = largeTopics.slice(2);
+      mockListTopics.mockResolvedValueOnce(largeTopics);
+      mockDescribeConfigs.mockResolvedValueOnce({
+        resources: [
+          ...alreadyConfigured.map(name => ({
+            resourceName: name,
+            configEntries: [{ configName: 'max.message.bytes', configValue: '4194304' }],
+            errorCode: 0, errorMessage: null, resourceType: 2,
+          })),
+          ...needsUpdate.map(name => ({
+            resourceName: name,
+            configEntries: [{ configName: 'max.message.bytes', configValue: '1048576' }],
+            errorCode: 0, errorMessage: null, resourceType: 2,
+          })),
+        ],
+        throttleTime: 0,
+      });
+      await listener();
+
+      expect(mockAlterConfigs).toHaveBeenCalledTimes(1);
+      const alteredNames: string[] = mockAlterConfigs.mock.calls[0][0].resources.map((r: any) => r.name);
+      for (const name of alreadyConfigured) {
+        expect(alteredNames).not.toContain(name);
+      }
+      for (const name of needsUpdate) {
+        expect(alteredNames).toContain(name);
+      }
+    });
+
+    it('Scenario L4c: all large topics already at 4MB — alterConfigs not called at all', async () => {
+      mockListTopics.mockResolvedValueOnce(largeTopics);
+      mockDescribeConfigs.mockResolvedValueOnce({
+        resources: largeTopics.map(name => ({
+          resourceName: name,
+          configEntries: [{ configName: 'max.message.bytes', configValue: '4194304' }],
+          errorCode: 0, errorMessage: null, resourceType: 2,
+        })),
+        throttleTime: 0,
+      });
+      await listener();
+
+      expect(mockAlterConfigs).not.toHaveBeenCalled();
+    });
+
+    it('Scenario L5: central instance — tenant-prefixed large-message topics get configEntries on create', async () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).centralInstanceTenantIds = 'ba,ko';
+      mockListTopics.mockResolvedValueOnce([]);
+      await listener();
+
+      const createdTopics: any[] = mockCreateTopics.mock.calls
+        .flatMap((c: any[]) => c[0].topics);
+
+      for (const base of largeTopics) {
+        for (const tenant of ['ba', 'ko']) {
+          const topic = createdTopics.find((t: any) => t.topic === `${tenant}-${base}`);
+          expect(topic).toBeDefined();
+          expect(topic.configEntries).toEqual(
+            expect.arrayContaining([
+              { name: 'max.message.bytes', value: '4194304' },
+              { name: 'compression.type', value: 'gzip' },
+            ])
+          );
+        }
+      }
+    });
+
+    it('Scenario L6: central instance — existing tenant-prefixed large topics get alterConfigs when not yet at 4MB', async () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).centralInstanceTenantIds = 'ba,ko';
+      const existingPrefixed = largeTopics.flatMap(b => [`ba-${b}`, `ko-${b}`]);
+      mockListTopics.mockResolvedValueOnce(existingPrefixed);
+      // None have target config yet
+      mockDescribeConfigs.mockResolvedValueOnce({
+        resources: existingPrefixed.map(name => ({ resourceName: name, configEntries: [], errorCode: 0, errorMessage: null, resourceType: 2 })),
+        throttleTime: 0,
+      });
+      await listener();
+
+      expect(mockAlterConfigs).toHaveBeenCalledTimes(1);
+      const call = mockAlterConfigs.mock.calls[0][0];
+      const alteredNames: string[] = call.resources.map((r: any) => r.name);
+
+      for (const name of existingPrefixed) {
+        expect(alteredNames).toContain(name);
+      }
     });
   });
 
