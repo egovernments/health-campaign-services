@@ -910,11 +910,16 @@ async function monitorCampaignDataCompletion(
 ): Promise<void> {
     try {
         logger.info(`Starting data completion monitoring for campaign: ${campaignNumber}`);
-        
-        const maxAttempts = config.resourceCreationConfig.maxAttemptsForResourceCreationOrMapping;
+
         const waitTimeMs = config.resourceCreationConfig.waitTimeOfEachAttemptOfResourceCreationOrMappping;
-        
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const noProgressTimeoutMs = config.resourceCreationConfig.noProgressTimeoutMsForResourceCreationOrMapping;
+
+        let lastSettled = -1;
+        let lastProgressAt = Date.now();
+        let attempt = 0;
+
+        while (true) {
+            attempt++;
             // Check if campaign itself is failed
             try {
                 const campaignResponse = await searchProjectTypeCampaignService({
@@ -922,7 +927,7 @@ async function monitorCampaignDataCompletion(
                     ids: [campaignId]
                 });
                 const campaign = campaignResponse?.CampaignDetails?.[0];
-                
+
                 if (campaign?.status === campaignStatuses.failed) {
                     logger.info(`Campaign ${campaignNumber} is already marked as failed. Stopping data monitoring.`);
                     campaignAlreadyFailed.value = true;
@@ -931,7 +936,7 @@ async function monitorCampaignDataCompletion(
             } catch (campaignCheckError) {
                 logger.warn(`Could not check campaign status, continuing with data monitoring: ${campaignCheckError}`);
             }
-            
+
             // Check boundary and facility status (hard-blocking failures)
             const boundaryStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'boundary');
             const facilityStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'facility');
@@ -942,7 +947,7 @@ async function monitorCampaignDataCompletion(
             // Overall status
             const status = await checkCampaignDataCompletionStatus(campaignNumber, tenantId);
 
-            logger.info(`Campaign ${campaignNumber} polling attempt ${attempt}/${maxAttempts}: ${status.completedRows}/${status.totalRows} completed, ${status.failedRows} failed, ${status.pendingRows} pending`);
+            logger.info(`Campaign ${campaignNumber} polling attempt ${attempt}: ${status.completedRows}/${status.totalRows} completed, ${status.failedRows} failed, ${status.pendingRows} pending`);
             logger.info(`  Boundary: ${boundaryStatus.completedRows}/${boundaryStatus.totalRows} completed, ${boundaryStatus.failedRows} failed`);
             logger.info(`  Facility: ${facilityStatus.completedRows}/${facilityStatus.totalRows} completed, ${facilityStatus.failedRows} failed`);
             logger.info(`  User: ${userStatus.completedRows}/${userStatus.totalRows} completed, ${userStatus.failedRows} failed`);
@@ -969,19 +974,21 @@ async function monitorCampaignDataCompletion(
                     return;
                 }
             }
-            
-            // If not the last attempt, wait before next poll
-            if (attempt < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, waitTimeMs));
+
+            const settled = status.completedRows + status.failedRows;
+            if (settled > lastSettled) {
+                lastSettled = settled;
+                lastProgressAt = Date.now();
+            } else if (Date.now() - lastProgressAt >= noProgressTimeoutMs) {
+                logger.error(`Campaign ${campaignNumber} data creation stalled: no progress for ${noProgressTimeoutMs}ms (stuck at ${status.completedRows}/${status.totalRows} completed, ${status.failedRows} failed, ${status.pendingRows} pending). Marking campaign as failed.`);
+                const stallError = new Error(`Data creation stalled: no progress for ${noProgressTimeoutMs}ms (${status.completedRows}/${status.totalRows} completed, ${status.pendingRows} pending)`);
+                await sendCampaignFailureMessage(campaignId, tenantId, stallError);
+                throw stallError;
             }
+
+            await new Promise(resolve => setTimeout(resolve, waitTimeMs));
         }
-        
-        // Max attempts reached
-        logger.error(`Campaign ${campaignNumber} data creation timed out after ${maxAttempts} attempts`);
-        const timeoutError = new Error(`Data creation timed out: polling exceeded ${maxAttempts} attempts`);
-        await sendCampaignFailureMessage(campaignId, tenantId, timeoutError);
-        throw timeoutError;
-        
+
     } catch (error) {
         logger.error(`Error monitoring campaign ${campaignNumber} data completion:`, error);
         throw error;
@@ -1046,6 +1053,30 @@ async function markMappingProcessesAsCompleted(
     }
 }
 
+/** Wait until the campaign's mapping-row total stops growing so dispatch never reads before persistence settles. */
+export async function waitForMappingRowsToSettle(campaignNumber: string, tenantId: string): Promise<number> {
+    const stallTimeoutMs = config.resourceCreationConfig.mappingPersistenceStallTimeoutMs;
+    const pollIntervalMs = config.resourceCreationConfig.mappingPersistencePollIntervalMs;
+
+    let lastTotal = -1;
+    let lastGrowthAt = Date.now();
+
+    while (true) {
+        const { totalMappings } = await checkCampaignMappingCompletionStatus(campaignNumber, tenantId);
+
+        if (totalMappings > lastTotal) {
+            lastTotal = totalMappings;
+            lastGrowthAt = Date.now();
+        } else if (Date.now() - lastGrowthAt >= stallTimeoutMs) {
+            logger.info(`Mapping rows settled for campaign ${campaignNumber}: ${totalMappings} total (no growth for ${stallTimeoutMs}ms)`);
+            return totalMappings;
+        }
+
+        logger.info(`Waiting for mapping rows to persist for campaign ${campaignNumber}: ${totalMappings} so far`);
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+}
+
 /**
  * Monitor campaign mapping completion status with polling
  */
@@ -1059,10 +1090,15 @@ async function monitorCampaignMappingCompletion(
     try {
         logger.info(`Starting mapping completion monitoring for campaign: ${campaignNumber}`);
         
-        const maxAttempts = config.resourceCreationConfig.maxAttemptsForResourceCreationOrMapping;
         const waitTimeMs = config.resourceCreationConfig.waitTimeOfEachAttemptOfResourceCreationOrMappping;
-        
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const noProgressTimeoutMs = config.resourceCreationConfig.noProgressTimeoutMsForResourceCreationOrMapping;
+
+        let lastSettled = -1;
+        let lastProgressAt = Date.now();
+        let attempt = 0;
+
+        while (true) {
+            attempt++;
             // Check if campaign itself is failed
             try {
                 const campaignResponse = await searchProjectTypeCampaignService({
@@ -1070,7 +1106,7 @@ async function monitorCampaignMappingCompletion(
                     ids: [campaignId]
                 });
                 const campaign = campaignResponse?.CampaignDetails?.[0];
-                
+
                 if (campaign?.status === campaignStatuses.failed) {
                     logger.info(`Campaign ${campaignNumber} is already marked as failed. Stopping mapping monitoring.`);
                     campaignAlreadyFailed.value = true;
@@ -1079,7 +1115,7 @@ async function monitorCampaignMappingCompletion(
             } catch (campaignCheckError) {
                 logger.warn(`Could not check campaign status, continuing with mapping monitoring: ${campaignCheckError}`);
             }
-            
+
             // Per-type breakdown: facility/resource failures hard-block the campaign;
             // user-mapping failures are non-blocking (parallel to user data failures
             // in monitorCampaignDataCompletion).
@@ -1090,7 +1126,7 @@ async function monitorCampaignMappingCompletion(
                 checkCampaignMappingCompletionStatus(campaignNumber, tenantId, 'user'),
             ]);
 
-            logger.info(`Campaign ${campaignNumber} mapping attempt ${attempt}/${maxAttempts}: ${overall.completedMappings}/${overall.totalMappings} completed, ${overall.failedMappings} failed, ${overall.pendingMappings} pending`);
+            logger.info(`Campaign ${campaignNumber} mapping attempt ${attempt}: ${overall.completedMappings}/${overall.totalMappings} completed, ${overall.failedMappings} failed, ${overall.pendingMappings} pending`);
             logger.info(`  Facility: ${facilityMappingStatus.completedMappings}/${facilityMappingStatus.totalMappings} completed, ${facilityMappingStatus.failedMappings} failed`);
             logger.info(`  Resource: ${resourceMappingStatus.completedMappings}/${resourceMappingStatus.totalMappings} completed, ${resourceMappingStatus.failedMappings} failed`);
             logger.info(`  User:     ${userMappingStatus.completedMappings}/${userMappingStatus.totalMappings} completed, ${userMappingStatus.failedMappings} failed`);
@@ -1113,19 +1149,21 @@ async function monitorCampaignMappingCompletion(
                 await markMappingProcessesAsCompleted(campaignNumber, tenantId, userUuid);
                 return;
             }
-            
-            // If not the last attempt, wait before next poll
-            if (attempt < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, waitTimeMs));
+
+            const settled = overall.completedMappings + overall.failedMappings;
+            if (settled > lastSettled) {
+                lastSettled = settled;
+                lastProgressAt = Date.now();
+            } else if (Date.now() - lastProgressAt >= noProgressTimeoutMs) {
+                logger.error(`Campaign ${campaignNumber} mapping stalled: no progress for ${noProgressTimeoutMs}ms (stuck at ${overall.completedMappings}/${overall.totalMappings} completed, ${overall.failedMappings} failed, ${overall.pendingMappings} pending). Marking campaign as failed.`);
+                const stallError = new Error(`Mapping stalled: no progress for ${noProgressTimeoutMs}ms (${overall.completedMappings}/${overall.totalMappings} completed, ${overall.pendingMappings} pending)`);
+                await sendCampaignFailureMessage(campaignId, tenantId, stallError);
+                throw stallError;
             }
+
+            await new Promise(resolve => setTimeout(resolve, waitTimeMs));
         }
-        
-        // Max attempts reached
-        logger.error(`Campaign ${campaignNumber} mapping timed out after ${maxAttempts} attempts`);
-        const timeoutError = new Error(`Mapping timed out: polling exceeded ${maxAttempts} attempts`);
-        await sendCampaignFailureMessage(campaignId, tenantId, timeoutError);
-        throw timeoutError;
-        
+
     } catch (error) {
         logger.error(`Error monitoring campaign ${campaignNumber} mapping completion:`, error);
         throw error;
@@ -1518,10 +1556,11 @@ async function processCampaignUsersFromExcelData(
             skipOtherCampaignReuse = await isNewSheetUploadedForClone(campaignDetails, tenantId, fileStoreId);
         }
 
-        const count = await processUsersSimple(tenantId, campaignId, fileStoreId, userSheetName, phoneNumbers, campaignNumber, skipOtherCampaignReuse);
+        const persistedDelta = await processUsersSimple(tenantId, campaignId, fileStoreId, userSheetName, phoneNumbers, campaignNumber, skipOtherCampaignReuse);
 
-        logger.info('=== CAMPAIGN USERS PROCESSING COMPLETED ===');
-        return count;
+        const expectedUserRowCount = new Set(phoneNumbers).size;
+        logger.info(`=== CAMPAIGN USERS PROCESSING COMPLETED === (persisted delta=${persistedDelta}, expected total user rows=${expectedUserRowCount})`);
+        return expectedUserRowCount;
 
     } catch (error) {
         logger.error('Error processing campaign users from excel data:', error);
@@ -1835,12 +1874,18 @@ async function triggerBackgroundResourceCreationFlow(
                 logger.info('=== WAITING 10 SECONDS BEFORE STARTING MAPPING PROCESS ===');
                 await new Promise(resolve => setTimeout(resolve, 10000));
                 
-                // Start mapping process for all types in batches with monitoring
-                logger.info('=== STARTING MAPPING PROCESS IN BATCHES WITH MONITORING ===');
-                await Promise.all([
-                    startAllMappingsInBatches(campaignDetails, useruuid, tenantId, requestInfo),
-                    monitorCampaignMappingCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
-                ]);
+                const settledMappingTotal = await waitForMappingRowsToSettle(campaignDetails.campaignNumber, tenantId);
+
+                if (settledMappingTotal === 0) {
+                    logger.info('=== NO MAPPINGS TO PROCESS — MARKING MAPPING PROCESSES COMPLETED ===');
+                    await markMappingProcessesAsCompleted(campaignDetails.campaignNumber, tenantId, useruuid);
+                } else {
+                    logger.info('=== STARTING MAPPING PROCESS IN BATCHES WITH MONITORING ===');
+                    await Promise.all([
+                        startAllMappingsInBatches(campaignDetails, useruuid, tenantId, requestInfo),
+                        monitorCampaignMappingCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
+                    ]);
+                }
                 
                 // Check if campaign failed during mapping
                 if (campaignAlreadyFailed.value) {
