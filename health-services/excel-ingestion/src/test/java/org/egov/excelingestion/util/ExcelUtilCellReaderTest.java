@@ -95,4 +95,92 @@ class ExcelUtilCellReaderTest {
         assertEquals("John", data.get(0).get("name"));
         assertEquals(25L, data.get(0).get("age"));
     }
+
+    /**
+     * Last-row detection must ignore a trailing tail of formula rows whose cached result is empty
+     * (the template pre-fills thousands of such lookup-formula rows). It must return the last
+     * PLAIN data row, not the formula tail.
+     */
+    @Test
+    void findActualLastRow_ignoresTrailingEmptyFormulaRows() throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("Data");
+            sheet.createRow(0).createCell(0).setCellValue("name"); // technical header
+            sheet.createRow(1).createCell(0).setCellValue("Name"); // localized header
+
+            sheet.createRow(2).createCell(0).setCellValue("Alice"); // real data
+            sheet.createRow(3).createCell(0).setCellValue("Bob");   // last real data row
+
+            // Trailing template rows: empty-string formula in the boundary-code style.
+            for (int r = 4; r <= 50; r++) {
+                sheet.createRow(r).createCell(0).setCellFormula("\"\"");
+            }
+            wb.getCreationHelper().createFormulaEvaluator().evaluateAll(); // populate cached "" values
+
+            assertEquals(3, ExcelUtil.findActualLastRowWithData(sheet),
+                    "should stop at last plain-data row, not the empty-formula tail");
+        }
+    }
+
+    /** A row whose only populated cell is a formula with a non-empty cached result counts as data. */
+    @Test
+    void findActualLastRow_countsCachedNonEmptyFormula() throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("Data");
+            sheet.createRow(0).createCell(0).setCellValue("code");
+            sheet.createRow(1).createCell(0).setCellValue("Code");
+
+            sheet.createRow(2).createCell(0).setCellValue("plain"); // row 2 data
+            sheet.createRow(3).createCell(0).setCellFormula("\"BNDRY-1\""); // row 3: formula -> non-empty
+            wb.getCreationHelper().createFormulaEvaluator().evaluateAll();
+
+            assertEquals(3, ExcelUtil.findActualLastRowWithData(sheet),
+                    "a formula cell with a non-empty cached value should be detected as data");
+        }
+    }
+
+    /** Detection finds the LAST populated row even with an empty gap in the middle. */
+    @Test
+    void findActualLastRow_handlesGapBetweenDataRows() throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("Data");
+            sheet.createRow(0).createCell(0).setCellValue("name");
+            sheet.createRow(1).createCell(0).setCellValue("Name");
+
+            sheet.createRow(2).createCell(0).setCellValue("Alice");
+            sheet.createRow(3); // empty gap row
+            sheet.createRow(4).createCell(0).setCellValue("Carol"); // last data after gap
+
+            assertEquals(4, ExcelUtil.findActualLastRowWithData(sheet),
+                    "last data row must be found even with an empty row in between");
+        }
+    }
+
+    /**
+     * Regression for role-not-empty validation: a row whose only populated cells are the plain
+     * _MULTISELECT_ role children must still be detected and retained, so downstream
+     * min-selection (role required) validation can run on it.
+     */
+    @Test
+    void roleOnlyRow_isDetectedAndRetained() throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("User List");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1");
+            header.createCell(1).setCellValue("HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_2");
+            sheet.createRow(1); // localized header
+
+            Row data = sheet.createRow(2);
+            data.createCell(0).setCellValue("DISTRIBUTOR"); // plain dropdown role child
+            // second child left empty
+
+            assertEquals(2, ExcelUtil.findActualLastRowWithData(sheet),
+                    "a row with only role children selected must be detected as data");
+
+            List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached("fs-role", "User List", sheet);
+            assertEquals(1, rows.size(), "the role-only row must be retained for validation");
+            assertEquals("DISTRIBUTOR", rows.get(0).get("HCM_ADMIN_CONSOLE_USER_ROLE"),
+                    "reconstructed parent role value must be present");
+        }
+    }
 }

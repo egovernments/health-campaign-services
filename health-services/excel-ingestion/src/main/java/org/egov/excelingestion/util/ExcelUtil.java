@@ -7,12 +7,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
-
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 
 /**
  * Centralized utility for Excel operations
@@ -320,141 +316,37 @@ public class ExcelUtil {
         }
     }
 
-    private static final Cache<String, Integer> lastRowCache = Caffeine.newBuilder()
-            .expireAfterWrite(5, TimeUnit.MINUTES) // entry 5 min baad expire ho jayegi
-            .maximumSize(1000) // max 1000 entries rakhega
-            .build();
-
-    public static String buildCacheKey(Sheet sheet) {
-        int workbookId = System.identityHashCode(sheet.getWorkbook());
-        String sheetName = sheet.getSheetName();
-        int sheetHash = sheetHash(sheet); // simple hash of content
-        return workbookId + "::" + sheetName + "::" + sheetHash;
-    }
-
-    private static int sheetHash(Sheet sheet) {
-        int hash = 1;
-        final int prime = 31;
-
-        for (Row row : sheet) {
-            if (row == null)
-                continue;
-
-            for (int cn = row.getFirstCellNum(), last = row.getLastCellNum(); cn < last; cn++) {
-                Cell cell = row.getCell(cn, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                if (cell == null)
-                    continue;
-
-                switch (cell.getCellType()) {
-                    case STRING:
-                        String s = cell.getStringCellValue();
-                        hash = prime * hash + (s != null ? s.hashCode() : 0);
-                        break;
-
-                    case NUMERIC:
-                        long bits = Double.doubleToRawLongBits(cell.getNumericCellValue());
-                        hash = prime * hash + (int) (bits ^ (bits >>> 32));
-                        break;
-
-                    case BOOLEAN:
-                        hash = prime * hash + (cell.getBooleanCellValue() ? 1231 : 1237);
-                        break;
-
-                    case FORMULA:
-                        String f = cell.getCellFormula();
-                        hash = prime * hash + (f != null ? f.hashCode() : 0);
-                        break;
-
-                    default:
-                        // skip BLANK, ERROR, etc.
-                        break;
-                }
-            }
-        }
-        return hash;
-    }
-
     /**
      * Find actual last row with meaningful data (not just formulas)
      * This prevents processing thousands of empty formula rows
      */
     public static int findActualLastRowWithData(Sheet sheet) {
         log.info("Finding actual last row with data for sheet: {}", sheet.getSheetName());
-        String key = buildCacheKey(sheet);
+        int maxRowNum = sheet.getLastRowNum();
+        if (maxRowNum < 0)
+            return -1;
 
-        return lastRowCache.get(key, k -> {
-            log.info("Cache MISS - Finding actual last row with data for sheet: {}", sheet.getSheetName());
-            int maxRowNum = sheet.getLastRowNum();
-            if (maxRowNum < 0)
-                return -1;
-
-            FormulaEvaluator evaluator = sheet.getWorkbook().getCreationHelper().createFormulaEvaluator();
-
-            int start = 0;
-            int end = maxRowNum;
-            int actualLast = 0;
-
-            while (start <= end) {
-                int curr = start + (end - start) / 2;
-                log.info("Checking row {}", curr);
-
-                boolean foundData = false;
-                int offset = 0;
-
-                // Phase 1: Exponential jump from curr, with window scanning
-                for (int jump = 1; jump <= 512; jump *= 4) {
-                    int windowStart = curr + offset;
-                    if (windowStart > maxRowNum)
-                        break;
-
-                    // Scan a window of 16 rows at each jump point
-                    int windowEnd = Math.min(windowStart + 15, maxRowNum);
-                    for (int i = windowStart; i <= windowEnd; i++) {
-                        Row row = sheet.getRow(i);
-                        if (row != null && row.getPhysicalNumberOfCells() > 0 && rowHasData(row, evaluator)) {
-                            if (i > actualLast) {
-                                actualLast = i; // Keep track of the highest row with data found
-                            }
-                            foundData = true;
-                        }
-                    }
-
-                    // If data was found in this window, we can stop jumping from this 'curr'
-                    // and let the binary search continue in the upper half.
-                    if (foundData) {
-                        break;
-                    }
-
-                    offset = jump; // next exponential jump
-                }
-
-                if (foundData) {
-                    start = curr + 1; // check higher half
-                } else {
-                    end = curr - 1; // check lower half
-                }
+        for (int rowNum = maxRowNum; rowNum >= 2; rowNum--) {
+            Row row = sheet.getRow(rowNum);
+            if (row != null && row.getPhysicalNumberOfCells() > 0 && rowHasData(row)) {
+                return rowNum;
             }
+        }
 
-            // Patch: Explicitly check the physical last row as a fallback.
-            int physicalLastRowNum = sheet.getLastRowNum();
-            if (physicalLastRowNum > actualLast) {
-                Row lastRow = sheet.getRow(physicalLastRowNum);
-                if (lastRow != null && lastRow.getPhysicalNumberOfCells() > 0 && rowHasData(lastRow, evaluator)) {
-                    actualLast = physicalLastRowNum;
-                }
-            }
-
-            return actualLast > 0 ? actualLast : 1; // at least header
-        });
+        return 1;
     }
 
-    private static boolean rowHasData(Row row, FormulaEvaluator evaluator) {
+    private static boolean rowHasData(Row row) {
         int lastCell = row.getLastCellNum();
         for (int col = 0; col < lastCell; col++) {
             Cell cell = row.getCell(col);
             if (cell == null)
                 continue;
             CellType type = cell.getCellType();
+
+            if (type == CellType.FORMULA) {
+                type = cell.getCachedFormulaResultType();
+            }
 
             switch (type) {
                 case STRING:
@@ -464,25 +356,6 @@ public class ExcelUtil {
                 case NUMERIC:
                 case BOOLEAN:
                     return true;
-                case FORMULA:
-                    try {
-                        CellValue value = evaluator.evaluate(cell);
-                        if (value != null) {
-                            switch (value.getCellType()) {
-                                case STRING:
-                                    if (!value.getStringValue().trim().isEmpty())
-                                        return true;
-                                    break;
-                                case NUMERIC:
-                                case BOOLEAN:
-                                    return true;
-                                default:
-                                    break;
-                            }
-                        }
-                    } catch (Exception ignore) {
-                    }
-                    break;
                 default:
                     break;
             }
