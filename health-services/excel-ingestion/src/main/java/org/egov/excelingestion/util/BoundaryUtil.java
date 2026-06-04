@@ -152,9 +152,14 @@ public class BoundaryUtil {
         
         // If includeAllChildren is true, process all children from enriched boundary data
         if (Boolean.TRUE.equals(boundary.getIncludeAllChildren())) {
+            // Add the boundary itself as a row (consistent with collectAllBoundariesFromEnriched).
+            // Without this, a leaf-level boundary selected with includeAllChildren=true produces no
+            // row, because it has no children to expand.
+            boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
+
             EnrichedBoundary enrichedBoundary = codeToEnrichedBoundary.get(boundary.getCode());
             if (enrichedBoundary != null && enrichedBoundary.getChildren() != null) {
-                processAllChildren(enrichedBoundary.getChildren(), codeToEnrichedBoundary, 
+                processAllChildren(enrichedBoundary.getChildren(), codeToEnrichedBoundary,
                                  boundaryRows, processedCodes, newPath, levelTypes);
             }
         } else {
