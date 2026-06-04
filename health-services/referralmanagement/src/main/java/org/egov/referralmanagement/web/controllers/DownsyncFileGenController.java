@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Controller
@@ -80,9 +81,6 @@ public class DownsyncFileGenController {
         }
 
         // ── Fetch localities ──────────────────────────────────────────────────
-        List<String> allLocalities = jobRepository.fetchAllLocalities(tenantId);
-        log.info("Resolved {} localities for tenant {}", allLocalities.size(), tenantId);
-
         // Fetch project-locality mapping if rootProjectId present
         List<String[]> projectLocPairs = List.of(); // [projectId, locality]
         if (StringUtils.hasText(rootProjectId)) {
@@ -93,6 +91,12 @@ public class DownsyncFileGenController {
                                 "message", "No leaf projects found under rootProjectId: " + rootProjectId));
             }
         }
+
+        // When rootProjectId is provided, scope registry to the same boundaries as the project
+        List<String> allLocalities = StringUtils.hasText(rootProjectId)
+                ? projectLocPairs.stream().map(p -> p[1]).distinct().collect(Collectors.toList())
+                : jobRepository.fetchAllLocalities(tenantId);
+        log.info("Resolved {} localities for tenant {}", allLocalities.size(), tenantId);
 
         // ── Insert job row ────────────────────────────────────────────────────
         String jobId = UUID.randomUUID().toString();
