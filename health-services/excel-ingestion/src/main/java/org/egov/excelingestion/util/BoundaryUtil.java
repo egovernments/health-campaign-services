@@ -150,22 +150,19 @@ public class BoundaryUtil {
         }
         newPath.set(levelIndex, boundary.getCode());
         
-        // If includeAllChildren is true, process all children from enriched boundary data
-        if (Boolean.TRUE.equals(boundary.getIncludeAllChildren())) {
-            // Add the boundary itself as a row (consistent with collectAllBoundariesFromEnriched).
-            // Without this, a leaf-level boundary selected with includeAllChildren=true produces no
-            // row, because it has no children to expand.
-            boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
+        // Always emit this boundary's own row. A leaf-level boundary selected with
+        // includeAllChildren=true has no children to expand, so without this it produces no row.
+        boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
 
+        // includeAllChildren=true -> pull in the whole subtree from the enriched relationship tree;
+        // otherwise only descend into children that are themselves in the selected boundary list.
+        if (Boolean.TRUE.equals(boundary.getIncludeAllChildren())) {
             EnrichedBoundary enrichedBoundary = codeToEnrichedBoundary.get(boundary.getCode());
             if (enrichedBoundary != null && enrichedBoundary.getChildren() != null) {
                 processAllChildren(enrichedBoundary.getChildren(), codeToEnrichedBoundary,
                                  boundaryRows, processedCodes, newPath, levelTypes);
             }
         } else {
-            // Add current path as a row with boundary code
-            boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
-            
             // Process only the boundaries that are in the input list and are children of current
             List<Boundary> children = allBoundaries.stream()
                     .filter(b -> boundary.getCode().equals(b.getParent()))
