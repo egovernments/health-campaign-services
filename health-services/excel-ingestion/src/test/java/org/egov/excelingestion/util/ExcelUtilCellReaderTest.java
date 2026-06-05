@@ -38,6 +38,7 @@ class ExcelUtilCellReaderTest {
             Row data = sheet.createRow(2);
             data.createCell(0).setCellFormula("5+3");           // numeric formula -> 8
             data.createCell(1).setCellFormula("\"ab\"&\"cd\""); // string formula  -> "abcd"
+            wb.getCreationHelper().createFormulaEvaluator().evaluateAll(); // a saved xlsx always carries cached values
 
             List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached("fs-1", "Data", sheet);
 
