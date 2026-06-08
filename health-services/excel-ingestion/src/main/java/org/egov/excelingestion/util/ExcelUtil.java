@@ -345,7 +345,10 @@ public class ExcelUtil {
             CellType type = cell.getCellType();
 
             if (type == CellType.FORMULA) {
-                type = cell.getCachedFormulaResultType();
+                if (cell.getCachedFormulaResultType() == CellType.STRING
+                        && !cell.getStringCellValue().trim().isEmpty())
+                    return true;
+                continue;
             }
 
             switch (type) {

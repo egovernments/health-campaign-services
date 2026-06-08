@@ -149,18 +149,16 @@ public class BoundaryUtil {
             newPath.add(null);
         }
         newPath.set(levelIndex, boundary.getCode());
-        
-        // If includeAllChildren is true, process all children from enriched boundary data
+
+        boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
+
         if (Boolean.TRUE.equals(boundary.getIncludeAllChildren())) {
             EnrichedBoundary enrichedBoundary = codeToEnrichedBoundary.get(boundary.getCode());
             if (enrichedBoundary != null && enrichedBoundary.getChildren() != null) {
-                processAllChildren(enrichedBoundary.getChildren(), codeToEnrichedBoundary, 
+                processAllChildren(enrichedBoundary.getChildren(), codeToEnrichedBoundary,
                                  boundaryRows, processedCodes, newPath, levelTypes);
             }
         } else {
-            // Add current path as a row with boundary code
-            boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
-            
             // Process only the boundaries that are in the input list and are children of current
             List<Boundary> children = allBoundaries.stream()
                     .filter(b -> boundary.getCode().equals(b.getParent()))
