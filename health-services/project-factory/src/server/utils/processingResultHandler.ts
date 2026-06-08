@@ -2712,7 +2712,7 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
         logger.info(`${usersToCreate.length} users to create via Kafka batches`);
         
         // Send user batches to Kafka topic for processing
-        const BATCH_SIZE = config.user.kafkaCreateBatchSize;
+        const BATCH_SIZE = 6;
         const totalBatches = Math.ceil(usersToCreate.length / BATCH_SIZE);
         
         for (let i = 0; i < usersToCreate.length; i += BATCH_SIZE) {
