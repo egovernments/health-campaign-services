@@ -3,7 +3,7 @@ ServiceMaps:
   version: 1.0.0
   mappings:
     # ── INDEX: Save new scheduled notification to Elasticsearch ──
-    - topic: save-scheduled-notification-topic
+    - topic: save-scheduled-notification-topic-health
       configKey: INDEX
       indexes:
         - name: scheduled-notification-v1
@@ -14,7 +14,7 @@ ServiceMaps:
           timeStampField: $.auditDetails.createdTime
 
     # ── INDEX: Update scheduled notification in Elasticsearch ──
-    - topic: update-scheduled-notification-topic
+    - topic: update-scheduled-notification-topic-health
       configKey: INDEX
       indexes:
         - name: scheduled-notification-v1

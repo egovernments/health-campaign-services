@@ -4,11 +4,11 @@ serviceMaps:
     # ── INSERT: Save new scheduled notification ──
     - version: 1.0
       description: Persists scheduled notification
-      fromTopic: save-scheduled-notification-topic
+      fromTopic: save-scheduled-notification-topic-health
       isTransaction: true
       queryMaps:
         - query: >-
-            INSERT INTO scheduled_notification(
+            INSERT INTO health.scheduled_notification(
               id, clientReferenceId, tenantId, eventType, entityId, entityType,
               scheduledAt, createdAt, templateCode, recipientType, recipientId,
               mobileNumber, contextData, status, attempts, lastAttemptAt,
@@ -48,11 +48,11 @@ serviceMaps:
     # ── UPDATE: Update existing scheduled notification ──
     - version: 1.0
       description: Updates scheduled notification
-      fromTopic: update-scheduled-notification-topic
+      fromTopic: update-scheduled-notification-topic-health
       isTransaction: true
       queryMaps:
         - query: >-
-            UPDATE scheduled_notification SET
+            UPDATE health.scheduled_notification SET
               status = ?, attempts = ?, lastAttemptAt = ?, errorMessage = ?,
               isDeleted = ?, rowVersion = ?,
               lastModifiedBy = ?, lastModifiedTime = ?

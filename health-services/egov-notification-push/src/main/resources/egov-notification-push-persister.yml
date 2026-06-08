@@ -4,11 +4,11 @@ serviceMaps:
 
     - version: 1.0
       description: Save/override device token
-      fromTopic: save-push-device-token
+      fromTopic: save-push-device-token-health
       isTransaction: true
       queryMaps:
         - query: >-
-            INSERT INTO eg_push_device_tokens
+            INSERT INTO health.eg_push_device_tokens
             (id, userid, devicetoken, devicetype, tenantid, facilityid, userroles, createdby, createdtime, lastmodifiedby, lastmodifiedtime)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (devicetoken, facilityid) DO UPDATE SET
@@ -31,11 +31,11 @@ serviceMaps:
 
     - version: 1.0
       description: Delete device token
-      fromTopic: delete-push-device-token
+      fromTopic: delete-push-device-token-health
       isTransaction: true
       queryMaps:
         - query: >-
-            DELETE FROM eg_push_device_tokens
+            DELETE FROM health.eg_push_device_tokens
             WHERE userid = ? AND devicetoken = ? AND tenantid = ? AND facilityid = ?
           basePath: $.deviceTokens.*
           jsonMaps:
@@ -46,11 +46,11 @@ serviceMaps:
 
     - version: 1.0
       description: Unregister device token (delete all rows for userId+deviceToken, regardless of facilityId)
-      fromTopic: unregister-push-device-token
+      fromTopic: unregister-push-device-token-health
       isTransaction: true
       queryMaps:
         - query: >-
-            DELETE FROM eg_push_device_tokens
+            DELETE FROM health.eg_push_device_tokens
             WHERE userid = ? AND devicetoken = ?
           basePath: $.deviceTokens.*
           jsonMaps:
