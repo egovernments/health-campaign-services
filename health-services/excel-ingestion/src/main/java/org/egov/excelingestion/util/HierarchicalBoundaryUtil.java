@@ -36,8 +36,8 @@ public class HierarchicalBoundaryUtil {
     private static final String SHA256_ALGORITHM = "SHA-256";
     // Column indices for the separate key-to-hash mapping table
     // This table is stored in a completely separate section of the lookup sheet
-    private static final int KEY_HASH_TABLE_KEY_COLUMN = 7;   // Column H: Original key
-    private static final int KEY_HASH_TABLE_HASH_COLUMN = 8;  // Column I: Hashed key
+    private static final int KEY_HASH_TABLE_KEY_COLUMN = 7;     // Column H: Code-based key
+    private static final int KEY_HASH_TABLE_HASH_COLUMN = 9;  // Column J: Hashed key
 
     private final ExcelIngestionConfig config;
     private final BoundaryService boundaryService;
@@ -188,19 +188,22 @@ public class HierarchicalBoundaryUtil {
         sheet.setColumnHidden(boundaryCodeColIndex, true);
         sheet.setColumnWidth(boundaryCodeColIndex, 30 * 256);
 
+        Map<String, String> codeToUniqueName = buildCodeToUniqueNameMap(filteredBoundaries, localizationMap);
+
         Set<String> level1Boundaries = new LinkedHashSet<>();
         filteredBoundaries.forEach(b -> {
             if (b.getBoundaryPath().size() > 0 && b.getBoundaryPath().get(0) != null) {
-                level1Boundaries.add(localizationMap.getOrDefault(b.getBoundaryPath().get(0), b.getBoundaryPath().get(0)));
+                String code = b.getBoundaryPath().get(0);
+                level1Boundaries.add(codeToUniqueName.getOrDefault(code, localizationMap.getOrDefault(code, code)));
             }
         });
 
         // Create the hidden sheet with all lookup data
-        ParentChildrenMapping mappingResult = createCascadingBoundaryHierarchySheet(workbook, filteredBoundaries, levelTypes, localizationMap);
+        ParentChildrenMapping mappingResult = createCascadingBoundaryHierarchySheet(workbook, filteredBoundaries, levelTypes, localizationMap, codeToUniqueName);
 
         // Add validations using the helper column architecture
         addCascadingBoundaryValidations(workbook, sheet, lastSchemaCol, levelTypes.size(),
-                new ArrayList<>(level1Boundaries), mappingResult, localizationMap, visibleColIndices);
+                new ArrayList<>(level1Boundaries), mappingResult, localizationMap, visibleColIndices, codeToUniqueName);
 
         sheet.createFreezePane(0, 2);
         CellStyle unlocked = workbook.createCellStyle();
@@ -213,7 +216,7 @@ public class HierarchicalBoundaryUtil {
             dataRowsPopulated = populateExistingDataWithBoundaries(sheet, existingData, lastSchemaCol,
                     levelTypes.size(), boundaryCodeColIndex, levelTypes, hierarchyType,
                     filteredBoundaries, localizationMap, unlocked, formulaStyle, visibleColIndices,
-                    mappingResult.displayNameMappingStartRow, mappingResult.displayNameMappingEndRow);
+                    mappingResult.displayNameMappingStartRow, mappingResult.displayNameMappingEndRow, codeToUniqueName);
         }
 
         // Create remaining empty rows with dropdowns and formulas
@@ -256,9 +259,17 @@ public class HierarchicalBoundaryUtil {
 
             formula.append("IF(").append(colRef).append("<>\"\",");
 
-            // Use VLOOKUP to find the boundary code from the display name to code mapping in columns D:E
+            // Build combination string: e.g., CONCATENATE(A2, "#", B2, "#", C2)
+            StringBuilder concatBuilder = new StringBuilder("CONCATENATE(");
+            for (int j = 0; j <= i; j++) {
+                if (j > 0) concatBuilder.append(",\"").append(BOUNDARY_SEPARATOR).append("\",");
+                concatBuilder.append(CellReference.convertNumToColString(visibleColIndices.get(j))).append(rowNumber);
+            }
+            concatBuilder.append(")");
+
+            // Use VLOOKUP to find the boundary code from the display name mapping in columns D:E
             // Use the correct row range where the mapping data actually exists
-            formula.append("IFERROR(VLOOKUP(").append(colRef)
+            formula.append("IFERROR(VLOOKUP(").append(concatBuilder.toString())
                    .append(",_h_SimpleLookup_h_!$D$").append(excelStartRow)
                    .append(":$E$").append(excelEndRow).append(",2,0),\"\")");
 
@@ -285,7 +296,8 @@ public class HierarchicalBoundaryUtil {
     private ParentChildrenMapping createCascadingBoundaryHierarchySheet(XSSFWorkbook workbook,
                                                                         List<BoundaryUtil.BoundaryRowData> boundaries,
                                                                         List<String> levelTypes,
-                                                                        Map<String, String> localizationMap) {
+                                                                        Map<String, String> localizationMap,
+                                                                        Map<String, String> codeToUniqueName) {
 
         // Create or get the hidden lookup sheet
         Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
@@ -299,6 +311,7 @@ public class HierarchicalBoundaryUtil {
         workbook.setSheetHidden(workbook.getSheetIndex("_h_SimpleLookup_h_"), true);
         log.info("Created fresh _h_SimpleLookup_h_ sheet for current generation");
 
+
         // Build parent-children mapping with hashed keys
         Map<String, Set<String>> parentChildrenMap = new LinkedHashMap<>();
         Map<String, String> codeToDisplayNameMap = new HashMap<>();
@@ -308,14 +321,20 @@ public class HierarchicalBoundaryUtil {
         // First pass: collect all boundary codes with their display names
         for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
             List<String> path = boundary.getBoundaryPath();
-            for (String code : path) {
+            for (int i = 0; i < path.size(); i++) {
+                String code = path.get(i);
                 if (code != null) {
-                    codeToDisplayNameMap.putIfAbsent(code, localizationMap.getOrDefault(code, code));
+                    String displayName = codeToUniqueName.getOrDefault(code, localizationMap.getOrDefault(code, code));
+                    String levelTypeDisplayName = localizationMap.getOrDefault(levelTypes.get(i), levelTypes.get(i));
+                    codeToDisplayNameMap.putIfAbsent(code, displayName + " - " + levelTypeDisplayName);
                 }
             }
         }
 
         // Second pass: build parent-children relationships
+        // Use CODES for hash keys (codes are always unique, unlike display names)
+        // This ensures disambiguation even when multiple boundaries share the same name
+        Map<String, String> childDisplayNameMap = new HashMap<>();
         for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
             List<String> path = boundary.getBoundaryPath();
             for (int level = 0; level < path.size() - 1; level++) {
@@ -323,17 +342,34 @@ public class HierarchicalBoundaryUtil {
                     StringBuilder keyBuilder = new StringBuilder();
                     for (int i = 0; i <= level; i++) {
                         if (i > 0) keyBuilder.append(BOUNDARY_SEPARATOR);
-                        keyBuilder.append(codeToDisplayNameMap.get(path.get(i)));
+                        // Use CODES for hash key - codes are guaranteed to be unique
+                        keyBuilder.append(path.get(i));
                     }
                     String originalKey = keyBuilder.toString();
                     String hashedKey = createHashedKey(originalKey);
                     hashToOriginalKeyMap.put(hashedKey, originalKey);
 
-                    String childDisplayName = codeToDisplayNameMap.get(path.get(level + 1));
-                    parentChildrenMap.computeIfAbsent(hashedKey, k -> new LinkedHashSet<>()).add(childDisplayName);
-                    parentChildrenCodeMap.computeIfAbsent(hashedKey, k -> new LinkedHashSet<>()).add(path.get(level + 1));
+                    // Store child code for later lookup
+                    String childCode = path.get(level + 1);
+                    parentChildrenCodeMap.computeIfAbsent(hashedKey, k -> new LinkedHashSet<>()).add(childCode);
+
+                    // Children dropdown should show plain display name WITHOUT type suffix
+                    if (!childDisplayNameMap.containsKey(childCode)) {
+                        childDisplayNameMap.put(childCode, codeToUniqueName.getOrDefault(childCode, localizationMap.getOrDefault(childCode, childCode)));
+                    }
                 }
             }
+        }
+
+        // Build parentChildrenMap with plain display names (no type suffix) for dropdown visibility
+        for (Map.Entry<String, Set<String>> entry : parentChildrenCodeMap.entrySet()) {
+            String hashedKey = entry.getKey();
+            Set<String> codes = entry.getValue();
+            Set<String> displayNames = new LinkedHashSet<>();
+            for (String code : codes) {
+                displayNames.add(childDisplayNameMap.get(code));
+            }
+            parentChildrenMap.put(hashedKey, displayNames);
         }
 
         // SECTION 1: Children data (Rows 1-N)
@@ -378,29 +414,55 @@ public class HierarchicalBoundaryUtil {
         }
         int childrenSectionEndRow = rowNum;
 
-        // SECTION 2: Display name to code mapping (for boundary code VLOOKUP)
-        // Structure: Column D = Display name, Column E = Code
+        // SECTION 2: Display name combination to code mapping (for boundary code VLOOKUP)
+        // Structure: Column D = Combination String, Column E = Code
+        // Use PLAIN display names (without type suffix) so VLOOKUP can match dropdown values
         rowNum += 2; // Add spacing
         int displayNameMappingStartRow = rowNum;
-        for (Map.Entry<String, String> entry : codeToDisplayNameMap.entrySet()) {
+        
+        // Build map of combination strings to codes - use plain display names for dropdown matching
+        Map<String, String> comboToCodeMap = new HashMap<>();
+        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
+            StringBuilder comb = new StringBuilder();
+            for (String code : boundary.getBoundaryPath()) {
+                if (code != null) {
+                    if (comb.length() > 0) comb.append(BOUNDARY_SEPARATOR);
+                    // Use plain display name (without type suffix) to match dropdown values
+                    comb.append(codeToUniqueName.getOrDefault(code, localizationMap.getOrDefault(code, code)));
+                    comboToCodeMap.put(comb.toString(), code);
+                }
+            }
+        }
+
+        for (Map.Entry<String, String> entry : comboToCodeMap.entrySet()) {
             Row mappingRow = lookupSheet.createRow(rowNum++);
-            mappingRow.createCell(3).setCellValue(entry.getValue()); // Column D: Display name
-            mappingRow.createCell(4).setCellValue(entry.getKey());    // Column E: Code
+            mappingRow.createCell(3).setCellValue(entry.getKey());   // Column D: Combination String
+            mappingRow.createCell(4).setCellValue(entry.getValue()); // Column E: Code
         }
         int displayNameMappingEndRow = rowNum;
 
         // SECTION 3: Key-to-Hash mapping table (COMPLETELY SEPARATE from children!)
-        // Structure: Column H = Original key (e.g., "INDIA#Karnataka"), Column I = Hash
-        // This is used by the helper formula to find the hash for a given key combination
+        // Structure: Column H = Code-based key, Column I = Display-name key, Column J = Hash
+        // Code key is unique (for disambiguation), Display key matches dropdown values
         rowNum += 2; // Add spacing
         int keyHashTableStartRow = rowNum;
         for (Map.Entry<String, String> entry : hashToOriginalKeyMap.entrySet()) {
             String hashedKey = entry.getKey();
-            String originalKey = entry.getValue();
+            String codeKey = entry.getValue();  // e.g., "code1#code2"
+
+            // Build display name version of the key for matching dropdown values
+            StringBuilder displayKeyBuilder = new StringBuilder();
+            String[] codes = codeKey.split(BOUNDARY_SEPARATOR, -1);
+            for (int i = 0; i < codes.length; i++) {
+                if (i > 0) displayKeyBuilder.append(BOUNDARY_SEPARATOR);
+                displayKeyBuilder.append(codeToUniqueName.getOrDefault(codes[i], localizationMap.getOrDefault(codes[i], codes[i])));
+            }
+            String displayKey = displayKeyBuilder.toString();
 
             Row keyHashRow = lookupSheet.createRow(rowNum++);
-            keyHashRow.createCell(KEY_HASH_TABLE_KEY_COLUMN).setCellValue(originalKey);   // Column H: Original key
-            keyHashRow.createCell(KEY_HASH_TABLE_HASH_COLUMN).setCellValue(hashedKey);    // Column I: Hash
+            keyHashRow.createCell(KEY_HASH_TABLE_KEY_COLUMN).setCellValue(codeKey);       // Column H: Code-based key
+            keyHashRow.createCell(KEY_HASH_TABLE_KEY_COLUMN + 1).setCellValue(displayKey); // Column I: Display-name key
+            keyHashRow.createCell(KEY_HASH_TABLE_HASH_COLUMN).setCellValue(hashedKey);    // Column J: Hash
         }
         int keyHashTableEndRow = rowNum;
 
@@ -458,7 +520,8 @@ public class HierarchicalBoundaryUtil {
                                                  int startColumnIndex, int numLevels,
                                                  List<String> level1Boundaries,
                                                  ParentChildrenMapping mappingResult, Map<String, String> localizationMap,
-                                                 List<Integer> visibleColIndices) {
+                                                 List<Integer> visibleColIndices,
+                                                 Map<String, String> codeToUniqueName) {
 
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
@@ -479,16 +542,15 @@ public class HierarchicalBoundaryUtil {
         addLevel1BoundaryValidation(workbook, sheet, dvHelper, visibleColIndices.get(0), level1Boundaries);
 
         // Cascading Validations for Levels 2+ using Helper Column Architecture
-        // Key-to-Hash lookup table is in a SEPARATE section (columns H and I)
+        // Key-to-Hash lookup table is in a SEPARATE section (columns H=code key, I=display key, J=hash)
         // This ensures children data (cols B onwards) never overlaps with the lookup keys
         int keyHashStartRow = mappingResult.keyHashTableStartRow + 1; // Excel rows are 1-based
         int keyHashEndRow = mappingResult.keyHashTableEndRow;
-        String keyColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN);   // Column H
-        String hashColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN); // Column I
+        String displayKeyColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN + 1);
+        String hashColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN);
 
-        // Lookup ranges for the separate key-to-hash table
-        String lookupRangeKeys = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
-                keyColLetter, keyHashStartRow, keyColLetter, keyHashEndRow);
+        String lookupRangeDisplayKeys = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
+                displayKeyColLetter, keyHashStartRow, displayKeyColLetter, keyHashEndRow);
         String lookupRangeHashes = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
                 hashColLetter, keyHashStartRow, hashColLetter, keyHashEndRow);
 
@@ -524,10 +586,8 @@ public class HierarchicalBoundaryUtil {
                     keyBuilder.append(colLetter).append(excelRow);
                 }
 
-                // Helper formula: finds the concatenated key in Col H (keys), returns hash from Col I (hashes)
-                // Uses the SEPARATE key-to-hash table, NOT the children rows
                 String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
-                                                     lookupRangeHashes, keyBuilder.toString(), lookupRangeKeys);
+                                                     lookupRangeHashes, keyBuilder.toString(), lookupRangeDisplayKeys);
                 helperCell.setCellFormula(helperFormula);
             }
 
@@ -663,7 +723,8 @@ public class HierarchicalBoundaryUtil {
                                                    Map<String, String> localizationMap,
                                                    CellStyle unlocked, CellStyle formulaStyle,
                                                    List<Integer> visibleColIndices,
-                                                   int displayNameMappingStartRow, int displayNameMappingEndRow) {
+                                                   int displayNameMappingStartRow, int displayNameMappingEndRow,
+                                                   Map<String, String> codeToUniqueName) {
 
         int rowsPopulated = 0;
 
@@ -700,7 +761,7 @@ public class HierarchicalBoundaryUtil {
                 if (boundaryPath != null && j < boundaryPath.size()) {
                     String boundaryCodeAtLevel = boundaryPath.get(j);
                     if (boundaryCodeAtLevel != null && !boundaryCodeAtLevel.isEmpty()) {
-                        String displayName = localizationMap.getOrDefault(boundaryCodeAtLevel, boundaryCodeAtLevel);
+                        String displayName = codeToUniqueName.getOrDefault(boundaryCodeAtLevel, localizationMap.getOrDefault(boundaryCodeAtLevel, boundaryCodeAtLevel));
                         cell.setCellValue(displayName);
                     }
                 }
@@ -729,6 +790,7 @@ public class HierarchicalBoundaryUtil {
     private String extractBoundaryCodeFromData(Map<String, Object> dataRow) {
         String[] possibleFields = {
                 "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+                "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
                 "boundaryCode",
                 "boundary_code",
                 "BOUNDARY_CODE",
@@ -738,10 +800,38 @@ public class HierarchicalBoundaryUtil {
         for (String field : possibleFields) {
             Object value = dataRow.get(field);
             if (value != null && !value.toString().isEmpty()) {
-                return value.toString();
+                String code = value.toString().trim();
+                int comma = code.indexOf(',');
+                return comma >= 0 ? code.substring(0, comma).trim() : code;
             }
         }
 
         return null;
+    }
+
+    private Map<String, String> buildCodeToUniqueNameMap(List<BoundaryUtil.BoundaryRowData> boundaries,
+                                                         Map<String, String> localizationMap) {
+        Map<String, String> codeToUniqueName = new HashMap<>();
+        Map<String, Set<String>> parentHashToNames = new HashMap<>();
+        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
+            List<String> path = boundary.getBoundaryPath();
+            StringBuilder pathKeyBuilder = new StringBuilder();
+            for (int i = 0; i < path.size(); i++) {
+                String code = path.get(i);
+                if (code == null) continue;
+                if (!codeToUniqueName.containsKey(code)) {
+                    String originalName = localizationMap.getOrDefault(code, code);
+                    String parentKey = i == 0 ? "ROOT" : createHashedKey(pathKeyBuilder.toString());
+                    Set<String> usedNames = parentHashToNames.computeIfAbsent(parentKey, k -> new HashSet<>());
+                    String uniqueName = originalName;
+                    while (usedNames.contains(uniqueName)) { uniqueName += "\u200B"; }
+                    usedNames.add(uniqueName);
+                    codeToUniqueName.put(code, uniqueName);
+                }
+                if (i > 0) pathKeyBuilder.append(BOUNDARY_SEPARATOR);
+                pathKeyBuilder.append(code);
+            }
+        }
+        return codeToUniqueName;
     }
 }

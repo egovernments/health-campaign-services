@@ -125,10 +125,8 @@ async function getAllFacilities(tenantId: string, requestInfo?: RequestInfo) {
       facilitySearchBody
     );
     for (const facility of batch) {
-      const name = facility?.name?.trim();
-      if (!name) continue;
-      // Overwrite previous if same name found
-      facilityMap.set(name, facility);
+      if (!facility?.id) continue;
+      facilityMap.set(facility.id, facility);
     }
     facilitySearchParams.offset += 50;
   }
