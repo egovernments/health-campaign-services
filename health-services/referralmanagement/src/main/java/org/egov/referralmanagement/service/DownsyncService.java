@@ -572,7 +572,8 @@ public class DownsyncService {
                     fetched,
                     criteria.getTenantId(),
                     criteria.getLastSyncedTime(),
-                    criteria.getIncludeDeleted()
+                    criteria.getIncludeDeleted(),
+                    false
             );
 
             totalCount = searchResponse.getTotalCount();
