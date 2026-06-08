@@ -149,13 +149,9 @@ public class BoundaryUtil {
             newPath.add(null);
         }
         newPath.set(levelIndex, boundary.getCode());
-        
-        // Always emit this boundary's own row. A leaf-level boundary selected with
-        // includeAllChildren=true has no children to expand, so without this it produces no row.
+
         boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
 
-        // includeAllChildren=true -> pull in the whole subtree from the enriched relationship tree;
-        // otherwise only descend into children that are themselves in the selected boundary list.
         if (Boolean.TRUE.equals(boundary.getIncludeAllChildren())) {
             EnrichedBoundary enrichedBoundary = codeToEnrichedBoundary.get(boundary.getCode());
             if (enrichedBoundary != null && enrichedBoundary.getChildren() != null) {

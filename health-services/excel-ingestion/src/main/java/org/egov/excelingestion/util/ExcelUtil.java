@@ -345,12 +345,6 @@ public class ExcelUtil {
             CellType type = cell.getCellType();
 
             if (type == CellType.FORMULA) {
-                // Template helper formulas (boundary code, register id, lookup hashes) are pre-filled
-                // in EVERY row and are not user data. They are all string-producing and guarded with
-                // IF/IFERROR, so an empty row evaluates to "". An unevaluated formula defaults to a
-                // NUMERIC cached type, which must NOT be mistaken for data (otherwise every template
-                // row counts and the last-data-row detection collapses). Count a formula cell only
-                // when its cached result is a non-empty string.
                 if (cell.getCachedFormulaResultType() == CellType.STRING
                         && !cell.getStringCellValue().trim().isEmpty())
                     return true;
