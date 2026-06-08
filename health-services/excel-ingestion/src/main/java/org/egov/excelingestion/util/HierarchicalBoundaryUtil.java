@@ -790,6 +790,7 @@ public class HierarchicalBoundaryUtil {
     private String extractBoundaryCodeFromData(Map<String, Object> dataRow) {
         String[] possibleFields = {
                 "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+                "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
                 "boundaryCode",
                 "boundary_code",
                 "BOUNDARY_CODE",
@@ -799,7 +800,9 @@ public class HierarchicalBoundaryUtil {
         for (String field : possibleFields) {
             Object value = dataRow.get(field);
             if (value != null && !value.toString().isEmpty()) {
-                return value.toString();
+                String code = value.toString().trim();
+                int comma = code.indexOf(',');
+                return comma >= 0 ? code.substring(0, comma).trim() : code;
             }
         }
 
