@@ -170,6 +170,8 @@ public class StockService {
         return validEntities;
     }
 
+    // Removed the in-memory "search by id only" fast path so all searches go through findWithCount,
+    // keeping lastChangedSince/tenantId/includeDeleted/lastModifiedBy filtering consistent in one DB query.
     public SearchResponse<Stock> search(StockSearchRequest stockSearchRequest,
                                         Integer limit,
                                         Integer offset,
