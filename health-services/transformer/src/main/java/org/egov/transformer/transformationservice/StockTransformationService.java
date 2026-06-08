@@ -107,7 +107,7 @@ public class StockTransformationService {
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             }
             facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
-            facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
+            facilityType = facility != null ? facility.getUsage() : facilityType;
             facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
             facilityName = facility != null ? facility.getName() : facilityId;
         } else {
@@ -123,7 +123,7 @@ public class StockTransformationService {
         if (!STAFF.equalsIgnoreCase(transactingFacilityType)) {
             Facility transactingFacility = facilityService.findFacilityById(transactingFacilityId, stock.getTenantId());
             transactingFacilityLevel = transactingFacility != null ? facilityService.getFacilityLevel(transactingFacility) : null;
-            transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
+            transactingFacilityType = transactingFacility != null ? transactingFacility.getUsage() : transactingFacilityType;
             transactingFacilityName = transactingFacility != null ? transactingFacility.getName() : transactingFacilityId;
 
         } else {
@@ -223,7 +223,7 @@ public class StockTransformationService {
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             }
             facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
-            facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
+            facilityType = facility != null ? facility.getUsage() : facilityType;
             facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
             facilityName = facility != null ? facility.getName() : facilityId;
         } else {
@@ -239,7 +239,7 @@ public class StockTransformationService {
         if (!STAFF.equalsIgnoreCase(transactingFacilityType)) {
             Facility transactingFacility = facilityService.findFacilityById(transactingFacilityId, stock.getTenantId());
             transactingFacilityLevel = transactingFacility != null ? facilityService.getFacilityLevel(transactingFacility) : null;
-            transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
+            transactingFacilityType = transactingFacility != null ? transactingFacility.getUsage() : transactingFacilityType;
             transactingFacilityName = transactingFacility != null ? transactingFacility.getName() : transactingFacilityId;
 
         } else {
