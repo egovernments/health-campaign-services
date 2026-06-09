@@ -62,7 +62,7 @@ public class Stock extends EgovOfflineModel {
 
     @JsonProperty("senderId")
     @NotNull
-    @Size(min=2, max=64)
+    @Size(min=2)
     private String senderId;
 
     @JsonProperty("senderType")
@@ -72,7 +72,7 @@ public class Stock extends EgovOfflineModel {
     
     @JsonProperty("receiverId")
     @NotNull
-    @Size(min=2, max=64)
+    @Size(min=2)
     private String receiverId;
 
     @JsonProperty("receiverType")
