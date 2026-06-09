@@ -82,7 +82,7 @@ public class Stock extends EgovOfflineModel {
 
     @JsonProperty("wayBillNumber")
     @JsonAlias({"waybillNumber"})
-    @Size(min = 2, max = 200)
+    @Size(max = 200)
     private String wayBillNumber;
 
     //TODO remove this
