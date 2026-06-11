@@ -18,11 +18,12 @@ ENV COMMIT_ID=$COMMIT_ID
 # Remove heap limit: let Node.js use all available memory
 ENV NODE_OPTIONS="--max-old-space-size=3072"
 
-# Copy package.json and yarn.lock (if exists)
+# Copy package.json and yarn.lock for reproducible installs
 COPY ${WORK_DIR}/package.json ./
+COPY ${WORK_DIR}/yarn.lock ./
 
-# Install dependencies
-RUN yarn install
+# Install dependencies locked to yarn.lock versions
+RUN yarn install --frozen-lockfile
 
 # Optionally, you can add a label with the commit ID
 LABEL commit_id=$COMMIT_ID

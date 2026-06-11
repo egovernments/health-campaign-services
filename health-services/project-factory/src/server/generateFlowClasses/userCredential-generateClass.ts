@@ -4,8 +4,9 @@ import { getLocalizedName, populateBoundariesRecursively } from "../utils/campai
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
-import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
+import { dataRowStatuses, sheetDataRowStatuses, errorWorksheetName, campaignDataRowFields, userDataFields, userCredentialFields } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
+import { WorkerRegistryRecord, searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -24,6 +25,34 @@ export class TemplateClass {
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.completed);
+
+        // Fetch decrypted payee details from worker registry for all users that have a stored workerId.
+        // Worker registry always decrypts fields server-side on search, so this guarantees plain-text values
+        // regardless of whether the DIGIT PII encryption service was available during batch processing.
+        const workerIdToWorkerMap = new Map<string, WorkerRegistryRecord>();
+        const requestInfo = responseToSend?.requestInfo;
+        if (requestInfo) {
+            const workerIds: string[] = users
+                .map((u: any) => u?.data?.[userDataFields.workerId])
+                .filter((id: any): id is string => !!id);
+
+            if (workerIds.length > 0) {
+                try {
+                    const workers = await searchWorkersByIds(workerIds, tenantId, requestInfo);
+                    for (const worker of workers) {
+                        if (worker?.id) {
+                            workerIdToWorkerMap.set(worker.id, worker);
+                        }
+                    }
+                    logger.info(`Fetched ${workers.length} workers from worker registry for credential sheet`);
+                } catch (workerSearchError) {
+                    logger.error("Failed to fetch worker details for credential sheet — payee fields will fall back to stored values", workerSearchError);
+                }
+            }
+        } else {
+            logger.warn("requestInfo not available in responseToSend — skipping worker registry search for credential sheet");
+        }
+
         const userData = await Promise.all(users.map(async (u: any, idx: number) => {
             logger.info(`Decrypting item number ${idx + 1}`);
             const rawData = u?.data || {};
@@ -33,24 +62,99 @@ export class TemplateClass {
                 localizedData[key] = rawData[key];
             }
 
-            localizedData["#status#"] = sheetDataRowStatuses.CREATED;
-            localizedData["UserName"] = decrypt(rawData["UserName"]);
-            localizedData["Password"] = decrypt(rawData["Password"]);
+            // Ensure _MULTISELECT_N keys exist for role columns — the sheet schema expands
+            // HCM_ADMIN_CONSOLE_USER_ROLE into individual _MULTISELECT_N columns, so the combined
+            // string must be split when individual keys are absent (legacy or combined-only storage).
+            const hasMultiSelectKeys = Object.keys(localizedData).some(
+                (k: string) => k.startsWith("HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_")
+            );
+            if (!hasMultiSelectKeys) {
+                const combinedRole: string = localizedData["HCM_ADMIN_CONSOLE_USER_ROLE"] || "";
+                if (combinedRole.trim()) {
+                    combinedRole.split(",").map((r: string) => r.trim()).filter(Boolean).slice(0, 5)
+                        .forEach((role: string, i: number) => {
+                            localizedData[`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${i + 1}`] = role;
+                        });
+                }
+            }
 
+            localizedData[campaignDataRowFields.status] = sheetDataRowStatuses.CREATED;
+            localizedData[userCredentialFields.userName] = decrypt(rawData[userCredentialFields.userName]);
+            localizedData[userCredentialFields.password] = decrypt(rawData[userCredentialFields.password]);
+
+            // Overlay decrypted payee details from worker registry search result.
+            // This replaces any potentially encrypted values that may have been stored
+            // in campaign_data during batch processing.
+            const workerId = rawData[userDataFields.workerId];
+            if (workerId) {
+                const worker = workerIdToWorkerMap.get(workerId);
+                if (worker) {
+                    if (worker.payeeName) localizedData[userDataFields.payeeName] = worker.payeeName;
+                    if (worker.bankAccount) localizedData[userDataFields.bankAccount] = worker.bankAccount;
+                    if (worker.bankCode) localizedData[userDataFields.bankCode] = worker.bankCode;
+                    if (worker.beneficiaryCode) localizedData[userDataFields.beneficiaryCode] = worker.beneficiaryCode;
+                    if (worker.paymentProvider) localizedData[userDataFields.paymentProvider] = worker.paymentProvider;
+                    if (worker.payeePhoneNumber) localizedData[userDataFields.payeePhoneNumber] = worker.payeePhoneNumber;
+                }
+            }
+
+            const boundaryCode = localizedData[userDataFields.boundaryCode] ;
+            // Add localized boundary code
+            if (boundaryCode && !localizedData[userDataFields.boundaryCodeMandatory]){
+                localizedData[userDataFields.boundaryCodeMandatory] = localizedData[userDataFields.boundaryCode];
+            }
+            const boundaryMandatoryCode = localizedData[userDataFields.boundaryCodeMandatory] ;
+            // Add boundary Name
+            if (!localizedData[userDataFields.boundaryName]) {
+                localizedData[userDataFields.boundaryName] = getLocalizedName(boundaryMandatoryCode, localizationMap);
+            }
             return localizedData;
         }));
 
-        // Construct the final SheetMap
+        // Fetch failed/invalid rows for errors worksheet.
+        // All error rows (both sheet-INVALID and HRMS-FAILED) are stored in the DB
+        // with status=failed, so a single query on that status is sufficient.
+        // The separate allUsers+filter approach was producing duplicate entries for
+        // rows tagged {status:"failed", data["#status#"]:"INVALID"}.
+        const erroredUsers = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.failed);
+
+        // Build errors worksheet data (same columns as main sheet + #status# + #errorDetails#)
+        const errorUserData = erroredUsers.map((u: any) => {
+            const rawData = u?.data || {};
+            const errorData: Record<string, any> = {};
+
+            // Copy all data except sensitive fields
+            for (const key in rawData) {
+                if (key === userCredentialFields.userName || key === userCredentialFields.password || key === userCredentialFields.userServiceUuids) {
+                    // Skip sensitive fields for error rows
+                    continue;
+                }
+                errorData[key] = rawData[key];
+            }
+
+            // Add status and error details
+            errorData[campaignDataRowFields.status] = rawData[campaignDataRowFields.status] || sheetDataRowStatuses.FAILED;
+            errorData[campaignDataRowFields.errorDetails] = rawData[campaignDataRowFields.errorDetails] || "";
+
+            return errorData;
+        });
+
+        // Construct the final SheetMap with both main and errors worksheets
         const sheetMap: SheetMap = {
             ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
                 dynamicColumns: {
-                    ["Password"]: { hideColumn: false }
+                    [userCredentialFields.password]: { hideColumn: false },
+                    [userDataFields.boundaryName]: { hideColumn: false }
                 }
+            },
+            [errorWorksheetName]: {
+                data: errorUserData,
+                dynamicColumns: {}
             }
         };
 
-        logger.info(`SheetMap generated for template type: ${type}`);
+        logger.info(`SheetMap generated for template type: ${type} (${userData.length} created, ${errorUserData.length} errors)`);
         return sheetMap;
     }
 
@@ -126,7 +230,7 @@ export class TemplateClass {
             const entry: Record<string, string> = {};
 
             // Add main boundary code
-            entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
+            entry[userDataFields.boundaryCode] = node.code;
 
             // Traverse current path
             const fullPath = [...path, node];
@@ -169,9 +273,9 @@ export class TemplateClass {
 
             boundaryTypes.forEach((type: string, index: number) => {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
-                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', freezeColumn: true };
             });
-            result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
+            result[userDataFields.boundaryCode] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);
             return result;
         } else {

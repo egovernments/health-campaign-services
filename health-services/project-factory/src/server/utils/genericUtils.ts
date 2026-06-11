@@ -1,19 +1,20 @@
 import { NextFunction, Request, Response } from "express";
 import { httpRequest, defaultheader } from "./request";
 import config from "../config/index";
-import { getErrorCodes } from "../config/constants";
+import { getErrorCodes, mappingStatuses } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
-import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsTypeSchema, getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsTypeSchema } from "../api/genericApis";
 import { logger } from "./logger";
-import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName, getLocalizedNameOnlyIfMessagePresent } from "./campaignUtils";
+import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery, getTableName } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
+import { getProcessNamesForResourceTypes } from "../config/resourceTypeRegistry";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
-import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
+import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
 import { addDataToSheet, enrichUsageColumnForFacility, formatWorksheet, getNewExcelWorkbook, protectSheet, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
@@ -43,16 +44,15 @@ const appCache = new NodeCache({ stdTTL: 1800000, checkperiod: 300 });
 Send The Error Response back to client with proper response code 
 */
 const throwErrorViaRequest = (message: any = "Internal Server Error") => {
+  logger.error("Error : ", message);
   if (message?.message || message?.code) {
     let error: any = new Error(message?.message || message?.code);
     error = Object.assign(error, { status: message?.status || 500 });
-    logger.error("Error : " + error + " " + (message?.description || ""));
     throw error;
   }
   else {
     let error: any = new Error(message);
     error = Object.assign(error, { status: 500 });
-    logger.error("Error : " + error);
     throw error;
   }
 };
@@ -385,7 +385,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     let fileUrlResponse: any;
-    if (type != 'boundaryManagement' && request?.query?.campaignId != 'default' && type != 'boundaryGeometryManagement') {
+    if (request?.query?.campaignId != 'default') {
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
       const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
       logger.info(`checks for parent campaign for type: ${type}`)
@@ -399,7 +399,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
         const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
         const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
-        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
+        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFileStoreId;
         fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility, request?.query?.tenantId);
       }
 
@@ -420,19 +420,6 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
       request.body.generatedResource = finalResponse;
     }
-    else if (type == 'boundaryManagement' || type === 'boundaryGeometryManagement') {
-      // get boundary data from boundary relationship search api
-      logger.info("Generating Boundary Data")
-      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, false);
-      logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
-      // get boundary sheet data after being generated
-      const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
-      const generatedResourceNew: any = { generatedResource: finalResponse }
-      // send to update topic
-      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
-      request.body.generatedResource = finalResponse;
-      logger.info("generation completed for boundary management create flow")
-    }
     else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
       await processGenerateRequest(request, localizationMap, filteredBoundary, fileUrlResponse);
       const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
@@ -447,69 +434,6 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
   }
 }
 
-function generateAuditDetails(request: any) {
-  const createdBy = request?.body?.RequestInfo?.userInfo?.uuid;
-  const lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
-  const auditDetails = {
-    createdBy: createdBy,
-    lastModifiedBy: lastModifiedBy,
-    createdTime: Date.now(),
-    lastModifiedTime: Date.now()
-  }
-  return auditDetails;
-}
-
-
-
-function sortCampaignDetails(campaignDetails: any) {
-  campaignDetails.sort((a: any, b: any) => {
-    // If a is a child of b, a should come after b
-    if (a.parentBoundaryCode === b.boundaryCode) return 1;
-    // If b is a child of a, a should come before b
-    if (a.boundaryCode === b.parentBoundaryCode) return -1;
-    // Otherwise, maintain the order
-    return 0;
-  });
-  return campaignDetails;
-}
-// Function to correct the totals and target values of parents
-function correctParentValues(campaignDetails: any) {
-  // Create a map to store parent-child relationships and their totals/targets
-  const parentMap: any = {};
-  campaignDetails.forEach((detail: any) => {
-    if (!detail.parentBoundaryCode) return; // Skip if it's not a child
-    if (!parentMap[detail.parentBoundaryCode]) {
-      parentMap[detail.parentBoundaryCode] = { total: 0, target: 0 };
-    }
-    parentMap[detail.parentBoundaryCode].total += detail.targets[0].total;
-    parentMap[detail.parentBoundaryCode].target += detail.targets[0].target;
-  });
-
-  // Update parent values with the calculated totals and targets
-  campaignDetails.forEach((detail: any) => {
-    if (!detail.parentBoundaryCode) return; // Skip if it's not a child
-    const parent = parentMap[detail.parentBoundaryCode];
-    const target = detail.targets[0];
-    target.total = parent.total;
-    target.target = parent.target;
-  });
-
-  return campaignDetails;
-}
-
-// function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
-//   const dropdowns = Object.entries(schema.properties)
-//     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
-//     .reduce((result: any, [key, value]: any) => {
-//       // Transform the key using localisedValue function
-//       const newKey: any = getLocalizedName(key, localizationMap);
-//       result[newKey] = value.enum;
-//       return result;
-//     }, {});
-//   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
-//   request.body.dropdowns = dropdowns;
-//   return dropdowns;
-// }
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
   // from schema.properties find the key whose value have value.hideColumn == true
@@ -760,7 +684,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  await handledropdownthings(facilitySheet, schema, localizationMap);
+  await handledropdownthings(workbook, facilitySheet, schema, localizationMap);
   protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
@@ -774,7 +698,24 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-export async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
+const DROPDOWN_HELPER_SHEET = "_h_Dropdowns_h_";
+const INLINE_LIST_CHAR_LIMIT = 255;
+
+function getOrCreateDropdownHelperSheet(workbook: any): any {
+  const existing = workbook.getWorksheet(DROPDOWN_HELPER_SHEET);
+  if (existing) return existing;
+  const ws = workbook.addWorksheet(DROPDOWN_HELPER_SHEET);
+  ws.state = "veryHidden";
+  return ws;
+}
+
+function writeEnumToDropdownSheet(helperSheet: any, values: string[]): string {
+  const colIdx = helperSheet.columnCount + 1;
+  helperSheet.getColumn(colIdx).values = values;
+  return helperSheet.getColumn(colIdx).letter;
+}
+
+export async function handledropdownthings(workbook: any, sheet: any, schema: any, localizationMap: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
@@ -801,6 +742,15 @@ export async function handledropdownthings(sheet: any, schema: any, localization
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
+          const values: string[] = dropdowns[key];
+          let resolvedFormulae: string[];
+          if (values.join(',').length > INLINE_LIST_CHAR_LIMIT) {
+            const helperSheet = getOrCreateDropdownHelperSheet(workbook);
+            const colLetter = writeEnumToDropdownSheet(helperSheet, values);
+            resolvedFormulae = [`'${DROPDOWN_HELPER_SHEET}'!$${colLetter}$1:$${colLetter}$${values.length}`];
+          } else {
+            resolvedFormulae = [`"${values.join(',')}"`];
+          }
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
               if (cell.protection?.locked) { // Check if the cell is locked
@@ -808,7 +758,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
                 // Set dropdown list with no typing allowed
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -820,7 +770,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
               else {
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -841,7 +791,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
   }
 }
 
-export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
+export async function handledropdownthingsUnLocalised(workbook: any, sheet: any, schema: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
@@ -867,6 +817,15 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
+          const values: string[] = dropdowns[key];
+          let resolvedFormulae: string[];
+          if (values.join(',').length > INLINE_LIST_CHAR_LIMIT) {
+            const helperSheet = getOrCreateDropdownHelperSheet(workbook);
+            const colLetter = writeEnumToDropdownSheet(helperSheet, values);
+            resolvedFormulae = [`'${DROPDOWN_HELPER_SHEET}'!$${colLetter}$1:$${colLetter}$${values.length}`];
+          } else {
+            resolvedFormulae = [`"${values.join(',')}"`];
+          }
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 2) {
               if (cell.protection?.locked) { // Check if the cell is locked
@@ -874,7 +833,7 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
                 // Set dropdown list with no typing allowed
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -886,7 +845,7 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
               else {
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -951,7 +910,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
   //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
   // }
-  await handledropdownthings(userSheet, schema, localizationMap);
+  await handledropdownthings(workbook, userSheet, schema, localizationMap);
   protectSheet(userSheet);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
@@ -969,7 +928,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
-  const allFacilities = await getAllFacilities(tenantId);
+  const allFacilities = await getAllFacilities(tenantId, request?.body?.RequestInfo);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
   let facilitySheetDataFinal: any;
@@ -1008,7 +967,6 @@ function addMultiSelectColumn(properties: any, headers: string[]) {
       for (let i = 1; i <= maxColumns; i++) {
         newHeaders.push(`${header}_MULTISELECT_${i}`);
       }
-      newHeaders.push(header);
     } else {
       newHeaders.push(header);
     }
@@ -1146,7 +1104,7 @@ async function generateUserSheetForMicroPlan(
     // Create a sheet for each role, using the role name as the sheet name
     const userSheet: any = workbook.addWorksheet(role);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
-    await handledropdownthings(userSheet, schema, localizationMap);
+    await handledropdownthings(workbook, userSheet, schema, localizationMap);
     protectSheet(userSheet);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   }
@@ -1265,44 +1223,6 @@ async function enrichResourceDetails(request: any) {
   await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC, request?.body?.ResourceDetails?.tenantId);
 }
 
-function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
-  // Initialize arrays to store data
-  const withBoundaryCode: { key: string, value: string }[][] = [];
-  const withoutBoundaryCode: { key: string, value: string }[][] = [];
-
-  // Get the key for the boundary code
-  const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
-
-  // Process each object in boundaryData
-  boundaryData.forEach((obj: any) => {
-    // Convert object entries to an array of {key, value} objects
-    const row: any = Object.entries(obj)
-      .filter(([key, value]: [string, any]) => value !== null && value !== undefined) // Filter out null or undefined values
-      .map(([key, value]: [string, any]) => {
-        // Check if the current key is the "Boundary Code" key
-        if (key === boundaryCodeKey) {
-          // Keep the "Boundary Code" value as is without transformation
-          return { key, value: value.toString() };
-        } else {
-          // Transform other values
-          return { key, value: value.toString().replace(/_/g, ' ').trim() };
-        }
-      });
-
-    // Determine whether the object has a boundary code property
-    const hasBoundaryCode = obj.hasOwnProperty(boundaryCodeKey);
-
-    // Push the row to the appropriate array based on whether it has a boundary code property
-    if (hasBoundaryCode) {
-      withBoundaryCode.push(row);
-    } else {
-      withoutBoundaryCode.push(row);
-    }
-  });
-
-  // Return the arrays
-  return [withBoundaryCode, withoutBoundaryCode];
-}
 
 async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
@@ -1316,21 +1236,6 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
 
 }
 
-function createHeaderToHierarchyMap(
-  sheetHeaders: string[],
-  hierarchy: string[]
-): { [key: string]: string } {
-  const map: { [key: string]: string } = {};
-  let hierarchyIndex = 0;
-
-  for (const header of sheetHeaders) {
-    if (hierarchyIndex < hierarchy.length) {
-      map[header] = hierarchy[hierarchyIndex++];
-    }
-  }
-
-  return map;
-}
 
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
@@ -1349,26 +1254,10 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
   }
 }
 
-// async function getBoundaryRelationshipData(request: any, params: any) {
-//   logger.info("Boundary relationship search initiated");
-//   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-//   const header = {
-//     ...defaultheader,
-//     // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
-//   }
-//   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-//   logger.info("Boundary relationship search response received");
-//   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
-// }
-
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
   const type = request?.query?.type;
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
-  const locale = getLocaleFromRequest(request);
-  const region = locale.split('_')[1];
-  const frenchMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `fr_${region}`);
-  const portugeseMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `pt_${region}`);
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
@@ -1381,9 +1270,6 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   var configurableColumnHeadersBasedOnCampaignType: any[] = []
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
-  }
-  if (type == "boundaryManagement" || type == "boundaryGeometryManagement") {
-    configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request, localizationMap);
   }
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
     ? [
@@ -1407,27 +1293,9 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     );
     const boundaryCodeIndex = reducedHierarchy.length;
     mappedRowData[boundaryCodeIndex] = boundaryCode;
-    if (type === "boundaryManagement") {
-      const frenchTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, frenchMessagesMap) || '';
-      const portugeseTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, portugeseMessagesMap) || '';
-      mappedRowData.push(frenchTranslation);
-      mappedRowData.push(portugeseTranslation);
-    }
+
     return mappedRowData;
   });
-  if (type == "boundaryManagement") {
-    logger.info("Processing data for boundaryManagement type")
-    const latLongBoundaryMap = await getLatLongMapForBoundaryCodes(request, boundaryCodeList);
-    for (let d of data) {
-      const boundaryCode = d[d.length - 1];  // Assume last element is the boundary code
-
-      if (latLongBoundaryMap[boundaryCode]) {
-        const [latitude = null, longitude = null] = latLongBoundaryMap[boundaryCode];  // Destructure lat/long
-        d.push(latitude);   // Append latitude
-        d.push(longitude);  // Append longitude
-      }
-    }
-  }
   const sheetRowCount = data.length;
   if (type != "facilityWithBoundary") {
     request.body.generatedResourceCount = sheetRowCount;
@@ -1456,13 +1324,6 @@ async function getLocalizedMessagesHandler(request: any, tenantId: any, module =
     locale = getLocaleFromRequest(request);
   }
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
-  return localizationResponse;
-}
-
-async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenantId: any, module = config.localisation.localizationModule) {
-  const localisationcontroller = Localisation.getInstance();
-  const locale = getLocaleFromRequestInfo(RequestInfo);
-  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
   return localizationResponse;
 }
 
@@ -1495,48 +1356,6 @@ async function translateSchema(
   return translatedSchema;
 }
 
-
-function findMapValue(map: Map<any, any>, key: any): any | null {
-  let foundValue = null;
-  map.forEach((value, mapKey) => {
-    if (mapKey.key === key.key && mapKey.value === key.value) {
-      foundValue = value;
-    }
-  });
-  return foundValue;
-}
-
-function extractFrenchOrPortugeseLocalizationMap(
-  boundaryData: any[][],
-  isFrench: boolean,
-  isPortugese: boolean,
-  localizationMap: any
-): Map<{ key: string; value: string }, string> {
-  const resultMap = new Map<{ key: string; value: string }, string>();
-
-  boundaryData.forEach(row => {
-    const boundaryCodeObj = row.find(obj => obj.key === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
-    const boundaryCode = boundaryCodeObj?.value;
-
-    if (!boundaryCode) return;
-
-    if (isFrench) {
-      const frenchMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap));
-      resultMap.set({
-        key: "french",
-        value: frenchMessageObj?.value || ""
-      }, boundaryCode);
-    } else if (isPortugese) {
-      const portugeseMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE", localizationMap));
-      resultMap.set({
-        key: "portugese",
-        value: portugeseMessageObj?.value || ""
-      }, boundaryCode);
-    }
-  });
-
-  return resultMap;
-}
 
 
 function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: any) {
@@ -1636,23 +1455,6 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
   return updatedSchema;
 }
 
-function modifyBoundaryDataHeadersWithMap(
-  boundaryData: any[],
-  headerToHierarchyMap: { [originalHeader: string]: string }
-) {
-  return boundaryData.map((row) => {
-    const updatedRow: { [key: string]: any } = {};
-
-    for (const key in row) {
-      if (Object.prototype.hasOwnProperty.call(row, key)) {
-        const newKey = headerToHierarchyMap[key];
-        updatedRow[newKey || key] = row[key];
-      }
-    }
-
-    return updatedRow;
-  });
-}
 
 export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string) {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
@@ -1676,6 +1478,32 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
     })
   }
   return rows;
+}
+
+export async function deleteCampaignDataFailedAndInvalid(
+  campaignNumber: string,
+  type: string,
+  tenantId: string
+): Promise<{ deletedCount: number }> {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+    const queryString = `DELETE FROM ${tableName}
+      WHERE campaignnumber = $1
+        AND type = $2
+        AND (status = 'failed' OR data->>'#status#' = 'INVALID')`;
+
+    const result = await executeQuery(queryString, [campaignNumber, type]);
+    const deletedCount = result?.rowCount || 0;
+
+    if (deletedCount > 0) {
+      logger.info(`Cleaned up ${deletedCount} failed/invalid rows for campaign ${campaignNumber} type ${type} before re-validation`);
+    }
+
+    return { deletedCount };
+  } catch (error) {
+    logger.error(`Error deleting failed/invalid rows for campaign ${campaignNumber}:`, error);
+    throw error;
+  }
 }
 
 export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], tenantId : string, status ?: string ){
@@ -1738,7 +1566,13 @@ export async function getCurrentProcesses(campaignNumber: string, tenantId: stri
     rows.push({
       campaignNumber: relatedData?.rows[i]?.campaignnumber,
       processName : relatedData?.rows[i]?.processname,
-      status: relatedData?.rows[i]?.status
+      status: relatedData?.rows[i]?.status,
+      auditDetails: {
+        createdBy: relatedData?.rows[i]?.createdby,
+        lastModifiedBy: relatedData?.rows[i]?.lastmodifiedby,
+        createdTime: relatedData?.rows[i]?.createdtime,
+        lastModifiedTime: relatedData?.rows[i]?.lastmodifiedtime
+      }
     })
   }
   return rows;
@@ -1768,31 +1602,576 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 }
 
 
-export async function prepareProcessesInDb(campaignNumber: any, tenantId: string) {
+export async function prepareProcessesInDb(campaignNumber: any, tenantId: string, userUuid?: string, excludeProcessNames: string[] = []) {
   logger.info("Preparing processes in DB...");
   let allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+
+  const currentTime = Date.now();
+
+  // Add audit details to existing processes being updated
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
       allCurrentProcesses[i].status = processStatuses.pending;
+      allCurrentProcesses[i].auditDetails = {
+        createdBy: allCurrentProcesses[i].auditDetails?.createdBy || userUuid,
+        createdTime: allCurrentProcesses[i].auditDetails?.createdTime || currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      };
   }
+
   produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
+
   let allProcessesJson: any = JSON.parse(JSON.stringify(allProcesses))
   let newProcesses = [];
   for (let processKey in allProcesses) {
-    let isProcessNameAvailableInAllCurrentProcesses = allCurrentProcesses.find((process: any) => process?.processName == allProcessesJson[processKey]);
+    const processName = allProcessesJson[processKey];
+    if (excludeProcessNames.includes(processName)) continue;
+    let isProcessNameAvailableInAllCurrentProcesses = allCurrentProcesses.find((process: any) => process?.processName == processName);
     if (!isProcessNameAvailableInAllCurrentProcesses) {
       newProcesses.push({
         campaignNumber: campaignNumber,
-        processName: allProcessesJson[processKey],
-        status: processStatuses.pending
+        processName: processName,
+        status: processStatuses.pending,
+        auditDetails: {
+          createdBy: userUuid,
+          createdTime: currentTime,
+          lastModifiedBy: userUuid,
+          lastModifiedTime: currentTime
+        }
       })
     }
   }
+
   produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
   // wait for 2 second
   logger.info("Waiting for 10 seconds for processes to get updated...");
   await new Promise(resolve => setTimeout(resolve, 10000));
 }
 
+/**
+ * Prepare process entries in DB for only the specified resource types.
+ * Unlike prepareProcessesInDb which creates entries for ALL process types,
+ * this creates only the process entries needed for the given resource types.
+ */
+export async function prepareProcessesForResourceTypes(
+  campaignNumber: string,
+  tenantId: string,
+  resourceTypes: string[],
+  userUuid?: string
+) {
+  const processNames = getProcessNamesForResourceTypes(resourceTypes);
+  if (processNames.length === 0) {
+    logger.warn("No process names found for resource types: {}", resourceTypes.join(", "));
+    return;
+  }
+
+  logger.info("Preparing processes for resource types: {}", resourceTypes.join(", "));
+  const allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+  const currentTime = Date.now();
+
+  // Reset existing matching processes to pending
+  const existingToUpdate = [];
+  for (const process of allCurrentProcesses) {
+    if (processNames.includes(process?.processName)) {
+      process.status = processStatuses.pending;
+      process.auditDetails = {
+        createdBy: process.auditDetails?.createdBy || userUuid,
+        createdTime: process.auditDetails?.createdTime || currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      };
+      existingToUpdate.push(process);
+    }
+  }
+
+  if (existingToUpdate.length > 0) {
+    await produceModifiedMessages({ processes: existingToUpdate }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
+  }
+
+  // Create new process entries for those not yet in DB
+  const existingProcessNames = new Set(allCurrentProcesses.map((p: any) => p?.processName));
+  const newProcesses = processNames
+    .filter(pn => !existingProcessNames.has(pn))
+    .map(pn => ({
+      campaignNumber: campaignNumber,
+      processName: pn,
+      status: processStatuses.pending,
+      auditDetails: {
+        createdBy: userUuid,
+        createdTime: currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      }
+    }));
+
+  if (newProcesses.length > 0) {
+    await produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
+  }
+
+  logger.info("Waiting for 10 seconds for processes to get updated...");
+  await new Promise(resolve => setTimeout(resolve, 10000));
+}
+
+/**
+ * Build base query for campaign data with WHERE conditions
+ */
+function buildCampaignDataBaseQuery(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  uniqueIdentifiers?: string[];
+}) {
+  const { tenantId, type, campaignNumber, status, uniqueIdentifiers } = searchParams;
+
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+
+  let whereClause = `FROM ${tableName} WHERE 1=1`;
+  const queryParams: any[] = [];
+  let paramIndex = 1;
+
+  if (type) {
+    whereClause += ` AND type = $${paramIndex}`;
+    queryParams.push(type);
+    paramIndex++;
+  }
+
+  if (campaignNumber) {
+    whereClause += ` AND campaignNumber = $${paramIndex}`;
+    queryParams.push(campaignNumber);
+    paramIndex++;
+  }
+
+  if (status) {
+    whereClause += ` AND status = $${paramIndex}`;
+    queryParams.push(status);
+    paramIndex++;
+  }
+
+  if (uniqueIdentifiers && uniqueIdentifiers.length > 0) {
+    whereClause += ` AND uniqueIdentifier = ANY($${paramIndex})`;
+    queryParams.push(uniqueIdentifiers);
+    paramIndex++;
+  }
+
+  return { whereClause, queryParams, paramIndex };
+}
+
+/**
+ * Build base query for mapping data with WHERE conditions
+ */
+function buildMappingDataBaseQuery(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  boundaryCode?: string;
+  uniqueIdentifierForData?: string;
+}) {
+  const { tenantId, type, campaignNumber, status, boundaryCode, uniqueIdentifierForData } = searchParams;
+
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+
+  let whereClause = `FROM ${tableName} WHERE 1=1`;
+  const queryParams: any[] = [];
+  let paramIndex = 1;
+
+  if (type) {
+    whereClause += ` AND type = $${paramIndex}`;
+    queryParams.push(type);
+    paramIndex++;
+  }
+
+  if (campaignNumber) {
+    whereClause += ` AND campaignNumber = $${paramIndex}`;
+    queryParams.push(campaignNumber);
+    paramIndex++;
+  }
+
+  if (status) {
+    whereClause += ` AND status = $${paramIndex}`;
+    queryParams.push(status);
+    paramIndex++;
+  }
+
+  if (boundaryCode) {
+    whereClause += ` AND boundaryCode = $${paramIndex}`;
+    queryParams.push(boundaryCode);
+    paramIndex++;
+  }
+
+  if (uniqueIdentifierForData) {
+    whereClause += ` AND uniqueIdentifierForData = $${paramIndex}`;
+    queryParams.push(uniqueIdentifierForData);
+    paramIndex++;
+  }
+
+  return { whereClause, queryParams, paramIndex };
+}
+
+/**
+ * Search campaign data with optional pagination
+ */
+export async function searchCampaignData(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  uniqueIdentifiers?: string[];
+  offset?: number;
+  limit?: number;
+}) {
+  const { offset, limit } = searchParams;
+
+  // Build base query
+  const { whereClause, queryParams, paramIndex } = buildCampaignDataBaseQuery(searchParams);
+
+  // Build data query with ordering
+  let dataQuery = `SELECT * ${whereClause}`;
+  let finalParams = [...queryParams];
+
+  // Add pagination if provided
+  if (offset !== undefined && limit !== undefined) {
+    dataQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    finalParams.push(limit, offset);
+  }
+
+  // Build count query
+  const countQuery = `SELECT COUNT(*) ${whereClause}`;
+
+  // Execute both queries
+  const [dataResult, countResult] = await Promise.all([
+    executeQuery(dataQuery, finalParams),
+    executeQuery(countQuery, queryParams)
+  ]);
+
+  const totalCount = parseInt(countResult?.rows?.[0]?.count || '0');
+
+  // Transform results
+  const rows = dataResult?.rows?.map((row: any) => ({
+    id: row?.id,
+    campaignNumber: row?.campaignnumber,
+    type: row?.type,
+    data: row?.data,
+    uniqueIdentifier: row?.uniqueidentifier,
+    status: row?.status,
+    uniqueIdAfterProcess: row?.uniqueidafterprocess,
+    createdBy: row?.createdby,
+    createdTime: row?.createdtime,
+    lastModifiedBy: row?.lastmodifiedby,
+    lastModifiedTime: row?.lastmodifiedtime
+  })) || [];
+
+  const result: any = {
+    data: rows,
+    totalCount
+  };
+
+  // Add pagination info if pagination was used
+  if (offset !== undefined && limit !== undefined) {
+    result.pagination = {
+      offset,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: Math.floor(offset / limit) + 1
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Search mapping data with optional pagination
+ */
+export async function searchMappingData(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  boundaryCode?: string;
+  uniqueIdentifierForData?: string;
+  offset?: number;
+  limit?: number;
+}) {
+  const { offset, limit } = searchParams;
+
+  // Build base query
+  const { whereClause, queryParams, paramIndex } = buildMappingDataBaseQuery(searchParams);
+
+  // Build data query with ordering
+  let dataQuery = `SELECT * ${whereClause}`;
+  let finalParams = [...queryParams];
+
+  // Add pagination if provided
+  if (offset !== undefined && limit !== undefined) {
+    dataQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    finalParams.push(limit, offset);
+  }
+
+  // Build count query
+  const countQuery = `SELECT COUNT(*) ${whereClause}`;
+
+  // Execute both queries
+  const [dataResult, countResult] = await Promise.all([
+    executeQuery(dataQuery, finalParams),
+    executeQuery(countQuery, queryParams)
+  ]);
+
+  const totalCount = parseInt(countResult?.rows?.[0]?.count || '0');
+
+  // Transform results
+  const rows = dataResult?.rows?.map((row: any) => ({
+    id: row?.id,
+    campaignNumber: row?.campaignnumber,
+    type: row?.type,
+    boundaryCode: row?.boundarycode,
+    uniqueIdentifierForData: row?.uniqueidentifierfordata,
+    status: row?.status,
+    mappingId: row?.mappingid,
+    createdBy: row?.createdby,
+    createdTime: row?.createdtime,
+    lastModifiedBy: row?.lastmodifiedby,
+    lastModifiedTime: row?.lastmodifiedtime
+  })) || [];
+
+  const result: any = {
+    data: rows,
+    totalCount
+  };
+
+  // Add pagination info if pagination was used
+  if (offset !== undefined && limit !== undefined) {
+    result.pagination = {
+      offset,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: Math.floor(offset / limit) + 1
+    };
+  }
+
+  return result;
+}
+
+
+
+/**
+ * Fast check for campaign data completion status
+ * Returns: { allCompleted: boolean, anyFailed: boolean, totalRows: number, completedRows: number, failedRows: number }
+ */
+export async function checkCampaignDataCompletionStatus(campaignNumber: string, tenantId: string, type?: string) {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+
+    const queryParams: any[] = [campaignNumber];
+    const typeFilter = type ? `AND type = $${queryParams.push(type)}` : '';
+
+    const queryString = `
+      SELECT
+        status,
+        COUNT(*) as count
+      FROM ${tableName}
+      WHERE campaignNumber = $1 ${typeFilter}
+      GROUP BY status
+    `;
+
+    const result = await executeQuery(queryString, queryParams);
+    
+    let totalRows = 0;
+    let completedRows = 0;
+    let failedRows = 0;
+    
+    // Process the grouped results using constants
+    result?.rows?.forEach((row: any) => {
+      const count = parseInt(row.count);
+      totalRows += count;
+      
+      if (row.status === resourceDataStatuses.completed) {
+        completedRows = count;
+      } else if (row.status === resourceDataStatuses.failed) {
+        failedRows = count;
+      }
+    });
+    
+    const allCompleted = totalRows > 0 && completedRows === totalRows;
+    const anyFailed = failedRows > 0;
+    
+    return {
+      allCompleted,
+      anyFailed,
+      totalRows,
+      completedRows,
+      failedRows,
+      pendingRows: totalRows - completedRows - failedRows
+    };
+    
+  } catch (error) {
+    logger.error('Error checking campaign data completion status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fast check for campaign mapping completion status.
+ * Pass `type` (e.g. 'user', 'facility', 'resource') to scope the count to a single
+ * mapping type — used by the mapping monitor to apply per-type blocking policy
+ * (facility/resource hard-block; user is non-blocking).
+ *
+ * Mappings in `mapped`, `deMapped`, or `skipped` state count toward completion.
+ * `skipped` covers mappings whose dependency (e.g. a failed user) means the
+ * mapping was intentionally not attempted — these must not block the campaign.
+ *
+ * Returns: { allCompleted, anyFailed, totalMappings, completedMappings, failedMappings, pendingMappings }
+ */
+export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string, type?: string) {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+
+    const queryString = `
+      SELECT
+        status,
+        COUNT(*) as count
+      FROM ${tableName}
+      WHERE campaignNumber = $1
+        AND ($2::text IS NULL OR type = $2)
+      GROUP BY status
+    `;
+
+    const result = await executeQuery(queryString, [campaignNumber, type ?? null]);
+
+    let totalMappings = 0;
+    let completedMappings = 0;
+    let failedMappings = 0;
+
+    result.rows.forEach((row: any) => {
+      const count = parseInt(row.count);
+      totalMappings += count;
+
+      if (
+        row.status === mappingStatuses.mapped ||
+        row.status === mappingStatuses.deMapped ||
+        row.status === mappingStatuses.skipped
+      ) {
+        completedMappings += count;
+      } else if (row.status === mappingStatuses.failed) {
+        failedMappings += count;
+      }
+    });
+
+    const allCompleted = totalMappings > 0 && completedMappings === totalMappings;
+    const anyFailed = failedMappings > 0;
+
+    return {
+      allCompleted,
+      anyFailed,
+      totalMappings,
+      completedMappings,
+      failedMappings,
+      pendingMappings: totalMappings - completedMappings - failedMappings
+    };
+
+  } catch (error) {
+    logger.error('Error checking campaign mapping completion status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Shared polling loop for "wait until enough has been persisted".
+ *
+ * Two waiting modes (both shared by pollUntilCount and pollUntilCountFn):
+ *  - `stallTimeoutMs` set → progress-based: the wait continues as long as the
+ *    observed count keeps increasing, and only fails if it makes NO progress for
+ *    that long. Right for a persister streaming thousands of rows — a large,
+ *    steadily-filling source is never failed for being slow. The count is
+ *    monotonic (rows are only added), so there is no absolute cap.
+ *  - otherwise → absolute deadline `timeoutMs` (default 2 min). Backward-compatible.
+ *
+ * `getCount` maps each fetch result to a numeric progress value; the resolved
+ * fetch result is returned so array callers get their data back.
+ */
+async function waitUntilCountReached<R>(
+  fetchFn: () => Promise<R>,
+  getCount: (result: R) => number,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number }
+): Promise<R> {
+  const { timeoutMs = 120_000, pollIntervalMs = 1_000, label = 'data', stallTimeoutMs } = options;
+
+  // Progress-based (stall) waiting: reset the clock whenever the count grows.
+  if (stallTimeoutMs !== undefined) {
+    let lastCount = -1;
+    let lastProgressAt = Date.now();
+    while (true) {
+      const result = await fetchFn();
+      const count = getCount(result);
+      if (count >= expectedCount) return result;
+      const now = Date.now();
+      if (count > lastCount) {
+        lastCount = count;
+        lastProgressAt = now;
+      } else if (now - lastProgressAt >= stallTimeoutMs) {
+        throw new Error(`Persistence stalled: ${label} stuck at ${count}/${expectedCount} for ${stallTimeoutMs}ms`);
+      }
+      logger.info(`Waiting for ${label}: ${count}/${expectedCount} persisted`);
+      await new Promise(r => setTimeout(r, pollIntervalMs));
+    }
+  }
+
+  // Absolute-deadline waiting (legacy).
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await fetchFn();
+    const count = getCount(result);
+    if (count >= expectedCount) return result;
+    logger.info(`Waiting for ${label}: ${count}/${expectedCount} persisted`);
+    await new Promise(r => setTimeout(r, pollIntervalMs));
+  }
+
+  throw new Error(`Persistence timeout: ${label} not ready within ${timeoutMs}ms`);
+}
+
+/**
+ * Poll an array-returning fetch until it reports at least `expectedCount` items,
+ * then return that array. Supports `stallTimeoutMs` (progress-based) — see
+ * waitUntilCountReached. A null fetch result counts as length 0.
+ */
+export async function pollUntilCount<T>(
+  fetchFn: () => Promise<T[] | null>,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number } = {}
+): Promise<T[]> {
+  const result = await waitUntilCountReached<T[] | null>(
+    fetchFn,
+    (r) => r?.length ?? 0,
+    expectedCount,
+    options
+  );
+  return result as T[];
+}
+
+/**
+ * Like pollUntilCount, but polls a function that returns a COUNT (number | null)
+ * rather than an array. Resolves once the count reaches expectedCount.
+ *
+ * Use this when the underlying source can report a true total independent of any
+ * fetch limit (e.g. excel-ingestion's TotalCount). pollUntilCount measures an
+ * array's length, which silently caps at the fetch `limit` and therefore never
+ * reaches expectations larger than that limit (the >5000-row persistence bug).
+ *
+ * A null count is treated as 0 (not ready, keep polling).
+ */
+export async function pollUntilCountFn(
+  fetchCountFn: () => Promise<number | null>,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number } = {}
+): Promise<void> {
+  await waitUntilCountReached<number | null>(
+    fetchCountFn,
+    (c) => c ?? 0,
+    expectedCount,
+    options
+  );
+}
 
 export {
   errorResponder,
@@ -1803,19 +2182,15 @@ export {
   throwErrorViaRequest,
   sendResponse,
   appCache,
-  generateAuditDetails,
   searchGeneratedResources,
   generateNewRequestObject,
   updateExistingResourceExpired,
   getFinalUpdatedResponse,
   fullProcessFlowForNewEntry,
-  correctParentValues,
-  sortCampaignDetails,
   processGenerateRequest,
   processGenerate,
   getDataFromSheet,
   enrichResourceDetails,
-  modifyBoundaryData,
   searchAllGeneratedResources,
   getDataSheetReady,
   modifyDataBasedOnDifferentTab,
@@ -1823,7 +2198,6 @@ export {
   getLocalizedMessagesHandler,
   getLocalizedHeaders,
   createReadMeSheet,
-  findMapValue,
   replicateRequest,
   getDifferentDistrictTabs,
   addDataToSheet,
@@ -1833,11 +2207,7 @@ export {
   getMdmsDataBasedOnCampaignType,
   shutdownGracefully,
   appendProjectTypeToCapacity,
-  getLocalizedMessagesHandlerViaRequestInfo,
   createFacilityAndBoundaryFile,
   hideUniqueIdentifierColumn,
-  createHeaderToHierarchyMap,
-  modifyBoundaryDataHeadersWithMap,
-  extractFrenchOrPortugeseLocalizationMap,
   getLocalizedMessagesHandlerViaLocale
 };
