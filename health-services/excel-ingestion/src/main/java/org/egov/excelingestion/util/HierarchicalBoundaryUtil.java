@@ -559,30 +559,6 @@ public class HierarchicalBoundaryUtil {
             // The helper column is located immediately to the left of the visible column
             int helperColIdx = currentVisibleColIdx - 1;
 
-            // Build the CONCATENATE formula to create the lookup key from previous selections
-            // e.g., for District: CONCATENATE(Country, "#", State)
-            StringBuilder keyBuilder = new StringBuilder();
-            for (int i = 0; i < level; i++) {
-                if (i > 0) keyBuilder.append(", \"").append(BOUNDARY_SEPARATOR).append("\", ");
-                String colLetter = CellReference.convertNumToColString(visibleColIndices.get(i));
-                // Use INDIRECT("A"&ROW()) to get value from the correct row dynamically
-                // This works in CELL FORMULAS (helper column) but NOT in data validation
-                keyBuilder.append("INDIRECT(\"").append(colLetter).append("\"&ROW())");
-            }
-
-            // Helper formula: finds the display-name key in Col I, returns hash from Col J
-            // Uses the SEPARATE key-to-hash table with columns: H=code key, I=display key, J=hash
-            String displayKeyCol = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
-                    CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN + 1),
-                    keyHashStartRow, CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN + 1),
-                    keyHashEndRow);
-            String hashCol = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
-                    CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN),
-                    keyHashStartRow, CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN),
-                    keyHashEndRow);
-            String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
-                    hashCol, keyBuilder.toString(), displayKeyCol);
-
             // Data validation formula: simple relative reference to helper column
             // Uses row 3 as template - Excel automatically adjusts for each row
             String helperColLetter = CellReference.convertNumToColString(helperColIdx);
