@@ -115,6 +115,7 @@ public class ServiceTaskTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        additionalDetails.put(CHECKLIST_NAME, mdmsService.getMDMSTransformerLocalizations(parts[1], tenantId));
 
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                 .id(service.getId())

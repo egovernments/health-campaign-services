@@ -111,6 +111,8 @@ public interface Constants {
     String LNG = "lng";
     String STAFF = "STAFF";
     String BOUNDARY_CODE_KEY = "boundaryCode";
+    String STATUS = "status";
+    String CHECKLIST_NAME = "checklistName";
 
     String KEY_VALUE = "keyValue";
     String VALUE_TYPE = "valueType";

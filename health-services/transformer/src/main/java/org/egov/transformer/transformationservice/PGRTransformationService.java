@@ -92,6 +92,7 @@ public class PGRTransformationService {
         String cycleIndex = commonUtils.fetchCycleIndexFromTime(service.getTenantId(), projectTypeId, service.getAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        additionalDetails.put(STATUS, mdmsService.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
 
         PGRIndex pgrIndex = PGRIndex.builder()
                 .service(service)
