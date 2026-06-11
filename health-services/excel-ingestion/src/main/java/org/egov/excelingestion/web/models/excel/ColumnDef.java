@@ -51,4 +51,7 @@ public class ColumnDef {
     private Number multipleOf;
     private Number exclusiveMinimum;
     private Number exclusiveMaximum;
+
+    // Conditional required validation
+    private ConditionalRequired requiredIf;
 }

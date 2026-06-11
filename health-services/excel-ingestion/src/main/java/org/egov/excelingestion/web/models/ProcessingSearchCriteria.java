@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Min;
 import org.egov.excelingestion.config.ValidationConstants;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -36,6 +37,9 @@ public class ProcessingSearchCriteria {
 
     @JsonProperty("statuses")
     private List<String> statuses;
+
+    @JsonProperty("additionalDetails")
+    private Map<String, String> additionalDetails;
 
     @JsonProperty("limit")
     @Min(value = 1, message = ValidationConstants.INGEST_INVALID_LIMIT)

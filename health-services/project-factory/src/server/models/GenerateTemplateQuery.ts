@@ -10,7 +10,8 @@ export const generateTemplateQuerySchema = z.object({
     type: requiredString('type'),
     tenantId: requiredString('tenantId'),
     hierarchyType: requiredString('hierarchyType'),
-    campaignId: requiredString('campaignId')
+    campaignId: requiredString('campaignId'),
+    registerId: z.string().optional()
 });
 
 // TypeScript interface (can be omitted if you're using z.infer)

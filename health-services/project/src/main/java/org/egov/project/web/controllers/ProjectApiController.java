@@ -224,7 +224,7 @@ public class ProjectApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest
     ) throws Exception {
-        SearchResponse<ProjectFacility> searchResponse = projectFacilityService.search(
+        ProjectFacilityBulkResponse response = projectFacilityService.searchFacilities(
                 projectFacilitySearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -232,13 +232,6 @@ public class ProjectApiController {
                 urlParams.getLastChangedSince(),
                 urlParams.getIncludeDeleted()
         );
-        ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
-                .projectFacilities(searchResponse.getResponse())
-                .totalCount(searchResponse.getTotalCount())
-                .responseInfo(ResponseInfoFactory
-                        .createResponseInfo(projectFacilitySearchRequest.getRequestInfo(), true))
-                .build();
-
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 

@@ -3,6 +3,7 @@ const { object, string } = require("yup"); // Importing object and string from y
 import { errorResponder } from "../genericUtils"; // Importing errorResponder function from genericUtils
 import { logger } from "../logger";
 import { handleGzipRequest } from "../gzipHandler";
+import { requestContextStore } from "../requestContext";
 
 // Defining the request schema using yup
 const requestSchema = object({
@@ -39,8 +40,10 @@ const requestMiddleware = async (req: Request, res: Response, next: NextFunction
     }
     // Validate request payload against the defined schema
     requestSchema.validateSync(req.body.RequestInfo);
-    // If validation succeeds, proceed to the next middleware
-    next();
+    // Seed async context with correlationId and tenantId for all downstream logs
+    const correlationId: string | null = req.body?.RequestInfo?.correlationId ?? null;
+    const tenantId: string | null = req.body?.RequestInfo?.userInfo?.tenantId ?? null;
+    requestContextStore.run({ correlationId, tenantId }, next);
   }
   catch (error) {
     // If an error occurs during validation process, handle the error using errorResponder function

@@ -11,7 +11,7 @@ import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.tracer.model.CustomException;
@@ -159,7 +159,7 @@ public class BoundaryHierarchyTargetProcessorTest {
         assertNotNull(result);
         verify(validationService).addValidationColumns(sheet, localizationMap);
         verify(validationService).processValidationErrors(sheet, validationErrors, columnInfo, localizationMap);
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), eq(validationErrors), anyString());
     }
 
     @Test
@@ -214,7 +214,7 @@ public class BoundaryHierarchyTargetProcessorTest {
         assertNotNull(result);
         verify(validationService, never()).addValidationColumns(any(), any());
         verify(validationService, never()).processValidationErrors(any(), any(), any(), any());
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), eq(validationErrors), anyString());
     }
 
     @Test

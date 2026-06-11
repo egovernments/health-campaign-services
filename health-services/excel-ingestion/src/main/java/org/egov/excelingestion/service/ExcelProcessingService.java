@@ -108,6 +108,10 @@ public class ExcelProcessingService {
             // Download and validate the Excel file
             try (Workbook workbook = fileStoreService.downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
 
+                // Fail fast on oversized sheets BEFORE the expensive parse/validate/persist work,
+                // turning a potential OOM into a clean, localizable business error.
+                enforceMaxRowLimit(workbook);
+
                 // Pre-validate schemas and fetch them before data validation using config-based approach
                 Map<String, Map<String, Object>> preValidatedSchemas = configBasedProcessingService.preValidateAndFetchSchemas(
                         workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
@@ -197,10 +201,42 @@ public class ExcelProcessingService {
 
 
     /**
+     * Fail-fast guardrail: rejects the upload if any visible sheet has more data rows than
+     * the configured maximum. Uses {@link ExcelUtil#findActualLastRowWithData(Sheet)} which only
+     * probes the tail of the sheet (no full parse), so the check is cheap and runs before the
+     * expensive validate/persist pipeline.
+     */
+    private void enforceMaxRowLimit(Workbook workbook) {
+        int maxRows = config.getMaxProcessRowLimit();
+
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet sheet = workbook.getSheetAt(i);
+            String sheetName = sheet.getSheetName();
+
+            // Skip hidden helper sheets (canonical _h_…_h_ check)
+            if (configBasedProcessingService.isHiddenSheet(sheetName)) {
+                continue;
+            }
+
+            // Rows 0 and 1 are the technical + localized header rows; data starts at row 2.
+            int actualLastRow = ExcelUtil.findActualLastRowWithData(sheet);
+            int dataRows = actualLastRow >= 2 ? actualLastRow - 1 : 0;
+
+            if (dataRows > maxRows) {
+                log.warn("Sheet '{}' has {} data rows, exceeding max allowed {}", sheetName, dataRows, maxRows);
+                String message = ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED_MESSAGE
+                        .replace("{0}", sheetName)
+                        .replace("{1}", String.valueOf(maxRows));
+                exceptionHandler.throwCustomException(ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED, message);
+            }
+        }
+    }
+
+    /**
      * Validates data in all sheets of the workbook using pre-fetched schemas
      */
     private List<ValidationError> validateExcelData(Workbook workbook, ProcessResource resource,
-                                                    org.egov.excelingestion.web.models.RequestInfo requestInfo, Map<String, String> localizationMap,
+                                                    org.egov.common.contract.request.RequestInfo requestInfo, Map<String, String> localizationMap,
                                                     Map<String, Map<String, Object>> preValidatedSchemas) {
         List<ValidationError> allErrors = new ArrayList<>();
 
@@ -239,7 +275,7 @@ public class ExcelProcessingService {
     private Map<String, Object> getSchemaForSheet(String sheetName, String type,
                                                   Map<String, String> localizationMap,
                                                   Map<String, Map<String, Object>> preValidatedSchemas,
-                                                  org.egov.excelingestion.web.models.RequestInfo requestInfo,
+                                                  org.egov.common.contract.request.RequestInfo requestInfo,
                                                   String tenantId) {
         try {
             // Get processor configuration
@@ -277,7 +313,7 @@ public class ExcelProcessingService {
     }
 
     /**
-     * Get localized sheet name with 31-char limit handling
+     * Get localized sheet name with configurable character limit
      */
     private String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
         String localizedName = sheetKey;
@@ -286,9 +322,9 @@ public class ExcelProcessingService {
             localizedName = localizationMap.get(sheetKey);
         }
 
-        // Handle Excel's 31 character limit
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
+        int maxLength = config.getSheetNameMaxLength();
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
         }
 
         return localizedName;
