@@ -39,3 +39,13 @@ All notable changes to this module will be documented in this file.
   3. Data processing and generation logic modularized and loosely coupled
   4. App config and localization creation handled from backend
   5. Retry functionality integrated from backend
+
+
+  ## 1.0.0 - 2026-01-29
+#### ProjectFactory service version 1.0.0
+  1. Excel handling logic got updated
+  2. Integrated with Simplified consolidated sheet for campaign creation
+  3. MDMS-Based Configuration
+  4. Unified Excel Support
+  5. Enhanced Error Reporting
+  6. Boundary Management clean up 

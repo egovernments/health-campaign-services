@@ -59,6 +59,9 @@ on:
           - workbench-ui
           - microplan-ui
           - project-factory
+          - excel-ingestion
+          - boundary-management
+          - worker-registry-java-17
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}

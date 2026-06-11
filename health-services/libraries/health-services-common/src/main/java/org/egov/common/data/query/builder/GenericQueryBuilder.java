@@ -2,6 +2,7 @@ package org.egov.common.data.query.builder;
 
 import org.egov.common.data.query.annotations.Table;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.models.core.OrGroup;
 import org.egov.common.utils.ObjectUtils;
 
 import java.lang.reflect.Field;
@@ -10,6 +11,7 @@ import java.lang.reflect.ParameterizedType;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -99,6 +101,7 @@ public interface GenericQueryBuilder {
 
     /**
      * Retrieves fields of an object based on a condition and constructs where clauses for a query.
+     * Fields annotated with {@link OrGroup} are combined using OR within their group.
      *
      * @param object          the object for which fields are to be retrieved
      * @param checkCondition the condition to check for each field
@@ -108,6 +111,9 @@ public interface GenericQueryBuilder {
     static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition, Map<String, Object> paramsMap) {
         // List to store where clauses
         List<String> whereClauses = new ArrayList<>();
+
+        // Map to collect OR-grouped field clauses by group name
+        Map<String, List<String>> orGroupClauses = new HashMap<>();
 
         // Iterate through all declared fields of the object
         getAllDeclaredFields(object.getClass()).forEach(field -> {
@@ -127,14 +133,26 @@ public interface GenericQueryBuilder {
                     // Check if the field meets the condition and is not annotated with exclude
                     if (!field.getType().isPrimitive() && checkCondition.check(field, object)
                             && QueryFieldChecker.isNotAnnotatedWithExclude.check(field, object)) {
+
+                        // Check if this field belongs to an OR group
+                        OrGroup orGroup = field.getAnnotation(OrGroup.class);
+
                         // If the field is a wrapper object
                         if (ObjectUtils.isWrapper(field)) {
                             // Retrieve field name
                             String fieldName = field.getName();
                             // Add parameter to paramsMap
                             paramsMap.put(fieldName, field.get(object));
-                            // Add where clause to list
-                            whereClauses.add(String.format("%s=:%s", fieldName, fieldName));
+                            // Build the clause
+                            String clause = String.format("%s=:%s", fieldName, fieldName);
+
+                            if (orGroup != null) {
+                                // Collect into OR group instead of adding directly
+                                orGroupClauses.computeIfAbsent(orGroup.value(), k -> new ArrayList<>()).add(clause);
+                            } else {
+                                // Add where clause to list as normal
+                                whereClauses.add(clause);
+                            }
                         }
                         // If the field is an ArrayList of Strings
                         else if (field.getType().isAssignableFrom(ArrayList.class)
@@ -146,10 +164,18 @@ public interface GenericQueryBuilder {
                             String fieldName = field.getName();
                             // Check if the ArrayList is not null or empty
                             if (arrayList != null && !arrayList.isEmpty()) {
-                                // Add IN clause to list
-                                whereClauses.add(String.format("%s IN (:%s)", fieldName, fieldName));
+                                // Build the IN clause
+                                String clause = String.format("%s IN (:%s)", fieldName, fieldName);
                                 // Add parameter to paramsMap
                                 paramsMap.put(fieldName, arrayList);
+
+                                if (orGroup != null) {
+                                    // Collect into OR group instead of adding directly
+                                    orGroupClauses.computeIfAbsent(orGroup.value(), k -> new ArrayList<>()).add(clause);
+                                } else {
+                                    // Add IN clause to list as normal
+                                    whereClauses.add(clause);
+                                }
                             }
                         } else {
                             // If the field is not a wrapper object or ArrayList<String>, recursively process nested objects
@@ -166,6 +192,21 @@ public interface GenericQueryBuilder {
                 }
             }
         });
+
+        // Process OR groups: combine clauses within each group with OR
+        for (Map.Entry<String, List<String>> entry : orGroupClauses.entrySet()) {
+            List<String> groupClauses = entry.getValue();
+            if (groupClauses.size() == 1) {
+                // Only one field in the group has a value, treat as normal AND.
+                // e.g., CDD users who only receive stock — only receiverId is set,
+                // so no OR wrapping is needed.
+                whereClauses.add(groupClauses.get(0));
+            } else {
+                // Multiple fields have values, combine with OR in parentheses
+                whereClauses.add("(" + String.join(" OR ", groupClauses) + ")");
+            }
+        }
+
         return whereClauses;
     }
 

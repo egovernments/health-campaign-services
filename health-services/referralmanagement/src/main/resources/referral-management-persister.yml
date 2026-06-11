@@ -81,7 +81,7 @@ serviceMaps:
       fromTopic: save-referral-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO REFERRAL(id, clientReferenceId, tenantId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, referrerId, recipientId, recipientType, reasons, additionalDetails, sideEffectId, sideEffectClientReferenceId, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO REFERRAL(id, clientReferenceId, tenantId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, projectId, referrerId, recipientId, recipientType, reasons, additionalDetails, sideEffectId, sideEffectClientReferenceId, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -89,6 +89,7 @@ serviceMaps:
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.projectBeneficiaryId
             - jsonPath: $.*.projectBeneficiaryClientReferenceId
+            - jsonPath: $.*.projectId
             - jsonPath: $.*.referrerId
             - jsonPath: $.*.recipientId
             - jsonPath: $.*.recipientType
@@ -116,11 +117,12 @@ serviceMaps:
       fromTopic: update-referral-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, referrerId = ?, recipientId = ?, recipientType = ?, reasons = ?, additionalDetails = ?, sideEffectId = ?, sideEffectClientReferenceId = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+        - query: UPDATE REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, projectId = ?, referrerId = ?, recipientId = ?, recipientType = ?, reasons = ?, additionalDetails = ?, sideEffectId = ?, sideEffectClientReferenceId = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectId
             - jsonPath: $.*.projectBeneficiaryClientReferenceId
             - jsonPath: $.*.referrerId
             - jsonPath: $.*.recipientId
@@ -333,12 +335,13 @@ serviceMaps:
       fromTopic: statea-save-referral-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO statea.REFERRAL(id, clientReferenceId, tenantId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, referrerId, recipientId, recipientType, reasons, additionalDetails, sideEffectId, sideEffectClientReferenceId, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO statea.REFERRAL(id, clientReferenceId, tenantId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, projectId, referrerId, recipientId, recipientType, reasons, additionalDetails, sideEffectId, sideEffectClientReferenceId, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
             - jsonPath: $.*.clientReferenceId
             - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
             - jsonPath: $.*.projectBeneficiaryId
             - jsonPath: $.*.projectBeneficiaryClientReferenceId
             - jsonPath: $.*.referrerId
@@ -368,9 +371,10 @@ serviceMaps:
       fromTopic: statea-update-referral-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE statea.REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, referrerId = ?, recipientId = ?, recipientType = ?, reasons = ?, additionalDetails = ?, sideEffectId = ?, sideEffectClientReferenceId = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+        - query: UPDATE statea.REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, projectId = ?, referrerId = ?, recipientId = ?, recipientType = ?, reasons = ?, additionalDetails = ?, sideEffectId = ?, sideEffectClientReferenceId = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
           basePath: $.*
           jsonMaps:
+            - jsonPath: $.*.projectId
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.projectBeneficiaryId
             - jsonPath: $.*.projectBeneficiaryClientReferenceId

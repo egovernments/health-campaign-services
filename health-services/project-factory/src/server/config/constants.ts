@@ -17,6 +17,8 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR_CHILD_EXIST:"A child campaign is already active for this parent",
             VALIDATION_ERROR_PRODUCT_VARIANT: "Invalid product variant",
             VALIDATION_ERROR_MISSING_TARGET_FILE: "A new boundary file must be provided when changing boundaries from the parent campaign.",
+            VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE: "Unified console template is not valid. Please correct the errors and try again.",
+            PROCESS_UPDATE_ERROR: "Error updating the process status",
         },
         FILE: {
             SHEET_MISSING_ERROR: "Some sheet or empty in Uploaded file, please check the file",
@@ -150,7 +152,12 @@ export const mappingStatuses = {
     toBeMapped : "toBeMapped",
     mapped : "mapped",
     toBeDeMapped : "toBeDeMapped",
-    deMapped : "deMapped"
+    deMapped : "deMapped",
+    failed : "failed",
+    // Mapping was not attempted because its dependency (e.g. the user
+    // referenced by a project-staff mapping) was never created. Treated
+    // as resolved by the mapping monitor — does not block campaign success.
+    skipped : "skipped"
 }
 
 export const processStatuses = {
@@ -167,12 +174,59 @@ export const allProcesses = {
     userMapping : "CAMPAIGN_USER_MAPPING_PROCESS",
     resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS",
     userCredGeneration : "CAMPAIGN_USER_CRED_GENERATION_PROCESS",
+    attendanceRegisterCreation : "CAMPAIGN_ATTENDANCE_REGISTER_CREATION_PROCESS",
+    attendanceRegisterAttendeeCreation : "CAMPAIGN_ATTENDANCE_REGISTER_ATTENDEE_CREATION_PROCESS",
 }
 
 export const sheetDataRowStatuses = {
     INVALID: "INVALID",
-    CREATED: "CREATED"
+    CREATED: "CREATED",
+    SKIPPED: "SKIPPED",
+    EXISTING: "EXISTING",
+    UPDATED: "UPDATED",
+    FAILED: "FAILED"
 }
+
+// Attendance Register Attendee — Sheet Names
+export const attendanceSheetNames = {
+    WORKER: "HCM_REGISTER_WORKER_SHEET",
+    MARKER: "HCM_REGISTER_MARKER_SHEET",
+    APPROVER: "HCM_REGISTER_APPROVER_SHEET",
+};
+
+// Attendance Register Attendee — Column Keys
+export const attendanceColumnKeys = {
+    REGISTER_ID: "HCM_ATTENDANCE_REGISTER_ID",
+    ENROLLMENT_DATE: "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE",
+    DEENROLLMENT_DATE: "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE",
+    TEAM_CODE: "HCM_ATTENDANCE_ATTENDEE_TEAM_CODE",
+    USERNAME: "UserName",
+};
+
+// Attendance Register Attendee — Staff Types
+export const attendanceStaffTypes = {
+    OWNER: "OWNER",
+    APPROVER: "APPROVER",
+};
+
+// Attendance Register Attendee — Localization / Error Keys
+export const attendanceErrorKeys = {
+    REGISTER_NOT_FOUND: "HCM_ATTENDANCE_ATTENDEE_REGISTER_NOT_FOUND",
+    REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN: "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN",
+    INVALID_DATE_FORMAT: "HCM_ATTENDANCE_ATTENDEE_INVALID_DATE_FORMAT",
+    DATE_OUT_OF_RANGE: "HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE",
+    DEENROLLMENT_BEFORE_ENROLLMENT: "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_BEFORE_ENROLLMENT",
+    USER_NOT_FOUND: "HCM_ATTENDANCE_ATTENDEE_USER_NOT_FOUND",
+    ENROLLMENT_DATE_REQUIRED: "HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED",
+    CANNOT_CHANGE_ENROLLMENT_DATE: "HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE",
+    CANNOT_CHANGE_DEENROLLMENT_DATE: "HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE",
+    ALREADY_ENROLLED_IN_ANOTHER_REGISTER: "HCM_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER",
+};
+
+// Attendance — Additional Details Cache Keys
+export const attendanceCacheKeys = {
+    RESOLVED_INDIVIDUAL_IDS: "resolvedIndividualIds",
+};
 
 
 export const generatedResourceStatuses: any = {
@@ -217,10 +271,101 @@ export const processTrackStatuses = {
     failed: "failed",
 }
 
+export const resourceStatuses = {
+    toCreate: "toCreate",
+    creating: "creating",
+    completed: "completed",
+    failed: "failed"
+}
+
 export const usageColumnStatus = {
     active: "Active",
     inactive: "Inactive"
 }
+
+export const resourceTypes = {
+    unifiedConsoleResources: "unified-console-resources"
+}
+
+// Per-sheet validation status keys (from excel-ingestion)
+export const additionalDetailKeys = {
+    validationStatus: "validationStatus",
+    userSheetStatus: "userSheetStatus",
+    boundarySheetStatus: "boundarySheetStatus",
+    facilitySheetStatus: "facilitySheetStatus",
+} as const;
+
+// Sheet validation status values
+export const sheetValidationStatuses = {
+    valid: "valid",
+    invalid: "invalid",
+} as const;
+
+// Campaign data row field names
+export const campaignDataRowFields = {
+    status: "#status#",
+    errorDetails: "#errorDetails#",
+} as const;
+
+// User credential fields (authentication)
+export const userCredentialFields = {
+    userName: "UserName",
+    password: "Password",
+    userServiceUuids: "UserService Uuids",
+} as const;
+
+// User data field names in campaign data
+export const userDataFields = {
+    workerId: "HCM_ADMIN_CONSOLE_USER_WORKER_ID",
+    name: "HCM_ADMIN_CONSOLE_USER_NAME",
+    payeePhoneNumber: "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
+    paymentProvider: "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
+    payeeName: "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
+    bankAccount: "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
+    bankCode: "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
+    beneficiaryCode: "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE",
+    boundaryCode: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+    boundaryCodeMandatory: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
+    boundaryName: "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
+} as const;
+
+// MDMS schema code for template validation
+export const mdmsSchemaCodeConfig = {
+    schemaCode: "HCM-ADMIN-CONSOLE.schemas",
+} as const;
+
+// Schema validation and template loading log tags
+export const schemaValidationLogTags = {
+    optionalSheetNotFound: "[OPTIONAL_SHEET_MISSING]",
+    optionalSchemaMissing: "[MDMS_SCHEMA_MISSING]",
+    requiredSchemaMissing: "[MDMS_SCHEMA_ERROR]",
+} as const;
+
+// HTTP status codes
+export const httpStatusCodes = {
+    badRequest: 400,
+    conflict: 409,
+    internalServerError: 500,
+} as const;
+
+// Error module names for throwError
+export const errorModules = {
+    common: "COMMON",
+    file: "FILE",
+} as const;
+
+// Error codes for concurrent upload and validation
+export const errorCodes = {
+    campaignProcessingInProgress: "CAMPAIGN_PROCESSING_IN_PROGRESS",
+    validationError: "VALIDATION_ERROR",
+    processingFailed: "PROCESSING_FAILED",
+    validationErrorUnifiedConsoleTemplate: "VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE",
+    hrmsPhoneReusedDifferentUser: "HRMS_PHONE_REUSED_DIFFERENT_USER",
+} as const;
+
+// Error worksheet name in credential xlsx
+export const errorWorksheetName = "HCM_ADMIN_CONSOLE_USER_ERRORS";
+
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object

@@ -1,0 +1,101 @@
+package org.egov.excelingestion.config;
+
+public class ValidationConstants {
+    
+    // Column names (4 underscores to avoid collision)
+    public static final String STATUS_COLUMN_NAME = "HCM_ADMIN_CONSOLE____ROW_STATUS";
+    public static final String ERROR_DETAILS_COLUMN_NAME = "HCM_ADMIN_CONSOLE____ERROR_DETAILS";
+    
+    // Status values
+    public static final String STATUS_VALID = "valid";
+    public static final String STATUS_INVALID = "invalid";
+    public static final String STATUS_CREATED = "created";
+    public static final String STATUS_ERROR = "error";
+    
+    // Multi-select validation constants
+    public static final String MULTI_SELECT_SEPARATOR = ",";
+    public static final String HCM_VALIDATION_DUPLICATE_SELECTIONS = "HCM_VALIDATION_DUPLICATE_SELECTIONS";
+    public static final String HCM_VALIDATION_REQUIRED_MULTI_SELECT = "HCM_VALIDATION_REQUIRED_MULTI_SELECT";
+    
+    // Error message constants
+    public static final String HCM_VALIDATION_FAILED_NO_DETAILS = "HCM_VALIDATION_FAILED_NO_DETAILS";
+    
+    // Search validation constants
+    public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
+    public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";
+    
+    // User sheet — Worker ID validation
+    public static final String LOC_USER_INVALID_WORKER_ID = "HCM_USER_WORKER_ID_NOT_FOUND";
+    public static final String DEFAULT_USER_INVALID_WORKER_ID = "User ID does not exist in the worker registry";
+
+    // User sheet — Beneficiary Code whitespace validation
+    public static final String LOC_BENEFICIARY_CODE_WHITESPACE = "HCM_USER_BENEFICIARY_CODE_WHITESPACE";
+    public static final String DEFAULT_BENEFICIARY_CODE_WHITESPACE = "Beneficiary Code must not contain whitespace";
+
+    // User sheet — Bank Account whitespace validation
+    public static final String LOC_BANK_ACCOUNT_WHITESPACE = "HCM_USER_BANK_ACCOUNT_WHITESPACE";
+    public static final String DEFAULT_BANK_ACCOUNT_WHITESPACE = "Bank Account must not contain whitespace";
+
+    // User sheet — Bank Code whitespace validation
+    public static final String LOC_BANK_CODE_WHITESPACE = "HCM_USER_BANK_CODE_WHITESPACE";
+    public static final String DEFAULT_BANK_CODE_WHITESPACE = "Bank Code must not contain whitespace";
+
+    // Attendance Register Attendee — Localization Keys
+    public static final String LOC_ATTENDANCE_INVALID_DATE = "HCM_ATTENDANCE_ATTENDEE_INVALID_DATE_FORMAT";
+    public static final String LOC_ATTENDANCE_DATE_OUT_OF_RANGE = "HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE";
+    public static final String LOC_ATTENDANCE_DEENROLL_WITHOUT_ENROLL = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_WITHOUT_ENROLLMENT";
+    public static final String LOC_ATTENDANCE_DEENROLL_BEFORE_ENROLL = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_BEFORE_ENROLLMENT";
+    public static final String LOC_ATTENDANCE_REGISTER_ID_EMPTY = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_EMPTY";
+    public static final String LOC_ATTENDANCE_REGISTER_ID_MISMATCH = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_MISMATCH";
+    public static final String LOC_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN";
+
+    // Attendance Register — System-level duplicate validation
+    public static final String LOC_ATTENDANCE_REGISTER_ID_ALREADY_EXISTS = "HCM_ATTENDANCE_REGISTER_VALIDATION_ID_ALREADY_EXISTS";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_ALREADY_EXISTS = "Register ID already exists in the system";
+
+    // Attendance Register Attendee — Truth-table business validation Localization Keys
+    public static final String LOC_ATTENDANCE_ENROLLMENT_DATE_REQUIRED = "HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED";
+    public static final String LOC_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE = "HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE";
+    public static final String LOC_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE = "HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE";
+    public static final String LOC_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER = "HCM_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER";
+
+    // Attendance Register Attendee — Truth-table business validation Default Messages
+    public static final String DEFAULT_ATTENDANCE_ENROLLMENT_DATE_REQUIRED = "Enrollment date is required to enroll a new attendee/staff";
+    public static final String DEFAULT_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE = "Cannot change enrollment date for this register";
+    public static final String DEFAULT_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE = "Cannot change de-enrollment date for this register";
+    public static final String DEFAULT_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER = "Individual is already actively enrolled in another attendance register";
+
+    // Attendance Register Attendee — Default Error Messages
+    public static final String DEFAULT_ATTENDANCE_INVALID_DATE = "Invalid date format. Use dd-MM-yyyy or dd/MM/yyyy";
+    public static final String DEFAULT_ATTENDANCE_DATE_OUT_OF_RANGE = "Date must be between register start and end dates";
+    public static final String DEFAULT_ATTENDANCE_DEENROLL_WITHOUT_ENROLL = "De-enrollment date requires enrollment date";
+    public static final String DEFAULT_ATTENDANCE_DEENROLL_BEFORE_ENROLL = "De-enrollment date cannot be before enrollment date";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_EMPTY = "Register ID is required";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_MISMATCH = "Register ID does not match expected register";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "Register already exists in a different campaign";
+
+    // Per-sheet status keys for additionalDetails
+    public static final String ADDITIONAL_DETAILS_USER_SHEET_STATUS     = "userSheetStatus";
+    public static final String ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS = "boundarySheetStatus";
+    public static final String ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS = "facilitySheetStatus";
+
+    // Sheet kind identifiers
+    public static final String SHEET_KIND_USER     = "user";
+    public static final String SHEET_KIND_BOUNDARY = "boundary";
+    public static final String SHEET_KIND_FACILITY = "facility";
+
+    // Per-row JSON keys for downstream consumers (e.g. project-factory).
+    // Stored on each persisted rowJson so consumers can tell invalid rows
+    // apart without re-running validation.
+    public static final String ROW_JSON_STATUS_KEY = "#status#";
+    public static final String ROW_JSON_ERROR_DETAILS_KEY = "#errorDetails#";
+
+    // Row-level status values written into ROW_JSON_STATUS_KEY.
+    // Match project-factory's sheetDataRowStatuses values (uppercase).
+    public static final String ROW_STATUS_INVALID = "INVALID";
+    public static final String ROW_STATUS_VALID = "VALID";
+
+    private ValidationConstants() {
+        // Private constructor to prevent instantiation
+    }
+}

@@ -61,6 +61,7 @@ public class StockRowMapper implements RowMapper<Stock> {
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .dateOfEntry(dateOfEntry)
+                    .campaignNumber(resultSet.getString("campaignNumber"))
                     .build();
         } catch (JsonProcessingException e) {
             throw new SQLException(e);

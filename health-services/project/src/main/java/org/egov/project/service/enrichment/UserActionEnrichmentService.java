@@ -45,7 +45,7 @@ public class UserActionEnrichmentService {
         try {
             List<String> idList = CommonUtils.uuidSupplier().apply(entities.size());
             log.info("enriching UserActions with generated IDs");
-            enrichForCreate(entities, idList, request.getRequestInfo(),false);
+            enrichForCreate(entities, idList, request.getRequestInfo(),true);
             log.info("enrichment done");
         } catch (Exception exception) {
             log.error("Error during enrichment for create UserActions", exception);

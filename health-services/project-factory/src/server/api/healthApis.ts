@@ -1,20 +1,20 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { httpRequest } from "../utils/request";
-import { defaultRequestInfo } from "./coreApis";
 import config from "../config";
 import { throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 
-export async function fetchProductVariants(pvarIds: string[]) {
-    const CHUNK_SIZE = 100;
+export async function fetchProductVariants(pvarIds: string[], tenantId?: string, requestInfo?: RequestInfo) {
+    const CHUNK_SIZE = config.productVariant.searchBatchSize;
     const allProductVariants: any[] = [];
-    const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: defaultRequestInfo?.RequestInfo?.userInfo?.tenantId };
+    const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: tenantId };
 
     for (let i = 0; i < pvarIds.length; i += CHUNK_SIZE) {
         const chunk = pvarIds.slice(i, i + CHUNK_SIZE);
         try {
             const response = await httpRequest(
                 config.host.productHost + config.paths.productVariantSearch,
-                { ProductVariant: { id: chunk }, ...defaultRequestInfo },
+                { ProductVariant: { id: chunk }, RequestInfo: requestInfo },
                 params
             );
             allProductVariants.push(...response?.ProductVariant || []);
