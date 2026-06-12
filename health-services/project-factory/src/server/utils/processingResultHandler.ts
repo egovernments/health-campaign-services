@@ -2,7 +2,7 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import config from '../config';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { triggerUserCredentialEmailFlow } from './mailUtils';
+import { runMappingReconciler } from './mappingReconciler';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -989,150 +990,6 @@ async function monitorCampaignDataCompletion(
 }
 
 /**
- * Mark all mapping processes as completed
- */
-async function markMappingProcessesAsCompleted(
-    campaignNumber: string,
-    tenantId: string,
-    userUuid: string
-): Promise<void> {
-    try {
-        logger.info(`Marking mapping processes as completed for campaign: ${campaignNumber}`);
-        
-        // Get all mapping processes
-        const mappingProcessTypes = [
-            allProcesses.facilityMapping,
-            allProcesses.userMapping,
-            allProcesses.resourceMapping
-        ];
-        
-        const processesToUpdate = [];
-        const currentTime = Date.now();
-        
-        // Check each mapping process type
-        for (const processType of mappingProcessTypes) {
-            const processes = await getCurrentProcesses(campaignNumber, tenantId, processType);
-            
-            for (const process of processes) {
-                // Only update if not already completed
-                if (process.status !== processStatuses.completed) {
-                    process.status = processStatuses.completed;
-                    process.auditDetails = {
-                        createdBy: process.auditDetails?.createdBy || userUuid,
-                        createdTime: process.auditDetails?.createdTime || currentTime,
-                        lastModifiedBy: userUuid,
-                        lastModifiedTime: currentTime
-                    };
-                    processesToUpdate.push(process);
-                }
-            }
-        }
-        
-        // Update processes via Kafka if any need updating
-        if (processesToUpdate.length > 0) {
-            logger.info(`Updating ${processesToUpdate.length} mapping processes to completed status`);
-            await produceModifiedMessages(
-                { processes: processesToUpdate }, 
-                config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, 
-                tenantId
-            );
-        } else {
-            logger.info('All mapping processes are already completed');
-        }
-        
-    } catch (error) {
-        logger.error(`Error marking mapping processes as completed: ${error}`);
-        throwError('COMMON', 500, 'PROCESS_UPDATE_ERROR', 'Error updating the statuses of mapping processes');
-    }
-}
-
-/**
- * Monitor campaign mapping completion status with polling
- */
-async function monitorCampaignMappingCompletion(
-    campaignNumber: string,
-    tenantId: string,
-    campaignId: string,
-    campaignAlreadyFailed: { value: boolean },
-    userUuid: string
-): Promise<void> {
-    try {
-        logger.info(`Starting mapping completion monitoring for campaign: ${campaignNumber}`);
-        
-        const maxAttempts = config.resourceCreationConfig.maxAttemptsForResourceCreationOrMapping;
-        const waitTimeMs = config.resourceCreationConfig.waitTimeOfEachAttemptOfResourceCreationOrMappping;
-        
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            // Check if campaign itself is failed
-            try {
-                const campaignResponse = await searchProjectTypeCampaignService({
-                    tenantId: tenantId,
-                    ids: [campaignId]
-                });
-                const campaign = campaignResponse?.CampaignDetails?.[0];
-                
-                if (campaign?.status === campaignStatuses.failed) {
-                    logger.info(`Campaign ${campaignNumber} is already marked as failed. Stopping mapping monitoring.`);
-                    campaignAlreadyFailed.value = true;
-                    return;
-                }
-            } catch (campaignCheckError) {
-                logger.warn(`Could not check campaign status, continuing with mapping monitoring: ${campaignCheckError}`);
-            }
-            
-            // Per-type breakdown: facility/resource failures hard-block the campaign;
-            // user-mapping failures are non-blocking (parallel to user data failures
-            // in monitorCampaignDataCompletion).
-            const [overall, facilityMappingStatus, resourceMappingStatus, userMappingStatus] = await Promise.all([
-                checkCampaignMappingCompletionStatus(campaignNumber, tenantId),
-                checkCampaignMappingCompletionStatus(campaignNumber, tenantId, 'facility'),
-                checkCampaignMappingCompletionStatus(campaignNumber, tenantId, 'resource'),
-                checkCampaignMappingCompletionStatus(campaignNumber, tenantId, 'user'),
-            ]);
-
-            logger.info(`Campaign ${campaignNumber} mapping attempt ${attempt}/${maxAttempts}: ${overall.completedMappings}/${overall.totalMappings} completed, ${overall.failedMappings} failed, ${overall.pendingMappings} pending`);
-            logger.info(`  Facility: ${facilityMappingStatus.completedMappings}/${facilityMappingStatus.totalMappings} completed, ${facilityMappingStatus.failedMappings} failed`);
-            logger.info(`  Resource: ${resourceMappingStatus.completedMappings}/${resourceMappingStatus.totalMappings} completed, ${resourceMappingStatus.failedMappings} failed`);
-            logger.info(`  User:     ${userMappingStatus.completedMappings}/${userMappingStatus.totalMappings} completed, ${userMappingStatus.failedMappings} failed`);
-
-            if (facilityMappingStatus.anyFailed || resourceMappingStatus.anyFailed) {
-                logger.error(`Campaign ${campaignNumber} has hard-blocking mapping failures (facility: ${facilityMappingStatus.failedMappings}, resource: ${resourceMappingStatus.failedMappings}). Marking campaign as failed.`);
-                const failureError = new Error(`Mapping failed: facility ${facilityMappingStatus.failedMappings} failed, resource ${resourceMappingStatus.failedMappings} failed`);
-                await sendCampaignFailureMessage(campaignId, tenantId, failureError);
-                throw failureError;
-            }
-
-            if (userMappingStatus.anyFailed) {
-                logger.warn(`Campaign ${campaignNumber} has user-mapping failures: ${userMappingStatus.failedMappings} out of ${userMappingStatus.totalMappings}. Failures are non-blocking and visible in the credential sheet.`);
-            }
-
-            // All mapping rows have been resolved (mapped / deMapped / skipped / failed)
-            // and no facility/resource failures remain — proceed to completion.
-            if (overall.totalMappings > 0 && overall.pendingMappings === 0) {
-                logger.info(`Campaign ${campaignNumber} mapping resolved. (${overall.completedMappings} completed, ${overall.failedMappings} failed — user-only failures tolerated)`);
-                await markMappingProcessesAsCompleted(campaignNumber, tenantId, userUuid);
-                return;
-            }
-            
-            // If not the last attempt, wait before next poll
-            if (attempt < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, waitTimeMs));
-            }
-        }
-        
-        // Max attempts reached
-        logger.error(`Campaign ${campaignNumber} mapping timed out after ${maxAttempts} attempts`);
-        const timeoutError = new Error(`Mapping timed out: polling exceeded ${maxAttempts} attempts`);
-        await sendCampaignFailureMessage(campaignId, tenantId, timeoutError);
-        throw timeoutError;
-        
-    } catch (error) {
-        logger.error(`Error monitoring campaign ${campaignNumber} mapping completion:`, error);
-        throw error;
-    }
-}
-
-/**
  * Mark campaign as completed conditionally (only if not failed) using existing function
  */
 async function markCampaignCompletedConditionally(
@@ -1835,12 +1692,9 @@ async function triggerBackgroundResourceCreationFlow(
                 logger.info('=== WAITING 10 SECONDS BEFORE STARTING MAPPING PROCESS ===');
                 await new Promise(resolve => setTimeout(resolve, 10000));
                 
-                // Start mapping process for all types in batches with monitoring
-                logger.info('=== STARTING MAPPING PROCESS IN BATCHES WITH MONITORING ===');
-                await Promise.all([
-                    startAllMappingsInBatches(campaignDetails, useruuid, tenantId, requestInfo),
-                    monitorCampaignMappingCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
-                ]);
+                // Start mapping process via the convergence-driven reconciler
+                logger.info('=== STARTING MAPPING RECONCILIATION ===');
+                await runMappingReconciler(campaignDetails, useruuid, tenantId, requestInfo, campaignAlreadyFailed);
                 
                 // Check if campaign failed during mapping
                 if (campaignAlreadyFailed.value) {
@@ -2533,86 +2387,6 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
         
     } catch (error) {
         logger.error('Error sending facilities to Kafka:', error);
-        throw error;
-    }
-}
-
-/**
- * Start all mappings (resource, facility, user) in batches via Kafka
- */
-async function startAllMappingsInBatches(
-    campaignDetails: any,
-    useruuid: string,
-    tenantId: string,
-    requestInfo?: RequestInfo
-): Promise<void> {
-    try {
-        const campaignNumber = campaignDetails.campaignNumber;
-        logger.info(`Starting all mappings for campaign: ${campaignNumber}`);
-        
-        // Get all mappings for all types - both toBeMapped and toBeDeMapped
-        const allMappings: any[] = [];
-        
-        // Resource mappings
-        const resourceToBeMapped = await getMappingDataRelatedToCampaign('resource', campaignNumber, tenantId, mappingStatuses.toBeMapped);
-        const resourceToBeDeMapped = await getMappingDataRelatedToCampaign('resource', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
-        allMappings.push(...resourceToBeMapped, ...resourceToBeDeMapped);
-        
-        // Facility mappings
-        const facilityToBeMapped = await getMappingDataRelatedToCampaign('facility', campaignNumber, tenantId, mappingStatuses.toBeMapped);
-        const facilityToBeDeMapped = await getMappingDataRelatedToCampaign('facility', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
-        allMappings.push(...facilityToBeMapped, ...facilityToBeDeMapped);
-        
-        // User mappings
-        const userToBeMapped = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId, mappingStatuses.toBeMapped);
-        const userToBeDeMapped = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
-        allMappings.push(...userToBeMapped, ...userToBeDeMapped);
-        
-        if (allMappings.length === 0) {
-            logger.info('No mappings found to process');
-            return;
-        }
-        
-        logger.info(`Found ${allMappings.length} total mappings to process`);
-        logger.info(`Resource: ${resourceToBeMapped.length + resourceToBeDeMapped.length}, Facility: ${facilityToBeMapped.length + facilityToBeDeMapped.length}, User: ${userToBeMapped.length + userToBeDeMapped.length}`);
-        
-        // Send mappings in batches
-        const BATCH_SIZE = config.mapping.kafkaBatchSize;
-        const totalBatches = Math.ceil(allMappings.length / BATCH_SIZE);
-        
-        for (let i = 0; i < allMappings.length; i += BATCH_SIZE) {
-            const batch = allMappings.slice(i, i + BATCH_SIZE);
-            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-            
-            // Send batch to Kafka
-            const batchMessage = {
-                tenantId,
-                campaignNumber,
-                campaignId: campaignDetails.id,
-                useruuid,
-                mappings: batch,
-                batchNumber,
-                totalBatches,
-                requestInfo
-            };
-            
-            logger.info(`Sending mapping batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} mappings`);
-            
-            // Use random UUID as partition key for load balancing
-            const partitionKey = uuidv4();
-            
-            await produceModifiedMessages(
-                batchMessage,
-                config.kafka.KAFKA_MAPPING_BATCH_TOPIC,
-                tenantId,
-                partitionKey
-            );
-        }
-        
-        logger.info(`All ${totalBatches} mapping batches sent to Kafka for processing`);
-        
-    } catch (error) {
-        logger.error('Error starting mappings in batches:', error);
         throw error;
     }
 }

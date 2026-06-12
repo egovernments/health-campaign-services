@@ -85,6 +85,18 @@ const config = {
     kafkaBatchSize: process.env.MAPPING_KAFKA_BATCH_SIZE ? parseInt(process.env.MAPPING_KAFKA_BATCH_SIZE, 10) : 30,
     // Batch size for the mappingBatchHandler persistInBatches Kafka helper.
     persistBatchSize: process.env.MAPPING_PERSIST_BATCH_SIZE ? parseInt(process.env.MAPPING_PERSIST_BATCH_SIZE, 10) : 100,
+    // Max distinct projectIds per project-resource/facility/staff search call in the adopt-existing pre-pass.
+    projectSearchChunkSize: process.env.MAPPING_PROJECT_SEARCH_CHUNK_SIZE ? parseInt(process.env.MAPPING_PROJECT_SEARCH_CHUNK_SIZE, 10) : 100,
+    // Page size for paginated pre-pass searches (health-project caps at 200).
+    searchPageSize: process.env.MAPPING_SEARCH_PAGE_SIZE ? parseInt(process.env.MAPPING_SEARCH_PAGE_SIZE, 10) : 100,
+    // Parallel create-call window inside a mapping batch.
+    createConcurrency: process.env.MAPPING_CREATE_CONCURRENCY ? parseInt(process.env.MAPPING_CREATE_CONCURRENCY, 10) : 10,
+    // Retry budget per mapping row before it is terminally failed.
+    maxRetries: process.env.MAPPING_MAX_RETRY_COUNT ? parseInt(process.env.MAPPING_MAX_RETRY_COUNT, 10) : 3,
+    // Max reconcile cycles before the campaign is failed with precise counts.
+    maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
+    // Stall window: a reconcile observe phase ends when resolved count makes no progress for this long.
+    reconcileStallTimeoutMs: process.env.MAPPING_RECONCILE_STALL_TIMEOUT_MS ? parseInt(process.env.MAPPING_RECONCILE_STALL_TIMEOUT_MS, 10) : 300000,
   },
   resource: {
     // Chunk size for resource-activity messages produced to Kafka.
@@ -260,6 +272,7 @@ const config = {
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
     healthIndividualSearch: process.env.EGOV_HEALTH_INDIVIDUAL_SEARCH || "health-individual/v1/_search",
     projectFacilitySearch: process.env.EGOV_HEALTH_PROJECT_FACILITY_SEARCH || "health-project/facility/v1/_search",
+    projectResourceSearch: process.env.EGOV_PROJECT_RESOURCE_SEARCH_PATH || "health-project/resource/v1/_search",
     projectStaffSearch: process.env.EGOV_HEALTH_PROJECT_STAFF_SEARCH || "health-project/staff/v1/_search",
     projectFacilityDelete: process.env.EGOV_HEALTH_PROJECT_FACILITY_BULK_DELETE || "health-project/facility/v1/bulk/_delete",
     projectStaffDelete: process.env.EGOV_HEALTH_PROJECT_STAFF_BULK_DELETE || "health-project/staff/v1/bulk/_delete",

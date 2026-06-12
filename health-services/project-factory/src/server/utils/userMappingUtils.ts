@@ -106,9 +106,9 @@ export async function startUserDemapping(campaignDetails: any, useruuid: string,
             await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }
         catch (error) {
-            // Genuine demap API error — mark failed (non-blocking) and continue.
+            // Genuine demap API error — mark deMapFailed (non-blocking) and continue.
             logger.error(`Failed to demap project staff for user with phone ${allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData}:`, error);
-            allCurrentMappingsToDeMap[i].status = mappingStatuses.failed;
+            allCurrentMappingsToDeMap[i].status = mappingStatuses.deMapFailed;
             try {
                 await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
             } catch (persistError) {

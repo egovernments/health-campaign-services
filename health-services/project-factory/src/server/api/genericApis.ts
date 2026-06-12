@@ -700,6 +700,104 @@ export async function createProjectFacility(resouceBody: any) {
   // validateProjectFacilityResponse(projectFacilityResponse);
 }
 
+async function searchProjectMappingsByProjects(
+  path: string,
+  bodyKey: string,
+  responseKey: string,
+  extractKey: (item: any) => string | undefined,
+  projectIds: string[],
+  tenantId: string,
+  requestInfo: RequestInfo,
+  entityFilter?: { field: string; ids: string[] }
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const distinctProjectIds = Array.from(new Set(projectIds.filter(Boolean)));
+  if (distinctProjectIds.length === 0) return result;
+
+  const distinctEntityIds = entityFilter ? Array.from(new Set(entityFilter.ids.filter(Boolean))) : [];
+  const entityCriteria = entityFilter && distinctEntityIds.length > 0 ? { [entityFilter.field]: distinctEntityIds } : {};
+
+  const url = `${config.host.projectHost}${path}`;
+  const CHUNK_SIZE = config.mapping.projectSearchChunkSize;
+  const PAGE_SIZE = config.mapping.searchPageSize;
+
+  for (let i = 0; i < distinctProjectIds.length; i += CHUNK_SIZE) {
+    const chunk = distinctProjectIds.slice(i, i + CHUNK_SIZE);
+    let offset = 0;
+    while (true) {
+      const response = await httpRequest(
+        url,
+        { RequestInfo: requestInfo, [bodyKey]: { projectId: chunk, ...entityCriteria } },
+        { tenantId, limit: PAGE_SIZE, offset, includeDeleted: false }
+      );
+      const items: any[] = response?.[responseKey] || [];
+      for (const item of items) {
+        const key = extractKey(item);
+        if (key && item?.id) result.set(key, item.id);
+      }
+      if (items.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+  }
+  return result;
+}
+
+/**
+ * Resource search has no productVariantId filter server-side; projectId-only is acceptable
+ * because resource cardinality per project is low.
+ */
+export async function searchProjectResourcesByProjects(
+  projectIds: string[],
+  tenantId: string,
+  requestInfo: RequestInfo
+): Promise<Map<string, string>> {
+  return searchProjectMappingsByProjects(
+    config.paths.projectResourceSearch,
+    "ProjectResource",
+    "ProjectResources",
+    (item: any) => item?.resource?.productVariantId && item?.projectId ? `${item.resource.productVariantId}|${item.projectId}` : undefined,
+    projectIds,
+    tenantId,
+    requestInfo
+  );
+}
+
+export async function searchProjectFacilitiesByProjects(
+  projectIds: string[],
+  tenantId: string,
+  requestInfo: RequestInfo,
+  facilityIds: string[] = []
+): Promise<Map<string, string>> {
+  return searchProjectMappingsByProjects(
+    config.paths.projectFacilitySearch,
+    "ProjectFacility",
+    "ProjectFacilities",
+    (item: any) => item?.facilityId && item?.projectId ? `${item.facilityId}|${item.projectId}` : undefined,
+    projectIds,
+    tenantId,
+    requestInfo,
+    { field: "facilityId", ids: facilityIds }
+  );
+}
+
+export async function searchProjectStaffByProjects(
+  projectIds: string[],
+  tenantId: string,
+  requestInfo: RequestInfo,
+  staffIds: string[] = []
+): Promise<Map<string, string>> {
+  return searchProjectMappingsByProjects(
+    config.paths.projectStaffSearch,
+    "ProjectStaff",
+    "ProjectStaff",
+    (item: any) => item?.userId && item?.projectId ? `${item.userId}|${item.projectId}` : undefined,
+    projectIds,
+    tenantId,
+    requestInfo,
+    { field: "staffId", ids: staffIds }
+  );
+}
+
 // Helper function to create staff
 const createProjectStaffHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
   try {
