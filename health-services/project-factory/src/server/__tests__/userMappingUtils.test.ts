@@ -1,4 +1,4 @@
-import { startUserMapping } from '../utils/userMappingUtils';
+import { startUserMapping, startUserDemapping } from '../utils/userMappingUtils';
 import { mappingStatuses } from '../config/constants';
 
 jest.mock('../utils/logger', () => ({
@@ -120,5 +120,31 @@ describe('startUserMapping (legacy path) — non-blocking on user-only failures'
 
         const statuses = persistedRecords.map((r: any) => r.status).sort();
         expect(statuses).toEqual([mappingStatuses.failed, mappingStatuses.mapped].sort());
+    });
+
+    it('marks a failed demap as deMapFailed so the reconciler retries it in the demap direction', async () => {
+        getMappingDataMock.mockResolvedValueOnce([
+            { uniqueIdentifierForData: '+91-1', boundaryCode: 'B-1', status: mappingStatuses.toBeDeMapped, mappingId: 'ps-1' },
+        ] as any);
+        getRelatedDataMock.mockImplementation((type: string) => {
+            if (type === 'boundary')
+                return Promise.resolve([
+                    { uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' },
+                ] as any);
+            if (type === 'user')
+                return Promise.resolve([
+                    { uniqueIdentifier: '+91-1', uniqueIdAfterProcess: 'usvc-1' },
+                ] as any);
+            return Promise.resolve([] as any);
+        });
+        const { httpRequest } = require('../utils/request');
+        (httpRequest as jest.Mock).mockRejectedValueOnce(new Error('staff search exploded'));
+
+        await expect(startUserDemapping(campaignDetails, 'u', requestInfo)).resolves.toBeUndefined();
+
+        const persisted = produceModifiedMessagesMock.mock.calls
+            .map(c => c[0])
+            .find((arg: any) => Array.isArray(arg?.datas));
+        expect((persisted as any).datas[0].status).toBe(mappingStatuses.deMapFailed);
     });
 });

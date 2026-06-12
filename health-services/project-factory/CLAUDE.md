@@ -264,7 +264,7 @@ Never `res.json()` or `res.status().send()` directly.
 |---|---|---|
 | Campaign | `campaignStatuses` | `drafted`, `started`, `inprogress`, `failed`, `cancelled` |
 | Process | `processStatuses` | `pending`, `completed`, `failed` |
-| Mapping | `mappingStatuses` | `toBeMapped`, `mapped`, `deMapped`, `failed`, `skipped` |
+| Mapping | `mappingStatuses` | `toBeMapped`, `mapped`, `deMapped`, `failed` (map direction), `deMapFailed` (demap direction), `skipped` |
 | Data row | `dataRowStatuses` | `pending`, `completed`, `failed` |
 | Sheet row | `sheetDataRowStatuses` | `INVALID`, `CREATED`, `SKIPPED`, `EXISTING`, `UPDATED`, `FAILED` |
 
@@ -292,7 +292,24 @@ Never change existing phase numbers or `dependsOn` chains.
 | User batch | **No** — non-blocking by policy |
 | Facility batch | **No** |
 | Mapping skipped | **No** — auto-resolved |
+| Mapping failed (retryable) | **No** — reconciler retries up to `config.mapping.maxRetries` |
+| Facility/resource mapping terminally failed | Yes — judged once at reconcile conclusion |
+| User mapping terminally failed | **No** — non-blocking |
 | Attendance register | **No** — optional |
+
+## Mapping Lifecycle (Reconciler)
+
+The mapping table (`eg_cm_campaign_mapping_data`) is **desired state**; `health-project` is **actual state**. `runMappingReconciler` (`utils/mappingReconciler.ts`) drives convergence — never judge failure from transient failure rows.
+
+- **Failure statuses carry direction.** `failed` = a map attempt failed; `deMapFailed` = a demap attempt failed. Every demap failure writer (batch handler + legacy `userMappingUtils.startUserDemapping`) MUST write `deMapFailed` — never infer direction from `mappingId` in runtime code. (The `V20260612130000` migration is the sole exception: it uses `mappingId IS NOT NULL` as a safe one-time heuristic because in pre-reconciler code `mappingId` was only ever set after a confirmed successful creation.) Terminal requires `retryCount >= config.mapping.maxRetries`; each cycle resets retryable rows via two direction-preserving SQL UPDATEs.
+- **Adopt-existing pre-pass** (`mappingBatchHandler.ts` shared driver `processToBeMappedGroup` + per-type adapters): before any create, bulk-search `health-project` (`searchProject{Resources,Facilities,Staff}ByProjects` in `api/genericApis.ts`, ≤`config.mapping.projectSearchChunkSize` projects per call, offset-paginated, **narrowed by the batch's `facilityId`/`staffId` lists** — resource search has no entity filter server-side). Existing combinations are adopted as `mapped` — never infer "already exists" from `DUPLICATE_ENTITY` error responses.
+- **Generation fencing** (`utils/mappingGenerationUtils.ts`, Redis `mapping-gen:{tenantId}:{campaignNumber}`): batches carry the cycle's generation; consumers drop stale ones. Fail-open by design — correctness comes from the pre-pass + health-project unique validators, fencing only avoids wasted work.
+- **Horizontal scale**: random partition keys stay; uniqueness comes from dispatch disjointness (each mapping row in exactly one batch per cycle), NOT partition affinity. Never pin a campaign to one partition.
+- **Observation is stall-based** (`pollUntilCountFn` on `completed + failed` vs total, `config.mapping.reconcileStallTimeoutMs`), bounded by `config.mapping.maxReconcileCycles`. A stalled cycle re-dispatches unresolved rows next cycle (lost-batch recovery). Campaign-failed status is re-checked at cycle start, after every observe phase, and at conclusion — never conclude or mark processes complete for a failed campaign.
+- **`lastError` / `retryCount`** columns are written via direct SQL only (batched VALUES-join UPDATE) — the mapping Kafka message contract is unchanged (additive `generation` field only); persister configs live outside this repo.
+- Blocking policy is applied exactly once at conclusion from terminal counts (`checkCampaignMappingCompletionStatus` → `terminallyFailedMappings` / `retryableFailedMappings`; pass `maxRetries` explicitly when policy differs from `config.mapping.maxRetries`).
+- **Deploy order**: migrations (`retryCount`/`lastError` columns + `deMapFailed` backfill) MUST run before pods roll — `checkCampaignMappingCompletionStatus` references `retryCount` for ALL campaigns, old and new.
+- **External consumers**: `campaignStatusService` summaries and `mapping/_search` filters now surface `deMapFailed`; dashboards summing `failed` must include it.
 
 ---
 

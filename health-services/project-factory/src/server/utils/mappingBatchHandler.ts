@@ -2,11 +2,13 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { getRelatedDataWithCampaign } from './genericUtils';
 import { mappingStatuses } from '../config/constants';
-import { createProjectResource, createProjectFacility, createStaff } from '../api/genericApis';
+import { createProjectResource, createProjectFacility, createStaff, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
 import { httpRequest } from './request';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
+import { getCurrentMappingGeneration } from './mappingGenerationUtils';
+import { executeQuery, getTableName } from './db';
 
 /**
  * Handle mapping batch from Kafka - processes mappings based on type and status
@@ -15,16 +17,24 @@ export async function handleMappingBatch(messageObject: any) {
     const { campaignId, tenantId } = messageObject;
     try {
         logger.info('=== PROCESSING MAPPING BATCH ===');
-        
-        const { tenantId, campaignNumber, useruuid, mappings, batchNumber, totalBatches, requestInfo } = messageObject;
-        
+
+        const { tenantId, campaignNumber, useruuid, mappings, batchNumber, totalBatches, requestInfo, generation } = messageObject;
+
         logger.info(`Processing mapping batch ${batchNumber}/${totalBatches} with ${mappings.length} mappings`);
-        
+
         if (!mappings || mappings.length === 0) {
             logger.warn('No mappings found in batch');
             return;
         }
-        
+
+        if (generation != null) {
+            const currentGeneration = await getCurrentMappingGeneration(tenantId, campaignNumber);
+            if (currentGeneration != null && currentGeneration !== generation) {
+                logger.warn(`Dropping stale mapping batch ${batchNumber}/${totalBatches} (generation ${generation}, current ${currentGeneration}) for campaign ${campaignNumber}`);
+                return;
+            }
+        }
+
         // Get required data mappings for all types
         const boundaryData = await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
         const facilityData = await getRelatedDataWithCampaign('facility', campaignNumber, tenantId);
@@ -135,11 +145,53 @@ function groupMappings(mappings: any[]) {
     return groups;
 }
 
+async function runBoundedCreates(items: any[], worker: (item: any) => Promise<void>): Promise<void> {
+    const CONCURRENCY = config.mapping.createConcurrency;
+    for (let i = 0; i < items.length; i += CONCURRENCY) {
+        await Promise.all(items.slice(i, i + CONCURRENCY).map(worker));
+    }
+}
+
+/**
+ * Persists per-row failure reasons via direct SQL — the mapping persister contract
+ * (Kafka message fields) stays unchanged; lastError lives only in the DB.
+ */
+async function persistMappingErrors(failures: { mapping: any; errorMessage: string }[], tenantId: string): Promise<void> {
+    if (failures.length === 0) return;
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+    const CHUNK_SIZE = config.mapping.persistBatchSize;
+    for (let i = 0; i < failures.length; i += CHUNK_SIZE) {
+        const chunk = failures.slice(i, i + CHUNK_SIZE);
+        const values: string[] = [];
+        const params: any[] = [];
+        chunk.forEach(({ mapping, errorMessage }, idx) => {
+            const base = idx * 5;
+            values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
+            params.push(errorMessage, mapping.campaignNumber, mapping.uniqueIdentifierForData, mapping.boundaryCode, mapping.type);
+        });
+        try {
+            await executeQuery(
+                `UPDATE ${tableName} t SET lastError = v.err
+                 FROM (VALUES ${values.join(', ')}) AS v(err, campaignNumber, uniqueIdentifierForData, boundaryCode, type)
+                 WHERE t.campaignNumber = v.campaignNumber
+                   AND t.uniqueIdentifierForData = v.uniqueIdentifierForData
+                   AND t.boundaryCode = v.boundaryCode
+                   AND t.type = v.type`,
+                params
+            );
+        } catch (error) {
+            logger.warn(`Could not persist lastError for ${chunk.length} mappings: ${error}`);
+        }
+    }
+}
+
 /**
  * Persist data in batches to Kafka with chunking and wait time
- * Prevents Kafka message size limits and ensures proper persistence
+ * Prevents Kafka message size limits and ensures proper persistence.
+ * skipWait is for reconciler-path batches whose convergence is verified by the
+ * observe loop anyway (e.g. pure pre-pass adoptions) — never skip elsewhere.
  */
-async function persistInBatches(datas: any[], topic: string, tenantId: string): Promise<void> {
+async function persistInBatches(datas: any[], topic: string, tenantId: string, skipWait: boolean = false): Promise<void> {
     if (datas.length === 0) {
         return;
     }
@@ -149,9 +201,100 @@ async function persistInBatches(datas: any[], topic: string, tenantId: string): 
         const batch = datas.slice(i, i + BATCH_SIZE);
         await produceModifiedMessages({ datas: batch }, topic, tenantId);
     }
+    if (skipWait) {
+        return;
+    }
     const waitTime = Math.max(5000, datas.length * 8);
     logger.info(`Waiting for ${waitTime} ms for persistence...`);
     await new Promise((res) => setTimeout(res, waitTime));
+}
+
+type MappingCreateAdapter = {
+    type: string;
+    searchExisting: (projectIds: string[], entityIds: string[], tenantId: string, requestInfo: RequestInfo) => Promise<Map<string, string>>;
+    entityIdFor: (mapping: any) => string;
+    create: (mapping: any, projectId: string, entityId: string, tenantId: string, requestInfo: RequestInfo) => Promise<string | undefined>;
+};
+
+/**
+ * Shared map-direction driver: adopt-existing pre-pass, bounded creates, status
+ * persistence, and lastError capture. Demap flows stay entity-specific — their
+ * semantics differ per type.
+ */
+async function processToBeMappedGroup(
+    mappings: any[],
+    boundaryToProjectId: Record<string, string>,
+    tenantId: string,
+    requestInfo: RequestInfo,
+    adapter: MappingCreateAdapter
+): Promise<void> {
+    logger.info(`Processing ${mappings.length} ${adapter.type} mappings`);
+
+    const updateBatch: any[] = [];
+    const failures: { mapping: any; errorMessage: string }[] = [];
+
+    const projectIds: string[] = [];
+    const entityIds: string[] = [];
+    for (const mapping of mappings) {
+        const projectId = boundaryToProjectId[mapping.boundaryCode];
+        if (projectId) projectIds.push(projectId);
+        try {
+            entityIds.push(adapter.entityIdFor(mapping));
+        } catch {
+            // Unresolvable rows are excluded from the pre-pass and fail with a
+            // descriptive error in the create stage below.
+        }
+    }
+
+    const existing = await adapter.searchExisting(projectIds, entityIds, tenantId, requestInfo);
+
+    const toCreate: any[] = [];
+    for (const mapping of mappings) {
+        const projectId = boundaryToProjectId[mapping.boundaryCode];
+        let entityId: string | undefined;
+        try {
+            entityId = adapter.entityIdFor(mapping);
+        } catch {
+            entityId = undefined;
+        }
+        const existingId = projectId && entityId ? existing.get(`${entityId}|${projectId}`) : undefined;
+        if (existingId) {
+            mapping.status = mappingStatuses.mapped;
+            mapping.mappingId = existingId;
+            updateBatch.push(mapping);
+        } else {
+            toCreate.push(mapping);
+        }
+    }
+    if (updateBatch.length > 0) {
+        logger.info(`Adopted ${updateBatch.length} already-existing project ${adapter.type} mappings`);
+    }
+
+    await runBoundedCreates(toCreate, async (mapping) => {
+        try {
+            const projectId = boundaryToProjectId[mapping.boundaryCode];
+            if (!projectId) {
+                throw new Error(`Project not found for boundary ${mapping.boundaryCode}`);
+            }
+            const entityId = adapter.entityIdFor(mapping);
+
+            const mappingId = await adapter.create(mapping, projectId, entityId, tenantId, requestInfo);
+
+            mapping.status = mappingStatuses.mapped;
+            if (mappingId) {
+                mapping.mappingId = mappingId;
+            }
+            updateBatch.push(mapping);
+        } catch (error) {
+            logger.error(`Failed to create project ${adapter.type} mapping for ${mapping.uniqueIdentifierForData}:`, error);
+            mapping.status = mappingStatuses.failed;
+            updateBatch.push(mapping);
+            failures.push({ mapping, errorMessage: error instanceof Error ? error.message : String(error) });
+        }
+    });
+
+    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId, toCreate.length === 0);
+    await persistMappingErrors(failures, tenantId);
 }
 
 /**
@@ -164,56 +307,37 @@ async function processResourceMappings(
     useruuid: string,
     requestInfo: RequestInfo
 ): Promise<void> {
-    logger.info(`Processing ${mappings.length} resource mappings`);
-
-    const RequestInfo = requestInfo;
-
-    const updateBatch: any[] = []; // Collect all updates for batch sending
-
-    const promises = mappings.map(async (mapping) => {
-        try {
-            const projectId = boundaryToProjectId[mapping.boundaryCode];
-            if (!projectId) {
-                throw new Error(`Project not found for boundary ${mapping.boundaryCode}`);
+    await processToBeMappedGroup(mappings, boundaryToProjectId, tenantId, requestInfo, {
+        type: 'resource',
+        searchExisting: (projectIds, _entityIds, tenant, RequestInfo) =>
+            searchProjectResourcesByProjects(projectIds, tenant, RequestInfo),
+        entityIdFor: (mapping) => {
+            if (!mapping?.uniqueIdentifierForData) {
+                throw new Error(`Missing product variant ID for resource mapping`);
             }
-
+            return mapping.uniqueIdentifierForData;
+        },
+        create: async (mapping, projectId, entityId, tenant, RequestInfo) => {
             const ProjectResource = {
-                tenantId,
+                tenantId: tenant,
                 projectId,
                 resource: {
-                    productVariantId: mapping.uniqueIdentifierForData,
+                    productVariantId: entityId,
                     type: "DRUG",
                     isBaseUnitVariant: false,
                 },
-                startDate: null, // Set appropriate dates
+                startDate: null,
                 endDate: null,
             };
-
             const response = await createProjectResource({ RequestInfo, ProjectResource });
-
-            mapping.status = mappingStatuses.mapped;
-            if (response?.ProjectResource?.id) {
-                mapping.mappingId = response.ProjectResource.id;
-            }
-
-            updateBatch.push(mapping); // Collect instead of sending immediately
-        } catch (error) {
-            logger.error(`Failed to create project resource for ${mapping.uniqueIdentifierForData}:`, error);
-
-            // Mark mapping as failed
-            mapping.status = mappingStatuses.failed;
-            updateBatch.push(mapping); // Collect failed ones too
-        }
+            return response?.ProjectResource?.id;
+        },
     });
-
-    await Promise.all(promises);
-
-    // Send all updates in batches with chunking - prevents Kafka message size limits
-    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
- * Process facility mappings
+ * Process facility mappings — project facilities live under the root tenant,
+ * so both search and create use tenantId.split(".")[0] inside the adapter.
  */
 async function processFacilityMappings(
     mappings: any[],
@@ -223,54 +347,35 @@ async function processFacilityMappings(
     useruuid: string,
     requestInfo: RequestInfo
 ): Promise<void> {
-    logger.info(`Processing ${mappings.length} facility mappings`);
-
-    const RequestInfo = requestInfo;
-
-    const updateBatch: any[] = []; // Collect all updates for batch sending
-
-    const promises = mappings.map(async (mapping) => {
-        try {
-            const projectId = boundaryToProjectId[mapping.boundaryCode];
+    await processToBeMappedGroup(mappings, boundaryToProjectId, tenantId, requestInfo, {
+        type: 'facility',
+        searchExisting: (projectIds, entityIds, tenant, RequestInfo) =>
+            searchProjectFacilitiesByProjects(projectIds, tenant.split(".")?.[0], RequestInfo, entityIds),
+        entityIdFor: (mapping) => {
             const facilityId = facilityMap[mapping.uniqueIdentifierForData];
-
-            if (!projectId || !facilityId) {
-                throw new Error(`Missing project/facility ID for ${mapping.uniqueIdentifierForData}`);
+            if (!facilityId) {
+                throw new Error(`Missing facility ID for ${mapping.uniqueIdentifierForData}`);
             }
-
+            return facilityId;
+        },
+        create: async (mapping, projectId, entityId, tenant, RequestInfo) => {
             const ProjectFacility = {
-                tenantId: tenantId.split(".")?.[0],
+                tenantId: tenant.split(".")?.[0],
                 projectId,
-                facilityId,
+                facilityId: entityId,
                 startDate: null,
                 endDate: null
             };
-
             const response = await createProjectFacility({ RequestInfo, ProjectFacility });
-
-            mapping.status = mappingStatuses.mapped;
-            if (response?.ProjectFacility?.id) {
-                mapping.mappingId = response.ProjectFacility.id;
-            }
-
-            updateBatch.push(mapping); // Collect instead of sending immediately
-        } catch (error) {
-            logger.error(`Failed to create project facility for ${mapping.uniqueIdentifierForData}:`, error);
-
-            // Mark mapping as failed
-            mapping.status = mappingStatuses.failed;
-            updateBatch.push(mapping); // Collect failed ones too
-        }
+            return response?.ProjectFacility?.id;
+        },
     });
-
-    await Promise.all(promises);
-
-    // Send all updates in batches with chunking - prevents Kafka message size limits
-    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
- * Process user mappings
+ * Process user mappings — rows whose user was never created (HRMS failure or
+ * sheet-invalid row) are marked `skipped` before delegation so the campaign can
+ * still complete; the shared driver handles the rest.
  */
 async function processUserMappings(
     mappings: any[],
@@ -280,61 +385,47 @@ async function processUserMappings(
     useruuid: string,
     requestInfo: RequestInfo
 ): Promise<void> {
-    logger.info(`Processing ${mappings.length} user mappings`);
+    const skipped: any[] = [];
+    const eligible: any[] = [];
+    for (const mapping of mappings) {
+        if (!userMap[mapping.uniqueIdentifierForData]) {
+            mapping.status = mappingStatuses.skipped;
+            skipped.push(mapping);
+            logger.info(`Skipping user mapping for ${mapping.uniqueIdentifierForData} — user not created`);
+        } else {
+            eligible.push(mapping);
+        }
+    }
+    if (skipped.length > 0) {
+        await persistInBatches(skipped, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId, true);
+    }
+    if (eligible.length === 0) {
+        return;
+    }
 
-    const RequestInfo = requestInfo;
-
-    const updateBatch: any[] = []; // Collect all updates for batch sending
-
-    const promises = mappings.map(async (mapping) => {
-        try {
-            const projectId = boundaryToProjectId[mapping.boundaryCode];
+    await processToBeMappedGroup(eligible, boundaryToProjectId, tenantId, requestInfo, {
+        type: 'user',
+        searchExisting: (projectIds, entityIds, tenant, RequestInfo) =>
+            searchProjectStaffByProjects(projectIds, tenant, RequestInfo, entityIds),
+        entityIdFor: (mapping) => {
             const userId = userMap[mapping.uniqueIdentifierForData];
-
-            // If the user wasn't created (HRMS failure or sheet-invalid row),
-            // skip the project-staff API call entirely. Marking the mapping
-            // `skipped` lets the mapping monitor count it as resolved so the
-            // campaign can still complete.
             if (!userId) {
-                mapping.status = mappingStatuses.skipped;
-                updateBatch.push(mapping);
-                logger.info(`Skipping user mapping for ${mapping.uniqueIdentifierForData} — user not created`);
-                return;
+                throw new Error(`Missing user ID for ${mapping.uniqueIdentifierForData}`);
             }
-
-            if (!projectId) {
-                throw new Error(`Missing project ID for ${mapping.uniqueIdentifierForData}`);
-            }
-
+            return userId;
+        },
+        create: async (mapping, projectId, entityId, tenant, RequestInfo) => {
             const ProjectStaff = {
-                tenantId,
+                tenantId: tenant,
                 projectId,
-                userId,
+                userId: entityId,
                 startDate: null,
                 endDate: null,
             };
-
             const response = await createStaff({ RequestInfo, ProjectStaff });
-
-            mapping.status = mappingStatuses.mapped;
-            if (response?.ProjectStaff?.id) {
-                mapping.mappingId = response.ProjectStaff.id;
-            }
-
-            updateBatch.push(mapping); // Collect instead of sending immediately
-        } catch (error) {
-            logger.error(`Failed to create project staff for ${mapping.uniqueIdentifierForData}:`, error);
-
-            // Mark mapping as failed
-            mapping.status = mappingStatuses.failed;
-            updateBatch.push(mapping); // Collect failed ones too
-        }
+            return response?.ProjectStaff?.id;
+        },
     });
-
-    await Promise.all(promises);
-
-    // Send all updates in batches with chunking - prevents Kafka message size limits
-    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
@@ -357,8 +448,7 @@ async function processResourceDemappings(
         } catch (error) {
             logger.error(`Failed to delete resource mapping for ${mapping.uniqueIdentifierForData}:`, error);
 
-            // Mark mapping as failed
-            mapping.status = mappingStatuses.failed;
+            mapping.status = mappingStatuses.deMapFailed;
             failedBatch.push(mapping); // Collect failed ones
         }
     });
@@ -405,8 +495,7 @@ async function processFacilityDemappings(
         } catch (error) {
             logger.error(`Failed to demap facility ${mapping.uniqueIdentifierForData}:`, error);
 
-            // Mark mapping as failed instead of deleting
-            mapping.status = mappingStatuses.failed;
+            mapping.status = mappingStatuses.deMapFailed;
             failedBatch.push(mapping); // Collect failed ones
         }
     });
@@ -460,8 +549,7 @@ async function processUserDemappings(
         } catch (error) {
             logger.error(`Failed to demap user ${mapping.uniqueIdentifierForData}:`, error);
 
-            // Mark mapping as failed instead of deleting
-            mapping.status = mappingStatuses.failed;
+            mapping.status = mappingStatuses.deMapFailed;
             failedBatch.push(mapping); // Collect failed ones
         }
     });

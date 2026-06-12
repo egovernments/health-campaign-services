@@ -2022,25 +2022,31 @@ export async function checkCampaignDataCompletionStatus(campaignNumber: string, 
  *
  * Returns: { allCompleted, anyFailed, totalMappings, completedMappings, failedMappings, pendingMappings }
  */
-export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string, type?: string) {
+/**
+ * The terminal/retryable failure split depends on maxRetries — pass it explicitly
+ * when the caller's policy differs from the service default.
+ */
+export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string, type?: string, maxRetries: number = config.mapping.maxRetries) {
   try {
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
 
     const queryString = `
       SELECT
         status,
-        COUNT(*) as count
+        COUNT(*) as count,
+        COUNT(*) FILTER (WHERE retryCount >= $3) as terminalcount
       FROM ${tableName}
       WHERE campaignNumber = $1
         AND ($2::text IS NULL OR type = $2)
       GROUP BY status
     `;
 
-    const result = await executeQuery(queryString, [campaignNumber, type ?? null]);
+    const result = await executeQuery(queryString, [campaignNumber, type ?? null, maxRetries]);
 
     let totalMappings = 0;
     let completedMappings = 0;
     let failedMappings = 0;
+    let terminallyFailedMappings = 0;
 
     result.rows.forEach((row: any) => {
       const count = parseInt(row.count);
@@ -2052,8 +2058,9 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
         row.status === mappingStatuses.skipped
       ) {
         completedMappings += count;
-      } else if (row.status === mappingStatuses.failed) {
+      } else if (row.status === mappingStatuses.failed || row.status === mappingStatuses.deMapFailed) {
         failedMappings += count;
+        terminallyFailedMappings += parseInt(row.terminalcount ?? '0');
       }
     });
 
@@ -2066,6 +2073,8 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
       totalMappings,
       completedMappings,
       failedMappings,
+      terminallyFailedMappings,
+      retryableFailedMappings: failedMappings - terminallyFailedMappings,
       pendingMappings: totalMappings - completedMappings - failedMappings
     };
 
