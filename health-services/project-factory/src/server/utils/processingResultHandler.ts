@@ -1425,6 +1425,10 @@ async function processUsersSimple(
     // this to preserve their existing mappings (don't demap a user just because
     // a later sheet upload had a validation error on their row).
     const invalidUserPhones = new Set<string>();
+    // Phones explicitly present in this upload with a recognized usage value.
+    // handleUserBoundaryMappings only demaps phones in this set — absence from
+    // the sheet preserves existing mappings (incl. adopted external staff).
+    const sheetUserPhones = new Set<string>();
     let savedCount = 0;
     let updatedCount = 0;
 
@@ -1454,6 +1458,9 @@ async function processUsersSimple(
         const sheetRowStatus = rowJson?.[campaignDataRowFields.status];
         const isInvalidFromSheet = sheetRowStatus === sheetDataRowStatuses.INVALID;
         if (isInvalidFromSheet) invalidUserPhones.add(phoneNumber);
+        if (!isInvalidFromSheet && (usage === usageColumnStatus.active || usage === usageColumnStatus.inactive)) {
+            sheetUserPhones.add(phoneNumber);
+        }
 
         const currentUser = currentUserMap.get(phoneNumber);
         const otherUser = otherUserMap.get(phoneNumber);
@@ -1566,23 +1573,27 @@ async function processUsersSimple(
 
     // Step 5: Handle boundary mappings once across all pages — invalidUserPhones
     // lets the helper preserve mappings for users whose sheet row failed validation.
-    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings, invalidUserPhones);
+    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings, invalidUserPhones, sheetUserPhones);
 
     logger.info(`User processing completed: ${savedCount} saved, ${updatedCount} updated, ${userBoundaryMappings.length} mappings processed`);
     return savedCount + updatedCount;
 }
 
 /**
- * Handle user boundary mappings - active users get mapped, inactive get demapped.
- * `invalidUserPhones` lists users whose sheet row was sheet-invalid in this
- * upload — their existing mappings are preserved (not demapped) so a transient
- * validation error on a re-upload doesn't tear down a working user's mapping.
+ * Handle user boundary mappings — demap is sheet-presence-driven, never
+ * absence-driven: only phones in `sheetUserPhones` (explicitly Active or
+ * Inactive in this upload) can be demapped. An Inactive phone contributes no
+ * new mapping keys so all its mappings demap; an Active phone demaps only
+ * stale boundaries. Phones absent from the sheet keep their mappings —
+ * including staff adopted from health-project that PF never created.
+ * `invalidUserPhones` preserves mappings for sheet-invalid rows.
  */
-async function handleUserBoundaryMappings(
+export async function handleUserBoundaryMappings(
     campaignNumber: string,
     tenantId: string,
     newMappings: any[],
-    invalidUserPhones: Set<string> = new Set()
+    invalidUserPhones: Set<string> = new Set(),
+    sheetUserPhones: Set<string> = new Set()
 ): Promise<void> {
     // Get existing mappings for this campaign
     const existingMappings = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId);
@@ -1610,12 +1621,13 @@ async function handleUserBoundaryMappings(
         }
     });
 
-    // Prepare mappings to be demapped (exist in DB but not in new mappings).
-    // Skip mappings whose user appears in this sheet but with sheet-invalid
-    // status — preserving their existing mapping until the row is fixed.
+    // Prepare mappings to be demapped — only for phones explicitly present in
+    // this upload (Active/Inactive). Absent phones are preserved so partial or
+    // target-only updates never tear down mappings PF didn't create.
     const mappingsToDemap: any[] = [];
     existingMappings.forEach((existing: any) => {
         if (invalidUserPhones.has(existing.uniqueIdentifierForData)) return;
+        if (!sheetUserPhones.has(existing.uniqueIdentifierForData)) return;
         const key = `${existing.uniqueIdentifierForData}#${existing.boundaryCode}`;
         if (!newMappingSet.has(key) && existing.status !== mappingStatuses.toBeDeMapped) {
             mappingsToDemap.push({
