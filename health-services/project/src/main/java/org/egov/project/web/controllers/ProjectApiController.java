@@ -224,9 +224,17 @@ public class ProjectApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest
     ) throws Exception {
+
+        int projectIdCount = 0;
+        if (projectFacilitySearchRequest.getProjectFacility() != null
+                && projectFacilitySearchRequest.getProjectFacility().getProjectId() != null) {
+            projectIdCount =  projectFacilitySearchRequest.getProjectFacility().getProjectId().size();
+        }
+
+
         ProjectFacilityBulkResponse response = projectFacilityService.searchFacilities(
                 projectFacilitySearchRequest,
-                urlParams.getLimit(),
+                projectIdCount > 1000 ? projectIdCount : urlParams.getLimit(),
                 urlParams.getOffset(),
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
