@@ -5,7 +5,7 @@ import { throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 
 export async function fetchProductVariants(pvarIds: string[], tenantId?: string, requestInfo?: RequestInfo) {
-    const CHUNK_SIZE = 100;
+    const CHUNK_SIZE = config.productVariant.searchBatchSize;
     const allProductVariants: any[] = [];
     const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: tenantId };
 

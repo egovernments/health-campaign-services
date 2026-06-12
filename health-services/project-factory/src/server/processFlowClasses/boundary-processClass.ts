@@ -61,7 +61,7 @@ export class TemplateClass {
                 mappingDatasToBePersisted.push(mappingDataFromSheet[i]);
             }
         }
-        let batchSize = 100;
+        let batchSize = config.boundary.mappingPersistBatchSize;
         for (let i = 0; i < mappingDatasToBePersisted.length; i += batchSize) {
             const batch = mappingDatasToBePersisted.slice(i, i + batchSize);
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, resourceDetails?.tenantId);
@@ -533,7 +533,7 @@ export class TemplateClass {
 
 
     private static async persistInBatches(datas: any[], topic: string, tenantId: string): Promise<void> {
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.boundary.persistBatchSize;
         for (let i = 0; i < datas.length; i += BATCH_SIZE) {
             const batch = datas.slice(i, i + BATCH_SIZE);
             await produceModifiedMessages({ datas: batch }, topic, tenantId);

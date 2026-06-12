@@ -115,6 +115,7 @@ import { searchProjectTypeCampaignService } from '../service/campaignManageServi
 import { sendCampaignFailureMessage } from '../utils/campaignFailureHandler';
 import { pollUntilCount, pollUntilCountFn } from '../utils/genericUtils';
 import { getSheetDataCount } from '../utils/excelIngestionUtils';
+import config from '../config';
 
 const searchCampaignMock = searchProjectTypeCampaignService as jest.MockedFunction<typeof searchProjectTypeCampaignService>;
 const sendFailureMock = sendCampaignFailureMessage as jest.MockedFunction<typeof sendCampaignFailureMessage>;
@@ -380,7 +381,10 @@ describe('processingResultHandler: persistence gate uses true count (no 5000 cap
         expect(pollUntilCountFnMock).toHaveBeenCalledWith(
             expect.any(Function),
             7000,
-            expect.objectContaining({ stallTimeoutMs: 120_000, pollIntervalMs: 10_000 })
+            expect.objectContaining({
+                stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs,
+                pollIntervalMs: config.excelIngestion.persistencePollIntervalMs,
+            })
         );
         // … and the old array-length poll was NOT used for the gate.
         expect(pollUntilCountMock).not.toHaveBeenCalled();

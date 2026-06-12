@@ -144,7 +144,7 @@ async function persistInBatches(datas: any[], topic: string, tenantId: string): 
         return;
     }
 
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = config.mapping.persistBatchSize;
     for (let i = 0; i < datas.length; i += BATCH_SIZE) {
         const batch = datas.slice(i, i + BATCH_SIZE);
         await produceModifiedMessages({ datas: batch }, topic, tenantId);

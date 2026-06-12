@@ -262,6 +262,19 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         return null;
     }
     
+    private String resolveBoundaryCode(Map<String, Object> facility) {
+        Object code = facility.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+        if (code == null || code.toString().trim().isEmpty()) {
+            code = facility.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY");
+        }
+        if (code == null) {
+            return "";
+        }
+        String value = code.toString().trim();
+        int comma = value.indexOf(',');
+        return comma >= 0 ? value.substring(0, comma).trim() : value;
+    }
+
     private Map<String, Object> transformPermanentFacilityToSheetFormat(Map<String, Object> facility) {
         // Transform facility using the same pattern as project-factory transform configs
         Map<String, Object> transformed = new HashMap<>();
@@ -307,7 +320,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             
             // For each facility, find its boundary path and populate boundary columns
             for (Map<String, Object> facility : facilities) {
-                String localityCode = (String) facility.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+                String localityCode = resolveBoundaryCode(facility);
                 if (localityCode != null && !localityCode.isEmpty()) {
                     List<String> boundaryPath = findBoundaryPathFromLocalityCode(localityCode, codeToEnrichedBoundary);
                     populateBoundaryColumnsFromPath(facility, boundaryPath, hierarchyRelations, 
@@ -435,6 +448,10 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             if (facilityId != null && !facilityId.trim().isEmpty()) {
                 // Facility has ID - ALWAYS add campaign facility (replaces permanent if exists)
                 if (facilityMap.containsKey(facilityId)) {
+                    Object permanentBoundary = facilityMap.get(facilityId).get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+                    if (permanentBoundary != null && !permanentBoundary.toString().trim().isEmpty()) {
+                        facility.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", permanentBoundary);
+                    }
                     log.debug("Replaced permanent facility with campaign facility for ID: {} (campaign takes precedence)", facilityId);
                 } else {
                     log.debug("Added existing campaign facility with ID: {}", facilityId);
@@ -461,31 +478,27 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             String key = entry.getKey();
             Map<String, Object> facility = entry.getValue();
             String facilityName = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_NAME");
-            
+
             if (facilityName != null && !facilityName.trim().isEmpty()) {
-                String existingKey = nameToKeyMap.get(facilityName);
-                
+                String dedupKey = facilityName + "|" + resolveBoundaryCode(facility);
+                String existingKey = nameToKeyMap.get(dedupKey);
+
                 if (existingKey == null) {
-                    // First occurrence of this name
                     finalMap.put(key, facility);
-                    nameToKeyMap.put(facilityName, key);
+                    nameToKeyMap.put(dedupKey, key);
                 } else {
-                    // Duplicate name found - check which one is campaign-related
                     boolean isCurrentFromCampaign = key.startsWith("NEW_"); // Campaign data (new facilities)
                     boolean isExistingFromCampaign = existingKey.startsWith("NEW_"); // Existing campaign data
-                    
+
                     if (isCurrentFromCampaign && !isExistingFromCampaign) {
-                        // Current is from campaign, existing is from API - replace API with campaign
                         finalMap.remove(existingKey);
                         finalMap.put(key, facility);
-                        nameToKeyMap.put(facilityName, key);
+                        nameToKeyMap.put(dedupKey, key);
                         log.debug("Replaced API permanent facility with campaign facility for name: {}", facilityName);
                     } else if (!isCurrentFromCampaign && isExistingFromCampaign) {
-                        // Current is from API, existing is from campaign - keep campaign, skip API
                         log.debug("Skipped API permanent facility, keeping campaign facility for name: {}", facilityName);
                     } else {
-                        // Both are same type (both API or both campaign) - keep first occurrence
-                        log.debug("Skipped duplicate facility with name: {} (keeping first occurrence)", facilityName);
+                        log.debug("Skipped duplicate facility with name+boundary: {} (keeping first occurrence)", dedupKey);
                     }
                 }
             }

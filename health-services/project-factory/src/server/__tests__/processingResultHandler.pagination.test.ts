@@ -94,6 +94,17 @@ jest.mock('../config', () => ({
         DB_CONFIG: { DB_CAMPAIGN_DATA_TABLE_NAME: 'eg_cm_campaign_data' },
         // Page size 1 → small fixtures span multiple pages.
         excelIngestion: { sheetFetchPageSize: 1, persistenceStallTimeoutMs: 120000, persistencePollIntervalMs: 10000 },
+        batchSize: 100,
+        project: { creationBatchSize: 20 },
+        boundary: { mappingPersistBatchSize: 100, persistBatchSize: 100 },
+        facility: { persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50 },
+        user: { mappingPersistBatchSize: 100, persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50, validationSearchBatchSize: 50, individualSearchBatchSize: 50 },
+        workerRegistry: { searchBatchSize: 50, updateBatchSize: 100 },
+        mapping: { kafkaBatchSize: 30, persistBatchSize: 100 },
+        attendanceRegister: { attendeePersistBatchSize: 100, registerPersistBatchSize: 100, registerApiBatchSize: 100 },
+        resource: { activityBatchSize: 10 },
+        productVariant: { searchBatchSize: 100 },
+        sheetData: { persistBatchSize: 100 },
     },
 }));
 

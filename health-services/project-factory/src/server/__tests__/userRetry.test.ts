@@ -53,6 +53,17 @@ jest.mock('../config', () => ({
         kafka: { KAFKA_UPDATE_SHEET_DATA_TOPIC: 'update-sheet' },
         host: { hrmsHost: 'http://hrms/', healthIndividualHost: 'http://individual/' },
         paths: { hrmsEmployeeCreate: 'create', healthIndividualSearch: 'individual/search' },
+        batchSize: 100,
+        project: { creationBatchSize: 20 },
+        boundary: { mappingPersistBatchSize: 100, persistBatchSize: 100 },
+        facility: { persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50 },
+        user: { mappingPersistBatchSize: 100, persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50, validationSearchBatchSize: 50, individualSearchBatchSize: 50 },
+        workerRegistry: { searchBatchSize: 50, updateBatchSize: 100 },
+        mapping: { kafkaBatchSize: 30, persistBatchSize: 100 },
+        attendanceRegister: { attendeePersistBatchSize: 100, registerPersistBatchSize: 100, registerApiBatchSize: 100 },
+        resource: { activityBatchSize: 10 },
+        productVariant: { searchBatchSize: 100 },
+        sheetData: { persistBatchSize: 100 },
     },
 }));
 

@@ -357,7 +357,7 @@ export class TemplateClass {
             }
         }
 
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.attendanceRegister.attendeePersistBatchSize;
 
         for (let i = 0; i < toSave.length; i += BATCH_SIZE) {
             const batch = toSave.slice(i, i + BATCH_SIZE);

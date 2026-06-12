@@ -1,4 +1,4 @@
-import { Kafka, logLevel, EachMessagePayload } from 'kafkajs';
+import { Kafka, logLevel, EachMessagePayload, ConfigResourceTypes } from 'kafkajs';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
@@ -10,16 +10,39 @@ import { handleFacilityBatch } from '../utils/facilityBatchHandler';
 import { handleUserBatch } from '../utils/userBatchHandler';
 import { handleMappingBatch } from '../utils/mappingBatchHandler';
 import { handleCampaignFailure } from '../utils/campaignFailureHandler';
-import { getConsumerTopicPattern, stripTopicPrefix, validateConsumerTopicPrefix } from '../utils/kafkaTopicUtils';
+import { getConsumerTopicPattern, stripTopicPrefix, validateConsumerTopicPrefix, getStartupTopicsToCreate } from '../utils/kafkaTopicUtils';
 
 
 const kafka = new Kafka({
     clientId: 'project-factory-consumer',
     brokers: config?.host?.KAFKA_BROKER_HOST?.split(',').map(b => b.trim()),
     logLevel: logLevel.NOTHING,
+    // Client-level retry governs the cluster metadata operations used by admin createTopics and by
+    // consumer.connect()/subscribe() (the consumer's own `retry` only covers the fetch loop). Raising
+    // it lets startup ride out the brief leadership election triggered by bulk topic creation instead
+    // of throwing KafkaJSNumberOfRetriesExceeded.
+    retry: { retries: config?.kafka?.KAFKA_CONSUMER_RETRIES, initialRetryTime: 1000 },
 });
 
 async function ensureTopicsExist(topics: string[]) {
+    // Base topic names that carry full CampaignDetails (complete boundaries[], up to 35k entries).
+    // In central instance mode the caller passes tenant-prefixed names ({state}-{base}); the
+    // isLargeTopic matcher handles both bare and prefixed forms so no extra logic is needed here.
+    const largeMessageBaseTopics = new Set([
+        config.kafka.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+        config.kafka.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+        config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
+        config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC,
+    ]);
+    const isLargeTopic = (t: string): boolean =>
+        largeMessageBaseTopics.has(t) ||
+        [...largeMessageBaseTopics].some(base => t.endsWith(`-${base}`));
+
+    const largeMessageConfigEntries = [
+        { name: 'max.message.bytes', value: String(config.kafka.KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES) },
+        { name: 'compression.type', value: 'gzip' },
+    ];
+
     const admin = kafka.admin();
     try {
         await admin.connect();
@@ -27,10 +50,43 @@ async function ensureTopicsExist(topics: string[]) {
         const missing = topics.filter(t => !existing.has(t));
         if (missing.length > 0) {
             await admin.createTopics({
-                topics: missing.map(topic => ({ topic, numPartitions: 1, replicationFactor: 1 })),
+                topics: missing.map(topic => ({
+                    topic,
+                    ...(isLargeTopic(topic) ? { configEntries: largeMessageConfigEntries } : {}),
+                })),
                 waitForLeaders: true,
             });
             logger.info(`KAFKA :: ADMIN :: Created missing topics: ${missing.join(', ')}`);
+        }
+        // Update already-existing large-message topics that don't yet have the target config.
+        const existingLarge = topics.filter(t => existing.has(t) && isLargeTopic(t));
+        if (existingLarge.length > 0) {
+            const describeResult = await admin.describeConfigs({
+                resources: existingLarge.map(name => ({
+                    type: ConfigResourceTypes.TOPIC,
+                    name,
+                    configNames: ['max.message.bytes'],
+                })),
+                includeSynonyms: false,
+            });
+            const targetMaxBytes = String(config.kafka.KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES);
+            const topicsNeedingUpdate = describeResult.resources
+                .filter(r => {
+                    const entry = r.configEntries.find(e => e.configName === 'max.message.bytes');
+                    return !entry || entry.configValue !== targetMaxBytes;
+                })
+                .map(r => r.resourceName);
+            if (topicsNeedingUpdate.length > 0) {
+                await admin.alterConfigs({
+                    validateOnly: false,
+                    resources: topicsNeedingUpdate.map(name => ({
+                        type: ConfigResourceTypes.TOPIC,
+                        name,
+                        configEntries: largeMessageConfigEntries,
+                    })),
+                });
+                logger.info(`KAFKA :: ADMIN :: Set max.message.bytes=${config.kafka.KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES} + gzip on topics: ${topicsNeedingUpdate.join(', ')}`);
+            }
         }
     } catch (err) {
         logger.warn(`KAFKA :: ADMIN :: Could not ensure topics exist: ${err}`);
@@ -105,7 +161,20 @@ export async function listener() {
             config.kafka.KAFKA_TEST_TOPIC,
         ];
 
-        await ensureTopicsExist(baseTopics);
+        // Produce-only topics that are never subscribed here but must exist with the
+        // 4MB + gzip config before the service starts producing large campaign payloads.
+        const produceOnlyLargeTopics = [
+            config.kafka.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+            config.kafka.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+        ];
+
+        // In central instance, expand to tenant-prefixed topics so every required topic
+        // exists before the regex subscription is evaluated (KafkaJS only matches topics
+        // that exist at subscribe time and does not rediscover new ones afterwards).
+        await ensureTopicsExist([
+            ...getStartupTopicsToCreate(baseTopics),
+            ...getStartupTopicsToCreate(produceOnlyLargeTopics),
+        ]);
 
         await consumer.connect();
         for (const baseTopic of baseTopics) {

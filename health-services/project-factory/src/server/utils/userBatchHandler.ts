@@ -598,7 +598,7 @@ export async function fetchExistingUsersByPhone(
     const result: Record<string, ExistingHrmsUser> = {};
     if (phoneNumbers.length === 0) return result;
 
-    const searchBatchSize = 50;
+    const searchBatchSize = config.user.individualSearchBatchSize;
     logger.info(`Retry pre-check: searching Individual service for ${phoneNumbers.length} phone(s) in ${Math.ceil(phoneNumbers.length / searchBatchSize)} batch(es)`);
 
     for (let i = 0; i < phoneNumbers.length; i += searchBatchSize) {

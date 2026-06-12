@@ -125,10 +125,8 @@ async function getAllFacilities(tenantId: string, requestInfo?: RequestInfo) {
       facilitySearchBody
     );
     for (const facility of batch) {
-      const name = facility?.name?.trim();
-      if (!name) continue;
-      // Overwrite previous if same name found
-      facilityMap.set(name, facility);
+      if (!facility?.id) continue;
+      facilityMap.set(facility.id, facility);
     }
     facilitySearchParams.offset += 50;
   }
@@ -162,9 +160,10 @@ async function getFacilitiesViaIds(
 
   const searchedFacilities: any[] = [];
 
-  // Split ids into chunks of 50
-  for (let i = 0; i < ids.length; i += 50) {
-    const chunkIds = ids.slice(i, i + 50);
+  // Split ids into chunks
+  const facilitySearchBatchSize = config.facility.searchBatchSize;
+  for (let i = 0; i < ids.length; i += facilitySearchBatchSize) {
+    const chunkIds = ids.slice(i, i + facilitySearchBatchSize);
     facilitySearchBody.Facility.id = chunkIds;
     await getAllFacilitiesInLoop(
       searchedFacilities,
@@ -425,7 +424,7 @@ async function getUserWithMobileNumbers(
   logger.debug(
     "mobileNumbers to search: " + getFormattedStringForDebug(mobileNumbers)
   );
-  const BATCH_SIZE = 50;
+  const BATCH_SIZE = config.user.searchBatchSize;
   let allResults: any[] = [];
 
   // Create an array of batch promises
@@ -711,7 +710,7 @@ async function getEmployeesBasedOnUuids(dataToCreate: any[], request: any) {
   const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
   logger.info(`Waiting for 10 seconds`);
   await new Promise((resolve) => setTimeout(resolve, 10000));
-  const chunkSize = 50;
+  const chunkSize = config.hrms.searchByUuidBatchSize;
   let employeesSearched: any[] = [];
 
   for (let i = 0; i < dataToCreate.length; i += chunkSize) {
@@ -765,7 +764,7 @@ async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
   const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
   logger.info(`Waiting for 10 seconds`);
   // await new Promise((resolve) => setTimeout(resolve, 10000));
-  const chunkSize = 50;
+  const chunkSize = config.hrms.searchByUsernameBatchSize;
   let foundUsernames = new Set<string>(); // ✅ Initialize resultSet properly
 
   for (let i = 0; i < dataToCreate.length; i += chunkSize) {
@@ -1532,9 +1531,10 @@ async function handleResouceDetailsError(request: any, error: any) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     const activities = request?.body?.Activities;
+    const activityBatchSize = config.resource.activityBatchSize;
     const chunkPromises = [];
-    for (let i = 0; i < activities.length; i += 10) {
-      const chunk = activities.slice(i, Math.min(i + 10, activities.length));
+    for (let i = 0; i < activities.length; i += activityBatchSize) {
+      const chunk = activities.slice(i, Math.min(i + activityBatchSize, activities.length));
       const activityObject: any = { Activities: chunk };
       chunkPromises.push(
         await produceModifiedMessages(

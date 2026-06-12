@@ -80,6 +80,7 @@ Multiple states share one deployment. Isolation is enforced at Kafka and DB leve
 - **Kafka produce**: prefix topic with `{tenantId}-` using `kafkaTopicUtils.getTopicName(baseTopic, tenantId)`.
 - **Kafka consume**: subscribe via regex pattern from `getConsumerTopicPattern(baseTopic)` — matches all tenant prefixes.
 - **Incoming topic**: strip prefix with `stripTopicPrefix(topic)` before handler lookup.
+- **Startup topic creation**: `Listener.ensureTopicsExist(getStartupTopicsToCreate(baseTopics))` pre-creates every `{tenant}-{baseTopic}` before subscribing. This is mandatory — KafkaJS regex subscriptions only match topics that exist at subscribe time and never rediscover new ones, so a tenant whose prefixed topic did not pre-exist would silently never be consumed until a restart. Create with broker-default replication (`KAFKA_TOPIC_REPLICATION_FACTOR` default `-1`) — never hardcode `replicationFactor: 1` on a multi-broker cluster. Client-level Kafka `retry` (`KAFKA_CONSUMER_RETRIES`) must be high enough for `subscribe()` to ride out the brief leadership election that bulk topic creation triggers.
 - **DB schema**: `getTableName(tableName, tenantId)` returns `{tenantId.split(".")[0]}.{tableName}` (e.g., `"ng.kaduna"` → `"ng.tablename"`).
 - **Exception**: topics listed in `config.kafka.KAFKA_NON_CENTRAL_INSTANCE_TOPICS` (e.g., email) are never prefixed.
 
@@ -90,7 +91,8 @@ All tenants share one DB schema (`config.DB_CONFIG.DB_SCHEMA`) and unprefixed Ka
 - Always use `kafkaTopicUtils.ts` for produce/subscribe — never build topic names inline.
 - Always use `getTableName(config.DB_CONFIG.DB_*_TABLE_NAME, tenantId)` — never inline schema strings.
 - `tenantId` must be typed as `TenantId` (branded) and passed explicitly — never read from module-level state.
-- `kafkaConsumerTopicPrefix` env var sets the regex prefix pattern for central-instance consumers.
+- **`CENTRAL_INSTANCE_TENANT_IDS`** (comma-separated, e.g. `ba,oy,ko`) is the single source of truth for central-instance Kafka: it drives both startup topic creation (`getStartupTopicsToCreate`) and the consumer subscription regex (`getEffectiveConsumerPrefix`), so the two can never drift. Parsing trims whitespace and ignores empty/extra commas.
+- `KAFKA_CONSUMER_TOPIC_PREFIX` is an explicit override of the derived regex (back-compat); when set it wins over `CENTRAL_INSTANCE_TENANT_IDS`. Startup fails fast if central instance is on and neither is set.
 
 ---
 
@@ -227,6 +229,7 @@ Never cast inside business logic.
 for (let i = 0; i < items.length; i += config.batchSize)
   await Promise.all(items.slice(i, i + config.batchSize).map(fn));
 ```
+- **Never hardcode a batch/chunk size.** Every batch/chunk/parallel-window size is env-configurable in `config/index.ts` (one key per operation, e.g. `config.project.creationBatchSize`, `config.facility.kafkaCreateBatchSize`, `config.user.individualSearchBatchSize`). New batching code must read from a config key and add the env var there (pattern `process.env.X ? parseInt(process.env.X, 10) : <default>`) — never a numeric literal in the loop. Defaults stay equal to the previous literal so behavior is unchanged until tuned.
 - Kafka concurrency capped at `MAX_CONCURRENT=10` (semaphore in `Listener.ts`). Do not raise without OOM analysis.
 - Release workbook / large object references after use — process memory limit is 3072 MB.
 
