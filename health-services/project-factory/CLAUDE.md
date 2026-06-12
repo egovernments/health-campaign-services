@@ -310,6 +310,7 @@ The mapping table (`eg_cm_campaign_mapping_data`) is **desired state**; `health-
 - Blocking policy is applied exactly once at conclusion from terminal counts (`checkCampaignMappingCompletionStatus` → `terminallyFailedMappings` / `retryableFailedMappings`; pass `maxRetries` explicitly when policy differs from `config.mapping.maxRetries`).
 - **Deploy order**: migrations (`retryCount`/`lastError` columns + `deMapFailed` backfill) MUST run before pods roll — `checkCampaignMappingCompletionStatus` references `retryCount` for ALL campaigns, old and new.
 - **External consumers**: `campaignStatusService` summaries and `mapping/_search` filters now surface `deMapFailed`; dashboards summing `failed` must include it.
+- **User demap is sheet-presence-driven, never absence-driven** (`handleUserBoundaryMappings`): only phones explicitly present in the current upload with usage `Active`/`Inactive` can be demapped — `Inactive` demaps all the user's mappings, `Active` demaps only stale boundaries. Phones absent from the sheet keep their mappings (incl. staff adopted from `health-project` that PF never created). Deactivation requires an explicit `Inactive` row.
 
 ---
 
