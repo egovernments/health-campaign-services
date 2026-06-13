@@ -1,28 +1,26 @@
-
-FROM --platform=linux/amd64 egovio/alpine-maven-builder-jdk-8:1-master-NA-6036091e AS build
+# ──────────────── BUILD STAGE ────────────────
+FROM maven:3.9.6-amazoncorretto-8-debian AS build
 ARG WORK_DIR
 WORKDIR /app
 
-# copy the project files
-COPY ${WORK_DIR}/pom.xml ./pom.xml
+# Copy POM, entrypoint script, and source
+COPY ${WORK_DIR}/pom.xml       ./pom.xml
 COPY build/maven/start.sh ./start.sh
+COPY ${WORK_DIR}/src           ./src
 
-# not useful for stateless builds
-# RUN mvn -B dependency:go-offline
-
-COPY ${WORK_DIR}/src ./src
-RUN mvn -B -f /app/pom.xml package
+# Build the app (skip tests for speed)
+RUN mvn -B -f pom.xml package -DskipTests
 
 
-# Create runtime image — amazoncorretto:8-alpine ships native manifests for
-# both linux/amd64 and linux/arm64, unlike the egovio wrapper image.
-FROM amazoncorretto:8-alpine
-
-
+# ─────────────── RUNTIME STAGE ───────────────
+FROM amazoncorretto:8-alpine AS runtime
 WORKDIR /opt/egov
 
-COPY --from=build /app/target/*.jar /app/start.sh /opt/egov/
+# Pull in the fat JAR and our startup script
+COPY --from=build /app/target/*.jar ./application.jar
+COPY --from=build /app/start.sh    ./start.sh
 
-RUN chmod +x /opt/egov/start.sh
+RUN chmod +x ./start.sh
 
-CMD ["/opt/egov/start.sh"]
+# Override any Alpine tini entrypoint and launch via shell
+ENTRYPOINT ["sh", "./start.sh"]
