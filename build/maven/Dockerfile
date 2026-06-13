@@ -1,6 +1,5 @@
 
-FROM egovio/alpine-maven-builder-jdk-8:1-master-NA-6036091e AS build
-#FROM ghcr.io/egovernments/alpine-maven-builder-jdk-8:1-master-na-6036091e AS build
+FROM --platform=linux/amd64 egovio/alpine-maven-builder-jdk-8:1-master-NA-6036091e AS build
 ARG WORK_DIR
 WORKDIR /app
 
@@ -15,9 +14,9 @@ COPY ${WORK_DIR}/src ./src
 RUN mvn -B -f /app/pom.xml package
 
 
-# Create runtime image
-FROM egovio/8-openjdk-alpine
-#FROM ghcr.io/egovernments/8-openjdk-alpine:latest
+# Create runtime image — amazoncorretto:8-alpine ships native manifests for
+# both linux/amd64 and linux/arm64, unlike the egovio wrapper image.
+FROM amazoncorretto:8-alpine
 
 
 WORKDIR /opt/egov
