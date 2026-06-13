@@ -43,6 +43,9 @@ public class Service {
     @JsonProperty("additionalDetails")
     private JsonNode additionalDetails = null;
 
+    @JsonProperty("additionalFields")
+    private JsonNode additionalFields = null;
+
     @JsonProperty("accountId")
     private String accountId = null;
 

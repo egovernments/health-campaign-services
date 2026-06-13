@@ -113,6 +113,7 @@ public class ServiceTaskTransformationService {
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
+        addAdditionalDetails(service.getAdditionalFields(), additionalDetails);
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         additionalDetails.put(CHECKLIST_NAME, mdmsService.getMDMSTransformerLocalizations(parts[1], tenantId));
@@ -142,6 +143,24 @@ public class ServiceTaskTransformationService {
                 .geoPoint(geoPoint)
                 .build();
         return serviceIndexV1;
+    }
+
+    private void addAdditionalDetails(JsonNode additionalFields, ObjectNode additionalDetails) {
+        if (additionalFields == null || !additionalFields.has("fields")) return;
+        JsonNode fields = additionalFields.get("fields");
+        if (fields == null || !fields.isArray()) return;
+        fields.forEach(field -> {
+            String key = field.path("key").asText(null);
+            JsonNode valueNode = field.get("value");
+            if (key == null || valueNode == null || valueNode.isNull()) return;
+            if (valueNode.isDouble() || valueNode.isFloat()) {
+                additionalDetails.put(key, valueNode.asDouble());
+            } else if (valueNode.isIntegralNumber()) {
+                additionalDetails.put(key, valueNode.asLong());
+            } else {
+                additionalDetails.put(key, valueNode.asText());
+            }
+        });
     }
 
     public void filterFinanceChecklists(List<ServiceIndexV1> serviceIndexV1List) {
