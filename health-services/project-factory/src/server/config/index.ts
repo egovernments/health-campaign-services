@@ -66,7 +66,8 @@ const config = {
     // Batch size for creating users (HRMS employees + workers) from table data.
     creationBatchSize: process.env.USER_CREATION_BATCH_SIZE ? parseInt(process.env.USER_CREATION_BATCH_SIZE, 10) : 100,
     // Batch size for user-create batches dispatched to Kafka.
-    kafkaCreateBatchSize: process.env.USER_KAFKA_CREATE_BATCH_SIZE ? parseInt(process.env.USER_KAFKA_CREATE_BATCH_SIZE, 10) : 30,
+    kafkaCreateBatchSize: process.env.USER_KAFKA_CREATE_BATCH_SIZE ? parseInt(process.env.USER_KAFKA_CREATE_BATCH_SIZE, 10) : 20,
+    KAFKA_CONSUMER_MAX_CONCURRENT: process.env.KAFKA_CONSUMER_MAX_CONCURRENT ? parseInt(process.env.KAFKA_CONSUMER_MAX_CONCURRENT, 10) : 5,
     // Chunk size for user search-by-mobile-number calls.
     searchBatchSize: process.env.USER_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_SEARCH_BATCH_SIZE, 10) : 50,
     // Chunk size for individual-id lookups during user validation.
@@ -178,7 +179,6 @@ const config = {
     // Client retries must tolerate the brief leadership election that follows bulk topic creation
     // (governs cluster metadata used by admin createTopics and consumer subscribe).
     KAFKA_CONSUMER_RETRIES: parseInt(process.env.KAFKA_CONSUMER_RETRIES || "10", 10) || 10,
-    KAFKA_CONSUMER_MAX_CONCURRENT: process.env.KAFKA_CONSUMER_MAX_CONCURRENT ? parseInt(process.env.KAFKA_CONSUMER_MAX_CONCURRENT, 10) : 5,
   },
 
   // Database configuration
