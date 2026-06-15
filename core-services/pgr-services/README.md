@@ -73,3 +73,11 @@ the citizen and will be updated by notifications whenever the status of the comp
 - Following are the Producer topic.
     - **save-pgr-request** :- This topic is used to create new complaint in the system.
     - **update-pgr-request** :- This topic is used to update the existing complaint in the systen.
+
+## What changed in v2.1 (nigeria-go-deep-2)
+
+The `v2.0 → master-nigeria-finalpull` window touched only the build for this service (2 commits) — no API, business-logic, DB-schema or Kafka changes:
+
+- Tracer dependency bumped from `2.9.0-SNAPSHOT` to `2.9.1-SNAPSHOT` (`9df5d1c`).
+- The OpenTelemetry artifacts shipped by the 2.9.1 tracer line (`opentelemetry-instrumentation-bom-alpha`, `opentelemetry-spring-boot-starter`) are **excluded** from the tracer dependency (`6381637`), so pgr-services opts out of the tracer's OTel auto-instrumentation.
+- The per-service `DataAccessExceptionHandler` (HCMPRE-1870 DB-error masking) rolled out to other health services in v2.1 was **not** added to pgr-services in this window.

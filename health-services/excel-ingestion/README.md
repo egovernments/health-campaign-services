@@ -1,196 +1,120 @@
-# Excel Ingestion Service
+# Excel Ingestion
 
-Excel Ingestion Service is a comprehensive Health Campaign Service that facilitates Excel template generation, processing, and sheet data management. The service supports full workflow including Excel template creation, file processing with validation, and temporary sheet data management. All functionality is exposed via REST APIs with async processing support.
+## 1. Purpose
 
-## Service Architecture Diagrams
+Excel Ingestion is the **shared Excel engine** for health campaigns. It does two jobs, kept deliberately simple:
 
-## 1. Excel Generation Flow (Async)
+1. **Generate** a ready-to-fill Excel template — pre-loaded with the campaign's boundary hierarchy, dropdowns, locked formula cells, localized column headers, and built-in validations — so a campaign manager downloads a sheet that is hard to fill in wrong.
+2. **Process** a filled-in sheet that comes back — open it, parse every row, validate it (correct boundaries, required fields, no stray whitespace, worker IDs that actually exist, dates inside the campaign window …), flag bad rows, and hand the clean data on.
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant ExcelIngestionService
-    participant boundary-service
-    participant localization-service
-    participant egov-mdms-service
-    participant filestore-service
-    
-    Client->>ExcelIngestionService: POST /v1/data/generate/_init<br/>(GenerateResourceRequest)
-    
-    Note over ExcelIngestionService: Validate Request & Store in DB
-    Note over ExcelIngestionService: Create Generation ID
-    
-    ExcelIngestionService-->>Client: 202 Accepted<br/>GenerateResourceResponse<br/>(id, status: PENDING)
-    
-    Note over ExcelIngestionService: Async Processing Starts
-    
-    ExcelIngestionService->>boundary-service: Fetch Boundary Hierarchy<br/>(tenantId, hierarchyType)
-    boundary-service-->>ExcelIngestionService: Boundary Hierarchy Data
-    
-    ExcelIngestionService->>localization-service: Fetch Localized Labels<br/>(locale, module, tenantId)
-    localization-service-->>ExcelIngestionService: Localized Messages
-    
-    ExcelIngestionService->>egov-mdms-service: Fetch Master Data<br/>(module config, schemas)
-    egov-mdms-service-->>ExcelIngestionService: MDMS Configuration
-    
-    Note over ExcelIngestionService: Generate Excel Sheets
-    Note over ExcelIngestionService: Create Workbook
-    Note over ExcelIngestionService: Sheet 1: Facility Sheet
-    Note over ExcelIngestionService: Sheet 2: User Sheet
-    Note over ExcelIngestionService: Sheet 3: Boundary Sheet
-    
-    ExcelIngestionService->>filestore-service: Upload Excel File<br/>(multipart file)
-    filestore-service-->>ExcelIngestionService: FileStore ID
-    
-    Note over ExcelIngestionService: Update DB Record<br/>status: COMPLETED, fileStoreId
-```
+In short: *"give me a sheet that's easy to fill, then check what comes back before it touches the campaign."*
 
-## 2. Excel Processing Flow (Async)
+It is **reusable**: facility sheets, user/worker sheets, boundary-target sheets and attendance-register sheets all run through the same generate-and-process pipeline. The two layers — template-building and row-parsing — are intentionally separate so a new sheet type is a small, isolated addition rather than a rewrite.
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant ExcelIngestionService
-    participant filestore-service
-    participant project-factory
-    participant Database
-    
-    Client->>ExcelIngestionService: POST /v1/data/process/_create<br/>(ProcessResourceRequest with fileStoreId)
-    
-    Note over ExcelIngestionService: Validate Request & Store in DB
-    Note over ExcelIngestionService: Create Processing ID
-    
-    ExcelIngestionService-->>Client: 202 Accepted<br/>ProcessResourceResponse<br/>(id, status: PENDING)
-    
-    Note over ExcelIngestionService: Async Processing Starts
-    
-    ExcelIngestionService->>filestore-service: Download Excel File<br/>(fileStoreId)
-    filestore-service-->>ExcelIngestionService: Excel File Data
-    
-    Note over ExcelIngestionService: Parse Excel Workbook
-    Note over ExcelIngestionService: Validate All Sheets
-    Note over ExcelIngestionService: Store Parsed Data in DB
-    
-    ExcelIngestionService->>Database: Save Sheet Data to<br/>eg_sheetdata_temp
-    
-    alt Processing Successful
-        Note over ExcelIngestionService: Update Processing Status<br/>status: COMPLETED
-        ExcelIngestionService->>project-factory: Send Processing Result<br/>(HCM_PROCESSING_RESULT_TOPIC)
-    else Processing Failed
-        Note over ExcelIngestionService: Update Processing Status<br/>status: FAILED with errors
-        ExcelIngestionService->>project-factory: Send Failure Result<br/>(HCM_PROCESSING_RESULT_TOPIC)
-    end
-```
+## 2. Business Flow
 
-## 3. Generation Search Flow
+- **During campaign setup**, the console (project-factory / admin UI) asks Excel Ingestion to **generate** a template for a campaign (`referenceId` = the campaign). The service pulls the boundary tree, master data and translations, builds the workbook, uploads it to filestore, and reports back a download link.
+- **A campaign manager fills the sheet offline** (facilities, users/workers, targets, or attendance) and uploads it back through the console.
+- The console hands the uploaded file to Excel Ingestion to **process**. The service parses and validates row by row, writes the clean rows to a short-lived staging table, and emits a **processing result** that project-factory listens for — that is how the loop closes and the campaign-creation flow continues.
+- **Bad rows don't block good ones.** Validation errors are reported per row (and written back into an annotated sheet) so the user can fix only what failed.
+- The whole exchange is **asynchronous with polling**: every long-running call returns immediately with an id and a `PENDING`/`QUEUED` status, and the caller **polls a `_search`** endpoint until the status turns `COMPLETED`/`FAILED`. There are no webhooks.
+
+## 3. Key APIs / Entry Points
+
+Base path `/excel-ingestion/v1/data`. Generation and processing are async (return `202` + an id to poll); the search and sheet endpoints are synchronous reads/cleanup.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /generate/_init` | Kick off template generation. Returns `202` + a generation id with status `QUEUED`. |
+| `POST /generate/_search` | Poll generation status; when `COMPLETED` it carries the `fileStoreId` of the finished template. |
+| `POST /process/_validation` | Dry-run: validate an uploaded sheet and report errors **without** committing parsed data. |
+| `POST /process/_create` | Validate **and** parse an uploaded sheet, stage the rows, and emit the processing result. Returns `202` + a processing id. |
+| `POST /process/_search` | Poll processing status and read back per-row validation results. |
+| `POST /sheet/_search` | Read the staged (temporary) parsed rows for a `referenceId` + `fileStoreId` + sheet. |
+| `POST /sheet/_delete` | Clean up staged rows for a `referenceId` + `fileStoreId` (query params). |
+
+**Kafka entry point (internal).** `generate/_init` does no heavy work on the HTTP thread: it publishes the request to the internal `excel-ingestion-generation-init` topic, and the service's **own consumer** (one record at a time, manual ack) does the actual generation. This is the only topic the service consumes.
+
+**Kafka outputs.** `save-generated-file` / `update-generated-file` (generation row + status), `save-processing-file` / `update-processing-file` (processing row + status), `save-sheet-data-temp` / `delete-sheet-data-temp` (staged parsed rows, written in chunks of 200), and **`hcm-processing-result`** — the topic **project-factory** consumes to close the loop. The persister (in the `configs/` repo) turns the `save-*`/`update-*` events into Postgres rows.
+
+**Swagger contract:** https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/health-campaign-services/master/health-services/excel-ingestion/excel-ingestion-swagger.yml — local copy: [`excel-ingestion-swagger.yml`](./excel-ingestion-swagger.yml).
+
+### Kafka topics
+
+| Topic | Dir | Purpose |
+|---|---|---|
+| `excel-ingestion-generation-init` | in | Template-generation requests (internal queue) |
+| `save-generated-file` | out | Persist generation row |
+| `update-generated-file` | out | Update generation status + fileStoreId |
+| `save-processing-file` | out | Persist processing row |
+| `update-processing-file` | out | Update processing status |
+| `save-sheet-data-temp` | out | Persist staged parsed rows (chunked) |
+| `delete-sheet-data-temp` | out | Clean up staged rows |
+| `hcm-processing-result` | out | Notify project-factory of the processing result |
+
+## 4. Dependencies
+
+- **boundary-service** — boundary hierarchy + relationships that fill the template's geography columns and dropdowns.
+- **egov-mdms** — schemas and per-environment config (which columns, which roles, attendance rules) so behaviour changes without a code release.
+- **egov-localization** — translated column headers, dropdown values and error messages.
+- **egov-filestore** — stores the generated template and supplies the uploaded file for processing.
+- **project-factory** — campaign lookups + bulk decrypt; also the **consumer of `hcm-processing-result`** that resumes campaign creation.
+- **facility / health-individual / worker-registry / egov-hrms / attendance** — looked up during validation (valid facility, valid worker ID, attendance register details, etc.).
+- **Kafka** — the internal generation-init trigger plus all `save-*`/`update-*`/result outputs.
+- **egov-persister** (deployed via the `configs/` repo) — actually writes the generation, processing and staged-row tables to Postgres off the `save-*`/`update-*` topics.
+- **Postgres** — three tables: `eg_ex_in_generated_files`, `eg_ex_in_excel_processing`, and `eg_ex_in_sheet_data_temp` (staging, auto-expires ~24h after creation).
+- **Caffeine (in-process cache)** — boundary, MDMS and localization lookups are cached so a large generate/process run doesn't re-fetch the same reference data.
+- **health-services-common / -models** — shared producer, clients, validators, POJOs.
+
+## 5. Processing Flow
+
+Both generation and processing are **async with polling**. The HTTP call returns a `202` and an id; the work happens off-thread and the caller polls `_search`. Generation is **event-driven**: the API only validates and queues, then an internal Kafka consumer (one record at a time) drives boundary/MDMS/localization fetch → build workbook → upload → status update. Processing parses the uploaded file, stages rows in chunks, and emits the result project-factory waits for.
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'actorBkg':'#F8746D','actorBorder':'#C9433E','actorTextColor':'#FFFFFF','actorLineColor':'#C9433E','signalColor':'#2C3E50','signalTextColor':'#2C3E50','noteBkgColor':'#57C7C7','noteTextColor':'#06302F','noteBorderColor':'#1B9E9E','labelBoxBkgColor':'#E0F7F4','labelBoxBorderColor':'#1B9E9E','labelTextColor':'#06302F','loopTextColor':'#06302F','sequenceNumberColor':'#FFFFFF'}}}%%
 sequenceDiagram
-    participant Client
-    participant ExcelIngestionService
-    participant Database
-    
-    Client->>ExcelIngestionService: POST /v1/data/generate/_search<br/>(GenerationSearchRequest)
-    
-    Note over ExcelIngestionService: Validate Search Criteria
-    Note over ExcelIngestionService: Build Query with Arrays<br/>(ids[], referenceIds[], types[], statuses[])
-    
-    ExcelIngestionService->>Database: SELECT * FROM eg_excelgeneration<br/>WHERE tenantId = ? AND<br/>id IN (ids[]) AND<br/>referenceId IN (referenceIds[]) AND<br/>type IN (types[]) AND<br/>status IN (statuses[])
-    Database-->>ExcelIngestionService: Generation Records List
-    
-    Note over ExcelIngestionService: Apply Pagination<br/>(limit, offset)
-    Note over ExcelIngestionService: Build Response
-    
-    ExcelIngestionService-->>Client: 200 OK<br/>GenerationSearchResponse<br/>(GenerateResources[])
+    autonumber
+    participant Console as Console / client
+    participant Excel as excel-ingestion
+    participant Kafka as Kafka
+    participant Ref as boundary / MDMS / localization
+    participant File as filestore
+    participant Persister as egov-persister
+    participant DB as 🛢️ Postgres
+    participant PF as project-factory
+
+    Note over Console,PF: Generate a template
+    Console->>Excel: POST /generate/_init
+    Excel->>Excel: Validate, expire any prior run for same campaign+type
+    Excel->>Kafka: save-generated-file (status QUEUED) + init event
+    Excel-->>Console: 202 Accepted (id, QUEUED)
+    Kafka->>Excel: Consumer reads init event (one at a time)
+    Excel->>Ref: Fetch boundary, master data, translations (cached)
+    Excel->>Excel: Build workbook (dropdowns, formulas, locked cells)
+    Excel->>File: Upload template, get fileStoreId
+    Excel->>Kafka: update-generated-file (COMPLETED + fileStoreId)
+    Console->>Excel: POST /generate/_search (poll)
+    Excel-->>Console: Status + fileStoreId when COMPLETED
+
+    Note over Console,PF: Process a filled sheet
+    Console->>Excel: POST /process/_create (fileStoreId)
+    Excel-->>Console: 202 Accepted (id, PENDING)
+    Excel->>File: Download the uploaded file (async)
+    Excel->>Excel: Open with POI limits, reject if over max rows
+    Excel->>Excel: Parse + validate rows (boundaries, required fields, worker IDs, dates)
+    Excel->>Kafka: save-sheet-data-temp (parsed rows, chunks of 200)
+    Excel->>Kafka: update-processing-file (COMPLETED/FAILED)
+    Excel->>Kafka: hcm-processing-result (carries original request context)
+    Kafka->>Persister: Consume save-* / update-* events
+    Persister->>DB: Write generation / processing / staged rows
+    Kafka->>PF: Consume hcm-processing-result -> resume campaign
+    Console->>Excel: POST /process/_search (poll) + /sheet/_search (rows)
+    Excel-->>Console: Status + per-row validation results
 ```
 
-## 4. Processing Search Flow
+> **Note on the official LLD diagrams** (`docs.digit.org/health/design/architecture/low-level-design/services/console-services/excel-ingestion`): the published generate/process/sheet sequence diagrams still describe the service correctly at a high level (validate → async work → poll via `_search`). The **event-driven `generate/_init`** (queue to Kafka, in-process consumer does the work) and the **`expired` retry semantics** below are **newer than the published diagrams** and are captured in the flow above.
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant ExcelIngestionService
-    participant Database
-    
-    Client->>ExcelIngestionService: POST /v1/data/process/_search<br/>(ProcessingSearchRequest)
-    
-    Note over ExcelIngestionService: Validate Search Criteria
-    Note over ExcelIngestionService: Build Query with Arrays<br/>(ids[], referenceIds[], types[], statuses[])
-    
-    ExcelIngestionService->>Database: SELECT * FROM eg_excelprocessing<br/>WHERE tenantId = ? AND<br/>id IN (ids[]) AND<br/>referenceId IN (referenceIds[]) AND<br/>type IN (types[]) AND<br/>status IN (statuses[])
-    Database-->>ExcelIngestionService: Processing Records List
-    
-    Note over ExcelIngestionService: Apply Pagination<br/>(limit, offset)
-    Note over ExcelIngestionService: Build Response with<br/>Validation Details
-    
-    ExcelIngestionService-->>Client: 200 OK<br/>ProcessingSearchResponse<br/>(ProcessResources[])
-```
-
-## 5. Sheet Data Search Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant ExcelIngestionService
-    participant Database
-    
-    Client->>ExcelIngestionService: POST /v1/data/sheet/_search<br/>(SheetDataSearchRequest)
-    
-    Note over ExcelIngestionService: Validate Search Criteria
-    Note over ExcelIngestionService: Build Query Parameters<br/>(tenantId, referenceId, fileStoreId, sheetName)
-    
-    ExcelIngestionService->>Database: SELECT * FROM eg_sheetdata_temp<br/>WHERE tenantId = ? AND<br/>referenceId = ? AND<br/>fileStoreId = ? AND<br/>sheetName = ?<br/>ORDER BY rowNumber<br/>LIMIT ? OFFSET ?
-    Database-->>ExcelIngestionService: Sheet Data Records
-    
-    Note over ExcelIngestionService: Apply Pagination<br/>(limit, offset)
-    Note over ExcelIngestionService: Build Response with<br/>Row JSON Data
-    
-    ExcelIngestionService-->>Client: 200 OK<br/>SheetDataSearchResponse<br/>(SheetDataDetails[])
-```
-
-## 6. Sheet Data Delete Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant ExcelIngestionService
-    participant Database
-    
-    Client->>ExcelIngestionService: POST /v1/data/sheet/_delete<br/>?tenantId=x&referenceId=y&fileStoreId=z
-    
-    Note over ExcelIngestionService: Validate Query Parameters
-    
-    ExcelIngestionService->>Database: DELETE FROM eg_sheetdata_temp<br/>WHERE conditions match
-    Database-->>ExcelIngestionService: Deletion Count
-    
-    ExcelIngestionService-->>Client: 202 Accepted<br/>SheetDataDeleteResponse<br/>(success message)
-```
-
-## 7. Error Handling Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant ExcelIngestionService
-    participant Service
-    participant Database
-    
-    Client->>ExcelIngestionService: POST /v1/data/generate/_init or<br/>/v1/data/process/_create or<br/>/v1/data/process/_validation
-    
-    alt Validation Error
-        ExcelIngestionService-->>Client: 400 Bad Request<br/>(ValidationException)
-    else Service Error
-        ExcelIngestionService->>Service: Service Call
-        Service-->>ExcelIngestionService: Error/Timeout
-        ExcelIngestionService->>Database: Update status: FAILED
-        ExcelIngestionService-->>Client: 202 Accepted<br/>(Process continues async)
-    else Success
-        ExcelIngestionService->>Database: Update status: COMPLETED
-        ExcelIngestionService-->>Client: 202 Accepted<br/>(Async processing)
-    end
-```
-
-### DB UML Diagram
+### Data model (DB UML)
 
 ```mermaid
 erDiagram
@@ -244,7 +168,7 @@ erDiagram
 
 #### Table Details:
 - **eg_ex_in_generated_files**: Tracks async Excel template generation requests
-- **eg_ex_in_excel_processing**: Tracks async Excel file processing requests  
+- **eg_ex_in_excel_processing**: Tracks async Excel file processing requests
 - **eg_ex_in_sheet_data_temp**: Stores parsed Excel data temporarily during validation
 
 #### Key Relationships:
@@ -252,349 +176,49 @@ erDiagram
 - Processing requests create temporary sheet data for validation
 - Sheet temp data is cleaned up after processing completion
 
-### Service Dependencies
+## 6. Failure / Retry Handling
 
-#### Core Platform Services
-- **egov-filestore**: Excel file upload/download management
-- **egov-localization**: Multi-language support for labels and messages
-- **egov-mdms**: Master data configuration and schemas
-- **boundary-service**: Boundary hierarchy and relationships
+- **Async, status-driven.** A failed generation or processing run does not fail the HTTP call (which already returned `202`). The terminal status is written as `FAILED` with an error code/message in `additionalDetails`, surfaced through `_search`.
+- **Retry is user-driven, not automatic.** The generation consumer deliberately does **not** redeliver on failure — re-submitting `generate/_init` for the same campaign + type starts a fresh run.
+- **Retry supersedes the old run ("expired").** A new `generate/_init` for the same `(tenantId, referenceId, type)` marks every prior record for that key as `EXPIRED` (whether it was queued, in progress, completed, failed, or effectively stuck/timed-out) and becomes the single live record. So a stale or hung run can't linger and confuse a poll — the latest request always wins. Expiring old rows is best-effort and never blocks the new run.
+- **Always reports back to project-factory.** The `hcm-processing-result` message is sent in a `finally` block, on success **and** failure, so the campaign flow is never left waiting silently.
+- **Single-consumer assumption.** Generation runs one event at a time (`max-poll-records=1`, listener concurrency 1). The queued→in-progress transition has no DB lock, so raising either without first adding a compare-and-set would cause duplicate generation runs (called out in `application.properties`).
+- **Staging data self-cleans.** Parsed rows in `eg_ex_in_sheet_data_temp` carry a `deleteTime` ~24h out, and `sheet/_delete` lets the caller clean up sooner.
+- If the **persister config** for these topics is missing/stale in an environment, the API will accept and acknowledge work but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
 
-#### Health Campaign Services  
-- **project-factory**: Campaign data search and crypto operations
-- **health-individual**: Individual/user data search and validation
-- **facility**: Facility data search and validation
+## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
 
-#### External Libraries
-- Apache POI (Excel generation and parsing)
-- Spring Boot
-- Spring Web
-- Spring Kafka (Producer integration)
-- PostgreSQL (Database)
-- Flyway (Database migrations)
+Plain-language summary of changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line, for product owners, QA and ops.
 
-### Swagger API Contract
-Link to the swagger API contract yaml and editor link like below
+- **Generation is now event-driven, with clean retry.** `generate/_init` no longer does the heavy work on the request thread — it validates, queues, and an internal Kafka consumer builds the template. Re-running for the same campaign + type **expires the previous run**, so a stuck, timed-out or stale generation can't shadow the new one and polling always reflects the latest attempt.
+- **Large sheets: faster and safer.** A database search index was added for the staged sheet data (migration `V20260530120000`, applied automatically on start) so status/row searches stay fast on huge uploads; a configurable **max-row guardrail** (default 100,000) rejects oversized files with a clear error instead of hanging; and the Excel parser now runs with **Apache POI safety limits** against oversized/zip-bomb files.
+- **CPU and memory optimised.** Reading formula cells no longer re-scans the whole sheet (removed a slowdown that grew with sheet size), regexes are cached, the formula evaluator is reused, multi-select values are computed lazily, and column-definition lookups are O(1). Template generation for large boundary datasets is faster, and the hidden helper column for multi-select fields was dropped — templates are smaller and quicker.
+- **Bigger Kafka payloads supported.** The producer max request size was raised to ~3 MB so large parsed-row chunks and results go through cleanly.
+- **Attendance registers (new capability).** The service can generate attendance-register and attendee templates and ingest the filled sheets — boundary dropdowns, an auto-filled Register ID derived from boundary **code** (not name), locked formula cells, dates accepted in numeric or text form and clamped to the register's window, and rejection of sheets that belong to another campaign or reuse a register ID. Register roles and attendee boundary rules are now MDMS-configured, not hard-coded.
+- **Stronger user/worker validation.** A beneficiary-code field with validation; whitespace rejected in beneficiary code, bank account and bank code; all cell values trimmed consistently; payment fields conditionally required by payment-provider type (and highlighted red); worker IDs verified against the worker registry before a user sheet is accepted; and processing no longer crashes when the sheet has validation errors — they're reported row by row.
+- **Boundary correctness.** Boundaries with the same display name at different levels no longer collide; facilities map to boundaries by id/code instead of name; multi-hierarchy and root-boundary processing are supported/fixed.
+- **Search and ops.** `process/_search` and `generate/_search` now filter by `additionalDetails` key-value pairs; campaign search pagination was fixed; the original request context now travels with `hcm-processing-result` (fixing downstream campaign-creation failures); and publish logs show the actual tenant-prefixed topic names for easier log correlation.
 
-https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/health-campaign-services/master/health-services/excel-ingestion/excel-ingestion-swagger.yml
+## 8. Known Risks / Limitations
 
-For local reference, see [excel-ingestion-swagger.yml](./excel-ingestion-swagger.yml)
+- **Generation must stay single-threaded.** The queued→in-progress transition has no DB lock; raising `max-poll-records` or listener concurrency without adding a compare-and-set would cause duplicate generation runs.
+- **`expired` is the latest-request-wins rule.** Re-submitting a generate for the same campaign + type silently expires the prior records (even a completed one). Intended, but a behavioural point QA should know — an in-flight run can be superseded mid-flight.
+- **Retry is manual.** Failed runs are not auto-retried; the caller must re-submit. A consumer that crashes between dequeue and terminal status can leave a row that only a fresh init clears.
+- **Staging table is temporary.** Parsed rows expire ~24h after creation; consumers must read or copy them out before then (or call `sheet/_delete`).
+- **Validation is app-level.** Boundary, facility, worker and date checks live in code/MDMS, not DB constraints — correctness depends on those services and on the right MDMS data being present in the environment.
+- **Big-file ceilings are configurable, not infinite.** The 100,000-row limit, POI byte/zip limits and ~3 MB Kafka message size are environment-tunable; an undersized environment can still reject genuinely large campaigns.
+- **Persister dependency.** Like all DIGIT services here, writes go via Kafka → persister; missing/stale persister config means accepted-but-not-saved data.
 
-### Service Details
+## 9. Release Version
 
-#### Functionality
+| Field | Value |
+|---|---|
+| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Stack | Spring Boot 3.2.2 / Java 17 |
+| Shared libs | `health-services-common` 1.1.4-SNAPSHOT, `health-services-models` 1.0.23-SNAPSHOT, Apache POI 5.4.1 |
+| Doc updated | 2026-06-12 |
+| Maintainers | Health Campaign Services team (`@jagankumar-egov`) |
 
-1. **Excel Template Generation**: Generates Excel templates with boundary hierarchy data (Async)
-2. **Excel File Processing**: Validates and processes uploaded Excel files with comprehensive error reporting (Async)
-3. **Sheet Data Management**: Search and delete temporary sheet data stored during processing
-4. **Generation/Processing Search**: Track and monitor async operations with detailed status
-5. **Multi-sheet Support**: Creates multiple sheets including:
-   - Facility Sheet  
-   - User Sheet
-   - Boundary Sheet
-6. **Dynamic Column Generation**: Dynamically creates columns based on hierarchy levels
-7. **File Upload**: Automatically uploads generated Excel files to egov-filestore
-8. **Localization Support**: Integrates with localization service for multi-language support
-9. **Data Validation**: Comprehensive validation rules for Excel data processing
-10. **Error Reporting**: Detailed error reporting with line-by-line validation results
-
-#### Features
-
-1. **Configurable Templates**: Supports different template types based on hierarchy type
-2. **Boundary Validation**: Validates boundary data before Excel generation
-3. **Error Handling**: Comprehensive error handling with meaningful error messages
-4. **Async Processing**: Supports asynchronous processing for large datasets
-5. **Multi-tenant Support**: Full multi-tenant architecture support
-
-#### API Details
-BasePath `/excel-ingestion/v1/data`
-
-Excel Ingestion service APIs - comprehensive suite for Excel workflow management
-
-**Generation APIs:**
-* POST `/v1/data/generate/_init` - Initiate Excel Template Generation (Async), generates Excel template and uploads to filestore
-* POST `/v1/data/generate/_search` - Search generation records with status tracking
-
-**Processing APIs:**
-* POST `/v1/data/process/_validation` - Validate Excel File (Async), validates uploaded Excel files without creating records
-* POST `/v1/data/process/_create` - Process Excel File (Async), validates and parses uploaded Excel files, stores data
-* POST `/v1/data/process/_search` - Search processing records with detailed results
-
-**Sheet Data Management APIs:**
-* POST `/v1/data/sheet/_search` - Search temporary sheet data by various criteria
-* POST `/v1/data/sheet/_delete` - Delete temporary sheet data for cleanup
-
-##### Request Structure
-```json
-{
-  "RequestInfo": {
-    "apiId": "excel-ingestion",
-    "ver": "1.0",
-    "ts": 1690371438000,
-    "msgId": "1234567890",
-    "userInfo": {
-      "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
-    }
-  },
-  "GenerateResource": {
-    "tenantId": "pg.citya",
-    "type": "boundary",
-    "hierarchyType": "ADMIN",
-    "referenceId": "REF-2023-001",
-    "referenceType": "campaign",
-    "additionalDetails": {}
-  }
-}
-```
-
-##### Response Structure
-```json
-{
-  "ResponseInfo": {
-    "apiId": "egov-bff",
-    "ver": "0.0.1",
-    "ts": 1690371438000,
-    "status": "successful"
-  },
-  "GenerateResource": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "tenantId": "pg.citya",
-    "type": "boundary",
-    "hierarchyType": "ADMIN",
-    "referenceId": "REF-2023-001",
-    "referenceType": "campaign",
-    "status": "PENDING",
-    "fileStoreId": null,
-    "additionalDetails": {}
-  }
-}
-```
-
-### Configuration
-
-### Kafka Consumers
-
-- **NA** - This service does not consume from any Kafka topics
-
-### Kafka Producers
-
-This service produces to the following Kafka topics:
-
-**Generation Service Topics:**
-- **save-generated-file**: Initial generation request records
-- **update-generated-file**: Updates to generation status (PENDING → COMPLETED/FAILED)
-
-**Processing Service Topics:**
-- **save-processing-file**: Initial processing request records  
-- **update-processing-file**: Updates to processing status (PENDING → COMPLETED/FAILED)
-
-**Sheet Data Topics:**
-- **save-sheet-data-temp**: Saves parsed Excel data to temporary storage (chunks of 200 records)
-- **delete-sheet-data-temp**: Deletes temporary sheet data after processing
-
-**Result Topics:**
-- **hcm-processing-result**: Sends processing results to project-factory service (configured dynamically)
-
-## Excel Template Structure
-
-### Sheet 1: Facility Sheet
-Contains facility data with boundary columns for mapping facilities to geographical areas.
-
-### Sheet 2: User Sheet
-Contains user information with boundary columns for assigning users to specific areas.
-
-### Sheet 3: Boundary Sheet
-Contains the complete boundary hierarchy with dynamic columns based on hierarchy levels.
-
-## Error Codes
-
-| Error Code | Description |
-|------------|-------------|
-| INGEST_MISSING_TENANT_ID | Tenant ID is required |
-| INGEST_INVALID_TENANT_ID_LENGTH | Tenant ID length must be between 2-50 characters |
-| INGEST_MISSING_TYPE | Resource type is required |
-| INGEST_INVALID_TYPE_LENGTH | Type length must be between 2-100 characters |
-| INGEST_MISSING_HIERARCHY_TYPE | Hierarchy type is required |
-| INGEST_INVALID_HIERARCHY_TYPE_LENGTH | Hierarchy type length must be between 2-100 characters |
-| INGEST_MISSING_REFERENCE_ID | Reference ID is required |
-| INGEST_INVALID_REFERENCE_ID_LENGTH | Reference ID length must be between 1-255 characters |
-
-## Pre commit script
+## Pre-commit script
 
 [commit-msg](https://gist.github.com/jayantp-egov/14f55deb344f1648503c6be7e580fa12)
-
-## Usage
-
-1. Start the service
-2. Call the generate API with appropriate boundary data
-3. Receive the fileStoreId in response
-4. Use the fileStoreId to download the generated Excel template from filestore service
-
-## Example cURL Commands
-
-### Generate Excel Template
-```bash
-curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/generate/_init \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "RequestInfo": {
-      "apiId": "excel-ingestion",
-      "ver": "1.0",
-      "ts": 1690371438000,
-      "userInfo": {
-        "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
-      }
-    },
-    "GenerateResource": {
-      "tenantId": "pg.citya",
-      "type": "boundary",
-      "hierarchyType": "ADMIN",
-      "referenceId": "REF-2023-001",
-      "referenceType": "campaign",
-      "additionalDetails": {}
-    }
-  }'
-```
-
-### Validate Excel File
-```bash
-curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/process/_validation \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "RequestInfo": {
-      "apiId": "excel-ingestion",
-      "ver": "1.0",
-      "ts": 1690371438000,
-      "userInfo": {
-        "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
-      }
-    },
-    "ResourceDetails": {
-      "tenantId": "pg.citya",
-      "type": "boundary",
-      "hierarchyType": "ADMIN",
-      "referenceId": "REF-2023-001",
-      "referenceType": "campaign",
-      "fileStoreId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-      "additionalDetails": {}
-    }
-  }'
-```
-
-### Process Excel File (Create)
-```bash
-curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/process/_create \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "RequestInfo": {
-      "apiId": "excel-ingestion",
-      "ver": "1.0",
-      "ts": 1690371438000,
-      "userInfo": {
-        "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
-      }
-    },
-    "ResourceDetails": {
-      "tenantId": "pg.citya",
-      "type": "boundary",
-      "hierarchyType": "ADMIN",
-      "referenceId": "REF-2023-001",
-      "referenceType": "campaign",
-      "fileStoreId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-      "additionalDetails": {}
-    }
-  }'
-```
-
-### Search Generation Records
-```bash
-curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/generate/_search \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "RequestInfo": {
-      "apiId": "excel-ingestion",
-      "ver": "1.0",
-      "ts": 1690371438000,
-      "userInfo": {
-        "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
-      }
-    },
-    "GenerationSearchCriteria": {
-      "tenantId": "pg.citya",
-      "ids": ["550e8400-e29b-41d4-a716-446655440000"],
-      "referenceIds": ["REF-2023-001"],
-      "types": ["boundary"],
-      "statuses": ["COMPLETED"],
-      "locale": "en_IN",
-      "limit": 10,
-      "offset": 0
-    }
-  }'
-```
-
-### Search Processing Records
-```bash
-curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/process/_search \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "RequestInfo": {
-      "apiId": "excel-ingestion",
-      "ver": "1.0",
-      "ts": 1690371438000,
-      "userInfo": {
-        "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
-      }
-    },
-    "ProcessingSearchCriteria": {
-      "tenantId": "pg.citya",
-      "ids": ["550e8400-e29b-41d4-a716-446655440001"],
-      "referenceIds": ["REF-2023-001"],
-      "types": ["boundary"],
-      "statuses": ["COMPLETED", "FAILED"],
-      "limit": 10,
-      "offset": 0
-    }
-  }'
-```
-
-### Search Sheet Data
-```bash
-curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/sheet/_search \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "RequestInfo": {
-      "apiId": "excel-ingestion",
-      "ver": "1.0",
-      "ts": 1690371438000,
-      "userInfo": {
-        "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
-      }
-    },
-    "SheetDataSearchCriteria": {
-      "tenantId": "pg.citya",
-      "referenceId": "REF-2023-001",
-      "fileStoreId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-    }
-  }'
-```
-
-### Delete Sheet Data
-```bash
-curl -X POST \
-  'http://localhost:8080/excel-ingestion/v1/data/sheet/_delete?tenantId=pg.citya&referenceId=REF-2023-001&fileStoreId=f47ac10b-58cc-4372-a567-0e02b2c3d479' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "apiId": "excel-ingestion",
-    "ver": "1.0",
-    "ts": 1690371438000,
-    "userInfo": {
-      "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
-    }
-  }'
-```
