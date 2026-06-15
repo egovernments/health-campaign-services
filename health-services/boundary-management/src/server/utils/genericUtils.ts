@@ -463,14 +463,10 @@ async function modifyBoundaryData(
   return [withBoundaryCode, withoutBoundaryCode, manualBoundaryCode];
 }
 
-function findMapValue(map: Map<any, any>, key: any): any | null {
-  let foundValue = null;
-  map.forEach((value, mapKey) => {
-    if (mapKey.key === key.key && mapKey.value === key.value) {
-      foundValue = value;
-    }
-  });
-  return foundValue;
+// Stable string key for {key, value} boundary elements so Maps/Sets can do O(1)
+// structural-equality lookups (object keys would compare by reference).
+function boundaryKeyOf(element: any): string {
+  return `${element?.key}\u0000${element?.value}`;
 }
 
 function extractFrenchOrPortugeseLocalizationMap(
@@ -871,6 +867,6 @@ async function searchGeneratedBoundaryResources(searchQuery : any, locale : any)
 export {  appCache,errorLogger,invalidPathHandler
   ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
   ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
-  ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap
+  ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,boundaryKeyOf,extractFrenchOrPortugeseLocalizationMap
   ,processGenerate ,getDataSheetReady , replicateRequest ,searchGeneratedBoundaryResources , checkForMixedBoundaryFlowInArrays
 };

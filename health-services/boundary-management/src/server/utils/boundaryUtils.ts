@@ -3,7 +3,7 @@ import config from "../config";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
 import { throwError,getLocalizedHeaders,createHeaderToHierarchyMap,
-  modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap,replicateRequest,callGenerate , checkForMixedBoundaryFlowInArrays}
+  modifyBoundaryDataHeadersWithMap,modifyBoundaryData,boundaryKeyOf,extractFrenchOrPortugeseLocalizationMap,replicateRequest,callGenerate , checkForMixedBoundaryFlowInArrays}
  from "../utils/genericUtils";
 import { searchBoundaryRelationshipDefinition  } from "../api/coreApis";
 import { BoundaryModels } from "../models";
@@ -18,7 +18,6 @@ import {resourceDataStatuses} from "../config/constants";
 import {produceModifiedMessages} from "../kafka/Producer";
 import {deleteRedisCacheKeysWithPrefix} from "./redisUtils";
 import {getTableName,executeQuery} from "../utils/db";
-const _ = require("lodash");
 
 
 
@@ -408,6 +407,9 @@ const autoGenerateBoundaryCodes = async (
     // This is crucial for parent-child relationship mapping when new boundaries
     // reference already processed parent boundaries
     const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
+    // String-keyed index of boundaryMap for O(1) structural-equality lookups
+    const existingCodeIndex = new Map<string, string>();
+    boundaryMap.forEach((value, key) => existingCodeIndex.set(boundaryKeyOf(key), value));
     withBoundaryCode.forEach((row: any[]) => {
       // Find the last hierarchy level in this row (the boundary that has the code)
       let lastBoundaryObj = null;
@@ -425,9 +427,10 @@ const autoGenerateBoundaryCodes = async (
       if (lastBoundaryObj && boundaryCodeObj && boundaryCodeObj.value) {
         const boundaryCode = boundaryCodeObj.value.toString().trim();
         // Add to boundaryMap if not already present
-        const existingCode = findMapValue(boundaryMap, lastBoundaryObj);
+        const existingCode = existingCodeIndex.get(boundaryKeyOf(lastBoundaryObj));
         if (!existingCode) {
           boundaryMap.set(lastBoundaryObj, boundaryCode);
+          existingCodeIndex.set(boundaryKeyOf(lastBoundaryObj), boundaryCode);
         }
       }
     });
@@ -557,11 +560,15 @@ function modifyChildParentMap(
 ): Map<string, string | null> {
   const modifiedMap: Map<string, string | null> = new Map();
 
+  // String-keyed index of boundaryMap for O(1) structural-equality lookups
+  const codeIndex: Map<string, string> = new Map();
+  boundaryMap.forEach((value, key) => codeIndex.set(boundaryKeyOf(key), value));
+
   // Iterate over each entry in childParentMap
   childParentMap.forEach((value, key) => {
     // Get the modified key and value from boundaryMap
-    const modifiedKey = findMapValue(boundaryMap, key) || null;
-    const modifiedValue = value ? findMapValue(boundaryMap, value) : null;
+    const modifiedKey: any = codeIndex.get(boundaryKeyOf(key)) || null;
+    const modifiedValue = value ? (codeIndex.get(boundaryKeyOf(value)) ?? null) : null;
 
     // Set the modified key-value pair in modifiedMap
     modifiedMap.set(modifiedKey, modifiedValue);
@@ -754,6 +761,10 @@ function addBoundaryCodeToData(
   //   });
   // });
 
+  // String-keyed index of boundaryMap for O(1) structural-equality lookups
+  const codeIndex: Map<string, string> = new Map();
+  boundaryMap.forEach((value, key) => codeIndex.set(boundaryKeyOf(key), value));
+
   // Part 2: for rows without boundary code
   const boundaryDataForWithoutBoundaryCode = withoutBoundaryCode.map((row: any[]) => {
     let boundaryName: string | undefined;
@@ -765,7 +776,7 @@ function addBoundaryCodeToData(
       }
     }
 
-    const boundaryCode = findMapValue(boundaryMap, boundaryName);
+    const boundaryCode = boundaryName ? (codeIndex.get(boundaryKeyOf(boundaryName)) ?? null) : null;
     const boundaryCodeObj = { key: boundaryKey, value: boundaryCode };
     return [...row, boundaryCodeObj]; // just append the boundary code at the end
   });
@@ -807,6 +818,10 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localiz
   const countMap = new Map<{ key: string; value: string }, number>();
   const mappingMap = new Map<{ key: string; value: string }, string>();
 
+  // String-keyed indexes for O(1) structural-equality lookups.
+  // countKeyIndex tracks the canonical object key so countMap keeps one entry per boundary.
+  const mappingIndex = new Map<string, string>();
+  const countKeyIndex = new Map<string, { key: string; value: string }>();
 
   withBoundaryCode.forEach((row: any[]) => {
     const effectiveRow = [];
@@ -820,23 +835,19 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localiz
     }
     const len = effectiveRow.length;
     if (len >= 3) {
-      let grandParentFound = false;
       const grandParent = effectiveRow[len - 3];
-      if (findMapValue(mappingMap, grandParent)) {
-        const countMapArray = Array.from(countMap.entries());
-        for (const [key, value] of countMapArray) {
-          if (_.isEqual(key, grandParent)) {
-            countMap.set(key, value + 1);
-            grandParentFound = true;
-            break;
-          }
-        }
-        if (grandParentFound == false) {
+      if (mappingIndex.get(boundaryKeyOf(grandParent))) {
+        const canonicalGrandParent = countKeyIndex.get(boundaryKeyOf(grandParent));
+        if (canonicalGrandParent) {
+          countMap.set(canonicalGrandParent, (countMap.get(canonicalGrandParent) || 0) + 1);
+        } else {
           countMap.set(grandParent, 1);
+          countKeyIndex.set(boundaryKeyOf(grandParent), grandParent);
         }
       }
     }
     mappingMap.set(effectiveRow[len - 2], effectiveRow[len - 1].value);
+    mappingIndex.set(boundaryKeyOf(effectiveRow[len - 2]), effectiveRow[len - 1].value);
   });
   return { mappingMap, countMap };
 }
