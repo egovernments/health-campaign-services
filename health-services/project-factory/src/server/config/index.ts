@@ -166,6 +166,8 @@ const config = {
     // Client retries must tolerate the brief leadership election that follows bulk topic creation
     // (governs cluster metadata used by admin createTopics and consumer subscribe).
     KAFKA_CONSUMER_RETRIES: parseInt(process.env.KAFKA_CONSUMER_RETRIES || "10", 10) || 10,
+    // Maximum number of Kafka messages processed concurrently (semaphore in Listener.ts).
+    KAFKA_CONSUMER_MAX_CONCURRENT: process.env.KAFKA_CONSUMER_MAX_CONCURRENT ? parseInt(process.env.KAFKA_CONSUMER_MAX_CONCURRENT, 10) : 5,
   },
 
   // Database configuration

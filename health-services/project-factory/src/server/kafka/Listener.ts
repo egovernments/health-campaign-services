@@ -105,7 +105,7 @@ const consumer = kafka.consumer({
 });
 
 // Add a simple semaphore for concurrency control
-const MAX_CONCURRENT = 10;
+const MAX_CONCURRENT = config?.kafka?.KAFKA_CONSUMER_MAX_CONCURRENT;
 let currentConcurrent = 0;
 const queue: (() => void)[] = [];
 
