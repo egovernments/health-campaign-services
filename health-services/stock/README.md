@@ -1,5 +1,49 @@
 # Stock
 
+## Enhancements in v2.1
+
+Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
+
+- **Stock records are now linked to campaigns by campaign number.** Create/update accept a `campaignNumber` on each record; it is stored (new column via migration `V20260422000000`, applied automatically on start) and flows to the database and the dashboard index, so stock can be tied back to the campaign it belongs to.
+- **Search by campaign number.** `/stock/v1/_search` accepts `campaignNumber` as a filter to pull a campaign's stock directly.
+- **Persisted data includes campaign number.** The deployed persister config for the stock topics (in the `configs/` repo) was updated to write `campaignNumber`. Environments must pick up the updated persister config alongside the new build, or the field is accepted but not saved.
+- **Device sync can skip its own edits.** Search supports `includeOnlyUpdatedByOthers=true`; combined with a "changed since" time, results exclude records the calling user last modified, so a syncing device doesn't re-download what it just uploaded. Only takes effect when a since-time is provided (PR #1991).
+- **Sync time can come from the request body.** Search accepts `lastSyncedTime` in the body; when present it takes precedence over the `lastChangedSince` URL parameter.
+- **One facility, both directions, one search.** Passing the same facility id as both `senderId` and `receiverId` returns every record where that facility is either sender or receiver — a warehouse's full incoming/outgoing ledger in one call.
+- **Bulk stock-count updates enabled — concurrent-update protection relaxed (QA note).** To support submitting stock counts in bulk: (1) the row-version (concurrent-edit) check is **skipped for stock-count user-action updates** (the user-action flow served by the project service) — simultaneous updates no longer fail with a version conflict on that path; last write wins; and (2) the search page-size cap (was 1000) was lifted so a facility's full stock list fetches in one page. QA should explicitly cover concurrent-edit scenarios on the user-action path. Regular transfer updates (`/stock/v1/_update`) still enforce the row-version check.
+- **Search-by-id behaves like every other search.** Searching by ids now runs through the same database query as all other filters, so since-time, deleted-record and updated-by-others filtering behave consistently.
+
+### Flow: bulk stock-count update (v2.1)
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'actorBkg':'#F8746D','actorBorder':'#C9433E','actorTextColor':'#FFFFFF','actorLineColor':'#C9433E','signalColor':'#2C3E50','signalTextColor':'#2C3E50','noteBkgColor':'#57C7C7','noteTextColor':'#06302F','noteBorderColor':'#1B9E9E','labelBoxBkgColor':'#E0F7F4','labelBoxBorderColor':'#1B9E9E','labelTextColor':'#06302F','loopTextColor':'#06302F','sequenceNumberColor':'#FFFFFF'}}}%%
+sequenceDiagram
+    autonumber
+    participant App as Mobile app
+    participant Stock as Stock service
+    participant Project as Project service (user-action API)
+    participant Kafka as Kafka
+    participant Persister as Persister
+    participant DB as 🛢️ Postgres
+    participant Indexer as Indexer
+    participant ES as Elasticsearch
+
+    App->>Stock: Search stock for the facility (large page size)
+    Note over App,Stock: Page-size cap (1000) lifted in v2.1 - full list in one call
+    Stock-->>App: Stock records (incl. campaignNumber)
+    App->>Project: Submit stock counts as a bulk user-action update
+    Project->>Project: Validate records
+    Note over Project: Row-version (concurrent edit) check skipped in v2.1
+    Project->>Kafka: Publish accepted updates
+    Project-->>App: Acknowledge valid records
+    Kafka->>Persister: Consume update events
+    Persister->>DB: Write updated rows
+    Kafka->>Indexer: Consume the same events
+    Indexer->>ES: Refresh dashboard index
+```
+
+> **Note on the official LLD diagrams** (`docs.digit.org/health/design/architecture/low-level-design/services/stock`): the published Stock create/update/search sequence diagrams still match the current code at a high level (validate → async persist → search-from-DB). The campaign-number filter, the `includeOnlyUpdatedByOthers` sync filter, and the relaxed row-version check on the count path are **newer than the published diagrams** and are captured in the two mermaid flows above.
+
 ## 1. Purpose
 
 Stock is the **supply-chain ledger** for a health campaign. Every time a commodity (vaccine, bed net, deworming tablet) moves — received into a warehouse, sent to a facility, handed out to a household, lost, or adjusted — Stock records one row for that movement. It also stores **physical-count reconciliations** so a facility's book stock can be checked against what's actually on the shelf.
@@ -100,55 +144,11 @@ sequenceDiagram
 
 - **Async, no batch rollback.** A bulk request returns `202` before persistence. If one record in the batch fails validation in the consumer, it does not roll back the others — check consumer logs and the record's status.
 - **Idempotency** is via `clientReferenceId` — re-submitting the same one should not create a duplicate row.
-- **Optimistic locking** via `rowVersion` protects against concurrent edits on the normal transfer-update path. (See the v2.1 note below for the one place this is now relaxed.)
+- **Optimistic locking** via `rowVersion` protects against concurrent edits on the normal transfer-update path. (See the v2.1 note above for the one place this is now relaxed.)
 - **Soft delete** (`isDeleted`) everywhere — nothing is hard-deleted; unique constraints include the delete flag.
 - If the **persister config** for the stock topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line, in plain language for product owners, QA and ops.
-
-- **Stock records are now linked to campaigns by campaign number.** Create/update accept a `campaignNumber` on each record; it is stored (new column via migration `V20260422000000`, applied automatically on start) and flows to the database and the dashboard index, so stock can be tied back to the campaign it belongs to.
-- **Search by campaign number.** `/stock/v1/_search` accepts `campaignNumber` as a filter to pull a campaign's stock directly.
-- **Persisted data includes campaign number.** The deployed persister config for the stock topics (in the `configs/` repo) was updated to write `campaignNumber`. Environments must pick up the updated persister config alongside the new build, or the field is accepted but not saved.
-- **Device sync can skip its own edits.** Search supports `includeOnlyUpdatedByOthers=true`; combined with a "changed since" time, results exclude records the calling user last modified, so a syncing device doesn't re-download what it just uploaded. Only takes effect when a since-time is provided (PR #1991).
-- **Sync time can come from the request body.** Search accepts `lastSyncedTime` in the body; when present it takes precedence over the `lastChangedSince` URL parameter.
-- **One facility, both directions, one search.** Passing the same facility id as both `senderId` and `receiverId` returns every record where that facility is either sender or receiver — a warehouse's full incoming/outgoing ledger in one call.
-- **Bulk stock-count updates enabled — concurrent-update protection relaxed (QA note).** To support submitting stock counts in bulk: (1) the row-version (concurrent-edit) check is **skipped for stock-count user-action updates** (the user-action flow served by the project service) — simultaneous updates no longer fail with a version conflict on that path; last write wins; and (2) the search page-size cap (was 1000) was lifted so a facility's full stock list fetches in one page. QA should explicitly cover concurrent-edit scenarios on the user-action path. Regular transfer updates (`/stock/v1/_update`) still enforce the row-version check.
-- **Search-by-id behaves like every other search.** Searching by ids now runs through the same database query as all other filters, so since-time, deleted-record and updated-by-others filtering behave consistently.
-
-### Flow: bulk stock-count update (v2.1)
-
-```mermaid
-%%{init: {'theme':'base','themeVariables':{'actorBkg':'#F8746D','actorBorder':'#C9433E','actorTextColor':'#FFFFFF','actorLineColor':'#C9433E','signalColor':'#2C3E50','signalTextColor':'#2C3E50','noteBkgColor':'#57C7C7','noteTextColor':'#06302F','noteBorderColor':'#1B9E9E','labelBoxBkgColor':'#E0F7F4','labelBoxBorderColor':'#1B9E9E','labelTextColor':'#06302F','loopTextColor':'#06302F','sequenceNumberColor':'#FFFFFF'}}}%%
-sequenceDiagram
-    autonumber
-    participant App as Mobile app
-    participant Stock as Stock service
-    participant Project as Project service (user-action API)
-    participant Kafka as Kafka
-    participant Persister as Persister
-    participant DB as 🛢️ Postgres
-    participant Indexer as Indexer
-    participant ES as Elasticsearch
-
-    App->>Stock: Search stock for the facility (large page size)
-    Note over App,Stock: Page-size cap (1000) lifted in v2.1 - full list in one call
-    Stock-->>App: Stock records (incl. campaignNumber)
-    App->>Project: Submit stock counts as a bulk user-action update
-    Project->>Project: Validate records
-    Note over Project: Row-version (concurrent edit) check skipped in v2.1
-    Project->>Kafka: Publish accepted updates
-    Project-->>App: Acknowledge valid records
-    Kafka->>Persister: Consume update events
-    Persister->>DB: Write updated rows
-    Kafka->>Indexer: Consume the same events
-    Indexer->>ES: Refresh dashboard index
-```
-
-> **Note on the official LLD diagrams** (`docs.digit.org/health/design/architecture/low-level-design/services/stock`): the published Stock create/update/search sequence diagrams still match the current code at a high level (validate → async persist → search-from-DB). The campaign-number filter, the `includeOnlyUpdatedByOthers` sync filter, and the relaxed row-version check on the count path are **newer than the published diagrams** and are captured in the two mermaid flows above.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **`quantity` is signed** — negative values are valid (loss/consumption) and there is no DB constraint; bad data is an app/validation concern, not a DB guard.
 - **`transactingPartyId` + `transactingPartyType` are polymorphic with no foreign key** — validation is app-level only.
@@ -157,11 +157,11 @@ sequenceDiagram
 - **`dateOfEntry` (field date) ≠ `createdTime` (system date)** — both matter for audit; don't conflate them.
 - **Relaxed concurrency on the count path** (v2.1) means simultaneous count submissions are accepted with last-write-wins — acceptable for counts, but a behavioural change QA must be aware of.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value                                                                             |
 |---|-----------------------------------------------------------------------------------|
-| Release | **v2.1** (`master-nigeria-finalPulln`)                                            |
+| Release | **v2.1**                                                                          |
 | Stack | Spring Boot 3.2.2 / Java 17                                                       |
 | Shared libs | `health-services-common` 1.1.5-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
 | Doc updated | 2026-06-12                                                                        |

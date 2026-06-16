@@ -307,6 +307,7 @@ public class ProjectFacilityService {
                     1, 0, tenantId, null, false,
                     false,   // no ancestors
                     false,   // no descendants
+                    false,   // no immediate children
                     null, null, false
             );
         } catch (Exception e) {

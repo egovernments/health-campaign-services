@@ -1,5 +1,17 @@
 # Facility
 
+## Enhancements in v2.1
+
+Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
+
+For the facility service specifically, **v2.1 is a maintenance / dependency release — no new APIs, search filters, columns or business behaviour were added.** The git diff against `v2.0` touches only `pom.xml`, `application.properties`, `CHANGELOG.md` and a test config:
+
+- **Tracer / error-handling upgrade.** Bumped the shared `health-services-common` (which carries tracer `2.9.2`) so that database errors are now handled uniformly by tracer's `ExceptionAdvise` — clients get a consistent error shape instead of a raw 500 on a `DataAccessException`.
+- **OpenTelemetry plumbing added.** OpenTelemetry BOM + instrumentation BOM were added to `pom.xml` for version alignment, and the OTEL exporters were explicitly turned off in `application.properties` (`otel.traces/logs/metrics.exporter=none`) so tracing is opt-in per environment, not on by default.
+- **Shared-library version bumps** (`health-services-common`, `health-services-models`) propagated across the health services in lockstep; the facility module version moved to **1.2.1**.
+
+> Scope note for QA/leads: feature branches exist for richer facility search (search by project/boundary, a task-status enum, and an "updated by others" / `lastModifiedByFilter` sync filter — the `featurefacilitysearch*` branches). **None of those are merged into this release**, so the `_search` filters today remain `isPermanent` / `usage` / `storageCapacity` / `boundaryCode` plus the standard sync/pagination params. Don't document or test the project / updated-by-others filters against this build.
+
 ## 1. Purpose
 
 Facility is the **registry of physical places** in a health campaign — warehouses, health posts, clinics, storage points, distribution centres. Each facility row records what the place is (name, type/usage, permanent or temporary), how much it can hold (storage capacity), and where it sits on the map (a shared **address** with GPS coordinates and a boundary/locality code).
@@ -105,19 +117,7 @@ sequenceDiagram
 - **Soft delete** (`isDeleted`) everywhere — nothing is hard-deleted; the search default excludes deleted rows unless `includeDeleted=true`.
 - If the **persister config** for the facility topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line, in plain language for product owners, QA and ops.
-
-For the facility service specifically, **v2.1 is a maintenance / dependency release — no new APIs, search filters, columns or business behaviour were added.** The git diff against `v2.0` touches only `pom.xml`, `application.properties`, `CHANGELOG.md` and a test config:
-
-- **Tracer / error-handling upgrade.** Bumped the shared `health-services-common` (which carries tracer `2.9.2`) so that database errors are now handled uniformly by tracer's `ExceptionAdvise` — clients get a consistent error shape instead of a raw 500 on a `DataAccessException`.
-- **OpenTelemetry plumbing added.** OpenTelemetry BOM + instrumentation BOM were added to `pom.xml` for version alignment, and the OTEL exporters were explicitly turned off in `application.properties` (`otel.traces/logs/metrics.exporter=none`) so tracing is opt-in per environment, not on by default.
-- **Shared-library version bumps** (`health-services-common`, `health-services-models`) propagated across the health services in lockstep; the facility module version moved to **1.2.1**.
-
-> Scope note for QA/leads: feature branches exist for richer facility search (search by project/boundary, a task-status enum, and an "updated by others" / `lastModifiedByFilter` sync filter — the `featurefacilitysearch*` branches). **None of those are merged into this release line**, so the `_search` filters today remain `isPermanent` / `usage` / `storageCapacity` / `boundaryCode` plus the standard sync/pagination params. Don't document or test the project / updated-by-others filters against this build.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **Search filters are basic.** Only `isPermanent`, `usage`, `storageCapacity` and `boundaryCode` (exact-match locality) are real query columns; there is no name search, no project filter, and no "updated by others" sync filter on this branch (see the v2.1 scope note).
 - **`usage` is a free string** — convention is values like warehouse / health post, but the DB won't stop other values.
@@ -126,11 +126,11 @@ For the facility service specifically, **v2.1 is a maintenance / dependency rele
 - **Search-by-id reads Redis first.** Stale cache entries can in theory be returned for id lookups; the filtered (non-id) search always hits Postgres.
 - **No batch rollback** — partial success in a bulk request is normal; downstream consumers must reconcile from per-record status, not from the `202`.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 (module version `1.2.1`) |
 | Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.30-SNAPSHOT |
 | Doc updated | 2026-06-12 |

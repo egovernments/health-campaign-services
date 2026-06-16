@@ -1,5 +1,17 @@
 # Referral Management
 
+## Enhancements in v2.1
+
+Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
+
+- **Device sync can skip its own edits.** Referral search now supports `includeOnlyUpdatedByOthers=true`; combined with a "changed since" time, results exclude records the calling user last modified, so a syncing device doesn't re-download what it just uploaded (PR #1991). Only takes effect when a since-time is provided.
+- **Referrals are now linked to a project.** A `projectId` field was added to the shared Referral model and stored in a new column (migrations `V20260211164600` + index `V20260223150400`, applied automatically on start) and written by the updated persister config. This lets HF referrals and downsync be scoped directly to a project.
+- **Big downsync overhaul for offline scale.** Added a pre-generation pipeline: `/downsync/v1/_generate` builds per-locality / per-project files in the background and stores them in S3, while `/beneficiary-downsync/v1/_get` serves a fresh on-device bundle for recent syncs and falls back to those pre-generated file links for cold/stale syncs. New audit tables track every job, locality and file (`V20260423100000`), and a materialized view speeds up locality scoping (`V20260426140000`).
+- **Downsync jobs are safe to retry and resume.** Single-flight locks per tenant and per project prevent duplicate runs, interrupted jobs resume on startup, and partially-failed jobs report exactly which localities/files failed.
+- **Persisted data includes projectId.** The deployed persister config for the referral topics was updated to write `projectId`. Environments must pick up the updated persister config alongside the new build, or the field is accepted but not saved.
+
+> **Note on the official LLD diagrams** (`docs.digit.org/health/design/architecture/low-level-design/services/referral`): the published create/update/delete/search sequence diagrams (images) still match the current code at a high level (validate → async persist → search-from-DB) for Referral, Side Effect and HF Referral. The `projectId` field, the `includeOnlyUpdatedByOthers` sync filter, and the pre-generated **downsync** pipeline are **newer than the published diagrams** and are captured in the flow above.
+
 ## 1. Purpose
 
 Referral Management is the **"this person needs follow-up care" ledger** for a health campaign. When a field worker meets a beneficiary who can't be treated on the spot — a sick child, a suspected case, an adverse reaction to a drug — the worker records a **referral** so the right facility or worker picks them up next. It tracks three related things:
@@ -125,19 +137,7 @@ sequenceDiagram
 - **Downsync generation is single-flight per tenant/project.** A second `/downsync/v1/_generate` while one is running returns `409 Conflict` with progress details; interrupted jobs are resumed on startup (`503 SERVICE_INITIALIZING` until that scan completes). Per-file failures are tracked, so a job can finish `COMPLETED`, `PARTIAL_FAILURE`, or `FAILED`.
 - If the **persister config** for the referral topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line, in plain language for product owners, QA and ops.
-
-- **Device sync can skip its own edits.** Referral search now supports `includeOnlyUpdatedByOthers=true`; combined with a "changed since" time, results exclude records the calling user last modified, so a syncing device doesn't re-download what it just uploaded (PR #1991). Only takes effect when a since-time is provided.
-- **Referrals are now linked to a project.** A `projectId` field was added to the shared Referral model and stored in a new column (migrations `V20260211164600` + index `V20260223150400`, applied automatically on start) and written by the updated persister config. This lets HF referrals and downsync be scoped directly to a project.
-- **Big downsync overhaul for offline scale.** Added a pre-generation pipeline: `/downsync/v1/_generate` builds per-locality / per-project files in the background and stores them in S3, while `/beneficiary-downsync/v1/_get` serves a fresh on-device bundle for recent syncs and falls back to those pre-generated file links for cold/stale syncs. New audit tables track every job, locality and file (`V20260423100000`), and a materialized view speeds up locality scoping (`V20260426140000`).
-- **Downsync jobs are safe to retry and resume.** Single-flight locks per tenant and per project prevent duplicate runs, interrupted jobs resume on startup, and partially-failed jobs report exactly which localities/files failed.
-- **Persisted data includes projectId.** The deployed persister config for the referral topics was updated to write `projectId`. Environments must pick up the updated persister config alongside the new build, or the field is accepted but not saved.
-
-> **Note on the official LLD diagrams** (`docs.digit.org/health/design/architecture/low-level-design/services/referral`): the published create/update/delete/search sequence diagrams (images) still match the current code at a high level (validate → async persist → search-from-DB) for Referral, Side Effect and HF Referral. The `projectId` field, the `includeOnlyUpdatedByOthers` sync filter, and the pre-generated **downsync** pipeline are **newer than the published diagrams** and are captured in the flow above.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **Downsync correctness depends on fresh pre-generated files.** For stale/cold syncs the device gets whatever was last generated; if no generation job has run, the locality returns no data (`PREGEN_NOT_AVAILABLE`) — operations must schedule/trigger generation.
 - **`recipientType` / `reasons` / `symptoms` carry free-form or list data** validated only at app level — the DB won't stop unexpected values.
@@ -146,11 +146,11 @@ Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release l
 - **Downsync fans out to many services synchronously.** A slow household/individual/project search makes the on-device bundle path slow; the pre-gen path exists precisely to take that off the request hot path.
 - **CLAUDE.md lists `health-services-common` as 1.1.5-SNAPSHOT, but this service's `pom.xml` is on `1.1.3-SNAPSHOT`** — confirm the intended version before release.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
 | Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
 | Doc updated | 2026-06-12 |

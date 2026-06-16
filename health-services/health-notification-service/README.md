@@ -1,5 +1,19 @@
 # Health Notification Service
 
+## Enhancements in v2.1
+
+The headline change for v2.1 is simple: **this service is new.** It (together with `egov-notification-push`) is new in this release, so everything below ships for the first time in v2.1.
+
+What the service brings to v2.1, in plain language:
+
+- **In-app push alerts for stock and referrals.** Stock movements (issued/returned, and their accepted/rejected outcomes) and new health-facility referrals now generate push notifications to the right facility staff, routed by role.
+- **Scheduled SMS to beneficiaries after distribution.** When a household is served, the service schedules follow-up SMS (e.g. day-2 / day-3 reminders) based on delay timing read from MDMS, and a daily job sends them.
+- **Config-driven, not code-driven.** Which events fire, to whom, in which language, with which template, and after how long — all come from MDMS campaign config, so programme owners can tune notifications without code changes.
+- **PII is encrypted at rest.** Beneficiary phone numbers and message context are encrypted (via enc-client) before storage and only decrypted at send time.
+- **Localized templates (multi-locale).** Messages are built from localization templates per locale (e.g. `en_NG`, `fr_NG`) with placeholders filled at send time.
+- **Multi-tenant / central-instance aware.** Kafka listeners and persister topics support both single-tenant and central-instance (multi-state) deployments via a tenant-id topic prefix.
+- **Operational cache refresh.** A `_cache/refresh` endpoint reloads MDMS + localization without a restart.
+
 ## 1. Purpose
 
 Health Notification Service is the **messaging brain** of a health campaign — it decides *who should be told what, when, and over which channel*. It listens to things happening elsewhere in the platform (stock moving between facilities, a referral being raised, a household being served during distribution) and turns each of those into a human-readable message.
@@ -129,21 +143,7 @@ sequenceDiagram
 - **Skips are silent-by-design.** No mobile number, SMS disabled in MDMS, event type not enabled, unknown schema, or unresolvable facility → the event is logged and skipped, not errored. Check the logs when an expected notification "didn't fire".
 - **Config drift is a classic trap.** If the MDMS notification config or the deployed persister config for the scheduled-notification topics is missing/stale in an environment, events are accepted but nothing is sent / nothing lands in Postgres.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-The headline change for v2.1 is simple: **this service is new to the release line.** It (together with `egov-notification-push`) was merged into `master-nigeria-finalpull` in a single commit — *"Health-notification-service and egov-notification-push services merged into master-nigeria-finalpull"* — so everything below ships for the first time in v2.1.
-
-What the service brings to v2.1, in plain language:
-
-- **In-app push alerts for stock and referrals.** Stock movements (issued/returned, and their accepted/rejected outcomes) and new health-facility referrals now generate push notifications to the right facility staff, routed by role.
-- **Scheduled SMS to beneficiaries after distribution.** When a household is served, the service schedules follow-up SMS (e.g. day-2 / day-3 reminders) based on delay timing read from MDMS, and a daily job sends them.
-- **Config-driven, not code-driven.** Which events fire, to whom, in which language, with which template, and after how long — all come from MDMS campaign config, so programme owners can tune notifications without code changes.
-- **PII is encrypted at rest.** Beneficiary phone numbers and message context are encrypted (via enc-client) before storage and only decrypted at send time.
-- **Localized templates (multi-locale).** Messages are built from localization templates per locale (e.g. `en_NG`, `fr_NG`) with placeholders filled at send time.
-- **Multi-tenant / central-instance aware.** Kafka listeners and persister topics support both single-tenant and central-instance (multi-state) deployments via a tenant-id topic prefix.
-- **Operational cache refresh.** A `_cache/refresh` endpoint reloads MDMS + localization without a restart.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **No automatic retry / dead-letter for failed sends.** A `FAILED` scheduled SMS is not automatically re-attempted; it needs manual/operational intervention. There is no back-off queue.
 - **Heavy dependence on MDMS + localization correctness.** A missing or mis-keyed MDMS event entry or template silently suppresses notifications (logged-and-skipped). This is the most common "why didn't it send?" cause.
@@ -154,11 +154,11 @@ What the service brings to v2.1, in plain language:
 - **HFReferral notifications are create-only.** Referral updates do not trigger notifications by design.
 - **DAMAGED stock entries produce no push** currently (no event-type mapping).
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) — service first introduced in this line |
+| Release | **v2.1** — service first introduced in this line |
 | Stack | Spring Boot 3.2.2 / Java 17 |
 | Shared libs | `health-services-common` 1.1.2-SNAPSHOT, `health-services-models` 1.0.30-SNAPSHOT, `tracer` 2.9.2-SNAPSHOT, `enc-client` 2.9.0 |
 | Doc updated | 2026-06-12 |

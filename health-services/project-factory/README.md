@@ -1,5 +1,17 @@
 # Project Factory
 
+## Enhancements in v2.1
+
+Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
+
+- **Campaigns no longer get stuck or fail to start because of message-channel issues.** At startup the service now reliably creates and connects to all the Kafka topics it needs (including per-state prefixed topics in shared "central instance" deployments) before it begins working. Previously, for some states a campaign could sit doing nothing because a topic wasn't ready.
+- **Big campaigns no longer choke on large data.** Campaign messages are now GZIP-compressed and the consumer is allowed to read much larger messages (topics configured for 4 MB). Campaigns with tens of thousands of boundaries, facilities or users now process without running out of memory or hitting message-size limits.
+- **Workers map to the correct area.** Facility-to-boundary mapping is now keyed on facility **id / boundary code** instead of name. This fixes cases where two areas shared a display name and facilities (and therefore workers) ended up mapped to the wrong boundary.
+- **Multi-level / multi-hierarchy boundaries are supported,** including boundaries that share the same display name at different levels — important for country structures that aren't a simple single tree.
+- **Batch sizes are now configurable.** Every batch/chunk size (project creation, facility/user batches, search page sizes, etc.) can be tuned per environment instead of being hard-coded — useful for balancing speed against load on large campaigns.
+- **Failed campaigns are resumable, and user creation is retry-safe.** A failed campaign can be corrected and re-run; already-completed rows are skipped and only pending/failed rows are retried. User creation specifically now skips workers already in HRMS, tolerates partial-batch failures without failing the whole campaign, and keeps a per-row error history (see [`USER_RETRY_IMPLEMENTATION.md`](./USER_RETRY_IMPLEMENTATION.md)).
+- **More resilient creation overall.** Numerous fixes for large user batches, child-campaign resource copying, attendance-register re-upload, credential-sheet accuracy, and clearer per-request logging (tenant + correlation id), reducing the "campaign reached a dead end with only a generic 500" class of incidents.
+
 ## 1. Purpose
 
 Project Factory turns an admin clicking **"Create Campaign"** into a fully set-up campaign — boundaries, projects, facilities, workers, and products all created and linked, in the right order, behind the scenes. It is a **Node.js / TypeScript** service (not a Java/Maven service) and is the **orchestrator** of the health vertical: it owns the campaign lifecycle, validates the Excel files the admin uploads, calls every other registry to create records, and tracks status until the campaign is ready.
@@ -135,7 +147,7 @@ sequenceDiagram
     PF-->>Console: creating / created / failed
 ```
 
-> Note on the official LLD diagrams (`docs.digit.org/.../project-factory-campaign-manager/.../campaign-process-flow`): the published process-flow page has no sequence image and describes the high-level parent/child create-cancel-fail states. The v2.1 reliability work (startup topic creation, GZIP/large-payload handling, multi-hierarchy boundaries, id/code-based facility mapping, and resumable user retry) is **newer than the published documentation** and is captured in the flow above and §6–§7.
+> Note on the official LLD diagrams (`docs.digit.org/.../project-factory-campaign-manager/.../campaign-process-flow`): the published process-flow page has no sequence image and describes the high-level parent/child create-cancel-fail states. The v2.1 reliability work (startup topic creation, GZIP/large-payload handling, multi-hierarchy boundaries, id/code-based facility mapping, and resumable user retry) is **newer than the published documentation** and is captured in the flow above, the Enhancements in v2.1 section, and §6.
 
 ### Data model (DB UML)
 
@@ -151,19 +163,7 @@ sequenceDiagram
 - **Idempotency caveat.** Bulk creates are not uniformly idempotent — a network blip after a downstream commit but before the response can cause a duplicate attempt on retry. The persister deduplicates on `campaignNumber`; verify per-stage when adding new orchestration.
 - **Common "stuck in creating" causes:** Kafka consumer lag, a downstream registry returning 5xx, idgen overload, or — classically — **persister/MDMS config drift in another repo**, where the API accepts the work but rows never appear in Postgres.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line, in plain language for product owners, QA and ops.
-
-- **Campaigns no longer get stuck or fail to start because of message-channel issues.** At startup the service now reliably creates and connects to all the Kafka topics it needs (including per-state prefixed topics in shared "central instance" deployments) before it begins working. Previously, for some states a campaign could sit doing nothing because a topic wasn't ready.
-- **Big campaigns no longer choke on large data.** Campaign messages are now GZIP-compressed and the consumer is allowed to read much larger messages (topics configured for 4 MB). Campaigns with tens of thousands of boundaries, facilities or users now process without running out of memory or hitting message-size limits.
-- **Workers map to the correct area.** Facility-to-boundary mapping is now keyed on facility **id / boundary code** instead of name. This fixes cases where two areas shared a display name and facilities (and therefore workers) ended up mapped to the wrong boundary.
-- **Multi-level / multi-hierarchy boundaries are supported,** including boundaries that share the same display name at different levels — important for country structures that aren't a simple single tree.
-- **Batch sizes are now configurable.** Every batch/chunk size (project creation, facility/user batches, search page sizes, etc.) can be tuned per environment instead of being hard-coded — useful for balancing speed against load on large campaigns.
-- **Failed campaigns are resumable, and user creation is retry-safe.** A failed campaign can be corrected and re-run; already-completed rows are skipped and only pending/failed rows are retried. User creation specifically now skips workers already in HRMS, tolerates partial-batch failures without failing the whole campaign, and keeps a per-row error history (see [`USER_RETRY_IMPLEMENTATION.md`](./USER_RETRY_IMPLEMENTATION.md)).
-- **More resilient creation overall.** Numerous fixes for large user batches, child-campaign resource copying, attendance-register re-upload, credential-sheet accuracy, and clearer per-request logging (tenant + correlation id), reducing the "campaign reached a dead end with only a generic 500" class of incidents.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **Most failures originate downstream, not here.** project-factory is the alarm bell; the actual fault is usually in health-project, facility, individual/HRMS, MDMS config, or the broker. Always confirm the failing stage in `eg_cm_campaign_process_data` first.
 - **Config lives in other repos.** Campaign behaviour depends on MDMS masters (`HCM-ADMIN-CONSOLE` schemas and the **process registry**) in `health-campaign-config/` and persister YAMLs in `configs/`. A campaign that works locally but fails in QA/UAT is very often a config-drift problem there, not a code problem here.
@@ -173,11 +173,11 @@ Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release l
 - **Retries are currently unbounded** — a hopeless row is retried on every re-run. Attempt history exists in the row JSON but is not yet a first-class backoff signal.
 - **Topological order matters.** Boundary→project creation is top-down; any change to the sort logic can silently break hierarchical campaigns.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Release | **v2.1** |
 | Stack | Node.js / TypeScript (TypeScript 5.4.2; built and run on Node 20) |
 | Key libs | Express 4, KafkaJS 2.2, ExcelJS 4.4 / xlsx 0.18, ioredis 5.4, pg 8.12, Zod 3.24, AJV 8.16 |
 | Doc updated | 2026-06-12 |

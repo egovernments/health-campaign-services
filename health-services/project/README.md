@@ -1,5 +1,43 @@
 # Project (Health Project)
 
+## Enhancements in v2.1
+
+Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
+
+- **Bulk stock-count updates enabled — concurrent-update protection relaxed (QA note).** The user-action API is the path field apps use to submit stock counts. To allow submitting many counts at once: the row-version (concurrent-edit) check is now **skipped for user-action updates** — simultaneous updates no longer fail with a version conflict; last write wins. The companion change in the stock search (page-size cap lifted) lets a facility's full stock list come back in one call. QA should explicitly cover concurrent-edit scenarios on the user-action path. Other update paths (task, beneficiary, staff, facility, resource) still enforce the row-version check.
+- **Facility search by boundary type.** Project-facility search can now return facilities grouped by boundary type (a map of boundary type → facility ids), with a performance-tuned query — useful for "which facilities sit under this area?" lookups by the app and dashboards.
+- **New task statuses for referrals and no-resource tasks.** The set of task statuses was extended (e.g. referral handling and tasks that consumed no resources) so the field flow can record outcomes that previously had no status.
+- **Fixed missing request info on project update.** A project update message was being published without its request/correlation context; this is now carried through, so downstream consumers and audit trails are complete.
+- **Project-facility now returned in responses.** Project search responses can include the linked project-facility object, saving the client a second lookup.
+- **Project search: immediate-children option.** Project `/v1/_search` gained an `includeImmediateChildren` flag (default off). When set, the search returns only a matched project's **direct children** (one level down) instead of the full descendant subtree that `includeDescendants` returns — a lighter call for "show me the projects directly under this one" without pulling the whole tree. Applies to the **v1** search path only.
+- **NPE guarding and cleanup** on the new code paths (facility-by-boundary search), plus a tracer 2.9.2 / OpenTelemetry dependency upgrade shared across the health services.
+
+### Flow: bulk stock-count update (v2.1)
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'actorBkg':'#F8746D','actorBorder':'#C9433E','actorTextColor':'#FFFFFF','actorLineColor':'#C9433E','signalColor':'#2C3E50','signalTextColor':'#2C3E50','noteBkgColor':'#57C7C7','noteTextColor':'#06302F','noteBorderColor':'#1B9E9E','labelBoxBkgColor':'#E0F7F4','labelBoxBorderColor':'#1B9E9E','labelTextColor':'#06302F','loopTextColor':'#06302F','sequenceNumberColor':'#FFFFFF'}}}%%
+sequenceDiagram
+    autonumber
+    participant App as Mobile app
+    participant Project as Project service (user-action API)
+    participant Kafka as Kafka
+    participant Persister as Persister
+    participant DB as 🛢️ Postgres
+    participant Transformer as transformer
+    participant ES as Elasticsearch
+
+    App->>Project: POST /project/user-action/v1/bulk/_update (stock counts)
+    Project->>Project: Validate records
+    Note over Project: Row-version (concurrent edit) check skipped in v2.1
+    Project->>Kafka: Publish to update-user-action-project-bulk-topic
+    Project-->>App: Acknowledge valid records
+    Kafka->>Project: Consumer reads batch, emits update-user-action-project-topic
+    Kafka->>Persister: Consume update events
+    Persister->>DB: Write updated rows (user_action)
+    Kafka->>Transformer: Consume the same events
+    Transformer->>ES: Refresh dashboard index
+```
+
 ## 1. Purpose
 
 Project is the **operational backbone** of a health campaign. A "project" is the on-the-ground unit of work — for example "Measles vaccination round in District X". Around that unit, the service keeps track of everything needed to run it and everything that actually happened:
@@ -134,44 +172,7 @@ sequenceDiagram
 - **Soft delete** (`isDeleted`) everywhere — nothing is hard-deleted; unique constraints include the delete flag.
 - If the **persister config** for the project topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line, in plain language for product owners, QA and ops.
-
-- **Bulk stock-count updates enabled — concurrent-update protection relaxed (QA note).** The user-action API is the path field apps use to submit stock counts. To allow submitting many counts at once: the row-version (concurrent-edit) check is now **skipped for user-action updates** — simultaneous updates no longer fail with a version conflict; last write wins. The companion change in the stock search (page-size cap lifted) lets a facility's full stock list come back in one call. QA should explicitly cover concurrent-edit scenarios on the user-action path. Other update paths (task, beneficiary, staff, facility, resource) still enforce the row-version check.
-- **Facility search by boundary type.** Project-facility search can now return facilities grouped by boundary type (a map of boundary type → facility ids), with a performance-tuned query — useful for "which facilities sit under this area?" lookups by the app and dashboards.
-- **New task statuses for referrals and no-resource tasks.** The set of task statuses was extended (e.g. referral handling and tasks that consumed no resources) so the field flow can record outcomes that previously had no status.
-- **Fixed missing request info on project update.** A project update message was being published without its request/correlation context; this is now carried through, so downstream consumers and audit trails are complete.
-- **Project-facility now returned in responses.** Project search responses can include the linked project-facility object, saving the client a second lookup.
-- **NPE guarding and cleanup** on the new code paths (facility-by-boundary search), plus a tracer 2.9.2 / OpenTelemetry dependency upgrade shared across the health services.
-
-### Flow: bulk stock-count update (v2.1)
-
-```mermaid
-%%{init: {'theme':'base','themeVariables':{'actorBkg':'#F8746D','actorBorder':'#C9433E','actorTextColor':'#FFFFFF','actorLineColor':'#C9433E','signalColor':'#2C3E50','signalTextColor':'#2C3E50','noteBkgColor':'#57C7C7','noteTextColor':'#06302F','noteBorderColor':'#1B9E9E','labelBoxBkgColor':'#E0F7F4','labelBoxBorderColor':'#1B9E9E','labelTextColor':'#06302F','loopTextColor':'#06302F','sequenceNumberColor':'#FFFFFF'}}}%%
-sequenceDiagram
-    autonumber
-    participant App as Mobile app
-    participant Project as Project service (user-action API)
-    participant Kafka as Kafka
-    participant Persister as Persister
-    participant DB as 🛢️ Postgres
-    participant Transformer as transformer
-    participant ES as Elasticsearch
-
-    App->>Project: POST /project/user-action/v1/bulk/_update (stock counts)
-    Project->>Project: Validate records
-    Note over Project: Row-version (concurrent edit) check skipped in v2.1
-    Project->>Kafka: Publish to update-user-action-project-bulk-topic
-    Project-->>App: Acknowledge valid records
-    Kafka->>Project: Consumer reads batch, emits update-user-action-project-topic
-    Kafka->>Persister: Consume update events
-    Persister->>DB: Write updated rows (user_action)
-    Kafka->>Transformer: Consume the same events
-    Transformer->>ES: Refresh dashboard index
-```
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **Large surface area.** Project bundles seven core entities (project, task, beneficiary, staff, facility, resource, task-resource) plus the `user_action` / `user_location` audit tables. A change to shared validation or enrichment can ripple across all of them — test the whole set, not just the entity you touched.
 - **Relaxed concurrency on the user-action path** (v2.1) means simultaneous stock-count submissions are accepted with last-write-wins — acceptable for counts, but a behavioural change QA must be aware of. Other paths are unaffected.
@@ -179,11 +180,11 @@ sequenceDiagram
 - **Cross-registry references are validated app-side.** Beneficiary → household/individual and resource → product links are checked by service calls, not DB foreign keys — a stale or unreachable dependency surfaces as a validation failure, not a constraint error.
 - **Persister/transformer config drift.** Because writes are async, a missing or stale persister/transformer config in an environment lets the API accept writes that never land in Postgres or Elasticsearch.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
 | Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
 | Doc updated | 2026-06-12 |

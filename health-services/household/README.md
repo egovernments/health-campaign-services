@@ -1,5 +1,14 @@
 # Household
 
+## Enhancements in v2.1
+
+Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
+
+- **No functional change in this service.** No household API, business logic or database schema changed here between v2.0 and v2.1. The household service jumped `1.2.1` → `1.2.2` purely on library/build housekeeping.
+- **Dependency bumps.** Rebuilt against `health-services-models` `1.0.30-SNAPSHOT` (from 1.0.29) and `health-services-common` `1.1.3-SNAPSHOT` (from 1.1.1). The models bump carries shared-model changes made for other services (e.g. a new `projectId` on the Referral model) — household just picks them up.
+- **Tracer 2.9.2, now transitive.** The direct `tracer` dependency was removed; tracer (2.9.2, with `DataAccessException` handling via its `ExceptionAdvise`) is now inherited through `health-services-common`. OpenTelemetry BOMs were added to pin versions and OTEL exporters are set to `none` by default.
+- **Faster downsync (change lives in referralmanagement, not here).** v2.1 adds a `household_address_mv` **materialized view** (migration `V20260426140000` in *referralmanagement*) that pre-joins this service's `household` and `address` tables, with indexes on `localitycode`, `clientreferenceid` and `id`. It speeds up the bulk downsync of households to devices. Household writes are unaffected, but the view **reads** household-owned data, so ops should be aware the MV must be refreshed to stay current.
+
 ## 1. Purpose
 
 Household is the **registry of homes** a health campaign visits. Each record is one household — where it is (a shared address, optionally with GPS), how many people live there, what type of household it is (e.g. family vs community), and who its members are. Members are linked to people in the **Individual** registry, one member can be flagged as the **head**, and members can be tied to each other by **relationships** (spouse, child, parent…).
@@ -112,16 +121,7 @@ sequenceDiagram
 - **Cross-service dependency failures** (idgen, individual, boundary down/misconfigured) surface as validation/enrichment errors; the household is rejected rather than partially saved.
 - If the **persister config** for the household topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line, in plain language for product owners, QA and ops.
-
-- **No functional change in this service.** No household API, business logic or database schema changed here between v2.0 and v2.1. The household service jumped `1.2.1` → `1.2.2` purely on library/build housekeeping.
-- **Dependency bumps.** Rebuilt against `health-services-models` `1.0.30-SNAPSHOT` (from 1.0.29) and `health-services-common` `1.1.3-SNAPSHOT` (from 1.1.1). The models bump carries shared-model changes made for other services (e.g. a new `projectId` on the Referral model) — household just picks them up.
-- **Tracer 2.9.2, now transitive.** The direct `tracer` dependency was removed; tracer (2.9.2, with `DataAccessException` handling via its `ExceptionAdvise`) is now inherited through `health-services-common`. OpenTelemetry BOMs were added to pin versions and OTEL exporters are set to `none` by default.
-- **Faster downsync (change lives in referralmanagement, not here).** v2.1 adds a `household_address_mv` **materialized view** (migration `V20260426140000` in *referralmanagement*) that pre-joins this service's `household` and `address` tables, with indexes on `localitycode`, `clientreferenceid` and `id`. It speeds up the bulk downsync of households to devices. Household writes are unaffected, but the view **reads** household-owned data, so ops should be aware the MV must be refreshed to stay current.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **Member ↔ Individual link is app-validated, not a DB foreign key.** Pointing a member at a non-existent or wrong individual is caught only by the `individual`-service lookup at write time.
 - **The `household_address_mv` is a snapshot.** Because downsync now reads a materialized view (in referralmanagement) rather than the live tables, households created/updated after the last MV refresh won't appear in a downsync until the view is refreshed — a freshness/ops concern, not a household-write bug.
@@ -129,11 +129,11 @@ Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release l
 - **`householdType` and relationship type are convention-driven.** They are stored as strings/codes validated at the app layer (and via MDMS/role rules for community households), not constrained by the DB.
 - **Search semantics differ by mode.** Search-by-id, boundary, since-time and lat-long radius take different code paths; QA should cover each rather than assuming one filter behaves like another.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
 | Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.30-SNAPSHOT, `tracer` 2.9.2 (transitive) |
 | Doc updated | 2026-06-12 |

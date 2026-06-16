@@ -1,5 +1,15 @@
 # egov-notification-push
 
+## Enhancements in v2.1
+
+Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
+
+- **The whole service was merged into the v2.1 line.** Previously this folder held only resources and was deployed from elsewhere; in v2.1 the **full Java source (~34 files), `pom.xml`, `Dockerfile`, `start.sh`, tests and DB migrations** were merged in (single commit "Health-notification-service and egov-notification-push services merged"). It is now a real, buildable service in this repo — older "resources-only, don't build here" notes are stale.
+- **Device-token registry.** Phones register/unregister/delete/search their FCM tokens via `/device-token/v1/*`. Registrations are stored in Postgres (`eg_push_device_tokens`) through Kafka + egov-persister.
+- **FCM push delivery + console fallback.** Real delivery goes through Firebase (single or batched multicast); when FCM is disabled, notifications are logged to the console so non-prod environments can run the flow without sending anything.
+- **Facility- and role-based targeting.** A notification can name just a facility (and optionally a list of recipient roles like `WAREHOUSE_MANAGER`, `DISTRIBUTOR`); the listener resolves the matching device tokens itself. Migrations added a `facilityid` column, then allowed one token across multiple facilities, then added a `userroles` column for role filtering.
+- **On-demand send API.** `/push/v1/_send` lets a caller push immediately by user UUIDs and/or raw device tokens, returning the number of devices targeted.
+- **Multi-tenant / central-instance aware.** In central-instance mode the inbound topic and persister topics are tenant-prefixed and the DB schema is derived from the tenantId.
 
 ## 1. Purpose
 
@@ -102,18 +112,7 @@ sequenceDiagram
 - **FCM off → console fallback.** With `fcm.enabled=false` the `ConsolePushService` simply logs the notification; nothing is delivered but flows still complete. With FCM on but credentials missing/blank, the app **fails fast at startup** (Firebase init throws).
 - **Async registry writes.** `_register/_delete/_unregister` return `200` before the row is persisted. If the persister config for these topics is missing/stale in an environment, tokens are accepted but never stored — a classic "it worked in QA" trap.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line, in plain language for product owners, QA and ops.
-
-- **The whole service was merged into the v2.1 line.** Previously this folder held only resources and was deployed from elsewhere; in v2.1 the **full Java source (~34 files), `pom.xml`, `Dockerfile`, `start.sh`, tests and DB migrations** were merged in (single commit "Health-notification-service and egov-notification-push services merged"). It is now a real, buildable service in this repo — older "resources-only, don't build here" notes are stale.
-- **Device-token registry.** Phones register/unregister/delete/search their FCM tokens via `/device-token/v1/*`. Registrations are stored in Postgres (`eg_push_device_tokens`) through Kafka + egov-persister.
-- **FCM push delivery + console fallback.** Real delivery goes through Firebase (single or batched multicast); when FCM is disabled, notifications are logged to the console so non-prod environments can run the flow without sending anything.
-- **Facility- and role-based targeting.** A notification can name just a facility (and optionally a list of recipient roles like `WAREHOUSE_MANAGER`, `DISTRIBUTOR`); the listener resolves the matching device tokens itself. Migrations added a `facilityid` column, then allowed one token across multiple facilities, then added a `userroles` column for role filtering.
-- **On-demand send API.** `/push/v1/_send` lets a caller push immediately by user UUIDs and/or raw device tokens, returning the number of devices targeted.
-- **Multi-tenant / central-instance aware.** In central-instance mode the inbound topic and persister topics are tenant-prefixed and the DB schema is derived from the tenantId.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **No retry / dead-letter replay on the consumer.** Failed push events are logged and dropped; there is no built-in re-processing, so a transient FCM outage means those notifications are simply missed.
 - **Delivery is best-effort.** FCM accepting a message does not guarantee the phone shows it; this service has no read-receipt or delivery-confirmation back-channel.
@@ -122,11 +121,11 @@ Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release l
 - **Role filtering is substring-based.** Roles are stored as a comma-separated string and matched with `LIKE`, so role codes that are substrings of one another could over-match — worth a QA check if role names overlap.
 - **No Swagger / formal API contract** is published yet; integrators work from this README and the controllers.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
 | Key deps | Firebase Admin SDK `9.2.0`, `tracer` `2.9.2-SNAPSHOT`, Flyway `9.22.3`, PostgreSQL driver `42.7.1` |
 | Doc updated | 2026-06-12 |

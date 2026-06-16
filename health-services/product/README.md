@@ -1,5 +1,14 @@
 # Product
 
+## Enhancements in v2.1
+
+Changes from v2.0 to v2.1.
+
+- **No functional changes — dependency/config-only rebuild.** Product was rebuilt against newer shared libraries with no change to its APIs, entities, Kafka topics or database schema. The git history for this service since `v2.0` is limited to version bumps and the items below.
+- **Tracer 2.9.2 upgrade for consistent `DataAccessException` handling.** The direct `tracer` dependency was removed; tracer now comes in transitively via `health-services-common`, so database-error responses are handled uniformly via tracer's shared `ExceptionAdvise`.
+- **OpenTelemetry wiring added.** OTEL BOMs were added to dependency management (for version resolution) and the OTEL exporters are configured off by default (`otel.*.exporter=none`) in `application.properties`.
+- **Shared-library version bumps.** `health-services-common` to `1.1.3-SNAPSHOT`; service version bumped to `1.2.1`.
+
 ## 1. Purpose
 
 Product is the **catalogue of commodities** used in a health campaign — the master list of things the campaign hands out or moves around (a vaccine, a bed net, a deworming tablet). It holds two simple registries:
@@ -103,16 +112,7 @@ sequenceDiagram
 - **Soft delete only** (`isDeleted`) — nothing is hard-deleted; deletes flow through the update path with an `apiOperation` flag.
 - If the **persister config** for the product topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap. Because Product is mostly read at runtime, this can stay hidden until a downstream variant lookup fails.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release line.
-
-- **No functional changes — dependency/config-only rebuild.** Product was rebuilt against newer shared libraries with no change to its APIs, entities, Kafka topics or database schema. The git history for this service since `v2.0` is limited to version bumps and the items below.
-- **Tracer 2.9.2 upgrade for consistent `DataAccessException` handling.** The direct `tracer` dependency was removed; tracer now comes in transitively via `health-services-common`, so database-error responses are handled uniformly via tracer's shared `ExceptionAdvise`.
-- **OpenTelemetry wiring added.** OTEL BOMs were added to dependency management (for version resolution) and the OTEL exporters are configured off by default (`otel.*.exporter=none`) in `application.properties`.
-- **Shared-library version bumps.** `health-services-common` to `1.1.3-SNAPSHOT`; service version bumped to `1.2.1`.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **No inbound bulk import.** Products and variants are created one request at a time through the REST API; there is no Kafka/file bulk-load path. Large catalogues must be loaded by an external script calling `_create` (the request body does accept a list).
 - **`type`, `name`, `manufacturer`, `sku`, `variation` are free strings** — there is no DB-level enum or catalogue constraint; data quality is an app/validation concern.
@@ -120,11 +120,11 @@ Changes between the `v2.0` baseline and the `master-nigeria-finalpull` release l
 - **`_search` reads Postgres, not Elasticsearch** — the ES index feeds dashboards/lookups, so a stale indexer affects dashboards, not the service's own search results.
 - **Mostly-read at runtime hides persister gaps** — see the "it worked in QA" trap in section 6.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
 | Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.29-SNAPSHOT, `services-common` 2.9.0-SNAPSHOT |
 | Doc updated | 2026-06-12 |

@@ -1,5 +1,16 @@
 # Boundary Management
 
+## Enhancements in v2.1
+
+**There are no code changes to boundary-management in the v2.1 line.** The service is unchanged between v2.0 and v2.1. It was introduced as a new service just before the `v2.0` cut and shipped with its current capabilities, which are the ones often discussed under the v2.1 / Nigeria work:
+
+- **Auto vs Manual processing flow** — _process auto-detects whether to generate boundary service codes (rows without codes) or accept user-supplied codes (Manual flow, which requires codes on every level).
+- **GeoJSON-aware boundaries** — when reading boundaries back from boundary-service, `Point` geometries are picked up as lat/long for the codes (boundary entities are created with `geometry: null` and enriched later).
+- **Multi-hierarchy support** — works across hierarchy types (ADMIN, Health, …), with localized headers/tabs per tenant locale.
+- **Same display name across levels** — boundaries are tracked per hierarchy level (level + name + parent context), so two boundaries that share the same display name at different levels are disambiguated rather than collapsed.
+
+If a future release does touch this service, that is where incremental v2.1 notes would go.
+
 ## 1. Purpose
 
 Boundary Management is an **admin-console helper** that turns a campaign's geography into something an administrator can edit in a spreadsheet and load into the platform. It does two jobs:
@@ -118,18 +129,7 @@ sequenceDiagram
 - **Auto-generate fallback.** `_generate-search` for a hierarchy with no existing template auto-triggers a generate rather than returning empty.
 - **Known footgun:** because state is written via Kafka events that a persister consumes, if the persister/Kafka wiring is missing or stale in an environment, the API can report `inprogress` while the status row never advances — check the persister and the `eg_bm_*` tables.
 
-## 7. Recent Changes (v2.1 / nigeria-go-deep-2)
-
-**There are no code changes to boundary-management in the v2.1 line.** The service is byte-identical between the `v2.0` tag and the `master-nigeria-finalpull` branch tip (verified with `git diff v2.0..HEAD -- health-services/boundary-management` — empty). It was introduced as a new service just before the `v2.0` cut and shipped with its current capabilities, which are the ones often discussed under the v2.1 / Nigeria work:
-
-- **Auto vs Manual processing flow** — _process auto-detects whether to generate boundary service codes (rows without codes) or accept user-supplied codes (Manual flow, which requires codes on every level).
-- **GeoJSON-aware boundaries** — when reading boundaries back from boundary-service, `Point` geometries are picked up as lat/long for the codes (boundary entities are created with `geometry: null` and enriched later).
-- **Multi-hierarchy support** — works across hierarchy types (ADMIN, Health, …), with localized headers/tabs per tenant locale.
-- **Same display name across levels** — boundaries are tracked per hierarchy level (level + name + parent context), so two boundaries that share the same display name at different levels are disambiguated rather than collapsed.
-
-If a future release does touch this service, that is where incremental v2.1 notes would go.
-
-## 8. Known Risks / Limitations
+## 7. Known Risks / Limitations
 
 - **Not the source of truth.** Boundaries actually live in **boundary-service**; this service only prepares templates and pushes data in. Reads/edits done directly in boundary-service won't reflect back into the generated templates until regenerated.
 - **No callbacks — polling only.** Clients must poll `*-search`; a slow background job looks the same as a stuck one until you inspect the status/error.
@@ -138,11 +138,11 @@ If a future release does touch this service, that is where incremental v2.1 note
 - **Default config points at a shared dev host.** `config/index.ts` falls back to `unified-dev.digit.org` for downstream hosts; environments must override the `EGOV_*` host variables or calls go to the wrong place.
 - **Status durability depends on Kafka/persister.** State is emitted as events; a missing persister config silently leaves jobs looking `inprogress`.
 
-## 9. Release Version
+## 8. Release Version
 
 | Field | Value |
 |---|---|
-| Release | **v2.1** (`master-nigeria-finalpull`) |
+| Release | **v2.1** |
 | Stack | Node.js / TypeScript (Express) |
 | Key versions | TypeScript 5.4.2, Express 4.19.2, ExcelJS 4.4.0 / xlsx 0.18.5, kafkajs 2.2.4, ioredis 5.4.1, axios 1.6.8, pg 8.12.0 (service `version` 1.0.0) |
 | Doc updated | 2026-06-12 |
