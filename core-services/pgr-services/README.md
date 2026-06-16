@@ -2,7 +2,7 @@
 The objective of this service is to provide a functionality to raise a complaint/grievance by citizen in the system. The progress of complaint/grievance can be tracked by
 the citizen and will be updated by notifications whenever the status of the complaint progresses further.
 
-## Enhancements in v2.1
+## Enhancements in HCM-v2.1
 
 The v2.0 → v2.1 changes touched only the build for this service (2 commits) — no API, business-logic, DB-schema or Kafka changes:
 

@@ -1,6 +1,6 @@
 # Health Notification Service
 
-## Enhancements in v2.1
+## Enhancements in HCM-v2.1
 
 The headline change for v2.1 is simple: **this service is new.** It (together with `egov-notification-push`) is new in this release, so everything below ships for the first time in v2.1.
 

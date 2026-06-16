@@ -1,6 +1,6 @@
 # Product
 
-## Enhancements in v2.1
+## Enhancements in HCM-v2.1
 
 Changes from v2.0 to v2.1.
 

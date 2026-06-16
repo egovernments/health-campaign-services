@@ -164,7 +164,7 @@ class ProjectFacilityServiceSearchTest {
                 .projectHierarchy("ROOT.S1.P1").build();
         when(projectService.searchProject(any(ProjectRequest.class),
                 anyInt(), anyInt(), anyString(), any(), anyBoolean(),
-                anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
+                anyBoolean(), anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
                 .thenReturn(Collections.singletonList(project));
 
         // Setup descendant facilities
@@ -208,7 +208,7 @@ class ProjectFacilityServiceSearchTest {
     void shouldReturnEmptyResponseWhenProjectNotFoundInHierarchySearch() throws Exception {
         when(projectService.searchProject(any(ProjectRequest.class),
                 anyInt(), anyInt(), anyString(), any(), anyBoolean(),
-                anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
+                anyBoolean(), anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
         ProjectFacilitySearch search = ProjectFacilitySearch.builder()
@@ -261,7 +261,7 @@ class ProjectFacilityServiceSearchTest {
                 .projectHierarchy(null).build();
         when(projectService.searchProject(any(ProjectRequest.class),
                 anyInt(), anyInt(), anyString(), any(), anyBoolean(),
-                anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
+                anyBoolean(), anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
                 .thenReturn(Collections.singletonList(project));
 
         Map<String, List<String>> descendantMap = new HashMap<>();
@@ -300,7 +300,7 @@ class ProjectFacilityServiceSearchTest {
     void shouldThrowExceptionWhenProjectSearchFailsInHierarchySearch() throws Exception {
         when(projectService.searchProject(any(ProjectRequest.class),
                 anyInt(), anyInt(), anyString(), any(), anyBoolean(),
-                anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
+                anyBoolean(), anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
                 .thenThrow(new RuntimeException("DB connection failed"));
 
         ProjectFacilitySearch search = ProjectFacilitySearch.builder()
@@ -321,7 +321,7 @@ class ProjectFacilityServiceSearchTest {
                 .projectHierarchy("ROOT.P1").build();
         when(projectService.searchProject(any(ProjectRequest.class),
                 anyInt(), anyInt(), anyString(), any(), anyBoolean(),
-                anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
+                anyBoolean(), anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
                 .thenReturn(Collections.singletonList(project));
 
         when(projectFacilityRepository.findFacilitiesByDescendants(eq("P1"), anyList(), eq("default")))

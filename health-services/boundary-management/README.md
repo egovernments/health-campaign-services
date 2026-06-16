@@ -1,6 +1,6 @@
 # Boundary Management
 
-## Enhancements in v2.1
+## Enhancements in HCM-v2.1
 
 **There are no code changes to boundary-management in the v2.1 line.** The service is unchanged between v2.0 and v2.1. It was introduced as a new service just before the `v2.0` cut and shipped with its current capabilities, which are the ones often discussed under the v2.1 / Nigeria work:
 
