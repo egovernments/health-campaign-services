@@ -1,7 +1,7 @@
 """
 ClickHouse Refreshable Materialized View (RMV) Parallel Refresh DAG
 
-Triggers all RMVs in the airflow_test database in parallel.
+Triggers all RMVs in the clickhouse database in parallel.
 Each MV refresh runs as an independent Airflow task.
 
 If an MV fails, only that task fails.
@@ -30,14 +30,11 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 
-CLICKHOUSE_HOST = os.getenv(
-    'CLICKHOUSE_HOST',
-    'clickstack-clickhouse.clickhouse.svc.cluster.local'
-)
+CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickhouse-clickstack-clickhouse-clickhouse-headless.clickhouse.svc.cluster.local')
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', '8123'))
 CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
-CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', '')
-CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'replacing_test')
+CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', 'egov')
+CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'kafka-events')
 
 POLL_INTERVAL_SECONDS = int(os.getenv('RMV_POLL_INTERVAL', '60'))
 REFRESH_TIMEOUT_SECONDS = int(os.getenv('RMV_REFRESH_TIMEOUT', '3600'))

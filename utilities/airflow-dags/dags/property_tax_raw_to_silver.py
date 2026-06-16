@@ -14,11 +14,28 @@ Architecture (Extract → Transform+Load per chunk):
             -> property_address_entity
             -> property_unit_entity
             -> property_owner_entity
+            -> property_audit_entity     (MergeTree; one audit row per event, not replacing)
 
   Demand pipeline:
     extract_demand_events  (count + pass window metadata via XCom)
         -> transform_load_demand_events  (per chunk: fetch → transform → insert)
             -> demand_with_details_entity
+
+  Payment pipeline (runs in parallel with Property and Demand pipelines):
+    extract_payment_events  (count + pass window metadata via XCom)
+        -> transform_load_payment_events  (per chunk: fetch → transform → insert)
+            -> payment_with_details_entity
+
+  Bill pipeline (runs in parallel with all other pipelines):
+    extract_bill_events  (count + pass window metadata via XCom)
+        -> transform_load_bill_events  (per chunk: fetch → transform → insert)
+            -> bill_entity               (one row per bill)
+            -> bill_detail_entity        (one row per billDetail inside each bill)
+
+  Assessment pipeline (runs in parallel with all other pipelines):
+    extract_assessment_events  (count + pass window metadata via XCom)
+        -> transform_load_assessment_events  (per chunk: fetch → transform → insert)
+            -> property_assessment_entity    (one row per assessment)
 
   Extract passes only lightweight metadata (window + count) via XCom.
   Transform+Load reads from ClickHouse one chunk at a time, transforms it,
@@ -33,7 +50,9 @@ ReplacingMergeTree Logic:
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+import gc
+import resource
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import List, Dict, Optional, Tuple
 
@@ -49,14 +68,14 @@ logger = logging.getLogger(__name__)
 
 # -- Configuration -----------------------------------------------------------
 
-CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickstack-clickhouse.clickhouse.svc.cluster.local')
+CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickhouse-clickstack-clickhouse-clickhouse-headless.clickhouse.svc.cluster.local')
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', '8123'))
 CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
-CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', '')
-CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'airflow_test')
+CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', 'egov')
+CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'kafka-events')
 
 # Streaming configuration for large datasets
-STREAM_BATCH_SIZE = 10000  # Process records in batches of 50k
+STREAM_BATCH_SIZE = 1000  # Process records in batches of 1k
 
 default_args = {
     'owner': 'property_tax',
@@ -249,18 +268,121 @@ def count_demand_events(client, window_start: datetime,
     return result.result_rows[0][0]
 
 
+def fetch_payment_events(client, window_start: datetime,
+                         window_end: datetime, limit: int = None,
+                         offset: int = 0) -> List[str]:
+    """Fetch raw JSON strings where event_time falls within
+    [window_start, window_end) with optional pagination."""
+    query = (
+        "SELECT raw FROM payment_events_raw "
+        "WHERE event_time >= {start:DateTime64(3)} "
+        "AND event_time < {end:DateTime64(3)} "
+        "ORDER BY event_time "
+    )
+
+    params = {'start': window_start, 'end': window_end}
+
+    if limit is not None:
+        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
+        params['limit'] = limit
+        params['offset'] = offset
+
+    result = client.query(query, parameters=params)
+    return [r[0] for r in result.result_rows]
+
+
+def count_payment_events(client, window_start: datetime,
+                         window_end: datetime) -> int:
+    """Count total payment events in the time window."""
+    result = client.query(
+        "SELECT count() FROM payment_events_raw "
+        "WHERE event_time >= {start:DateTime64(3)} "
+        "AND event_time < {end:DateTime64(3)}",
+        parameters={'start': window_start, 'end': window_end},
+    )
+    return result.result_rows[0][0]
+
+
+def fetch_bill_events(client, window_start: datetime,
+                      window_end: datetime, limit: int = None,
+                      offset: int = 0) -> List[str]:
+    """Fetch raw payment JSON — bill data is embedded in Payment.paymentDetails[n].bill."""
+    query = (
+        "SELECT raw FROM payment_events_raw "
+        "WHERE event_time >= {start:DateTime64(3)} "
+        "AND event_time < {end:DateTime64(3)} "
+        "ORDER BY event_time "
+    )
+
+    params = {'start': window_start, 'end': window_end}
+
+    if limit is not None:
+        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
+        params['limit'] = limit
+        params['offset'] = offset
+
+    result = client.query(query, parameters=params)
+    return [r[0] for r in result.result_rows]
+
+
+def count_bill_events(client, window_start: datetime,
+                      window_end: datetime) -> int:
+    """Count payment events — bill data is embedded inside each payment."""
+    result = client.query(
+        "SELECT count() FROM payment_events_raw "
+        "WHERE event_time >= {start:DateTime64(3)} "
+        "AND event_time < {end:DateTime64(3)}",
+        parameters={'start': window_start, 'end': window_end},
+    )
+    return result.result_rows[0][0]
+
+
+def fetch_assessment_events(client, window_start: datetime,
+                            window_end: datetime, limit: int = None,
+                            offset: int = 0) -> List[str]:
+    """Fetch raw JSON strings from assessment_events_raw within the time window."""
+    query = (
+        "SELECT raw FROM assessment_events_raw "
+        "WHERE event_time >= {start:DateTime64(3)} "
+        "AND event_time < {end:DateTime64(3)} "
+        "ORDER BY event_time "
+    )
+
+    params = {'start': window_start, 'end': window_end}
+
+    if limit is not None:
+        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
+        params['limit'] = limit
+        params['offset'] = offset
+
+    result = client.query(query, parameters=params)
+    return [r[0] for r in result.result_rows]
+
+
+def count_assessment_events(client, window_start: datetime,
+                            window_end: datetime) -> int:
+    """Count total assessment events in the time window."""
+    result = client.query(
+        "SELECT count() FROM assessment_events_raw "
+        "WHERE event_time >= {start:DateTime64(3)} "
+        "AND event_time < {end:DateTime64(3)}",
+        parameters={'start': window_start, 'end': window_end},
+    )
+    return result.result_rows[0][0]
+
+
 # -- Extraction helpers -------------------------------------------------------
 
 
 EPOCH = make_aware(datetime(1970, 1, 1))
 
 
-def extract_property_address(event: dict, prop: dict) -> dict:
+def extract_property_address(prop: dict) -> dict:
     audit = prop.get('auditDetails', {}) or {}
     addr = prop.get('address', {}) or {}
     return {
         'id': prop.get('id', ''),
-        'tenant_id': event.get('tenantId', ''),
+        'tenant_id': prop.get('tenantId', ''),
         'property_id': prop.get('propertyId', ''),
         'survey_id': prop.get('surveyId', ''),
         'account_id': prop.get('accountId', ''),
@@ -280,26 +402,27 @@ def extract_property_address(event: dict, prop: dict) -> dict:
         'created_time': parse_ts(audit.get('createdTime')) or EPOCH,
         'last_modified_by': audit.get('lastModifiedBy', ''),
         'last_modified_time': parse_ts(audit.get('lastModifiedTime')) or EPOCH,
+        'financial_year': compute_financial_year(audit.get('createdTime')),
         'additionaldetails': json.dumps(prop.get('additionalDetails')) if prop.get('additionalDetails') else '',
         'door_no': addr.get('doorNo', ''),
         'plot_no': addr.get('plotNo', ''),
         'building_name': addr.get('buildingName', ''),
         'street': addr.get('street', ''),
         'landmark': addr.get('landmark', ''),
-        'locality': addr.get('locality', ''),
+        'locality': addr.get('locality', {}).get('code', '') if isinstance(addr.get('locality'), dict) else addr.get('locality', ''),
         'city': addr.get('city', ''),
         'district': addr.get('district', ''),
         'region': addr.get('region', ''),
         'state': addr.get('state', ''),
         'country': addr.get('country', 'IN'),
         'pin_code': addr.get('pincode', ''),
-        'latitude': safe_dec(addr.get('latitude'), 6),
-        'longitude': safe_dec(addr.get('longitude'), 7),
+        'latitude': safe_dec((addr.get('geoLocation') or {}).get('latitude') or addr.get('latitude'), 6),
+        'longitude': safe_dec((addr.get('geoLocation') or {}).get('longitude') or addr.get('longitude'), 7),
     }
 
 
-def extract_units(event: dict, prop: dict) -> List[dict]:
-    tenant_id = event.get('tenantId', '')
+def extract_units(prop: dict) -> List[dict]:
+    tenant_id = prop.get('tenantId', '')
     property_uuid = prop.get('id', '')
     property_id = prop.get('propertyId', '')
     rows = []
@@ -308,6 +431,7 @@ def extract_units(event: dict, prop: dict) -> List[dict]:
         if not uid:
             continue
         u_audit = u.get('auditDetails', {}) or {}
+        cd = u.get('constructionDetail', {}) or {}
         rows.append({
             'tenant_id': tenant_id,
             'property_uuid': property_uuid,
@@ -317,13 +441,13 @@ def extract_units(event: dict, prop: dict) -> List[dict]:
             'usage_category': u.get('usageCategory', ''),
             'occupancy_type': u.get('occupancyType', ''),
             'occupancy_date': (parse_ts(u.get('occupancyDate')) or EPOCH).date(),
-            'carpet_area': safe_dec(u.get('carpetArea')),
-            'built_up_area': safe_dec(u.get('builtUpArea')),
-            'plinth_area': safe_dec(u.get('plinthArea')),
-            'super_built_up_area': safe_dec(u.get('superBuiltUpArea')),
+            'carpet_area': safe_dec(cd.get('carpetArea')),
+            'built_up_area': safe_dec(cd.get('builtUpArea')),
+            'plinth_area': safe_dec(cd.get('plinthArea')),
+            'super_built_up_area': safe_dec(cd.get('superBuiltUpArea')),
             'arv': safe_dec(u.get('arv')),
-            'construction_type': u.get('constructionType', ''),
-            'construction_date': safe_int(u.get('constructionDate', 0)),
+            'construction_type': cd.get('constructionType', ''),
+            'construction_date': safe_int(cd.get('constructionDate', 0)),
             'active': 1 if u.get('active', True) else 0,
             'created_by': u_audit.get('createdBy', ''),
             'created_time': parse_ts(u_audit.get('createdTime')) or EPOCH,
@@ -338,8 +462,8 @@ def extract_units(event: dict, prop: dict) -> List[dict]:
     return rows
 
 
-def extract_owners(event: dict, prop: dict) -> List[dict]:
-    tenant_id = event.get('tenantId', '')
+def extract_owners(prop: dict) -> List[dict]:
+    tenant_id = prop.get('tenantId', '')
     property_uuid = prop.get('id', '')
     property_id = prop.get('propertyId', '')
     rows = []
@@ -347,22 +471,21 @@ def extract_owners(event: dict, prop: dict) -> List[dict]:
         oid = o.get('ownerInfoUuid', '')
         if not oid:
             continue
-        o_audit = o.get('auditDetails', {}) or {}
         rows.append({
             'tenant_id': tenant_id,
             'property_uuid': property_uuid,
             'owner_info_uuid': oid,
-            'user_id': o.get('userId', ''),
+            'user_id': o.get('uuid', ''),
             'status': o.get('status', ''),
             'is_primary_owner': 1 if o.get('isPrimaryOwner', False) else 0,
             'owner_type': o.get('ownerType', ''),
-            'ownership_percentage': str(o.get('ownershipPercentage', '')),
+            'ownership_percentage': str(o.get('ownerShipPercentage') or o.get('ownershipPercentage') or ''),
             'institution_id': o.get('institutionId', ''),
             'relationship': o.get('relationship', ''),
-            'created_by': o_audit.get('createdBy', ''),
-            'created_time': parse_ts(o_audit.get('createdTime')) or EPOCH,
-            'last_modified_by': o_audit.get('lastModifiedBy', ''),
-            'last_modified_time': parse_ts(o_audit.get('lastModifiedTime')) or EPOCH,
+            'created_by': o.get('createdBy', ''),
+            'created_time': parse_ts(o.get('createdDate')) or EPOCH,
+            'last_modified_by': o.get('lastModifiedBy', ''),
+            'last_modified_time': parse_ts(o.get('lastModifiedDate')) or EPOCH,
             'property_id': property_id,
             'property_type': prop.get('propertyType', ''),
             'ownership_category': prop.get('ownershipCategory', ''),
@@ -372,66 +495,268 @@ def extract_owners(event: dict, prop: dict) -> List[dict]:
     return rows
 
 
-def compute_financial_year(tax_period_from_ms) -> str:
-    dt = parse_ts(tax_period_from_ms)
-    if dt is None:
+def compute_financial_year(epoch_ms) -> str:
+    """Derive Indian fiscal year (Apr–Mar) from epoch-millis using UTC."""
+    if not epoch_ms:
         return ''
-    if dt.month >= 4:
-        return f"{dt.year}-{(dt.year + 1) % 100:02d}"
-    return f"{dt.year - 1}-{dt.year % 100:02d}"
+    try:
+        ms = int(epoch_ms)
+    except (TypeError, ValueError):
+        return ''
+    if ms == 0:
+        return ''
+    dt = datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+    start_year = dt.year if dt.month >= 4 else dt.year - 1
+    return f"{start_year}-{(start_year + 1) % 100:02d}"
 
 
-def extract_demand(event: dict, demand: dict) -> dict:
+def extract_demand(demand: dict) -> dict:
     audit = demand.get('auditDetails', {}) or {}
     details = demand.get('demandDetails', []) or []
 
-    tax_totals: Dict[str, Decimal] = {}
+    tax_amounts: Dict[str, Decimal] = {}
+    collection_amounts: Dict[str, Decimal] = {}
     total_tax = Decimal('0')
     total_collection = Decimal('0')
 
     for d in details:
-        code = d.get('taxHeadCode', '')
+        code = d.get('taxHeadMasterCode', '')
         if not code:
             continue
         ta = safe_dec(d.get('taxAmount'), 4)
         ca = safe_dec(d.get('collectionAmount'), 4)
-        tax_totals[code] = tax_totals.get(code, Decimal('0')) + ta
+        tax_amounts[code] = tax_amounts.get(code, Decimal('0')) + ta
+        collection_amounts[code] = collection_amounts.get(code, Decimal('0')) + ca
         total_tax += ta
         total_collection += ca
 
-    explicit_fy = demand.get('financialYear', '')
-    fy = explicit_fy if explicit_fy else compute_financial_year(
-        demand.get('taxPeriodFrom'))
+    fy = compute_financial_year(demand.get('taxPeriodFrom'))
 
-    # Calculate outstanding_amount and is_paid
     outstanding_amount = round(total_tax - total_collection, 2)
     is_paid = 1 if outstanding_amount <= 0 else 0
 
     return {
-        'tenant_id': event.get('tenantId', ''),
+        'tenant_id': demand.get('tenantId', ''),
         'demand_id': demand.get('id', ''),
         'consumer_code': demand.get('consumerCode', ''),
         'consumer_type': demand.get('consumerType', ''),
         'business_service': demand.get('businessService', ''),
-        'payer': demand.get('payer', ''),
+        'payer': demand.get('payer', {}).get('uuid', '') if isinstance(demand.get('payer'), dict) else demand.get('payer', ''),
         'tax_period_from': parse_ts(demand.get('taxPeriodFrom')) or EPOCH,
         'tax_period_to': parse_ts(demand.get('taxPeriodTo')) or EPOCH,
         'demand_status': demand.get('status', ''),
-        'is_payment_completed': 1 if demand.get('isPaymentCompleted', False) else 0,
         'financial_year': fy,
         'minimum_amount_payable': safe_dec(demand.get('minimumAmountPayable'), 4),
         'bill_expiry_time': safe_int(demand.get('billExpiryTime', 0)),
         'fixed_bill_expiry_date': safe_int(demand.get('fixedBillExpiryDate', 0)),
         'total_tax_amount': round(total_tax, 2),
         'total_collection_amount': round(total_collection, 2),
-        'pt_tax': safe_dec(tax_totals.get('PT_TAX', 0), 4),
-        'pt_cancer_cess': safe_dec(tax_totals.get('PT_CANCER_CESS', 0), 4),
-        'pt_fire_cess': safe_dec(tax_totals.get('PT_FIRE_CESS', 0), 4),
-        'pt_roundoff': safe_dec(tax_totals.get('PT_ROUNDOFF', 0), 4),
-        'pt_owner_exemption': safe_dec(tax_totals.get('PT_OWNER_EXEMPTION', 0), 4),
-        'pt_unit_usage_exemption': safe_dec(tax_totals.get('PT_UNIT_USAGE_EXEMPTION', 0), 4),
+        # Tax amounts by tax head
+        'pt_tax': safe_dec(tax_amounts.get('PT_TAX', 0), 4),
+        'pt_cancer_cess': safe_dec(tax_amounts.get('PT_CANCER_CESS', 0), 4),
+        'pt_fire_cess': safe_dec(tax_amounts.get('PT_FIRE_CESS', 0), 4),
+        'pt_roundoff': safe_dec(tax_amounts.get('PT_ROUNDOFF', 0), 4),
+        'pt_owner_exemption': safe_dec(tax_amounts.get('PT_OWNER_EXEMPTION', 0), 4),
+        'pt_unit_usage_exemption': safe_dec(tax_amounts.get('PT_UNIT_USAGE_EXEMPTION', 0), 4),
+        'pt_advance_carryforward': safe_dec(tax_amounts.get('PT_ADVANCE_CARRYFORWARD', 0), 4),
+        'pt_decimal_ceiling_debit': safe_dec(tax_amounts.get('PT_DECIMAL_CEILING_DEBIT', 0), 4),
+        'pt_time_rebate': safe_dec(tax_amounts.get('PT_TIME_REBATE', 0), 4),
+        'pt_decimal_ceiling_credit': safe_dec(tax_amounts.get('PT_DECIMAL_CEILING_CREDIT', 0), 4),
+        'pt_time_penalty': safe_dec(tax_amounts.get('PT_TIME_PENALTY', 0), 4),
+        'pt_adhoc_penalty': safe_dec(tax_amounts.get('PT_ADHOC_PENALTY', 0), 4),
+        'pt_adhoc_rebate': safe_dec(tax_amounts.get('PT_ADHOC_REBATE', 0), 4),
+        'pt_time_interest': safe_dec(tax_amounts.get('PT_TIME_INTEREST', 0), 4),
+        # Collection amounts by tax head
+        'pt_tax_collection': safe_dec(collection_amounts.get('PT_TAX', 0), 4),
+        'pt_cancer_cess_collection': safe_dec(collection_amounts.get('PT_CANCER_CESS', 0), 4),
+        'pt_fire_cess_collection': safe_dec(collection_amounts.get('PT_FIRE_CESS', 0), 4),
+        'pt_roundoff_collection': safe_dec(collection_amounts.get('PT_ROUNDOFF', 0), 4),
+        'pt_owner_exemption_collection': safe_dec(collection_amounts.get('PT_OWNER_EXEMPTION', 0), 4),
+        'pt_unit_usage_exemption_collection': safe_dec(collection_amounts.get('PT_UNIT_USAGE_EXEMPTION', 0), 4),
+        'pt_advance_carryforward_collection': safe_dec(collection_amounts.get('PT_ADVANCE_CARRYFORWARD', 0), 4),
+        'pt_decimal_ceiling_debit_collection': safe_dec(collection_amounts.get('PT_DECIMAL_CEILING_DEBIT', 0), 4),
+        'pt_time_rebate_collection': safe_dec(collection_amounts.get('PT_TIME_REBATE', 0), 4),
+        'pt_decimal_ceiling_credit_collection': safe_dec(collection_amounts.get('PT_DECIMAL_CEILING_CREDIT', 0), 4),
+        'pt_time_penalty_collection': safe_dec(collection_amounts.get('PT_TIME_PENALTY', 0), 4),
+        'pt_adhoc_penalty_collection': safe_dec(collection_amounts.get('PT_ADHOC_PENALTY', 0), 4),
+        'pt_adhoc_rebate_collection': safe_dec(collection_amounts.get('PT_ADHOC_REBATE', 0), 4),
+        'pt_time_interest_collection': safe_dec(collection_amounts.get('PT_TIME_INTEREST', 0), 4),
+        # Derived
         'outstanding_amount': outstanding_amount,
         'is_paid': is_paid,
+        'created_by': audit.get('createdBy', ''),
+        'created_time': parse_ts(audit.get('createdTime')) or EPOCH,
+        'last_modified_by': audit.get('lastModifiedBy', ''),
+        'last_modified_time': parse_ts(audit.get('lastModifiedTime')) or EPOCH,
+    }
+
+
+
+def extract_bill(bill: dict) -> dict:
+    audit = bill.get('auditDetails', {}) or {}
+    fy = compute_financial_year(audit.get('createdTime'))
+
+    return {
+        'tenant_id': bill.get('tenantId', ''),
+        'bill_id': bill.get('id', ''),
+        'status': bill.get('status', ''),
+        'iscancelled': 1 if bill.get('isCancelled', False) else 0,
+        'additionaldetails': json.dumps(bill.get('additionalDetails')) if bill.get('additionalDetails') else '',
+        'collectionmodesnotallowed': ','.join(bill.get('collectionModesNotAllowed') or []),
+        'partpaymentallowed': 1 if bill.get('partPaymentAllowed', False) else 0,
+        'isadvanceallowed': 1 if bill.get('isAdvanceAllowed', False) else 0,
+        'minimumamounttobepaid': safe_dec(bill.get('minimumAmountToBePaid'), 2),
+        'businessservice': bill.get('businessService', ''),
+        'totalamount': safe_dec(bill.get('totalAmount'), 2),
+        'consumercode': bill.get('consumerCode', ''),
+        'billnumber': bill.get('billNumber', ''),
+        'billdate': parse_ts(bill.get('billDate')) or EPOCH,
+        'reasonforcancellation': bill.get('reasonForCancellation', ''),
+        'created_by': audit.get('createdBy', ''),
+        'created_time': parse_ts(audit.get('createdTime')) or EPOCH,
+        'last_modified_by': audit.get('lastModifiedBy', ''),
+        'last_modified_time': parse_ts(audit.get('lastModifiedTime')) or EPOCH,
+        'financial_year': fy,
+    }
+
+
+def extract_bill_details(bill: dict) -> List[dict]:
+    tenant_id = bill.get('tenantId', '')
+    bill_id = bill.get('id', '')
+    audit = bill.get('auditDetails', {}) or {}
+
+    rows = []
+    for detail in (bill.get('billDetails', []) or []):
+        detail_id = detail.get('id', '')
+        if not detail_id:
+            continue
+
+        from_period = safe_int(detail.get('fromPeriod', 0))
+        to_period = safe_int(detail.get('toPeriod', 0))
+        fy = compute_financial_year(from_period)
+
+        rows.append({
+               'id': detail_id,
+            'tenant_id': tenant_id,
+            'demand_id': detail.get('demandId', ''),
+            'bill_id': bill_id,
+            'amount': safe_dec(detail.get('amount'), 2),
+            'amount_paid': safe_dec(detail.get('amountPaid'), 2),
+            'from_period': from_period,
+            'to_period': to_period,
+            'additional_details': json.dumps(detail.get('additionalDetails')) if detail.get('additionalDetails') else '',
+            'channel': detail.get('channel', ''),
+            'voucher_header': detail.get('voucherHeader', ''),
+            'boundary': detail.get('boundary', ''),
+            'collection_type': detail.get('collectionType', ''),
+            'bill_description': detail.get('billDescription', ''),
+            'expiry_date': str(detail.get('expiryDate', '')) if detail.get('expiryDate') is not None else '',
+            'display_message': detail.get('displayMessage', ''),
+            'call_back_for_apportioning': detail.get('callBackForApportioning', ''),
+            'cancellation_remarks': detail.get('cancellationRemarks', ''),
+            'created_by': audit.get('createdBy', ''),
+            'created_time': parse_ts(audit.get('createdTime')) or EPOCH,
+            'last_modified_by': audit.get('lastModifiedBy', ''),
+            'last_modified_time': parse_ts(audit.get('lastModifiedTime')) or EPOCH,
+            'financial_year': fy,
+        })
+    return rows
+
+
+def extract_payment(payment: dict) -> dict:
+    """Extract and flatten a single payment event into a row for payment_with_details_entity.
+
+    The raw event is expected to carry a top-level 'Payment' object whose
+    'paymentDetails' array contains one or more receipt records.  When
+    multiple paymentDetails exist we take the first one (index 0) for the
+    scalar receipt columns; all detail rows share the same payment-level
+    fields.
+    """
+    audit = payment.get('auditDetails', {}) or {}
+    details = payment.get('paymentDetails', []) or []
+
+    # Pick the first payment detail for receipt-level scalar columns.
+    # Downstream consumers that need all details should use the raw table.
+    detail = details[0] if details else {}
+
+    return {
+        'tenant_id': payment.get('tenantId', ''),
+        'payment_id': payment.get('id', ''),
+        'total_due': safe_dec(payment.get('totalDue'), 2),
+        'total_amount_paid': safe_dec(payment.get('totalAmountPaid'), 2),
+        'transaction_number': payment.get('transactionNumber', ''),
+        'transaction_date': parse_ts(payment.get('transactionDate')) or EPOCH,
+        'payment_mode': payment.get('paymentMode', ''),
+        'instrument_date': parse_ts(payment.get('instrumentDate')) or EPOCH,
+        'instrument_number': payment.get('instrumentNumber', ''),
+        'instrument_status': payment.get('instrumentStatus', ''),
+        'ifsc_code': payment.get('ifscCode', ''),
+        'additional_details': json.dumps(payment.get('additionalDetails')) if payment.get('additionalDetails') else '',
+        'payer_id': payment.get('payerId', ''),
+        'payment_status': payment.get('paymentStatus', ''),
+        'created_by': audit.get('createdBy', ''),
+        'created_time': parse_ts(audit.get('createdTime')) or EPOCH,
+        'last_modified_by': audit.get('lastModifiedBy', ''),
+        'last_modified_time': parse_ts(audit.get('lastModifiedTime')) or EPOCH,
+        'financial_year': compute_financial_year(payment.get('transactionDate')),
+        'filestore_id': payment.get('fileStoreId', ''),
+        # Payment detail / receipt fields (from first paymentDetail entry)
+        'receiptnumber': detail.get('receiptNumber', ''),
+        'receiptdate': parse_ts(detail.get('receiptDate')) or EPOCH,
+        'receipttype': detail.get('receiptType', ''),
+        'businessservice': detail.get('businessService', ''),
+        'billid': detail.get('billId', ''),
+        'manualreceiptnumber': detail.get('manualReceiptNumber', ''),
+        'manualreceiptdate': parse_ts(detail.get('manualReceiptDate')) or EPOCH,
+    }
+
+
+def extract_property_audit(prop: dict) -> dict:
+    """Snapshot the current property state into property_audit_entity.
+
+    Uses plain MergeTree (no ReplacingMergeTree) — every ingest intentionally
+    creates a new audit record for change-history tracking.
+    audit_created_time is left to ClickHouse DEFAULT now64(3).
+    """
+    audit = prop.get('auditDetails', {}) or {}
+    owners = prop.get('owners', []) or []
+    units = prop.get('units', []) or []
+
+    # Sum builtUpArea and superBuiltUpArea across all units (lives in constructionDetail)
+    built_up_area = sum(safe_dec((u.get('constructionDetail') or {}).get('builtUpArea'), 2) for u in units)
+    super_built_up_area = sum(safe_dec((u.get('constructionDetail') or {}).get('superBuiltUpArea'), 2) for u in units)
+
+    return {
+        'tenant_id': prop.get('tenantId', ''),
+        'property_id': prop.get('propertyId', ''),
+        'property_type': prop.get('propertyType', ''),
+        'ownership_category': prop.get('ownershipCategory', ''),
+        'usage_category': prop.get('usageCategory', ''),
+        'property_status': prop.get('status', ''),
+        'workflow_state': ((prop.get('workflow') or {}).get('state') or {}).get('state', ''),
+        'super_built_up_area': super_built_up_area,
+        'built_up_area': built_up_area,
+        'land_area': safe_dec(prop.get('landArea'), 2),
+        'owner_count': safe_int(len(owners)),
+        'created_time': parse_ts(audit.get('createdTime')) or EPOCH,
+        'last_modified_time': parse_ts(audit.get('lastModifiedTime')) or EPOCH,
+    }
+
+
+
+def extract_assessment(assessment: dict) -> dict:
+    audit = assessment.get('auditDetails', {}) or {}
+
+    return {
+        'tenant_id': assessment.get('tenantId', ''),
+        'assessmentnumber': assessment.get('assessmentNumber', ''),
+        'financialyear': assessment.get('financialYear', ''),
+        'propertyid': assessment.get('propertyId', ''),
+        'status': assessment.get('status', ''),
+        'source': assessment.get('source', ''),
+        'channel': assessment.get('channel', ''),
+        'assessmentdate': parse_ts(assessment.get('assessmentDate')) or EPOCH,
+        'additionaldetails': json.dumps(assessment.get('additionalDetails')) if assessment.get('additionalDetails') else '',
         'created_by': audit.get('createdBy', ''),
         'created_time': parse_ts(audit.get('createdTime')) or EPOCH,
         'last_modified_by': audit.get('lastModifiedBy', ''),
@@ -456,7 +781,8 @@ def extract_property_events(**context):
     client = get_client()
     try:
         total_count = count_property_events(client, window_start, window_end)
-        logger.info(f"Property events found: {total_count}")
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Property events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
 
         return {
             'total_count': total_count,
@@ -482,7 +808,35 @@ def extract_demand_events(**context):
     client = get_client()
     try:
         total_count = count_demand_events(client, window_start, window_end)
-        logger.info(f"Demand events found: {total_count}")
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Demand events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
+
+        return {
+            'total_count': total_count,
+            'window_start': window_start.isoformat(),
+            'window_end': window_end.isoformat(),
+        }
+
+    finally:
+        client.close()
+
+
+def extract_payment_events(**context):
+    """Count payment events and pass window metadata via XCom.
+
+    Only passes lightweight metadata (window timestamps + total count).
+    No raw data is loaded into memory or XCom.
+    """
+    window_start, window_end = get_window(context)
+    logger.info(f"Run type: {context['dag_run'].run_type}")
+    logger.info(f"Logical date: {context['logical_date']}")
+    logger.info(f"Payment extract window: [{window_start}, {window_end})")
+
+    client = get_client()
+    try:
+        total_count = count_payment_events(client, window_start, window_end)
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Payment events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
 
         return {
             'total_count': total_count,
@@ -510,18 +864,20 @@ def transform_load_property_events(**context):
     total_count = metadata['total_count']
     if total_count == 0:
         logger.info("No property events to process")
-        return {'properties': 0, 'units': 0, 'owners': 0}
+        return {'properties': 0, 'units': 0, 'owners': 0, 'audits': 0}
 
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    logger.info(f"Processing {total_count} property events in chunks of {STREAM_BATCH_SIZE}")
+    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    logger.info(f"Processing {total_count} property events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
 
     client = get_client()
     try:
         total_props = 0
         total_units = 0
         total_owners = 0
+        total_audits = 0
         offset = 0
 
         while offset < total_count:
@@ -535,6 +891,7 @@ def transform_load_property_events(**context):
             prop_rows = []
             unit_rows = []
             owner_rows = []
+            audit_rows = []
 
             for raw_json in raw_jsons:
                 try:
@@ -543,27 +900,36 @@ def transform_load_property_events(**context):
                     logger.warning("Skipping invalid JSON")
                     continue
 
-                prop = event.get('property', {}) or {}
+                prop = event.get('Property', {}) or {}
                 if not prop.get('propertyId', ''):
                     continue
 
-                prop_rows.append(extract_property_address(event, prop))
-                unit_rows.extend(extract_units(event, prop))
-                owner_rows.extend(extract_owners(event, prop))
+                prop_rows.append(extract_property_address(prop))
+                unit_rows.extend(extract_units(prop))
+                owner_rows.extend(extract_owners(prop))
+                audit_rows.append(extract_property_audit(prop))
 
             # -- LOAD: insert this chunk into silver tables --
+            chunk_len = len(raw_jsons)
+            del raw_jsons
             batch_insert(client, 'property_address_entity', prop_rows, chunk_size=10000)
-            batch_insert(client, 'property_unit_entity', unit_rows, chunk_size=10000)
-            batch_insert(client, 'property_owner_entity', owner_rows, chunk_size=10000)
+            n_props = len(prop_rows); total_props += n_props; prop_rows.clear()
 
-            total_props += len(prop_rows)
-            total_units += len(unit_rows)
-            total_owners += len(owner_rows)
+            batch_insert(client, 'property_unit_entity', unit_rows, chunk_size=10000)
+            n_units = len(unit_rows); total_units += n_units; unit_rows.clear()
+
+            batch_insert(client, 'property_owner_entity', owner_rows, chunk_size=10000)
+            n_owners = len(owner_rows); total_owners += n_owners; owner_rows.clear()
+
+            batch_insert(client, 'property_audit_entity', audit_rows, chunk_size=10000)
+            n_audits = len(audit_rows); total_audits += n_audits; audit_rows.clear()
+
+            gc.collect()
 
             logger.info(
-                f"Chunk {offset}-{offset + len(raw_jsons)}: "
-                f"{len(prop_rows)} props, {len(unit_rows)} units, {len(owner_rows)} owners | "
-                f"Total: {total_props}/{total_units}/{total_owners}"
+                f"Chunk {offset}-{offset + chunk_len}: "
+                f"{n_props} props, {n_units} units, {n_owners} owners, {n_audits} audits | "
+                f"Total: {total_props}/{total_units}/{total_owners}/{total_audits}"
             )
             offset += STREAM_BATCH_SIZE
 
@@ -571,8 +937,10 @@ def transform_load_property_events(**context):
             'properties': total_props,
             'units': total_units,
             'owners': total_owners,
+            'audits': total_audits,
         }
-        logger.info(f"Property processing complete: {counts}")
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Property processing complete: {counts} | peak_memory={peak_kb // 1024} MiB")
         return counts
 
     finally:
@@ -597,7 +965,8 @@ def transform_load_demand_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    logger.info(f"Processing {total_count} demand events in chunks of {STREAM_BATCH_SIZE}")
+    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    logger.info(f"Processing {total_count} demand events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
 
     client = get_client()
     try:
@@ -621,21 +990,311 @@ def transform_load_demand_events(**context):
                     logger.warning("Skipping invalid JSON")
                     continue
 
-                demand = event.get('demand', {}) or {}
+                demands_list = event.get('Demands', []) or []
+                demand = demands_list[0] if demands_list else {}
                 if not demand.get('id', ''):
                     continue
 
-                demand_rows.append(extract_demand(event, demand))
+                demand_rows.append(extract_demand(demand))
 
             # -- LOAD: insert this chunk into silver table --
+            chunk_len = len(raw_jsons)
+            del raw_jsons
             batch_insert(client, 'demand_with_details_entity', demand_rows, chunk_size=10000)
+            n_demands = len(demand_rows); total_demands += n_demands; demand_rows.clear()
+            gc.collect()
 
-            total_demands += len(demand_rows)
-            logger.info(f"Chunk {offset}-{offset + len(raw_jsons)}: {len(demand_rows)} demands | Total: {total_demands}")
+            logger.info(f"Chunk {offset}-{offset + chunk_len}: {n_demands} demands | Total: {total_demands}")
             offset += STREAM_BATCH_SIZE
 
-        logger.info(f"Demand processing complete: {total_demands} rows")
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Demand processing complete: {total_demands} rows | peak_memory={peak_kb // 1024} MiB")
         return {'demands': total_demands}
+
+    finally:
+        client.close()
+
+
+def transform_load_payment_events(**context):
+    """For each chunk: extract from ClickHouse → transform → load into silver table.
+
+    Only one chunk (STREAM_BATCH_SIZE rows) of raw JSON is in memory at a time.
+    Each chunk is transformed and inserted before the next chunk is fetched.
+    No data accumulation, no XCom bloat.
+    """
+    ti = context['ti']
+    metadata = ti.xcom_pull(task_ids='extract_payment_events')
+
+    total_count = metadata['total_count']
+    if total_count == 0:
+        logger.info("No payment events to process")
+        return {'payments': 0}
+
+    ws = datetime.fromisoformat(metadata['window_start'])
+    we = datetime.fromisoformat(metadata['window_end'])
+
+    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    logger.info(f"Processing {total_count} payment events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+
+    client = get_client()
+    try:
+        total_payments = 0
+        offset = 0
+
+        while offset < total_count:
+            # -- EXTRACT: fetch one chunk from ClickHouse --
+            raw_jsons = fetch_payment_events(client, ws, we,
+                                             limit=STREAM_BATCH_SIZE, offset=offset)
+            if not raw_jsons:
+                break
+
+            # -- TRANSFORM: parse JSON, extract fields --
+            payment_rows = []
+
+            for raw_json in raw_jsons:
+                try:
+                    event = json.loads(raw_json)
+                except json.JSONDecodeError:
+                    logger.warning("Skipping invalid JSON")
+                    continue
+
+                payment = event.get('Payment', {}) or {}
+                if not payment.get('id', ''):
+                    continue
+
+                payment_rows.append(extract_payment(payment))
+
+            # -- LOAD: insert this chunk into silver table --
+            chunk_len = len(raw_jsons)
+            del raw_jsons
+            batch_insert(client, 'payment_with_details_entity', payment_rows, chunk_size=10000)
+            n_payments = len(payment_rows); total_payments += n_payments; payment_rows.clear()
+            gc.collect()
+
+            logger.info(f"Chunk {offset}-{offset + chunk_len}: {n_payments} payments | Total: {total_payments}")
+            offset += STREAM_BATCH_SIZE
+
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Payment processing complete: {total_payments} rows | peak_memory={peak_kb // 1024} MiB")
+        return {'payments': total_payments}
+
+    finally:
+        client.close()
+
+
+def extract_bill_events(**context):
+    """Count bill events and pass window metadata via XCom.
+
+    Only passes lightweight metadata (window timestamps + total count).
+    No raw data is loaded into memory or XCom.
+    """
+    window_start, window_end = get_window(context)
+    logger.info(f"Run type: {context['dag_run'].run_type}")
+    logger.info(f"Logical date: {context['logical_date']}")
+    logger.info(f"Bill extract window: [{window_start}, {window_end})")
+
+    client = get_client()
+    try:
+        total_count = count_bill_events(client, window_start, window_end)
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Bill events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
+
+        return {
+            'total_count': total_count,
+            'window_start': window_start.isoformat(),
+            'window_end': window_end.isoformat(),
+        }
+
+    finally:
+        client.close()
+
+
+def transform_load_bill_events(**context):
+    """For each chunk: extract from ClickHouse -> transform -> load into silver tables.
+
+    Each raw bill event carries a list of bills under the 'bills' key.
+    For every bill we write to two silver tables:
+      - bill_entity               (one row per bill)
+      - bill_detail_entity        (one row per billDetail)
+
+    Only one chunk (STREAM_BATCH_SIZE rows) of raw JSON is in memory at a time.
+    """
+    ti = context['ti']
+    metadata = ti.xcom_pull(task_ids='extract_bill_events')
+
+    total_count = metadata['total_count']
+    if total_count == 0:
+        logger.info("No bill events to process")
+        return {'bills': 0, 'bill_details': 0}
+
+    ws = datetime.fromisoformat(metadata['window_start'])
+    we = datetime.fromisoformat(metadata['window_end'])
+
+    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    logger.info(f"Processing {total_count} bill events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+
+    client = get_client()
+    try:
+        total_bills = 0
+        total_details = 0
+        offset = 0
+
+        while offset < total_count:
+            # -- EXTRACT: fetch one chunk from ClickHouse --
+            raw_jsons = fetch_bill_events(client, ws, we,
+                                          limit=STREAM_BATCH_SIZE, offset=offset)
+            if not raw_jsons:
+                break
+
+            # -- TRANSFORM: parse JSON, extract fields --
+            bill_rows = []
+            detail_rows = []
+
+            seen_bill_ids: set = set()
+
+            for raw_json in raw_jsons:
+                try:
+                    event = json.loads(raw_json)
+                except json.JSONDecodeError:
+                    logger.warning("Skipping invalid JSON")
+                    continue
+
+                # Bill is embedded in Payment.paymentDetails[n].bill
+                payment = event.get('Payment', {}) or {}
+                for pd in (payment.get('paymentDetails', []) or []):
+                    bill = pd.get('bill', {}) or {}
+                    bill_id = bill.get('id', '')
+                    if not bill_id or bill_id in seen_bill_ids:
+                        continue
+                    seen_bill_ids.add(bill_id)
+                    bill_rows.append(extract_bill(bill))
+                    detail_rows.extend(extract_bill_details(bill))
+
+            # -- LOAD: insert this chunk into silver tables --
+            chunk_len = len(raw_jsons)
+            del raw_jsons
+            batch_insert(client, 'bill_entity', bill_rows, chunk_size=10000)
+            n_bills = len(bill_rows); total_bills += n_bills; bill_rows.clear()
+
+            batch_insert(client, 'bill_detail_entity', detail_rows, chunk_size=10000)
+            n_details = len(detail_rows); total_details += n_details; detail_rows.clear()
+
+            gc.collect()
+
+            logger.info(
+                f"Chunk {offset}-{offset + chunk_len}: "
+                f"{n_bills} bills, {n_details} details | "
+                f"Total: {total_bills}/{total_details}"
+            )
+            offset += STREAM_BATCH_SIZE
+
+        counts = {
+            'bills': total_bills,
+            'bill_details': total_details,
+        }
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Bill processing complete: {counts} | peak_memory={peak_kb // 1024} MiB")
+        return counts
+
+    finally:
+        client.close()
+
+
+# -- DAG definition -----------------------------------------------------------
+
+
+def extract_assessment_events(**context):
+    """Count assessment events and pass window metadata via XCom.
+
+    Only passes lightweight metadata (window timestamps + total count).
+    No raw data is loaded into memory or XCom.
+    """
+    window_start, window_end = get_window(context)
+    logger.info(f"Run type: {context['dag_run'].run_type}")
+    logger.info(f"Logical date: {context['logical_date']}")
+    logger.info(f"Assessment extract window: [{window_start}, {window_end})")
+
+    client = get_client()
+    try:
+        total_count = count_assessment_events(client, window_start, window_end)
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Assessment events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
+
+        return {
+            'total_count': total_count,
+            'window_start': window_start.isoformat(),
+            'window_end': window_end.isoformat(),
+        }
+
+    finally:
+        client.close()
+
+
+def transform_load_assessment_events(**context):
+    """For each chunk: extract from ClickHouse -> transform -> load into silver table.
+
+    Each raw assessment event maps directly to one property_assessment_entity row.
+    The event payload is the assessment itself (no nested wrapper key).
+    Only one chunk (STREAM_BATCH_SIZE rows) of raw JSON is in memory at a time.
+    """
+    ti = context['ti']
+    metadata = ti.xcom_pull(task_ids='extract_assessment_events')
+
+    total_count = metadata['total_count']
+    if total_count == 0:
+        logger.info("No assessment events to process")
+        return {'assessments': 0}
+
+    ws = datetime.fromisoformat(metadata['window_start'])
+    we = datetime.fromisoformat(metadata['window_end'])
+
+    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    logger.info(f"Processing {total_count} assessment events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+
+    client = get_client()
+    try:
+        total_assessments = 0
+        offset = 0
+
+        while offset < total_count:
+            # -- EXTRACT: fetch one chunk from ClickHouse --
+            raw_jsons = fetch_assessment_events(client, ws, we,
+                                                limit=STREAM_BATCH_SIZE, offset=offset)
+            if not raw_jsons:
+                break
+
+            # -- TRANSFORM: parse JSON, extract fields --
+            assessment_rows = []
+
+            for raw_json in raw_jsons:
+                try:
+                    event = json.loads(raw_json)
+                except json.JSONDecodeError:
+                    logger.warning("Skipping invalid JSON")
+                    continue
+
+                assessment = event.get('Assessment', {}) or {}
+                if not assessment.get('assessmentNumber', ''):
+                    continue
+
+                assessment_rows.append(extract_assessment(assessment))
+
+            # -- LOAD: insert this chunk into silver table --
+            chunk_len = len(raw_jsons)
+            del raw_jsons
+            batch_insert(client, 'property_assessment_entity', assessment_rows, chunk_size=10000)
+            n_assessments = len(assessment_rows); total_assessments += n_assessments; assessment_rows.clear()
+            gc.collect()
+
+            logger.info(
+                f"Chunk {offset}-{offset + chunk_len}: "
+                f"{n_assessments} assessments | Total: {total_assessments}"
+            )
+            offset += STREAM_BATCH_SIZE
+
+        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info(f"Assessment processing complete: {total_assessments} rows | peak_memory={peak_kb // 1024} MiB")
+        return {'assessments': total_assessments}
 
     finally:
         client.close()
@@ -678,15 +1337,58 @@ with DAG(
 
     trigger_rmv_refresh = TriggerDagRunOperator(
         task_id='trigger_rmv_refresh',
-        trigger_dag_id='clickhouse_rmv_sequential_refresh',
+        trigger_dag_id='clickhouse_rmv_parallel_refresh',
         wait_for_completion=False,
     )
 
     end = EmptyOperator(task_id='end')
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+    # Payment pipeline: Extract -> Transform+Load
+    extract_payments = PythonOperator(
+        task_id='extract_payment_events',
+        python_callable=extract_payment_events,
+    )
+    transform_load_payments = PythonOperator(
+        task_id='transform_load_payment_events',
+        python_callable=transform_load_payment_events,
+    )
+
+    # Bill pipeline: Extract -> Transform+Load
+    extract_bills = PythonOperator(
+        task_id='extract_bill_events',
+        python_callable=extract_bill_events,
+    )
+    transform_load_bills = PythonOperator(
+        task_id='transform_load_bill_events',
+        python_callable=transform_load_bill_events,
+    )
+
+    # Assessment pipeline: Extract -> Transform+Load
+    extract_assessments = PythonOperator(
+        task_id='extract_assessment_events',
+        python_callable=extract_assessment_events,
+    )
+    transform_load_assessments = PythonOperator(
+        task_id='transform_load_assessment_events',
+        python_callable=transform_load_assessment_events,
+    )
 
     # Property pipeline
-    start >> extract_props >> transform_load_props >> trigger_rmv_refresh
-    # Demand pipeline (runs in parallel with property pipeline)
-    start >> extract_demands >> transform_load_demands >> trigger_rmv_refresh
-    # Final
-    trigger_rmv_refresh >> end
+    start >> extract_props >> transform_load_props
+    # Demand pipeline (runs in parallel)
+    start >> extract_demands >> transform_load_demands
+    # Payment pipeline (runs in parallel)
+    start >> extract_payments >> transform_load_payments
+    # Bill pipeline (runs in parallel)
+    start >> extract_bills >> transform_load_bills
+    # Assessment pipeline (runs in parallel)
+    start >> extract_assessments >> transform_load_assessments
+
+    # Fan-in: all pipelines must complete before triggering downstream refresh
+    [
+        transform_load_props,
+        transform_load_demands,
+        transform_load_payments,
+        transform_load_bills,
+        transform_load_assessments,
+    ] >> trigger_rmv_refresh >> end
