@@ -72,7 +72,7 @@ CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickhouse-clickstack-clickhouse
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', '8123'))
 CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
 CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', 'egov')
-CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'kafka-events')
+CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'kafka_events')
 
 # Streaming configuration for large datasets
 STREAM_BATCH_SIZE = 1000  # Process records in batches of 1k
