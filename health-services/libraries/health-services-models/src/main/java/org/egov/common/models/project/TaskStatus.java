@@ -49,6 +49,20 @@ public enum TaskStatus {
     DELIVERED("DELIVERED"),
 
     /**
+     * Indicates that the beneficiary is ineligible.
+     * This status shows that the beneficiary does not meet
+     * the required eligibility criteria for the program or service.
+     */
+    BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE"),
+
+    /**
+     * Indicates that the beneficiary has been referred.
+     * This status shows that the beneficiary has been referred
+     * to another service, provider, or program for further assistance.
+     */
+    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
+
+    /**
      * Indicates that the task has not been administered.
      * This status signifies that the task has not been processed or
      * handled yet.
