@@ -214,7 +214,6 @@ config:
     build:
       - work-dir: "health-services/libraries/health-services-models"
         image-name: "health-services-models"
-
   - name: "builds/health-campaign-services/core-services/pgr-services"
     build:
       - work-dir: "core-services/pgr-services"
@@ -321,7 +320,7 @@ config:
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
         image-name: "beneficiary-idgen-db"
-  # frontend
+# frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
     build:
       - work-dir: frontend/micro-ui/

@@ -8,12 +8,11 @@ COPY ${WORK_DIR}/pom.xml       ./pom.xml
 COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src           ./src
 
-# Build the app (skip tests for speed)
-RUN mvn -B -f pom.xml package -DskipTests
+RUN mvn -B -f pom.xml package
 
 
 # ─────────────── RUNTIME STAGE ───────────────
-FROM amazoncorretto:8-alpine AS runtime
+FROM amazoncorretto:8-alpine3.23-jdk AS runtime
 WORKDIR /opt/egov
 
 # Pull in the fat JAR and our startup script
