@@ -150,8 +150,15 @@ async function getLocalizedMessagesHandler(request: any, tenantId: any, module =
   if (!locale) {
     locale = getLocaleFromRequest(request);
   }
-  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
-  return localizationResponse;
+  try {
+    const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
+    return localizationResponse;
+  } catch (e: any) {
+    // Localization provides display names only and must not block boundary creation. If the
+    // localization service is unavailable, proceed with an empty map (headers/names fall back to codes).
+    logger.warn(`Localization fetch failed for module ${module}, locale ${locale}, tenant ${tenantId}; proceeding without localization: ${e?.message || e}`);
+    return {};
+  }
 }
 
 /* 
@@ -257,12 +264,67 @@ function modifyBoundaryDataHeadersWithMap(
   });
 }
 
+// Recursively collect every code in a boundary-relationship tree response.
+// Local copy (rather than importing from boundaryUtils) to avoid a cyclic import.
+function collectRelationshipCodes(boundaries: any[], acc: Set<string>): Set<string> {
+  if (!Array.isArray(boundaries)) return acc;
+  for (const boundary of boundaries) {
+    if (boundary?.code) acc.add(boundary.code.toString());
+    if (boundary?.children && boundary.children.length > 0) {
+      collectRelationshipCodes(boundary.children, acc);
+    }
+  }
+  return acc;
+}
+
 /**
- * Helper function to check which boundary codes already exist in the database
+ * Fetch every boundary code already present in THIS hierarchy (tenantId + hierarchyType)
+ * in a single relationship search (the search returns the whole tree with includeChildren).
+ * This replaces the previous tenant-global entity lookup done in chunks of 20:
+ *  - correctness: existence is now scoped to the hierarchy being uploaded (Issue 2 — codes
+ *    belonging to another hierarchy no longer masquerade as "already processed"), and
+ *  - performance: one call instead of ~N/20 calls, so the segregation/entity phases scale
+ *    with the delta rather than the total hierarchy size (Issue 5).
+ * Degrades safely to an empty set on any failure (callers then fall back to per-code search).
+ */
+async function getExistingHierarchyCodes(request: any, tenantId?: string): Promise<Set<string>> {
+  const codes = new Set<string>();
+  const resolvedTenantId = tenantId || request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId;
+  const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
+  if (!resolvedTenantId || !hierarchyType) {
+    return codes;
+  }
+  try {
+    const response = await httpRequest(
+      config.host.boundaryHost + config.paths.boundaryRelationship,
+      request.body,
+      {
+        type: "boundaryManagement",
+        tenantId: resolvedTenantId,
+        boundaryType: null,
+        codes: null,
+        includeChildren: true,
+        hierarchyType,
+      }
+    );
+    const boundaryData = response?.TenantBoundary?.[0]?.boundary;
+    if (Array.isArray(boundaryData)) {
+      collectRelationshipCodes(boundaryData, codes);
+    }
+  } catch (error: any) {
+    logger.error(`Failed to fetch existing codes for hierarchy ${hierarchyType}: ${error?.message}`);
+  }
+  return codes;
+}
+
+/**
+ * Helper function to check which of the given boundary codes already exist in THIS hierarchy.
+ * Scoped to (tenantId + hierarchyType) via a single relationship search (see
+ * getExistingHierarchyCodes) instead of a tenant-global, chunked entity lookup.
  * @param boundaryCodes - Array of boundary codes to check
  * @param tenantId - Tenant ID for the request
  * @param request - Request object
- * @returns Set of boundary codes that exist in the database
+ * @returns Set of the given boundary codes that already exist in this hierarchy
  */
 async function checkExistingBoundaryCodes(
   boundaryCodes: string[],
@@ -275,39 +337,13 @@ async function checkExistingBoundaryCodes(
     return existingCodes;
   }
 
-  const chunkSize = 20;
-  const boundaryCodeChunks = [];
-
-  // Split the boundaryCodes into chunks of 20
-  for (let i = 0; i < boundaryCodes.length; i += chunkSize) {
-    boundaryCodeChunks.push(boundaryCodes.slice(i, i + chunkSize));
-  }
-
-  // Process each chunk
-  for (const chunk of boundaryCodeChunks) {
-    const boundaryCodeString = chunk.join(", ");
-
-    try {
-      // Make the API request to fetch boundary entities
-      const boundaryEntityResponse = await httpRequest(
-        config.host.boundaryHost + config.paths.boundaryEntity,
-        request.body,
-        { tenantId, codes: boundaryCodeString }
-      );
-
-      // Collect codes that exist in the response
-      if (boundaryEntityResponse?.Boundary && Array.isArray(boundaryEntityResponse.Boundary)) {
-        for (const boundary of boundaryEntityResponse.Boundary) {
-          if (boundary?.code) {
-            existingCodes.add(boundary.code);
-          }
-        }
-      }
-    } catch (error: any) {
-      logger.error(`Failed to fetch boundary entities for codes: ${boundaryCodeString}, Error: ${error.message}`);
-      // Continue processing other chunks even if one fails
+  const hierarchyCodes = await getExistingHierarchyCodes(request, tenantId);
+  const requested = new Set(boundaryCodes.map((c) => c?.toString()));
+  hierarchyCodes.forEach((code) => {
+    if (requested.has(code)) {
+      existingCodes.add(code);
     }
-  }
+  });
 
   return existingCodes;
 }
@@ -869,4 +905,5 @@ export {  appCache,errorLogger,invalidPathHandler
   ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
   ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,boundaryKeyOf,extractFrenchOrPortugeseLocalizationMap
   ,processGenerate ,getDataSheetReady , replicateRequest ,searchGeneratedBoundaryResources , checkForMixedBoundaryFlowInArrays
+  ,getExistingHierarchyCodes
 };
