@@ -7,6 +7,7 @@ import java.util.Random;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.hrms.service.MDMSService;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -77,12 +78,12 @@ public class HRMSUtils {
 		String pattern = mdmsService.fetchMobileNumberPattern(requestInfo, tenantId);
 
 		if (pattern == null) {
-			throw new RuntimeException("MDMS data is missing for schemaCode: common-masters.UserValidation");
+			throw new CustomException(ErrorConstants.HRMS_GENERATE_PHONE_NUMBER_ERROR, "MDMS data is missing for tenantId: " + tenantId + " for schemaCode: common-masters.UserValidation");
 		}
 
 		String generatedNumber = generateNumberFromPattern(pattern, random);
 		if (generatedNumber == null) {
-			throw new RuntimeException("MDMS data is missing for schemaCode: common-masters.UserValidation");
+			throw new CustomException(ErrorConstants.HRMS_GENERATE_PHONE_NUMBER_ERROR, "MDMS data is missing for tenantId: " + tenantId + " for schemaCode: common-masters.UserValidation");
 		}
 		return generatedNumber;
 	}

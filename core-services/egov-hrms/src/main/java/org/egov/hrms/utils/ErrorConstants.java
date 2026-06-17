@@ -188,6 +188,8 @@ public class ErrorConstants {
 	public static final String HRMS_GENERATE_ID_ERROR_CODE = "ERR_HRMS_GENERATE_ID_ERROR";
 	public static final String HRMS_GENERATE_ID_ERROR_MSG = "Unable to create ids " ;
 
+	public static final String HRMS_GENERATE_PHONE_NUMBER_ERROR = "HRMS_EMPLOYEE_PHONE_NUMBER_VALIDATION_ERROR";
+
 	public static final String HRMS_EMPLOYEE_COUNT_ERROR_CODE = "ERR_HRMS_COUNT_EMP";
 	public static final String HRMS_EMPLOYEE_COUNT_ERROR_MSG  = "Please provide tenantid to get count of the employee";
 
