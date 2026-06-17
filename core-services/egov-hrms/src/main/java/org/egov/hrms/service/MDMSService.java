@@ -175,7 +175,7 @@ public class MDMSService {
 			List<MasterDetail> masterDetails = new ArrayList<>();
 			MasterDetail masterDetail = MasterDetail.builder()
 					.name(HRMSConstants.HRMS_MDMS_USER_VALIDATION_CODE)
-					.filter("[?(@.fieldType == 'mobile')]")
+					.filter("[?(@.fieldType == 'mobile' && @.isActive == true)]")
 					.build();
 			masterDetails.add(masterDetail);
 			moduleDetail.setMasterDetails(masterDetails);
