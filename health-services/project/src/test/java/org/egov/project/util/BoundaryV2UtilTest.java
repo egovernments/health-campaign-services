@@ -11,6 +11,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.egov.tracer.model.CustomException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
@@ -20,6 +21,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -77,5 +79,24 @@ public class BoundaryV2UtilTest {
 
         // Should complete without throwing
         boundaryV2Util.validateBoundaryDetails(boundaries, "mz", RequestInfo.builder().build(), "ADMIN");
+    }
+
+    @Test
+    @DisplayName("Should report invalid codes (not NPE) when the service returns an empty 200 with a null Boundary list")
+    void shouldReportInvalidCodesWhenResponseBoundaryIsNull() {
+        ReflectionTestUtils.setField(boundaryV2Util, "boundaryHost", "http://boundary");
+        ReflectionTestUtils.setField(boundaryV2Util, "boundarySearchUrl", "/boundary-service/boundary/_search");
+
+        Map<String, List<String>> boundaries = Collections.singletonMap("Country", Collections.singletonList("mz"));
+
+        // Empty 200: BoundaryResponse with a null Boundary list (the default)
+        when(serviceRequestClient.fetchResult(any(), any(), eq(BoundaryResponse.class)))
+                .thenReturn(new BoundaryResponse());
+
+        CustomException ex = assertThrows(CustomException.class, () ->
+                boundaryV2Util.validateBoundaryDetails(boundaries, "mz", RequestInfo.builder().build(), "ADMIN"));
+        // Guard must yield a meaningful "boundary not available" message for the code, not a masked NPE
+        assertTrue(ex.getMessage().contains("mz"),
+                "Exception should surface the unavailable boundary code, not a NullPointerException");
     }
 }

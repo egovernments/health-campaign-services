@@ -65,10 +65,12 @@ public class BoundaryV2Util {
 
             // Extract invalid boundary codes
             List<String> invalidBoundaryCodes = new ArrayList<>(boundaries);
-            invalidBoundaryCodes.removeAll(boundarySearchResponse.getBoundary().stream()
-                    .map(Boundary::getCode)
-                    .collect(Collectors.toList())
-            );
+            if (!CollectionUtils.isEmpty(boundarySearchResponse.getBoundary())) {
+                invalidBoundaryCodes.removeAll(boundarySearchResponse.getBoundary().stream()
+                        .map(Boundary::getCode)
+                        .collect(Collectors.toList())
+                );
+            }
 
             // Throw exception if invalid boundary codes are found
             if (!invalidBoundaryCodes.isEmpty()) {
