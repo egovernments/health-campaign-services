@@ -40,21 +40,33 @@ POLL_INTERVAL_SECONDS = int(os.getenv('RMV_POLL_INTERVAL', '60'))
 REFRESH_TIMEOUT_SECONDS = int(os.getenv('RMV_REFRESH_TIMEOUT', '3600'))
 
 REFRESH_VIEWS = [
-    'rmv_mart_demand_values_by_fy',
-    'rmv_mart_collections_by_month',
-    'rmv_mart_defaulters',
+    # Property
+    'rmv_mart_active_property_distribution_summary',
     'rmv_mart_new_properties_by_fy',
+    # Demand
+    'rmv_mart_demand_and_collection_summary',
+    'rmv_mart_collections_by_month',
     'rmv_mart_properties_with_demand_by_fy',
-    'rmv_mart_property_agg',
+    'rmv_mart_defaulters',
+    # Change metrics (base layer — dependents run after)
+    'rmv_property_change_metrics',
+    # Assessment / Payment / Rebate
+    'rmv_mart_assessment_summary_by_fy',
+    'rmv_mart_payment_summary_by_fy',
+    'rmv_mart_rebate_summary_by_fy',
+    'rmv_mart_daily_collection_summary',
+    'rmv_mart_property_payment_mode_by_fy',
+    'rmv_mart_collection_by_transaction_fy_and_demand_fy',
 ]
 
 # Views that depend on other views completing first.
 # Key: view name, Value: list of views it depends on.
 DEPENDENT_VIEWS = {
-    'rmv_mart_property_demand_coverage_by_fy': [
-        'rmv_mart_properties_with_demand_by_fy',
-        'rmv_mart_new_properties_by_fy',
-    ],
+    # Risk summaries read from mart_property_change_metrics
+    'rmv_property_risk_summary': ['rmv_property_change_metrics'],
+    'rmv_property_changes_by_fy': ['rmv_property_change_metrics'],
+    # Demand vs assessed reads from mart_properties_with_demand_by_fy
+    'rmv_property_demand_vs_assessed_by_fy': ['rmv_mart_properties_with_demand_by_fy'],
 }
 
 default_args = {
