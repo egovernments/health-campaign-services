@@ -525,11 +525,11 @@ public class ProjectService {
         }
     }
 
-    public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
+    public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId,String hierarchyType) {
         if (localityCode == null) {
             return null;
         }
-        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMap(localityCode, tenantId);
+        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMap(localityCode, tenantId,hierarchyType);
         Map<String, String> boundaryHierarchy = new HashMap<>();
 
         boundaryLabelToNameMap.forEach((label, value) -> {
