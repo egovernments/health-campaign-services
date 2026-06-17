@@ -80,7 +80,7 @@ public class Stock extends EgovOfflineModel {
     private SenderReceiverType receiverType;
 
     @JsonProperty("wayBillNumber")
-    @Size(min = 2, max = 200)
+    @Size(max = 200)
     private String wayBillNumber;
 
     //TODO remove this
