@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -439,27 +440,20 @@ public class ProjectValidator {
         log.info("Request data validated with MDMS");
     }
 
-    /* Returns boundaries map for all Projects in request body with key boundaryType and value as list of all boundaries corresponding to boundaryType*/
+    /* Returns map of boundaryType to its unique boundary codes for all Projects in request body. Duplicates across projects are dropped. */
     private Map<String, List<String>> getBoundaryForValidation(List<Project> projects) {
-        Map<String, List<String>> boundariesMap = new HashMap<>();
+        Map<String, Set<String>> boundariesMap = new HashMap<>();
         for (Project project: projects) {
             if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary())) {
                 String boundaryType = project.getAddress().getBoundaryType();
                 String boundary = project.getAddress().getBoundary();
-
-                // If the boundary type already exists in the map, add the boundary to the existing list
-                if (boundariesMap.containsKey(boundaryType)) {
-                    boundariesMap.get(boundaryType).add(boundary);
-                }
-                // If the boundary type does not exist in the map, create a new list and add the boundary to it
-                else {
-                    List<String> boundaries = new ArrayList<>();
-                    boundaries.add(boundary);
-                    boundariesMap.put(boundaryType, boundaries);
-                }
+                boundariesMap.computeIfAbsent(boundaryType, k -> new LinkedHashSet<>()).add(boundary);
             }
         }
-        return boundariesMap;
+
+        Map<String, List<String>> result = new HashMap<>();
+        boundariesMap.forEach((boundaryType, boundaries) -> result.put(boundaryType, new ArrayList<>(boundaries)));
+        return result;
     }
 
     /* Validates Boundary data with location service */
