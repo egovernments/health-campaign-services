@@ -24,12 +24,6 @@ public class HRMSUtils {
 	@Value("${egov.pwd.allowed.special.characters}")
 	private String allowedPasswordSpecialCharacters;
 
-	@Value("${egov.hrms.mobile.number.default.min}")
-	private Long defaultMobileNumberMin;
-
-	@Value("${egov.hrms.mobile.number.default.max}")
-	private Long defaultMobileNumberMax;
-
 	@Autowired
 	private MDMSService mdmsService;
 	
@@ -80,21 +74,17 @@ public class HRMSUtils {
 	public String generateMobileNumber(RequestInfo requestInfo, String tenantId) {
 		Random random = new Random();
 
-		// Fetch mobile pattern from MDMS
 		String pattern = mdmsService.fetchMobileNumberPattern(requestInfo, tenantId);
 
-		try {
-			String generatedNumber = generateNumberFromPattern(pattern, random);
-			if (generatedNumber != null) {
-				return generatedNumber;
-			}
-		} catch (Exception e) {
-			log.warn("Failed to parse mobile pattern: " + pattern + ". Using default generation.", e);
+		if (pattern == null) {
+			throw new RuntimeException("MDMS data is missing for schemaCode: common-masters.UserValidation");
 		}
 
-		// Default generation if pattern is not available or parsing fails
-		long mobileNumber = Math.abs(random.nextLong() % (defaultMobileNumberMax - defaultMobileNumberMin + 1)) + defaultMobileNumberMin;
-		return Long.toString(mobileNumber);
+		String generatedNumber = generateNumberFromPattern(pattern, random);
+		if (generatedNumber == null) {
+			throw new RuntimeException("MDMS data is missing for schemaCode: common-masters.UserValidation");
+		}
+		return generatedNumber;
 	}
 
 	/**
