@@ -75,7 +75,10 @@ CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', 'egov')
 CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'punjab_property_tax')
 
 # Streaming configuration for large datasets
-STREAM_BATCH_SIZE = 10000  # Process records in batches of 1k
+STREAM_BATCH_SIZE = 10000  # INSERT chunk size: large batches → fewer ClickHouse parts created
+CH_FETCH_SIZE = 2000        # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
+                            # 5 tasks × 2000 rows ≈ 360 MiB total vs 1.80 GiB limit (safe)
+                            # Rows accumulate in InsertBuffer until INSERT_CHUNK_SIZE is reached
 
 default_args = {
     'owner': 'property_tax',
@@ -193,6 +196,36 @@ def batch_insert(client, table: str, rows: List[dict], chunk_size: int = 10000):
             raise
     
     logger.info(f"Completed: {total_inserted} rows inserted into {table}")
+
+
+class InsertBuffer:
+    """Accumulates transformed rows and flushes to ClickHouse in STREAM_BATCH_SIZE chunks.
+
+    Decouples the ClickHouse SELECT fetch size (CH_FETCH_SIZE, small) from the INSERT
+    batch size (STREAM_BATCH_SIZE, large). This keeps concurrent SELECT memory low while
+    maintaining large INSERT batches to minimise ClickHouse part creation.
+    """
+
+    def __init__(self, client, table: str, flush_size: int = STREAM_BATCH_SIZE):
+        self._client = client
+        self._table = table
+        self._flush_size = flush_size
+        self._buf: List[dict] = []
+        self.total_inserted = 0
+
+    def add(self, rows: List[dict]) -> None:
+        self._buf.extend(rows)
+        while len(self._buf) >= self._flush_size:
+            batch = self._buf[:self._flush_size]
+            batch_insert(self._client, self._table, batch, chunk_size=self._flush_size)
+            self.total_inserted += len(batch)
+            self._buf = self._buf[self._flush_size:]
+
+    def flush(self) -> None:
+        if self._buf:
+            batch_insert(self._client, self._table, self._buf, chunk_size=self._flush_size)
+            self.total_inserted += len(self._buf)
+            self._buf = []
 
 
 # -- Fetch by lastModifiedTime window ----------------------------------------
@@ -870,7 +903,7 @@ def transform_load_property_events(**context):
     we = datetime.fromisoformat(metadata['window_end'])
 
     base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} property events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    logger.info(f"Processing {total_count} property events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
 
     client = get_client()
     try:
@@ -880,10 +913,15 @@ def transform_load_property_events(**context):
         total_audits = 0
         offset = 0
 
+        prop_buf = InsertBuffer(client, 'property_address_entity')
+        unit_buf = InsertBuffer(client, 'property_unit_entity')
+        owner_buf = InsertBuffer(client, 'property_owner_entity')
+        audit_buf = InsertBuffer(client, 'property_audit_entity')
+
         while offset < total_count:
-            # -- EXTRACT: fetch one chunk from ClickHouse --
+            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
             raw_jsons = fetch_property_events(client, ws, we,
-                                              limit=STREAM_BATCH_SIZE, offset=offset)
+                                              limit=CH_FETCH_SIZE, offset=offset)
             if not raw_jsons:
                 break
 
@@ -909,20 +947,18 @@ def transform_load_property_events(**context):
                 owner_rows.extend(extract_owners(prop))
                 audit_rows.append(extract_property_audit(prop))
 
-            # -- LOAD: insert this chunk into silver tables --
+            # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
             chunk_len = len(raw_jsons)
             del raw_jsons
-            batch_insert(client, 'property_address_entity', prop_rows, chunk_size=10000)
-            n_props = len(prop_rows); total_props += n_props; prop_rows.clear()
+            n_props = len(prop_rows); total_props += n_props
+            n_units = len(unit_rows); total_units += n_units
+            n_owners = len(owner_rows); total_owners += n_owners
+            n_audits = len(audit_rows); total_audits += n_audits
 
-            batch_insert(client, 'property_unit_entity', unit_rows, chunk_size=10000)
-            n_units = len(unit_rows); total_units += n_units; unit_rows.clear()
-
-            batch_insert(client, 'property_owner_entity', owner_rows, chunk_size=10000)
-            n_owners = len(owner_rows); total_owners += n_owners; owner_rows.clear()
-
-            batch_insert(client, 'property_audit_entity', audit_rows, chunk_size=10000)
-            n_audits = len(audit_rows); total_audits += n_audits; audit_rows.clear()
+            prop_buf.add(prop_rows); prop_rows.clear()
+            unit_buf.add(unit_rows); unit_rows.clear()
+            owner_buf.add(owner_rows); owner_rows.clear()
+            audit_buf.add(audit_rows); audit_rows.clear()
 
             gc.collect()
 
@@ -931,7 +967,13 @@ def transform_load_property_events(**context):
                 f"{n_props} props, {n_units} units, {n_owners} owners, {n_audits} audits | "
                 f"Total: {total_props}/{total_units}/{total_owners}/{total_audits}"
             )
-            offset += STREAM_BATCH_SIZE
+            offset += CH_FETCH_SIZE
+
+        # Flush any remaining rows in buffers
+        prop_buf.flush()
+        unit_buf.flush()
+        owner_buf.flush()
+        audit_buf.flush()
 
         counts = {
             'properties': total_props,
@@ -966,17 +1008,18 @@ def transform_load_demand_events(**context):
     we = datetime.fromisoformat(metadata['window_end'])
 
     base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} demand events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    logger.info(f"Processing {total_count} demand events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
 
     client = get_client()
     try:
         total_demands = 0
         offset = 0
+        demand_buf = InsertBuffer(client, 'demand_with_details_entity')
 
         while offset < total_count:
-            # -- EXTRACT: fetch one chunk from ClickHouse --
+            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
             raw_jsons = fetch_demand_events(client, ws, we,
-                                            limit=STREAM_BATCH_SIZE, offset=offset)
+                                            limit=CH_FETCH_SIZE, offset=offset)
             if not raw_jsons:
                 break
 
@@ -997,15 +1040,17 @@ def transform_load_demand_events(**context):
 
                 demand_rows.append(extract_demand(demand))
 
-            # -- LOAD: insert this chunk into silver table --
+            # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
             chunk_len = len(raw_jsons)
             del raw_jsons
-            batch_insert(client, 'demand_with_details_entity', demand_rows, chunk_size=10000)
-            n_demands = len(demand_rows); total_demands += n_demands; demand_rows.clear()
+            n_demands = len(demand_rows); total_demands += n_demands
+            demand_buf.add(demand_rows); demand_rows.clear()
             gc.collect()
 
             logger.info(f"Chunk {offset}-{offset + chunk_len}: {n_demands} demands | Total: {total_demands}")
-            offset += STREAM_BATCH_SIZE
+            offset += CH_FETCH_SIZE
+
+        demand_buf.flush()
 
         peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info(f"Demand processing complete: {total_demands} rows | peak_memory={peak_kb // 1024} MiB")
@@ -1034,17 +1079,18 @@ def transform_load_payment_events(**context):
     we = datetime.fromisoformat(metadata['window_end'])
 
     base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} payment events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    logger.info(f"Processing {total_count} payment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
 
     client = get_client()
     try:
         total_payments = 0
         offset = 0
+        payment_buf = InsertBuffer(client, 'payment_with_details_entity')
 
         while offset < total_count:
-            # -- EXTRACT: fetch one chunk from ClickHouse --
+            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
             raw_jsons = fetch_payment_events(client, ws, we,
-                                             limit=STREAM_BATCH_SIZE, offset=offset)
+                                             limit=CH_FETCH_SIZE, offset=offset)
             if not raw_jsons:
                 break
 
@@ -1064,15 +1110,17 @@ def transform_load_payment_events(**context):
 
                 payment_rows.append(extract_payment(payment))
 
-            # -- LOAD: insert this chunk into silver table --
+            # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
             chunk_len = len(raw_jsons)
             del raw_jsons
-            batch_insert(client, 'payment_with_details_entity', payment_rows, chunk_size=10000)
-            n_payments = len(payment_rows); total_payments += n_payments; payment_rows.clear()
+            n_payments = len(payment_rows); total_payments += n_payments
+            payment_buf.add(payment_rows); payment_rows.clear()
             gc.collect()
 
             logger.info(f"Chunk {offset}-{offset + chunk_len}: {n_payments} payments | Total: {total_payments}")
-            offset += STREAM_BATCH_SIZE
+            offset += CH_FETCH_SIZE
+
+        payment_buf.flush()
 
         peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info(f"Payment processing complete: {total_payments} rows | peak_memory={peak_kb // 1024} MiB")
@@ -1131,18 +1179,20 @@ def transform_load_bill_events(**context):
     we = datetime.fromisoformat(metadata['window_end'])
 
     base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} bill events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    logger.info(f"Processing {total_count} bill events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
 
     client = get_client()
     try:
         total_bills = 0
         total_details = 0
         offset = 0
+        bill_buf = InsertBuffer(client, 'bill_entity')
+        detail_buf = InsertBuffer(client, 'bill_detail_entity')
 
         while offset < total_count:
-            # -- EXTRACT: fetch one chunk from ClickHouse --
+            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
             raw_jsons = fetch_bill_events(client, ws, we,
-                                          limit=STREAM_BATCH_SIZE, offset=offset)
+                                          limit=CH_FETCH_SIZE, offset=offset)
             if not raw_jsons:
                 break
 
@@ -1170,14 +1220,14 @@ def transform_load_bill_events(**context):
                     bill_rows.append(extract_bill(bill))
                     detail_rows.extend(extract_bill_details(bill))
 
-            # -- LOAD: insert this chunk into silver tables --
+            # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
             chunk_len = len(raw_jsons)
             del raw_jsons
-            batch_insert(client, 'bill_entity', bill_rows, chunk_size=10000)
-            n_bills = len(bill_rows); total_bills += n_bills; bill_rows.clear()
+            n_bills = len(bill_rows); total_bills += n_bills
+            n_details = len(detail_rows); total_details += n_details
 
-            batch_insert(client, 'bill_detail_entity', detail_rows, chunk_size=10000)
-            n_details = len(detail_rows); total_details += n_details; detail_rows.clear()
+            bill_buf.add(bill_rows); bill_rows.clear()
+            detail_buf.add(detail_rows); detail_rows.clear()
 
             gc.collect()
 
@@ -1186,7 +1236,10 @@ def transform_load_bill_events(**context):
                 f"{n_bills} bills, {n_details} details | "
                 f"Total: {total_bills}/{total_details}"
             )
-            offset += STREAM_BATCH_SIZE
+            offset += CH_FETCH_SIZE
+
+        bill_buf.flush()
+        detail_buf.flush()
 
         counts = {
             'bills': total_bills,
@@ -1249,17 +1302,18 @@ def transform_load_assessment_events(**context):
     we = datetime.fromisoformat(metadata['window_end'])
 
     base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} assessment events in chunks of {STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    logger.info(f"Processing {total_count} assessment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
 
     client = get_client()
     try:
         total_assessments = 0
         offset = 0
+        assessment_buf = InsertBuffer(client, 'property_assessment_entity')
 
         while offset < total_count:
-            # -- EXTRACT: fetch one chunk from ClickHouse --
+            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
             raw_jsons = fetch_assessment_events(client, ws, we,
-                                                limit=STREAM_BATCH_SIZE, offset=offset)
+                                                limit=CH_FETCH_SIZE, offset=offset)
             if not raw_jsons:
                 break
 
@@ -1279,18 +1333,20 @@ def transform_load_assessment_events(**context):
 
                 assessment_rows.append(extract_assessment(assessment))
 
-            # -- LOAD: insert this chunk into silver table --
+            # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
             chunk_len = len(raw_jsons)
             del raw_jsons
-            batch_insert(client, 'property_assessment_entity', assessment_rows, chunk_size=10000)
-            n_assessments = len(assessment_rows); total_assessments += n_assessments; assessment_rows.clear()
+            n_assessments = len(assessment_rows); total_assessments += n_assessments
+            assessment_buf.add(assessment_rows); assessment_rows.clear()
             gc.collect()
 
             logger.info(
                 f"Chunk {offset}-{offset + chunk_len}: "
                 f"{n_assessments} assessments | Total: {total_assessments}"
             )
-            offset += STREAM_BATCH_SIZE
+            offset += CH_FETCH_SIZE
+
+        assessment_buf.flush()
 
         peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info(f"Assessment processing complete: {total_assessments} rows | peak_memory={peak_kb // 1024} MiB")
