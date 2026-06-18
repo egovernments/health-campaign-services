@@ -24,6 +24,11 @@ const config = {
   centralInstanceTenantIds: process.env.CENTRAL_INSTANCE_TENANT_IDS || "", // comma-separated tenant ids (e.g. "ba,oy,ko"); single source for startup topic creation + consumer regex in central instance
   masterNameForSplitBoundariesOn: "HierarchySchema",
   basesecret: process.env.BASE_SECRET,
+  // Shared server-to-server secret guarding the crypto endpoints (e.g. /v1/crypto/_bulkDecrypt).
+  // The service cannot trust body-supplied userInfo/roles (no token verification — gateway-trust),
+  // so the decryption oracle is gated on this out-of-band secret instead. Must match the value the
+  // calling service (excel-ingestion) sends in the x-internal-key header.
+  cryptoInternalKey: process.env.CRYPTO_INTERNAL_KEY,
   boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',

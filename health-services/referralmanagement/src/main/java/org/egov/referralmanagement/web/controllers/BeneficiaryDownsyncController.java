@@ -53,6 +53,9 @@ public class BeneficiaryDownsyncController {
 				request.getDownsyncCriteria().getTenantId(),
 				request.getDownsyncCriteria().getLastSyncedTime());
 
+		// Authorize before returning any beneficiary PII (covers both the pregen and live paths).
+		downsyncService.validateDownsyncAccess(request);
+
 		Long lastSyncedTime = request.getDownsyncCriteria().getLastSyncedTime();
 		long staleThresholdMs = (long) config.getDownsyncStaleThresholdHours() * 3600 * 1000;
 		boolean isStale = lastSyncedTime != null

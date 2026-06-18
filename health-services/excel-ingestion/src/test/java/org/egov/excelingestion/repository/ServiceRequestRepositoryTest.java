@@ -11,6 +11,9 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 
 import java.net.ConnectException;
 import java.util.Map;
@@ -51,7 +54,7 @@ class ServiceRequestRepositoryTest {
         HttpClientErrorException httpError = HttpClientErrorException.create(
                 org.springframework.http.HttpStatus.BAD_REQUEST, "Bad Request", null, actualErrorResponse.getBytes(), null);
         
-        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
                 .thenThrow(httpError);
 
         doThrow(new CustomException(ErrorConstants.EXTERNAL_SERVICE_ERROR, actualErrorResponse))
@@ -81,7 +84,7 @@ class ServiceRequestRepositoryTest {
         
         ResourceAccessException networkError = new ResourceAccessException(networkErrorMessage, new ConnectException(networkErrorMessage));
         
-        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
                 .thenThrow(networkError);
 
         doThrow(new CustomException(ErrorConstants.EXTERNAL_SERVICE_ERROR, networkErrorMessage))
@@ -109,8 +112,8 @@ class ServiceRequestRepositoryTest {
         Object request = new Object();
         Map<String, Object> expectedResponse = Map.of("status", "success", "data", "test");
         
-        when(restTemplate.postForObject(anyString(), any(), eq(Map.class)))
-                .thenReturn(expectedResponse);
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
+                .thenReturn(ResponseEntity.ok((Map) expectedResponse));
 
         // When
         Object result = serviceRequestRepository.fetchResult(uri, request);

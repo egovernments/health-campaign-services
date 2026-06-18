@@ -32,6 +32,10 @@ public interface Constants {
     String TABLE_SIDE_EFFECT = "SIDE_EFFECT";
     String TABLE_HF_REFERRAL = "HF_REFERRAL";
 
+    // Downsync authorization
+    String DOWNSYNC_TENANT_MISMATCH = "DOWNSYNC_TENANT_MISMATCH";
+    String DOWNSYNC_TENANT_MISMATCH_MSG = "The tenant id in the request does not match the authenticated user's tenant id";
+
     // Field names
     String FIELD_CLIENT_REFERENCE_ID = "clientReferenceId";
     String FIELD_HOUSEHOLD_CLIENT_REFERENCE_ID = "householdClientReferenceId";

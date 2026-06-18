@@ -55,6 +55,7 @@ import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.HouseholdRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -105,6 +106,25 @@ public class DownsyncService {
         this.masterDataService = masterDataService;
         this.multiStateInstanceUtil = multiStateInstanceUtil;
         this.householdRepository = householdRepository;
+    }
+
+    /**
+     * Authorizes a downsync request before any beneficiary data (or presigned URL) is returned:
+     * rejects cross-tenant access (body tenantId must equal the caller's tenantId). Guards both the
+     * live and pregen paths via the controller. Null-safe for internal flows without user context.
+     */
+    public void validateDownsyncAccess(DownsyncRequest downsyncRequest) {
+        DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
+        RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+
+        if (requestInfo == null || requestInfo.getUserInfo() == null) {
+            return; // internal flow with no user context — nothing to compare against
+        }
+
+        String userTenantId = requestInfo.getUserInfo().getTenantId();
+        if (userTenantId != null && !userTenantId.equals(criteria.getTenantId())) {
+            throw new CustomException(Constants.DOWNSYNC_TENANT_MISMATCH, Constants.DOWNSYNC_TENANT_MISMATCH_MSG);
+        }
     }
 
     /**

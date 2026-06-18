@@ -125,6 +125,12 @@ public class WorkerService {
             return new ArrayList<>();
         }
 
+        // Prevent cross-tenant overwrite of worker PII / bank data: every worker's body-supplied
+        // tenantId must match the authenticated user's tenantId (all tenants share one table and
+        // the UPDATE is scoped only by id). Null-safe so internal/kafka flows without userInfo pass.
+        validateTenantAccess(request.getRequestInfo(),
+                validWorkers.stream().map(Worker::getTenantId).collect(Collectors.toList()));
+
         String tenantId = validWorkers.get(0).getTenantId();
 
         // Merge with existing DB records
@@ -180,6 +186,10 @@ public class WorkerService {
         if (searchCriteria == null || searchCriteria.getTenantId() == null) {
             throw new CustomException(WorkerRegistryConstants.INVALID_REQUEST, WorkerRegistryConstants.MSG_TENANT_ID_REQUIRED);
         }
+
+        // Prevent cross-tenant read of worker PII / bank data: the body-supplied tenantId
+        // must match the authenticated user's tenantId (all tenants share one table).
+        validateTenantAccess(request.getRequestInfo(), Collections.singletonList(searchCriteria.getTenantId()));
 
         WorkerSearch encryptedSearch = workerEncryptionService.encrypt(searchCriteria, WorkerRegistryConstants.ENCRYPT_WORKER_SEARCH);
         request.setWorkerSearch(encryptedSearch);
@@ -241,6 +251,24 @@ public class WorkerService {
         });
 
         return workerEncryptionService.decrypt(workers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
+    }
+
+    /**
+     * Rejects the request when any body-supplied tenantId differs from the authenticated
+     * user's tenantId. All tenants share one table, so this is the only cross-tenant boundary.
+     * Null-safe: skipped for internal/kafka flows that carry no userInfo.tenantId.
+     */
+    private void validateTenantAccess(RequestInfo requestInfo, List<String> requestedTenantIds) {
+        if (requestInfo == null || requestInfo.getUserInfo() == null
+                || requestInfo.getUserInfo().getTenantId() == null) {
+            return;
+        }
+        String userTenantId = requestInfo.getUserInfo().getTenantId();
+        boolean mismatch = requestedTenantIds.stream().anyMatch(t -> !userTenantId.equals(t));
+        if (mismatch) {
+            throw new CustomException(WorkerRegistryConstants.INVALID_TENANT_EXCEPTION,
+                    WorkerRegistryConstants.MSG_TENANT_ID_MISMATCH);
+        }
     }
 
     private void mergeWorker(Worker incoming, Worker existing) {

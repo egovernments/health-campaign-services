@@ -2,6 +2,9 @@ import * as express from "express";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
 import { logger } from "../../utils/logger";
 import { bulkDecrypt } from "../../utils/cryptUtils";
+import config from "../../config";
+
+const INTERNAL_KEY_HEADER = "x-internal-key";
 
 /**
  * Controller for crypto operations (encryption/decryption)
@@ -26,7 +29,26 @@ class CryptoController {
     bulkDecryptData = async (request: express.Request, response: express.Response) => {
         try {
             logger.info(`RECEIVED BULK DECRYPT REQUEST`);
-            
+
+            // Server-to-server authorization. This is a decryption oracle (any submitted ciphertext is
+            // returned as plaintext with a single global key); body userInfo/roles cannot be trusted
+            // because the service does not verify tokens. Require an out-of-band shared secret instead.
+            // Fail closed: if no secret is configured the endpoint is unusable until ops set it.
+            const providedKey = request.headers[INTERNAL_KEY_HEADER];
+            if (!config.cryptoInternalKey || providedKey !== config.cryptoInternalKey) {
+                logger.error(`Rejected bulk decrypt request: missing or invalid ${INTERNAL_KEY_HEADER}`);
+                return errorResponder(
+                    {
+                        message: "Unauthorized",
+                        code: "UNAUTHORIZED",
+                        description: "This endpoint requires a valid internal service key"
+                    },
+                    request,
+                    response,
+                    401
+                );
+            }
+
             const { encryptedStrings } = request.body;
             
             // Validation

@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -39,10 +43,28 @@ public class ServiceRequestRepository {
      * @throws RuntimeException with actual error message from the service
      */
     public Object fetchResult(StringBuilder uri, Object request) {
+        return fetchResult(uri, request, (Map<String, String>) null);
+    }
+
+    /**
+     * Fetch result while sending custom HTTP headers (e.g. an internal service-to-service key).
+     *
+     * @param uri URI to call
+     * @param request Request payload
+     * @param headers Extra headers to attach (may be null/empty)
+     * @return Response object
+     */
+    public Object fetchResult(StringBuilder uri, Object request, Map<String, String> headers) {
         mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         Object response = null;
         try {
-            response = restTemplate.postForObject(uri.toString(), request, Map.class);
+            HttpHeaders httpHeaders = new HttpHeaders();
+            httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+            if (headers != null) {
+                headers.forEach(httpHeaders::set);
+            }
+            HttpEntity<Object> entity = new HttpEntity<>(request, httpHeaders);
+            response = restTemplate.exchange(uri.toString(), HttpMethod.POST, entity, Map.class).getBody();
         } catch (HttpClientErrorException e) {
             log.error("HTTP client error calling external service at {}: {}", uri.toString(), e.getMessage(), e);
             // Throw the actual error response from the service

@@ -2,11 +2,13 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +29,9 @@ public class CryptoService {
 
     @Value("${egov.campaign.crypto.bulk.decrypt.path}")
     private String bulkDecryptPath;
+
+    @Value("${egov.campaign.crypto.internal.key:}")
+    private String cryptoInternalKey;
 
     public CryptoService(ServiceRequestRepository serviceRequestRepository,
                         CustomExceptionHandler exceptionHandler) {
@@ -65,8 +70,14 @@ public class CryptoService {
             request.put("RequestInfo", requestInfo);
             request.put("encryptedStrings", encryptedStrings);
 
+            // Attach the server-to-server secret the crypto endpoint requires for authorization.
+            Map<String, String> headers = new HashMap<>();
+            if (StringUtils.hasText(cryptoInternalKey)) {
+                headers.put(ProcessingConstants.CRYPTO_INTERNAL_KEY_HEADER, cryptoInternalKey);
+            }
+
             // Call project-factory API
-            Object response = serviceRequestRepository.fetchResult(uriBuilder, request);
+            Object response = serviceRequestRepository.fetchResult(uriBuilder, request, headers);
 
             if (response instanceof Map) {
                 @SuppressWarnings("unchecked")

@@ -2,7 +2,9 @@ package org.egov.referralmanagement.web.controllers;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
 import org.egov.referralmanagement.service.DownsyncFileGenService;
 import org.egov.referralmanagement.service.DownsyncJobRegistry;
@@ -16,6 +18,7 @@ import org.egov.referralmanagement.web.models.DownsyncJobSearchRequest;
 import org.egov.referralmanagement.web.models.DownsyncJobSearchResponse;
 import org.egov.referralmanagement.web.models.DownsyncLocalityFile;
 import org.egov.referralmanagement.web.models.LocalityDownsyncCriteria;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +52,11 @@ public class DownsyncFileGenController {
         String rootProjectId = request.getRootProjectId();
         String createdBy = request.getRequestInfo().getUserInfo() != null
                 ? request.getRequestInfo().getUserInfo().getUuid() : "system";
+
+        // ── Cross-tenant guard ────────────────────────────────────────────────
+        // Reject generating another tenant's downsync files: the body tenantId must match the
+        // authenticated user's tenantId (job/locality/file rows are reachable by id alone).
+        assertSameTenant(request.getRequestInfo(), tenantId);
 
         // ── Gate 1: startup scan not yet complete ─────────────────────────────
         if (!jobRegistry.isScanComplete()) {
@@ -237,7 +245,9 @@ public class DownsyncFileGenController {
     @PostMapping("/v1/jobs/_search")
     public ResponseEntity<?> searchJob(@Valid @RequestBody DownsyncJobSearchRequest request) {
         DownsyncJobDetail detail = jobRepository.findJobDetail(request.getJobId());
-        if (detail == null) {
+        // Cross-tenant guard: a job owned by another tenant must look exactly like "not found"
+        // so the caller cannot confirm its existence or read its S3 keys (cross-tenant IDOR).
+        if (detail == null || isForeignTenant(request.getRequestInfo(), detail.getTenantId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("code", "JOB_NOT_FOUND",
                             "message", "No job found with id: " + request.getJobId()));
@@ -249,6 +259,34 @@ public class DownsyncFileGenController {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Cross-tenant write guard: the body-supplied tenantId must match the authenticated user's
+     * tenantId. All tenants share the schema-routed downsync tables, so this is the only tenant
+     * boundary. Null-safe: skipped for internal/kafka flows that carry no userInfo.tenantId.
+     */
+    private void assertSameTenant(RequestInfo requestInfo, String requestedTenantId) {
+        if (requestInfo == null || requestInfo.getUserInfo() == null
+                || requestInfo.getUserInfo().getTenantId() == null) {
+            return;
+        }
+        if (!requestInfo.getUserInfo().getTenantId().equals(requestedTenantId)) {
+            throw new CustomException(Constants.DOWNSYNC_TENANT_MISMATCH, Constants.DOWNSYNC_TENANT_MISMATCH_MSG);
+        }
+    }
+
+    /**
+     * Returns true when the resolved row belongs to a tenant other than the authenticated user's
+     * (used to mask cross-tenant job lookups as "not found"). Null-safe: returns false when there
+     * is no user tenant context, matching the codebase-wide convention.
+     */
+    private boolean isForeignTenant(RequestInfo requestInfo, String rowTenantId) {
+        if (requestInfo == null || requestInfo.getUserInfo() == null
+                || requestInfo.getUserInfo().getTenantId() == null) {
+            return false;
+        }
+        return !requestInfo.getUserInfo().getTenantId().equals(rowTenantId);
+    }
 
     private void cancelJob(String jobId, String tenantId, String createdBy) {
         try {

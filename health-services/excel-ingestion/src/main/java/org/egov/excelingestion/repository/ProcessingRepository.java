@@ -1,7 +1,9 @@
 package org.egov.excelingestion.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.tracer.model.CustomException;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessingSearchCriteria;
 import org.egov.common.utils.MultiStateInstanceUtil;
@@ -21,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
@@ -28,11 +31,13 @@ import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING
 @Slf4j
 public class ProcessingRepository {
 
+    private static final Pattern ADDITIONAL_DETAILS_KEY_PATTERN = Pattern.compile(ErrorConstants.ADDITIONAL_DETAILS_KEY_PATTERN);
+
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final ObjectMapper objectMapper;
     private final MultiStateInstanceUtil multiStateInstanceUtil;
 
-    public ProcessingRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate, 
+    public ProcessingRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                               ObjectMapper objectMapper,
                               MultiStateInstanceUtil multiStateInstanceUtil) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
@@ -131,10 +136,21 @@ public class ProcessingRepository {
         if (!CollectionUtils.isEmpty(criteria.getAdditionalDetails())) {
             query.append(" AND additionaldetails IS NOT NULL");
             for (Entry<String, String> entry : criteria.getAdditionalDetails().entrySet()) {
+                validateAdditionalDetailsKey(entry.getKey());
                 String paramKey = "ad_" + entry.getKey();
                 query.append(" AND additionaldetails->>'").append(entry.getKey()).append("' = :").append(paramKey);
                 preparedStmtList.put(paramKey, entry.getValue());
             }
+        }
+    }
+
+    /**
+     * The additionalDetails key is interpolated into the JSONB path of the SQL string (the value
+     * is bound). Restricting it to a safe charset prevents SQL injection via attacker-supplied keys.
+     */
+    private void validateAdditionalDetailsKey(String key) {
+        if (key == null || !ADDITIONAL_DETAILS_KEY_PATTERN.matcher(key).matches()) {
+            throw new CustomException(ErrorConstants.INVALID_SEARCH_KEY, ErrorConstants.INVALID_SEARCH_KEY_MESSAGE);
         }
     }
 

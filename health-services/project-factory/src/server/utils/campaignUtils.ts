@@ -1665,11 +1665,15 @@ function buildSearchQuery(
   if (pagination) {
     query += "\n";
     if (pagination.sortBy) {
-      query += `ORDER BY ${pagination.sortBy}`;
-      if (pagination.sortOrder) {
-        query += ` ${pagination.sortOrder.toUpperCase()}`;
+      // Allowlist sort columns — sortBy is interpolated into ORDER BY and is otherwise injectable.
+      const allowedSortCols = ["createdtime", "lastmodifiedtime", "campaignname", "campaignnumber", "status", "startdate", "enddate"];
+      if (allowedSortCols.includes(String(pagination.sortBy).toLowerCase())) {
+        query += `ORDER BY ${String(pagination.sortBy).toLowerCase()}`;
+        if (pagination.sortOrder) {
+          query += ` ${String(pagination.sortOrder).toUpperCase() === "ASC" ? "ASC" : "DESC"}`;
+        }
+        query += "\n";
       }
-      query += "\n";
     }
     if (pagination.limit !== undefined) {
       query += `LIMIT ${pagination.limit}`;

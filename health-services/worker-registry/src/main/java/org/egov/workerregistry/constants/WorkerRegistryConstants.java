@@ -37,4 +37,5 @@ public class WorkerRegistryConstants {
     public static final String MSG_TENANT_ID_NOT_VALID = "The tenant id is not valid";
     public static final String MSG_TENANT_ID_REQUIRED = "TenantId is required for search";
     public static final String MSG_INVALID_TENANT_ID_PREFIX = "Invalid tenant id: ";
+    public static final String MSG_TENANT_ID_MISMATCH = "The tenant id in the request does not match the tenant id of the authenticated user";
 }

@@ -87,7 +87,7 @@ public class WorkerRepository {
                         "photoId = :photoId, signatureId = :signatureId, " +
                         "additionalDetails = :additionalDetails, isDeleted = :isDeleted, " +
                         "lastModifiedBy = :lastModifiedBy, lastModifiedTime = :lastModifiedTime, " +
-                        "rowVersion = :rowVersion WHERE id = :id AND isDeleted = false",
+                        "rowVersion = :rowVersion WHERE id = :id AND tenantId = :tenantId AND isDeleted = false",
                 SCHEMA_REPLACE_STRING, TABLE_NAME);
 
         try {
@@ -144,6 +144,7 @@ public class WorkerRepository {
     private MapSqlParameterSource buildUpdateParams(Worker worker) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("id", worker.getId());
+        params.addValue("tenantId", worker.getTenantId());
         params.addValue("name", worker.getName());
         params.addValue("payeePhoneNumber", worker.getPayeePhoneNumber());
         params.addValue("paymentProvider", worker.getPaymentProvider());

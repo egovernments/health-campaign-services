@@ -52,6 +52,12 @@ public class ErrorConstants {
     public static final String FILE_NOT_FOUND_ERROR = "FILE_NOT_FOUND_ERROR";
     public static final String FILE_NOT_FOUND_ERROR_MESSAGE = "File not found in file store";
     
+    // Search Input Validation Errors
+    public static final String INVALID_SEARCH_KEY = "INVALID_SEARCH_KEY";
+    public static final String INVALID_SEARCH_KEY_MESSAGE = "Invalid additionalDetails search key; only letters, digits, '_', '.' and '-' are allowed";
+    // Whitelist charset for JSONB keys interpolated into search SQL (prevents SQL injection via map keys)
+    public static final String ADDITIONAL_DETAILS_KEY_PATTERN = "^[A-Za-z0-9_.-]+$";
+
     // Excel Generation Errors
     public static final String EXCEL_GENERATION_ERROR = "EXCEL_GENERATION_ERROR";
     public static final String EXCEL_GENERATION_ERROR_MESSAGE = "Error while generating Excel file";

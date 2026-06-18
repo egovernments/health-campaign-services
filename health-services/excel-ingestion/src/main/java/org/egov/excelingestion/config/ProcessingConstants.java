@@ -83,6 +83,9 @@ public class ProcessingConstants {
     // Common API Keys
     public static final String REQUEST_INFO_KEY = "RequestInfo";
 
+    // Header carrying the server-to-server secret for the project-factory crypto endpoint
+    public static final String CRYPTO_INTERNAL_KEY_HEADER = "x-internal-key";
+
     // Excel Internal Keys
     public static final String ACTUAL_ROW_NUMBER_KEY = "__actualRowNumber__";
 

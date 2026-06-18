@@ -4,12 +4,15 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
@@ -47,6 +50,8 @@ import static org.egov.individual.Constants.INVALID_TENANT_ID_MSG;
 @Repository
 @Slf4j
 public class IndividualRepository extends GenericRepository<Individual> {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final String cteQuery = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
     private final String calculateDistanceFromTwoWaypointsFormulaQuery = "( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
@@ -311,7 +316,18 @@ public class IndividualRepository extends GenericRepository<Individual> {
             paramsMap.put("dateOfBirth", searchObject.getDateOfBirth());
         }
         if (searchObject.getSocialCategory() != null) {
-            query = query + "AND additionaldetails->'fields' @> '[{\"key\": \"SOCIAL_CATEGORY\", \"value\":" + "\"" + searchObject.getSocialCategory() + "\"}]' ";
+            // Bind the social category as a JSONB parameter (built via serializer) so the
+            // value travels as data and can never break out of the JSON literal.
+            Map<String, String> socialCategoryFragment = new HashMap<>();
+            socialCategoryFragment.put("key", "SOCIAL_CATEGORY");
+            socialCategoryFragment.put("value", searchObject.getSocialCategory());
+            try {
+                paramsMap.put("socialCategory",
+                        objectMapper.writeValueAsString(Collections.singletonList(socialCategoryFragment)));
+            } catch (JsonProcessingException e) {
+                throw new CustomException("INVALID_SEARCH_PARAM", "Unable to build social category search filter");
+            }
+            query = query + "AND additionaldetails->'fields' @> :socialCategory::jsonb ";
         }
         if (searchObject.getCreatedFrom() != null) {
 
@@ -339,7 +355,18 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
             query = query + "AND (";
             for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
-                query = query + "roles @> '[{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}]'";
+                // Bind each role code as a JSONB parameter (built via serializer) so the value
+                // travels as data and can never break out of the JSON literal.
+                String roleCodeParam = "roleCode" + i;
+                Map<String, String> roleCodeFragment = new HashMap<>();
+                roleCodeFragment.put("code", searchObject.getRoleCodes().get(i));
+                try {
+                    paramsMap.put(roleCodeParam,
+                            objectMapper.writeValueAsString(Collections.singletonList(roleCodeFragment)));
+                } catch (JsonProcessingException e) {
+                    throw new CustomException("INVALID_SEARCH_PARAM", "Unable to build role code search filter");
+                }
+                query = query + "roles @> :" + roleCodeParam + "::jsonb";
                 if (i != searchObject.getRoleCodes().size() - 1) {
                     query = query + " OR ";  // Add OR between conditions
                 }
