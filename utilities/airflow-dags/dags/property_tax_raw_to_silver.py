@@ -821,7 +821,7 @@ def extract_property_events(**context):
     """
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
-    logger.info(f"Logical date: {context['logical_date']}")
+    logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Property extract window: [{window_start}, {window_end})")
 
     client = get_client()
@@ -848,7 +848,7 @@ def extract_demand_events(**context):
     """
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
-    logger.info(f"Logical date: {context['logical_date']}")
+    logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Demand extract window: [{window_start}, {window_end})")
 
     client = get_client()
@@ -875,7 +875,7 @@ def extract_payment_events(**context):
     """
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
-    logger.info(f"Logical date: {context['logical_date']}")
+    logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Payment extract window: [{window_start}, {window_end})")
 
     client = get_client()
@@ -1151,7 +1151,7 @@ def extract_bill_events(**context):
     """
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
-    logger.info(f"Logical date: {context['logical_date']}")
+    logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Bill extract window: [{window_start}, {window_end})")
 
     client = get_client()
@@ -1277,7 +1277,7 @@ def extract_assessment_events(**context):
     """
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
-    logger.info(f"Logical date: {context['logical_date']}")
+    logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Assessment extract window: [{window_start}, {window_end})")
 
     client = get_client()
