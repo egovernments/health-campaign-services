@@ -99,6 +99,11 @@ def get_client():
         password=CLICKHOUSE_PASSWORD,
         database=CLICKHOUSE_DB,
         settings={
+            # ClickHouse defaults to max_threads = number of CPUs, meaning each query
+            # spawns N parallel decompression threads. With 5 concurrent transform tasks
+            # this multiplies peak RSS by N×5 and easily exceeds the 1.80 GiB server limit.
+            # Single-threaded reads use ~5-10× less peak decompression memory per query.
+            'max_threads': 1,
             # Prevent concurrent queries from filling the global uncompressed-block cache.
             # Without this, 5 parallel transforms each load decompressed MergeTree blocks
             # into a shared cache, pushing server RSS to the 1.80 GiB limit before any
