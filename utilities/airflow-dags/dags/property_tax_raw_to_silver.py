@@ -98,6 +98,14 @@ def get_client():
         username=CLICKHOUSE_USER,
         password=CLICKHOUSE_PASSWORD,
         database=CLICKHOUSE_DB,
+        settings={
+            # Prevent concurrent queries from filling the global uncompressed-block cache.
+            # Without this, 5 parallel transforms each load decompressed MergeTree blocks
+            # into a shared cache, pushing server RSS to the 1.80 GiB limit before any
+            # new allocation can succeed (Code 241 OOM). With cache disabled the memory
+            # is scoped to each query and freed when the query completes.
+            'use_uncompressed_cache': 0,
+        },
     )
 
 
