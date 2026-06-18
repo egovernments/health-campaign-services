@@ -100,7 +100,7 @@ public interface Constants {
     String LAT = "lat";
     String LNG = "lng";
     String STAFF = "STAFF";
-    String BOUNDARY_CODE_KEY = "boundaryCode";
+    String BOUNDARY_CODE_KEY = "localityCode";
     String ADDITIONAL_FIELDS_FIELDS_KEY = "fields";
     String ADDITIONAL_FIELDS_FIELDS_KEY_KEY = "key";
     String ADDITIONAL_FIELDS_FIELDS_VALUE_KEY = "value";

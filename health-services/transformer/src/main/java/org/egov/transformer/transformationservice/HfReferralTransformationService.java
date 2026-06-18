@@ -20,8 +20,7 @@ import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -40,6 +39,7 @@ public class HfReferralTransformationService {
     private final CommonUtils commonUtils;
 
     private final ObjectMapper objectMapper;
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(AGE_IN_MONTHS));
 
     public HfReferralTransformationService(TransformerProperties transformerProperties,
                                            Producer producer, UserService userService, ProjectService projectService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
@@ -86,6 +86,9 @@ public class HfReferralTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
+        AdditionalFields hfReferralAdditionalFields = hfReferral.getAdditionalFields();
+        addAdditionalDetails(hfReferralAdditionalFields, additionalDetails);
+
         String campaignId = null;
         if  (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
             campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
@@ -107,6 +110,22 @@ public class HfReferralTransformationService {
         hfReferralIndexV1.setCampaignId(campaignId);
 
         return hfReferralIndexV1;
+    }
+    private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+        additionalFields.getFields().forEach(field -> {
+            String key = field.getKey();
+            String value = field.getValue();
+            if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Integer.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.put(key, (JsonNode) null);
+                }
+            } else {
+                additionalDetails.put(key, value);
+            }
+        });
     }
 }
 
