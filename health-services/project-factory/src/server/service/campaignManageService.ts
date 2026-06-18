@@ -10,6 +10,7 @@ import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
+import { isGenerationTriggerNeeded } from "../utils/generateUtils";
 import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 
 async function createProjectTypeCampaignService(request: express.Request) {
@@ -58,16 +59,18 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const tenantId = request?.body?.CampaignDetails?.tenantId;
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
 
-    // Deactivate stale resources when hierarchyType changes — user must re-upload for the new hierarchy
+    // Deactivate stale resources when hierarchyType or boundaries change — user must re-upload for the new configuration
     const existingCampaign = request?.body?.ExistingCampaignDetails;
     const incomingHierarchyType = request?.body?.CampaignDetails?.hierarchyType;
-    if (existingCampaign && incomingHierarchyType && campaignId && tenantId &&
-        existingCampaign.hierarchyType !== incomingHierarchyType) {
-        logger.info(`hierarchyType changed from '${existingCampaign.hierarchyType}' to '${incomingHierarchyType}' for campaign ${campaignId}. Deactivating stale resources.`);
+    const hierarchyChanged = existingCampaign && incomingHierarchyType &&
+        existingCampaign.hierarchyType !== incomingHierarchyType;
+    const boundariesOrTypeChanged = isGenerationTriggerNeeded(request)?.trigger === true;
+    if (campaignId && tenantId && (hierarchyChanged || boundariesOrTypeChanged)) {
+        logger.info(`Campaign config changed (hierarchyChanged=${hierarchyChanged}, boundariesOrTypeChanged=${boundariesOrTypeChanged}) for campaign ${campaignId}. Deactivating stale resources.`);
         try {
             await deactivateAllResourcesForCampaign(campaignId, tenantId, useruuid);
         } catch (err) {
-            logger.error(`Failed to deactivate resources on hierarchyType change for campaign ${campaignId}: ${err}`);
+            logger.error(`Failed to deactivate resources on campaign config change for campaign ${campaignId}: ${err}`);
         }
     }
 
