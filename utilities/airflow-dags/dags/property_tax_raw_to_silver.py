@@ -84,9 +84,12 @@ CHUNK_SLEEP_SEC = 1.0       # Base sleep between chunk iterations
 CHUNK_SLEEP_JITTER = 1.0    # Random jitter added to base sleep each iteration.
                             # Combined uniform(CHUNK_SLEEP_SEC, CHUNK_SLEEP_SEC+JITTER) breaks
                             # lockstep: 5 tasks starting together drift apart and stay apart.
-JEMALLOC_PURGE_INTERVAL = 10  # Run SYSTEM JEMALLOC PURGE every N chunks to force JeMalloc to
+JEMALLOC_PURGE_INTERVAL = 3   # Run SYSTEM JEMALLOC PURGE every N chunks to force JeMalloc to
                                # return freed INSERT/SELECT arenas to the OS, keeping RSS under
                                # the 1.80 GiB server limit despite 5 concurrent transforms.
+TASK_START_JITTER = 15.0      # Max random delay (seconds) before each transform's first SELECT,
+                               # to stagger 5 simultaneous task starts and avoid the collective
+                               # initial RSS spike that pushed CH past the 1.80 GiB limit.
 
 default_args = {
     'owner': 'property_tax',
@@ -936,6 +939,12 @@ def transform_load_property_events(**context):
         owner_buf = InsertBuffer(client, 'property_owner_entity')
         audit_buf = InsertBuffer(client, 'property_audit_entity')
 
+        try:
+            client.command("SYSTEM JEMALLOC PURGE")
+        except Exception:
+            pass
+        time.sleep(random.uniform(0, TASK_START_JITTER))
+
         while offset < total_count:
             # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
             raw_jsons = fetch_property_events(client, ws, we,
@@ -1041,6 +1050,12 @@ def transform_load_demand_events(**context):
         offset = 0
         demand_buf = InsertBuffer(client, 'demand_with_details_entity')
 
+        try:
+            client.command("SYSTEM JEMALLOC PURGE")
+        except Exception:
+            pass
+        time.sleep(random.uniform(0, TASK_START_JITTER))
+
         while offset < total_count:
             # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
             raw_jsons = fetch_demand_events(client, ws, we,
@@ -1118,6 +1133,12 @@ def transform_load_payment_events(**context):
         total_payments = 0
         offset = 0
         payment_buf = InsertBuffer(client, 'payment_with_details_entity')
+
+        try:
+            client.command("SYSTEM JEMALLOC PURGE")
+        except Exception:
+            pass
+        time.sleep(random.uniform(0, TASK_START_JITTER))
 
         while offset < total_count:
             # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
@@ -1227,6 +1248,12 @@ def transform_load_bill_events(**context):
         offset = 0
         bill_buf = InsertBuffer(client, 'bill_entity')
         detail_buf = InsertBuffer(client, 'bill_detail_entity')
+
+        try:
+            client.command("SYSTEM JEMALLOC PURGE")
+        except Exception:
+            pass
+        time.sleep(random.uniform(0, TASK_START_JITTER))
 
         while offset < total_count:
             # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
@@ -1355,6 +1382,12 @@ def transform_load_assessment_events(**context):
         total_assessments = 0
         offset = 0
         assessment_buf = InsertBuffer(client, 'property_assessment_entity')
+
+        try:
+            client.command("SYSTEM JEMALLOC PURGE")
+        except Exception:
+            pass
+        time.sleep(random.uniform(0, TASK_START_JITTER))
 
         while offset < total_count:
             # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
