@@ -7,6 +7,7 @@ on:
       - master
       - nigeria-do-deep-2
       - master-nigeria-finalpull
+      - resource-deactive-fix
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}

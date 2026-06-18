@@ -4,7 +4,7 @@ import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicro
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
 import { campaignStatuses, processStatuses } from "../config/constants";
-import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB } from "./resourceDetailsService";
+import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB, deactivateAllResourcesForCampaign } from "./resourceDetailsService";
 import { findActiveResourceByUpsertKey } from "../utils/resourceDetailsUtils";
 import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/genericUtils";
 import config from "../config";
@@ -54,14 +54,28 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     await validateProjectCampaignRequest(request, "update");
     logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
 
+    const campaignId = request?.body?.CampaignDetails?.id;
+    const tenantId = request?.body?.CampaignDetails?.tenantId;
+    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
+
+    // Deactivate stale resources when hierarchyType changes — user must re-upload for the new hierarchy
+    const existingCampaign = request?.body?.ExistingCampaignDetails;
+    const incomingHierarchyType = request?.body?.CampaignDetails?.hierarchyType;
+    if (existingCampaign && incomingHierarchyType && campaignId && tenantId &&
+        existingCampaign.hierarchyType !== incomingHierarchyType) {
+        logger.info(`hierarchyType changed from '${existingCampaign.hierarchyType}' to '${incomingHierarchyType}' for campaign ${campaignId}. Deactivating stale resources.`);
+        try {
+            await deactivateAllResourcesForCampaign(campaignId, tenantId, useruuid);
+        } catch (err) {
+            logger.error(`Failed to deactivate resources on hierarchyType change for campaign ${campaignId}: ${err}`);
+        }
+    }
+
     // Process the action based on the request type
     await processBasedOnAction(request, "update");
 
     // Backward compat: if resources are in the request body, upsert into eg_cm_resource_details
     const requestResources = request?.body?.CampaignDetails?.resources || [];
-    const tenantId = request?.body?.CampaignDetails?.tenantId;
-    const campaignId = request?.body?.CampaignDetails?.id;
-    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
     if (requestResources.length > 0 && tenantId && campaignId) {
         for (const res of requestResources as CampaignResource[]) {
             const fileStoreId = res.filestoreId;
