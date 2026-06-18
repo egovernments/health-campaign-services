@@ -78,7 +78,7 @@ CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'punjab_property_tax')
 
 # Streaming configuration for large datasets
 STREAM_BATCH_SIZE = 10000  # INSERT chunk size: large batches → fewer ClickHouse parts created
-CH_FETCH_SIZE = 2000        # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
+CH_FETCH_SIZE = 500        # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
                             # Rows accumulate in InsertBuffer until STREAM_BATCH_SIZE is reached
 CHUNK_SLEEP_SEC = 1.0       # Base sleep between chunk iterations
 CHUNK_SLEEP_JITTER = 1.0    # Random jitter added to base sleep each iteration.
