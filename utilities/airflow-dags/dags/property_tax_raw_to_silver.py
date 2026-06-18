@@ -52,6 +52,7 @@ import json
 import logging
 import gc
 import resource
+import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import List, Dict, Optional, Tuple
@@ -77,8 +78,9 @@ CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'punjab_property_tax')
 # Streaming configuration for large datasets
 STREAM_BATCH_SIZE = 10000  # INSERT chunk size: large batches → fewer ClickHouse parts created
 CH_FETCH_SIZE = 2000        # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
-                            # 5 tasks × 2000 rows ≈ 360 MiB total vs 1.80 GiB limit (safe)
-                            # Rows accumulate in InsertBuffer until INSERT_CHUNK_SIZE is reached
+                            # Rows accumulate in InsertBuffer until STREAM_BATCH_SIZE is reached
+CHUNK_SLEEP_SEC = 1.0       # Sleep between chunk iterations: breaks lockstep SELECT timing across
+                            # 5 parallel tasks so peak concurrent ClickHouse RSS stays under 1.80 GiB
 
 default_args = {
     'owner': 'property_tax',
@@ -104,11 +106,8 @@ def get_client():
             # this multiplies peak RSS by N×5 and easily exceeds the 1.80 GiB server limit.
             # Single-threaded reads use ~5-10× less peak decompression memory per query.
             'max_threads': 1,
-            # Prevent concurrent queries from filling the global uncompressed-block cache.
-            # Without this, 5 parallel transforms each load decompressed MergeTree blocks
-            # into a shared cache, pushing server RSS to the 1.80 GiB limit before any
-            # new allocation can succeed (Code 241 OOM). With cache disabled the memory
-            # is scoped to each query and freed when the query completes.
+            # Prevent concurrent queries from accumulating in the global uncompressed cache,
+            # which persists between queries and pushes the server RSS to its ceiling.
             'use_uncompressed_cache': 0,
         },
     )
@@ -981,6 +980,7 @@ def transform_load_property_events(**context):
                 f"Total: {total_props}/{total_units}/{total_owners}/{total_audits}"
             )
             offset += CH_FETCH_SIZE
+            time.sleep(CHUNK_SLEEP_SEC)
 
         # Flush any remaining rows in buffers
         prop_buf.flush()
@@ -1062,6 +1062,7 @@ def transform_load_demand_events(**context):
 
             logger.info(f"Chunk {offset}-{offset + chunk_len}: {n_demands} demands | Total: {total_demands}")
             offset += CH_FETCH_SIZE
+            time.sleep(CHUNK_SLEEP_SEC)
 
         demand_buf.flush()
 
@@ -1132,6 +1133,7 @@ def transform_load_payment_events(**context):
 
             logger.info(f"Chunk {offset}-{offset + chunk_len}: {n_payments} payments | Total: {total_payments}")
             offset += CH_FETCH_SIZE
+            time.sleep(CHUNK_SLEEP_SEC)
 
         payment_buf.flush()
 
@@ -1250,6 +1252,7 @@ def transform_load_bill_events(**context):
                 f"Total: {total_bills}/{total_details}"
             )
             offset += CH_FETCH_SIZE
+            time.sleep(CHUNK_SLEEP_SEC)
 
         bill_buf.flush()
         detail_buf.flush()
@@ -1358,6 +1361,7 @@ def transform_load_assessment_events(**context):
                 f"{n_assessments} assessments | Total: {total_assessments}"
             )
             offset += CH_FETCH_SIZE
+            time.sleep(CHUNK_SLEEP_SEC)
 
         assessment_buf.flush()
 
