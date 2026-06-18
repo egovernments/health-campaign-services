@@ -75,7 +75,7 @@ CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', 'egov')
 CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'punjab_property_tax')
 
 # Streaming configuration for large datasets
-STREAM_BATCH_SIZE = 1000  # Process records in batches of 1k
+STREAM_BATCH_SIZE = 10000  # Process records in batches of 1k
 
 default_args = {
     'owner': 'property_tax',
