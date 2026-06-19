@@ -215,6 +215,11 @@ export async function searchResourceDetails(
   };
 }
 
+export async function deactivateAllResourcesForCampaign(campaignId: string, tenantId: string, userUuid: string): Promise<void> {
+  const rows = await searchResourceDetailsFromDB({ tenantId, campaignId, isActive: true });
+  await Promise.all(rows.map(row => deactivateResource(row, userUuid, tenantId)));
+}
+
 async function deactivateResource(resource: ResourceDetailRow, userUuid: string, tenantId: string): Promise<void> {
   const now = Date.now();
   const updated = {
