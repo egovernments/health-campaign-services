@@ -2,12 +2,14 @@ package org.egov.common.models.stock;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.validator.FieldValueDeserializer;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -27,6 +29,7 @@ public class Field {
     @Size(min = 1, max = 512)
     private String key = null;
 
+    @JsonDeserialize(using = FieldValueDeserializer.class)
     @JsonProperty("value")
     @NotNull
     @Size(max = 10000)
