@@ -248,9 +248,9 @@ public class EmployeeValidator {
 			int maxRetryCount = 5;
 			if (autoGenerateMobileNumber) {
 				int retryCount = 0;
-				String generatedMobileNumber = hrmsUtils.generateMobileNumber();
+				String generatedMobileNumber = hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId());
 				while ((retryCount < maxRetryCount) && mobileNos.contains(generatedMobileNumber)) {
-					generatedMobileNumber = hrmsUtils.generateMobileNumber();
+					generatedMobileNumber = hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId());
 					retryCount++;
 				}
 				employee.getUser().setMobileNumber(generatedMobileNumber);
@@ -266,8 +266,9 @@ public class EmployeeValidator {
 			UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
 			if (autoGenerateMobileNumber && !CollectionUtils.isEmpty(userResponse.getUser())) {
 				int retryCount = 0;
-				String generatedMobileNumber = hrmsUtils.generateMobileNumber();
+				String generatedMobileNumber = hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId());
 				while ((retryCount < maxRetryCount) && !CollectionUtils.isEmpty(userResponse.getUser())) {
+					generatedMobileNumber = hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId());
 					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_MOBILENO,generatedMobileNumber);
 					userResponse = userService.getUser(requestInfo, userSearchCriteria);
 					retryCount++;

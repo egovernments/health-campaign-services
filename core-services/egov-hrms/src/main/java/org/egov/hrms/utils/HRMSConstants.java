@@ -22,7 +22,10 @@ public class HRMSConstants {
 	public static final String HRMS_MDMS_DEPT_TEST_CODE = "EmploymentTest";
 	public static final String HRMS_MDMS_DEACT_REASON_CODE = "DeactivationReason";
 	public static final String HRMS_MDMS_TENANT_BOUNDARY_CODE = "TenantBoundary";
-	
+	public static final String HRMS_MDMS_USER_VALIDATION_CODE = "UserValidation";
+	public static final String HRMS_MDMS_RULES_KEY = "rules";
+	public static final String HRMS_MDMS_PATTERN_KEY = "pattern";
+
 	public static final String HRMS_LOCALIZATION_CODES_JSONPATH = "$.messages.*.code";
 	public static final String HRMS_LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
 	
