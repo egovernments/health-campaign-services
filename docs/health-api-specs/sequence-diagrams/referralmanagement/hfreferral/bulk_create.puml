@@ -1,0 +1,140 @@
+@startuml
+title HFReferral - Bulk Create
+!theme vibrant
+participant Client as c
+participant ReferralManagement as rm
+participant FacilityService as fs
+participant ProjectService as ps
+participant RedisCache as rc
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+database Database as db
+
+c -> rm : /referralmanagement/hf-referral/v1/bulk/_create
+activate rm
+rm -> rm : Validate request body
+
+alt request validation fails
+    rm -> rm: Request validation failed
+    rm -> k: HFReferral Data /error_topic
+    note left
+        This will be marked as unrecoverable right away
+        and require manual intervention
+    end note
+    activate k
+    group async
+        es -> k: Consume HFReferral Data
+        activate es
+        deactivate k
+        es -> db: Persist HFReferral Data /error_table
+        activate db
+        deactivate db
+        deactivate es
+    end
+    rm -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+rm -> rm: Request validation successful
+loop for each hfReferral
+    alt record already exists
+        alt record found in cache
+          rm -> rc: Check using clientReferenceId/serverGeneratedId
+          activate rc
+          rc -> rm: 1 row
+          deactivate rc
+          rm -> c: HttpStatus: 400 with appropriate error code
+          note left
+              Error Code: RECORD_ALREADY_EXISTS
+          end note
+        end
+        rm -> rc: Check using clientReferenceId/serverGeneratedId
+        activate rc
+        rc -> rm: 0 rows
+        deactivate rc
+        rm -> db: Check if record already exists
+        activate db
+        db -> rm: 1 row
+        deactivate db
+        rm -> rc: Put data in cache using clientReferenceId/serverGeneratedId
+        activate rc
+        deactivate rc
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+            Error Code: RECORD_ALREADY_EXISTS
+        end note
+    end
+    alt projectId invalid
+        rm -> ps: Check if projectId exists
+        activate ps
+        ps -> db: Check if projectId exists
+        activate db
+        db -> ps: 0 rows
+        deactivate db
+        ps -> rm: 0 rows
+        deactivate ps
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+           Error Code: DEPENDENCY_ERROR
+        end note
+    end
+    rm -> ps: Check if projectId exists
+    activate ps
+    ps -> db: Check if projectId exists
+    activate db
+    db -> ps: n row
+    deactivate db
+    ps -> rm: n row
+    deactivate ps
+    alt projectFacilityId invalid
+            rm -> ps: Check if projectFacilityId exists
+            activate ps
+            ps -> db: Check if projectFacilityId exists
+            activate db
+            db -> ps: 0 rows
+            deactivate db
+            ps -> rm: 0 rows
+            deactivate ps
+            rm -> c: HttpStatus: 400 with appropriate error code
+            note left
+               Error Code: DEPENDENCY_ERROR
+            end note
+        end
+        rm -> ps: Check if projectFacilityId exists
+        activate ps
+        ps -> db: Check if projectFacilityId exists
+        activate db
+        db -> ps: n row
+        deactivate db
+        ps -> rm: n row
+        deactivate ps
+    rm -> k: HFReferral Data /persist_topic
+    activate k
+    rm -> rc: Put HFReferral Data against clientReferenceId/serverGeneratedId in cache
+    activate rc
+    deactivate rc
+    group async
+        prs -> k: Consume HFReferral Data
+        activate prs
+        idx -> k: Consume HFReferral Data
+        activate idx
+        idx -> el: Store HFReferral Data
+        activate el
+        deactivate el
+        deactivate idx
+        prs -> db: Persist HFReferral Data
+        activate db
+        deactivate db
+        deactivate prs
+    end
+    deactivate k
+end
+
+rm -> c : HttpStatus: 202 ACCEPTED
+deactivate rm
+
+@enduml

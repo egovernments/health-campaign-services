@@ -1,16 +1,16 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.ProjectBeneficiary;
 
 
 public class ProjectBeneficiaryTestBuilder {
 
-    private ProjectBeneficiary.ProjectBeneficiaryBuilder builder;
+    private ProjectBeneficiary.ProjectBeneficiaryBuilder<ProjectBeneficiary, ?> builder;
 
     public ProjectBeneficiaryTestBuilder() {
-        this.builder = ProjectBeneficiary.builder();
+        this.builder = (ProjectBeneficiary.ProjectBeneficiaryBuilder<ProjectBeneficiary, ?>) ProjectBeneficiary.builder();
     }
 
     public static ProjectBeneficiaryTestBuilder builder() {
@@ -18,25 +18,27 @@ public class ProjectBeneficiaryTestBuilder {
     }
 
     public ProjectBeneficiary build() {
-        return this.builder.hasErrors(false).build();
+        return this.builder.hasErrors(Boolean.FALSE).build();
     }
 
     public ProjectBeneficiaryTestBuilder withIdNull() {
         this.builder.projectId("some-project-id")
+                .beneficiaryId("beneficiary-id")
+                .dateOfRegistration(Long.valueOf(1673577580L))
                 .clientReferenceId("beneficiaryClientReferenceId")
                 .id(null)
-                .beneficiaryId("beneficiary-id")
-                .dateOfRegistration(1673577580L)
                 .tenantId("some-tenant-id")
-                .rowVersion(1);
+                .rowVersion(Integer.valueOf(1));
         return this;
     }
 
     public ProjectBeneficiaryTestBuilder withId() {
-        withIdNull().builder.id("some-id").beneficiaryId("beneficiary-id")
-                .dateOfRegistration(1673577580L)
+        withIdNull().builder
+                .beneficiaryId("beneficiary-id")
+                .dateOfRegistration(Long.valueOf(1673577580L))
                 .projectId("some-project-id")
                 .clientReferenceId("beneficiaryClientReferenceId")
+                .id("some-id")
                 .tenantId("some-tenant-id");
         return this;
     }
@@ -55,9 +57,9 @@ public class ProjectBeneficiaryTestBuilder {
         this.builder.projectId("some-project-id")
                 .beneficiaryId("beneficiary-id")
                 .clientReferenceId("beneficiaryClientReferenceId")
-                .dateOfRegistration(1673577580L)
+                .dateOfRegistration(Long.valueOf(1673577580L))
                 .tenantId("some-tenant-id")
-                .rowVersion(1)
+                .rowVersion(Integer.valueOf(1))
                 .additionalFields(AdditionalFields.builder().build())
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
         return this;
@@ -69,7 +71,7 @@ public class ProjectBeneficiaryTestBuilder {
     }
 
     public ProjectBeneficiaryTestBuilder withDeleted() {
-        this.builder.isDeleted(true);
+        this.builder.isDeleted(Boolean.TRUE);
         return this;
     }
 }

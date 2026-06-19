@@ -1,6 +1,16 @@
 package org.egov.stock.validator;
 
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import org.assertj.core.util.Arrays;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.Stock;
@@ -19,14 +29,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class ReferenceIdValidatorTest {
 
@@ -43,14 +45,18 @@ class ReferenceIdValidatorTest {
         when(facilityService.validateProjectFacilityMappings(any(List.class),
                 any(String.class),
                 any(Map.class),
-                any(RequestInfo.class))).thenReturn(Collections.emptyList());
+                any(RequestInfo.class))).thenReturn(Collections.emptyMap());
     }
 
     private void mockSomeResponse() {
+
+    	List<String> facilityIds = new ArrayList<>();
+    	facilityIds.add("sender-id");
+    	
         when(facilityService.validateProjectFacilityMappings(any(List.class),
                 any(String.class),
                 any(Map.class),
-                any(RequestInfo.class))).thenReturn(Collections.singletonList("facility-id||reference-id"));
+                any(RequestInfo.class))).thenReturn(Collections.singletonMap("reference-id", facilityIds));
     }
 
     @Test

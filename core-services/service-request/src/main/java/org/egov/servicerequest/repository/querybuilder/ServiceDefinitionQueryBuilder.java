@@ -11,6 +11,8 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+
 @Component
 public class ServiceDefinitionQueryBuilder {
 
@@ -29,7 +31,9 @@ public class ServiceDefinitionQueryBuilder {
         ServiceDefinitionCriteria criteria = serviceDefinitionSearchRequest.getServiceDefinitionCriteria();
 
         StringBuilder query = new StringBuilder(SELECT + " DISTINCT(sd.id), sd.createdtime ");
-        query.append(" FROM eg_service_definition sd ");
+        query.append(" FROM ")
+                .append(SCHEMA_REPLACE_STRING)
+                .append(".eg_service_definition sd ");
 
         if(!ObjectUtils.isEmpty(criteria.getTenantId())){
             addClauseIfRequired(query, preparedStmtList);
@@ -56,9 +60,11 @@ public class ServiceDefinitionQueryBuilder {
         }
 
         // Fetch service definitions which have NOT been soft deleted
-        addClauseIfRequired(query, preparedStmtList);
-        query.append(" sd.isActive = ? ");
-        preparedStmtList.add(Boolean.TRUE);
+        if(!serviceDefinitionSearchRequest.isIncludeDeleted()){
+            addClauseIfRequired(query, preparedStmtList);
+            query.append(" sd.isActive = ? ");
+            preparedStmtList.add(Boolean.TRUE);
+        }
 
         // order service definitions based on their createdtime in latest first manner
         query.append(ORDERBY_CREATEDTIME);
@@ -119,8 +125,8 @@ public class ServiceDefinitionQueryBuilder {
     public String getServiceDefinitionSearchQuery(ServiceDefinitionCriteria criteria, List<Object> preparedStmtList) {
         StringBuilder query = new StringBuilder("SELECT sd.id, sd.tenantid,  sd.code, sd.isactive, sd.createdby, sd.lastmodifiedby, sd.createdtime, sd.lastmodifiedtime, sd.additionaldetails, sd.clientid, "
                 + "ad.id as attribute_definition_id, ad.referenceid as attribute_definition_referenceid, ad.tenantid as attribute_definition_tenantid, ad.code as attribute_definition_code, ad.datatype as attribute_definition_datatype, ad.values as attribute_definition_values, ad.isactive as attribute_definition_isactive, ad.required as attribute_definition_required, ad.regex as attribute_definition_regex, ad.order as attribute_definition_order, ad.createdby as attribute_definition_createdby, ad.lastmodifiedby as attribute_definition_lastmodifiedby, ad.createdtime as attribute_definition_createdtime, ad.lastmodifiedtime as attribute_definition_lastmodifiedtime, ad.additionaldetails as attribute_definition_additionaldetails "
-                + "FROM eg_service_definition as sd "
-                + "INNER JOIN eg_service_attribute_definition as ad ON "
+                + "FROM " + SCHEMA_REPLACE_STRING + ".eg_service_definition as sd "
+                + "INNER JOIN " + SCHEMA_REPLACE_STRING + ".eg_service_attribute_definition as ad ON "
                 + "sd.id=ad.referenceid ");
 
 

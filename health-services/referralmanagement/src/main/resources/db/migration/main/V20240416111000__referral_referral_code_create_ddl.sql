@@ -1,0 +1,1 @@
+ALTER TABLE REFERRAL ADD COLUMN referralCode character varying(256);

@@ -25,7 +25,7 @@ public class ProductVariantRequestTestBuilder {
 
     public ProductVariantRequestTestBuilder withOneProductVariant() {
         List<ProductVariant> productVariants = new ArrayList<>();
-        productVariants.add(ProductVariantTestBuilder.builder().withIdNull().build());
+        productVariants.add(ProductVariantTestBuilder.builder().withId().withVariation().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .productVariant(productVariants);
         return this;
@@ -33,7 +33,7 @@ public class ProductVariantRequestTestBuilder {
 
     public ProductVariantRequestTestBuilder withApiOperationNotNullAndNotCreate() {
         List<ProductVariant> productVariants = new ArrayList<>();
-        productVariants.add(ProductVariantTestBuilder.builder().withIdNull().build());
+        productVariants.add(ProductVariantTestBuilder.builder().withId().withVariation().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .productVariant(productVariants).apiOperation(ApiOperation.UPDATE);
         return this;
@@ -41,7 +41,7 @@ public class ProductVariantRequestTestBuilder {
 
     public ProductVariantRequestTestBuilder withApiOperationNotUpdate() {
         List<ProductVariant> productVariants = new ArrayList<>();
-        productVariants.add(ProductVariantTestBuilder.builder().withIdNull().build());
+        productVariants.add(ProductVariantTestBuilder.builder().withId().withVariation().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .productVariant(productVariants).apiOperation(ApiOperation.CREATE);
         return this;
@@ -65,7 +65,7 @@ public class ProductVariantRequestTestBuilder {
 
     public ProductVariantRequestTestBuilder withBadTenantIdInOneProductVariant() {
         List<ProductVariant> productVariants = new ArrayList<>();
-        productVariants.add(ProductVariantTestBuilder.builder().withIdNull().withBadTenantId().build());
+        productVariants.add(ProductVariantTestBuilder.builder().withIdNull().withVariation().withBadTenantId().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .productVariant(productVariants);
         return this;

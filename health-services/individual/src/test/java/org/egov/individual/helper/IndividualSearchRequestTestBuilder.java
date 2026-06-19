@@ -1,18 +1,18 @@
 package org.egov.individual.helper;
 
-import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.individual.Gender;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Name;
-import org.egov.individual.web.models.IndividualSearch;
-import org.egov.individual.web.models.IndividualSearchRequest;
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.individual.Gender;
+import org.egov.common.models.individual.Identifier;
+import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearchRequest;
+import org.egov.common.models.individual.Name;
 
 public class IndividualSearchRequestTestBuilder {
     private IndividualSearchRequest.IndividualSearchRequestBuilder builder;

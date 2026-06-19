@@ -1,0 +1,105 @@
+TABLE individual {
+  id varchar [pk]
+  userId varchar(64)
+  clientReferenceId varchar(64)
+  tenantId varchar
+  givenName varchar(200)
+  familyName varchar(200)
+  otherNames varchar(200)
+  dateOfBirth bigint
+  gender varchar(10)
+  bloodGroup varchar(10)
+  mobileNumber varchar(20)
+  altContactNumber varchar(20)
+  email varchar(200)
+  fatherName varchar(100)
+  husbandName varchar(100)
+  photo varchar
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+  individualid          varchar(64)
+	relationship        varchar(100)
+	issystemuser          bool
+	username              varchar(64)
+	password              varchar(200)
+	type                  varchar(64)
+	roles                 json
+	useruuid              varchar(64)
+	issystemuseractive    bool
+	clientcreatedtime     bigint
+	clientlastmodifiedtime bigint
+	clientcreatedby       varchar(64)
+	clientlastmodifiedby  varchar(64)
+
+}
+Table individual_identifier {
+  id varchar [pk]
+  individualId varchar [ref: > individual.id]
+  identifierType varchar(64)
+  identifierId varchar(64)
+  clientReferenceId varchar(64)
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+Table address {
+  id varchar [pk]
+  tenantId varchar
+  clientReferenceId varchar(64)
+  doorNo varchar(64)
+  latitude double
+  longitude double
+  locationAccuracy int
+  type varchar(64)
+  addressLine1 varchar(256)
+  addressLine2 varchar(256)
+  landmark varchar(256)
+  city varchar(256)
+  pincode varchar(64)
+  buildingName varchar(256)
+  street varchar(256)
+  // additionalDetails json
+  localityCode varchar(64) //Reference to master data
+  wardcode varchar(256)
+  // createdBy varchar(64)
+  // createdTime bigint
+  // lastModifiedBy varchar(64)
+  // lastModifiedTime bigint
+  // rowVersion bigint
+  // isDeleted bool
+}
+
+Table individual_address {
+  individualId varchar [ref: > individual.id]
+  addressId varchar [ref: > address.id]
+  type varchar(64)
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  // rowVersion bigint
+  isDeleted bool
+}
+
+Table individual_skill {
+  id varchar [pk]
+  clientReferenceId varchar(64) [unique]
+  individualId varchar [ref: > individual.id]
+  type varchar(64)
+  level varchar(64)
+  experience varchar(64)
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}

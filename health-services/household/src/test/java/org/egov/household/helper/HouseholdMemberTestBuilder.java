@@ -1,16 +1,17 @@
 package org.egov.household.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.household.AdditionalFields;
+import org.egov.common.models.core.AdditionalFields;
+import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 
 
 public class HouseholdMemberTestBuilder {
 
-    private HouseholdMember.HouseholdMemberBuilder builder;
+    private HouseholdMember.HouseholdMemberBuilder<HouseholdMember, ?> builder;
 
     public HouseholdMemberTestBuilder() {
-        this.builder = HouseholdMember.builder();
+        this.builder = (HouseholdMember.HouseholdMemberBuilder<HouseholdMember, ?>) HouseholdMember.builder();
     }
 
     public static HouseholdMemberTestBuilder builder() {
@@ -22,7 +23,9 @@ public class HouseholdMemberTestBuilder {
     }
 
     public HouseholdMemberTestBuilder withHouseholdIdAndIndividualId(){
-        this.builder.id("some-id").additionalFields(AdditionalFields.builder().build())
+        this.builder.id("some-id")
+                .clientReferenceId("some-client-reference-id")
+                .additionalFields(AdditionalFields.builder().build())
                 .rowVersion(1)
                 .isHeadOfHousehold(false)
                 .individualId("some-individual-id")

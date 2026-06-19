@@ -1,6 +1,8 @@
 package org.egov.servicerequest.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.servicerequest.repository.querybuilder.ServiceQueryBuilder;
 import org.egov.servicerequest.repository.rowmapper.ServiceRowMapper;
 import org.egov.servicerequest.web.models.Service;
@@ -24,13 +26,16 @@ public class ServiceRequestRepository {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
+    private MultiStateInstanceUtil multiStateInstanceUtil;
+
+    @Autowired
     private ServiceRowMapper serviceRowMapper;
 
     @Autowired
     private ServiceQueryBuilder serviceQueryBuilder;
 
 
-    public List<Service> getService(ServiceSearchRequest serviceSearchRequest) {
+    public List<Service> getService(ServiceSearchRequest serviceSearchRequest) throws InvalidTenantIdException {
         ServiceCriteria criteria = serviceSearchRequest.getServiceCriteria();
 
         List<Object> preparedStmtList = new ArrayList<>();
@@ -42,8 +47,10 @@ public class ServiceRequestRepository {
         if(CollectionUtils.isEmpty(criteria.getIds())){
             // Fetch ids according to given criteria
             String idQuery = serviceQueryBuilder.getServiceIdsQuery(serviceSearchRequest, preparedStmtList);
-            log.info("Service ids query: " + idQuery);
-            log.info("Parameters: " + preparedStmtList.toString());
+            // Replacing schema placeholder with the schema name for the tenant id
+            idQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(idQuery, criteria.getTenantId());
+            log.info("Service ids query: {}", idQuery);
+            log.info("Service ids Parameters: {}", preparedStmtList);
             List<String> serviceIds = jdbcTemplate.query(idQuery, preparedStmtList.toArray(), new SingleColumnRowMapper<>(String.class));
 
             if(CollectionUtils.isEmpty(serviceIds))
@@ -57,7 +64,9 @@ public class ServiceRequestRepository {
 
         // Search based on the ids found out/ ids been explicitly provided in the request.
         String query = serviceQueryBuilder.getServiceSearchQuery(criteria, preparedStmtList);
-        log.info("query for search: " + query + " params: " + preparedStmtList);
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, criteria.getTenantId());
+        log.info("query for search: {} params: {}", query, preparedStmtList);
         return jdbcTemplate.query(query, preparedStmtList.toArray(), serviceRowMapper);
     }
 }

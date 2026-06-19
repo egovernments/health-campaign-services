@@ -6,7 +6,37 @@ serviceMaps:
       fromTopic: save-stock-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO STOCK(id, clientReferenceId, tenantId, facilityId, productVariantId, wayBillNumber, quantity, referenceId, referenceIdType, transactionType, transactionReason, transactingPartyId, transactingPartyType, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO public.STOCK(id, clientReferenceId, tenantId, facilityId, productVariantId, wayBillNumber, quantity, referenceId, referenceIdType, transactionType, transactionReason, transactingPartyId, transactingPartyType, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.facilityId
+            - jsonPath: $.*.productVariantId
+            - jsonPath: $.*.wayBillNumber
+            - jsonPath: $.*.quantity
+            - jsonPath: $.*.referenceId
+            - jsonPath: $.*.referenceIdType
+            - jsonPath: $.*.transactionType
+            - jsonPath: $.*.transactionReason
+            - jsonPath: $.*.transactingPartyId
+            - jsonPath: $.*.transactingPartyType
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+    - version: 1.0
+      description: Saves a stock
+      fromTopic: statea-save-stock-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.STOCK(id, clientReferenceId, tenantId, facilityId, productVariantId, wayBillNumber, quantity, referenceId, referenceIdType, transactionType, transactionReason, transactingPartyId, transactingPartyType, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -37,7 +67,33 @@ serviceMaps:
       fromTopic: update-stock-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE STOCK SET tenantId=?, facilityId=?, productVariantId=?, wayBillNumber=?, quantity=?, referenceId=?, referenceIdType=?, transactionType=?, transactionReason=?, transactingPartyId=?, transactingPartyType=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
+        - query: UPDATE public.STOCK SET tenantId=?, facilityId=?, productVariantId=?, wayBillNumber=?, quantity=?, referenceId=?, referenceIdType=?, transactionType=?, transactionReason=?, transactingPartyId=?, transactingPartyType=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.facilityId
+            - jsonPath: $.*.productVariantId
+            - jsonPath: $.*.wayBillNumber
+            - jsonPath: $.*.quantity
+            - jsonPath: $.*.referenceId
+            - jsonPath: $.*.referenceIdType
+            - jsonPath: $.*.transactionType
+            - jsonPath: $.*.transactionReason
+            - jsonPath: $.*.transactingPartyId
+            - jsonPath: $.*.transactingPartyType
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.id
+    - version: 1.0
+      description: Updates a stock
+      fromTopic: statea-update-stock-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.STOCK SET tenantId=?, facilityId=?, productVariantId=?, wayBillNumber=?, quantity=?, referenceId=?, referenceIdType=?, transactionType=?, transactionReason=?, transactingPartyId=?, transactingPartyType=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
@@ -64,7 +120,20 @@ serviceMaps:
       fromTopic: delete-stock-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE STOCK SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+        - query: UPDATE public.STOCK SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+    - version: 1.0
+      description: Deletes a stock
+      fromTopic: statea-delete-stock-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.STOCK SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.auditDetails.lastModifiedBy
@@ -80,7 +149,35 @@ serviceMaps:
       fromTopic: save-stock-reconciliation-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO STOCK_RECONCILIATION_LOG(id, clientReferenceId, tenantId, facilityId, dateOfReconciliation, calculatedCount, physicalRecordedCount, commentsOnReconciliation, productVariantId, referenceId, referenceIdType, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO public.STOCK_RECONCILIATION_LOG(id, clientReferenceId, tenantId, facilityId, dateOfReconciliation, calculatedCount, physicalRecordedCount, commentsOnReconciliation, productVariantId, referenceId, referenceIdType, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.facilityId
+            - jsonPath: $.*.dateOfReconciliation
+            - jsonPath: $.*.calculatedCount
+            - jsonPath: $.*.physicalCount
+            - jsonPath: $.*.commentsOnReconciliation
+            - jsonPath: $.*.productVariantId
+            - jsonPath: $.*.referenceId
+            - jsonPath: $.*.referenceIdType
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+    - version: 1.0
+      description: Saves a stock reconciliation
+      fromTopic: statea-save-stock-reconciliation-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.STOCK_RECONCILIATION_LOG(id, clientReferenceId, tenantId, facilityId, dateOfReconciliation, calculatedCount, physicalRecordedCount, commentsOnReconciliation, productVariantId, referenceId, referenceIdType, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -109,7 +206,31 @@ serviceMaps:
       fromTopic: update-stock-reconciliation-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE STOCK_RECONCILIATION_LOG SET tenantId=?, facilityId=?, productVariantId=?, referenceId=?, referenceIdType=?, dateOfReconciliation=?, calculatedCount=?, physicalRecordedCount=?, commentsOnReconciliation=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
+        - query: UPDATE public.STOCK_RECONCILIATION_LOG SET tenantId=?, facilityId=?, productVariantId=?, referenceId=?, referenceIdType=?, dateOfReconciliation=?, calculatedCount=?, physicalRecordedCount=?, commentsOnReconciliation=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.facilityId
+            - jsonPath: $.*.productVariantId
+            - jsonPath: $.*.referenceId
+            - jsonPath: $.*.referenceIdType
+            - jsonPath: $.*.dateOfReconciliation
+            - jsonPath: $.*.calculatedCount
+            - jsonPath: $.*.physicalCount
+            - jsonPath: $.*.commentsOnReconciliation
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.id
+    - version: 1.0
+      description: Updates a stock reconciliation
+      fromTopic: statea-update-stock-reconciliation-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.STOCK_RECONCILIATION_LOG SET tenantId=?, facilityId=?, productVariantId=?, referenceId=?, referenceIdType=?, dateOfReconciliation=?, calculatedCount=?, physicalRecordedCount=?, commentsOnReconciliation=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
@@ -134,7 +255,20 @@ serviceMaps:
       fromTopic: delete-stock-reconciliation-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE STOCK_RECONCILIATION_LOG SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+        - query: UPDATE public.STOCK_RECONCILIATION_LOG SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+    - version: 1.0
+      description: Deletes a stock reconciliation
+      fromTopic: statea-delete-stock-reconciliation-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.STOCK_RECONCILIATION_LOG SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.auditDetails.lastModifiedBy

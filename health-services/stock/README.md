@@ -75,3 +75,13 @@ Stock service APIs - contains create, update, delete and search end point
 ## Pre commit script
 
 [commit-msg](https://gist.github.com/jayantp-egov/14f55deb344f1648503c6be7e580fa12)
+
+## Updates 
+- Stock Search 
+  - `productVariantId`, and `waybillNumber` now accepts a list of entities instead of single entity to search stock
+- Stock Reconciliation Search
+  - `facilityId`, and `productVariantId` now accepts a list of entities instead of single entity to search stock reconciliation
+## Usage
+- Start the service
+- Access the API endpoints for searching `stock` and `stock reconciliation`
+- Pass list parameters for the search fields mentioned in updates 
