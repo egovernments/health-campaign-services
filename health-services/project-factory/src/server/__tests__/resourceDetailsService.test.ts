@@ -82,7 +82,7 @@ jest.mock('uuid', () => ({
 import { createResourceDetail } from '../service/resourceDetailsService';
 import { updateResourceDetail, searchResourceDetails } from '../service/resourceDetailsService';
 import { hasAnyCreatingResource, findActiveResourceByUpsertKey, getResourceDetailById, searchResourceDetailsFromDB, countTotalResourceDetails } from '../utils/resourceDetailsUtils';
-import { isSharedAcrossCampaignFamily } from '../config/resourceTypeRegistry';
+import { isSharedAcrossCampaignFamily, getResourceConfigOrDefault, isRegisteredType } from '../config/resourceTypeRegistry';
 import { produceModifiedMessages } from '../kafka/Producer';
 
 const mockHasAnyCreating = hasAnyCreatingResource as jest.Mock;
@@ -92,6 +92,8 @@ const mockProduce = produceModifiedMessages as jest.Mock;
 const mockSearchFromDB = searchResourceDetailsFromDB as jest.Mock;
 const mockCountTotal = countTotalResourceDetails as jest.Mock;
 const mockIsShared = isSharedAcrossCampaignFamily as jest.Mock;
+const mockGetResourceConfig = getResourceConfigOrDefault as jest.Mock;
+const mockIsRegistered = isRegisteredType as jest.Mock;
 
 // Campaign DB row helpers
 function mockCampaignStatus(status: string) {
@@ -238,6 +240,60 @@ describe('resourceDetailsService — toCreate upsert (no RESOURCE_ALREADY_QUEUED
         );
         expect(createCall).toBeDefined();
         expect(createCall[0].ResourceDetails.status).toBe('toCreate');
+    });
+});
+
+describe('createResourceDetail — registered child type parent handling', () => {
+    const ATTENDEE_INPUT = {
+        tenantId: 'default',
+        campaignId: 'child-campaign-1',
+        type: 'attendanceRegisterAttendee',
+        parentResourceId: 'register-entity-1',
+        fileStoreId: 'fs-new',
+        filename: 'attendee.xlsx',
+        additionalDetails: {}
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockHasAnyCreating.mockResolvedValue(false);
+        mockFindActiveResource.mockResolvedValue(null);
+        mockCampaignStatus('created');
+        mockIsRegistered.mockReturnValue(true);
+        mockGetResourceConfig.mockReturnValue({ parentType: 'attendanceRegister', allowMultiplePerParent: true });
+    });
+
+    it('T13: attendee create succeeds for child campaign with no parent resource under its campaignId', async () => {
+        await createResourceDetail(ATTENDEE_INPUT, 'user-1');
+
+        const validationCall = mockThrowError.mock.calls.find(
+            (args: any[]) => typeof args[3] === 'string' && args[3].includes('No active resource of parent type')
+        );
+        expect(validationCall).toBeUndefined();
+
+        expect(mockProduce).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ResourceDetails: expect.objectContaining({
+                    type: 'attendanceRegisterAttendee',
+                    parentResourceId: 'register-entity-1',
+                    status: 'toCreate'
+                })
+            }),
+            'create-resource-topic',
+            'default'
+        );
+    });
+
+    it('T14: registered child type without parentResourceId still throws VALIDATION_ERROR', async () => {
+        const { parentResourceId, ...noParent } = ATTENDEE_INPUT;
+
+        await expect(createResourceDetail(noParent as any, 'user-1'))
+            .rejects.toThrow('parentResourceId is required');
+
+        expect(mockThrowError).toHaveBeenCalledWith(
+            'COMMON', 400, 'VALIDATION_ERROR', expect.stringContaining('parentResourceId is required')
+        );
+        expect(mockProduce).not.toHaveBeenCalled();
     });
 });
 
