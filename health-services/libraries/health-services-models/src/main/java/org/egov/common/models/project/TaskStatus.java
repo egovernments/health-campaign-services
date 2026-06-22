@@ -63,7 +63,50 @@ public enum TaskStatus {
      * represents a system-determined ineligibility rather than
      * beneficiary choice.
      */
-    INELIGIBLE("INELIGIBLE");
+    INELIGIBLE("INELIGIBLE"),
+
+    /**
+     * Indicates that the beneficiary is not eligible.
+     * This status signifies that the task has not been processed because
+     * the beneficiary does not meet the eligibility criteria for the
+     * service or intervention. This is different from refusal as it
+     * represents a system-determined ineligibility rather than
+     * beneficiary choice.
+     */
+    BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE"),
+
+    /**
+     * Indicates that the beneficiary has died.
+     * This status signifies that the task cannot be completed because
+     * the beneficiary is deceased.
+     */
+    BENEFICIARY_DIED("BENEFICIARY_DIED"),
+
+    /**
+     * Indicates that the beneficiary has migrated.
+     * This status signifies that the task cannot be completed because
+     * the beneficiary has relocated to a different area.
+     */
+    BENEFICIARY_MIGRATED("BENEFICIARY_MIGRATED"),
+
+    /**
+     * Indicates that the beneficiary was absent.
+     * This status signifies that the task could not be completed because
+     * the beneficiary was not present at the time of the visit.
+     */
+    BENEFICIARY_ABSENT("BENEFICIARY_ABSENT"),
+
+    /**
+     * Indicates that the beneficiary was referred.
+     * This status signifies that the task could not be completed because
+     * the beneficiary was referred at the time of the visit.
+     */
+    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
+
+    /**
+     * Indicates that the beneficiary was given redose.
+     */
+    VISITED("VISITED");
 
     // The string value associated with the task status.
     private String value;
