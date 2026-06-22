@@ -9,6 +9,7 @@ export interface ResourceTypeConfig {
   isRequired: boolean;
   parentType: string | null;
   allowMultiplePerParent: boolean;
+  sharedAcrossCampaignFamily?: boolean;
 }
 
 export const RESOURCE_TYPE_REGISTRY: Record<string, ResourceTypeConfig> = {
@@ -50,7 +51,8 @@ export const RESOURCE_TYPE_REGISTRY: Record<string, ResourceTypeConfig> = {
     kafkaKey: "attendanceRegisterCreation_c7e2f8a1-3b5d-4e9a-a1c6-9d4e7f2b8c3a",
     isRequired: false,
     parentType: null,
-    allowMultiplePerParent: false
+    allowMultiplePerParent: false,
+    sharedAcrossCampaignFamily: true
   },
   attendanceRegisterAttendee: {
     type: "attendanceRegisterAttendee",
@@ -60,9 +62,14 @@ export const RESOURCE_TYPE_REGISTRY: Record<string, ResourceTypeConfig> = {
     kafkaKey: "attendanceRegisterAttendeeCreation_b8f3c1d2-4e5a-6f7b-8c9d-0e1f2a3b4c5d",
     isRequired: false,
     parentType: "attendanceRegister",
-    allowMultiplePerParent: true
+    allowMultiplePerParent: true,
+    sharedAcrossCampaignFamily: true
   }
 };
+
+export function isSharedAcrossCampaignFamily(type: string): boolean {
+  return RESOURCE_TYPE_REGISTRY[type]?.sharedAcrossCampaignFamily === true;
+}
 
 const processNameToTypeMap: Map<string, string> = new Map(
   Object.values(RESOURCE_TYPE_REGISTRY).map(cfg => [cfg.processName, cfg.type])

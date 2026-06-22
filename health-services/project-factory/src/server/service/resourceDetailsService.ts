@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { throwError } from "../utils/genericUtils";
+import { throwError, getCampaignIdsByCampaignNumber } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import {
   searchResourceDetailsFromDB,
@@ -14,7 +14,7 @@ import {
   hasAnyCreatingResource
 } from "../utils/resourceDetailsUtils";
 import { executeQuery, getTableName } from "../utils/db";
-import { getResourceConfigOrDefault, isRegisteredType } from "../config/resourceTypeRegistry";
+import { getResourceConfigOrDefault, isRegisteredType, isSharedAcrossCampaignFamily } from "../config/resourceTypeRegistry";
 import { campaignStatuses, resourceStatuses } from "../config/constants";
 import { ResourceDetailsCreateInput } from "../config/models/resourceDetailsCreateSchema";
 import { ResourceDetailsUpdateInput } from "../config/models/resourceDetailsUpdateSchema";
@@ -204,6 +204,14 @@ export async function searchResourceDetails(
   criteria: ResourceDetailsCriteria,
   pagination?: Pagination
 ): Promise<{ ResourceDetails: any[]; TotalCount: number }> {
+  const types = criteria.type || [];
+  const allShared = types.length > 0 && types.every(t => isSharedAcrossCampaignFamily(t));
+
+  if (allShared && criteria.campaignId) {
+    const familyResult = await searchResourceDetailsAcrossCampaignFamily(criteria, pagination);
+    if (familyResult) return familyResult;
+  }
+
   const [rows, total] = await Promise.all([
     searchResourceDetailsFromDB(criteria, pagination),
     countTotalResourceDetails(criteria)
@@ -212,6 +220,46 @@ export async function searchResourceDetails(
   return {
     ResourceDetails: rows.map(toResourceDetailsResponse),
     TotalCount: total
+  };
+}
+
+/**
+ * Resolve shared-type resources (e.g. attendanceRegister) across the whole campaign family.
+ * Child/nested-child campaigns share the parent's campaignNumber but have distinct campaignIds,
+ * so a search by a descendant campaignId would miss rows held under an ancestor. This derives
+ * the campaignNumber, expands to all family campaignIds, queries across them (newest first),
+ * and dedupes by (type, parentResourceId). Returns null to fall back to the strict path.
+ */
+async function searchResourceDetailsAcrossCampaignFamily(
+  criteria: ResourceDetailsCriteria,
+  pagination?: Pagination
+): Promise<{ ResourceDetails: any[]; TotalCount: number } | null> {
+  const { campaignNumber } = await getCampaignStatusFromDB(criteria.campaignId, criteria.tenantId);
+  if (!campaignNumber) return null;
+
+  const familyIds = await getCampaignIdsByCampaignNumber(campaignNumber, criteria.tenantId);
+  if (familyIds.length === 0) return null;
+
+  const rows = await searchResourceDetailsFromDB(
+    { ...criteria, campaignIds: familyIds },
+    { sortBy: "lastmodifiedtime", sortOrder: "DESC" }
+  );
+
+  const seen = new Set<string>();
+  const deduped: ResourceDetailRow[] = [];
+  for (const row of rows) {
+    const key = `${row.type}::${row.parentresourceid || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(row);
+  }
+
+  const offset = pagination?.offset || 0;
+  const paged = pagination?.limit ? deduped.slice(offset, offset + pagination.limit) : deduped.slice(offset);
+
+  return {
+    ResourceDetails: paged.map(toResourceDetailsResponse),
+    TotalCount: deduped.length
   };
 }
 
