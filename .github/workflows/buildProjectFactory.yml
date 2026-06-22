@@ -97,7 +97,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           platforms: linux/amd64,linux/arm64
-          context: health-services/project-factory
+          context: .
           file: ${{ env.DOCKERFILE_PATH }}
           push: true
           tags: |
