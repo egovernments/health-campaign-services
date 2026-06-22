@@ -281,6 +281,10 @@ All five steps required atomically in one PR:
 
 Never change existing phase numbers or `dependsOn` chains.
 
+### Shared-across-family resource resolution
+
+Child (and nested-child) campaigns inherit the parent's `campaignNumber` (`campaignUtils.ts:1065`) but get a distinct `campaignId`. `eg_cm_resource_details` is keyed by `campaignid`, so a search by a descendant's id misses rows held under an ancestor. Resource types whose underlying entity is `campaignNumber`-scoped (currently `attendanceRegister`, `attendanceRegisterAttendee`) set `sharedAcrossCampaignFamily: true` in `resourceTypeRegistry.ts`. When **every** searched type is shared, `searchResourceDetails` resolves `campaignNumber` (`getCampaignStatusFromDB`) → all family `campaignId`s (`getCampaignIdsByCampaignNumber`) → queries `campaignid = ANY(...)` newest-first, dedupe by `(type, parentResourceId)`. Read-side only — the API contract is unchanged (internal `campaignIds` field, not on the zod schema). Write-path parent validation (`createResourceDetail`) stays `campaignId`-scoped.
+
 ---
 
 ## Campaign Failure Semantics
