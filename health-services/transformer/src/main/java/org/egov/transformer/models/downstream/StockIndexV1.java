@@ -24,6 +24,9 @@ public class StockIndexV1 {
     @JsonProperty("id")
     private String id;
 
+    @JsonProperty("campaignNumber")
+    private String campaignNumber;
+
     @JsonProperty("facilityId")
     private String facilityId;
 
