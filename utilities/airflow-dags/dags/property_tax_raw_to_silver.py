@@ -122,6 +122,200 @@ def get_client():
     )
 
 
+# -- Observability: timing + memory instrumentation -------------------------
+#
+# Three layers are measured per task and logged (logs only, no metrics tables):
+#   1. ClickHouse side  - app-side wall-clock per SELECT/INSERT (OpStats), plus
+#      authoritative server peak memory + duration from system.query_log.
+#   2. Airflow worker   - wall-clock + peak process RSS (resource.getrusage).
+#   3. Task pod         - peak pod memory from cgroup accounting.
+#
+# run_query/run_insert read the per-task log_comment + OpStats off the client
+# object (set by instrument_client), so the fetch_*/batch_insert helpers don't
+# each need new parameters threaded through their signatures.
+
+
+class OpStats:
+    """Accumulates per-operation wall-clock timing for one task.
+
+    Summarised once at task end (count / total / avg / max per op type) instead
+    of logging one line per 500-row page, which would flood the task log.
+    """
+
+    def __init__(self):
+        self._ops = {}  # op -> [count, total_ms, max_ms, rows]
+
+    def record(self, op: str, wall_ms: float, rows: int = 0) -> None:
+        s = self._ops.get(op)
+        if s is None:
+            self._ops[op] = [1, wall_ms, wall_ms, rows]
+        else:
+            s[0] += 1
+            s[1] += wall_ms
+            s[2] = max(s[2], wall_ms)
+            s[3] += rows
+
+    def summary(self) -> str:
+        parts = []
+        for op, (count, total_ms, max_ms, rows) in sorted(self._ops.items()):
+            avg = total_ms / count if count else 0.0
+            parts.append(f"{op}: n={count} total={total_ms / 1000:.2f}s "
+                         f"avg={avg:.1f}ms max={max_ms:.1f}ms rows={rows}")
+        return " | ".join(parts) if parts else "no ops"
+
+
+def instrument_client(client, log_comment: str, op_stats: 'OpStats'):
+    """Attach a per-task log_comment + OpStats accumulator to a client so that
+    run_query/run_insert can tag every operation and time it."""
+    client._etl_log_comment = log_comment
+    client._etl_op_stats = op_stats
+    return client
+
+
+def run_query(client, query, parameters=None):
+    """client.query with per-task log_comment tagging + wall-clock timing.
+
+    The log_comment lets us attribute server-side peak memory back to this task
+    via system.query_log. Falls back to a plain query if the client was never
+    instrumented (e.g. ad-hoc use)."""
+    log_comment = getattr(client, '_etl_log_comment', None)
+    op_stats = getattr(client, '_etl_op_stats', None)
+    settings = {'log_comment': log_comment} if log_comment else None
+    t0 = time.monotonic()
+    result = client.query(query, parameters=parameters, settings=settings)
+    if op_stats is not None:
+        op_stats.record('select', (time.monotonic() - t0) * 1000.0,
+                        len(result.result_rows))
+    return result
+
+
+def run_insert(client, table, data, column_names):
+    """client.insert with per-task log_comment tagging + wall-clock timing."""
+    log_comment = getattr(client, '_etl_log_comment', None)
+    op_stats = getattr(client, '_etl_op_stats', None)
+    settings = {'log_comment': log_comment} if log_comment else None
+    t0 = time.monotonic()
+    client.insert(table, data=data, column_names=column_names, settings=settings)
+    if op_stats is not None:
+        op_stats.record('insert', (time.monotonic() - t0) * 1000.0, len(data))
+
+
+def peak_rss_mib() -> int:
+    """Peak resident set size of THIS worker process in MiB.
+
+    On Linux ru_maxrss is reported in KiB, so divide by 1024 for MiB."""
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
+
+
+def pod_peak_mem_mib():
+    """Peak memory of the whole task pod from cgroup accounting, in MiB.
+
+    Tries cgroup v2 (memory.peak) then v1 (memory.max_usage_in_bytes). Returns
+    None if neither is readable (e.g. local non-container runs) so callers can
+    degrade gracefully rather than crash."""
+    for path in ('/sys/fs/cgroup/memory.peak',
+                 '/sys/fs/cgroup/memory/memory.max_usage_in_bytes'):
+        try:
+            with open(path) as fh:
+                return int(fh.read().strip()) // (1024 * 1024)
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def log_clickhouse_query_stats(client, log_comment: str) -> None:
+    """Log ClickHouse-measured time + authoritative peak memory per op type for
+    this task, read from system.query_log.
+
+    Best-effort: SYSTEM FLUSH LOGS surfaces the just-finished ops (query_log
+    flushes asynchronously). Wrapped so a missing privilege never fails the task.
+    """
+    try:
+        client.command("SYSTEM FLUSH LOGS")
+        result = client.query(
+            "SELECT "
+            "  multiIf(query_kind='Select','select', "
+            "          query_kind='Insert','insert', lower(query_kind)) AS op, "
+            "  count() AS n, "
+            "  round(avg(query_duration_ms)) AS avg_ms, "
+            "  max(query_duration_ms) AS max_ms, "
+            "  formatReadableSize(max(memory_usage)) AS peak_mem, "
+            "  formatReadableSize(sum(read_bytes) + sum(written_bytes)) AS io "
+            "FROM system.query_log "
+            "WHERE type = 'QueryFinish' AND log_comment = {lc:String} "
+            "GROUP BY op ORDER BY op",
+            parameters={'lc': log_comment},
+        )
+        if not result.result_rows:
+            logger.info(f"clickhouse_query_stats[{log_comment}]: no rows in query_log yet")
+            return
+        for op, n, avg_ms, max_ms, peak_mem, io in result.result_rows:
+            logger.info(f"clickhouse_query_stats[{log_comment}] {op}: n={n} "
+                        f"avg={avg_ms}ms max={max_ms}ms peak_mem={peak_mem} io={io}")
+    except Exception as e:
+        logger.warning(f"clickhouse_query_stats unavailable for {log_comment}: {e}")
+
+
+def log_clickhouse_select_breakdown(client, log_comment: str) -> None:
+    """Log peak memory + duration for EVERY individual SELECT of this task, read
+    from system.query_log.
+
+    Use this to see whether per-query memory is flat or growing across pages.
+    Logs a one-line distribution (min/avg/max) first so the "same or different?"
+    answer is immediate, then one line per SELECT. Best-effort; never raises.
+
+    Note: this is verbose (one line per page). It is wired into the property
+    task only, on purpose.
+    """
+    try:
+        client.command("SYSTEM FLUSH LOGS")
+        dist = client.query(
+            "SELECT count() AS n, "
+            "  formatReadableSize(min(memory_usage)) AS min_mem, "
+            "  formatReadableSize(round(avg(memory_usage))) AS avg_mem, "
+            "  formatReadableSize(max(memory_usage)) AS max_mem "
+            "FROM system.query_log "
+            "WHERE type = 'QueryFinish' AND log_comment = {lc:String} "
+            "AND query_kind = 'Select'",
+            parameters={'lc': log_comment},
+        )
+        if not dist.result_rows or not dist.result_rows[0][0]:
+            logger.info(f"select_mem[{log_comment}]: no SELECTs in query_log yet")
+            return
+        n, min_mem, avg_mem, max_mem = dist.result_rows[0]
+        logger.info(f"select_mem_dist[{log_comment}]: n={n} "
+                    f"min={min_mem} avg={avg_mem} max={max_mem}")
+
+        rows = client.query(
+            "SELECT query_duration_ms, "
+            "  formatReadableSize(memory_usage) AS peak_mem, "
+            "  read_rows, "
+            "  formatReadableSize(read_bytes) AS read_bytes "
+            "FROM system.query_log "
+            "WHERE type = 'QueryFinish' AND log_comment = {lc:String} "
+            "AND query_kind = 'Select' "
+            "ORDER BY event_time_microseconds",
+            parameters={'lc': log_comment},
+        )
+        for page, (dur, peak_mem, read_rows, read_bytes) in enumerate(rows.result_rows, 1):
+            logger.info(f"select_mem[{log_comment}] page={page} dur={dur}ms "
+                        f"peak_mem={peak_mem} read_rows={read_rows} read_bytes={read_bytes}")
+    except Exception as e:
+        logger.warning(f"select breakdown unavailable for {log_comment}: {e}")
+
+
+def log_resource_summary(label: str, t0: float, op_stats: 'OpStats' = None) -> None:
+    """Log the worker/pod resource line (and optional app-side op summary) for a task.
+
+    t0 is a time.monotonic() captured at task start."""
+    if op_stats is not None:
+        logger.info(f"app_ops[{label}]: {op_stats.summary()}")
+    pod = pod_peak_mem_mib()
+    pod_str = f"{pod} MiB" if pod is not None else "n/a"
+    logger.info(f"resource_summary[{label}]: wall={time.monotonic() - t0:.1f}s "
+                f"worker_peak_rss={peak_rss_mib()} MiB pod_peak_mem={pod_str}")
+
+
 def parse_ts(val) -> Optional[datetime]:
     """Parse epoch-millis, datetime, or ISO string into timezone-aware datetime."""
     if val is None:
@@ -209,7 +403,7 @@ def batch_insert(client, table: str, rows: List[dict], chunk_size: int = 10000):
         data = [[r.get(c) for c in cols] for r in chunk]
         
         try:
-            client.insert(table, data=data, column_names=cols)
+            run_insert(client, table, data, cols)
             total_inserted += len(chunk)
             logger.info(f"Inserted {len(chunk)} rows into {table} (progress: {total_inserted}/{len(rows)})")
         except Exception as e:
@@ -285,14 +479,15 @@ def fetch_property_events(client, window_start: datetime,
 
     query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
 
-    result = client.query(query, parameters=params)
+    result = run_query(client, query, parameters=params)
     return result.result_rows
 
 
 def count_property_events(client, window_start: datetime,
                           window_end: datetime) -> int:
     """Count total property events in the time window."""
-    result = client.query(
+    result = run_query(
+        client,
         "SELECT count() FROM property_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)}",
@@ -320,14 +515,15 @@ def fetch_demand_events(client, window_start: datetime,
         params['limit'] = limit
         params['offset'] = offset
 
-    result = client.query(query, parameters=params)
+    result = run_query(client, query, parameters=params)
     return [r[0] for r in result.result_rows]
 
 
 def count_demand_events(client, window_start: datetime,
                         window_end: datetime) -> int:
     """Count total demand events in the time window."""
-    result = client.query(
+    result = run_query(
+        client,
         "SELECT count() FROM demand_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)}",
@@ -355,14 +551,15 @@ def fetch_payment_events(client, window_start: datetime,
         params['limit'] = limit
         params['offset'] = offset
 
-    result = client.query(query, parameters=params)
+    result = run_query(client, query, parameters=params)
     return [r[0] for r in result.result_rows]
 
 
 def count_payment_events(client, window_start: datetime,
                          window_end: datetime) -> int:
     """Count total payment events in the time window."""
-    result = client.query(
+    result = run_query(
+        client,
         "SELECT count() FROM payment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)}",
@@ -389,14 +586,15 @@ def fetch_bill_events(client, window_start: datetime,
         params['limit'] = limit
         params['offset'] = offset
 
-    result = client.query(query, parameters=params)
+    result = run_query(client, query, parameters=params)
     return [r[0] for r in result.result_rows]
 
 
 def count_bill_events(client, window_start: datetime,
                       window_end: datetime) -> int:
     """Count payment events — bill data is embedded inside each payment."""
-    result = client.query(
+    result = run_query(
+        client,
         "SELECT count() FROM payment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)}",
@@ -423,14 +621,15 @@ def fetch_assessment_events(client, window_start: datetime,
         params['limit'] = limit
         params['offset'] = offset
 
-    result = client.query(query, parameters=params)
+    result = run_query(client, query, parameters=params)
     return [r[0] for r in result.result_rows]
 
 
 def count_assessment_events(client, window_start: datetime,
                             window_end: datetime) -> int:
     """Count total assessment events in the time window."""
-    result = client.query(
+    result = run_query(
+        client,
         "SELECT count() FROM assessment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)}",
@@ -846,11 +1045,13 @@ def extract_property_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Property extract window: [{window_start}, {window_end})")
 
-    client = get_client()
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_count = count_property_events(client, window_start, window_end)
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Property events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Property events found: {total_count}")
 
         return {
             'total_count': total_count,
@@ -859,6 +1060,7 @@ def extract_property_events(**context):
         }
 
     finally:
+        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -873,11 +1075,13 @@ def extract_demand_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Demand extract window: [{window_start}, {window_end})")
 
-    client = get_client()
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_count = count_demand_events(client, window_start, window_end)
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Demand events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Demand events found: {total_count}")
 
         return {
             'total_count': total_count,
@@ -886,6 +1090,7 @@ def extract_demand_events(**context):
         }
 
     finally:
+        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -900,11 +1105,13 @@ def extract_payment_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Payment extract window: [{window_start}, {window_end})")
 
-    client = get_client()
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_count = count_payment_events(client, window_start, window_end)
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Payment events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Payment events found: {total_count}")
 
         return {
             'total_count': total_count,
@@ -913,6 +1120,7 @@ def extract_payment_events(**context):
         }
 
     finally:
+        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -937,10 +1145,12 @@ def transform_load_property_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} property events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{ti.task_id}:{ti.run_id}"
+    logger.info(f"Processing {total_count} property events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
 
-    client = get_client()
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_props = 0
         total_units = 0
@@ -1042,11 +1252,13 @@ def transform_load_property_events(**context):
             'owners': total_owners,
             'audits': total_audits,
         }
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Property processing complete: {counts} | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Property processing complete: {counts}")
         return counts
 
     finally:
+        log_clickhouse_query_stats(client, log_comment)
+        log_clickhouse_select_breakdown(client, log_comment)
+        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
@@ -1068,10 +1280,12 @@ def transform_load_demand_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} demand events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{ti.task_id}:{ti.run_id}"
+    logger.info(f"Processing {total_count} demand events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
 
-    client = get_client()
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_demands = 0
         offset = 0
@@ -1126,11 +1340,12 @@ def transform_load_demand_events(**context):
 
         demand_buf.flush()
 
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Demand processing complete: {total_demands} rows | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Demand processing complete: {total_demands} rows")
         return {'demands': total_demands}
 
     finally:
+        log_clickhouse_query_stats(client, log_comment)
+        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
@@ -1152,10 +1367,12 @@ def transform_load_payment_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} payment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{ti.task_id}:{ti.run_id}"
+    logger.info(f"Processing {total_count} payment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
 
-    client = get_client()
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_payments = 0
         offset = 0
@@ -1209,11 +1426,12 @@ def transform_load_payment_events(**context):
 
         payment_buf.flush()
 
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Payment processing complete: {total_payments} rows | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Payment processing complete: {total_payments} rows")
         return {'payments': total_payments}
 
     finally:
+        log_clickhouse_query_stats(client, log_comment)
+        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
@@ -1228,11 +1446,13 @@ def extract_bill_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Bill extract window: [{window_start}, {window_end})")
 
-    client = get_client()
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_count = count_bill_events(client, window_start, window_end)
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Bill events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Bill events found: {total_count}")
 
         return {
             'total_count': total_count,
@@ -1241,6 +1461,7 @@ def extract_bill_events(**context):
         }
 
     finally:
+        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -1265,10 +1486,12 @@ def transform_load_bill_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} bill events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{ti.task_id}:{ti.run_id}"
+    logger.info(f"Processing {total_count} bill events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
 
-    client = get_client()
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_bills = 0
         total_details = 0
@@ -1345,11 +1568,12 @@ def transform_load_bill_events(**context):
             'bills': total_bills,
             'bill_details': total_details,
         }
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Bill processing complete: {counts} | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Bill processing complete: {counts}")
         return counts
 
     finally:
+        log_clickhouse_query_stats(client, log_comment)
+        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
@@ -1367,11 +1591,13 @@ def extract_assessment_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Assessment extract window: [{window_start}, {window_end})")
 
-    client = get_client()
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_count = count_assessment_events(client, window_start, window_end)
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Assessment events found: {total_count} | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Assessment events found: {total_count}")
 
         return {
             'total_count': total_count,
@@ -1380,6 +1606,7 @@ def extract_assessment_events(**context):
         }
 
     finally:
+        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -1401,10 +1628,12 @@ def transform_load_assessment_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    base_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    logger.info(f"Processing {total_count} assessment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={base_kb // 1024} MiB")
+    t0 = time.monotonic()
+    op_stats = OpStats()
+    log_comment = f"{ti.task_id}:{ti.run_id}"
+    logger.info(f"Processing {total_count} assessment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
 
-    client = get_client()
+    client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_assessments = 0
         offset = 0
@@ -1461,11 +1690,12 @@ def transform_load_assessment_events(**context):
 
         assessment_buf.flush()
 
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info(f"Assessment processing complete: {total_assessments} rows | peak_memory={peak_kb // 1024} MiB")
+        logger.info(f"Assessment processing complete: {total_assessments} rows")
         return {'assessments': total_assessments}
 
     finally:
+        log_clickhouse_query_stats(client, log_comment)
+        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
