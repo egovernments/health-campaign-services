@@ -447,26 +447,40 @@ class InsertBuffer:
 
 
 def fetch_property_events(client, window_start: datetime,
-                          window_end: datetime, limit: int = None,
-                          offset: int = 0) -> List[str]:
-    """Fetch raw JSON strings where event_time falls within
-    [window_start, window_end) with optional pagination."""
+                          window_end: datetime, limit: int,
+                          last_event_time: datetime = None,
+                          last_id: str = None) -> List[tuple]:
+    """Fetch one keyset page of raw events in [window_start, window_end).
+
+    Pagination is cursor-based on the (event_time, id) sort key rather than
+    LIMIT/OFFSET: each page continues strictly after the last (event_time, id)
+    seen. This avoids OFFSET rescans (O(n) instead of O(n^2)) and the
+    skip/duplicate bug that LIMIT/OFFSET hits when event_time has ties.
+
+    Returns a list of (raw, event_time, id) tuples ordered by (event_time, id);
+    the caller advances the cursor using the last tuple.
+    """
     query = (
-        "SELECT raw FROM property_events_raw "
+        "SELECT raw, event_time, id FROM property_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
-        "ORDER BY event_time "
     )
 
-    params = {'start': window_start, 'end': window_end}
+    params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if limit is not None:
-        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
-        params['limit'] = limit
-        params['offset'] = offset
+    # Cursor: continue strictly after the last row of the previous page.
+    # Tuple comparison maps directly onto ORDER BY (event_time, id), so this is
+    # an index seek, not a scan.
+    if last_event_time is not None:
+        query += ("AND (event_time, id) > "
+                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
+        params['last_ts'] = last_event_time
+        params['last_id'] = str(last_id)
+
+    query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
 
     result = run_query(client, query, parameters=params)
-    return [r[0] for r in result.result_rows]
+    return result.result_rows
 
 
 def count_property_events(client, window_start: datetime,
@@ -1142,7 +1156,11 @@ def transform_load_property_events(**context):
         total_units = 0
         total_owners = 0
         total_audits = 0
-        offset = 0
+        processed = 0
+        chunk_idx = 0
+        # Keyset cursor: the last (event_time, id) seen. None on the first page.
+        last_ts = None
+        last_id = None
 
         prop_buf = InsertBuffer(client, 'property_address_entity')
         unit_buf = InsertBuffer(client, 'property_unit_entity')
@@ -1155,11 +1173,11 @@ def transform_load_property_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
-        while offset < total_count:
-            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
-            raw_jsons = fetch_property_events(client, ws, we,
-                                              limit=CH_FETCH_SIZE, offset=offset)
-            if not raw_jsons:
+        while True:
+            # -- EXTRACT: keyset page → continue after the last (event_time, id) --
+            rows = fetch_property_events(client, ws, we, limit=CH_FETCH_SIZE,
+                                         last_event_time=last_ts, last_id=last_id)
+            if not rows:
                 break
 
             # -- TRANSFORM: parse JSON, extract fields --
@@ -1168,7 +1186,7 @@ def transform_load_property_events(**context):
             owner_rows = []
             audit_rows = []
 
-            for raw_json in raw_jsons:
+            for raw_json, _et, _id in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1184,10 +1202,13 @@ def transform_load_property_events(**context):
                 owner_rows.extend(extract_owners(prop))
                 audit_rows.append(extract_property_audit(prop))
 
+            # -- Advance cursor to the last row of this page (ordered by key) --
+            chunk_len = len(rows)
+            last_ts = rows[-1][1]
+            last_id = rows[-1][2]
+            del rows
 
             # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
-            chunk_len = len(raw_jsons)
-            del raw_jsons
             n_props = len(prop_rows); total_props += n_props
             n_units = len(unit_rows); total_units += n_units
             n_owners = len(owner_rows); total_owners += n_owners
@@ -1200,19 +1221,24 @@ def transform_load_property_events(**context):
 
             gc.collect()
 
+            prev_processed = processed
+            processed += chunk_len
             logger.info(
-                f"Chunk {offset}-{offset + chunk_len}: "
+                f"Chunk {prev_processed}-{processed}: "
                 f"{n_props} props, {n_units} units, {n_owners} owners, {n_audits} audits | "
                 f"Total: {total_props}/{total_units}/{total_owners}/{total_audits}"
             )
-            offset += CH_FETCH_SIZE
-            chunk_idx = offset // CH_FETCH_SIZE
+            chunk_idx += 1
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
                 except Exception:
                     pass
             time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
+
+            # A short page means the window is exhausted — no further pages.
+            if chunk_len < CH_FETCH_SIZE:
+                break
 
         # Flush any remaining rows in buffers
         prop_buf.flush()
