@@ -30,6 +30,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -48,6 +49,7 @@ public class ProjectService {
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
     private static List<JsonNode> cachedProjectTypes = new ArrayList<>();
+    private static Map<String, String> projectIdVsCampaignNumberCache = new ConcurrentHashMap<>();
 
 
     public ProjectService(TransformerProperties transformerProperties,
@@ -83,6 +85,18 @@ public class ProjectService {
         return getBoundaryCodeToNameMap(locationCode, tenantId);
     }
 
+
+    public String getCampaignNumberByProjectId(String projectId, String tenantId) {
+        if (projectIdVsCampaignNumberCache.containsKey(projectId)) {
+            return projectIdVsCampaignNumberCache.get(projectId);
+        }
+        Project project = getProject(projectId, tenantId);
+        if (project != null && project.getReferenceID() != null) {
+            projectIdVsCampaignNumberCache.put(projectId, project.getReferenceID());
+            return project.getReferenceID();
+        }
+        return null;
+    }
 
     public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
         List<EnrichedBoundary> boundaries = new ArrayList<>();
