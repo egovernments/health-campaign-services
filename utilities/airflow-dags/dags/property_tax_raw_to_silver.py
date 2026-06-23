@@ -465,7 +465,7 @@ def fetch_property_events(client, window_start: datetime,
         params['limit'] = limit
         params['offset'] = offset
 
-    result = client.query(query, parameters=params)
+    result = run_query(client, query, parameters=params)
     return [r[0] for r in result.result_rows]
 
 
