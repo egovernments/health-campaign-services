@@ -1506,6 +1506,20 @@ export async function deleteCampaignDataFailedAndInvalid(
   }
 }
 
+/**
+ * Returns all campaign ids in eg_cm_campaign_details sharing the given campaignNumber + tenant.
+ * Child (and nested-child) campaigns inherit the parent's campaignNumber, so this resolves the
+ * whole campaign family at any nesting depth. No isactive column exists on this table.
+ */
+export async function getCampaignIdsByCampaignNumber(campaignNumber: string, tenantId: string): Promise<string[]> {
+  const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `SELECT id FROM ${tableName} WHERE campaignnumber = $1 AND tenantid = $2`,
+    [campaignNumber, tenantId]
+  );
+  return (result?.rows || []).map((row: any) => row.id);
+}
+
 export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], tenantId : string, status ?: string ){
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1`;

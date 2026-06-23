@@ -52,7 +52,7 @@ export async function searchResourceDetailsFromDB(
   criteria: ResourceDetailsCriteria,
   pagination?: Pagination
 ): Promise<ResourceDetailRow[]> {
-  const { tenantId, campaignId, type, ids, parentResourceId, status, isActive, excludeTypes } = criteria;
+  const { tenantId, campaignId, campaignIds, type, ids, parentResourceId, status, isActive, excludeTypes } = criteria;
   const conditions: string[] = [];
   const values: any[] = [];
   let idx = 1;
@@ -60,8 +60,13 @@ export async function searchResourceDetailsFromDB(
   conditions.push(`tenantid = $${idx++}`);
   values.push(tenantId);
 
-  conditions.push(`campaignid = $${idx++}`);
-  values.push(campaignId);
+  if (campaignIds && campaignIds.length > 0) {
+    conditions.push(`campaignid = ANY($${idx++})`);
+    values.push(campaignIds);
+  } else {
+    conditions.push(`campaignid = $${idx++}`);
+    values.push(campaignId);
+  }
 
   if (type && type.length > 0) {
     conditions.push(`type = ANY($${idx++})`);
@@ -181,7 +186,7 @@ export async function countResourcesByType(
 export async function countTotalResourceDetails(
   criteria: ResourceDetailsCriteria
 ): Promise<number> {
-  const { tenantId, campaignId, type, ids, parentResourceId, status, isActive } = criteria;
+  const { tenantId, campaignId, campaignIds, type, ids, parentResourceId, status, isActive } = criteria;
   const conditions: string[] = [];
   const values: any[] = [];
   let idx = 1;
@@ -189,8 +194,13 @@ export async function countTotalResourceDetails(
   conditions.push(`tenantid = $${idx++}`);
   values.push(tenantId);
 
-  conditions.push(`campaignid = $${idx++}`);
-  values.push(campaignId);
+  if (campaignIds && campaignIds.length > 0) {
+    conditions.push(`campaignid = ANY($${idx++})`);
+    values.push(campaignIds);
+  } else {
+    conditions.push(`campaignid = $${idx++}`);
+    values.push(campaignId);
+  }
 
   if (type && type.length > 0) {
     conditions.push(`type = ANY($${idx++})`);

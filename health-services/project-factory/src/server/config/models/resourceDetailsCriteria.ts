@@ -17,8 +17,10 @@ export const paginationSchema = z.object({
   sortOrder: z.enum(['ASC', 'DESC']).optional()
 });
 
-// excludeTypes is internal-only — not accepted via public API, only passed by internal callers
+// excludeTypes and campaignIds are internal-only — not accepted via public API, only passed by internal callers.
+// campaignIds, when present, replaces the single-campaignId filter with a family (campaignNumber) scope.
 export type ResourceDetailsCriteria = z.infer<typeof resourceDetailsCriteriaSchema> & {
   excludeTypes?: string[];
+  campaignIds?: string[];
 };
 export type Pagination = z.infer<typeof paginationSchema>;
