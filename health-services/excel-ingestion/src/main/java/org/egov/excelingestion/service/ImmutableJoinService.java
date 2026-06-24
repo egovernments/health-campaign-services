@@ -100,15 +100,8 @@ public class ImmutableJoinService {
         // 1. Read the embedded generationId.
         String generationId = readGenerationId(uploadedWorkbook);
         if (generationId == null || generationId.trim().isEmpty()) {
-            // No embedded identity. If the file still carries the hidden row-id column, the metadata
-            // sheet was stripped (tampering) -> fail closed. A genuine legacy/protected file (generated
-            // before join mode) has neither id nor row-id column -> no-op (graceful migration).
-            if (hasRowIdColumn(uploadedWorkbook)) {
-                exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID,
-                        ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID_MESSAGE);
-            }
-            log.debug("No {} generationId and no row-id column; treating as a legacy file, skipping join",
-                    GenerationConstants.META_SHEET_NAME);
+            exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID,
+                    ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID_MESSAGE);
             return Collections.emptyMap();
         }
         generationId = generationId.trim();
@@ -180,7 +173,10 @@ public class ImmutableJoinService {
         }
 
         ImmutableColumns immutable = deriveImmutableColumns(schemaMap);
-        if (immutable.isEmpty()) {
+
+        String hierarchyPrefix = (resource.getHierarchyType() == null || resource.getHierarchyType().isEmpty())
+                ? null : (resource.getHierarchyType().toUpperCase() + "_");
+        if (immutable.isEmpty() && hierarchyPrefix == null) {
             return Collections.emptySet();
         }
 
@@ -208,13 +204,6 @@ public class ImmutableJoinService {
         // column the current schema marks immutable but that is absent from the (older) baseline is NOT
         // reconstructed here and must still be validated.
         Set<String> reconstructedColumns = new HashSet<>();
-
-        // Boundary/hierarchy columns (e.g. "NEWTEST00222_COUNTRY") are generated dynamically per
-        // hierarchy and are NOT part of the MDMS schema, so deriveImmutableColumns never sees them.
-        // Treat any prefilled boundary cell as freezeColumnIfFilled: lock the value the server prefilled
-        // at generation, while empty levels stay editable for the user to select.
-        String hierarchyPrefix = (resource.getHierarchyType() == null || resource.getHierarchyType().isEmpty())
-                ? null : (resource.getHierarchyType().toUpperCase() + "_");
 
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
@@ -343,32 +332,6 @@ public class ImmutableJoinService {
         return ALWAYS_EXCLUDED.contains(name)
                 || name.endsWith(ProcessingConstants.HELPER_COLUMN_SUFFIX)
                 || (name.startsWith("#") && name.endsWith("#"));
-    }
-
-    /**
-     * Whether the uploaded workbook still carries the hidden row-id column on any visible sheet. If it
-     * does but the generationId is gone, the hidden metadata sheet was stripped (tampering) -> fail
-     * closed. If neither is present, the file predates join mode (a genuine legacy/protected template).
-     */
-    private boolean hasRowIdColumn(Workbook workbook) {
-        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-            Sheet sheet = workbook.getSheetAt(i);
-            String name = sheet.getSheetName();
-            if (name != null && name.startsWith("_h_") && name.endsWith("_h_")) {
-                continue;
-            }
-            Row header = sheet.getRow(0);
-            if (header == null) {
-                continue;
-            }
-            for (int c = 0; c < header.getLastCellNum(); c++) {
-                Cell cell = header.getCell(c);
-                if (cell != null && ProcessingConstants.ROW_ID_COLUMN_NAME.equals(ExcelUtil.getCellValueAsString(cell))) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     /** Maps an expanded multi-select child column (parent_MULTISELECT_n) back to its parent name. */

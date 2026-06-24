@@ -196,6 +196,36 @@ class ImmutableJoinServiceTest {
         }
 
         @Test
+        void boundarySheet_noSchemaImmutableColumns_stillLocksBoundaryAndCode() {
+            // Regression for the Boundary List leak: that sheet's MDMS schema has ONLY editable target
+            // columns, so the derived immutable set is EMPTY. joinSheet used to return at `immutable.isEmpty()`
+            // BEFORE the dynamic boundary-column locking ran, leaving prefilled boundary selections + the
+            // derived code unprotected - a user could tamper them and the change would persist. The boundary
+            // columns + code must still be reconstructed from the baseline on an all-editable-schema sheet;
+            // only the genuine target column stays user-controlled.
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString()))
+                    .thenReturn(List.of(ColumnDef.builder().name("target").build())); // no freeze flag -> immutable empty
+            ProcessResource res = ProcessResource.builder()
+                    .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).hierarchyType("HZ").build();
+            Map<String, Object> up = row(ROW_ID, "r1", "target", "55",
+                    "HZ_COUNTRY", "HACKED", "HZ_PROVINCE", "HACKEDPROV",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "FAKE_CODE");
+            Map<String, Object> base = row(ROW_ID, "r1", "target", "10",
+                    "HZ_COUNTRY", "Manland", "HZ_PROVINCE", "RealProv",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "ZQ_VILL_231");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema);
+
+            assertEquals("Manland", up.get("HZ_COUNTRY"),
+                    "boundary column reconstructed even when the schema has NO immutable columns");
+            assertEquals("RealProv", up.get("HZ_PROVINCE"), "prefilled boundary level locked to baseline");
+            assertEquals("ZQ_VILL_231", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
+                    "derived boundary code restored to baseline (tamper corrected) on a no-immutable-schema sheet");
+            assertEquals("55", up.get("target"), "editable target column stays user-controlled");
+        }
+
+        @Test
         void boundaryCode_restoredWhenLockedSelectionTampered() {
             // Boundary fully prefilled (COUNTRY+PROVINCE) -> locked. User tampered them + the derived code.
             // Path is unchanged after restore (no deeper level added) -> the baseline code is authoritative.
@@ -303,10 +333,13 @@ class ImmutableJoinServiceTest {
         }
 
         @Test
-        void missingGenerationId_noRowIdColumn_legacyFile_skipsSilently() {
-            // Neither id nor row-id column -> a genuine legacy/protected file -> no-op (graceful migration).
+        void missingGenerationId_noRowIdColumn_failsClosed() {
+            // A join-mode upload MUST carry an embedded generationId (the generated template always has one).
+            // A file lacking both the meta sheet and the row-id column is not the generated template for this
+            // campaign -> fail closed. (Previously this was silently skipped as "legacy", which let arbitrary
+            // non-generated files bypass immutability - now removed.)
             removeMetaSheet();
-            assertDoesNotThrow(this::run);
+            assertThrows(CustomException.class, this::run);
         }
 
         @Test
