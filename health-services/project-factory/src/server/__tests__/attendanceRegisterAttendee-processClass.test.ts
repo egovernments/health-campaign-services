@@ -70,6 +70,13 @@ const REGISTER_DATA = {
     staffMap: new Map(),
 };
 
+// registerData whose endDate is 0 — de-enrollment clamps to 0 and is treated as absent
+const REGISTER_DATA_ZERO_END = {
+    register: { startDate: null, endDate: 0 },
+    attendeesMap: new Map(),
+    staffMap: new Map(),
+};
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function makeRow(overrides: Record<string, any> = {}): any {
@@ -88,7 +95,8 @@ function callCollectAttendeeOperation(
     enrollmentDateEpoch: number | null,
     deEnrollmentDateEpoch: number | null,
     teamCode: string,
-    row: any
+    row: any,
+    registerData: any = REGISTER_DATA
 ): { attendeesToCreate: any[]; attendeesToDelete: any[]; attendeesToUpdateTag: any[] } {
     const attendeesToCreate: any[] = [];
     const attendeesToDelete: any[] = [];
@@ -106,7 +114,7 @@ function callCollectAttendeeOperation(
         attendeesToDelete,
         attendeesToUpdateTag,
         {},
-        REGISTER_DATA
+        registerData
     );
     return { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag };
 }
@@ -116,7 +124,8 @@ function callCollectStaffOperation(
     enrollmentDateEpoch: number | null,
     deEnrollmentDateEpoch: number | null,
     staffType: string,
-    row: any
+    row: any,
+    registerData: any = REGISTER_DATA
 ): { staffToCreate: any[]; staffToDelete: any[] } {
     const staffToCreate: any[] = [];
     const staffToDelete: any[] = [];
@@ -132,7 +141,7 @@ function callCollectStaffOperation(
         staffToCreate,
         staffToDelete,
         {},
-        REGISTER_DATA
+        registerData
     );
     return { staffToCreate, staffToDelete };
 }
@@ -320,6 +329,7 @@ describe("collectStaffOperation", () => {
             enrollmentDate: ENROLLMENT_EPOCH,
             staffType: "OWNER",
             tenantId: "tenant1",
+            denrollmentDate: DEENROLLMENT_EPOCH,
         });
     });
 
@@ -422,6 +432,7 @@ describe("collectStaffOperation", () => {
             registerId: "register-uuid-1",
             userId: "individual-1",
             tenantId: "tenant1",
+            denrollmentDate: DEENROLLMENT_EPOCH,
         });
     });
 
@@ -514,6 +525,45 @@ describe("Edge cases — data integrity", () => {
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
         expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBeNull(); // unchanged from makeRow
         expect(typeof row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("string");
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CZ. Zero-clamp de-enrollment → treated as absent (register endDate = 0)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("Zero-clamp de-enrollment is skipped", () => {
+
+    test("CZ1: New attendee E+D, register endDate 0 → create has no denrollmentDate, no delete", () => {
+        const row = makeRow();
+        const { attendeesToCreate, attendeesToDelete } = callCollectAttendeeOperation(
+            null, ENROLLMENT_EPOCH, DEENROLLMENT_EPOCH, "T1", row, REGISTER_DATA_ZERO_END
+        );
+        expect(attendeesToCreate).toHaveLength(1);
+        expect(attendeesToCreate[0].payload.enrollmentDate).toBe(ENROLLMENT_EPOCH);
+        expect(attendeesToCreate[0].payload.denrollmentDate).toBeUndefined();
+        expect(attendeesToDelete).toHaveLength(0);
+    });
+
+    test("CZ2: New staff E+D, register endDate 0 → create has no denrollmentDate", () => {
+        const row = makeRow();
+        const { staffToCreate, staffToDelete } = callCollectStaffOperation(
+            null, ENROLLMENT_EPOCH, DEENROLLMENT_EPOCH, "OWNER", row, REGISTER_DATA_ZERO_END
+        );
+        expect(staffToCreate).toHaveLength(1);
+        expect(staffToCreate[0].payload.enrollmentDate).toBe(ENROLLMENT_EPOCH);
+        expect(staffToCreate[0].payload.denrollmentDate).toBeUndefined();
+        expect(staffToDelete).toHaveLength(0);
+    });
+
+    test("CZ3: Existing active staff, D clamps to 0 → no de-enroll, row CREATED", () => {
+        const row = makeRow();
+        const existing = { id: "staff-1", enrollmentDate: ENROLLMENT_EPOCH, staffType: "OWNER" };
+        const { staffToDelete } = callCollectStaffOperation(
+            existing, null, DEENROLLMENT_EPOCH, "OWNER", row, REGISTER_DATA_ZERO_END
+        );
+        expect(staffToDelete).toHaveLength(0);
+        expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
     });
 });
 
