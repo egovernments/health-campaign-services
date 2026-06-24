@@ -548,8 +548,15 @@ const autoGenerateBoundaryCodes = async (
       }
     });
   }
+  const seenSheetRows = new Set<string>();
+  const dedupedData = data.filter((row: any[]) => {
+    const sig = JSON.stringify(row.map((cell: any) => (typeof cell === "string" ? cell.trim() : cell)));
+    if (seenSheetRows.has(sig)) return false;
+    seenSheetRows.add(sig);
+    return true;
+  });
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
-  const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
+  const boundarySheetData: any = await createExcelSheet(dedupedData, localizedHeaders);
   const workbook = getNewExcelWorkbook();
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
   addDataToSheet(request, boundarySheet, boundarySheetData, "93C47D", 40, true);
@@ -791,21 +798,7 @@ function addBoundaryCodeToData(
     ...boundaryDataForWithoutBoundaryCode,
   ];
 
-  // Collapse duplicate INPUT rows (the same full boundary path appearing more than once) so the
-  // generated sheet has exactly one row per boundary. Identity = the deepest hierarchy element's
-  // path; entity/relationship creation already dedups via boundaryKeyOf, this closes the gap for
-  // the sheet (which previously emitted one row per input row, hence duplicate rows).
-  const seenRowPaths = new Set<string>();
-  const dedupedBoundaryDataForSheet = boundaryDataForSheet.filter((row: any[]) => {
-    let deepest: any;
-    for (const o of row) { if (o && o.__path) deepest = o; }
-    const sig = deepest ? deepest.__path : row.map((o: any) => `${o.key}=${o.value}`).join('|');
-    if (seenRowPaths.has(sig)) return false;
-    seenRowPaths.add(sig);
-    return true;
-  });
-
-  return dedupedBoundaryDataForSheet;
+  return boundaryDataForSheet;
 }
 
 function getChildParentMap(modifiedBoundaryData: any) {
