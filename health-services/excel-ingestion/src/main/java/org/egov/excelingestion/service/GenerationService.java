@@ -101,9 +101,7 @@ public class GenerationService {
                     .requestInfo(request.getRequestInfo())
                     .generateResource(generateResource)
                     .build();
-            producer.push(generateResource.getTenantId(),
-                    kafkaTopicConfig.getGenerationInitTopic(),
-                    initEvent);
+            producer.push(kafkaTopicConfig.getGenerationInitTopic(), initEvent);
 
             log.info("Generation queued with id: {} for tenantId: {} (topic: {})",
                     generationId,

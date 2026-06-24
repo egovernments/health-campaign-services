@@ -30,7 +30,8 @@ jest.mock('../utils/resourceDetailsUtils', () => ({
 
 jest.mock('../config/resourceTypeRegistry', () => ({
     getResourceConfigOrDefault: jest.fn().mockReturnValue({}),
-    isRegisteredType: jest.fn().mockReturnValue(false)
+    isRegisteredType: jest.fn().mockReturnValue(false),
+    isSharedAcrossCampaignFamily: jest.fn().mockReturnValue(false)
 }));
 
 jest.mock('../kafka/Producer', () => ({
@@ -65,8 +66,11 @@ const mockThrowError = jest.fn().mockImplementation((_domain: any, _status: any,
     throw err;
 });
 
+const mockGetCampaignIdsByCampaignNumber = jest.fn();
+
 jest.mock('../utils/genericUtils', () => ({
-    throwError: (...args: any[]) => mockThrowError(...args)
+    throwError: (...args: any[]) => mockThrowError(...args),
+    getCampaignIdsByCampaignNumber: (...args: any[]) => mockGetCampaignIdsByCampaignNumber(...args)
 }));
 
 jest.mock('uuid', () => ({
@@ -76,14 +80,18 @@ jest.mock('uuid', () => ({
 // --- Imports after mocks ---
 
 import { createResourceDetail } from '../service/resourceDetailsService';
-import { updateResourceDetail } from '../service/resourceDetailsService';
-import { hasAnyCreatingResource, findActiveResourceByUpsertKey, getResourceDetailById } from '../utils/resourceDetailsUtils';
+import { updateResourceDetail, searchResourceDetails } from '../service/resourceDetailsService';
+import { hasAnyCreatingResource, findActiveResourceByUpsertKey, getResourceDetailById, searchResourceDetailsFromDB, countTotalResourceDetails } from '../utils/resourceDetailsUtils';
+import { isSharedAcrossCampaignFamily } from '../config/resourceTypeRegistry';
 import { produceModifiedMessages } from '../kafka/Producer';
 
 const mockHasAnyCreating = hasAnyCreatingResource as jest.Mock;
 const mockFindActiveResource = findActiveResourceByUpsertKey as jest.Mock;
 const mockGetResourceById = getResourceDetailById as jest.Mock;
 const mockProduce = produceModifiedMessages as jest.Mock;
+const mockSearchFromDB = searchResourceDetailsFromDB as jest.Mock;
+const mockCountTotal = countTotalResourceDetails as jest.Mock;
+const mockIsShared = isSharedAcrossCampaignFamily as jest.Mock;
 
 // Campaign DB row helpers
 function mockCampaignStatus(status: string) {
@@ -230,5 +238,114 @@ describe('resourceDetailsService — toCreate upsert (no RESOURCE_ALREADY_QUEUED
         );
         expect(createCall).toBeDefined();
         expect(createCall[0].ResourceDetails.status).toBe('toCreate');
+    });
+});
+
+describe('searchResourceDetails — campaign-family resolution for shared types', () => {
+    function registerRow(over: Partial<any> = {}): any {
+        return {
+            id: 'r-1',
+            tenantid: 'ba',
+            campaignid: 'parent-id',
+            type: 'attendanceRegister',
+            parentresourceid: null,
+            filestoreid: 'fs',
+            processedfilestoreid: 'pfs',
+            filename: null,
+            status: 'completed',
+            action: 'create',
+            isactive: true,
+            hierarchytype: null,
+            additionaldetails: {},
+            createdby: 'u',
+            lastmodifiedby: 'u',
+            createdtime: 1000,
+            lastmodifiedtime: 2000,
+            ...over
+        };
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockIsShared.mockReturnValue(false);
+        mockCountTotal.mockResolvedValue(0);
+        mockSearchFromDB.mockResolvedValue([]);
+        // getCampaignStatusFromDB → campaignNumber present
+        mockExecuteQuery.mockResolvedValue({ rows: [{ status: 'created', campaignnumber: 'CN-001' }] });
+    });
+
+    it('resolves attendanceRegister across the family when searched by a child campaignId', async () => {
+        mockIsShared.mockReturnValue(true);
+        mockGetCampaignIdsByCampaignNumber.mockResolvedValue(['parent-id', 'child-id', 'grandchild-id']);
+        const row = registerRow();
+        mockSearchFromDB.mockResolvedValue([row]);
+
+        const result = await searchResourceDetails(
+            { tenantId: 'ba', campaignId: 'grandchild-id', type: ['attendanceRegister'], isActive: true } as any
+        );
+
+        expect(mockGetCampaignIdsByCampaignNumber).toHaveBeenCalledWith('CN-001', 'ba');
+        expect(mockSearchFromDB).toHaveBeenCalledWith(
+            expect.objectContaining({ campaignIds: ['parent-id', 'child-id', 'grandchild-id'] }),
+            { sortBy: 'lastmodifiedtime', sortOrder: 'DESC' }
+        );
+        expect(result.TotalCount).toBe(1);
+        expect(result.ResourceDetails).toEqual([row]);
+    });
+
+    it('resolves attendanceRegisterAttendee across the family too', async () => {
+        mockIsShared.mockReturnValue(true);
+        mockGetCampaignIdsByCampaignNumber.mockResolvedValue(['parent-id', 'child-id']);
+        const attendee = registerRow({ type: 'attendanceRegisterAttendee', parentresourceid: 'reg-1' });
+        mockSearchFromDB.mockResolvedValue([attendee]);
+
+        const result = await searchResourceDetails(
+            { tenantId: 'ba', campaignId: 'child-id', type: ['attendanceRegisterAttendee'], isActive: true } as any
+        );
+
+        expect(result.TotalCount).toBe(1);
+        expect(result.ResourceDetails[0].type).toBe('attendanceRegisterAttendee');
+    });
+
+    it('dedupes by (type, parentResourceId) keeping the newest (rows arrive lastmodifiedtime DESC)', async () => {
+        mockIsShared.mockReturnValue(true);
+        mockGetCampaignIdsByCampaignNumber.mockResolvedValue(['parent-id', 'child-id']);
+        const newest = registerRow({ id: 'a-new', campaignid: 'child-id', parentresourceid: 'reg-1', type: 'attendanceRegisterAttendee', lastmodifiedtime: 5000 });
+        const older = registerRow({ id: 'a-old', campaignid: 'parent-id', parentresourceid: 'reg-1', type: 'attendanceRegisterAttendee', lastmodifiedtime: 3000 });
+        const otherParent = registerRow({ id: 'b', parentresourceid: 'reg-2', type: 'attendanceRegisterAttendee', lastmodifiedtime: 4000 });
+        mockSearchFromDB.mockResolvedValue([newest, otherParent, older]);
+
+        const result = await searchResourceDetails(
+            { tenantId: 'ba', campaignId: 'child-id', type: ['attendanceRegisterAttendee'], isActive: true } as any
+        );
+
+        expect(result.TotalCount).toBe(2);
+        expect(result.ResourceDetails.map((r: any) => r.id)).toEqual(['a-new', 'b']);
+    });
+
+    it('non-shared type stays strict campaignId — no family expansion', async () => {
+        mockIsShared.mockReturnValue(false);
+
+        await searchResourceDetails(
+            { tenantId: 'ba', campaignId: 'child-id', type: ['user'], isActive: true } as any
+        );
+
+        expect(mockGetCampaignIdsByCampaignNumber).not.toHaveBeenCalled();
+        expect(mockSearchFromDB).toHaveBeenCalledWith(
+            expect.not.objectContaining({ campaignIds: expect.anything() }),
+            undefined
+        );
+    });
+
+    it('falls back to strict path when campaignNumber cannot be resolved', async () => {
+        mockIsShared.mockReturnValue(true);
+        mockExecuteQuery.mockResolvedValue({ rows: [] });
+
+        await searchResourceDetails(
+            { tenantId: 'ba', campaignId: 'child-id', type: ['attendanceRegister'], isActive: true } as any
+        );
+
+        expect(mockGetCampaignIdsByCampaignNumber).not.toHaveBeenCalled();
+        expect(mockCountTotal).toHaveBeenCalled();
     });
 });

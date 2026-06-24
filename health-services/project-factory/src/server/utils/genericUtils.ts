@@ -1506,6 +1506,20 @@ export async function deleteCampaignDataFailedAndInvalid(
   }
 }
 
+/**
+ * Returns all campaign ids in eg_cm_campaign_details sharing the given campaignNumber + tenant.
+ * Child (and nested-child) campaigns inherit the parent's campaignNumber, so this resolves the
+ * whole campaign family at any nesting depth. No isactive column exists on this table.
+ */
+export async function getCampaignIdsByCampaignNumber(campaignNumber: string, tenantId: string): Promise<string[]> {
+  const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `SELECT id FROM ${tableName} WHERE campaignnumber = $1 AND tenantid = $2`,
+    [campaignNumber, tenantId]
+  );
+  return (result?.rows || []).map((row: any) => row.id);
+}
+
 export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], tenantId : string, status ?: string ){
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1`;
@@ -2022,25 +2036,31 @@ export async function checkCampaignDataCompletionStatus(campaignNumber: string, 
  *
  * Returns: { allCompleted, anyFailed, totalMappings, completedMappings, failedMappings, pendingMappings }
  */
-export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string, type?: string) {
+/**
+ * The terminal/retryable failure split depends on maxRetries — pass it explicitly
+ * when the caller's policy differs from the service default.
+ */
+export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string, type?: string, maxRetries: number = config.mapping.maxRetries) {
   try {
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
 
     const queryString = `
       SELECT
         status,
-        COUNT(*) as count
+        COUNT(*) as count,
+        COUNT(*) FILTER (WHERE retryCount >= $3) as terminalcount
       FROM ${tableName}
       WHERE campaignNumber = $1
         AND ($2::text IS NULL OR type = $2)
       GROUP BY status
     `;
 
-    const result = await executeQuery(queryString, [campaignNumber, type ?? null]);
+    const result = await executeQuery(queryString, [campaignNumber, type ?? null, maxRetries]);
 
     let totalMappings = 0;
     let completedMappings = 0;
     let failedMappings = 0;
+    let terminallyFailedMappings = 0;
 
     result.rows.forEach((row: any) => {
       const count = parseInt(row.count);
@@ -2052,8 +2072,9 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
         row.status === mappingStatuses.skipped
       ) {
         completedMappings += count;
-      } else if (row.status === mappingStatuses.failed) {
+      } else if (row.status === mappingStatuses.failed || row.status === mappingStatuses.deMapFailed) {
         failedMappings += count;
+        terminallyFailedMappings += parseInt(row.terminalcount ?? '0');
       }
     });
 
@@ -2066,6 +2087,8 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
       totalMappings,
       completedMappings,
       failedMappings,
+      terminallyFailedMappings,
+      retryableFailedMappings: failedMappings - terminallyFailedMappings,
       pendingMappings: totalMappings - completedMappings - failedMappings
     };
 
