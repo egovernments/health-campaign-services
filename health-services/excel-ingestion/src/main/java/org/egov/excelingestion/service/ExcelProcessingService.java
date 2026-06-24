@@ -46,6 +46,7 @@ public class ExcelProcessingService {
     private final EnrichmentUtil enrichmentUtil;
     private final MDMSConfigService mdmsConfigService;
     private final ExcelUtil excelUtil;
+    private final ImmutableJoinService immutableJoinService;
 
     public ExcelProcessingService(ValidationService validationService,
                                   SchemaValidationService schemaValidationService,
@@ -58,7 +59,8 @@ public class ExcelProcessingService {
                                   ExcelIngestionConfig config,
                                   EnrichmentUtil enrichmentUtil,
                                   MDMSConfigService mdmsConfigService,
-                                  ExcelUtil excelUtil) {
+                                  ExcelUtil excelUtil,
+                                  ImmutableJoinService immutableJoinService) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -71,6 +73,7 @@ public class ExcelProcessingService {
         this.enrichmentUtil = enrichmentUtil;
         this.mdmsConfigService = mdmsConfigService;
         this.excelUtil = excelUtil;
+        this.immutableJoinService = immutableJoinService;
     }
 
     /**
@@ -116,9 +119,32 @@ public class ExcelProcessingService {
                 Map<String, Map<String, Object>> preValidatedSchemas = configBasedProcessingService.preValidateAndFetchSchemas(
                         workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
 
-                // Validate data and collect errors with localization
+                // Reconstruct authoritative pre-filled values from the generated baseline (unprotected join
+                // mode) BEFORE validation, so validation/processors/persistence all see server-authoritative
+                // immutable data. No-op for legacy/protected files (no embedded generationId).
+                Map<String, Map<String, Object>> sheetNameToSchema = new HashMap<>();
+                for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    String sheetName = workbook.getSheetAt(i).getSheetName();
+                    if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
+                        continue;
+                    }
+                    Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(),
+                            mergedLocalizationMap, preValidatedSchemas, request.getRequestInfo(), tenantId);
+                    if (schema != null) {
+                        sheetNameToSchema.put(sheetName, schema);
+                    }
+                }
+                Map<String, Set<String>> immutableColumnsBySheet =
+                        immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema);
+                if (immutableColumnsBySheet == null) {
+                    immutableColumnsBySheet = Collections.emptyMap();
+                }
+
+                // Validate data and collect errors with localization. Cells reconstructed from the trusted
+                // baseline (always-immutable columns on existing rows) are skipped - they came verbatim from
+                // an already-valid generated template, so re-validating them is wasted work.
                 List<ValidationError> validationErrors = validateExcelData(workbook, resource,
-                        request.getRequestInfo(), mergedLocalizationMap, preValidatedSchemas);
+                        request.getRequestInfo(), mergedLocalizationMap, preValidatedSchemas, immutableColumnsBySheet);
 
                 // Process each sheet: only add validation columns to sheets with errors
                 Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
@@ -237,7 +263,8 @@ public class ExcelProcessingService {
      */
     private List<ValidationError> validateExcelData(Workbook workbook, ProcessResource resource,
                                                     org.egov.common.contract.request.RequestInfo requestInfo, Map<String, String> localizationMap,
-                                                    Map<String, Map<String, Object>> preValidatedSchemas) {
+                                                    Map<String, Map<String, Object>> preValidatedSchemas,
+                                                    Map<String, Set<String>> immutableColumnsBySheet) {
         List<ValidationError> allErrors = new ArrayList<>();
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -259,9 +286,11 @@ public class ExcelProcessingService {
             // Get schema for this sheet from pre-validated schemas
             Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(), localizationMap, preValidatedSchemas, requestInfo, resource.getTenantId());
 
-            // Perform schema validation with pre-fetched schema
+            // Perform schema validation with pre-fetched schema. Skip re-validating always-immutable cells
+            // on existing rows (reconstructed from the trusted baseline by the immutable-join step).
+            Set<String> immutableSkipColumns = immutableColumnsBySheet.getOrDefault(sheetName, Collections.emptySet());
             List<ValidationError> schemaErrors = schemaValidationService.validateDataWithPreFetchedSchema(
-                    sheetData, sheetName, schema, localizationMap);
+                    sheetData, sheetName, schema, localizationMap, immutableSkipColumns);
 
             allErrors.addAll(schemaErrors);
         }

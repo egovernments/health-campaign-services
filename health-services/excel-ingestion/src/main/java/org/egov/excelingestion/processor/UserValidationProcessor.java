@@ -26,6 +26,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component
@@ -329,25 +335,28 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                                     Map<String, String> localizationMap) {
         log.info("Validating phone numbers for {} records", sheetData.size());
         
-        // Map phone numbers to their row numbers
+        // Map phone numbers to their row numbers.
+        // Use a LinkedHashSet for O(1) dedup (preserving insertion order) instead of
+        // List.contains() in a loop, which is O(n^2) at large row counts.
         Map<String, Integer> phoneNumberToRowMap = new HashMap<>();
-        List<String> allPhoneNumbers = new ArrayList<>();
-        
+        Set<String> uniquePhoneNumbers = new LinkedHashSet<>();
+
         for (Map<String, Object> rowData : sheetData) {
             String phoneNumber = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"));
             if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
                 phoneNumber = phoneNumber.trim();
                 phoneNumberToRowMap.put(phoneNumber, (Integer) rowData.get("__actualRowNumber__"));
-                if (!allPhoneNumbers.contains(phoneNumber)) {
-                    allPhoneNumbers.add(phoneNumber);
-                }
+                uniquePhoneNumbers.add(phoneNumber);
             }
         }
-        
-        if (allPhoneNumbers.isEmpty()) {
+
+        if (uniquePhoneNumbers.isEmpty()) {
             log.info("No phone numbers to validate");
             return new HashSet<>();
         }
+
+        // Materialize as a List for the index-based batch (subList) and stream operations below.
+        List<String> allPhoneNumbers = new ArrayList<>(uniquePhoneNumbers);
         
         // Check campaign data for existing users with completed status (any campaign)
         String tenantId = resource.getTenantId();
@@ -398,35 +407,32 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         log.info("Validating {} phone numbers (skipped {} already in campaign)", 
                 phoneNumbersToValidate.size(), existingInCampaign.size());
         
-        // Search in batches of 50 for remaining phone numbers
-        final int BATCH_SIZE = 50;
-        for (int i = 0; i < phoneNumbersToValidate.size(); i += BATCH_SIZE) {
-            int endIndex = Math.min(i + BATCH_SIZE, phoneNumbersToValidate.size());
-            List<String> batch = phoneNumbersToValidate.subList(i, endIndex);
-            
-            try {
-                List<Map<String, Object>> existingUsers = searchIndividualsByMobileNumber(batch, tenantId, requestInfo);
-                
-                for (Map<String, Object> user : existingUsers) {
-                    String mobileNumber = (String) user.get("mobileNumber");
-                    if (mobileNumber != null && phoneNumberToRowMap.containsKey(mobileNumber)) {
-                        ValidationError error = new ValidationError();
-                        error.setRowNumber(phoneNumberToRowMap.get(mobileNumber));
-                        error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
-                            "HCM_USER_PHONE_NUMBER_EXISTS", 
-                            "User with this phone number already exists, and is not suitable for this campaign"));
-                        error.setStatus(ValidationConstants.STATUS_INVALID);
-                        errors.add(error);
-                    }
-                }
-                
-            } catch (Exception e) {
-                log.error("Error validating phone number batch: {}", e.getMessage(), e);
-                exceptionHandler.throwCustomException(ErrorConstants.PHONE_VALIDATION_FAILED, 
-                    ErrorConstants.PHONE_VALIDATION_FAILED_MESSAGE, e);
+        // Search in bounded-parallel batches (size configurable; guard 0 from mocks/unset -> 50)
+        final int BATCH_SIZE = config.getUserSearchBatchSize() > 0 ? config.getUserSearchBatchSize() : 50;
+        List<Map<String, Object>> existingUsers;
+        try {
+            existingUsers = parallelBatchedSearch(phoneNumbersToValidate, BATCH_SIZE,
+                    batch -> searchIndividualsByMobileNumber(batch, tenantId, requestInfo));
+        } catch (Exception e) {
+            log.error("Error validating phone numbers: {}", e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.PHONE_VALIDATION_FAILED,
+                ErrorConstants.PHONE_VALIDATION_FAILED_MESSAGE, e);
+            return existingInCampaign; // unreachable (throwCustomException always throws)
+        }
+
+        for (Map<String, Object> user : existingUsers) {
+            String mobileNumber = (String) user.get("mobileNumber");
+            if (mobileNumber != null && phoneNumberToRowMap.containsKey(mobileNumber)) {
+                ValidationError error = new ValidationError();
+                error.setRowNumber(phoneNumberToRowMap.get(mobileNumber));
+                error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                    "HCM_USER_PHONE_NUMBER_EXISTS",
+                    "User with this phone number already exists, and is not suitable for this campaign"));
+                error.setStatus(ValidationConstants.STATUS_INVALID);
+                errors.add(error);
             }
         }
-        
+
         log.info("Phone number validation completed");
         return existingInCampaign;
     }
@@ -437,155 +443,193 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         log.info("Validating usernames for {} records (will skip {} phones already in campaign)", 
                 sheetData.size(), existingPhonesInCampaign.size());
         
-        // Map usernames to their row numbers  
+        // Map usernames to their row numbers.
+        // Use a LinkedHashSet for O(1) dedup (preserving insertion order) instead of
+        // List.contains() in a loop, which is O(n^2) at large row counts.
         Map<String, Integer> userNameToRowMap = new HashMap<>();
-        List<String> allUserNames = new ArrayList<>();
-        
+        Set<String> uniqueUserNames = new LinkedHashSet<>();
+
         for (Map<String, Object> rowData : sheetData) {
             String userName = ExcelUtil.getValueAsString(rowData.get("UserName"));
             String phoneNumber = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"));
             String userServiceUuids = ExcelUtil.getValueAsString(rowData.get("UserService Uuids"));
-            
+
             // Skip username validation if phone number already exists in campaign with completed status
             if (phoneNumber != null && existingPhonesInCampaign.contains(phoneNumber.trim())) {
                 log.debug("Skipping username validation for phone {} - already exists in campaign", phoneNumber.trim());
                 continue;
             }
-            
+
             // Only validate username if phone number doesn't already exist and no service UUIDs provided
-            if (userName != null && !userName.trim().isEmpty() && 
+            if (userName != null && !userName.trim().isEmpty() &&
                 phoneNumber != null && !phoneNumber.trim().isEmpty() &&
                 (userServiceUuids == null || userServiceUuids.trim().isEmpty())) {
-                
+
                 userName = userName.trim();
                 userNameToRowMap.put(userName, (Integer) rowData.get("__actualRowNumber__"));
-                if (!allUserNames.contains(userName)) {
-                    allUserNames.add(userName);
-                }
+                uniqueUserNames.add(userName);
             }
         }
-        
-        if (allUserNames.isEmpty()) {
+
+        if (uniqueUserNames.isEmpty()) {
             log.info("No usernames to validate");
             return;
         }
+
+        // Materialize as a List for the index-based batch (subList) operations below.
+        List<String> allUserNames = new ArrayList<>(uniqueUserNames);
         
-        // Search in batches of 50
-        final int BATCH_SIZE = 50;
-        for (int i = 0; i < allUserNames.size(); i += BATCH_SIZE) {
-            int endIndex = Math.min(i + BATCH_SIZE, allUserNames.size());
-            List<String> batch = allUserNames.subList(i, endIndex);
-            
-            try {
-                List<Map<String, Object>> existingUsers = searchIndividualsByUsername(batch, tenantId, requestInfo);
-                
-                for (Map<String, Object> user : existingUsers) {
-                    Map<String, Object> userDetails = (Map<String, Object>) user.get("userDetails");
-                    if (userDetails != null) {
-                        String username = (String) userDetails.get("username");
-                        if (username != null && userNameToRowMap.containsKey(username)) {
-                            ValidationError error = new ValidationError();
-                            error.setRowNumber(userNameToRowMap.get(username));
-                            error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
-                                "HCM_USER_USERNAME_EXISTS", 
-                                "User with this username already exists"));
-                            error.setStatus(ValidationConstants.STATUS_INVALID);
-                            errors.add(error);
-                        }
-                    }
+        // Search in bounded-parallel batches (size configurable; guard 0 from mocks/unset -> 50)
+        final int BATCH_SIZE = config.getUserSearchBatchSize() > 0 ? config.getUserSearchBatchSize() : 50;
+        List<Map<String, Object>> existingUsers;
+        try {
+            existingUsers = parallelBatchedSearch(allUserNames, BATCH_SIZE,
+                    batch -> searchIndividualsByUsername(batch, tenantId, requestInfo));
+        } catch (Exception e) {
+            log.error("Error validating usernames: {}", e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.USERNAME_VALIDATION_FAILED,
+                ErrorConstants.USERNAME_VALIDATION_FAILED_MESSAGE, e);
+            return; // unreachable (throwCustomException always throws)
+        }
+
+        for (Map<String, Object> user : existingUsers) {
+            Map<String, Object> userDetails = (Map<String, Object>) user.get("userDetails");
+            if (userDetails != null) {
+                String username = (String) userDetails.get("username");
+                if (username != null && userNameToRowMap.containsKey(username)) {
+                    ValidationError error = new ValidationError();
+                    error.setRowNumber(userNameToRowMap.get(username));
+                    error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                        "HCM_USER_USERNAME_EXISTS",
+                        "User with this username already exists"));
+                    error.setStatus(ValidationConstants.STATUS_INVALID);
+                    errors.add(error);
                 }
-                
-            } catch (Exception e) {
-                log.error("Error validating username batch: {}", e.getMessage(), e);
-                exceptionHandler.throwCustomException(ErrorConstants.USERNAME_VALIDATION_FAILED, 
-                    ErrorConstants.USERNAME_VALIDATION_FAILED_MESSAGE, e);
             }
         }
-        
+
         log.info("Username validation completed");
     }
     
-    private List<Map<String, Object>> searchIndividualsByMobileNumber(List<String> mobileNumbers, 
-                                                                     String tenantId, 
-                                                                     RequestInfo requestInfo) throws Exception {
-        String url = config.getHealthIndividualHost() + config.getHealthIndividualSearchPath();
-        
-        Map<String, Object> searchBody = new HashMap<>();
-        searchBody.put("RequestInfo", requestInfo);
-        
-        Map<String, Object> individual = new HashMap<>();
-        individual.put("mobileNumber", mobileNumbers);
-        searchBody.put("Individual", individual);
-        
-        Map<String, String> params = new HashMap<>();
-        params.put("limit", "55");
-        params.put("offset", "0");
-        params.put("tenantId", tenantId);
-        params.put("includeDeleted", "true");
-        
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(searchBody, headers);
-        
-        // Build URL with parameters
-        StringBuilder urlWithParams = new StringBuilder(url).append("?");
-        params.forEach((key, value) -> urlWithParams.append(key).append("=").append(value).append("&"));
-        
-        log.info("Searching individuals by mobile number: {}", mobileNumbers);
-        ResponseEntity<Map> response = restTemplate.exchange(
-            urlWithParams.toString(), 
-            HttpMethod.POST, 
-            entity, 
-            Map.class
-        );
-        
-        if (response.getBody() != null && response.getBody().get("Individual") != null) {
-            return (List<Map<String, Object>>) response.getBody().get("Individual");
-        }
-        
-        return new ArrayList<>();
+    /** A single batched existence-search HTTP call. */
+    @FunctionalInterface
+    private interface BatchSearch {
+        List<Map<String, Object>> search(List<String> batch) throws Exception;
     }
-    
-    private List<Map<String, Object>> searchIndividualsByUsername(List<String> usernames, 
-                                                                String tenantId, 
+
+    /**
+     * Runs {@code searchFn} over {@code values} in batches of {@code batchSize} with bounded parallelism
+     * ({@code egov.excel.user.search.parallel.calls}, default 20), returning the merged results. At large
+     * row counts the user existence checks are dozens-to-thousands of blocking 50-id HTTP calls; firing
+     * them in bounded-parallel waves instead of strictly sequentially is the dominant scale win for
+     * unified-console validation. Result ORDER is irrelevant - callers match rows by phone/username.
+     * Mirrors the existing bounded-pool pattern in AttendanceRegisterValidationProcessor.
+     */
+    private List<Map<String, Object>> parallelBatchedSearch(List<String> values, int batchSize, BatchSearch searchFn) {
+        List<List<String>> batches = new ArrayList<>();
+        for (int i = 0; i < values.size(); i += batchSize) {
+            // independent copies - subList views are not safe to share across threads
+            batches.add(new ArrayList<>(values.subList(i, Math.min(i + batchSize, values.size()))));
+        }
+        if (batches.isEmpty()) {
+            return new ArrayList<>();
+        }
+        int parallelCalls = Math.max(1, config.getUserSearchParallelCalls());
+        ExecutorService executor = Executors.newFixedThreadPool(Math.min(parallelCalls, batches.size()));
+        List<Map<String, Object>> merged = Collections.synchronizedList(new ArrayList<>());
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (List<String> batch : batches) {
+                futures.add(executor.submit((Callable<Void>) () -> {
+                    merged.addAll(searchFn.search(batch));
+                    return null;
+                }));
+            }
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("User existence search interrupted", e);
+                } catch (ExecutionException e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    throw new RuntimeException(cause.getMessage(), cause);
+                }
+            }
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(120, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        return new ArrayList<>(merged);
+    }
+
+    private List<Map<String, Object>> searchIndividualsByMobileNumber(List<String> mobileNumbers,
+                                                                     String tenantId,
+                                                                     RequestInfo requestInfo) throws Exception {
+        return searchIndividualsPaginated("mobileNumber", mobileNumbers, tenantId, requestInfo, true);
+    }
+
+    private List<Map<String, Object>> searchIndividualsByUsername(List<String> usernames,
+                                                                String tenantId,
                                                                 RequestInfo requestInfo) throws Exception {
+        return searchIndividualsPaginated("username", usernames, tenantId, requestInfo, false);
+    }
+
+    /**
+     * Searches health-individual for the given field values, PAGINATING results so a batch can never
+     * silently truncate matches. The old code used a single fixed {@code limit} (~55) and dropped any
+     * matches beyond it; with includeDeleted a phone/username can have several records, so a large batch
+     * could miss existing users and let them pass. Here the page size is batch-size + buffer, so the
+     * common case (matches &lt;= batch size, e.g. an all-new upload) is a SINGLE call (a short page ends
+     * it); only a full page triggers another page. Bounded by {@code maxPages} for safety. This makes the
+     * batch size safe to raise (round-trips drop) without a truncation risk.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> searchIndividualsPaginated(String field, List<String> values,
+                                                                 String tenantId, RequestInfo requestInfo,
+                                                                 boolean includeDeleted) throws Exception {
         String url = config.getHealthIndividualHost() + config.getHealthIndividualSearchPath();
-        
+
         Map<String, Object> searchBody = new HashMap<>();
         searchBody.put("RequestInfo", requestInfo);
-        
         Map<String, Object> individual = new HashMap<>();
-        individual.put("username", usernames);
+        individual.put(field, values);
         searchBody.put("Individual", individual);
-        
-        Map<String, String> params = new HashMap<>();
-        params.put("tenantId", tenantId);
-        params.put("limit", "51");
-        params.put("offset", "0");
-        
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(searchBody, headers);
-        
-        // Build URL with parameters
-        StringBuilder urlWithParams = new StringBuilder(url).append("?");
-        params.forEach((key, value) -> urlWithParams.append(key).append("=").append(value).append("&"));
-        
-        log.info("Searching individuals by username: {}", usernames);
-        ResponseEntity<Map> response = restTemplate.exchange(
-            urlWithParams.toString(), 
-            HttpMethod.POST, 
-            entity, 
-            Map.class
-        );
-        
-        if (response.getBody() != null && response.getBody().get("Individual") != null) {
-            return (List<Map<String, Object>>) response.getBody().get("Individual");
+
+        final int pageSize = values.size() + 10;   // >= batch size: a full page => maybe more => paginate
+        final int maxPages = 50;                    // safety bound; 50 pages is far beyond any real batch
+        List<Map<String, Object>> all = new ArrayList<>();
+
+        log.info("Searching individuals by {} ({} values, pageSize {})", field, values.size(), pageSize);
+        for (int page = 0; page < maxPages; page++) {
+            StringBuilder u = new StringBuilder(url)
+                    .append("?tenantId=").append(tenantId)
+                    .append("&limit=").append(pageSize)
+                    .append("&offset=").append(page * pageSize);
+            if (includeDeleted) {
+                u.append("&includeDeleted=true");
+            }
+            ResponseEntity<Map> response = restTemplate.exchange(u.toString(), HttpMethod.POST, entity, Map.class);
+            List<Map<String, Object>> pageRows = (response.getBody() != null && response.getBody().get("Individual") != null)
+                    ? (List<Map<String, Object>>) response.getBody().get("Individual")
+                    : new ArrayList<>();
+            all.addAll(pageRows);
+            if (pageRows.size() < pageSize) {
+                break; // short page -> all matches retrieved
+            }
         }
-        
-        return new ArrayList<>();
+        return all;
     }
     
     /**

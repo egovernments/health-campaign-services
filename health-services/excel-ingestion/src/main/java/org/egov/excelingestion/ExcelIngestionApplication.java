@@ -74,7 +74,32 @@ public class ExcelIngestionApplication {
                 .expireAfterWrite(5, TimeUnit.MINUTES)
                 .maximumSize(50)
                 .build();
-        
+
+        // MDMS schema definitions (HCM-ADMIN-CONSOLE.schemas) - stable config, fetched once per
+        // (tenant, schemaName) instead of on every upload. Mirrors the other mdms config caches.
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> mdmsSchemasCache = Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(100)
+                .build();
+
+        // Campaign lookups - the same campaign is otherwise re-fetched several times per generate/upload
+        // (user + facility processors + boundary util). Keyed by campaignId + tenantId. Three separate
+        // regions because the cached return types differ (detail / boundary list / projectType string).
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> campaignDetailCache = Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(50)
+                .build();
+
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> campaignBoundariesCache = Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(50)
+                .build();
+
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> campaignProjectTypeCache = Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(50)
+                .build();
+
         // Register individual caches
         cacheManager.registerCustomCache("localizationMessages", localizationCache);
         cacheManager.registerCustomCache("boundaryHierarchy", boundaryHierarchyCache);
@@ -85,7 +110,11 @@ public class ExcelIngestionApplication {
         cacheManager.registerCustomCache("enrichedBoundaryCodesWithoutRoot", enrichedBoundaryCodesWithoutRootCache);
         cacheManager.registerCustomCache("mdmsExcelIngestionProcess", mdmsExcelIngestionProcessCache);
         cacheManager.registerCustomCache("mdmsExcelIngestionGenerate", mdmsExcelIngestionGenerateCache);
-        
+        cacheManager.registerCustomCache("mdmsSchemas", mdmsSchemasCache);
+        cacheManager.registerCustomCache("campaignDetail", campaignDetailCache);
+        cacheManager.registerCustomCache("campaignBoundaries", campaignBoundariesCache);
+        cacheManager.registerCustomCache("campaignProjectType", campaignProjectTypeCache);
+
         return cacheManager;
     }
 

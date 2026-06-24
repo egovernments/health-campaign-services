@@ -31,35 +31,57 @@ public class SchemaValidationService {
     }
 
     /**
-     * Validates sheet data against pre-fetched schema with localization support
+     * Validates sheet data against pre-fetched schema with localization support.
      */
     public List<ValidationError> validateDataWithPreFetchedSchema(List<Map<String, Object>> sheetData,
-                                                                String sheetName, 
+                                                                String sheetName,
                                                                 Map<String, Object> schema,
                                                                 Map<String, String> localizationMap) {
+        return validateDataWithPreFetchedSchema(sheetData, sheetName, schema, localizationMap, Collections.emptySet());
+    }
+
+    /**
+     * Validates sheet data against pre-fetched schema with localization support.
+     *
+     * @param immutableColumnsForExistingRows columns whose value on an EXISTING row (one carrying the
+     *        hidden {@link ProcessingConstants#ROW_ID_COLUMN_NAME}) was reconstructed from the trusted
+     *        generated baseline by the immutable-join step. Such cells are skipped for their own per-field
+     *        validation (type/length/pattern/enum/required/multi-select) because they came verbatim from
+     *        an already-valid template. Cross-row uniqueness and requiredIf-trigger reads are deliberately
+     *        NOT skipped, so a NEW row that collides with an immutable value, or depends on an immutable
+     *        trigger, is still validated correctly. Pass an empty set to validate everything (default).
+     */
+    public List<ValidationError> validateDataWithPreFetchedSchema(List<Map<String, Object>> sheetData,
+                                                                String sheetName,
+                                                                Map<String, Object> schema,
+                                                                Map<String, String> localizationMap,
+                                                                Set<String> immutableColumnsForExistingRows) {
         List<ValidationError> errors = new ArrayList<>();
-        
+
         if (schema == null) {
             log.info("No schema provided for validation of sheet: {}", sheetName);
             return errors;
         }
-        
+
+        Set<String> immutableSkip = immutableColumnsForExistingRows != null
+                ? immutableColumnsForExistingRows : Collections.emptySet();
+
         try {
             // Extract validation rules from schema with localization support
             Map<String, ValidationRule> validationRules = extractValidationRules(schema, localizationMap);
-            
-            // Validate each row against the schema 
+
+            // Validate each row against the schema
             for (int rowIndex = 0; rowIndex < sheetData.size(); rowIndex++) {
                 Map<String, Object> rowData = sheetData.get(rowIndex);
                 if (rowData == null) {
                     continue; // Skip null rows
                 }
                 // Use actual Excel row number from data if available, otherwise fallback to calculated
-                int excelRowNumber = rowData.containsKey("__actualRowNumber__") ? 
+                int excelRowNumber = rowData.containsKey("__actualRowNumber__") ?
                     (Integer) rowData.get("__actualRowNumber__") : rowIndex + 3;
-                
+
                 List<ValidationError> rowErrors = validateRowAgainstSchema(
-                    rowData, excelRowNumber, sheetName, validationRules, localizationMap);
+                    rowData, excelRowNumber, sheetName, validationRules, localizationMap, immutableSkip);
                 errors.addAll(rowErrors);
             }
             
@@ -296,39 +318,60 @@ public class SchemaValidationService {
     /**
      * Validates a single row against schema rules
      */
-    private List<ValidationError> validateRowAgainstSchema(Map<String, Object> rowData, 
-            int rowNumber, String sheetName, Map<String, ValidationRule> rules, Map<String, String> localizationMap) {
-        
+    private List<ValidationError> validateRowAgainstSchema(Map<String, Object> rowData,
+            int rowNumber, String sheetName, Map<String, ValidationRule> rules, Map<String, String> localizationMap,
+            Set<String> immutableColumnsForExistingRows) {
+
         List<ValidationError> errors = new ArrayList<>();
-        
+
+        // Existing rows (carrying the hidden server-stamped row-id) had their always-immutable cells
+        // reconstructed from the trusted baseline, so those cells are not re-validated for their own
+        // constraints. New rows (no row-id) and editable cells are always validated in full.
+        boolean existingRow = isExistingRow(rowData);
+
         // First, validate fields that have direct rules
         for (ValidationRule rule : rules.values()) {
             String fieldName = rule.getFieldName();
+
+            if (existingRow && immutableColumnsForExistingRows.contains(fieldName)) {
+                continue; // reconstructed-from-baseline cell -> already valid, skip own-field validation
+            }
+
             Object value = rowData.get(fieldName);
-            
+
             validateField(fieldName, value, rule, rowNumber, sheetName, errors, localizationMap, rowData);
         }
-        
+
         // Second, validate multi-select field groups (collect values from _MULTISELECT_* columns)
         Map<String, List<String>> multiSelectGroups = collectMultiSelectValues(rowData, rules);
-        
+
         for (Map.Entry<String, List<String>> entry : multiSelectGroups.entrySet()) {
             String parentFieldName = entry.getKey();
+
+            if (existingRow && immutableColumnsForExistingRows.contains(parentFieldName)) {
+                continue; // immutable multi-select reconstructed from baseline -> skip own validation
+            }
+
             List<String> selectedValues = entry.getValue();
             ValidationRule parentRule = rules.get(parentFieldName);
-            
+
             if (parentRule != null && parentRule.getMultiSelectDetails() != null) {
-                validateCollectedMultiSelectValues(parentFieldName, selectedValues, parentRule, 
+                validateCollectedMultiSelectValues(parentFieldName, selectedValues, parentRule,
                     rowNumber, sheetName, errors, localizationMap);
             }
         }
-        
+
         // Third, validate individual child multi-select fields for enum compliance
         for (String fieldName : rowData.keySet()) {
             if (isChildMultiSelectField(fieldName) && !rules.containsKey(fieldName)) {
                 String parentFieldName = getParentFieldName(fieldName);
+
+                if (existingRow && immutableColumnsForExistingRows.contains(parentFieldName)) {
+                    continue; // child of an immutable multi-select reconstructed from baseline -> skip
+                }
+
                 ValidationRule parentRule = rules.get(parentFieldName);
-                
+
                 if (parentRule != null && parentRule.getMultiSelectDetails() != null) {
                     Object value = rowData.get(fieldName);
                     // Validate child field using parent's multi-select rules
@@ -345,7 +388,17 @@ public class SchemaValidationService {
         return errors;
     }
 
-    private void validateStringField(Object value, ValidationRule rule, int rowNumber, 
+    /**
+     * A row is "existing" (vs a brand-new user-added row) when it carries the hidden server-stamped
+     * row-id. Only existing rows had their immutable cells reconstructed from the baseline, so only they
+     * are eligible for the immutable-cell validation skip; new rows are always validated in full.
+     */
+    private boolean isExistingRow(Map<String, Object> rowData) {
+        Object rid = rowData.get(ProcessingConstants.ROW_ID_COLUMN_NAME);
+        return rid != null && !rid.toString().trim().isEmpty();
+    }
+
+    private void validateStringField(Object value, ValidationRule rule, int rowNumber,
             String sheetName, List<ValidationError> errors, Map<String, String> localizationMap, Map<String, Object> rowData) {
         
         String strValue = value.toString();

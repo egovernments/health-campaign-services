@@ -179,7 +179,6 @@ public class ExcelUtil {
     @Cacheable(value = "excelSheetData", key = "#fileStoreId + '_' + #sheetName")
     public List<Map<String, Object>> convertSheetToMapListCached(String fileStoreId, String sheetName, Sheet sheet) {
         log.info("Cache MISS - Converting sheet to map list: {} for file: {}", sheetName, fileStoreId);
-        System.out.println("Converting sheet to map list: " + sheet.getSheetName());
         Row headerRow = sheet.getRow(0);
         if (headerRow == null) {
             return Collections.emptyList();

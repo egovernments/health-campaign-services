@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -74,10 +75,28 @@ public class ExcelDataPopulator {
      * @param localizationMap Map for localizing column headers
      * @return The same workbook with the new sheet added
      */
-    public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties, 
+    public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties,
                                         List<Map<String, Object>> dataRows, Map<String, String> localizationMap) {
-        log.info("Adding sheet: {} with {} data rows to workbook", sheetName, 
-                dataRows != null ? dataRows.size() : 0);
+        // Default to protected (non-join). Join mode (unprotect + stamp hidden row-ids) is opt-in via the
+        // 6-arg overload below, used only by the join-mode template families (see
+        // ProcessingConstants.isJoinModeType: unified-console / attendanceRegister / attendanceRegisterAttendee).
+        return populateSheetWithData(workbook, sheetName, columnProperties, dataRows, localizationMap, false);
+    }
+
+    /**
+     * Adds a sheet populated with data to an existing workbook.
+     *
+     * @param unprotectedJoinMode when true, the sheet is left UNPROTECTED (paste-friendly) and a hidden
+     *                            per-row id is stamped on each pre-filled row, so the upload path can
+     *                            reconstruct authoritative pre-filled values by joining against the
+     *                            original generated file. Immutability is then enforced server-side, not
+     *                            by Excel protection.
+     */
+    public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties,
+                                        List<Map<String, Object>> dataRows, Map<String, String> localizationMap,
+                                        boolean unprotectedJoinMode) {
+        log.info("Adding sheet: {} with {} data rows to workbook (unprotectedJoinMode={})", sheetName,
+                dataRows != null ? dataRows.size() : 0, unprotectedJoinMode);
 
         // 2. Get or Create Sheet - Use existing sheet if present, otherwise create new
         Sheet sheet = workbook.getSheet(sheetName);
@@ -87,7 +106,7 @@ public class ExcelDataPopulator {
 
         // 3. Expand multi-select columns like ExcelSchemaSheetCreator does
         List<ColumnDef> expandedColumns = expandMultiSelectColumns(columnProperties);
-        
+
         // 4. Create Headers - reuse existing pattern from ExcelSchemaSheetCreator
         createHeaderRows(workbook, sheet, expandedColumns, localizationMap);
 
@@ -99,12 +118,18 @@ public class ExcelDataPopulator {
         // 6. Apply Formatting - reuse existing methods
         applyFormatting(workbook, sheet, expandedColumns);
 
-        // 7. Apply Protection - reuse existing protection logic
-        applyProtection(workbook, sheet, expandedColumns);
+        // 7. Apply Protection - reuse existing protection logic (skipped in unprotected join mode)
+        applyProtection(workbook, sheet, expandedColumns, unprotectedJoinMode);
 
         // 8. Apply Validation - reuse existing dropdown creation logic
         applyValidations(workbook, sheet, expandedColumns, localizationMap);
-        
+
+        // 9. Stamp hidden per-row ids on pre-filled rows (join-mode only). Done LAST so the trailing
+        // id column does not shift the column math used by the formatting/protection/validation passes.
+        if (unprotectedJoinMode && dataRows != null && !dataRows.isEmpty()) {
+            stampRowIds(sheet, dataRows.size());
+        }
+
         log.info("Successfully added sheet: {} to workbook", sheetName);
         return workbook;
     }
@@ -353,14 +378,48 @@ public class ExcelDataPopulator {
     /**
      * Apply protection using existing CellProtectionManager
      */
-    private void applyProtection(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties) {
-        // Use existing cell protection manager
+    private void applyProtection(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties, boolean unprotectedJoinMode) {
+        // Use existing cell protection manager (sets locked/unlocked cell STYLES; this is harmless
+        // and acts as a light visual cue even when the sheet itself is left unprotected).
         cellProtectionManager.applyCellProtection(workbook, sheet, columnProperties);
-        
-        // Protect sheet with password if configured
-        if (config.getExcelSheetPassword() != null && !config.getExcelSheetPassword().isEmpty()) {
+
+        // Protect sheet with password if configured AND not in unprotected join mode.
+        // In join mode the sheet is left fully editable so copy/paste works; pre-filled immutability
+        // is enforced server-side at upload instead of by Excel protection.
+        if (!unprotectedJoinMode
+                && config.getExcelSheetPassword() != null && !config.getExcelSheetPassword().isEmpty()) {
             sheet.protectSheet(config.getExcelSheetPassword());
         }
+    }
+
+    /**
+     * Stamps a hidden, server-generated UUID into each pre-filled data row so the upload path can
+     * join an uploaded row to its generated baseline row (robust to row insertion/reordering/deletion).
+     * The technical key {@link ProcessingConstants#ROW_ID_COLUMN_NAME} is written into hidden row 0 so
+     * the parser surfaces the id as a normal column on re-upload. The column is appended at the far
+     * right AFTER all other column passes so it does not shift their column-index math.
+     *
+     * @param dataRowCount number of pre-filled data rows (sheet rows 2 .. 2+count-1)
+     */
+    private void stampRowIds(Sheet sheet, int dataRowCount) {
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            return;
+        }
+        int idCol = headerRow.getLastCellNum(); // index just past the last existing column
+        if (idCol < 0) {
+            return;
+        }
+        headerRow.createCell(idCol).setCellValue(ProcessingConstants.ROW_ID_COLUMN_NAME);
+        for (int rowIdx = 0; rowIdx < dataRowCount; rowIdx++) {
+            Row excelRow = sheet.getRow(rowIdx + 2);
+            if (excelRow == null) {
+                excelRow = sheet.createRow(rowIdx + 2);
+            }
+            excelRow.createCell(idCol).setCellValue(UUID.randomUUID().toString());
+        }
+        sheet.setColumnHidden(idCol, true);
+        log.info("Stamped {} hidden row-ids on sheet '{}' at column index {}", dataRowCount, sheet.getSheetName(), idCol);
     }
 
     /**

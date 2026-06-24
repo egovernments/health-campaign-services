@@ -118,7 +118,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                 }
                 
                 // Then add schema columns and data using ExcelDataPopulator
-                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap);
+                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap, generateResource.isUnprotectedJoinMode());
                 
                 // Re-apply cell protection for freezeColumnIfFilled after all data is populated
                 // This ensures that facility columns with existing data are properly frozen

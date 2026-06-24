@@ -67,6 +67,9 @@ class ExcelProcessingServiceTest {
     @Mock
     private ExcelUtil excelUtil;
 
+    @Mock
+    private ImmutableJoinService immutableJoinService;
+
     private ExcelProcessingService excelProcessingService;
 
     private ProcessResourceRequest request;
@@ -79,7 +82,8 @@ class ExcelProcessingServiceTest {
         excelProcessingService = new ExcelProcessingService(
             validationService, schemaValidationService, configBasedProcessingService,
             fileStoreService, localizationService, requestInfoConverter,
-            restTemplate, exceptionHandler, config, enrichmentUtil, mdmsConfigService, excelUtil
+            restTemplate, exceptionHandler, config, enrichmentUtil, mdmsConfigService, excelUtil,
+            immutableJoinService
         );
 
         requestInfo = RequestInfo.builder().build();

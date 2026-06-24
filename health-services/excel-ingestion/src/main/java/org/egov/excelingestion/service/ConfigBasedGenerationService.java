@@ -8,6 +8,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.generator.IExcelPopulatorSheetGenerator;
 import org.egov.excelingestion.generator.ISheetGenerator;
@@ -72,7 +74,13 @@ public class ConfigBasedGenerationService {
         
         // Validate configuration
         validationService.validateProcessorConfig(processorConfig, generateResource.getType());
-        
+
+        // Unprotected join-mode applies ONLY to the join-mode template families (unified-console,
+        // attendanceRegister, attendanceRegisterAttendee), and only when the master switch is on. All
+        // other types generate as before: protected, no row-ids, no join.
+        generateResource.setUnprotectedJoinMode(config.isImmutableEnforce()
+                && ProcessingConstants.isJoinModeType(generateResource.getType()));
+
         XSSFWorkbook workbook = new XSSFWorkbook();
         String firstVisibleSheetName = null;
         
@@ -90,11 +98,11 @@ public class ConfigBasedGenerationService {
                 // Auto-detect generation approach
                 if (shouldUseSchemaBasedGeneration(sheetConfig)) {
                     // Use schema-based ExcelPopulator approach (automatic)
-                    generateSheetViaSchemaBasedGeneration(workbook, actualSheetName, sheetConfig, 
+                    generateSheetViaSchemaBasedGeneration(workbook, actualSheetName, sheetConfig,
                                                         generateResource, requestInfo, localizationMap);
                 } else if (sheetConfig.getIsGenerationClassViaExcelPopulator()) {
                     // Use custom ExcelPopulator approach
-                    generateSheetViaExcelPopulator(workbook, actualSheetName, sheetConfig, 
+                    generateSheetViaExcelPopulator(workbook, actualSheetName, sheetConfig,
                                                  generateResource, requestInfo, localizationMap);
                 } else {
                     // Use direct workbook generation approach
@@ -121,7 +129,7 @@ public class ConfigBasedGenerationService {
         }
         
         // Apply workbook settings
-        applyWorkbookSettings(workbook, processorConfig, firstVisibleSheetName, localizationMap);
+        applyWorkbookSettings(workbook, processorConfig, firstVisibleSheetName, localizationMap, generateResource.getId(), generateResource.isUnprotectedJoinMode());
         
         // Convert to byte array
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -155,14 +163,15 @@ public class ConfigBasedGenerationService {
         try {
             // Get the schema-based generator automatically
             IExcelPopulatorSheetGenerator generator = getExcelPopulatorGenerator("org.egov.excelingestion.generator.SchemaBasedSheetGenerator");
-            
+
             // Generate sheet data
             SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
-            
+
             // Use ExcelDataPopulator to create the sheet
-            excelDataPopulator.populateSheetWithData(workbook, sheetName, 
-                                                    result.getColumnDefs(), result.getData(), localizationMap);
-            
+            excelDataPopulator.populateSheetWithData(workbook, sheetName,
+                                                    result.getColumnDefs(), result.getData(), localizationMap,
+                                                    generateResource.isUnprotectedJoinMode());
+
         } catch (Exception e) {
             log.error("Error in automatic schema-based sheet generation for {}: {}", sheetName, e.getMessage(), e);
             throw new RuntimeException("Failed to generate schema-based sheet: " + sheetName, e);
@@ -177,14 +186,15 @@ public class ConfigBasedGenerationService {
         try {
             // Get the sheet generator bean
             IExcelPopulatorSheetGenerator generator = getExcelPopulatorGenerator(config.getGenerationClass());
-            
+
             // Generate sheet data
             SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
-            
+
             // Use ExcelDataPopulator to create the sheet
-            excelDataPopulator.populateSheetWithData(workbook, sheetName, 
-                                                    result.getColumnDefs(), result.getData(), localizationMap);
-            
+            excelDataPopulator.populateSheetWithData(workbook, sheetName,
+                                                    result.getColumnDefs(), result.getData(), localizationMap,
+                                                    generateResource.isUnprotectedJoinMode());
+
         } catch (Exception e) {
             log.error("Error in ExcelPopulator sheet generation for {}: {}", sheetName, e.getMessage(), e);
             throw new RuntimeException("Failed to generate sheet via ExcelPopulator: " + sheetName, e);
@@ -216,7 +226,14 @@ public class ConfigBasedGenerationService {
         }
     }
     
-    private void applyWorkbookSettings(XSSFWorkbook workbook, ProcessorGenerationConfig processorConfig, String activeSheetName, Map<String, String> localizationMap) {
+    private void applyWorkbookSettings(XSSFWorkbook workbook, ProcessorGenerationConfig processorConfig, String activeSheetName, Map<String, String> localizationMap, String generationId, boolean unprotectedJoinMode) {
+        // Embed the generationId into a hidden metadata sheet so the upload path can re-fetch the
+        // authoritative baseline. Created BEFORE the hide loop below so the "_h_" auto-hide picks it up.
+        if (unprotectedJoinMode && generationId != null && !generationId.isEmpty()) {
+            Sheet metaSheet = workbook.createSheet(GenerationConstants.META_SHEET_NAME);
+            metaSheet.createRow(0).createCell(0).setCellValue(generationId);
+        }
+
         // Set zoom level
         Integer zoomLevel = processorConfig.getZoomLevel() != null ? processorConfig.getZoomLevel() : config.getExcelSheetZoom();
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -248,9 +265,10 @@ public class ConfigBasedGenerationService {
             workbook.setActiveSheet(workbook.getSheetIndex(activeSheetName));
         }
         
-        // Apply protection if configured
-        if (processorConfig.isApplyWorkbookProtection()) {
-            String password = processorConfig.getProtectionPassword() != null ? 
+        // Apply protection if configured (skipped entirely in unprotected join mode so copy-paste works;
+        // immutability is enforced server-side at upload instead)
+        if (processorConfig.isApplyWorkbookProtection() && !unprotectedJoinMode) {
+            String password = processorConfig.getProtectionPassword() != null ?
                             processorConfig.getProtectionPassword() : config.getExcelSheetPassword();
             
             // Protect visible sheets

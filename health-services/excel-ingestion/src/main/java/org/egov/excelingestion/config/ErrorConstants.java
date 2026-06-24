@@ -38,6 +38,28 @@ public class ErrorConstants {
     // Localization Service Errors
     public static final String LOCALIZATION_SERVICE_ERROR = "LOCALIZATION_SERVICE_ERROR";
     public static final String LOCALIZATION_SERVICE_ERROR_MESSAGE = "Error while fetching localization data";
+
+    // Immutable-baseline (unprotected join mode) Errors
+    public static final String IMMUTABLE_BASELINE_NOT_FOUND = "IMMUTABLE_BASELINE_NOT_FOUND";
+    public static final String IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE = "Could not find the original generated template for this upload (generationId: {0}). The uploaded file may not be a recognized template.";
+
+    public static final String IMMUTABLE_IDENTITY_MISMATCH = "IMMUTABLE_IDENTITY_MISMATCH";
+    public static final String IMMUTABLE_IDENTITY_MISMATCH_MESSAGE = "The uploaded file does not match the template it claims to be (reference mismatch).";
+
+    public static final String IMMUTABLE_BASELINE_READ_ERROR = "IMMUTABLE_BASELINE_READ_ERROR";
+    public static final String IMMUTABLE_BASELINE_READ_ERROR_MESSAGE = "Failed to read the original generated template needed to verify pre-filled data.";
+
+    public static final String IMMUTABLE_UNKNOWN_ROW_ID = "IMMUTABLE_UNKNOWN_ROW_ID";
+    public static final String IMMUTABLE_UNKNOWN_ROW_ID_MESSAGE = "A pre-filled row carries an identifier not present in the original template (sheet: {0}). The template structure was altered.";
+
+    public static final String IMMUTABLE_ORPHAN_ROWS = "IMMUTABLE_ORPHAN_ROWS";
+    public static final String IMMUTABLE_ORPHAN_ROWS_MESSAGE = "One or more pre-filled rows were deleted or had their identifier removed (sheet: {0}). Pre-filled rows must not be deleted.";
+
+    public static final String IMMUTABLE_DUPLICATE_ROW_ID = "IMMUTABLE_DUPLICATE_ROW_ID";
+    public static final String IMMUTABLE_DUPLICATE_ROW_ID_MESSAGE = "A pre-filled row identifier appears more than once (sheet: {0}). Pre-filled rows must not be duplicated.";
+
+    public static final String IMMUTABLE_MISSING_GENERATION_ID = "IMMUTABLE_MISSING_GENERATION_ID";
+    public static final String IMMUTABLE_MISSING_GENERATION_ID_MESSAGE = "This template requires its embedded identity, which is missing or was removed. Please re-download the template and re-upload without altering its structure.";
     
     // File Store Service Errors
     public static final String FILE_STORE_SERVICE_ERROR = "FILE_STORE_SERVICE_ERROR";
