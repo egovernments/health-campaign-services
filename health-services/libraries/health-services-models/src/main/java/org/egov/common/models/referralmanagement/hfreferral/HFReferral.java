@@ -1,7 +1,6 @@
 package org.egov.common.models.referralmanagement.hfreferral;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -29,8 +28,7 @@ public class HFReferral extends EgovOfflineModel {
     private String projectFacilityId;
 
     @JsonProperty("symptom")
-    @NotNull
-    @Size(min = 2, max = 256)
+    @Size(max = 256)
     private String symptom;
 
     @JsonProperty("symptomSurveyId")
