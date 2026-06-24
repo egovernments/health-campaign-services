@@ -205,6 +205,12 @@ public class ImmutableJoinService {
         // reconstructed here and must still be validated.
         Set<String> reconstructedColumns = new HashSet<>();
 
+        // Header (row 0 = technical names) -> cell column index, used to mirror the reconstructed values
+        // back onto the actual workbook cells so the processed / "edit data" file VISIBLY shows the
+        // authoritative pre-filled values (not the user's edits). The in-memory row map is corrected
+        // separately and is what validation/persistence use; this write-back is display-only.
+        Map<String, Integer> headerIndex = buildHeaderIndex(uploadedSheet);
+
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
             String rid = trimToNull(ExcelUtil.getValueAsString(upRow.get(ProcessingConstants.ROW_ID_COLUMN_NAME)));
@@ -230,6 +236,7 @@ public class ImmutableJoinService {
             // selection columns, evaluated at parse time from the UPLOADED selections. We capture their
             // authoritative baseline values and restore them after the loop, but only if the user did not
             // deepen the boundary path (see below) - otherwise we'd clobber a legitimate deeper selection.
+            int excelRow0 = excelRowZeroBased(upRow);
             Object baselineBoundaryCode = null;
             Object baselineRegisterId = null;
             boolean userDeepenedBoundary = false;
@@ -251,10 +258,12 @@ public class ImmutableJoinService {
                 boolean baseFilled = trimToNull(ExcelUtil.getValueAsString(baseEntry.getValue())) != null;
                 if (immutable.alwaysRestore.contains(parent)) {
                     upRow.put(col, baseEntry.getValue());
+                    writeCellBack(uploadedSheet, headerIndex, excelRow0, col, baseEntry.getValue());
                     reconstructedColumns.add(parent);
                 } else if (immutable.restoreIfBaselineFilled.contains(parent) && baseFilled) {
                     // freezeColumnIfFilled: immutable only where the baseline actually had a value.
                     upRow.put(col, baseEntry.getValue());
+                    writeCellBack(uploadedSheet, headerIndex, excelRow0, col, baseEntry.getValue());
                 } else if (hierarchyPrefix != null
                         && parent.toUpperCase().startsWith(hierarchyPrefix)
                         && !isExcluded(parent)) {
@@ -262,6 +271,7 @@ public class ImmutableJoinService {
                     // an empty baseline level the user filled means the user picked a deeper boundary.
                     if (baseFilled) {
                         upRow.put(col, baseEntry.getValue());
+                        writeCellBack(uploadedSheet, headerIndex, excelRow0, col, baseEntry.getValue());
                     } else if (trimToNull(ExcelUtil.getValueAsString(upRow.get(col))) != null) {
                         userDeepenedBoundary = true;
                     }
@@ -275,9 +285,13 @@ public class ImmutableJoinService {
             if (!userDeepenedBoundary) {
                 if (trimToNull(ExcelUtil.getValueAsString(baselineBoundaryCode)) != null) {
                     upRow.put(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, baselineBoundaryCode);
+                    writeCellBack(uploadedSheet, headerIndex, excelRow0,
+                            ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, baselineBoundaryCode);
                 }
                 if (trimToNull(ExcelUtil.getValueAsString(baselineRegisterId)) != null) {
                     upRow.put(ProcessingConstants.REGISTER_ID_COLUMN_KEY, baselineRegisterId);
+                    writeCellBack(uploadedSheet, headerIndex, excelRow0,
+                            ProcessingConstants.REGISTER_ID_COLUMN_KEY, baselineRegisterId);
                 }
             }
         }
@@ -297,6 +311,73 @@ public class ImmutableJoinService {
         // excluded - it is applied per-cell; and a current-schema immutable column missing from the
         // baseline is excluded too, so it is still validated.)
         return reconstructedColumns;
+    }
+
+    /** Builds technical-header-name -> cell column index from the sheet's row 0 (technical header). */
+    private Map<String, Integer> buildHeaderIndex(Sheet sheet) {
+        Map<String, Integer> idx = new HashMap<>();
+        Row header = sheet.getRow(0);
+        if (header == null) {
+            return idx;
+        }
+        for (int c = 0; c < header.getLastCellNum(); c++) {
+            Cell cell = header.getCell(c);
+            if (cell != null) {
+                String name = ExcelUtil.getCellValueAsString(cell);
+                if (name != null && !name.isEmpty()) {
+                    idx.put(name, c);
+                }
+            }
+        }
+        return idx;
+    }
+
+    /** 0-based POI row index for an uploaded row map (from its captured 1-based actual Excel row number). */
+    private int excelRowZeroBased(Map<String, Object> upRow) {
+        Object arn = upRow.get(ProcessingConstants.ACTUAL_ROW_NUMBER_KEY);
+        if (arn instanceof Number) {
+            return ((Number) arn).intValue() - 1;
+        }
+        return -1;
+    }
+
+    /**
+     * Mirrors a reconstructed value onto the actual workbook cell so the processed / "edit data" file
+     * VISIBLY shows the authoritative pre-filled value instead of the user's edit. The in-memory row map
+     * is corrected separately (that is what validation/persistence use); this is display-only and must
+     * never throw - a write-back failure must not break processing.
+     */
+    private void writeCellBack(Sheet sheet, Map<String, Integer> headerIndex, int excelRow0,
+                               String col, Object value) {
+        Integer ci = headerIndex.get(col);
+        if (ci == null || excelRow0 < 0) {
+            return;
+        }
+        try {
+            Row row = sheet.getRow(excelRow0);
+            if (row == null) {
+                return;
+            }
+            Cell cell = row.getCell(ci, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+            // Replacing a formula cell (e.g. the boundary-code VLOOKUP) with the baseline literal is
+            // intentional: the edit-data file should show the authoritative value, not recompute it.
+            if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.FORMULA) {
+                cell.setBlank();
+            }
+            if (value == null) {
+                cell.setBlank();
+            } else if (value instanceof Number) {
+                cell.setCellValue(((Number) value).doubleValue());
+            } else if (value instanceof java.util.Date) {
+                cell.setCellValue((java.util.Date) value);
+            } else if (value instanceof Boolean) {
+                cell.setCellValue((Boolean) value);
+            } else {
+                cell.setCellValue(value.toString());
+            }
+        } catch (Exception e) {
+            log.debug("Could not write reconstructed value back to cell row={} col={}: {}", excelRow0, col, e.getMessage());
+        }
     }
 
     /**

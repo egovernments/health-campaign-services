@@ -593,6 +593,30 @@ class ImmutableJoinServiceTest {
         }
 
         @Test
+        void endToEnd_writesReconstructedValuesBackToWorkbookCells() throws Exception {
+            // The processed / "edit data" file must VISIBLY show the authoritative pre-filled values, not the
+            // user's edits. So an immutable cell the user tampered must be written back to baseline IN THE
+            // WORKBOOK CELL (not just the in-memory row map), while an editable cell keeps the user's value.
+            byte[] baselineBytes = generateBaseline(3);
+            wireMocks(baselineBytes);
+
+            Workbook uploaded = fromBytes(baselineBytes);
+            Sheet up = uploaded.getSheet(SHEET);
+            int cName = colIndex(up, "name");
+            int cUsage = colIndex(up, USAGE);
+            setCell(up, 2, cName, "HACKED");      // immutable freezeColumn -> cell must revert to baseline
+            setCell(up, 2, cUsage, "Inactive");   // editable -> cell must stay the user's value
+
+            join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap());
+
+            assertEquals("Name0", up.getRow(2).getCell(cName).getStringCellValue(),
+                    "tampered immutable cell written back to the baseline value in the workbook");
+            assertEquals("Inactive", up.getRow(2).getCell(cUsage).getStringCellValue(),
+                    "editable cell left as the user's value in the workbook");
+            uploaded.close();
+        }
+
+        @Test
         void endToEnd_deletedPreFilledRow_failsClosed() throws Exception {
             byte[] baselineBytes = generateBaseline(3);
             wireMocks(baselineBytes);
