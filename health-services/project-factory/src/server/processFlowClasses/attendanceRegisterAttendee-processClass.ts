@@ -394,8 +394,8 @@ export class TemplateClass {
         const regEnd = registerData.register.endDate;
         const clampedEnrollment = (enrollmentDateEpoch !== null && regStart != null)
             ? Math.max(enrollmentDateEpoch, regStart) : enrollmentDateEpoch;
-        const clampedDeEnrollment = (deEnrollmentDateEpoch !== null && regEnd != null)
-            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch;
+        const clampedDeEnrollment = ((deEnrollmentDateEpoch !== null && regEnd != null)
+            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch) || null;
 
         if (!existing) {
             // Nothing provided at all — skip silently
@@ -515,8 +515,8 @@ export class TemplateClass {
         const regEnd = registerData.register.endDate;
         const clampedEnrollment = (enrollmentDateEpoch !== null && regStart != null)
             ? Math.max(enrollmentDateEpoch, regStart) : enrollmentDateEpoch;
-        const clampedDeEnrollment = (deEnrollmentDateEpoch !== null && regEnd != null)
-            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch;
+        const clampedDeEnrollment = ((deEnrollmentDateEpoch !== null && regEnd != null)
+            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch) || null;
 
         if (!existing) {
             // Nothing provided at all — skip silently
@@ -537,6 +537,7 @@ export class TemplateClass {
                 tenantId,
                 staffType
             };
+            if (clampedDeEnrollment !== null) payload.denrollmentDate = clampedDeEnrollment;
             staffToCreate.push({ payload, row });
             return;
         }
@@ -582,7 +583,7 @@ export class TemplateClass {
         // Active staff — allow de-enroll only (_delete)
         if (clampedDeEnrollment !== null) {
             staffToDelete.push({
-                payload: { registerId, userId: individualId, tenantId },
+                payload: { registerId, userId: individualId, denrollmentDate: clampedDeEnrollment, tenantId },
                 row
             });
         } else {
