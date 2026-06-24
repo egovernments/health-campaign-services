@@ -78,7 +78,7 @@ CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'punjab_property_tax')
 
 # Streaming configuration for large datasets
 STREAM_BATCH_SIZE = 10000  # INSERT chunk size: large batches → fewer ClickHouse parts created
-CH_FETCH_SIZE = 500        # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
+CH_FETCH_SIZE = 2000       # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
                             # Rows accumulate in InsertBuffer until STREAM_BATCH_SIZE is reached
 CHUNK_SLEEP_SEC = 1.0       # Base sleep between chunk iterations
 CHUNK_SLEEP_JITTER = 1.0    # Random jitter added to base sleep each iteration.
@@ -302,6 +302,53 @@ def log_clickhouse_select_breakdown(client, log_comment: str) -> None:
                         f"peak_mem={peak_mem} read_rows={read_rows} read_bytes={read_bytes}")
     except Exception as e:
         logger.warning(f"select breakdown unavailable for {log_comment}: {e}")
+
+
+def log_server_resource_stats(client, label: str, chunk_idx: int,
+                              worker_cpu_pct: float = None) -> None:
+    """Per-chunk snapshot of ClickHouse server memory + in-flight merges + CPU.
+
+    Watch `mem_tracking` (whole-server MemoryTracker) and `merges.mem` climb in
+    real time to confirm the 1.8 GiB pressure comes from accumulating background
+    merges, not the (flat) SELECTs.
+
+    CPU: `ch_cpu` is server CPU (user+system, normalized so 1.0 ≈ one full core)
+    and `worker_cpu` is this task process's CPU% over the last chunk interval.
+    Best-effort: never raises, so a missing grant can't fail the task.
+    """
+    try:
+        mem = client.query(
+            "SELECT "
+            "  formatReadableSize((SELECT value FROM system.metrics "
+            "    WHERE metric='MemoryTracking')) AS mem_tracking, "
+            "  (SELECT count() FROM system.merges) AS merge_count, "
+            "  formatReadableSize((SELECT ifNull(sum(memory_usage), 0) "
+            "    FROM system.merges)) AS merge_mem, "
+            "  (SELECT ifNull(sum(rows_read), 0) FROM system.merges) AS merge_rows, "
+            "  formatReadableSize((SELECT ifNull(sum(memory_usage), 0) "
+            "    FROM system.processes)) AS proc_mem"
+        ).result_rows[0]
+        mem_tracking, merge_count, merge_mem, merge_rows, proc_mem = mem
+
+        cpu_rows = client.query(
+            "SELECT metric, value FROM system.asynchronous_metrics "
+            "WHERE metric IN ('OSUserTimeNormalized', 'OSSystemTimeNormalized', "
+            "'LoadAverage1')"
+        ).result_rows
+        cpu = {m: v for m, v in cpu_rows}
+        ch_cpu = cpu.get('OSUserTimeNormalized', 0.0) + cpu.get('OSSystemTimeNormalized', 0.0)
+        load1 = cpu.get('LoadAverage1', 0.0)
+
+        worker_str = (f" | worker_cpu={worker_cpu_pct:.0f}%"
+                      if worker_cpu_pct is not None else "")
+        logger.info(
+            f"server_stats[{label}] chunk={chunk_idx} "
+            f"mem_tracking={mem_tracking} running_query_mem={proc_mem} | "
+            f"merges: n={merge_count} mem={merge_mem} rows_read={merge_rows} | "
+            f"ch_cpu={ch_cpu:.2f}cores load1={load1:.2f}{worker_str}"
+        )
+    except Exception as e:
+        logger.warning(f"server_resource_stats unavailable for {label}: {e}")
 
 
 def log_resource_summary(label: str, t0: float, op_stats: 'OpStats' = None) -> None:
@@ -1173,6 +1220,11 @@ def transform_load_property_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
+        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        last_cpu_sec = ru.ru_utime + ru.ru_stime
+        last_cpu_wall = time.monotonic()
+
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_property_events(client, ws, we, limit=CH_FETCH_SIZE,
@@ -1229,6 +1281,17 @@ def transform_load_property_events(**context):
                 f"Total: {total_props}/{total_units}/{total_owners}/{total_audits}"
             )
             chunk_idx += 1
+
+            # -- Per-chunk resource snapshot: server memory + merges + CPU --
+            ru = resource.getrusage(resource.RUSAGE_SELF)
+            now_cpu_sec = ru.ru_utime + ru.ru_stime
+            now_wall = time.monotonic()
+            cpu_dt = now_wall - last_cpu_wall
+            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
+                              if cpu_dt > 0 else 0.0)
+            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
+            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
+
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
