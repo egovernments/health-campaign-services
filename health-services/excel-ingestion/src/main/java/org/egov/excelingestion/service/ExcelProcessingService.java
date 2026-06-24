@@ -130,9 +130,8 @@ public class ExcelProcessingService {
                     }
                     Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(),
                             mergedLocalizationMap, preValidatedSchemas, request.getRequestInfo(), tenantId);
-                    if (schema != null) {
-                        sheetNameToSchema.put(sheetName, schema);
-                    }
+
+                    sheetNameToSchema.put(sheetName, schema != null ? schema : new HashMap<>());
                 }
                 Map<String, Set<String>> immutableColumnsBySheet =
                         immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema);

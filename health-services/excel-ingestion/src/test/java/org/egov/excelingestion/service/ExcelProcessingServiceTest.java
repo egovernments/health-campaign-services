@@ -15,6 +15,7 @@ import org.egov.excelingestion.web.models.filestore.FileInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestTemplate;
@@ -329,6 +330,25 @@ class ExcelProcessingServiceTest {
         verify(configBasedProcessingService).preValidateAndFetchSchemas(any(), any(), any(), any());
         verify(exceptionHandler, never()).throwCustomException(
                 eq(org.egov.excelingestion.config.ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void noSchemaSheet_isStillPassedToImmutableJoin() {
+
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenReturn(createTestWorkbook());           // sheet "TestSheet"
+        when(config.getMaxProcessRowLimit()).thenReturn(100000);
+        // getSchemaForSheet("TestSheet") -> mdmsConfigService not stubbed -> null -> sheet has NO schema.
+        // Capture the sheet map handed to the join, then stop processing right after.
+        ArgumentCaptor<Map<String, Map<String, Object>>> captor = ArgumentCaptor.forClass(Map.class);
+        when(immutableJoinService.applyImmutableBaseline(any(), any(), captor.capture()))
+                .thenThrow(new RuntimeException("stop after join"));
+
+        assertThrows(RuntimeException.class, () -> excelProcessingService.processExcelFile(request));
+
+        assertTrue(captor.getValue().containsKey("TestSheet"),
+                "a visible no-schema sheet must still be included in the immutable-join sheet list");
     }
 
     private Workbook createTestWorkbook() {
