@@ -410,7 +410,8 @@ function checkForMixedBoundaryFlowInArrays(
 async function modifyBoundaryData(
   boundaryData: any[],
   localizationMap?: any,
-  request?: any
+  request?: any,
+  hierarchy?: string[]
 ): Promise<[{ key: string; value: string }[][], { key: string; value: string }[][], { key: string; value: string }[][]]> {
   // Initialize arrays to store data
   const withBoundaryCode: { key: string, value: string }[][] = [];
@@ -439,6 +440,21 @@ async function modifyBoundaryData(
           return { key, value: value.toString().replace(/_/g, ' ').trim() };
         }
       });
+
+    // Stamp a stable ancestor-path on every hierarchy-level element so boundaryKeyOf can tell
+    // apart two same-level/same-name boundaries that sit under different parents, and treat the
+    // SAME boundary restated on multiple rows as identical. Built from post-normalization values
+    // in hierarchy order; \u0000/\u0001 cannot occur in boundary names.
+    if (hierarchy && hierarchy.length) {
+      const chain: string[] = [];
+      hierarchy.forEach((level: string) => {
+        const el = row.find((o: any) => o.key === level);
+        if (el && el.value !== '' && el.value != null) {
+          chain.push(`${level}\u0000${el.value}`);
+          el.__path = chain.join('\u0001');
+        }
+      });
+    }
 
     // Determine whether the object has a boundary code property WITH A NON-EMPTY VALUE
     // Check both: (1) property exists, (2) value is not empty/null/undefined
@@ -502,7 +518,12 @@ async function modifyBoundaryData(
 // Stable string key for {key, value} boundary elements so Maps/Sets can do O(1)
 // structural-equality lookups (object keys would compare by reference).
 function boundaryKeyOf(element: any): string {
-  return `${element?.key}\u0000${element?.value}`;
+  // PATH-AWARE identity: two boundaries with the same level+name but different ancestors
+  // (duplicate names are allowed under different parents) must be distinct, and the SAME
+  // boundary restated on multiple rows must collapse. modifyBoundaryData stamps __path (the
+  // full ancestor chain) on every hierarchy element; fall back to level+name for objects that
+  // carry no path (e.g. the appended boundary-code object, which is never used as a key).
+  return element?.__path ?? `${element?.key}\u0000${element?.value}`;
 }
 
 function extractFrenchOrPortugeseLocalizationMap(

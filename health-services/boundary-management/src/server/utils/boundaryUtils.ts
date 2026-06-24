@@ -188,9 +188,11 @@ async function getManualBoundaryCodesHandler(
     const boundaryMap = new Map<{ key: string; value: string }, string>();
     const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
 
-    // Track all boundaries at each hierarchy level that need codes
-    const boundariesNeedingCodes = new Map<string, Set<string>>(); // level -> Set of boundary names
-    const boundariesWithCodes = new Map<string, Map<string, string>>(); // level -> (boundary name -> code)
+    // Track all boundaries at each hierarchy level that need codes. Keyed by PATH (boundaryKeyOf)
+    // rather than bare name so the same name under different parents is tracked separately
+    // (duplicate names under different parents are valid).
+    const boundariesNeedingCodes = new Map<string, Map<string, string>>(); // level -> (pathKey -> display name)
+    const boundariesWithCodes = new Map<string, Set<string>>(); // level -> Set of pathKeys that have a code
 
     // First, extract existing boundaries and their codes from withBoundaryCode (already processed boundaries)
     withBoundaryCode.forEach((row: any[]) => {
@@ -211,15 +213,16 @@ async function getManualBoundaryCodesHandler(
         }
       }
 
-      // Store the code for the boundary at the last level
+      // Store the code-presence (by path) for the boundary at the last level
       if (lastPresentHierarchyIndex >= 0) {
         const level = hierarchy[lastPresentHierarchyIndex];
-        const boundaryName = rowMap.get(level)?.toString().trim();
+        const boundaryObj = row.find((obj: any) => obj.key === level);
+        const boundaryName = boundaryObj?.value?.toString().trim();
         if (boundaryName) {
           if (!boundariesWithCodes.has(level)) {
-            boundariesWithCodes.set(level, new Map<string, string>());
+            boundariesWithCodes.set(level, new Set<string>());
           }
-          boundariesWithCodes.get(level)?.set(boundaryName, boundaryCodeValue.toString().trim());
+          boundariesWithCodes.get(level)?.add(boundaryKeyOf(boundaryObj));
         }
       }
     });
@@ -227,10 +230,10 @@ async function getManualBoundaryCodesHandler(
     // Initialize tracking maps for each hierarchy level (if not already initialized from withBoundaryCode)
     hierarchy.forEach((level: string) => {
       if (!boundariesNeedingCodes.has(level)) {
-        boundariesNeedingCodes.set(level, new Set<string>());
+        boundariesNeedingCodes.set(level, new Map<string, string>());
       }
       if (!boundariesWithCodes.has(level)) {
-        boundariesWithCodes.set(level, new Map<string, string>());
+        boundariesWithCodes.set(level, new Set<string>());
       }
     });
 
@@ -271,12 +274,12 @@ async function getManualBoundaryCodesHandler(
         if (boundaryObj && boundaryObj.value && boundaryObj.value.toString().trim()) {
           const boundaryName = boundaryObj.value.toString().trim();
 
-          // Add to tracking: this boundary needs a code
-          boundariesNeedingCodes.get(level)?.add(boundaryName);
+          // Add to tracking (keyed by path): this boundary needs a code
+          boundariesNeedingCodes.get(level)?.set(boundaryKeyOf(boundaryObj), boundaryName);
 
           // If this is the last level in this row, it has the code
           if (i === lastPresentHierarchyIndex) {
-            boundariesWithCodes.get(level)?.set(boundaryName, boundaryCode);
+            boundariesWithCodes.get(level)?.add(boundaryKeyOf(boundaryObj));
             // Add to final boundary map
             boundaryMap.set(boundaryObj, boundaryCode);
           }
@@ -290,8 +293,8 @@ async function getManualBoundaryCodesHandler(
       const neededBoundaries = boundariesNeedingCodes.get(level);
       const boundariesWithCodesAtLevel = boundariesWithCodes.get(level);
 
-      neededBoundaries?.forEach((boundaryName: string) => {
-        if (!boundariesWithCodesAtLevel?.has(boundaryName)) {
+      neededBoundaries?.forEach((boundaryName: string, pathKey: string) => {
+        if (!boundariesWithCodesAtLevel?.has(pathKey)) {
           missingCodes.push(`${level}: "${boundaryName}"`);
         }
       });
@@ -372,7 +375,8 @@ const autoGenerateBoundaryCodes = async (
   const [withBoundaryCode, withoutBoundaryCode, manualBoundaryCode] = await modifyBoundaryData(
     modifiedBoundaryData,
     localizationMap,
-    request
+    request,
+    hierarchy
   );
   logger.info(`Boundary data segregation complete - Processed: ${withBoundaryCode.length}, Auto-generate: ${withoutBoundaryCode.length}, Manual: ${manualBoundaryCode.length}`);
   manualServiceFlow = manualBoundaryCode.length > 0 ? true : false;
@@ -787,7 +791,21 @@ function addBoundaryCodeToData(
     ...boundaryDataForWithoutBoundaryCode,
   ];
 
-  return boundaryDataForSheet;
+  // Collapse duplicate INPUT rows (the same full boundary path appearing more than once) so the
+  // generated sheet has exactly one row per boundary. Identity = the deepest hierarchy element's
+  // path; entity/relationship creation already dedups via boundaryKeyOf, this closes the gap for
+  // the sheet (which previously emitted one row per input row, hence duplicate rows).
+  const seenRowPaths = new Set<string>();
+  const dedupedBoundaryDataForSheet = boundaryDataForSheet.filter((row: any[]) => {
+    let deepest: any;
+    for (const o of row) { if (o && o.__path) deepest = o; }
+    const sig = deepest ? deepest.__path : row.map((o: any) => `${o.key}=${o.value}`).join('|');
+    if (seenRowPaths.has(sig)) return false;
+    seenRowPaths.add(sig);
+    return true;
+  });
+
+  return dedupedBoundaryDataForSheet;
 }
 
 function getChildParentMap(modifiedBoundaryData: any) {
@@ -798,13 +816,13 @@ function getChildParentMap(modifiedBoundaryData: any) {
   const stringifiedMap = new Set<string>(); // To avoid deep _.isEqual() lookup
   modifiedBoundaryData.forEach((row: any[]) => {
     for (let j = row.length - 1; j >= 0; j--) {
-      const child = row[j];
-      const parent = j - 1 >= 0 ? row[j - 1] : null;
-      const childIdentifier = { key: child.key, value: child.value };
-      const parentIdentifier = parent ? { key: parent.key, value: parent.value } : null;
-      const lookupKey = parentIdentifier
-        ? `${child.key}|${child.value}__${parent.key}|${parent.value}`
-        : `${child.key}|${child.value}__null`;
+      const child: any = row[j];
+      const parent: any = j - 1 >= 0 ? row[j - 1] : null;
+      // Carry __path so these fresh identifier objects keep their path-aware identity
+      // (boundaryKeyOf); without it, same-name boundaries under different parents would collapse.
+      const childIdentifier = { key: child.key, value: child.value, __path: child.__path };
+      const parentIdentifier = parent ? { key: parent.key, value: parent.value, __path: parent.__path } : null;
+      const lookupKey = `${boundaryKeyOf(childIdentifier)}__${parentIdentifier ? boundaryKeyOf(parentIdentifier) : 'null'}`;
       if (!stringifiedMap.has(lookupKey)) {
         childParentMap.set(childIdentifier, parentIdentifier);
         stringifiedMap.add(lookupKey);
@@ -853,46 +871,20 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localiz
 }
 
 function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
-  const map: Map<string, string> = new Map();
-  const count: Map<string, number> = new Map();
-  boundaryData = boundaryData.map(row =>
+  // Trim string cells only. The previous logic also DISAMBIGUATED duplicate boundary names that
+  // sat under different parents by rewriting the name (appending a "_<lvl>_NN" suffix). That was
+  // a workaround for a parent-agnostic identity and it CORRUPTED the user's data (req: names must
+  // be preserved; duplicate names under different parents are valid). Identity is now path-aware
+  // (boundaryKeyOf uses the ancestor chain stamped in modifyBoundaryData) and codes already encode
+  // the full parent path, so the rename is unnecessary and has been removed. The hierarchy param
+  // is retained for caller/signature compatibility.
+  return boundaryData.map(row =>
     Object.fromEntries(
       Object.entries(row).map(([key, value]) =>
         [key, typeof value === "string" ? value.trim() : value]
       )
     )
   );
-
-  boundaryData.forEach((row) => {
-    const keys = Object.keys(row).filter((key) => hierarchy.includes(key));
-    keys.forEach((key, index) => {
-      if (index > 0) {
-        const element = row[key];
-        const previousKey = keys[index - 1];
-        const previousElement = row[keys[index - 1]];
-        const previousElementKey = `${previousKey}:${previousElement}`;
-        const elementKey = `${key}:${element}`;
-
-        if (!map.has(elementKey)) {
-          map.set(elementKey, previousElementKey);
-          count.set(elementKey, 1);
-        } else {
-          const currentCount = count.get(elementKey)!;
-          if (map.get(elementKey) !== previousElementKey) {
-            map.set(elementKey, previousElementKey);
-            count.set(elementKey, currentCount + 1);
-          }
-          const uniqueCount = count.get(elementKey)!;
-          const uniqueElement =
-            uniqueCount > 1
-              ? `${element}_${key.length > 3 ? key.slice(0, 3).toLowerCase() : key.toLowerCase()}_${(uniqueCount - 1).toString().padStart(2, "0")}`
-              : `${element}`;
-          row[key] = uniqueElement;
-        }
-      }
-    });
-  });
-  return boundaryData;
 }
 
 function getLocalizedNameOnlyIfMessagePresent(
