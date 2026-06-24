@@ -198,7 +198,7 @@ public class ProjectTaskTransformationService {
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .build();
-        projectTaskIndexV1.setProjectInfo(task.getId(), project.getProjectType(), projectTypeId, project.getName());
+        projectTaskIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName());
         projectTaskIndexV1.setCampaignNumber(project.getReferenceID());
         projectTaskIndexV1.setCampaignId(campaignId);
 
