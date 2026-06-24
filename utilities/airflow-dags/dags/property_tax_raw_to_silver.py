@@ -86,9 +86,10 @@ CHUNK_SLEEP_JITTER = 1.0    # Random jitter added to base sleep each iteration.
                             # lockstep: 5 tasks starting together drift apart and stay apart.
 JEMALLOC_PURGE_INTERVAL = 3   # Run SYSTEM JEMALLOC PURGE every N chunks to force JeMalloc to
                                # return freed INSERT/SELECT arenas to the OS, keeping RSS under
-                               # the 1.80 GiB server limit despite 5 concurrent transforms.
+                               # the 1.80 GiB server limit despite concurrent transforms (up to
+                               # 3 at a time, capped by the 'transform_load_pool' Airflow pool).
 TASK_START_JITTER = 15.0      # Max random delay (seconds) before each transform's first SELECT,
-                               # to stagger 5 simultaneous task starts and avoid the collective
+                               # to stagger simultaneous task starts and avoid the collective
                                # initial RSS spike that pushed CH past the 1.80 GiB limit.
 
 default_args = {
@@ -1785,6 +1786,7 @@ with DAG(
     transform_load_props = PythonOperator(
         task_id='transform_load_property_events',
         python_callable=transform_load_property_events,
+        pool='transform_load_pool',
     )
 
     # Demand pipeline: Extract -> Transform+Load (2 pods)
@@ -1795,6 +1797,7 @@ with DAG(
     transform_load_demands = PythonOperator(
         task_id='transform_load_demand_events',
         python_callable=transform_load_demand_events,
+        pool='transform_load_pool',
     )
 
     trigger_rmv_refresh = TriggerDagRunOperator(
@@ -1813,6 +1816,7 @@ with DAG(
     transform_load_payments = PythonOperator(
         task_id='transform_load_payment_events',
         python_callable=transform_load_payment_events,
+        pool='transform_load_pool',
     )
 
     # Bill pipeline: Extract -> Transform+Load
@@ -1823,6 +1827,7 @@ with DAG(
     transform_load_bills = PythonOperator(
         task_id='transform_load_bill_events',
         python_callable=transform_load_bill_events,
+        pool='transform_load_pool',
     )
 
     # Assessment pipeline: Extract -> Transform+Load
@@ -1833,6 +1838,7 @@ with DAG(
     transform_load_assessments = PythonOperator(
         task_id='transform_load_assessment_events',
         python_callable=transform_load_assessment_events,
+        pool='transform_load_pool',
     )
 
     # Property pipeline
