@@ -53,12 +53,13 @@ public class BeneficiaryDownsyncController {
 				request.getDownsyncCriteria().getTenantId(),
 				request.getDownsyncCriteria().getLastSyncedTime());
 
+		boolean pregenEnabled = config.isPregenEnabled();
 		Long lastSyncedTime = request.getDownsyncCriteria().getLastSyncedTime();
 		long staleThresholdMs = (long) config.getDownsyncStaleThresholdHours() * 3600 * 1000;
 		boolean isStale = lastSyncedTime != null
 				&& (System.currentTimeMillis() - lastSyncedTime) > staleThresholdMs;
 
-		if (lastSyncedTime == null || isStale) {
+		if (pregenEnabled && (lastSyncedTime == null || isStale)) {
 			if (isStale)
 				log.info("lastSyncedTime is older than {}h — routing to pregen path, locality={}",
 						config.getDownsyncStaleThresholdHours(), request.getDownsyncCriteria().getLocality());

@@ -76,8 +76,6 @@ class IndividualServiceTest {
     @Mock
     private NotificationService notificationService;
 
-    @Mock
-    private org.egov.individual.util.OtpUtil otpUtil;
 
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 

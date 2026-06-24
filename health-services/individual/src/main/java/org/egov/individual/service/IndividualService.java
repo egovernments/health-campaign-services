@@ -27,7 +27,6 @@ import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.BeneficiaryIdGenUtil;
-import org.egov.individual.util.OtpUtil;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
@@ -43,7 +42,6 @@ import org.egov.individual.validators.NullIdValidator;
 import org.egov.individual.validators.RowVersionValidator;
 import org.egov.individual.validators.UniqueEntityValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
-import org.egov.individual.web.models.register.IndividualRegisterRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -84,7 +82,6 @@ public class IndividualService {
 
     private final BeneficiaryIdGenUtil beneficiaryIdGenUtil;
 
-    private final OtpUtil otpUtil;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
@@ -123,8 +120,7 @@ public class IndividualService {
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
                              NotificationService notificationService,
-                             BeneficiaryIdGenUtil beneficiaryIdGenUtil,
-                             OtpUtil otpUtil) {
+                             BeneficiaryIdGenUtil beneficiaryIdGenUtil) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -133,7 +129,6 @@ public class IndividualService {
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
         this.beneficiaryIdGenUtil = beneficiaryIdGenUtil;
-        this.otpUtil = otpUtil;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -522,161 +517,5 @@ public class IndividualService {
                 return false;
         }
         return true;
-    }
-
-    public List<Individual> registerIndividualWithUser(IndividualRegisterRequest request) {
-        // Extract the IndividualRegister data
-        var registerData = request.getIndividualRegister();
-
-        // Check and enrich RequestInfo with userInfo if missing
-        if (request.getRequestInfo().getUserInfo() == null ||
-            StringUtils.isBlank(request.getRequestInfo().getUserInfo().getUuid())) {
-            log.info("UserInfo or UUID is missing, enriching with default system user");
-            org.egov.common.contract.request.User systemUser = org.egov.common.contract.request.User.builder()
-                    .uuid("ff1c0f86-d362-4420-b93b-fec4714cc604")
-                    .build();
-            request.getRequestInfo().setUserInfo(systemUser);
-        }
-
-        // Validate that at least one contact method is present
-        if (StringUtils.isBlank(registerData.getMobileNumber()) && StringUtils.isBlank(registerData.getEmailId())) {
-            throw new CustomException("CONTACT_REQUIRED", "At least one contact method (mobile number or email) is required for registration");
-        }
-
-        // Search for existing individual before creating a new one
-        IndividualSearch.IndividualSearchBuilder searchBuilder = IndividualSearch.builder();
-
-        // Search by mobile number if present, otherwise by username (email)
-        if (StringUtils.isNotBlank(registerData.getMobileNumber())) {
-            searchBuilder.mobileNumber(Collections.singletonList(registerData.getMobileNumber()));
-        } else if (StringUtils.isNotBlank(registerData.getEmailId())) {
-            searchBuilder.username(Collections.singletonList(registerData.getEmailId()));
-        }
-
-        IndividualSearch individualSearch = searchBuilder.build();
-
-        SearchResponse<Individual> searchResponse = search(
-                individualSearch,
-                1, // limit
-                0, // offset
-                registerData.getTenantId(),
-                null, // lastChangedSince
-                false, // includeDeleted
-                request.getRequestInfo()
-        );
-
-        // If individual exists
-        if (searchResponse != null && !CollectionUtils.isEmpty(searchResponse.getResponse())) {
-            Individual existingIndividual = searchResponse.getResponse().get(0);
-            log.info("Found existing individual with id: {}", existingIndividual.getId());
-
-            // If RequestType is "Login", update to activate the user
-            if (StringUtils.isNotBlank(registerData.getRequestType())
-                    && "Login".equalsIgnoreCase(registerData.getRequestType())) {
-                log.info("RequestType is Login, validating OTP");
-
-                // Check if OTP is provided
-                if (StringUtils.isBlank(registerData.getOtp())) {
-                    log.error("OTP is required for login but not provided");
-                    throw new CustomException("OTP_REQUIRED", "OTP is required for login");
-                }
-
-                // Validate OTP before activating user
-                if (!otpUtil.validateOtp(request)) {
-                    log.error("OTP validation failed for user");
-                    throw new CustomException("INVALID_OTP", "The OTP provided is invalid or has expired. Please request a new OTP.");
-                }
-
-                log.info("OTP validation successful, activating user");
-
-                // Update isSystemUserActive to true
-                existingIndividual.setIsSystemUserActive(true);
-
-                IndividualRequest updateRequest = IndividualRequest.builder()
-                        .requestInfo(request.getRequestInfo())
-                        .individual(existingIndividual)
-                        .build();
-
-                return update(updateRequest);
-            }
-
-            // For non-Login RequestType, return existing individual without modification
-            return Collections.singletonList(existingIndividual);
-        }
-
-        // Individual doesn't exist, proceed with creation
-        log.info("Individual not found, proceeding with creation");
-
-        // Determine username: use mobileNumber if present, otherwise email
-        String username = StringUtils.isNotBlank(registerData.getMobileNumber())
-                ? registerData.getMobileNumber()
-                : registerData.getEmailId();
-
-        // Build UserDetails with STUDIO_CITIZEN role
-        org.egov.common.models.individual.UserDetails userDetails =
-                org.egov.common.models.individual.UserDetails.builder()
-                .username(username)
-                .tenantId(registerData.getTenantId())
-                .roles(Collections.singletonList(
-                        Role.builder()
-                                .name(properties.getRole())
-                                .code(properties.getRole())
-                                .tenantId(registerData.getTenantId())
-                                .build()
-                ))
-                .userType(UserType.CITIZEN)
-                .build();
-
-        // Build the Individual object from IndividualRegister
-        Individual.IndividualBuilder individualBuilder = Individual.builder()
-                .clientReferenceId(UUID.randomUUID().toString())
-                .tenantId(registerData.getTenantId())
-                .name(org.egov.common.models.individual.Name.builder()
-                        .givenName(registerData.getName())
-                        .build())
-                .isSystemUser(true)
-                .isSystemUserActive(true)
-                .userDetails(userDetails);
-
-        // Conditionally add email if present
-        if (StringUtils.isNotBlank(registerData.getEmailId())) {
-            individualBuilder.email(registerData.getEmailId());
-        }
-
-        // Conditionally add mobileNumber if present
-        if (StringUtils.isNotBlank(registerData.getMobileNumber())) {
-            individualBuilder.mobileNumber(registerData.getMobileNumber());
-        }
-
-        Individual individual = individualBuilder.build();
-
-        // Build IndividualRequest with RequestInfo and Individual
-        IndividualRequest individualRequest = IndividualRequest.builder()
-                .requestInfo(request.getRequestInfo())
-                .individual(individual)
-                .build();
-
-        // Call the existing create method with generateDummyMobile = false for register API
-        List<Individual> individuals;
-        log.info("individualRequest:"+individualRequest);
-        try {
-            individuals = create(individualRequest, false);
-        } catch (Exception e) {
-            log.error("Failed to create individual during registration: {}", e.getMessage(), e);
-            throw e; // Re-throw exception without calling sendOtp
-        }
-
-        // Only send OTP if individual creation was successful
-        try {
-            otpUtil.sendOtp(request);
-        } catch (Exception e) {
-            log.error("Failed to send OTP after individual creation: {}", e.getMessage(), e);
-            // Individual is already created, so we can choose to continue or throw
-            // Throwing here so the user is aware OTP wasn't sent
-            throw new CustomException("OTP_SEND_FAILED",
-                    "Individual created successfully but failed to send OTP: " + e.getMessage());
-        }
-
-        return individuals;
     }
 }

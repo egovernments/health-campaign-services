@@ -61,8 +61,6 @@ class IndividualServiceSearchTest {
     @Mock
     private org.egov.individual.util.BeneficiaryIdGenUtil beneficiaryIdGenUtil;
 
-    @Mock
-    private org.egov.individual.util.OtpUtil otpUtil;
 
     @Test
     @DisplayName("should search only by id if only id is present")

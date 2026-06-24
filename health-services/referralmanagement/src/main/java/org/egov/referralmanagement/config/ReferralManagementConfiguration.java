@@ -190,4 +190,7 @@ public class ReferralManagementConfiguration {
     @Value("${egov.downsync.stale.threshold.hours:8}")
     private int downsyncStaleThresholdHours;
 
+    @Value("${egov.downsync.pregen.enabled}")
+    private boolean pregenEnabled;
+
 }

@@ -74,8 +74,6 @@ class IndividualServiceDeleteTest {
     @Mock
     private org.egov.individual.util.BeneficiaryIdGenUtil beneficiaryIdGenUtil;
 
-    @Mock
-    private org.egov.individual.util.OtpUtil otpUtil;
 
     @BeforeEach
     void setUp() {

@@ -4,6 +4,7 @@ package org.egov.referralmanagement.service;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -177,10 +178,9 @@ public class ReferralManagementService {
                 ? referralSearchRequest.getRequestInfo().getUserInfo().getUuid()
                 : null;
 
-        String lastModifiedByFilter = null;
-        if (lastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers) && currentUserUuid != null) {
-            lastModifiedByFilter = currentUserUuid;
-        }
+        String lastModifiedByFilter =
+                (lastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers))
+                        ? currentUserUuid : null;
 
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {
@@ -195,9 +195,12 @@ public class ReferralManagementService {
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             if (lastModifiedByFilter != null) {
-                String userUuid = lastModifiedByFilter;
+                // keep only referrals last modified by someone other than the current user
                 referrals = referrals.stream().filter(referral -> {
-                    return !userUuid.equals(referral.getAuditDetails().getLastModifiedBy());
+                    String lastModifiedBy = Optional.ofNullable(referral.getAuditDetails())
+                            .map(ad -> ad.getLastModifiedBy())
+                            .orElse(null);
+                    return !lastModifiedByFilter.equals(lastModifiedBy);
                 }).collect(Collectors.toList());
             }
             return SearchResponse.<Referral>builder().response(referrals).build();
