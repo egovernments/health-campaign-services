@@ -801,8 +801,28 @@ function generateElementCode(sequence: any, parentElement: any, parentBoundaryCo
   } else {
     const grandParentElement = childParentIndex?.get(boundaryKeyOf(parentElement));
     if (grandParentElement != null && grandParentElement != undefined) {
-      const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
-      const parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+      // Strip the parent's OWN name from the end of the parent code, leaving the numeric path
+      // prefix (hierarchyType_country_seq_seq_...). The parent code may arrive in two shapes:
+      //   - first creation: built in-memory this run, name still has spaces  -> "..._02_LOCALITY 2"
+      //   - subsequent updates: read back from the DB already sanitized      -> "..._02_LOCALITY_2"
+      // The old logic just dropped the substring after the LAST '_', which only removes the name
+      // correctly in the spaces shape; on updates it left the parent name embedded in the child
+      // code (e.g. "..._02_LOCALITY_03_VILLAGE_3"), so create and update produced DIFFERENT codes
+      // for the same position. We normalize BOTH the parent code and the parent name to the same
+      // sanitized shape and remove exactly the trailing name, so update yields the SAME clean
+      // numeric code as creation (a deterministic function of position). Falls back to the old
+      // last-'_' trim when the parent code doesn't end with the parent's name (e.g. user-supplied
+      // manual codes that don't encode the name).
+      const sanitize = (s: any) => (s === null || s === undefined ? "" : s.toString().toUpperCase().replace(/[^\w]/g, "_"));
+      const sanitizedParentCode = sanitize(parentBoundaryCode);
+      const nameSuffix = "_" + sanitize(parentElement?.value);
+      let parentBoundaryCodeTrimmed: string;
+      if (parentElement?.value && nameSuffix.length > 1 && sanitizedParentCode.endsWith(nameSuffix)) {
+        parentBoundaryCodeTrimmed = sanitizedParentCode.slice(0, sanitizedParentCode.length - nameSuffix.length);
+      } else {
+        const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
+        parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+      }
       code = `${parentBoundaryCodeTrimmed.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
     } else {
       code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
