@@ -545,26 +545,33 @@ def count_property_events(client, window_start: datetime,
 
 
 def fetch_demand_events(client, window_start: datetime,
-                        window_end: datetime, limit: int = None,
-                        offset: int = 0) -> List[str]:
-    """Fetch raw JSON strings where event_time falls within
-    [window_start, window_end) with optional pagination."""
+                        window_end: datetime, limit: int,
+                        last_event_time: datetime = None,
+                        last_id: str = None) -> List[tuple]:
+    """Fetch one keyset page of raw events in [window_start, window_end).
+
+    Cursor-based on the (event_time, id) sort key (same as fetch_property_events)
+    to avoid OFFSET rescans and the skip/duplicate bug on event_time ties.
+    Returns (raw, event_time, id) tuples ordered by (event_time, id).
+    """
     query = (
-        "SELECT raw FROM demand_events_raw "
+        "SELECT raw, event_time, id FROM demand_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
-        "ORDER BY event_time "
     )
 
-    params = {'start': window_start, 'end': window_end}
+    params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if limit is not None:
-        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
-        params['limit'] = limit
-        params['offset'] = offset
+    if last_event_time is not None:
+        query += ("AND (event_time, id) > "
+                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
+        params['last_ts'] = last_event_time
+        params['last_id'] = str(last_id)
+
+    query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
 
     result = run_query(client, query, parameters=params)
-    return [r[0] for r in result.result_rows]
+    return result.result_rows
 
 
 def count_demand_events(client, window_start: datetime,
@@ -581,26 +588,33 @@ def count_demand_events(client, window_start: datetime,
 
 
 def fetch_payment_events(client, window_start: datetime,
-                         window_end: datetime, limit: int = None,
-                         offset: int = 0) -> List[str]:
-    """Fetch raw JSON strings where event_time falls within
-    [window_start, window_end) with optional pagination."""
+                         window_end: datetime, limit: int,
+                         last_event_time: datetime = None,
+                         last_id: str = None) -> List[tuple]:
+    """Fetch one keyset page of raw events in [window_start, window_end).
+
+    Cursor-based on the (event_time, id) sort key (same as fetch_property_events)
+    to avoid OFFSET rescans and the skip/duplicate bug on event_time ties.
+    Returns (raw, event_time, id) tuples ordered by (event_time, id).
+    """
     query = (
-        "SELECT raw FROM payment_events_raw "
+        "SELECT raw, event_time, id FROM payment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
-        "ORDER BY event_time "
     )
 
-    params = {'start': window_start, 'end': window_end}
+    params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if limit is not None:
-        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
-        params['limit'] = limit
-        params['offset'] = offset
+    if last_event_time is not None:
+        query += ("AND (event_time, id) > "
+                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
+        params['last_ts'] = last_event_time
+        params['last_id'] = str(last_id)
+
+    query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
 
     result = run_query(client, query, parameters=params)
-    return [r[0] for r in result.result_rows]
+    return result.result_rows
 
 
 def count_payment_events(client, window_start: datetime,
@@ -617,25 +631,34 @@ def count_payment_events(client, window_start: datetime,
 
 
 def fetch_bill_events(client, window_start: datetime,
-                      window_end: datetime, limit: int = None,
-                      offset: int = 0) -> List[str]:
-    """Fetch raw payment JSON — bill data is embedded in Payment.paymentDetails[n].bill."""
+                      window_end: datetime, limit: int,
+                      last_event_time: datetime = None,
+                      last_id: str = None) -> List[tuple]:
+    """Fetch one keyset page of raw payment JSON — bill data is embedded in
+    Payment.paymentDetails[n].bill.
+
+    Cursor-based on the (event_time, id) sort key (same as fetch_property_events)
+    to avoid OFFSET rescans and the skip/duplicate bug on event_time ties.
+    Returns (raw, event_time, id) tuples ordered by (event_time, id).
+    """
     query = (
-        "SELECT raw FROM payment_events_raw "
+        "SELECT raw, event_time, id FROM payment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
-        "ORDER BY event_time "
     )
 
-    params = {'start': window_start, 'end': window_end}
+    params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if limit is not None:
-        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
-        params['limit'] = limit
-        params['offset'] = offset
+    if last_event_time is not None:
+        query += ("AND (event_time, id) > "
+                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
+        params['last_ts'] = last_event_time
+        params['last_id'] = str(last_id)
+
+    query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
 
     result = run_query(client, query, parameters=params)
-    return [r[0] for r in result.result_rows]
+    return result.result_rows
 
 
 def count_bill_events(client, window_start: datetime,
@@ -652,25 +675,33 @@ def count_bill_events(client, window_start: datetime,
 
 
 def fetch_assessment_events(client, window_start: datetime,
-                            window_end: datetime, limit: int = None,
-                            offset: int = 0) -> List[str]:
-    """Fetch raw JSON strings from assessment_events_raw within the time window."""
+                            window_end: datetime, limit: int,
+                            last_event_time: datetime = None,
+                            last_id: str = None) -> List[tuple]:
+    """Fetch one keyset page of raw events from assessment_events_raw.
+
+    Cursor-based on the (event_time, id) sort key (same as fetch_property_events)
+    to avoid OFFSET rescans and the skip/duplicate bug on event_time ties.
+    Returns (raw, event_time, id) tuples ordered by (event_time, id).
+    """
     query = (
-        "SELECT raw FROM assessment_events_raw "
+        "SELECT raw, event_time, id FROM assessment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
-        "ORDER BY event_time "
     )
 
-    params = {'start': window_start, 'end': window_end}
+    params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if limit is not None:
-        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
-        params['limit'] = limit
-        params['offset'] = offset
+    if last_event_time is not None:
+        query += ("AND (event_time, id) > "
+                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
+        params['last_ts'] = last_event_time
+        params['last_id'] = str(last_id)
+
+    query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
 
     result = run_query(client, query, parameters=params)
-    return [r[0] for r in result.result_rows]
+    return result.result_rows
 
 
 def count_assessment_events(client, window_start: datetime,
@@ -1352,7 +1383,11 @@ def transform_load_demand_events(**context):
     client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_demands = 0
-        offset = 0
+        processed = 0
+        chunk_idx = 0
+        # Keyset cursor: the last (event_time, id) seen. None on the first page.
+        last_ts = None
+        last_id = None
         demand_buf = InsertBuffer(client, 'demand_with_details_entity')
 
         try:
@@ -1361,17 +1396,17 @@ def transform_load_demand_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
-        while offset < total_count:
-            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
-            raw_jsons = fetch_demand_events(client, ws, we,
-                                            limit=CH_FETCH_SIZE, offset=offset)
-            if not raw_jsons:
+        while True:
+            # -- EXTRACT: keyset page → continue after the last (event_time, id) --
+            rows = fetch_demand_events(client, ws, we, limit=CH_FETCH_SIZE,
+                                       last_event_time=last_ts, last_id=last_id)
+            if not rows:
                 break
 
             # -- TRANSFORM: parse JSON, extract fields --
             demand_rows = []
 
-            for raw_json in raw_jsons:
+            for raw_json, _et, _id in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1385,22 +1420,31 @@ def transform_load_demand_events(**context):
 
                 demand_rows.append(extract_demand(demand))
 
+            # -- Advance cursor to the last row of this page (ordered by key) --
+            chunk_len = len(rows)
+            last_ts = rows[-1][1]
+            last_id = rows[-1][2]
+            del rows
+
             # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
-            chunk_len = len(raw_jsons)
-            del raw_jsons
             n_demands = len(demand_rows); total_demands += n_demands
             demand_buf.add(demand_rows); demand_rows.clear()
             gc.collect()
 
-            logger.info(f"Chunk {offset}-{offset + chunk_len}: {n_demands} demands | Total: {total_demands}")
-            offset += CH_FETCH_SIZE
-            chunk_idx = offset // CH_FETCH_SIZE
+            prev_processed = processed
+            processed += chunk_len
+            logger.info(f"Chunk {prev_processed}-{processed}: {n_demands} demands | Total: {total_demands}")
+            chunk_idx += 1
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
                 except Exception:
                     pass
             time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
+
+            # A short page means the window is exhausted — no further pages.
+            if chunk_len < CH_FETCH_SIZE:
+                break
 
         demand_buf.flush()
 
@@ -1439,7 +1483,11 @@ def transform_load_payment_events(**context):
     client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_payments = 0
-        offset = 0
+        processed = 0
+        chunk_idx = 0
+        # Keyset cursor: the last (event_time, id) seen. None on the first page.
+        last_ts = None
+        last_id = None
         payment_buf = InsertBuffer(client, 'payment_with_details_entity')
 
         try:
@@ -1448,17 +1496,17 @@ def transform_load_payment_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
-        while offset < total_count:
-            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
-            raw_jsons = fetch_payment_events(client, ws, we,
-                                             limit=CH_FETCH_SIZE, offset=offset)
-            if not raw_jsons:
+        while True:
+            # -- EXTRACT: keyset page → continue after the last (event_time, id) --
+            rows = fetch_payment_events(client, ws, we, limit=CH_FETCH_SIZE,
+                                        last_event_time=last_ts, last_id=last_id)
+            if not rows:
                 break
 
             # -- TRANSFORM: parse JSON, extract fields --
             payment_rows = []
 
-            for raw_json in raw_jsons:
+            for raw_json, _et, _id in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1471,22 +1519,31 @@ def transform_load_payment_events(**context):
 
                 payment_rows.append(extract_payment(payment))
 
+            # -- Advance cursor to the last row of this page (ordered by key) --
+            chunk_len = len(rows)
+            last_ts = rows[-1][1]
+            last_id = rows[-1][2]
+            del rows
+
             # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
-            chunk_len = len(raw_jsons)
-            del raw_jsons
             n_payments = len(payment_rows); total_payments += n_payments
             payment_buf.add(payment_rows); payment_rows.clear()
             gc.collect()
 
-            logger.info(f"Chunk {offset}-{offset + chunk_len}: {n_payments} payments | Total: {total_payments}")
-            offset += CH_FETCH_SIZE
-            chunk_idx = offset // CH_FETCH_SIZE
+            prev_processed = processed
+            processed += chunk_len
+            logger.info(f"Chunk {prev_processed}-{processed}: {n_payments} payments | Total: {total_payments}")
+            chunk_idx += 1
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
                 except Exception:
                     pass
             time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
+
+            # A short page means the window is exhausted — no further pages.
+            if chunk_len < CH_FETCH_SIZE:
+                break
 
         payment_buf.flush()
 
@@ -1559,7 +1616,11 @@ def transform_load_bill_events(**context):
     try:
         total_bills = 0
         total_details = 0
-        offset = 0
+        processed = 0
+        chunk_idx = 0
+        # Keyset cursor: the last (event_time, id) seen. None on the first page.
+        last_ts = None
+        last_id = None
         bill_buf = InsertBuffer(client, 'bill_entity')
         detail_buf = InsertBuffer(client, 'bill_detail_entity')
 
@@ -1569,11 +1630,11 @@ def transform_load_bill_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
-        while offset < total_count:
-            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
-            raw_jsons = fetch_bill_events(client, ws, we,
-                                          limit=CH_FETCH_SIZE, offset=offset)
-            if not raw_jsons:
+        while True:
+            # -- EXTRACT: keyset page → continue after the last (event_time, id) --
+            rows = fetch_bill_events(client, ws, we, limit=CH_FETCH_SIZE,
+                                     last_event_time=last_ts, last_id=last_id)
+            if not rows:
                 break
 
             # -- TRANSFORM: parse JSON, extract fields --
@@ -1582,7 +1643,7 @@ def transform_load_bill_events(**context):
 
             seen_bill_ids: set = set()
 
-            for raw_json in raw_jsons:
+            for raw_json, _et, _id in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1600,9 +1661,13 @@ def transform_load_bill_events(**context):
                     bill_rows.append(extract_bill(bill))
                     detail_rows.extend(extract_bill_details(bill))
 
+            # -- Advance cursor to the last row of this page (ordered by key) --
+            chunk_len = len(rows)
+            last_ts = rows[-1][1]
+            last_id = rows[-1][2]
+            del rows
+
             # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
-            chunk_len = len(raw_jsons)
-            del raw_jsons
             n_bills = len(bill_rows); total_bills += n_bills
             n_details = len(detail_rows); total_details += n_details
 
@@ -1611,19 +1676,24 @@ def transform_load_bill_events(**context):
 
             gc.collect()
 
+            prev_processed = processed
+            processed += chunk_len
             logger.info(
-                f"Chunk {offset}-{offset + chunk_len}: "
+                f"Chunk {prev_processed}-{processed}: "
                 f"{n_bills} bills, {n_details} details | "
                 f"Total: {total_bills}/{total_details}"
             )
-            offset += CH_FETCH_SIZE
-            chunk_idx = offset // CH_FETCH_SIZE
+            chunk_idx += 1
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
                 except Exception:
                     pass
             time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
+
+            # A short page means the window is exhausted — no further pages.
+            if chunk_len < CH_FETCH_SIZE:
+                break
 
         bill_buf.flush()
         detail_buf.flush()
@@ -1700,7 +1770,11 @@ def transform_load_assessment_events(**context):
     client = instrument_client(get_client(), log_comment, op_stats)
     try:
         total_assessments = 0
-        offset = 0
+        processed = 0
+        chunk_idx = 0
+        # Keyset cursor: the last (event_time, id) seen. None on the first page.
+        last_ts = None
+        last_id = None
         assessment_buf = InsertBuffer(client, 'property_assessment_entity')
 
         try:
@@ -1709,17 +1783,17 @@ def transform_load_assessment_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
-        while offset < total_count:
-            # -- EXTRACT: small fetch → low concurrent ClickHouse SELECT memory --
-            raw_jsons = fetch_assessment_events(client, ws, we,
-                                                limit=CH_FETCH_SIZE, offset=offset)
-            if not raw_jsons:
+        while True:
+            # -- EXTRACT: keyset page → continue after the last (event_time, id) --
+            rows = fetch_assessment_events(client, ws, we, limit=CH_FETCH_SIZE,
+                                           last_event_time=last_ts, last_id=last_id)
+            if not rows:
                 break
 
             # -- TRANSFORM: parse JSON, extract fields --
             assessment_rows = []
 
-            for raw_json in raw_jsons:
+            for raw_json, _et, _id in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1732,25 +1806,34 @@ def transform_load_assessment_events(**context):
 
                 assessment_rows.append(extract_assessment(assessment))
 
+            # -- Advance cursor to the last row of this page (ordered by key) --
+            chunk_len = len(rows)
+            last_ts = rows[-1][1]
+            last_id = rows[-1][2]
+            del rows
+
             # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
-            chunk_len = len(raw_jsons)
-            del raw_jsons
             n_assessments = len(assessment_rows); total_assessments += n_assessments
             assessment_buf.add(assessment_rows); assessment_rows.clear()
             gc.collect()
 
+            prev_processed = processed
+            processed += chunk_len
             logger.info(
-                f"Chunk {offset}-{offset + chunk_len}: "
+                f"Chunk {prev_processed}-{processed}: "
                 f"{n_assessments} assessments | Total: {total_assessments}"
             )
-            offset += CH_FETCH_SIZE
-            chunk_idx = offset // CH_FETCH_SIZE
+            chunk_idx += 1
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
                 except Exception:
                     pass
             time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
+
+            # A short page means the window is exhausted — no further pages.
+            if chunk_len < CH_FETCH_SIZE:
+                break
 
         assessment_buf.flush()
 
