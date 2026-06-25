@@ -804,7 +804,10 @@ async function searchGeneratedResources(searchQuery: any, locale: any) {
 
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
   const boundaryType = boundaryData?.[0].boundaryType;
-  const boundaryList = generateHierarchyList(boundaryData)
+  // Each entry is the full root-to-node code chain; boundary codes are unique, so identical chains
+  // are true duplicates (e.g. the relationship search returns the same node under multiple paths).
+  // Dedup so the generated/downloaded sheet has exactly one row per boundary.
+  const boundaryList = Array.from(new Set(generateHierarchyList(boundaryData)))
   const locale = getLocaleFromRequest(request);
   const region = locale.split('_')[1];
   const frenchMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `fr_${region}`);

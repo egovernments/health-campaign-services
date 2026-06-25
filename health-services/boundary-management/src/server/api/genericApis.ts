@@ -336,7 +336,12 @@ async function getBoundarySheetData(
     `processing boundary data generation for hierarchyType : ${hierarchyType}`
   );
   // const boundaryData = await getBoundaryRelationshipData(request, params);
-  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true,useCache);
+  // includeParents=false: we only need the children tree to flatten into sheet rows. Requesting
+  // parents too makes the relationship search return each node once per ancestor path, duplicating
+  // every node exponentially by depth (Country x2, Province x4, ... Village x32) and inflating the
+  // generated sheet (and, at hierarchy scale, the response itself). getDataSheetReady also dedups
+  // the flattened rows as a safety net.
+  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, false, useCache);
   const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
