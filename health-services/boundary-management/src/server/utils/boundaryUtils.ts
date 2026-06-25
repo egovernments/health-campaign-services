@@ -396,6 +396,9 @@ const autoGenerateBoundaryCodes = async (
   }
 
   let boundaryMap: Map<{ key: string; value: string }, string>;
+  // boundaryKeyOf paths of boundaries that already existed before this upload -> used to localise
+  // ONLY the newly-created ones (updates must not re-localise the whole hierarchy). Empty on first create.
+  const existingKeySet = new Set<string>();
 
   if (manualServiceFlow) {
     // Manual flow: Use user-provided boundary codes
@@ -443,8 +446,25 @@ const autoGenerateBoundaryCodes = async (
   } else {
     // Auto-generation flow: Generate boundary codes
     logger.info("Using auto-generation boundary code flow");
-    const { mappingMap, countMap } =
+    let { mappingMap, countMap } =
       getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode, localizationMap);
+    // DELTA / no-codes update safety: the sheet carried no existing (with-code) rows. If the hierarchy
+    // already has boundaries, rehydrate them from the DB so the codegen CONTINUES the per-parent
+    // sequence and reuses existing boundaries by name-path (instead of minting a same-named sibling
+    // with a fresh code). Full-template updates already carry the existing rows, so this only runs for
+    // delta / no-codes auto uploads.
+    if (withBoundaryCode.length === 0) {
+      const seed = await buildExistingSeedFromDb(request);
+      if (seed.mappingMap.size > 0) {
+        mappingMap = seed.mappingMap;
+        countMap = seed.countMap;
+        // Names of DB-seeded boundaries provably exist in localisation (that is where the seed read them
+        // from), so they are safe to skip localising below. Sheet-carried existing (with-code) rows are
+        // deliberately NOT added here: the delta-upsert in transformAndCreateLocalisation already skips
+        // unchanged names AND re-creates any that are missing, so we must not bypass that self-heal.
+        seed.mappingMap.forEach((_v: any, k: any) => existingKeySet.add(boundaryKeyOf(k)));
+      }
+    }
     const childParentMap = getChildParentMap([
       ...withBoundaryCode,
       ...withoutBoundaryCode,
@@ -523,7 +543,16 @@ const autoGenerateBoundaryCodes = async (
   const portugeseLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, false, true, localizationMap);
   await transformAndCreateLocalisation(frenchLocalizationMap, request, true, false);
   await transformAndCreateLocalisation(portugeseLocalizationMap, request, false, true);
-  await transformAndCreateLocalisation(boundaryMap, request, false, false);
+  // Localise only the NEWLY-created boundaries: existing ones keep their localisation from when they
+  // were first created, so re-localising the whole hierarchy is wasteful (and would dominate a 50k
+  // delta). existingKeySet is empty on first creation, so everything is localised then.
+  let codesToLocalise = boundaryMap;
+  if (existingKeySet.size > 0) {
+    codesToLocalise = new Map<{ key: string; value: string }, string>();
+    boundaryMap.forEach((v: any, k: any) => { if (!existingKeySet.has(boundaryKeyOf(k))) codesToLocalise.set(k, v); });
+    logger.info(`Localising ${codesToLocalise.size} new boundaries (of ${boundaryMap.size} total)`);
+  }
+  await transformAndCreateLocalisation(codesToLocalise, request, false, false);
   const modifiedHierarchy = hierarchy.map((ele) =>
     `${hierarchyType}_${ele}`.toUpperCase()
   );
@@ -823,6 +852,55 @@ function getChildParentMap(modifiedBoundaryData: any) {
     }
   });
   return childParentMap;
+}
+
+// Rehydrate the already-persisted hierarchy as codegen seed maps, for DELTA / no-codes auto updates
+// (the uploaded sheet does NOT carry the existing boundaries). Output shapes match
+// getCodeMappingsOfExistingBoundaryCodes so the codegen continues per-parent sequences and reuses
+// existing boundaries by name-path. Codes+structure come from the relationship tree; names from the
+// hierarchy's localisation module (a single search, not one entity call per boundary). __path is built
+// identically to modifyBoundaryData so boundaryKeyOf matches the uploaded rows.
+async function buildExistingSeedFromDb(request: any): Promise<{ mappingMap: Map<any, string>, countMap: Map<any, number> }> {
+  const tenantId = request?.body?.ResourceDetails?.tenantId;
+  const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
+  const mappingMap = new Map<any, string>();
+  const countMap = new Map<any, number>();
+  try {
+    const relResp: any = await httpRequest(
+      config.host.boundaryHost + config.paths.boundaryRelationship,
+      request.body,
+      // params mirror the proven relationship-search shape used in createBoundaryRelationship
+      { type: "boundaryManagement", tenantId, boundaryType: null, codes: null, includeChildren: true, hierarchyType }
+    );
+    const tree = relResp?.TenantBoundary?.[0]?.boundary || [];
+    if (!Array.isArray(tree) || tree.length === 0) return { mappingMap, countMap };
+    const locale = (request?.body?.RequestInfo?.msgId?.split("|")?.[1]) || config?.localisation?.defaultLocale;
+    const moduleName = `${config.localisation.boundaryPrefix}-${hierarchyType}`.toLowerCase();
+    const codeToName = new Map<string, string>();
+    try {
+      const locResp: any = await httpRequest(config.host.localizationHost + config.paths.localizationSearch, request.body, { tenantId, locale, module: moduleName });
+      (locResp?.messages || []).forEach((m: any) => { if (m?.code) codeToName.set(m.code, (m.message ?? m.code).toString()); });
+    } catch (le: any) {
+      logger.warn(`Seed: localisation lookup failed (${le?.message}); names fall back to codes`);
+    }
+    const walk = (nodes: any[], parentPath: string, parentElem: any) => {
+      (nodes || []).forEach((b: any) => {
+        if (!b?.code) return;
+        const name = codeToName.get(b.code) ?? b.code;
+        const lvl = b.boundaryType;
+        const path = parentPath ? `${parentPath}\u0001${lvl}\u0000${name}` : `${lvl}\u0000${name}`;
+        const elem = { key: lvl, value: name, __path: path };
+        mappingMap.set(elem, b.code);
+        if (parentElem) countMap.set(parentElem, (countMap.get(parentElem) || 0) + 1);
+        walk(b.children, path, elem);
+      });
+    };
+    walk(tree, "", null);
+    logger.info(`Delta-update seed from DB: ${mappingMap.size} existing boundaries; ${countMap.size} parents tracked`);
+  } catch (e: any) {
+    logger.warn(`buildExistingSeedFromDb failed (${e?.message || e}); proceeding with sheet-only context`);
+  }
+  return { mappingMap, countMap };
 }
 
 function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localizationMap: any) {

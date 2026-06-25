@@ -157,12 +157,8 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
         // Upload the current chunk
         await localisation.createLocalisation(chunk, tenantId, request?.body?.RequestInfo);
 
-        // wait for 3 second
-        const waitTime = config.localisation.localizationWaitTimeInBoundaryCreation
-        logger.info(`Waiting for ${waitTime / 1000} seconds after each localisation chunk`);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-        await localisation.cacheBurst();
-
+        // NOTE: The localisation messages are only read back later by the generate step (which runs after its
+        // own delay), so the settle is now done ONCE after all chunks (see after the loop) instead.
         logger.info(`Successfully uploaded chunk ${Math.floor(i / chunkSize) + 1}`);
         success = true; // Mark as successful
         break;
@@ -187,6 +183,20 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
     if (!success) {
       logger.warn(`Skipping chunk ${Math.floor(i / chunkSize) + 1} after exhausting retries`);
     }
+  }
+  // Single settle + cache-burst AFTER all chunks (replaces the former per-chunk 30s wait). One
+  // settle preserves the "localisation is fresh before it is read back" guarantee (the generate
+  // step reads it later, after its own delay) while removing the wait that was multiplied by the
+  // number of chunks. Tunable via LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION (set 0 to skip).
+  const settleTime = config.localisation.localizationWaitTimeInBoundaryCreation;
+  if (settleTime > 0) {
+    logger.info(`Waiting ${settleTime / 1000}s once after all ${Math.ceil(messages.length / chunkSize)} localisation chunks, then cache-burst`);
+    await new Promise((resolve) => setTimeout(resolve, settleTime));
+  }
+  try {
+    await Localisation.getInstance().cacheBurst();
+  } catch (e: any) {
+    logger.warn(`Final cacheBurst failed: ${e?.message}`);
   }
   logger.info("Finished processing all chunks");
 };
