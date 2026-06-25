@@ -156,8 +156,10 @@ function validateBoundaryNameCharacters(boundaryData: any[], localizedHierarchy:
         const shown = problems.slice(0, MAX_REPORTED_NAME_PROBLEMS);
         const extra = problems.length > MAX_REPORTED_NAME_PROBLEMS
             ? ` ... and ${problems.length - MAX_REPORTED_NAME_PROBLEMS} more` : "";
+        // Use the registered VALIDATION_ERROR code (like the duplicate-row / root checks) so this surfaces
+        // as a clean HTTP 400; a new unregistered code resolves to UNKNOWN_ERROR -> 500 in throwError.
         throwError(
-            "BOUNDARY", 400, "BOUNDARY_NAME_INVALID_CHARACTERS",
+            "COMMON", 400, "VALIDATION_ERROR",
             `Boundary names contain characters that are not allowed. ` +
             `Allowed: letters (any language), numbers, spaces and ' & - / . ( ) _ . ` +
             `Problems: ${shown.join("; ")}${extra}`
