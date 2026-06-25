@@ -4,8 +4,9 @@ import { getLocalizedName, populateBoundariesRecursively } from "../utils/campai
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
-import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
-import { decrypt } from "../utils/cryptUtils";
+import { BULK_DECRYPT_MAX_BATCH, dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
+import { bulkDecrypt } from "../utils/cryptUtils";
+import { WorkerRegistryRecord, searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -24,8 +25,53 @@ export class TemplateClass {
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.completed);
-        const userData = await Promise.all(users.map(async (u: any, idx: number) => {
-            logger.info(`Decrypting item number ${idx + 1}`);
+
+        // Fetch decrypted payee details from worker registry for all users that have a stored workerId.
+        // Worker registry always decrypts fields server-side on search, so this guarantees plain-text values
+        // regardless of whether the DIGIT PII encryption service was available during batch processing.
+        const workerIdToWorkerMap = new Map<string, WorkerRegistryRecord>();
+        const requestInfo = responseToSend?.requestInfo;
+        if (requestInfo) {
+            const workerIds: string[] = users
+                .map((u: any) => u?.data?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"])
+                .filter((id: any): id is string => !!id);
+
+            if (workerIds.length > 0) {
+                try {
+                    const workers = await searchWorkersByIds(workerIds, tenantId, requestInfo);
+                    for (const worker of workers) {
+                        if (worker?.id) {
+                            workerIdToWorkerMap.set(worker.id, worker);
+                        }
+                    }
+                    logger.info(`Fetched ${workers.length} workers from worker registry for credential sheet`);
+                } catch (workerSearchError) {
+                    logger.error("Failed to fetch worker details for credential sheet — payee fields will fall back to stored values", workerSearchError);
+                }
+            }
+        } else {
+            logger.warn("requestInfo not available in responseToSend — skipping worker registry search for credential sheet");
+        }
+
+        logger.info(`Decrypting ${users.length} users`);
+
+        const encryptedUserNames: string[] = [];
+        const encryptedPasswords: string[] = [];
+        for (const u of users) {
+            const rawData = u?.data || {};
+            encryptedUserNames.push(rawData["UserName"]);
+            encryptedPasswords.push(rawData["Password"]);
+        }
+
+        // bulkDecrypt is capped at BULK_DECRYPT_MAX_BATCH entries per call, so chunk both arrays in lockstep.
+        const decryptedUserNames: string[] = [];
+        const decryptedPasswords: string[] = [];
+        for (let i = 0; i < encryptedUserNames.length; i += BULK_DECRYPT_MAX_BATCH) {
+            decryptedUserNames.push(...bulkDecrypt(encryptedUserNames.slice(i, i + BULK_DECRYPT_MAX_BATCH)));
+            decryptedPasswords.push(...bulkDecrypt(encryptedPasswords.slice(i, i + BULK_DECRYPT_MAX_BATCH)));
+        }
+
+        const userData = users.map((u: any, idx: number) => {
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};
 
@@ -34,8 +80,25 @@ export class TemplateClass {
             }
 
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
-            localizedData["UserName"] = decrypt(rawData["UserName"]);
-            localizedData["Password"] = decrypt(rawData["Password"]);
+            localizedData["UserName"] = decryptedUserNames[idx];
+            localizedData["Password"] = decryptedPasswords[idx];
+
+            // Overlay decrypted payee details from worker registry search result.
+            // This replaces any potentially encrypted values that may have been stored
+            // in campaign_data during batch processing.
+            const workerId = rawData["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+            if (workerId) {
+                const worker = workerIdToWorkerMap.get(workerId);
+                if (worker) {
+                    if (worker.payeeName) localizedData["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] = worker.payeeName;
+                    if (worker.bankAccount) localizedData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] = worker.bankAccount;
+                    if (worker.bankCode) localizedData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] = worker.bankCode;
+                    if (worker.beneficiaryCode) localizedData["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] = worker.beneficiaryCode;
+                    if (worker.paymentProvider) localizedData["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] = worker.paymentProvider;
+                    if (worker.payeePhoneNumber) localizedData["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] = worker.payeePhoneNumber;
+                }
+            }
+
             const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] ;
             // Add localized boundary code
             if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
@@ -47,7 +110,7 @@ export class TemplateClass {
                 localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryMandatoryCode, localizationMap);
             }
             return localizedData;
-        }));
+        });
 
         // Construct the final SheetMap
         const sheetMap: SheetMap = {
@@ -179,7 +242,7 @@ export class TemplateClass {
 
             boundaryTypes.forEach((type: string, index: number) => {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
-                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', freezeColumn: true };
             });
             result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);

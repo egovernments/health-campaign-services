@@ -4,8 +4,8 @@ import { getLocalizedName, populateBoundariesRecursively } from "../utils/campai
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
-import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
-import { decrypt } from "../utils/cryptUtils";
+import { BULK_DECRYPT_MAX_BATCH, dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
+import { bulkDecrypt } from "../utils/cryptUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -37,6 +37,24 @@ export class TemplateClass {
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign(type, campaignNumber, tenantId, dataRowStatuses.completed);
+        logger.info(`Decrypting ${users.length} users`);
+
+        const encryptedUserNames: string[] = [];
+        const encryptedPasswords: string[] = [];
+        for (const u of users) {
+            const rawData = u?.data || {};
+            encryptedUserNames.push(rawData["UserName"]);
+            encryptedPasswords.push(rawData["Password"]);
+        }
+
+        // bulkDecrypt is capped at BULK_DECRYPT_MAX_BATCH entries per call, so chunk both arrays in lockstep.
+        const decryptedUserNames: string[] = [];
+        const decryptedPasswords: string[] = [];
+        for (let i = 0; i < encryptedUserNames.length; i += BULK_DECRYPT_MAX_BATCH) {
+            decryptedUserNames.push(...bulkDecrypt(encryptedUserNames.slice(i, i + BULK_DECRYPT_MAX_BATCH)));
+            decryptedPasswords.push(...bulkDecrypt(encryptedPasswords.slice(i, i + BULK_DECRYPT_MAX_BATCH)));
+        }
+
         const userData = users.map((u: any, idx: number) => {
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};
@@ -44,9 +62,8 @@ export class TemplateClass {
                 localizedData[key] = rawData[key];
             }
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
-            logger.info(`Decrypting item number ${idx + 1}`);
-            localizedData["UserName"] = decrypt(rawData["UserName"]);
-            localizedData["Password"] = decrypt(rawData["Password"]);
+            localizedData["UserName"] = decryptedUserNames[idx];
+            localizedData["Password"] = decryptedPasswords[idx];
             return localizedData;
         });
 
@@ -64,7 +81,14 @@ export class TemplateClass {
             },
             ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
-                dynamicColumns: null
+                dynamicColumns: {
+                    "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BANK_CODE": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE": { color: "#FFE599" },
+                }
             }
         };
 
@@ -187,7 +211,7 @@ export class TemplateClass {
 
             boundaryTypes.forEach((type: string, index: number) => {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
-                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', freezeColumn: true };
             });
             result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width : 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);

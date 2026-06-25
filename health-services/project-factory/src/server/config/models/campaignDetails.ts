@@ -56,7 +56,6 @@ export const campaignDetailsSchema = {
         },
         "resources": {
             "type": "array",
-            "maxItems": 3,
             "items": {
                 "type": "object",
                 "properties": {
@@ -75,6 +74,19 @@ export const campaignDetailsSchema = {
                         "maxLength": 128,
                         "minLength": 1,
                         "pattern": "^.+\\.(xlsx|xls)$"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["toCreate", "creating", "completed", "failed"]
+                    },
+                    "processedFileStoreId": {
+                        "type": "string"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "errorMessage": {
+                        "type": "string"
                     }
                 },
                 "required": ["filestoreId", "type", "filename"]

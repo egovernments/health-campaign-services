@@ -134,7 +134,14 @@ public class EmployeeService {
 		employeeRequest.getEmployees().forEach(employee -> employee.getUser().setPassword(null));
 		// Pushing the employee request to the HRMS topic for further processing
 		hrmsProducer.push(tenantId, propertiesManager.getSaveEmployeeTopic(), employeeRequest);
-		notificationService.sendNotification(employeeRequest, pwdMap);
+
+		// Send notification - wrapped in try-catch to prevent blocking employee creation if notification fails
+		try {
+			notificationService.sendNotification(employeeRequest, pwdMap);
+		} catch (Exception e) {
+			log.error("Failed to send notification for employee creation, but employee was created successfully", e);
+		}
+
 		return generateResponse(employeeRequest);
 	}
 	
@@ -433,8 +440,12 @@ public class EmployeeService {
 		// Push the updated employee request to the HRMS topic for further processing
 		hrmsProducer.push(tenantId, propertiesManager.getUpdateTopic(), employeeRequest);
 
-		// (Optional) Send reactivation notifications if needed
-		// notificationService.sendReactivationNotification(employeeRequest);
+		// Send reactivation notifications if needed - wrapped in try-catch to prevent blocking employee update if notification fails
+		// try {
+		// 	notificationService.sendReactivationNotification(employeeRequest);
+		// } catch (Exception e) {
+		// 	log.error("Failed to send reactivation notification for employee update, but employee was updated successfully", e);
+		// }
 
 		// Generate and return the response containing the updated employee information
 		return generateResponse(employeeRequest);

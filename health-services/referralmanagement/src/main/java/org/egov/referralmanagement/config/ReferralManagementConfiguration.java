@@ -139,10 +139,19 @@ public class ReferralManagementConfiguration {
     @Value("${egov.referral.search.batch.size:200}")
     private Integer referralSearchBatchSize;
 
+    @Value("${referralmanagement.search.max.limit:200}")
+    private Integer searchMaxLimit;
+
+    @Value("${egov.hf.referral.search.batch.size:200}")
+    private Integer hfReferralSearchBatchSize;
+
     @Value("${egov.service.request.host}")
     private String serviceRequestHost;
 
     @Value("${egov.service.request.service.search.url}")
     private String serviceRequestServiceSearchUrl;
+
+    @Value("${egov.enable.matview.search}")
+    private boolean enableMatviewSearch;
 
 }

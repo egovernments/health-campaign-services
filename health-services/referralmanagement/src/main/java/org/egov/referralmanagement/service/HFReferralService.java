@@ -178,6 +178,12 @@ public class HFReferralService {
                                              Long lastChangedSince,
                                              Boolean includeDeleted) throws InvalidTenantIdException {
         log.info("Received request to search referrals");
+
+        // Use lastSyncedTime from request body if provided, otherwise fall back to lastChangedSince from URL params
+        Long effectiveLastChangedSince = referralSearchRequest.getHfReferral().getLastSyncedTime() != null
+                ? referralSearchRequest.getHfReferral().getLastSyncedTime()
+                : lastChangedSince;
+
         String idFieldName = getIdFieldName(referralSearchRequest.getHfReferral());
 
         // If searching by ID only, fetch referrals with specified IDs
@@ -189,7 +195,7 @@ public class HFReferralService {
             log.info("Fetching referrals with IDs: {}", ids);
 
             List<HFReferral> hfReferrals = hfReferralRepository.findById(tenantId, ids, idFieldName, includeDeleted).getResponse().stream()
-                    .filter(lastChangedSince(lastChangedSince))
+                    .filter(lastChangedSince(effectiveLastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
@@ -198,7 +204,7 @@ public class HFReferralService {
 
         log.info("Searching referrals using criteria");
         return hfReferralRepository.find(referralSearchRequest.getHfReferral(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+                limit, offset, tenantId, effectiveLastChangedSince, includeDeleted);
     }
 
     // Method to delete a single HFReferral

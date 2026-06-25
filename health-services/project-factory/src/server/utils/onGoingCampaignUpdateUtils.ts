@@ -6,6 +6,7 @@ import { getLocalizedName, populateBoundariesRecursively } from "./campaignUtils
 import { logger } from "./logger";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { cloneDeep } from "lodash";
+import { CampaignResource } from "../config/models/resourceTypes";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
@@ -207,7 +208,7 @@ export async function validateMissingBoundaryFromParent(requestBody : any) {
       // as we've already confirmed it's not missing any from the parent.
       if (setOfBoundaryCodesFromCurrentCampaign.size !== parentBoundaryCodes.size) {
         const boundaryResource = CampaignDetails.resources?.find(
-          (r: any) => r.type === 'boundary' && r.filestoreId
+          (r: CampaignResource) => r.type === 'boundary' && r.filestoreId
         );
         const isUnifiedCampaign = CampaignDetails?.additionalDetails?.isUnifiedCampaign || false;
         if (!boundaryResource && !isUnifiedCampaign) {
@@ -410,7 +411,7 @@ async function fetchProjectFacilityWithProjectId(request: any, projectId: any, f
   }
 }
 
-export async function getFileUrl(fileStoreId: any, tenantId: any) {
+export async function getFileUrl(fileStoreId: string, tenantId: string) {
   const fileResponse = await httpRequest(
     `${config.host.filestore}${config.paths.filestore}/url`,
     {},

@@ -3,6 +3,9 @@ package org.egov.excelingestion.util;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import org.springframework.cache.annotation.Cacheable;
@@ -18,6 +21,9 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 @Component
 public class ExcelUtil {
 
+    // Thread-safe, immutable — safe to share as static constant
+    private static final DateTimeFormatter CELL_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
     /**
      * Get cell value as string with proper formula evaluation
      * 
@@ -25,14 +31,26 @@ public class ExcelUtil {
      * @return String value of the cell (empty string if null or error)
      */
     public static String getCellValueAsString(Cell cell) {
+        return getCellValueAsString(cell, ZoneId.systemDefault());
+    }
+
+    /**
+     * Get cell value as string using the specified timezone for date cells.
+     */
+    public static String getCellValueAsString(Cell cell, ZoneId zoneId) {
         if (cell == null) return "";
-        
+
         switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
+            case STRING: {
+                String raw = cell.getStringCellValue();
+                return raw == null ? "" : raw.trim();
+            }
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString();
+                    // POI creates Date in JVM default timezone — use JVM TZ to preserve calendar date
+                    return cell.getDateCellValue().toInstant()
+                            .atZone(ZoneId.systemDefault()).toLocalDate()
+                            .format(CELL_DATE_FORMATTER);
                 } else {
                     return String.valueOf((long) cell.getNumericCellValue());
                 }
@@ -43,11 +61,19 @@ public class ExcelUtil {
                 try {
                     FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
                     CellValue cellValue = evaluator.evaluate(cell);
-                    
+
                     switch (cellValue.getCellType()) {
-                        case STRING:
-                            return cellValue.getStringValue();
+                        case STRING: {
+                            String raw = cellValue.getStringValue();
+                            return raw == null ? "" : raw.trim();
+                        }
                         case NUMERIC:
+                            if (DateUtil.isCellDateFormatted(cell)) {
+                                // POI creates Date in JVM default timezone — use JVM TZ to preserve calendar date
+                                return DateUtil.getJavaDate(cellValue.getNumberValue())
+                                        .toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                                        .format(CELL_DATE_FORMATTER);
+                            }
                             return String.valueOf((long) cellValue.getNumberValue());
                         case BOOLEAN:
                             return String.valueOf(cellValue.getBooleanValue());
@@ -73,8 +99,10 @@ public class ExcelUtil {
         if (cell == null) return null;
         
         switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
+            case STRING: {
+                String raw = cell.getStringCellValue();
+                return raw == null ? null : raw.trim();
+            }
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue();
@@ -88,10 +116,12 @@ public class ExcelUtil {
                 try {
                     FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
                     CellValue cellValue = evaluator.evaluate(cell);
-                    
+
                     switch (cellValue.getCellType()) {
-                        case STRING:
-                            return cellValue.getStringValue();
+                        case STRING: {
+                            String raw = cellValue.getStringValue();
+                            return raw == null ? null : raw.trim();
+                        }
                         case NUMERIC:
                             return (long) cellValue.getNumberValue();
                         case BOOLEAN:
@@ -109,20 +139,14 @@ public class ExcelUtil {
     }
 
     /**
-     * Get localized sheet name with 31-char limit handling
+     * Get localized sheet name with configurable character limit
      */
-    public static String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
-        String localizedName = sheetKey;
-        
-        if (localizationMap != null && localizationMap.containsKey(sheetKey)) {
-            localizedName = localizationMap.get(sheetKey);
+    public static String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap, int maxLength) {
+        String localizedName = (localizationMap != null && localizationMap.containsKey(sheetKey))
+                ? localizationMap.get(sheetKey) : sheetKey;
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
         }
-        
-        // Handle Excel's 31 character limit
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
-        }
-        
         return localizedName;
     }
 
@@ -157,12 +181,7 @@ public class ExcelUtil {
             headers[i] = cell != null ? getCellValueAsString(cell) : "";
         }
 
-        final int lastRowNum = ExcelUtil.findActualLastRowWithData(sheet);
-        if (lastRowNum < 2) { // No data rows
-            return Collections.emptyList();
-        }
-        
-        // Find actual last row with data (ignore formula-only rows) - SMART OPTIMIZATION
+        // Find actual last row with data (ignore formula-only rows)
         int actualLastRow = findActualLastRowWithData(sheet);
         if (actualLastRow < 2) {
             return Collections.emptyList();
@@ -191,8 +210,9 @@ public class ExcelUtil {
                     if (cellType == CellType.BLANK) {
                         value = null;
                     } else if (cellType == CellType.STRING) {
-                        String strVal = cell.getStringCellValue();
-                        value = strVal.trim().isEmpty() ? null : strVal;
+                        String rawVal = cell.getStringCellValue();
+                        String trimmedVal = rawVal == null ? "" : rawVal.trim();
+                        value = trimmedVal.isEmpty() ? null : trimmedVal;
                         if (value != null) hasData = true;
                     } else if (cellType == CellType.NUMERIC) {
                         if (DateUtil.isCellDateFormatted(cell)) {
@@ -223,7 +243,49 @@ public class ExcelUtil {
             }
         }
         
+        reconstructMultiSelectValues(data);
         return data;
+    }
+
+    /**
+     * Reconstructs hidden multiselect parent column values from individual _MULTISELECT_* columns.
+     * Handles backward compatibility with sheets where the CONCATENATE formula was not applied
+     * beyond a certain row limit.
+     */
+    public static void reconstructMultiSelectValues(List<Map<String, Object>> data) {
+        for (Map<String, Object> row : data) {
+            // TreeMap with suffix index as key preserves column order (_MULTISELECT_1 before _MULTISELECT_2)
+            Map<String, TreeMap<Integer, String>> parentToValues = new HashMap<>();
+
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                String key = entry.getKey();
+                int idx = key.indexOf("_MULTISELECT_");
+                if (idx > 0) {
+                    String parent = key.substring(0, idx);
+                    String suffix = key.substring(idx + "_MULTISELECT_".length());
+                    int suffixIndex;
+                    try {
+                        suffixIndex = Integer.parseInt(suffix);
+                    } catch (NumberFormatException e) {
+                        continue;
+                    }
+                    Object val = entry.getValue();
+                    if (val != null && !val.toString().trim().isEmpty()) {
+                        parentToValues.computeIfAbsent(parent, k -> new TreeMap<>())
+                                .put(suffixIndex, val.toString().trim());
+                    }
+                }
+            }
+
+            for (Map.Entry<String, TreeMap<Integer, String>> entry : parentToValues.entrySet()) {
+                String parent = entry.getKey();
+                List<String> values = new ArrayList<>(entry.getValue().values());
+                Object existing = row.get(parent);
+                if ((existing == null || existing.toString().trim().isEmpty()) && !values.isEmpty()) {
+                    row.put(parent, String.join(",", values));
+                }
+            }
+        }
     }
 
     private static final Cache<String, Integer> lastRowCache = Caffeine.newBuilder()
@@ -401,8 +463,24 @@ public class ExcelUtil {
      * @return String representation or empty string if null
      */
     public static String getValueAsString(Object value) {
+        return getValueAsString(value, ZoneId.systemDefault());
+    }
+
+    /**
+     * Safely convert any object value to string using the specified timezone for Date values.
+     * Note: For Date objects from Apache POI (getDateCellValue), we use the JVM default timezone
+     * because POI creates Date objects representing midnight in the JVM timezone. Using a different
+     * timezone here would shift the date by ±1 day when JVM TZ ≠ server TZ.
+     */
+    public static String getValueAsString(Object value, ZoneId zoneId) {
         if (value == null) {
             return "";
+        }
+        if (value instanceof Date) {
+            // POI creates Date in JVM default timezone — extract calendar date using JVM TZ to preserve it
+            return ((Date) value).toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
+                    .format(CELL_DATE_FORMATTER);
         }
         return value.toString();
     }

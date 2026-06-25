@@ -1,4 +1,4 @@
-import { defaultRequestInfo } from "../api/coreApis";
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { mappingStatuses } from "../config/constants";
 import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign, throwError } from "./genericUtils";
 import { logger } from "./logger";
@@ -7,12 +7,12 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { httpRequest } from "./request";
 
-export async function startUserMappingAndDemapping(campaignDetails: any, useruuid: string) {
-    await startUserMapping(campaignDetails, useruuid );
-    await startUserDemapping(campaignDetails, useruuid );
+export async function startUserMappingAndDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
+    await startUserMapping(campaignDetails, useruuid, requestInfo);
+    await startUserDemapping(campaignDetails, useruuid, requestInfo);
 }
 
-export async function startUserMapping(campaignDetails: any, useruuid: string) {
+export async function startUserMapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeMapped);
     if (allCurrentMappingsToDo.length <= 0) {
         return;
@@ -29,8 +29,7 @@ export async function startUserMapping(campaignDetails: any, useruuid: string) {
     }
     const startDate = campaignDetails.startDate;
     const endDate = campaignDetails.endDate;
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid || campaignDetails?.auditDetails?.createdBy;
+    const RequestInfo = requestInfo;
     for (let i = 0; i < allCurrentMappingsToDo.length; i++) {
         try {
             const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDo[i]?.boundaryCode];
@@ -61,7 +60,7 @@ export async function startUserMapping(campaignDetails: any, useruuid: string) {
     }
 }
 
-export async function startUserDemapping(campaignDetails: any, useruuid: string) {
+export async function startUserDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const allCurrentMappingsToDeMap = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeDeMapped);
     if (allCurrentMappingsToDeMap.length <= 0) {
         return;
@@ -76,8 +75,7 @@ export async function startUserDemapping(campaignDetails: any, useruuid: string)
     for (let i = 0; i < getUsersRelatedToCampaign.length; i++) {
         phoneToUserIdMapping[getUsersRelatedToCampaign[i]?.uniqueIdentifier] = getUsersRelatedToCampaign[i]?.uniqueIdAfterProcess;
     }
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid || campaignDetails?.auditDetails?.createdBy;
+    const RequestInfo = requestInfo;
     for (let i = 0; i < allCurrentMappingsToDeMap.length; i++) {
         try {
             const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDeMap[i]?.boundaryCode];

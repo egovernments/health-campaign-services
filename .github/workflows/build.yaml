@@ -62,8 +62,10 @@ on:
           - project-factory
           - excel-ingestion
           - boundary-management
+          - worker-registry-java-17
           - health-notification-service
           - egov-notification-push
+          - airflow-trigger-service
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}

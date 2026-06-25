@@ -170,12 +170,58 @@ export const allProcesses = {
     userMapping : "CAMPAIGN_USER_MAPPING_PROCESS",
     resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS",
     userCredGeneration : "CAMPAIGN_USER_CRED_GENERATION_PROCESS",
+    attendanceRegisterCreation : "CAMPAIGN_ATTENDANCE_REGISTER_CREATION_PROCESS",
+    attendanceRegisterAttendeeCreation : "CAMPAIGN_ATTENDANCE_REGISTER_ATTENDEE_CREATION_PROCESS",
 }
 
 export const sheetDataRowStatuses = {
     INVALID: "INVALID",
-    CREATED: "CREATED"
+    CREATED: "CREATED",
+    SKIPPED: "SKIPPED",
+    EXISTING: "EXISTING",
+    UPDATED: "UPDATED"
 }
+
+// Attendance Register Attendee — Sheet Names
+export const attendanceSheetNames = {
+    WORKER: "HCM_REGISTER_WORKER_SHEET",
+    MARKER: "HCM_REGISTER_MARKER_SHEET",
+    APPROVER: "HCM_REGISTER_APPROVER_SHEET",
+};
+
+// Attendance Register Attendee — Column Keys
+export const attendanceColumnKeys = {
+    REGISTER_ID: "HCM_ATTENDANCE_REGISTER_ID",
+    ENROLLMENT_DATE: "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE",
+    DEENROLLMENT_DATE: "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE",
+    TEAM_CODE: "HCM_ATTENDANCE_ATTENDEE_TEAM_CODE",
+    USERNAME: "UserName",
+};
+
+// Attendance Register Attendee — Staff Types
+export const attendanceStaffTypes = {
+    OWNER: "OWNER",
+    APPROVER: "APPROVER",
+};
+
+// Attendance Register Attendee — Localization / Error Keys
+export const attendanceErrorKeys = {
+    REGISTER_NOT_FOUND: "HCM_ATTENDANCE_ATTENDEE_REGISTER_NOT_FOUND",
+    REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN: "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN",
+    INVALID_DATE_FORMAT: "HCM_ATTENDANCE_ATTENDEE_INVALID_DATE_FORMAT",
+    DATE_OUT_OF_RANGE: "HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE",
+    DEENROLLMENT_BEFORE_ENROLLMENT: "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_BEFORE_ENROLLMENT",
+    USER_NOT_FOUND: "HCM_ATTENDANCE_ATTENDEE_USER_NOT_FOUND",
+    ENROLLMENT_DATE_REQUIRED: "HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED",
+    CANNOT_CHANGE_ENROLLMENT_DATE: "HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE",
+    CANNOT_CHANGE_DEENROLLMENT_DATE: "HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE",
+    ALREADY_ENROLLED_IN_ANOTHER_REGISTER: "HCM_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER",
+};
+
+// Attendance — Additional Details Cache Keys
+export const attendanceCacheKeys = {
+    RESOLVED_INDIVIDUAL_IDS: "resolvedIndividualIds",
+};
 
 
 export const generatedResourceStatuses: any = {
@@ -220,10 +266,24 @@ export const processTrackStatuses = {
     failed: "failed",
 }
 
+export const resourceStatuses = {
+    toCreate: "toCreate",
+    creating: "creating",
+    completed: "completed",
+    failed: "failed"
+}
+
 export const usageColumnStatus = {
     active: "Active",
     inactive: "Inactive"
 }
+
+export const resourceTypes = {
+    unifiedConsoleResources: "unified-console-resources"
+}
+
+// Max number of strings that can be passed to bulkDecrypt in a single call.
+export const BULK_DECRYPT_MAX_BATCH = 500;
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object
