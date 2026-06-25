@@ -62,8 +62,8 @@ public class StockService {
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
                     || validator.getClass().equals(SExistentEntityValidator.class)
                     || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
-                    || validator.getClass().equals(SStockTransferPartiesValidator.class)
-                    || validator.getClass().equals(SReferenceIdValidator.class);
+                    || validator.getClass().equals(SStockTransferPartiesValidator.class);
+//                    || validator.getClass().equals(SReferenceIdValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
@@ -72,7 +72,7 @@ public class StockService {
             || validator.getClass().equals(SNullIdValidator.class)
             || validator.getClass().equals(SRowVersionValidator.class)
             || validator.getClass().equals(SUniqueEntityValidator.class)
-            || validator.getClass().equals(SReferenceIdValidator.class)
+//            || validator.getClass().equals(SReferenceIdValidator.class)
             || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
             || validator.getClass().equals(SStockTransferPartiesValidator.class);
 
