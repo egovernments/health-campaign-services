@@ -143,6 +143,24 @@ public class ExcelIngestionConfig {
     @Value("${egov.excel.immutable.enforce:true}")
     private boolean immutableEnforce;
 
+    // Server-side guard for boundary SELECTION-NAME columns ({hierarchyType}_<LEVEL>). The Excel dropdown is
+    // client-side only and bypassable, so on upload we re-check every selection value against the campaign
+    // hierarchy and fail the row if it is not a real boundary name. Kill switch in case of an edge case.
+    @Value("${egov.excel.boundary.selection.name.validation:true}")
+    private boolean validateBoundarySelectionNames;
+
+    // "Exact file" guard: at generation we embed an HMAC over the generationId; on upload we require a
+    // matching signature. The generationId itself is NOT secret (it rides in API responses / URLs / logs),
+    // so without this anyone who learns it could stamp a hand-built file and pass identity. The signature
+    // is only ever written into the genuine downloaded file, so it proves possession of THAT file.
+    // The secret MUST be overridden per-environment with a strong random value, otherwise the signature is
+    // forgeable (the default below is a placeholder, like the sheet password).
+    @Value("${egov.excel.immutable.signing.secret:egov-excel-immutable-default-secret-change-me}")
+    private String immutableSigningSecret;
+
+    @Value("${egov.excel.immutable.signature.enforce:true}")
+    private boolean immutableSignatureEnforce;
+
     private String defaultHeaderColor = "#93c47d";
 
     public ZoneId getServerZoneId() {

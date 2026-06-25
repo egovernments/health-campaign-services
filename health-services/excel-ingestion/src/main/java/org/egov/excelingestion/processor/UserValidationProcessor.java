@@ -105,6 +105,14 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             // Validate boundary codes against campaign boundaries
             validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
 
+            // Server-side guard: boundary SELECTION names must exist in the campaign hierarchy. The Excel
+            // dropdown is client-side only and bypassable, so an off-dropdown value (e.g. a typed "Province 7")
+            // is re-checked here and fails the upload.
+            if (config.isValidateBoundarySelectionNames()) {
+                boundaryUtil.validateBoundarySelectionNames(sheetData, resource.getTenantId(),
+                        resource.getHierarchyType(), requestInfo, localizationMap, errors);
+            }
+
             // Validate worker IDs against worker registry
             validateWorkerIds(sheetData, resource.getTenantId(), requestInfo, errors, localizationMap);
 

@@ -11,7 +11,13 @@ public class ValidationConstants {
     public static final String STATUS_INVALID = "invalid";
     public static final String STATUS_CREATED = "created";
     public static final String STATUS_ERROR = "error";
-    
+
+    // Boundary selection-name validation: a selected boundary value (province/district/village name) that
+    // does not exist anywhere in the campaign hierarchy. The Excel dropdown is client-side only and can be
+    // bypassed (paste / programmatic edit / LibreOffice), so this is re-checked server-side on upload.
+    public static final String HCM_BOUNDARY_SELECTION_NOT_IN_HIERARCHY = "HCM_BOUNDARY_SELECTION_NOT_IN_HIERARCHY";
+    public static final String HCM_BOUNDARY_SELECTION_NOT_IN_HIERARCHY_DEFAULT ="Selected boundary value is not present in the campaign hierarchy";
+
     // Multi-select validation constants
     public static final String MULTI_SELECT_SEPARATOR = ",";
     public static final String HCM_VALIDATION_DUPLICATE_SELECTIONS = "HCM_VALIDATION_DUPLICATE_SELECTIONS";

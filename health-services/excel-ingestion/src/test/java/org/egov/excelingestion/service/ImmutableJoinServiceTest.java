@@ -6,6 +6,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.constants.GenerationConstants;
@@ -17,6 +18,7 @@ import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.ExcelStyleHelper;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
+import org.egov.excelingestion.util.SignatureUtil;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
@@ -72,6 +74,7 @@ class ImmutableJoinServiceTest {
         private static final String TYPE = "unified-console-validation"; // a join-mode family (also: attendanceRegister/attendanceRegisterAttendee)
         private static final String REF = "campaign-1";
         private static final String GEN_ID = "gen-1";
+        private static final String TEST_SECRET = "unit-test-signing-secret";
         private static final String UPLOAD_FS = "upload-fs";
         private static final String BASELINE_FS = "baseline-fs";
         private static final String SHEET = "Users";
@@ -90,8 +93,9 @@ class ImmutableJoinServiceTest {
 
             uploadedWorkbook = new XSSFWorkbook();
             uploadedWorkbook.createSheet(SHEET);
-            uploadedWorkbook.createSheet(GenerationConstants.META_SHEET_NAME)
-                    .createRow(0).createCell(0).setCellValue(GEN_ID);
+            Row metaRow = uploadedWorkbook.createSheet(GenerationConstants.META_SHEET_NAME).createRow(0);
+            metaRow.createCell(GenerationConstants.META_GENERATION_ID_CELL).setCellValue(GEN_ID);
+            metaRow.createCell(GenerationConstants.META_SIGNATURE_CELL).setCellValue(SignatureUtil.sign(GEN_ID, TEST_SECRET));
 
             baselineWorkbook = new XSSFWorkbook();
             baselineWorkbook.createSheet(SHEET);
@@ -103,6 +107,8 @@ class ImmutableJoinServiceTest {
             sheetNameToSchema.put(SHEET, new HashMap<>());
 
             lenient().when(config.isImmutableEnforce()).thenReturn(true);
+            lenient().when(config.isImmutableSignatureEnforce()).thenReturn(true);
+            lenient().when(config.getImmutableSigningSecret()).thenReturn(TEST_SECRET);
             lenient().when(generatedFileRepository.findByGenerationId(GEN_ID, TENANT)).thenReturn(
                     GenerateResource.builder().id(GEN_ID).fileStoreId(BASELINE_FS)
                             .referenceId(REF).type(TYPE).tenantId(TENANT).build());
@@ -386,6 +392,43 @@ class ImmutableJoinServiceTest {
             verifyNoInteractions(generatedFileRepository, fileStoreService);
         }
 
+        @Test
+        void tamperedSignature_failsClosed() {
+            // Genuine generationId + correct campaign, but the authenticity signature is wrong -> this is not
+            // the exact downloaded file (e.g. a hand-built look-alike stamped with a leaked generationId).
+            setMetaSignature("not-the-real-signature");
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_SIGNATURE_INVALID, ex.getCode());
+        }
+
+        @Test
+        void missingSignature_failsClosed() {
+            // generationId present, but no signature -> not the genuine downloaded file -> reject.
+            setMetaSignature("");
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_SIGNATURE_INVALID, ex.getCode());
+        }
+
+        @Test
+        void signatureEnforceDisabled_skipsSignatureCheck() {
+            when(config.isImmutableSignatureEnforce()).thenReturn(false);
+            setMetaSignature("garbage");   // bad signature is ignored when enforcement is off
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema);
+
+            assertEquals("Real Name", up.get("name"), "join still runs when signature enforcement is disabled");
+        }
+
+        private void setMetaSignature(String value) {
+            Row r = uploadedWorkbook.getSheet(GenerationConstants.META_SHEET_NAME).getRow(0);
+            Cell c = r.getCell(GenerationConstants.META_SIGNATURE_CELL);
+            if (c == null) c = r.createCell(GenerationConstants.META_SIGNATURE_CELL);
+            c.setCellValue(value);
+        }
+
         private void removeMetaSheet() {
             uploadedWorkbook.removeSheetAt(uploadedWorkbook.getSheetIndex(GenerationConstants.META_SHEET_NAME));
         }
@@ -403,6 +446,7 @@ class ImmutableJoinServiceTest {
         private static final String TYPE = "unified-console-validation"; // a join-mode family (also: attendanceRegister/attendanceRegisterAttendee)
         private static final String REF = "campaign-1";
         private static final String GEN_ID = "gen-e2e-1";
+        private static final String TEST_SECRET = "e2e-test-signing-secret";
         private static final String UPLOAD_FS = "upload-fs";
         private static final String BASELINE_FS = "baseline-fs";
         private static final String SHEET = "Users";
@@ -422,6 +466,8 @@ class ImmutableJoinServiceTest {
         void setUp() {
             config = new ExcelIngestionConfig();
             config.setImmutableEnforce(true);
+            config.setImmutableSignatureEnforce(true);          // exercise the exact-file signature gate end-to-end
+            config.setImmutableSigningSecret(TEST_SECRET);
             config.setExcelSheetPassword("testpwd");   // a password IS configured; join mode must still skip protection
             config.setExcelRowLimit(100);
             config.setExcelSheetZoom(60);
@@ -517,8 +563,10 @@ class ImmutableJoinServiceTest {
             }
             // 6-arg with joinMode=true: generation join-mode is opt-in (the 5-arg defaults to protected).
             Workbook wb = populator.populateSheetWithData(new XSSFWorkbook(), SHEET, columns, data, new HashMap<>(), true);
-            // Mirror ConfigBasedGenerationService: embed the generationId in the hidden meta sheet.
-            wb.createSheet(GenerationConstants.META_SHEET_NAME).createRow(0).createCell(0).setCellValue(GEN_ID);
+            // Mirror ConfigBasedGenerationService: embed the generationId + authenticity signature in the meta sheet.
+            Row metaRow = wb.createSheet(GenerationConstants.META_SHEET_NAME).createRow(0);
+            metaRow.createCell(GenerationConstants.META_GENERATION_ID_CELL).setCellValue(GEN_ID);
+            metaRow.createCell(GenerationConstants.META_SIGNATURE_CELL).setCellValue(SignatureUtil.sign(GEN_ID, TEST_SECRET));
             return toBytes(wb);
         }
 

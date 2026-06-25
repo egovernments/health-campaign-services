@@ -17,6 +17,7 @@ import org.egov.excelingestion.util.BoundaryColumnUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
+import org.egov.excelingestion.util.SignatureUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.request.RequestInfo;
@@ -231,7 +232,16 @@ public class ConfigBasedGenerationService {
         // authoritative baseline. Created BEFORE the hide loop below so the "_h_" auto-hide picks it up.
         if (unprotectedJoinMode && generationId != null && !generationId.isEmpty()) {
             Sheet metaSheet = workbook.createSheet(GenerationConstants.META_SHEET_NAME);
-            metaSheet.createRow(0).createCell(0).setCellValue(generationId);
+            org.apache.poi.ss.usermodel.Row metaRow = metaSheet.createRow(0);
+            metaRow.createCell(GenerationConstants.META_GENERATION_ID_CELL).setCellValue(generationId);
+            // Exact-file guard: sign the generationId so the upload path can prove this is the genuine
+            // downloaded file (a leaked generationId alone cannot forge an upload). Skipped only if no
+            // secret is configured.
+            String signingSecret = config.getImmutableSigningSecret();
+            if (signingSecret != null && !signingSecret.isEmpty()) {
+                metaRow.createCell(GenerationConstants.META_SIGNATURE_CELL)
+                        .setCellValue(SignatureUtil.sign(generationId, signingSecret));
+            }
         }
 
         // Set zoom level

@@ -60,7 +60,10 @@ public class ErrorConstants {
 
     public static final String IMMUTABLE_MISSING_GENERATION_ID = "IMMUTABLE_MISSING_GENERATION_ID";
     public static final String IMMUTABLE_MISSING_GENERATION_ID_MESSAGE = "This template requires its embedded identity, which is missing or was removed. Please re-download the template and re-upload without altering its structure.";
-    
+
+    public static final String IMMUTABLE_SIGNATURE_INVALID = "IMMUTABLE_SIGNATURE_INVALID";
+    public static final String IMMUTABLE_SIGNATURE_INVALID_MESSAGE = "The uploaded file's authenticity signature is missing or invalid. Only the exact template downloaded for this campaign can be uploaded - please re-download the template, edit that same file, and upload it (a different or copied file is not accepted).";
+
     // File Store Service Errors
     public static final String FILE_STORE_SERVICE_ERROR = "FILE_STORE_SERVICE_ERROR";
     public static final String FILE_STORE_SERVICE_ERROR_MESSAGE = "Error while uploading file to file store";

@@ -80,7 +80,15 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
             
             // Validate campaign boundaries
             validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
-            
+
+            // Server-side guard: boundary SELECTION names must exist in the campaign hierarchy. The Excel
+            // dropdown is client-side only and bypassable, so an off-dropdown value (e.g. a typed "Province 7")
+            // is re-checked here and fails the upload.
+            if (config.isValidateBoundarySelectionNames()) {
+                boundaryUtil.validateBoundarySelectionNames(sheetData, resource.getTenantId(),
+                        resource.getHierarchyType(), requestInfo, localizationMap, errors);
+            }
+
             log.info("Facility validation completed with {} errors", errors.size());
             enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 

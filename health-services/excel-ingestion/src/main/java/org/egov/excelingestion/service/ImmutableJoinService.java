@@ -15,6 +15,7 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
+import org.egov.excelingestion.util.SignatureUtil;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
@@ -132,6 +133,23 @@ public class ImmutableJoinService {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
                     ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
             return Collections.emptyMap();
+        }
+
+        // 3b. Exact-file (authenticity) check: the file must carry the server's HMAC over its generationId.
+        // The generationId is not secret (it rides in API responses/URLs/logs), so identity alone would let
+        // anyone who learns it stamp a hand-built or copied file and pass. The signature is written ONLY into
+        // the genuine downloaded file, so requiring it means only THAT exact file is accepted. Verified after
+        // identity so a missing secret / wrong campaign surfaces its specific error first.
+        if (config.isImmutableSignatureEnforce()) {
+            String signingSecret = config.getImmutableSigningSecret();
+            String providedSignature = readSignature(uploadedWorkbook);
+            if (signingSecret == null || signingSecret.isEmpty()
+                    || providedSignature == null || providedSignature.isEmpty()
+                    || !SignatureUtil.matches(SignatureUtil.sign(generationId, signingSecret), providedSignature)) {
+                exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_SIGNATURE_INVALID,
+                        ErrorConstants.IMMUTABLE_SIGNATURE_INVALID_MESSAGE);
+                return Collections.emptyMap();
+            }
         }
 
         // 4. Download + parse the baseline, then join per sheet. Collect, per sheet, the always-immutable
@@ -349,7 +367,21 @@ public class ImmutableJoinService {
         if (row == null) {
             return null;
         }
-        Cell cell = row.getCell(0);
+        Cell cell = row.getCell(GenerationConstants.META_GENERATION_ID_CELL);
+        return cell == null ? null : ExcelUtil.getCellValueAsString(cell);
+    }
+
+    /** Reads the authenticity signature embedded next to the generationId in the hidden meta sheet. */
+    private String readSignature(Workbook workbook) {
+        Sheet meta = workbook.getSheet(GenerationConstants.META_SHEET_NAME);
+        if (meta == null) {
+            return null;
+        }
+        Row row = meta.getRow(0);
+        if (row == null) {
+            return null;
+        }
+        Cell cell = row.getCell(GenerationConstants.META_SIGNATURE_CELL);
         return cell == null ? null : ExcelUtil.getCellValueAsString(cell);
     }
 

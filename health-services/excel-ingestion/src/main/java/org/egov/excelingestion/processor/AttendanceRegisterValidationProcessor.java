@@ -223,6 +223,14 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
             }
         }
 
+        // Server-side guard: boundary SELECTION names must exist in the campaign hierarchy. The Excel
+        // dropdown is client-side only and bypassable, so an off-dropdown value (e.g. a typed "Province 7")
+        // is re-checked here and fails the upload.
+        if (config.isValidateBoundarySelectionNames()) {
+            boundaryUtil.validateBoundarySelectionNames(sheetData, resource.getTenantId(),
+                    resource.getHierarchyType(), requestInfo, localizationMap, errors);
+        }
+
         log.info("Validation completed. Total errors: {}", errors.size());
     }
 

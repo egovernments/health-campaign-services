@@ -1,6 +1,8 @@
 package org.egov.excelingestion.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.web.models.*;
@@ -444,9 +446,127 @@ public class BoundaryUtil {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         
-        log.info("Found {} lowest level boundary codes of type '{}' out of {} total boundaries", 
+        log.info("Found {} lowest level boundary codes of type '{}' out of {} total boundaries",
                 lowestLevelCodes.size(), lowestLevelType, enrichedBoundaries.size());
-        
+
         return lowestLevelCodes;
+    }
+
+    // Invisible separator (U+200B) that generation appends to disambiguate duplicate sibling names in the
+    // dropdown (see HierarchicalBoundaryUtil#buildCodeToUniqueNameMap). Must match exactly.
+    private static final String ZERO_WIDTH_SPACE = "​";
+
+    /**
+     * Builds the set of valid boundary display names for the ENTIRE hierarchy (every level, including
+     * ancestors of the campaign selection). The cascading boundary dropdowns are populated with
+     * {@code localizationMap.getOrDefault(code, code)} for every boundary in the relationship tree, with an
+     * invisible zero-width-space suffix added only to disambiguate duplicate sibling names. We mirror that
+     * source exactly (then strip the invisible suffix) so a legitimate selection is never false-flagged.
+     *
+     * <p>The relationship fetch is {@code @Cacheable}, so this is cheap even though it walks the full tree.</p>
+     */
+    public Set<String> getHierarchyBoundaryDisplayNames(String tenantId, String hierarchyType,
+                                                        RequestInfo requestInfo, Map<String, String> localizationMap) {
+        BoundarySearchResponse response = boundaryService.fetchBoundaryRelationship(tenantId, hierarchyType, requestInfo);
+
+        Map<String, EnrichedBoundary> codeToNode = new HashMap<>();
+        if (response != null && response.getTenantBoundary() != null) {
+            for (HierarchyRelation hr : response.getTenantBoundary()) {
+                if (hr.getBoundary() != null) {
+                    for (EnrichedBoundary boundary : hr.getBoundary()) {
+                        mapBoundaryNodesFromEnriched(boundary, codeToNode);
+                    }
+                }
+            }
+        }
+
+        Set<String> validNames = new HashSet<>(Math.max(16, codeToNode.size() * 2));
+        for (String code : codeToNode.keySet()) {
+            validNames.add(normalizeBoundaryName(localizationMap.getOrDefault(code, code)));
+        }
+        return validNames;
+    }
+
+    /**
+     * Server-side guard for boundary SELECTION-NAME columns (the {@code {hierarchyType}_<LEVEL>} columns a
+     * user picks from the cascading dropdown). The Excel dropdown is client-side only and can be bypassed
+     * (paste / programmatic edit / LibreOffice), so we re-check here: every non-empty selection value must
+     * be a real boundary name somewhere in the campaign hierarchy. Anything else (e.g. a hand-typed
+     * "Province 7") is flagged invalid, failing the upload. Boundary CODE / register-id / row-id / _HELPER
+     * columns are skipped - codes are validated separately against the campaign subset.
+     *
+     * <p>Runs after the immutable-baseline join, so reconstructed pre-filled selections are already trusted;
+     * in practice this checks user-entered (new-row) selections. Fail-open: if the hierarchy yields no names
+     * we skip rather than mass-flag every row.</p>
+     *
+     * @param errors validation errors are appended here (one per offending cell)
+     */
+    public void validateBoundarySelectionNames(List<Map<String, Object>> sheetData, String tenantId,
+                                               String hierarchyType, RequestInfo requestInfo,
+                                               Map<String, String> localizationMap, List<ValidationError> errors) {
+        if (sheetData == null || sheetData.isEmpty()
+                || hierarchyType == null || hierarchyType.trim().isEmpty()) {
+            return;
+        }
+
+        Set<String> validNames = getHierarchyBoundaryDisplayNames(tenantId, hierarchyType, requestInfo, localizationMap);
+        if (validNames.isEmpty()) {
+            log.warn("No boundary names resolved for hierarchy '{}'; skipping selection-name validation", hierarchyType);
+            return;
+        }
+
+        String prefix = hierarchyType.toUpperCase() + "_";
+        int flagged = 0;
+        for (Map<String, Object> rowData : sheetData) {
+            Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
+            for (Map.Entry<String, Object> entry : rowData.entrySet()) {
+                String column = entry.getKey();
+                if (!isBoundarySelectionColumn(column, prefix)) {
+                    continue;
+                }
+                String rawValue = ExcelUtil.getValueAsString(entry.getValue());
+                if (rawValue == null || rawValue.trim().isEmpty()) {
+                    continue;
+                }
+                if (!validNames.contains(normalizeBoundaryName(rawValue))) {
+                    ValidationError error = new ValidationError();
+                    error.setRowNumber(rowNumber);
+                    error.setColumnName(column);
+                    error.setStatus(ValidationConstants.STATUS_INVALID);
+                    error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                            ValidationConstants.HCM_BOUNDARY_SELECTION_NOT_IN_HIERARCHY,
+                            ValidationConstants.HCM_BOUNDARY_SELECTION_NOT_IN_HIERARCHY_DEFAULT)
+                            + " (" + rawValue.trim() + ")");
+                    errors.add(error);
+                    flagged++;
+                }
+            }
+        }
+        log.info("Boundary selection-name validation flagged {} cell(s) not present in hierarchy '{}'",
+                flagged, hierarchyType);
+    }
+
+    /**
+     * A {@code {hierarchyType}_<LEVEL>} selection column - matches the same predicate the immutable-join uses
+     * to identify boundary columns. Excludes the computed boundary-code / register-id formula columns, the
+     * row-id join key, {@code _HELPER} companion columns and {@code #...#} markers.
+     */
+    private boolean isBoundarySelectionColumn(String name, String prefix) {
+        if (name == null || !name.toUpperCase().startsWith(prefix)) {
+            return false;
+        }
+        return !name.endsWith(ProcessingConstants.HELPER_COLUMN_SUFFIX)
+                && !ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY.equals(name)
+                && !ProcessingConstants.ROW_ID_COLUMN_NAME.equals(name)
+                && !ProcessingConstants.REGISTER_ID_COLUMN_KEY.equals(name)
+                && !(name.startsWith("#") && name.endsWith("#"));
+    }
+
+    /**
+     * Strips the invisible zero-width-space disambiguation suffix that generation may append to duplicate
+     * sibling names, so comparison is on the human-visible base name.
+     */
+    private String normalizeBoundaryName(String value) {
+        return value == null ? "" : value.replace(ZERO_WIDTH_SPACE, "").trim();
     }
 }

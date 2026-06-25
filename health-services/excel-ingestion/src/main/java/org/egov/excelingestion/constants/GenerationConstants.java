@@ -16,9 +16,12 @@ public class GenerationConstants {
     // Table and column names
     public static final String TABLE_NAME = "eg_ex_in_generated_files";
 
-    // Hidden metadata sheet (and cell) carrying the generationId in unprotected join-mode files.
+    // Hidden metadata sheet (and cells) carrying the generationId in unprotected join-mode files.
     // The "_h_..._h_" name is auto-hidden at generation and auto-skipped by the processing pipeline.
+    // Row 0 layout: cell 0 = generationId, cell 1 = HMAC signature over the generationId (exact-file guard).
     public static final String META_SHEET_NAME = "_h_Meta_h_";
+    public static final int META_GENERATION_ID_CELL = 0;
+    public static final int META_SIGNATURE_CELL = 1;
     
     private GenerationConstants() {
         // Private constructor to prevent instantiation
