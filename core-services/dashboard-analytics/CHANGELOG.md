@@ -2,6 +2,16 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.1.9_beta-SNAPSHOT - 2026-06-17
+- Upgraded to Java 25
+- Upgraded Spring Boot to 3.4.4 (from 2.2.6.RELEASE)
+- Migrated `javax.annotation`/`javax.servlet` to `jakarta.*` (kept `javax.naming`, a JDK package)
+- Bumped Lombok to 1.18.46 and added the Lombok annotation processor path
+- Upgraded eGov `tracer` to 2.9.0
+- Replaced removed `WebMvcConfigurerAdapter` with `WebMvcConfigurer`
+- Replaced Tomcat's removed `org.apache.tomcat.util.codec.binary.Base64` with `java.util.Base64`
+- Removed stale dependency pins (`spring-beans` 5.2.20, `spring-boot-starter-jdbc` 2.0.0, `spring-boot-starter-jersey` 1.2.0)
+
 ## 1.1.8-beta - 2022-11-04
 
 - caching added to search API for performance improvement

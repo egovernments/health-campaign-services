@@ -2,7 +2,7 @@ package com.tarento.analytics.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.tomcat.util.codec.binary.Base64;
+import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +18,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-import static javax.servlet.http.HttpServletRequest.BASIC_AUTH;
+import static jakarta.servlet.http.HttpServletRequest.BASIC_AUTH;
 import static org.apache.commons.codec.CharEncoding.US_ASCII;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 
@@ -153,7 +153,7 @@ public class RestService {
      */
     private String getBase64Value(String userName, String password) {
         String authString = String.format("%s:%s", userName, password);
-        byte[] encodedAuthString = Base64.encodeBase64(authString.getBytes(Charset.forName(US_ASCII)));
+        byte[] encodedAuthString = Base64.getEncoder().encode(authString.getBytes(Charset.forName(US_ASCII)));
         return String.format(BASIC_AUTH, new String(encodedAuthString));
     }
 
