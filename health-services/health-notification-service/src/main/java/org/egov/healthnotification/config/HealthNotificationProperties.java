@@ -35,6 +35,10 @@ public class HealthNotificationProperties {
     @Value("${state.level.tenant.id}")
     private String stateLevelTenantId;
 
+
+    @Value("${egov.state.tenant.id}")
+    private String egovStateLevelTenantId;
+
     // Household Service
     @Value("${egov.household.host}")
     private String householdServiceHost;

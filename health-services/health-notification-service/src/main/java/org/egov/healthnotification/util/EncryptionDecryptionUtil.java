@@ -102,7 +102,7 @@ public class EncryptionDecryptionUtil {
     private String encryptValue(String plaintext, String type) throws Exception {
         // Build encryption request
         ObjectNode encReqObject = objectMapper.createObjectNode();
-        encReqObject.put("tenantId", properties.getStateLevelTenantId());
+        encReqObject.put("tenantId", properties.getEgovStateLevelTenantId());
         encReqObject.put("type", Constants.ENCRYPTION_TYPE_NORMAL);
         encReqObject.put("value", plaintext);
 
