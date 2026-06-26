@@ -79,9 +79,6 @@ public class ReferralManagementConfiguration {
     @Value("${referralmanagement.hfreferral.consumer.bulk.delete.topic}")
     private String deleteHFReferralBulkTopic;
 
-    @Value("${egov.search.project.staff.url}")
-    private String projectStaffSearchUrl;
-
     @Value("${egov.search.project.facility.url}")
     private String projectFacilitySearchUrl;
 
@@ -139,9 +136,6 @@ public class ReferralManagementConfiguration {
     @Value("${egov.referral.search.batch.size:200}")
     private Integer referralSearchBatchSize;
 
-    @Value("${referralmanagement.search.max.limit:200}")
-    private Integer searchMaxLimit;
-
     @Value("${egov.hf.referral.search.batch.size:200}")
     private Integer hfReferralSearchBatchSize;
 
@@ -174,9 +168,6 @@ public class ReferralManagementConfiguration {
 
     @Value("${egov.wardfilegen.ward.pool.size:8}")
     private int wardPoolSize;
-
-    @Value("${egov.wardfilegen.file.pool.size:32}")
-    private int filePoolSize;
 
     @Value("${egov.downsync.presigned.url.expiry.secs:86400}")
     private int presignedUrlExpirySecs;
