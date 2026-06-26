@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.0.4 - 2026-06-17
+- Upgraded to Java 25
+- Upgraded Spring Boot to 3.4.4
+- Bumped Lombok to 1.18.46 and added explicit Lombok annotation processor path (required on JDK 23+)
+
 ## 1.0.3 - 2024-08-09
 - Upgraded downsync logic.
 - Added `ExistentEntityValidator` fixes

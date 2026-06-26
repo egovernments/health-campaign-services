@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>org.egov</groupId>
 	<artifactId>fhir-supplychain-transformer</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<name>fhir-supplychain-transformer</name>
 	<description>Project for FHIR Facade</description>
 	<url/>
@@ -27,8 +27,8 @@
 		<url/>
 	</scm>
 	<properties>
-		<java.version>17</java.version>
-		<lombok.version>1.18.42</lombok.version>
+		<java.version>25</java.version>
+		<lombok.version>1.18.46</lombok.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -157,6 +157,19 @@
 	</repositories>
 	<build>
 		<plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>

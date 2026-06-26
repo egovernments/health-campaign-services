@@ -1,5 +1,10 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.5 - 2026-06-17
+- Completed Java 25 build setup: bumped Lombok to 1.18.46 and added the Lombok annotation processor path (required on JDK 23+)
+- Removed redundant `@Autowired` on the `@Bean` `jacksonConverter` method (rejected by Spring Boot 3.4)
+- Added GraalVM native-image build support (`Dockerfile.native` + AOT reachability metadata under `src/main/resources/META-INF`)
+
 ## 1.1.4 - 2024-08-29 
 
 - Added `ExistentEntityValidator` fixes

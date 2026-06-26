@@ -5,7 +5,7 @@ It also builds FHIR Bundles from backend search responses.
 
 
 ## Quick summary
-- Language / build: Java 17, Maven (mvn wrapper included).
+- Language / build: Java 25, Maven (mvn wrapper included).
 - Key technologies: Spring Boot, HAPI-FHIR (R5), Kafka
 - Package base: org.egov.fhirtransformer
 - Purpose: Provide a lightweight application to receive, validate, transform, and forward FHIR resources.

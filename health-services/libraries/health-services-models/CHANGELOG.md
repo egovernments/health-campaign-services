@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.24-SNAPSHOT - 2026-06-17
+- Upgraded to Java 25
+- Bumped Lombok to 1.18.46 and added `maven-compiler-plugin` 3.13.0 with the Lombok annotation processor path (no Spring Boot parent; required on JDK 23+)
+
 ## 1.0.21 - 2024-08-07
 - Added UserActionEnum, UserAction Entities, TaskStatus enum
 - Added isCascadingProjectDateUpdate in ProjectRequest model

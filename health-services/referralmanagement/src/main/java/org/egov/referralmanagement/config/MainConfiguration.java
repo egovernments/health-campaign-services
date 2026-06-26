@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -27,7 +28,8 @@ import java.util.TimeZone;
 
 @Import({TracerConfiguration.class})
 @Configuration
-@ComponentScan(basePackages = {"org.egov"})
+@ComponentScan(basePackages = {"org.egov"},
+        excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = "org\\.egov\\.(mdms\\..*|MdmsClientApplication)"))
 public class MainConfiguration {
 
     @Value("${app.timezone}")

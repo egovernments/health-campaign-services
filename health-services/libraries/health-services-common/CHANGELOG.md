@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.21-SNAPSHOT - 2026-06-17
+- Upgraded to Java 25
+- Bumped Lombok to 1.18.46 and added the Lombok annotation processor path (required on JDK 23+)
+
 ## 1.0.18 - 2024-08-09
 - Added validateClientReferenceIdsFromDB method to GenericRepository.
 

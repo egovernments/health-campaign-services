@@ -1,5 +1,10 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.6 - 2026-06-17
+- Upgraded to Java 25
+- Upgraded Spring Boot to 3.4.4
+- Bumped Lombok to 1.18.46 and added explicit Lombok annotation processor path (required on JDK 23+)
+
 ## 1.1.5 - 2024-08-07
 - Added UserAction functionality with support for Location capture.
 

@@ -74,7 +74,6 @@ public class MainConfiguration {
     }
 
     @Bean
-    @Autowired
     public MappingJackson2HttpMessageConverter jacksonConverter(ObjectMapper objectMapper) {
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
         converter.setObjectMapper(objectMapper);
@@ -82,7 +81,6 @@ public class MainConfiguration {
     }
 
     @Bean
-    @Autowired
     @Qualifier("taskTransformationServiceMap")
     public Map<Operation, List<TransformationService<Task>>> getOperationTransformationServiceMapForTask(
             List<TransformationService<Task>> transformationServices) {
@@ -94,7 +92,6 @@ public class MainConfiguration {
     }
 
     @Bean
-    @Autowired
     @Qualifier("projectStaffTransformationServiceMap")
     public Map<Operation, List<TransformationService<ProjectStaff>>> getOperationTransformationServiceMapForProjectStaff(
             List<TransformationService<ProjectStaff>> transformationServices) {
@@ -106,7 +103,6 @@ public class MainConfiguration {
     }
 
     @Bean
-    @Autowired
     @Qualifier("projectTransformationServiceMap")
     public Map<Operation, List<TransformationService<Project>>> getOperationTransformationServiceMapForProject(
             List<TransformationService<Project>> transformationServices) {
@@ -118,7 +114,6 @@ public class MainConfiguration {
     }
 
     @Bean
-    @Autowired
     @Qualifier("stockTransformationServiceMap")
     public Map<Operation, List<TransformationService<Stock>>> getOperationTransformationServiceMapForStock(
             List<TransformationService<Stock>> transformationServices) {
@@ -129,7 +124,6 @@ public class MainConfiguration {
         return map;
     }
     @Bean
-    @Autowired
     @Qualifier("serviceTaskTransformationServiceMap")
     public Map<Operation, List<TransformationService<Service>>> getOperationTransformationServiceMapForServiceTask(
             List<TransformationService<Service>> transformationServices) {
