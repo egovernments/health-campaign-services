@@ -74,6 +74,11 @@ const config = {
     validationSearchBatchSize: process.env.USER_VALIDATION_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_VALIDATION_SEARCH_BATCH_SIZE, 10) : 50,
     // Chunk size for individual-service search-by-phone-number calls during validation/retry.
     individualSearchBatchSize: process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE, 10) : 50,
+    // Read-after-write consistency wait before worker-registry create: poll interval (ms) and
+    // max attempts to confirm just-created individuals are searchable, avoiding the
+    // INDIVIDUAL_NOT_FOUND race from worker/v1/bulk/_create (HRMS create → worker bulk create).
+    individualConsistencyPollIntervalMs: process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS, 10) : 2000,
+    individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 5,
   },
   workerRegistry: {
     // Chunk size for worker-id lookups during user validation.
