@@ -730,7 +730,11 @@ export class TemplateClass {
     private static midnightEpochInTz(year: number, month: number, day: number): number {
         const utcGuess = Date.UTC(year, month, day);
         const parts = this.getTzFormatter().formatToParts(new Date(utcGuess));
-        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        const get = (type: string) => {
+            const part = parts.find(p => p.type === type);
+            if (!part) throw new Error(`Intl.DateTimeFormat did not return a '${type}' part for timezone ${config.appTimezone}`);
+            return parseInt(part.value, 10);
+        };
         const localHour = get('hour') === 24 ? 0 : get('hour');
         const localMinute = get('minute');
         const localSecond = get('second');
@@ -757,7 +761,11 @@ export class TemplateClass {
      */
     private static epochToDatePartsInTz(epochMs: number): { year: number; month: number; day: number } {
         const parts = this.getTzFormatter().formatToParts(new Date(epochMs));
-        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        const get = (type: string) => {
+            const part = parts.find(p => p.type === type);
+            if (!part) throw new Error(`Intl.DateTimeFormat did not return a '${type}' part for timezone ${config.appTimezone}`);
+            return parseInt(part.value, 10);
+        };
         return { year: get('year'), month: get('month'), day: get('day') };
     }
 

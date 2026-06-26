@@ -259,3 +259,49 @@ describe("midnightEpochInTz", () => {
         expect(result).toBe(Date.UTC(2026, 3, 4, 23, 0));
     });
 });
+
+// Fix #5 (PR #2018): username dedup must be O(n) via a Set (no O(n^2) includes) and preserve order.
+describe("collectUniqueUsernames", () => {
+    function collect(rows: Array<Record<string, any>>): string[] {
+        const allRows = rows.map(row => ({ row }));
+        return (TemplateClass as any).collectUniqueUsernames(allRows);
+    }
+
+    it("dedupes while preserving first-seen order", () => {
+        const result = collect([
+            { UserName: "alice" },
+            { UserName: "bob" },
+            { UserName: "alice" },
+            { UserName: "carol" },
+            { UserName: "bob" },
+        ]);
+        expect(result).toEqual(["alice", "bob", "carol"]);
+    });
+
+    it("ignores empty, null and undefined usernames", () => {
+        const result = collect([
+            { UserName: "alice" },
+            { UserName: "" },
+            { UserName: null },
+            { UserName: undefined },
+            {},
+            { UserName: "bob" },
+        ]);
+        expect(result).toEqual(["alice", "bob"]);
+    });
+
+    it("trims values so padded duplicates collapse", () => {
+        const result = collect([{ UserName: "  alice  " }, { UserName: "alice" }]);
+        expect(result).toEqual(["alice"]);
+    });
+
+    it("returns an empty array for no rows", () => {
+        expect(collect([])).toEqual([]);
+    });
+
+    it("scales without O(n^2) blow-up on a large input", () => {
+        const rows = Array.from({ length: 50_000 }, (_, i) => ({ UserName: `u${i % 1000}` }));
+        const result = collect(rows);
+        expect(result).toHaveLength(1000); // 1000 distinct usernames
+    });
+});
