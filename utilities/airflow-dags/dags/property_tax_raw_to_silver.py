@@ -496,7 +496,7 @@ class InsertBuffer:
 
 def fetch_property_events(client, window_start: datetime,
                           window_end: datetime, limit: int,
-                          last_event_time: datetime = None,
+                          last_ms: int = None,
                           last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw events in [window_start, window_end).
 
@@ -505,24 +505,31 @@ def fetch_property_events(client, window_start: datetime,
     seen. This avoids OFFSET rescans (O(n) instead of O(n^2)) and the
     skip/duplicate bug that LIMIT/OFFSET hits when event_time has ties.
 
-    Returns a list of (raw, event_time, id) tuples ordered by (event_time, id);
-    the caller advances the cursor using the last tuple.
+    The cursor timestamp is carried as an integer millisecond value
+    (toUnixTimestamp64Milli) and rebuilt server-side with
+    fromUnixTimestamp64Milli — a DateTime64(3) round-tripped through a Python
+    datetime can lose precision and make the cursor never advance (re-reading
+    the first page forever). Integers round-trip exactly.
+
+    Returns (raw, event_time, id, et_ms) tuples ordered by (event_time, id);
+    the caller advances the cursor using the last tuple's (et_ms, id).
     """
     query = (
-        "SELECT raw, event_time, id FROM property_events_raw "
+        "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
+        "FROM property_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
     )
 
     params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    # Cursor: continue strictly after the last row of the previous page.
-    # Tuple comparison maps directly onto ORDER BY (event_time, id), so this is
-    # an index seek, not a scan.
-    if last_event_time is not None:
+    # Cursor: continue strictly after the last (event_time, id) of the previous
+    # page. Rebuilding the timestamp from integer ms keeps the comparison exact,
+    # so this is an index seek that always advances.
+    if last_ms is not None:
         query += ("AND (event_time, id) > "
-                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
-        params['last_ts'] = last_event_time
+                  "(fromUnixTimestamp64Milli({last_ms:Int64}), {last_id:UUID}) ")
+        params['last_ms'] = last_ms
         params['last_id'] = str(last_id)
 
     query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
@@ -546,26 +553,28 @@ def count_property_events(client, window_start: datetime,
 
 def fetch_demand_events(client, window_start: datetime,
                         window_end: datetime, limit: int,
-                        last_event_time: datetime = None,
+                        last_ms: int = None,
                         last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw events in [window_start, window_end).
 
-    Cursor-based on the (event_time, id) sort key (same as fetch_property_events)
-    to avoid OFFSET rescans and the skip/duplicate bug on event_time ties.
-    Returns (raw, event_time, id) tuples ordered by (event_time, id).
+    Cursor-based on the (event_time, id) sort key (same as fetch_property_events).
+    The cursor timestamp is carried as integer ms (toUnixTimestamp64Milli) and
+    rebuilt with fromUnixTimestamp64Milli so the DateTime64(3) comparison stays
+    exact and always advances. Returns (raw, event_time, id, et_ms) tuples.
     """
     query = (
-        "SELECT raw, event_time, id FROM demand_events_raw "
+        "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
+        "FROM demand_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
     )
 
     params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if last_event_time is not None:
+    if last_ms is not None:
         query += ("AND (event_time, id) > "
-                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
-        params['last_ts'] = last_event_time
+                  "(fromUnixTimestamp64Milli({last_ms:Int64}), {last_id:UUID}) ")
+        params['last_ms'] = last_ms
         params['last_id'] = str(last_id)
 
     query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
@@ -589,26 +598,28 @@ def count_demand_events(client, window_start: datetime,
 
 def fetch_payment_events(client, window_start: datetime,
                          window_end: datetime, limit: int,
-                         last_event_time: datetime = None,
+                         last_ms: int = None,
                          last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw events in [window_start, window_end).
 
-    Cursor-based on the (event_time, id) sort key (same as fetch_property_events)
-    to avoid OFFSET rescans and the skip/duplicate bug on event_time ties.
-    Returns (raw, event_time, id) tuples ordered by (event_time, id).
+    Cursor-based on the (event_time, id) sort key (same as fetch_property_events).
+    The cursor timestamp is carried as integer ms (toUnixTimestamp64Milli) and
+    rebuilt with fromUnixTimestamp64Milli so the DateTime64(3) comparison stays
+    exact and always advances. Returns (raw, event_time, id, et_ms) tuples.
     """
     query = (
-        "SELECT raw, event_time, id FROM payment_events_raw "
+        "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
+        "FROM payment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
     )
 
     params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if last_event_time is not None:
+    if last_ms is not None:
         query += ("AND (event_time, id) > "
-                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
-        params['last_ts'] = last_event_time
+                  "(fromUnixTimestamp64Milli({last_ms:Int64}), {last_id:UUID}) ")
+        params['last_ms'] = last_ms
         params['last_id'] = str(last_id)
 
     query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
@@ -632,27 +643,29 @@ def count_payment_events(client, window_start: datetime,
 
 def fetch_bill_events(client, window_start: datetime,
                       window_end: datetime, limit: int,
-                      last_event_time: datetime = None,
+                      last_ms: int = None,
                       last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw payment JSON — bill data is embedded in
     Payment.paymentDetails[n].bill.
 
-    Cursor-based on the (event_time, id) sort key (same as fetch_property_events)
-    to avoid OFFSET rescans and the skip/duplicate bug on event_time ties.
-    Returns (raw, event_time, id) tuples ordered by (event_time, id).
+    Cursor-based on the (event_time, id) sort key (same as fetch_property_events).
+    The cursor timestamp is carried as integer ms (toUnixTimestamp64Milli) and
+    rebuilt with fromUnixTimestamp64Milli so the DateTime64(3) comparison stays
+    exact and always advances. Returns (raw, event_time, id, et_ms) tuples.
     """
     query = (
-        "SELECT raw, event_time, id FROM payment_events_raw "
+        "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
+        "FROM payment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
     )
 
     params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if last_event_time is not None:
+    if last_ms is not None:
         query += ("AND (event_time, id) > "
-                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
-        params['last_ts'] = last_event_time
+                  "(fromUnixTimestamp64Milli({last_ms:Int64}), {last_id:UUID}) ")
+        params['last_ms'] = last_ms
         params['last_id'] = str(last_id)
 
     query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
@@ -676,26 +689,28 @@ def count_bill_events(client, window_start: datetime,
 
 def fetch_assessment_events(client, window_start: datetime,
                             window_end: datetime, limit: int,
-                            last_event_time: datetime = None,
+                            last_ms: int = None,
                             last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw events from assessment_events_raw.
 
-    Cursor-based on the (event_time, id) sort key (same as fetch_property_events)
-    to avoid OFFSET rescans and the skip/duplicate bug on event_time ties.
-    Returns (raw, event_time, id) tuples ordered by (event_time, id).
+    Cursor-based on the (event_time, id) sort key (same as fetch_property_events).
+    The cursor timestamp is carried as integer ms (toUnixTimestamp64Milli) and
+    rebuilt with fromUnixTimestamp64Milli so the DateTime64(3) comparison stays
+    exact and always advances. Returns (raw, event_time, id, et_ms) tuples.
     """
     query = (
-        "SELECT raw, event_time, id FROM assessment_events_raw "
+        "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
+        "FROM assessment_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)} "
     )
 
     params = {'start': window_start, 'end': window_end, 'limit': limit}
 
-    if last_event_time is not None:
+    if last_ms is not None:
         query += ("AND (event_time, id) > "
-                  "({last_ts:DateTime64(3)}, {last_id:UUID}) ")
-        params['last_ts'] = last_event_time
+                  "(fromUnixTimestamp64Milli({last_ms:Int64}), {last_id:UUID}) ")
+        params['last_ms'] = last_ms
         params['last_id'] = str(last_id)
 
     query += "ORDER BY event_time, id LIMIT {limit:UInt64}"
@@ -1237,8 +1252,8 @@ def transform_load_property_events(**context):
         total_audits = 0
         processed = 0
         chunk_idx = 0
-        # Keyset cursor: the last (event_time, id) seen. None on the first page.
-        last_ts = None
+        # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
+        last_ms = None
         last_id = None
 
         prop_buf = InsertBuffer(client, 'property_address_entity')
@@ -1260,7 +1275,7 @@ def transform_load_property_events(**context):
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_property_events(client, ws, we, limit=CH_FETCH_SIZE,
-                                         last_event_time=last_ts, last_id=last_id)
+                                         last_ms=last_ms, last_id=last_id)
             if not rows:
                 break
 
@@ -1270,7 +1285,7 @@ def transform_load_property_events(**context):
             owner_rows = []
             audit_rows = []
 
-            for raw_json, _et, _id in rows:
+            for raw_json, _et, _id, _ms in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1288,7 +1303,7 @@ def transform_load_property_events(**context):
 
             # -- Advance cursor to the last row of this page (ordered by key) --
             chunk_len = len(rows)
-            last_ts = rows[-1][1]
+            last_ms = rows[-1][3]
             last_id = rows[-1][2]
             del rows
 
@@ -1385,8 +1400,8 @@ def transform_load_demand_events(**context):
         total_demands = 0
         processed = 0
         chunk_idx = 0
-        # Keyset cursor: the last (event_time, id) seen. None on the first page.
-        last_ts = None
+        # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
+        last_ms = None
         last_id = None
         demand_buf = InsertBuffer(client, 'demand_with_details_entity')
 
@@ -1399,14 +1414,14 @@ def transform_load_demand_events(**context):
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_demand_events(client, ws, we, limit=CH_FETCH_SIZE,
-                                       last_event_time=last_ts, last_id=last_id)
+                                       last_ms=last_ms, last_id=last_id)
             if not rows:
                 break
 
             # -- TRANSFORM: parse JSON, extract fields --
             demand_rows = []
 
-            for raw_json, _et, _id in rows:
+            for raw_json, _et, _id, _ms in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1422,7 +1437,7 @@ def transform_load_demand_events(**context):
 
             # -- Advance cursor to the last row of this page (ordered by key) --
             chunk_len = len(rows)
-            last_ts = rows[-1][1]
+            last_ms = rows[-1][3]
             last_id = rows[-1][2]
             del rows
 
@@ -1485,8 +1500,8 @@ def transform_load_payment_events(**context):
         total_payments = 0
         processed = 0
         chunk_idx = 0
-        # Keyset cursor: the last (event_time, id) seen. None on the first page.
-        last_ts = None
+        # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
+        last_ms = None
         last_id = None
         payment_buf = InsertBuffer(client, 'payment_with_details_entity')
 
@@ -1499,14 +1514,14 @@ def transform_load_payment_events(**context):
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_payment_events(client, ws, we, limit=CH_FETCH_SIZE,
-                                        last_event_time=last_ts, last_id=last_id)
+                                        last_ms=last_ms, last_id=last_id)
             if not rows:
                 break
 
             # -- TRANSFORM: parse JSON, extract fields --
             payment_rows = []
 
-            for raw_json, _et, _id in rows:
+            for raw_json, _et, _id, _ms in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1521,7 +1536,7 @@ def transform_load_payment_events(**context):
 
             # -- Advance cursor to the last row of this page (ordered by key) --
             chunk_len = len(rows)
-            last_ts = rows[-1][1]
+            last_ms = rows[-1][3]
             last_id = rows[-1][2]
             del rows
 
@@ -1618,8 +1633,8 @@ def transform_load_bill_events(**context):
         total_details = 0
         processed = 0
         chunk_idx = 0
-        # Keyset cursor: the last (event_time, id) seen. None on the first page.
-        last_ts = None
+        # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
+        last_ms = None
         last_id = None
         bill_buf = InsertBuffer(client, 'bill_entity')
         detail_buf = InsertBuffer(client, 'bill_detail_entity')
@@ -1633,7 +1648,7 @@ def transform_load_bill_events(**context):
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_bill_events(client, ws, we, limit=CH_FETCH_SIZE,
-                                     last_event_time=last_ts, last_id=last_id)
+                                     last_ms=last_ms, last_id=last_id)
             if not rows:
                 break
 
@@ -1643,7 +1658,7 @@ def transform_load_bill_events(**context):
 
             seen_bill_ids: set = set()
 
-            for raw_json, _et, _id in rows:
+            for raw_json, _et, _id, _ms in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1663,7 +1678,7 @@ def transform_load_bill_events(**context):
 
             # -- Advance cursor to the last row of this page (ordered by key) --
             chunk_len = len(rows)
-            last_ts = rows[-1][1]
+            last_ms = rows[-1][3]
             last_id = rows[-1][2]
             del rows
 
@@ -1772,8 +1787,8 @@ def transform_load_assessment_events(**context):
         total_assessments = 0
         processed = 0
         chunk_idx = 0
-        # Keyset cursor: the last (event_time, id) seen. None on the first page.
-        last_ts = None
+        # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
+        last_ms = None
         last_id = None
         assessment_buf = InsertBuffer(client, 'property_assessment_entity')
 
@@ -1786,14 +1801,14 @@ def transform_load_assessment_events(**context):
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_assessment_events(client, ws, we, limit=CH_FETCH_SIZE,
-                                           last_event_time=last_ts, last_id=last_id)
+                                           last_ms=last_ms, last_id=last_id)
             if not rows:
                 break
 
             # -- TRANSFORM: parse JSON, extract fields --
             assessment_rows = []
 
-            for raw_json, _et, _id in rows:
+            for raw_json, _et, _id, _ms in rows:
                 try:
                     event = json.loads(raw_json)
                 except json.JSONDecodeError:
@@ -1808,7 +1823,7 @@ def transform_load_assessment_events(**context):
 
             # -- Advance cursor to the last row of this page (ordered by key) --
             chunk_len = len(rows)
-            last_ts = rows[-1][1]
+            last_ms = rows[-1][3]
             last_id = rows[-1][2]
             del rows
 
