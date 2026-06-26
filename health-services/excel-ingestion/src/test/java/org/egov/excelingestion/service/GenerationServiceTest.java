@@ -50,6 +50,8 @@ class GenerationServiceTest {
                 createGenerateResource("id2", "dev", 200L));
 
         when(generatedFileRepository.search(any())).thenReturn(mockData);
+        // totalCount now reflects the true DB count (getCount), independent of page size
+        when(generatedFileRepository.getCount(any())).thenReturn(2L);
 
         GenerationSearchResponse response = generationService.searchGenerations(request);
 

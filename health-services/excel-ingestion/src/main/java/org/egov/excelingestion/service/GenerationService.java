@@ -101,7 +101,7 @@ public class GenerationService {
                     .requestInfo(request.getRequestInfo())
                     .generateResource(generateResource)
                     .build();
-            producer.push(kafkaTopicConfig.getGenerationInitTopic(), initEvent);
+            producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationInitTopic(), initEvent);
 
             log.info("Generation queued with id: {} for tenantId: {} (topic: {})",
                     generationId,
@@ -134,10 +134,13 @@ public class GenerationService {
                 criteria.setLocale(locale);
             }
 
+            // The repository already applied ORDER BY + LIMIT/OFFSET, so dbResults IS the
+            // requested page. Re-sort within the page for display, use getCount() for the
+            // true total, and do NOT paginate again - the previous double-pagination
+            // dropped every row beyond page 1 and reported the page size as the total.
             List<GenerateResource> dbResults = generatedFileRepository.search(criteria);
-            List<GenerateResource> sorted = sortByLastModifiedDesc(dbResults);
-            int totalCount = sorted.size();
-            List<GenerateResource> page = paginate(sorted, criteria.getOffset(), criteria.getLimit());
+            List<GenerateResource> page = sortByLastModifiedDesc(dbResults);
+            int totalCount = generatedFileRepository.getCount(criteria).intValue();
 
             ResponseInfo responseInfo = ResponseInfo.builder()
                     .apiId(request.getRequestInfo().getApiId())
@@ -175,14 +178,6 @@ public class GenerationService {
         return sorted;
     }
 
-    private List<GenerateResource> paginate(List<GenerateResource> records, Integer offset, Integer limit) {
-        int from = offset == null ? 0 : Math.max(0, offset);
-        if (from >= records.size()) {
-            return new ArrayList<>();
-        }
-        int to = limit == null ? records.size() : Math.min(records.size(), from + limit);
-        return new ArrayList<>(records.subList(from, to));
-    }
 
     /**
      * Expire every prior non-expired record for (tenantId, referenceId, type).
@@ -222,13 +217,18 @@ public class GenerationService {
                     existing.size(), referenceId, type);
 
             long now = System.currentTimeMillis();
+            // The new resource carries the modifier on auditDetails (the top-level field is
+            // never populated on _init), so resolve from there to avoid stamping null.
+            String modifiedBy = newGenerateResource.getAuditDetails() != null
+                    ? newGenerateResource.getAuditDetails().getLastModifiedBy()
+                    : newGenerateResource.getLastModifiedBy();
             for (GenerateResource record : existing) {
                 record.setStatus(GenerationConstants.STATUS_EXPIRED);
                 record.setLastModifiedTime(now);
-                record.setLastModifiedBy(newGenerateResource.getLastModifiedBy());
+                record.setLastModifiedBy(modifiedBy);
                 if (record.getAuditDetails() != null) {
                     record.getAuditDetails().setLastModifiedTime(now);
-                    record.getAuditDetails().setLastModifiedBy(newGenerateResource.getLastModifiedBy());
+                    record.getAuditDetails().setLastModifiedBy(modifiedBy);
                 }
                 producer.push(tenantId, kafkaTopicConfig.getGenerationUpdateTopic(), record);
                 log.info("Expired generation record id={}", record.getId());

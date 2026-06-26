@@ -13,6 +13,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -42,16 +47,23 @@ class AsyncGenerationServiceTest {
         completedResource.setFileStoreId("file-store-id-123");
         when(excelWorkflowService.generateAndUploadExcel(any())).thenReturn(completedResource);
 
+        // The same (mutable) resource instance is pushed for each transition, so snapshot the
+        // status/fileStoreId at push time instead of matching the post-run object state.
+        List<String> pushedStatuses = new ArrayList<>();
+        List<String> pushedFileStoreIds = new ArrayList<>();
+        doAnswer(inv -> {
+            GenerateResource gr = inv.getArgument(2);
+            pushedStatuses.add(gr.getStatus());
+            pushedFileStoreIds.add(gr.getFileStoreId());
+            return null;
+        }).when(producer).push(eq("dev"), eq("test-update-topic"), any(GenerateResource.class));
+
         asyncGenerationService.processGeneration(generateResource, requestInfo);
 
         verify(excelWorkflowService).generateAndUploadExcel(any(GenerateResourceRequest.class));
-        verify(producer).push(eq("dev"), eq("test-update-topic"), argThat(resource ->
-                GenerationConstants.STATUS_IN_PROGRESS.equals(((GenerateResource) resource).getStatus())));
-        verify(producer).push(eq("dev"), eq("test-update-topic"), argThat(resource -> {
-            GenerateResource gr = (GenerateResource) resource;
-            return GenerationConstants.STATUS_COMPLETED.equals(gr.getStatus())
-                    && "file-store-id-123".equals(gr.getFileStoreId());
-        }));
+        assertEquals(Arrays.asList(GenerationConstants.STATUS_IN_PROGRESS, GenerationConstants.STATUS_COMPLETED),
+                pushedStatuses);
+        assertEquals("file-store-id-123", pushedFileStoreIds.get(1));
     }
 
     @Test
@@ -62,11 +74,19 @@ class AsyncGenerationServiceTest {
         when(excelWorkflowService.generateAndUploadExcel(any()))
                 .thenThrow(new RuntimeException("Generation failed"));
 
+        // Snapshot status at push time (same mutable instance pushed for each transition).
+        List<String> pushedStatuses = new ArrayList<>();
+        doAnswer(inv -> {
+            GenerateResource gr = inv.getArgument(2);
+            pushedStatuses.add(gr.getStatus());
+            return null;
+        }).when(producer).push(eq("dev"), eq("test-update-topic"), any(GenerateResource.class));
+
         asyncGenerationService.processGeneration(generateResource, requestInfo);
 
         verify(enrichmentUtil).enrichErrorDetailsInAdditionalDetails(any(GenerateResource.class), any(Exception.class));
-        verify(producer).push(eq("dev"), eq("test-update-topic"), argThat(resource ->
-                GenerationConstants.STATUS_FAILED.equals(((GenerateResource) resource).getStatus())));
+        assertEquals(Arrays.asList(GenerationConstants.STATUS_IN_PROGRESS, GenerationConstants.STATUS_FAILED),
+                pushedStatuses);
     }
 
     private GenerateResource createGenerateResource(String id, String tenantId) {

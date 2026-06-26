@@ -48,7 +48,9 @@ public class ExcelIngestionConfig {
     @Value("${excel.max.process.row.limit:100000}")
     private int maxProcessRowLimit;
 
-    @Value("${excel.sheet.name.max.length:64}")
+    // Default matches Apache POI's hard sheet-name limit (31). A larger default would let
+    // over-length localized names slip past the truncation guard and fail at workbook write.
+    @Value("${excel.sheet.name.max.length:31}")
     private int sheetNameMaxLength;
 
     @Value("${default.locale:en_IN}")

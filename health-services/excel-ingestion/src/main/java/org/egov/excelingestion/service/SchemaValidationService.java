@@ -803,8 +803,10 @@ public class SchemaValidationService {
         if (rule.getRequiredIf() != null) {
             String triggerColumn = rule.getRequiredIf().getColumn();
             Object triggerValue = rowData.get(triggerColumn);
+            List<String> requiredIfValues = rule.getRequiredIf().getValues();
             boolean conditionMet = triggerValue != null
-                    && rule.getRequiredIf().getValues().contains(triggerValue.toString().trim());
+                    && requiredIfValues != null
+                    && requiredIfValues.contains(triggerValue.toString().trim());
 
             if (!conditionMet) {
                 // Provider condition not met — field is irrelevant, skip all validation
@@ -819,7 +821,8 @@ public class SchemaValidationService {
                             ? LocalizationUtil.getLocalizedMessage(localizationMap, rule.getErrorMessage(), rule.getErrorMessage())
                             : LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_CONDITIONAL_REQUIRED_FIELD",
                                 String.format("Field '%s' is required when Payment Provider is '%s'",
-                                    rule.getDisplayName(), triggerValue));
+                                    rule.getDisplayName(), triggerValue),
+                                rule.getDisplayName(), String.valueOf(triggerValue));
                     errors.add(ValidationError.builder()
                             .rowNumber(rowNumber)
                             .sheetName(sheetName)

@@ -292,11 +292,12 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                         status = ValidationConstants.STATUS_INVALID;
                     }
 
-                    // Highlight specific column cell if columnName is set on the error
+                    // Highlight specific column cell if columnName is set on the error.
+                    // error.getColumnName() is a technical key and headerNameToColIndex is
+                    // built from row 0 (technical keys), so look it up directly - localizing
+                    // it here would yield the display name and never match the map.
                     if (error.getColumnName() != null) {
-                        String localizedColName = LocalizationUtil.getLocalizedMessage(
-                                localizationMap, error.getColumnName(), error.getColumnName());
-                        Integer colIdx = headerNameToColIndex.get(localizedColName);
+                        Integer colIdx = headerNameToColIndex.get(error.getColumnName());
                         if (colIdx != null) {
                             Cell targetCell = row.getCell(colIdx);
                             if (targetCell == null) {
@@ -836,8 +837,13 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         ResponseEntity<Map> response = restTemplate.exchange(
                 urlWithParams.toString(), HttpMethod.POST, entity, Map.class);
 
-        if (response.getBody() != null && response.getBody().get("workers") != null) {
-            return (List<Map<String, Object>>) response.getBody().get("workers");
+        if (response.getBody() != null) {
+            Object workersObj = response.getBody().get("workers");
+            if (workersObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> workers = (List<Map<String, Object>>) workersObj;
+                return workers;
+            }
         }
         return new ArrayList<>();
     }

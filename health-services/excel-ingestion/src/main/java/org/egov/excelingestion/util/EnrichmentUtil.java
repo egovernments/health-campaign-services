@@ -164,13 +164,10 @@ public class EnrichmentUtil {
             return ValidationConstants.STATUS_INVALID;
         }
 
-        // If any per-sheet status is valid, continue checking
-        if (userStatus != null || boundaryStatus != null || facilityStatus != null) {
-            // All per-sheet statuses are either valid or not set
-            return ValidationConstants.STATUS_VALID;
-        }
-
-        // Fallback: use totalErrors for backward compatibility (no per-sheet keys set)
+        // Authoritative: any accumulated error makes the file invalid. This MUST be checked
+        // even when a per-sheet status key is present - generic (Step-1) schema errors are
+        // recorded only in totalErrors with no per-sheet key, and a valid per-sheet key from
+        // a later processor would otherwise mask them.
         Object totalErrors = additionalDetails.get("totalErrors");
         if (totalErrors instanceof Number && ((Number) totalErrors).longValue() > 0) {
             return ValidationConstants.STATUS_INVALID;

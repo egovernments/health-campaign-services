@@ -21,6 +21,11 @@ public class GenerationConstants {
     // Redis cache key prefix for "by reference" generation lists
     public static final String CACHE_KEY_GENERATION_BY_REF = "eg:in:gen:byRef:";
 
+    // Failure when the persister-created row never materializes within the wait window
+    public static final String GENERATION_ROW_NOT_MATERIALIZED = "GENERATION_ROW_NOT_MATERIALIZED";
+    public static final String GENERATION_ROW_NOT_MATERIALIZED_MESSAGE =
+            "Generation record was not persisted in time; please retry";
+
     private GenerationConstants() {
         // Private constructor to prevent instantiation
     }
