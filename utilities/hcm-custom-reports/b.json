@@ -1,0 +1,19 @@
+{
+    "matched_campaigns": [
+        {
+            "campaignIdentifier": "dbd45c31-de9e-4e62-a9b6-abb818928fd1",
+            "identifierType": "projectTypeId",
+            "reportName": "anomaly_report",
+            "triggerFrequency": "CUSTOM",
+            "triggerTime": "00:45:00+0530",
+            "startDate": "02-01-2026 00:00:00+0530",
+            "endDate": "30-01-2027 00:00:00+0530",
+            "customReportStartTime": "02-01-2025 00:00:00+0530",
+            "customReportEndTime": "30-01-2027 00:00:00+0530",
+            "reportStartDate": "02-01-2025 00:00:00+0530",
+            "reportEndDate": "30-01-2027 00:00:00+0530",
+            "reportStartTime": "00:00:00+0530",
+            "reportEndTime": "23:59:59+0530"
+        }
+    ]
+}

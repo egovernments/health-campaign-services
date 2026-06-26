@@ -11,6 +11,8 @@ services:
       AIRFLOW_USERNAME: ${AIRFLOW_USERNAME:-admin}
       AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD:-admin}
       ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   ui:
     image: nginx:alpine
