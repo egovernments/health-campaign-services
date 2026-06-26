@@ -1,6 +1,6 @@
 package org.egov.servicerequest.service;
 
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.servicerequest.constants.Constants;
 import org.egov.servicerequest.web.models.AttributeDefinition;

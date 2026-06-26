@@ -3,7 +3,7 @@ package org.egov.servicerequest.repository.rowmapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import org.apache.commons.lang.StringUtils;
 import org.egov.servicerequest.web.models.AttributeDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinition;
