@@ -299,9 +299,17 @@ describe("collectUniqueUsernames", () => {
         expect(collect([])).toEqual([]);
     });
 
-    it("scales without O(n^2) blow-up on a large input", () => {
-        const rows = Array.from({ length: 50_000 }, (_, i) => ({ UserName: `u${i % 1000}` }));
+    it("handles 50k UNIQUE usernames correctly and stays O(n), not O(n^2)", () => {
+        // All-distinct is the O(n^2) worst case: the dedup list grows to n, so the old
+        // `usernames.includes(x)` scan would do ~n^2/2 comparisons (~2s for 50k here),
+        // while the Set-based version stays ~tens of ms. We assert BOTH correctness (all
+        // 50k kept) and a generous elapsed-time bound — a jest timeout alone can't catch a
+        // synchronous slow loop, so we measure directly.
+        const rows = Array.from({ length: 50_000 }, (_, i) => ({ UserName: `u${i}` }));
+        const start = Date.now();
         const result = collect(rows);
-        expect(result).toHaveLength(1000); // 1000 distinct usernames
+        const elapsedMs = Date.now() - start;
+        expect(result).toHaveLength(50_000);
+        expect(elapsedMs).toBeLessThan(1500); // huge headroom for O(n); trips on a true O(n^2) regression
     });
 });
