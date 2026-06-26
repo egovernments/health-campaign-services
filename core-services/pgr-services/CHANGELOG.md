@@ -1,6 +1,18 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.1.8 - 2026-06-17
+- Upgraded to Java 25
+- Upgraded Spring Boot to 3.4.4 (from 2.2.6.RELEASE)
+- Migrated `javax.*` to `jakarta.*`
+- Bumped Lombok to 1.18.46 and added the Lombok annotation processor path
+- Removed redundant `@Autowired` on `@Bean` methods
+- Upgraded eGov libraries: `tracer` 2.9.0, `services-common` 2.9.0, `mdms-client` 2.9.0
+- Replaced `javax.validation:validation-api` with `spring-boot-starter-validation`
+- Added `commons-io:2.16.1` (no longer transitive)
+- Removed `@SafeHtml` annotations (removed in Hibernate Validator 8)
+- Removed stale dependency pins (`spring-beans` 5.2.20, `hibernate-validator` 6.0.16, `logback` 1.2.0)
+
 ## 1.1.7 - 2023-02-01
 
 - Transition from 1.1.7-beta version to 1.1.7 version
