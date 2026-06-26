@@ -1,6 +1,16 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.2.8-SNAPSHOT - 2026-06-17
+- Upgraded to Java 25
+- Upgraded Spring Boot to 3.4.4 (from 2.2.6.RELEASE)
+- Migrated `javax.*` to `jakarta.*`
+- Bumped Lombok to 1.18.46 and added the Lombok annotation processor path
+- Upgraded eGov libraries: `tracer` 2.9.0, `services-common` 2.9.0, `mdms-client` 2.9.0
+- Replaced `hibernate-validator`/`spring-beans` pins with `spring-boot-starter-validation` (managed versions)
+- Removed `@SafeHtml` annotations (removed in Hibernate Validator 8)
+- Retained `digit-models` (excluding its old `services-common`) for the Individual `UserDetails` contract types
+
 ## 1.2.7 - 2024-05-29
 - Integrated Boundary v2 functionality
 - Individual model copied and replicated to the 2.9 version

@@ -43,12 +43,11 @@ package org.egov.hrms.model;
 import lombok.*;
 import org.egov.hrms.web.contract.User;
 import org.hibernate.validator.constraints.NotEmpty;
-import org.hibernate.validator.constraints.SafeHtml;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,19 +63,15 @@ public class Employee {
 
     private Long id;
 
-    @SafeHtml
     @Size(max = 1024)
     private String uuid;
 
-    @SafeHtml
     @Size(min = 1, max = 256)
     private String code;
 
-    @SafeHtml
     @Size(max = 250)
     private String employeeStatus;
 
-    @SafeHtml
     @NotNull
     @Size(max = 250)
     private String employeeType;
@@ -107,7 +102,6 @@ public class Employee {
     @Size(max=25)
     private List<DepartmentalTest> tests = new ArrayList<>();
 
-    @SafeHtml
     @NotNull
     @Size(max = 250)
     private String tenantId;
