@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
 import org.egov.referralmanagement.web.models.DownsyncGenerationJob;
 import org.egov.referralmanagement.web.models.DownsyncGenerationLocality;
@@ -21,6 +22,8 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
     @Autowired private DownsyncGenerationJobRepository jobRepository;
     @Autowired private DownsyncFileGenService service;
     @Autowired private DownsyncJobRegistry jobRegistry;
+    @Autowired private JobHeartbeatScheduler heartbeat;
+    @Autowired private ReferralManagementConfiguration config;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -50,12 +53,36 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
     }
 
     private void resumeJob(DownsyncGenerationJob job) {
-        if (!jobRepository.claimResumeJob(job.getTenantId(), job.getId(), job.getRowVersion())) {
-            log.info("Job {} already claimed by another pod — skipping resume", job.getId());
+        // Heartbeat-aware claim: only win if the existing heartbeat is stale (or NULL).
+        // A live competitor will have a fresh heartbeat → our claim returns 0 → we skip.
+        long staleThreshold = System.currentTimeMillis()
+                - (config.getHeartbeatStaleThresholdSeconds() * 1000L);
+        if (!jobRepository.claimResumeJob(job.getTenantId(), job.getId(),
+                job.getRowVersion(), staleThreshold)) {
+            log.info("Job {} not claimable — another pod's heartbeat is fresh, or another pod " +
+                     "already won the rowVersion CAS. Skipping.", job.getId());
             jobRegistry.release(job.getTenantId(), job.getProjectId());
             return;
         }
-        log.info("Resuming job {} for tenant {}", job.getId(), job.getTenantId());
+        // Our claim incremented rowVersion. From here on, the heartbeat scheduler
+        // must use the NEW rowVersion (claimed value + 1) as its CAS expectation.
+        long ownedRowVersion = job.getRowVersion() + 1;
+        log.info("Resuming job {} for tenant {} (ownedRowVersion={})",
+                job.getId(), job.getTenantId(), ownedRowVersion);
+
+        // Sweep any IN_PROGRESS file rows under this job to FAILED. Safe because
+        // job-level heartbeat was stale AND we won the claim → no live worker exists.
+        // The attempt-per-row flow will INSERT a fresh attempt for each swept row.
+        int swept = jobRepository.sweepStaleFilesForJob(job.getTenantId(), job.getId());
+        if (swept > 0) {
+            log.info("Job {} — swept {} stale IN_PROGRESS file row(s) to FAILED for retry",
+                    job.getId(), swept);
+        }
+
+        // Start heartbeating BEFORE we start any work. From this moment on, any
+        // other pod racing to claim will see our fresh heartbeat and skip.
+        heartbeat.start(job.getTenantId(), job.getId(), ownedRowVersion);
+
         try {
             List<DownsyncGenerationLocality> resumable =
                     jobRepository.findResumableLocalities(job.getTenantId(), job.getId());
@@ -116,6 +143,10 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
         } catch (Exception e) {
             log.error("Resume failed for job {}: {}", job.getId(), e.getMessage(), e);
         } finally {
+            // Stop heartbeating BEFORE releasing the registry slot. Once heartbeat
+            // stops bumping, the row's lastHeartbeat will age past staleness and
+            // any future pod restart can reclaim if needed.
+            heartbeat.stop(job.getId());
             jobRegistry.release(job.getTenantId(), job.getProjectId());
         }
     }
