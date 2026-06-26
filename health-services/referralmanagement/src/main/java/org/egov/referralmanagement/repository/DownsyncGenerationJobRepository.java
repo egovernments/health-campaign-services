@@ -33,9 +33,9 @@ public class DownsyncGenerationJobRepository {
     private static final String INSERT_JOB =
             "INSERT INTO {schema}.downsync_generation_job " +
             "(id, tenantId, projectId, totalRequested, totalSucceeded, totalFailed, status, " +
-            " createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion) " +
+            " createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, lastHeartbeat) " +
             "VALUES (:id, :tenantId, :projectId, :totalRequested, :totalSucceeded, :totalFailed, :status, " +
-            " :createdBy, :createdTime, :lastModifiedBy, :lastModifiedTime, :rowVersion)";
+            " :createdBy, :createdTime, :lastModifiedBy, :lastModifiedTime, :rowVersion, :lastHeartbeat)";
 
     private static final String UPDATE_JOB =
             "UPDATE {schema}.downsync_generation_job " +
@@ -45,13 +45,52 @@ public class DownsyncGenerationJobRepository {
             "WHERE id=:id";
 
     private static final String FIND_IN_PROGRESS_JOBS_IN_SCHEMA =
-            "SELECT id, tenantId, projectId, createdBy, rowVersion FROM {schema}.downsync_generation_job " +
-            "WHERE status = 'IN_PROGRESS'";
+            "SELECT id, tenantId, projectId, createdBy, rowVersion, lastHeartbeat " +
+            "FROM {schema}.downsync_generation_job WHERE status = 'IN_PROGRESS'";
 
+    /**
+     * Claim an abandoned IN_PROGRESS job. Two protections in one statement:
+     *   • rowVersion CAS — defeats SIMULTANEOUS claims (only one of N pods
+     *     reading the same snapshot wins).
+     *   • lastHeartbeat freshness — defeats STAGGERED claims (a later-starting
+     *     pod sees a fresh heartbeat from the live owner and gets rowsAffected=0).
+     * Sets lastHeartbeat = :now atomically so the new owner is immediately
+     * visible as "alive" to any other pod that races in next.
+     */
     private static final String CLAIM_RESUME_JOB =
             "UPDATE {schema}.downsync_generation_job " +
-            "SET rowVersion = rowVersion + 1, lastModifiedBy = 'system-resume', lastModifiedTime = :now " +
-            "WHERE id = :id AND status = 'IN_PROGRESS' AND rowVersion = :expectedRowVersion";
+            "SET rowVersion = rowVersion + 1, " +
+            "    lastHeartbeat = :now, " +
+            "    lastModifiedBy = 'system-resume', " +
+            "    lastModifiedTime = :now " +
+            "WHERE id = :id " +
+            "  AND status = 'IN_PROGRESS' " +
+            "  AND rowVersion = :expectedRowVersion " +
+            "  AND (lastHeartbeat IS NULL OR lastHeartbeat < :staleThreshold)";
+
+    /**
+     * Periodic heartbeat from the owning pod. CAS by rowVersion — if another pod
+     * has stolen ownership (rowVersion incremented), this returns 0 and the
+     * heartbeat scheduler self-cancels.
+     */
+    private static final String BUMP_JOB_HEARTBEAT =
+            "UPDATE {schema}.downsync_generation_job " +
+            "SET lastHeartbeat = :now " +
+            "WHERE id = :id AND rowVersion = :expectedRowVersion AND status = 'IN_PROGRESS'";
+
+    /**
+     * Sweep ALL IN_PROGRESS file rows under a job that we've just claimed and know
+     * is abandoned (heartbeat was stale AND we won the CAS). No timestamp filter
+     * needed — the job-level claim guarantees no live worker exists. Each swept
+     * row becomes FAILED, and the attempt-per-row flow will INSERT a new attempt
+     * for it on the next worker pass.
+     */
+    private static final String SWEEP_STALE_FILES_FOR_JOB =
+            "UPDATE {schema}.downsync_locality_file " +
+            "SET status = 'FAILED', " +
+            "    endTime = :now, " +
+            "    failureReason = 'abandoned: prior worker did not complete (pod restart, heartbeat stale)' " +
+            "WHERE jobId = :jobId AND status = 'IN_PROGRESS'";
 
     private static final String HAS_IN_PROGRESS_JOB =
             "SELECT COUNT(*) FROM {schema}.downsync_generation_job " +
@@ -102,7 +141,11 @@ public class DownsyncGenerationJobRepository {
             "  AND ((:projectId IS NULL AND l.projectId IS NULL) OR l.projectId = :projectId) " +
             "  AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
             "  AND f.status = 'SUCCESS' AND f.s3Key IS NOT NULL " +
-            "ORDER BY f.fileType, f.endTime DESC";
+            // Multiple attempts may exist per (locality, fileType); pick the latest
+            // successful one. attemptNumber is the source of truth for ordering across
+            // attempts; endTime is a deterministic tiebreaker for rows backfilled to
+            // attemptNumber=1.
+            "ORDER BY f.fileType, f.attemptNumber DESC, f.endTime DESC";
 
     private static final String FIND_ALL_LOCALITIES_BY_JOB =
             "SELECT id, tenantId, projectId, locality, category, status, failureReason, " +
@@ -120,18 +163,40 @@ public class DownsyncGenerationJobRepository {
 
     private static final String INSERT_FILE =
             "INSERT INTO {schema}.downsync_locality_file " +
-            "(id, localityRowId, jobId, fileType, status) " +
-            "VALUES (:id, :localityRowId, :jobId, :fileType, :status)";
+            "(id, localityRowId, jobId, fileType, status, attemptNumber, createdTime) " +
+            "VALUES (:id, :localityRowId, :jobId, :fileType, :status, 1, :createdTime)";
 
-    private static final String UPDATE_FILE_STARTED =
-            "UPDATE {schema}.downsync_locality_file SET status='IN_PROGRESS', startTime=:startTime " +
-            "WHERE localityRowId=:localityRowId AND fileType=:fileType";
+    /**
+     * Claim a PENDING attempt row in place. STRICT CAS — PENDING only.
+     *
+     * Crash recovery is handled separately by SWEEP_STALE_FILES_FOR_JOB, which
+     * marks abandoned IN_PROGRESS rows as FAILED at startup BEFORE workers run.
+     * Once that sweep happens, an IN_PROGRESS row only ever means "another live
+     * worker owns it" — never "crashed", so this claim must NOT match it.
+     */
+    private static final String CLAIM_FILE_ATTEMPT =
+            "UPDATE {schema}.downsync_locality_file " +
+            "SET status='IN_PROGRESS', startTime=:startTime, " +
+            "    endTime=NULL, failureReason=NULL, s3Key=NULL, recordCount=NULL, filesize=NULL " +
+            "WHERE id=:id AND status='PENDING'";
 
+    /** INSERT a brand-new attempt row when retrying from a terminal-state row.
+     *  attemptNumber = (max existing for same locality+fileType) + 1. */
+    private static final String INSERT_RETRY_ATTEMPT =
+            "INSERT INTO {schema}.downsync_locality_file " +
+            "(id, localityRowId, jobId, fileType, status, startTime, attemptNumber, createdTime) " +
+            "VALUES (:id, :localityRowId, :jobId, :fileType, 'IN_PROGRESS', :startTime, " +
+            "  (SELECT COALESCE(MAX(attemptNumber), 0) + 1 FROM {schema}.downsync_locality_file " +
+            "   WHERE localityRowId=:localityRowId AND fileType=:fileType), " +
+            ":createdTime)";
+
+    /** Finalize an in-flight row. CAS on status='IN_PROGRESS' — terminal-state rows are
+     *  immutable, so this is a no-op if another writer beat us to it. */
     private static final String UPDATE_FILE_COMPLETED =
             "UPDATE {schema}.downsync_locality_file " +
             "SET status=:status, s3Key=:s3Key, recordCount=:recordCount, filesize=:fileSize, " +
             "    failureReason=:failureReason, endTime=:endTime " +
-            "WHERE localityRowId=:localityRowId AND fileType=:fileType";
+            "WHERE id=:id AND status='IN_PROGRESS'";
 
     // ── New queries for registry staleness and locality resolution ─────────────
 
@@ -265,9 +330,22 @@ public class DownsyncGenerationJobRepository {
             "  AND pa.boundary = :locality " +
             "LIMIT 1";
 
+    /**
+     * Returns the LATEST attempt per fileType, with that attempt's id + status.
+     *
+     * The caller decides how to start work based on the latest row's status:
+     *   PENDING / IN_PROGRESS → claim the existing row in place (CLAIM_FILE_ATTEMPT).
+     *   FAILED                → INSERT a new attempt row (INSERT_RETRY_ATTEMPT).
+     *   SUCCESS / SKIPPED     → not returned at all; file is already done.
+     *
+     * Skipping the terminal states here keeps the SQL aligned with the invariant
+     * "terminal-state rows are immutable" — we never even hand them to a worker.
+     */
     private static final String FIND_RESUMABLE_FILE_TYPES =
-            "SELECT fileType FROM {schema}.downsync_locality_file " +
-            "WHERE localityRowId=:localityRowId AND status IN ('PENDING','IN_PROGRESS','FAILED')";
+            "SELECT DISTINCT ON (fileType) id, fileType, status " +
+            "FROM {schema}.downsync_locality_file " +
+            "WHERE localityRowId=:localityRowId " +
+            "ORDER BY fileType, attemptNumber DESC";
 
     // ── Schema resolution ─────────────────────────────────────────────────────
 
@@ -302,7 +380,11 @@ public class DownsyncGenerationJobRepository {
                 .addValue("createdTime", job.getCreatedTime())
                 .addValue("lastModifiedBy", job.getLastModifiedBy())
                 .addValue("lastModifiedTime", job.getLastModifiedTime())
-                .addValue("rowVersion", job.getRowVersion()));
+                .addValue("rowVersion", job.getRowVersion())
+                // Fresh job is owned by the creating pod from the moment of insert.
+                // The caller starts the heartbeat scheduler immediately so no other
+                // pod can grab the job during the gap between insert and first heartbeat.
+                .addValue("lastHeartbeat", System.currentTimeMillis()));
     }
 
     public void updateJob(DownsyncGenerationJob job) {
@@ -317,17 +399,58 @@ public class DownsyncGenerationJobRepository {
     }
 
     /**
-     * Atomically claims a resume job using optimistic locking on rowVersion.
-     * Returns true only if this pod wins the race (rowsAffected == 1).
-     * If another pod already claimed it, rowVersion will have changed and this returns false.
+     * Claim an abandoned IN_PROGRESS job. Two CAS conditions in one UPDATE:
+     *   • rowVersion CAS — defeats simultaneous claims (multiple pods reading
+     *     the same snapshot all attempt the UPDATE; exactly one matches)
+     *   • lastHeartbeat freshness — defeats staggered claims (a later-starting
+     *     pod sees the recorded heartbeat from the live owner and skips)
+     * Sets lastHeartbeat = :now on success so the new owner is immediately
+     * visible as "alive" to any other pod that races in next.
+     *
+     * @return true iff this pod won the claim (rowsAffected == 1).
      */
-    public boolean claimResumeJob(String tenantId, String jobId, long expectedRowVersion) {
+    public boolean claimResumeJob(String tenantId, String jobId, long expectedRowVersion,
+                                   long staleHeartbeatThreshold) {
         int rows = jdbcTemplate.update(resolveSql(CLAIM_RESUME_JOB, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("id", jobId)
+                        .addValue("expectedRowVersion", expectedRowVersion)
+                        .addValue("now", System.currentTimeMillis())
+                        .addValue("staleThreshold", staleHeartbeatThreshold));
+        return rows == 1;
+    }
+
+    /**
+     * Bump lastHeartbeat for a job this pod owns. CAS by rowVersion — if another
+     * pod has stolen ownership, rowsAffected=0 and the caller's heartbeat
+     * scheduler should self-cancel.
+     *
+     * @return true iff the heartbeat write took effect (we still own the job).
+     */
+    public boolean bumpJobHeartbeat(String tenantId, String jobId, long expectedRowVersion) {
+        int rows = jdbcTemplate.update(resolveSql(BUMP_JOB_HEARTBEAT, tenantId),
                 new MapSqlParameterSource()
                         .addValue("id", jobId)
                         .addValue("expectedRowVersion", expectedRowVersion)
                         .addValue("now", System.currentTimeMillis()));
         return rows == 1;
+    }
+
+    /**
+     * Mark all IN_PROGRESS file rows under this job as FAILED. Used by the
+     * resume runner immediately after winning a job claim — at that point we
+     * know no live worker exists for this job (job-level heartbeat was stale),
+     * so any per-row IN_PROGRESS is genuinely abandoned. Each swept row stays
+     * in the table as history; the attempt-per-row flow will INSERT a new
+     * attempt for it on the next worker pass.
+     *
+     * @return number of rows swept.
+     */
+    public int sweepStaleFilesForJob(String tenantId, String jobId) {
+        return jdbcTemplate.update(resolveSql(SWEEP_STALE_FILES_FOR_JOB, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("jobId", jobId)
+                        .addValue("now", System.currentTimeMillis()));
     }
 
     public boolean hasInProgressJob(String tenantId) {
@@ -344,14 +467,17 @@ public class DownsyncGenerationJobRepository {
         return auditTableSchemas().stream()
                 .flatMap(schema -> {
                     String sql = FIND_IN_PROGRESS_JOBS_IN_SCHEMA.replace("{schema}", schema);
-                    return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, i) ->
-                            DownsyncGenerationJob.builder()
-                                    .id(rs.getString("id"))
-                                    .tenantId(rs.getString("tenantId"))
-                                    .projectId(rs.getString("projectId"))
-                                    .createdBy(rs.getString("createdBy"))
-                                    .rowVersion(rs.getLong("rowVersion"))
-                                    .build()).stream();
+                    return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, i) -> {
+                        long heartbeat = rs.getLong("lastHeartbeat");
+                        return DownsyncGenerationJob.builder()
+                                .id(rs.getString("id"))
+                                .tenantId(rs.getString("tenantId"))
+                                .projectId(rs.getString("projectId"))
+                                .createdBy(rs.getString("createdBy"))
+                                .rowVersion(rs.getLong("rowVersion"))
+                                .lastHeartbeat(rs.wasNull() ? null : heartbeat)
+                                .build();
+                    }).stream();
                 })
                 .toList();
     }
@@ -553,34 +679,75 @@ public class DownsyncGenerationJobRepository {
                 .addValue("localityRowId", file.getLocalityRowId())
                 .addValue("jobId", file.getJobId())
                 .addValue("fileType", file.getFileType())
-                .addValue("status", file.getStatus()));
+                .addValue("status", file.getStatus())
+                .addValue("createdTime", System.currentTimeMillis()));
     }
 
-    public void updateFileStarted(String tenantId, String localityRowId, String fileType, long startTime) {
-        jdbcTemplate.update(resolveSql(UPDATE_FILE_STARTED, tenantId), new MapSqlParameterSource()
-                .addValue("localityRowId", localityRowId)
-                .addValue("fileType", fileType)
+    /**
+     * Claim a PENDING/IN_PROGRESS attempt row in place.
+     * Returns true iff this caller won the claim (rowsAffected==1). A return of false
+     * means the row is no longer in a claimable state — another worker or pod already
+     * moved it on, OR it has reached a terminal state. Caller should skip silently.
+     */
+    public boolean claimFileAttempt(String tenantId, String id, long startTime) {
+        int n = jdbcTemplate.update(resolveSql(CLAIM_FILE_ATTEMPT, tenantId), new MapSqlParameterSource()
+                .addValue("id", id)
                 .addValue("startTime", startTime));
+        return n == 1;
     }
 
-    public void updateFileCompleted(String tenantId, String localityRowId, String fileType, String status,
-                                     String s3Key, Long recordCount, Long fileSize,
-                                     String failureReason, long endTime) {
-        jdbcTemplate.update(resolveSql(UPDATE_FILE_COMPLETED, tenantId), new MapSqlParameterSource()
+    /**
+     * INSERT a brand-new attempt row when retrying after a terminal state. Auto-increments
+     * attemptNumber from the existing rows for the same (localityRowId, fileType). The
+     * caller chooses the new row's id.
+     */
+    public void insertRetryAttempt(String tenantId, String newId, String localityRowId,
+                                    String jobId, String fileType, long startTime) {
+        jdbcTemplate.update(resolveSql(INSERT_RETRY_ATTEMPT, tenantId), new MapSqlParameterSource()
+                .addValue("id", newId)
                 .addValue("localityRowId", localityRowId)
+                .addValue("jobId", jobId)
                 .addValue("fileType", fileType)
+                .addValue("startTime", startTime)
+                .addValue("createdTime", System.currentTimeMillis()));
+    }
+
+    /**
+     * Finalize an in-flight attempt by id. CAS — only updates if the row is still
+     * IN_PROGRESS, making terminal-state rows immutable. Returns true on a successful
+     * write, false if another writer already finalized this row (last-writer-loses).
+     */
+    public boolean updateFileCompleted(String tenantId, String id, String status,
+                                        String s3Key, Long recordCount, Long fileSize,
+                                        String failureReason, long endTime) {
+        int n = jdbcTemplate.update(resolveSql(UPDATE_FILE_COMPLETED, tenantId), new MapSqlParameterSource()
+                .addValue("id", id)
                 .addValue("status", status)
                 .addValue("s3Key", s3Key)
                 .addValue("recordCount", recordCount)
                 .addValue("fileSize", fileSize)
                 .addValue("failureReason", failureReason)
                 .addValue("endTime", endTime));
+        return n == 1;
     }
 
-    public List<String> findResumableFileTypes(String tenantId, String localityRowId) {
-        return jdbcTemplate.queryForList(resolveSql(FIND_RESUMABLE_FILE_TYPES, tenantId),
-                new MapSqlParameterSource("localityRowId", localityRowId), String.class);
+    /**
+     * Returns the latest attempt per fileType for a locality, with its id and status.
+     * Terminal states (SUCCESS / SKIPPED) are filtered out by the caller, since they
+     * don't need any further work. PENDING / IN_PROGRESS rows are claimed in place;
+     * FAILED rows trigger a new attempt (insertRetryAttempt).
+     */
+    public List<ResumableFile> findResumableFileTypes(String tenantId, String localityRowId) {
+        return jdbcTemplate.query(resolveSql(FIND_RESUMABLE_FILE_TYPES, tenantId),
+                new MapSqlParameterSource("localityRowId", localityRowId),
+                (rs, i) -> new ResumableFile(
+                        rs.getString("id"),
+                        rs.getString("fileType"),
+                        rs.getString("status")));
     }
+
+    /** DTO returned by {@link #findResumableFileTypes}. */
+    public record ResumableFile(String id, String fileType, String status) {}
 
     // ── New queries — locality resolution and registry staleness ─────────────
 

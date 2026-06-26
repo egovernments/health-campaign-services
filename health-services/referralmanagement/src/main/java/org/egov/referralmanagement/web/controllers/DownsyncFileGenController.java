@@ -41,6 +41,7 @@ public class DownsyncFileGenController {
     @Autowired private DownsyncFileGenService downsyncFileGenService;
     @Autowired private DownsyncGenerationJobRepository jobRepository;
     @Autowired private DownsyncJobRegistry jobRegistry;
+    @Autowired private org.egov.referralmanagement.service.JobHeartbeatScheduler heartbeat;
 
     @PostMapping("/v1/_generate")
     public ResponseEntity<?> generate(@Valid @RequestBody DownsyncFileGenRequest request) {
@@ -105,6 +106,11 @@ public class DownsyncFileGenController {
                 .status("IN_PROGRESS").createdBy(createdBy).createdTime(now)
                 .lastModifiedBy(createdBy).lastModifiedTime(now).rowVersion(1L)
                 .build());
+
+        // Begin heartbeating immediately so any other pod attempting a claim
+        // (e.g. a parallel _generate that races past the conflict gate, or a
+        // resume runner on another replica) sees a fresh heartbeat and skips.
+        heartbeat.start(tenantId, jobId, 1L);
 
         // ── Build and insert REGISTRY locality + file rows ────────────────────
         List<LocalityDownsyncCriteria> registryCriteria = new ArrayList<>();
@@ -190,6 +196,10 @@ public class DownsyncFileGenController {
                 : mvFuture.thenRunAsync(() -> downsyncFileGenService.generateProject(finalProject, jobId));
 
         CompletableFuture.allOf(registryFuture, projectFuture).whenComplete((v, ex) -> {
+            // Stop heartbeating first — once the job is moving to a terminal state,
+            // we no longer need to defend ownership. Other pods seeing this row
+            // can ignore it (status != IN_PROGRESS) until the updateJob below runs.
+            heartbeat.stop(jobId);
             jobRegistry.releaseRegistry(tenantId);
             jobRegistry.releaseProject(tenantId, finalRootProjectId);
 
@@ -251,6 +261,7 @@ public class DownsyncFileGenController {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void cancelJob(String jobId, String tenantId, String createdBy) {
+        heartbeat.stop(jobId);
         try {
             jobRepository.updateJob(DownsyncGenerationJob.builder()
                     .id(jobId).tenantId(tenantId).totalRequested(0).totalSucceeded(0).totalFailed(0)

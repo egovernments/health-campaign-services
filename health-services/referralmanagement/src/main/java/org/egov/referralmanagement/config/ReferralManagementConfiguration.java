@@ -190,4 +190,18 @@ public class ReferralManagementConfiguration {
     @Value("${egov.downsync.stale.threshold.hours:8}")
     private int downsyncStaleThresholdHours;
 
+    /** When true (default), startup fails if HikariCP maximum-pool-size &lt; wardPoolSize + 4.
+     *  Set to false only for local dev / tiny deployments. */
+    @Value("${egov.downsync.pool.check.enabled:true}")
+    private boolean poolCheckEnabled;
+
+    /** How often the owning pod bumps lastHeartbeat on its claimed jobs. */
+    @Value("${egov.downsync.heartbeat.interval.seconds:30}")
+    private int heartbeatIntervalSeconds;
+
+    /** A job is considered abandoned (claimable by another pod) if lastHeartbeat
+     *  is older than this. Should be ~3× heartbeat interval to absorb one missed beat. */
+    @Value("${egov.downsync.heartbeat.stale.threshold.seconds:90}")
+    private int heartbeatStaleThresholdSeconds;
+
 }
