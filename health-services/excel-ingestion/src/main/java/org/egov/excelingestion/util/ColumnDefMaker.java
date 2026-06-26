@@ -2,6 +2,7 @@ package org.egov.excelingestion.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.ConditionalRequired;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.springframework.stereotype.Component;
 
@@ -104,6 +105,17 @@ public class ColumnDefMaker {
                     .enumValues(!multiSelectEnumValues.isEmpty() ? multiSelectEnumValues : enumValues)
                     .build();
             builder.multiSelectDetails(multiSelectDetails);
+        }
+
+        // Handle requiredIf conditional validation
+        if (node.has("requiredIf")) {
+            JsonNode rif = node.get("requiredIf");
+            List<String> vals = new ArrayList<>();
+            rif.path("values").forEach(v -> vals.add(v.asText()));
+            builder.requiredIf(ConditionalRequired.builder()
+                    .column(rif.path("column").asText())
+                    .values(vals)
+                    .build());
         }
 
         return builder.build();

@@ -64,7 +64,14 @@ export class TemplateClass {
             },
             ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
-                dynamicColumns: null
+                dynamicColumns: {
+                    "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BANK_CODE": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE": { color: "#FFE599" },
+                }
             }
         };
 
@@ -187,7 +194,7 @@ export class TemplateClass {
 
             boundaryTypes.forEach((type: string, index: number) => {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
-                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', freezeColumn: true };
             });
             result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width : 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);

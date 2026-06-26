@@ -20,6 +20,9 @@ public class KafkaTopicConfig {
     @Value("${excel.ingestion.generation.update.topic}")
     private String generationUpdateTopic;
 
+    @Value("${excel.ingestion.generation.init.topic}")
+    private String generationInitTopic;
+
     // Processing service topics
     @Value("${excel.ingestion.processing.save.topic}")
     private String processingSaveTopic;

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.egov.excelingestion.util.LocalizationUtil;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -15,7 +16,14 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class SchemaValidationService {
-    
+
+    /**
+     * Cache of compiled regex patterns keyed by the raw pattern string. Validation calls
+     * Pattern.compile per row × per patterned field, so memoizing avoids recompiling the same
+     * regex thousands of times on large sheets. Compiled Patterns are immutable + thread-safe.
+     */
+    private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
+
     private final MDMSService mdmsService;
     
     public SchemaValidationService(MDMSService mdmsService) {
@@ -144,7 +152,19 @@ public class SchemaValidationService {
                     
                     // New string validation properties
                     rule.setPattern((String) prop.get("pattern"));
-                    
+
+                    // Parse requiredIf for conditional validation
+                    if (prop.containsKey("requiredIf")) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> rifMap = (Map<String, Object>) prop.get("requiredIf");
+                        @SuppressWarnings("unchecked")
+                        List<String> rifValues = (List<String>) rifMap.get("values");
+                        rule.setRequiredIf(org.egov.excelingestion.web.models.excel.ConditionalRequired.builder()
+                                .column((String) rifMap.get("column"))
+                                .values(rifValues)
+                                .build());
+                    }
+
                     // Multi-select validation
                     if (prop.containsKey("multiSelectDetails")) {
                         Map<String, Object> multiSelectMap = (Map<String, Object>) prop.get("multiSelectDetails");
@@ -196,7 +216,19 @@ public class SchemaValidationService {
                     rule.setMultipleOf((Number) prop.get("multipleOf"));
                     rule.setExclusiveMinimum((Number) prop.get("exclusiveMinimum"));
                     rule.setExclusiveMaximum((Number) prop.get("exclusiveMaximum"));
-                    
+
+                    // Parse requiredIf for conditional validation
+                    if (prop.containsKey("requiredIf")) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> rifMap = (Map<String, Object>) prop.get("requiredIf");
+                        @SuppressWarnings("unchecked")
+                        List<String> rifValues = (List<String>) rifMap.get("values");
+                        rule.setRequiredIf(org.egov.excelingestion.web.models.excel.ConditionalRequired.builder()
+                                .column((String) rifMap.get("column"))
+                                .values(rifValues)
+                                .build());
+                    }
+
                     rules.put(name, rule);
                 }
             }
@@ -232,7 +264,19 @@ public class SchemaValidationService {
                     rule.setAllowedValues((List<String>) prop.get("enum"));
                     rule.setErrorMessage((String) prop.get("errorMessage"));
                     rule.setUnique((Boolean.TRUE.equals(prop.get("isUnique"))));
-                    
+
+                    // Parse requiredIf for conditional validation
+                    if (prop.containsKey("requiredIf")) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> rifMap = (Map<String, Object>) prop.get("requiredIf");
+                        @SuppressWarnings("unchecked")
+                        List<String> rifValues = (List<String>) rifMap.get("values");
+                        rule.setRequiredIf(org.egov.excelingestion.web.models.excel.ConditionalRequired.builder()
+                                .column((String) rifMap.get("column"))
+                                .values(rifValues)
+                                .build());
+                    }
+
                     // Multi-select validation for enum properties
                     if (prop.containsKey("multiSelectDetails")) {
                         Map<String, Object> multiSelectMap = (Map<String, Object>) prop.get("multiSelectDetails");
@@ -338,7 +382,7 @@ public class SchemaValidationService {
         // Pattern validation
         if (rule.getPattern() != null && !rule.getPattern().trim().isEmpty()) {
             try {
-                Pattern pattern = Pattern.compile(rule.getPattern());
+                Pattern pattern = PATTERN_CACHE.computeIfAbsent(rule.getPattern(), Pattern::compile);
                 if (!pattern.matcher(strValue).matches()) {
                     String errorMessage;
                     if (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty()) {
@@ -624,6 +668,10 @@ public class SchemaValidationService {
         
         public MultiSelectDetails getMultiSelectDetails() { return multiSelectDetails; }
         public void setMultiSelectDetails(MultiSelectDetails multiSelectDetails) { this.multiSelectDetails = multiSelectDetails; }
+
+        private org.egov.excelingestion.web.models.excel.ConditionalRequired requiredIf;
+        public org.egov.excelingestion.web.models.excel.ConditionalRequired getRequiredIf() { return requiredIf; }
+        public void setRequiredIf(org.egov.excelingestion.web.models.excel.ConditionalRequired requiredIf) { this.requiredIf = requiredIf; }
     }
     
     /**
@@ -747,8 +795,44 @@ public class SchemaValidationService {
     /**
      * Validate a single field with its rule
      */
-    private void validateField(String fieldName, Object value, ValidationRule rule, int rowNumber, 
+    private void validateField(String fieldName, Object value, ValidationRule rule, int rowNumber,
                               String sheetName, List<ValidationError> errors, Map<String, String> localizationMap, Map<String, Object> rowData) {
+        // Check conditional required: if trigger column matches, treat field as required.
+        // If trigger condition is NOT met, skip ALL validation for this field (required, pattern, length)
+        // because the field's constraints are only relevant when its provider condition applies.
+        if (rule.getRequiredIf() != null) {
+            String triggerColumn = rule.getRequiredIf().getColumn();
+            Object triggerValue = rowData.get(triggerColumn);
+            boolean conditionMet = triggerValue != null
+                    && rule.getRequiredIf().getValues().contains(triggerValue.toString().trim());
+
+            if (!conditionMet) {
+                // Provider condition not met — field is irrelevant, skip all validation
+                return;
+            }
+
+            // Condition met — field is required: check emptiness
+            if (!rule.isRequired()) {
+                boolean isEmpty = (value == null || value.toString().trim().isEmpty());
+                if (isEmpty) {
+                    String errorMessage = (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty())
+                            ? LocalizationUtil.getLocalizedMessage(localizationMap, rule.getErrorMessage(), rule.getErrorMessage())
+                            : LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_CONDITIONAL_REQUIRED_FIELD",
+                                String.format("Field '%s' is required when Payment Provider is '%s'",
+                                    rule.getDisplayName(), triggerValue));
+                    errors.add(ValidationError.builder()
+                            .rowNumber(rowNumber)
+                            .sheetName(sheetName)
+                            .columnName(fieldName)
+                            .status(ValidationConstants.STATUS_INVALID)
+                            .errorDetails(errorMessage)
+                            .build());
+                    return;
+                }
+            }
+            // Condition met and value present — fall through to standard validation (pattern, length, etc.)
+        }
+
         // Check required fields - special handling for multi-select fields
         if (rule.isRequired()) {
             boolean isEmpty = false;

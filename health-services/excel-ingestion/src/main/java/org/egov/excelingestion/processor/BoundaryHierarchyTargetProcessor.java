@@ -14,7 +14,7 @@ import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.springframework.stereotype.Component;
@@ -131,12 +131,12 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                 validationService.processValidationErrors(sheet, validationErrors, columnInfo, localizationMap);
                 
                 // Enrich resource additionalDetails with error count and status
-                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
+                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors, ValidationConstants.SHEET_KIND_BOUNDARY);
             } else {
                 log.info("No validation errors found, no error columns needed");
-                
+
                 // Still enrich with zero errors
-                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
+                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors, ValidationConstants.SHEET_KIND_BOUNDARY);
             }
             
             return workbook;

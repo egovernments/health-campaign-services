@@ -61,6 +61,11 @@ public class SchemaColumnDefUtil {
                 }
             }
             
+            // Filter out system columns (e.g. #status#, #errorDetails#) — these are
+            // processing-only columns added by ValidationService during upload, not template columns
+            columns.removeIf(col -> col.getName() != null
+                    && col.getName().startsWith("#") && col.getName().endsWith("#"));
+
             // Sort by orderNumber
             columns.sort(Comparator.comparingInt(ColumnDef::getOrderNumber));
             

@@ -318,8 +318,8 @@ class ExcelDataPopulatorTest {
         Sheet sheet = workbook.getSheetAt(0);
         Row headerRow = sheet.getRow(0);
         
-        // Should have expanded columns: name + skills_MULTISELECT_1,2,3 + hidden skills
-        assertTrue(headerRow.getLastCellNum() >= 5, "Should have expanded multi-select columns");
+        // Should have expanded columns: name + skills_MULTISELECT_1,2,3
+        assertTrue(headerRow.getLastCellNum() >= 4, "Should have expanded multi-select columns");
         
         workbook.close();
     }
@@ -339,9 +339,9 @@ class ExcelDataPopulatorTest {
         Sheet sheet = workbook.getSheetAt(0);
         Row headerRow = sheet.getRow(0);
         
-        // Should have all expanded columns
-        assertTrue(headerRow.getLastCellNum() >= 7, 
-            "Should have all multi-select columns expanded (2+1 + 3+1 = 7)");
+        // Should have all expanded columns: skills_MULTISELECT_1,2 + languages_MULTISELECT_1,2,3
+        assertTrue(headerRow.getLastCellNum() >= 5,
+            "Should have all multi-select columns expanded (2 + 3 = 5)");
         
         workbook.close();
     }

@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
@@ -130,6 +131,15 @@ public class GeneratedFileRepository {
         if (criteria.getLocale() != null && !criteria.getLocale().trim().isEmpty()) {
             query.append(" AND locale = :locale");
             preparedStmtList.put("locale", criteria.getLocale());
+        }
+
+        if (!CollectionUtils.isEmpty(criteria.getAdditionalDetails())) {
+            query.append(" AND additionalDetails IS NOT NULL");
+            for (Entry<String, String> entry : criteria.getAdditionalDetails().entrySet()) {
+                String paramKey = "ad_" + entry.getKey();
+                query.append(" AND additionalDetails->>'").append(entry.getKey()).append("' = :").append(paramKey);
+                preparedStmtList.put(paramKey, entry.getValue());
+            }
         }
     }
 

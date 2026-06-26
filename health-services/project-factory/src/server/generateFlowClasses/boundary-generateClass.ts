@@ -214,7 +214,7 @@ export class TemplateClass {
             ...baseDynamicColumns,
             ...hierarchyDynamicColumns,
             ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"]: {
-                color: "#f3842d",
+                color: "#93c47d",
                 hideColumn: true,
                 orderNumber: -1,
                 freezeColumn: true
@@ -261,7 +261,7 @@ export class TemplateClass {
                 acc[key] = {
                     freezeColumn: true,
                     width: 60,
-                    color: "#f3842d",
+                    color: "#93c47d",
                     orderNumber: -1 * (keys.length - idx + 1)
                 };
                 return acc;

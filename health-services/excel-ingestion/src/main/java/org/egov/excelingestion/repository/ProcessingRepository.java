@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
@@ -125,6 +126,15 @@ public class ProcessingRepository {
         if (!CollectionUtils.isEmpty(criteria.getStatuses())) {
             query.append(" AND status IN (:statuses)");
             preparedStmtList.put("statuses", criteria.getStatuses());
+        }
+
+        if (!CollectionUtils.isEmpty(criteria.getAdditionalDetails())) {
+            query.append(" AND additionaldetails IS NOT NULL");
+            for (Entry<String, String> entry : criteria.getAdditionalDetails().entrySet()) {
+                String paramKey = "ad_" + entry.getKey();
+                query.append(" AND additionaldetails->>'").append(entry.getKey()).append("' = :").append(paramKey);
+                preparedStmtList.put(paramKey, entry.getValue());
+            }
         }
     }
 

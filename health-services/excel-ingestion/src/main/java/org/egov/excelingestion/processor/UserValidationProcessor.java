@@ -3,11 +3,13 @@ package org.egov.excelingestion.processor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
@@ -96,8 +98,29 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             
             // Validate boundary codes against campaign boundaries
             validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
-            
+
+            // Validate worker IDs against worker registry
+            validateWorkerIds(sheetData, resource.getTenantId(), requestInfo, errors, localizationMap);
+
+            // Validate beneficiary code, bank account and bank code have no whitespace
+            validateBeneficiaryCode(sheetData, errors, localizationMap);
+            validateFieldNoWhitespace(sheetData, errors, localizationMap,
+                    ProcessingConstants.BANK_ACCOUNT_COL,
+                    ValidationConstants.LOC_BANK_ACCOUNT_WHITESPACE,
+                    ValidationConstants.DEFAULT_BANK_ACCOUNT_WHITESPACE);
+            validateFieldNoWhitespace(sheetData, errors, localizationMap,
+                    ProcessingConstants.BANK_CODE_COL,
+                    ValidationConstants.LOC_BANK_CODE_WHITESPACE,
+                    ValidationConstants.DEFAULT_BANK_CODE_WHITESPACE);
+
             log.info("User validation completed with {} errors", errors.size());
+            enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
+
+            // Tag every row in the cached sheetData with its per-row validity so the
+            // persistence step (saveSheetDataToTemp) writes it into rowJson, allowing
+            // downstream consumers (project-factory) to skip invalid rows without
+            // re-running validation.
+            enrichSheetDataWithRowStatus(sheetData, errors);
 
             // Only add error columns if there are validation errors
             if (!errors.isEmpty()) {
@@ -113,7 +136,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             }
             
             // Enrich resource additional details with error information
-            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors);
+            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors, ValidationConstants.SHEET_KIND_USER);
             
             return workbook;
 
@@ -122,6 +145,40 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             exceptionHandler.throwCustomException(ErrorConstants.USER_VALIDATION_FAILED, 
                 ErrorConstants.USER_VALIDATION_FAILED_MESSAGE + ": " + e.getMessage(), e);
             return workbook; // never reached
+        }
+    }
+
+    /**
+     * Tag each row in the cached sheetData with #status# and #errorDetails#.
+     * sheetData is the cached list reference returned by convertSheetToMapListCached;
+     * mutations propagate to the persistence path that re-fetches the same cached list.
+     * Errors are matched to rows via the existing __actualRowNumber__ marker.
+     */
+    private void enrichSheetDataWithRowStatus(List<Map<String, Object>> sheetData,
+                                              List<ValidationError> errors) {
+        Map<Integer, List<String>> errorsByRow = new HashMap<>();
+        for (ValidationError err : errors) {
+            Integer rowNum = err.getRowNumber();
+            if (rowNum == null) continue;
+            String detail = err.getErrorDetails();
+            if (detail == null || detail.isEmpty()) continue;
+            errorsByRow.computeIfAbsent(rowNum, k -> new ArrayList<>()).add(detail);
+        }
+
+        for (Map<String, Object> rowData : sheetData) {
+            Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
+            List<String> rowErrors = rowNumber == null ? null : errorsByRow.get(rowNumber);
+            if (rowErrors != null && !rowErrors.isEmpty()) {
+                rowData.put(ValidationConstants.ROW_JSON_STATUS_KEY, ValidationConstants.ROW_STATUS_INVALID);
+                Set<String> dedup = new LinkedHashSet<>(rowErrors);
+                rowData.put(ValidationConstants.ROW_JSON_ERROR_DETAILS_KEY, String.join("; ", dedup));
+            } else {
+                // Only set VALID if not already invalid from a prior pass
+                Object existing = rowData.get(ValidationConstants.ROW_JSON_STATUS_KEY);
+                if (!ValidationConstants.ROW_STATUS_INVALID.equals(existing)) {
+                    rowData.put(ValidationConstants.ROW_JSON_STATUS_KEY, ValidationConstants.ROW_STATUS_VALID);
+                }
+            }
         }
     }
 
@@ -166,59 +223,91 @@ public class UserValidationProcessor implements IWorkbookProcessor {
     /**
      * Process validation errors and enrich existing error data with semicolon separation
      */
-    private void processValidationErrors(Sheet sheet, List<ValidationError> errors, 
+    private void processValidationErrors(Sheet sheet, List<ValidationError> errors,
                                        ValidationColumnInfo columnInfo, Map<String, String> localizationMap) {
         // Create a map of row number to errors for quick lookup
         Map<Integer, List<ValidationError>> errorsByRow = new HashMap<>();
         for (ValidationError error : errors) {
             errorsByRow.computeIfAbsent(error.getRowNumber(), k -> new ArrayList<>()).add(error);
         }
-        
+
+        // Build localized header name → column index map (single pass, O(n))
+        Map<String, Integer> headerNameToColIndex = new HashMap<>();
+        Row headerRow = sheet.getRow(0);
+        if (headerRow != null) {
+            for (Cell cell : headerRow) {
+                String val = ExcelUtil.getCellValueAsString(cell);
+                if (val != null && !val.isEmpty()) {
+                    headerNameToColIndex.put(val, cell.getColumnIndex());
+                }
+            }
+        }
+
+        // Create cell error highlight style once (reuse across all rows)
+        CellStyle errorHighlightStyle = sheet.getWorkbook().createCellStyle();
+        errorHighlightStyle.setFillForegroundColor(IndexedColors.ROSE.getIndex());
+        errorHighlightStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
         // Find the maximum error row number
         int maxErrorRowNumber = errors.stream()
+            .filter(e -> e.getRowNumber() != null)
             .mapToInt(ValidationError::getRowNumber)
             .max()
             .orElse(0);
-        
+
         // Process each data row (skip header row) - loop up to max of actual data rows or max error row
         int maxRowToProcess = Math.max(ExcelUtil.findActualLastRowWithData(sheet), maxErrorRowNumber - 1);
         for (int i = 1; i <= maxRowToProcess; i++) {
             Row row = sheet.getRow(i);
             if (row == null) continue;
-            
+
             int actualRowNumber = i + 1; // Convert to 1-based row number
             List<ValidationError> rowErrors = errorsByRow.get(actualRowNumber);
-            
+
             if (rowErrors != null && !rowErrors.isEmpty()) {
                 // Get existing error and status values
                 Cell errorCell = row.getCell(columnInfo.getErrorColumnIndex());
                 Cell statusCell = row.getCell(columnInfo.getStatusColumnIndex());
-                
+
                 String existingErrors = errorCell != null ? ExcelUtil.getCellValueAsString(errorCell) : "";
                 String existingStatus = statusCell != null ? ExcelUtil.getCellValueAsString(statusCell) : "";
-                
+
                 // Use a Set to store unique error messages
                 Set<String> uniqueErrorMessages = new LinkedHashSet<>();
                 if (existingErrors != null && !existingErrors.trim().isEmpty()) {
                     uniqueErrorMessages.addAll(Arrays.asList(existingErrors.split("\s*;\s*")));
                 }
-                
-                String status = existingStatus != null && !existingStatus.isEmpty() ? 
+
+                String status = existingStatus != null && !existingStatus.isEmpty() ?
                     existingStatus : ValidationConstants.STATUS_VALID;
-                
+
                 for (ValidationError error : rowErrors) {
                     uniqueErrorMessages.add(error.getErrorDetails());
-                    
+
                     // Set status to the most severe error
                     if (ValidationConstants.STATUS_ERROR.equals(error.getStatus())) {
                         status = ValidationConstants.STATUS_ERROR;
-                    } else if (ValidationConstants.STATUS_INVALID.equals(error.getStatus()) && 
+                    } else if (ValidationConstants.STATUS_INVALID.equals(error.getStatus()) &&
                               !ValidationConstants.STATUS_ERROR.equals(status)) {
                         status = ValidationConstants.STATUS_INVALID;
                     }
+
+                    // Highlight specific column cell if columnName is set on the error
+                    if (error.getColumnName() != null) {
+                        String localizedColName = LocalizationUtil.getLocalizedMessage(
+                                localizationMap, error.getColumnName(), error.getColumnName());
+                        Integer colIdx = headerNameToColIndex.get(localizedColName);
+                        if (colIdx != null) {
+                            Cell targetCell = row.getCell(colIdx);
+                            if (targetCell == null) {
+                                targetCell = row.createCell(colIdx);
+                            }
+                            targetCell.setCellStyle(errorHighlightStyle);
+                        }
+                    }
                 }
                 String finalErrorMessage = String.join("; ", uniqueErrorMessages);
-                
+
                 // Create cells if they don't exist
                 if (errorCell == null) {
                     errorCell = row.createCell(columnInfo.getErrorColumnIndex());
@@ -226,7 +315,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 if (statusCell == null) {
                     statusCell = row.createCell(columnInfo.getStatusColumnIndex());
                 }
-                
+
                 // Set the enriched values
                 errorCell.setCellValue(finalErrorMessage);
                 statusCell.setCellValue(status);
@@ -600,6 +689,157 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         }
         
         log.info("Campaign boundary validation completed");
+    }
+
+    /**
+     * Validate that each non-blank HCM_ADMIN_CONSOLE_USER_WORKER_ID exists in the worker registry.
+     * Fail-closed: if the registry call fails, all rows in the failing batch are marked invalid.
+     */
+    private void validateWorkerIds(List<Map<String, Object>> sheetData,
+                                    String tenantId,
+                                    RequestInfo requestInfo,
+                                    List<ValidationError> errors,
+                                    Map<String, String> localizationMap) {
+        log.info("Validating worker IDs for {} records", sheetData.size());
+
+        Map<String, List<Integer>> workerIdToRowsMap = new HashMap<>();
+        for (Map<String, Object> rowData : sheetData) {
+            String workerId = ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.WORKER_ID_COLUMN_KEY));
+            if (workerId != null && !workerId.trim().isEmpty()) {
+                workerIdToRowsMap.computeIfAbsent(workerId.trim(), k -> new ArrayList<>())
+                        .add((Integer) rowData.get("__actualRowNumber__"));
+            }
+        }
+
+        if (workerIdToRowsMap.isEmpty()) {
+            log.info("No worker IDs to validate");
+            return;
+        }
+
+        List<String> allWorkerIds = new ArrayList<>(workerIdToRowsMap.keySet());
+        Set<String> foundWorkerIds = new HashSet<>();
+
+        int batchSize = config.getWorkerRegistrySearchBatchSize();
+        if (batchSize <= 0) {
+            batchSize = 100;
+        }
+        for (int i = 0; i < allWorkerIds.size(); i += batchSize) {
+            List<String> batch = allWorkerIds.subList(i, Math.min(i + batchSize, allWorkerIds.size()));
+            try {
+                List<Map<String, Object>> workers = searchWorkersByIds(batch, tenantId, requestInfo);
+                for (Map<String, Object> worker : workers) {
+                    String id = ExcelUtil.getValueAsString(worker.get("id"));
+                    if (id != null && !id.isEmpty()) {
+                        foundWorkerIds.add(id.trim());
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Worker registry search failed for batch: {}", e.getMessage(), e);
+                String errorMsg = LocalizationUtil.getLocalizedMessage(localizationMap,
+                        ValidationConstants.LOC_USER_INVALID_WORKER_ID,
+                        ValidationConstants.DEFAULT_USER_INVALID_WORKER_ID);
+                for (String workerId : batch) {
+                    List<Integer> rowNumbers = workerIdToRowsMap.get(workerId);
+                    if (rowNumbers != null) {
+                        for (Integer rowNumber : rowNumbers) {
+                            ValidationError error = new ValidationError();
+                            error.setRowNumber(rowNumber);
+                            error.setErrorDetails(errorMsg);
+                            error.setStatus(ValidationConstants.STATUS_INVALID);
+                            error.setColumnName(ProcessingConstants.WORKER_ID_COLUMN_KEY);
+                            errors.add(error);
+                        }
+                    }
+                }
+                foundWorkerIds.addAll(batch); // mark as handled to avoid duplicate errors
+            }
+        }
+
+        String errorMsg = LocalizationUtil.getLocalizedMessage(localizationMap,
+                ValidationConstants.LOC_USER_INVALID_WORKER_ID,
+                ValidationConstants.DEFAULT_USER_INVALID_WORKER_ID);
+        for (Map.Entry<String, List<Integer>> entry : workerIdToRowsMap.entrySet()) {
+            if (!foundWorkerIds.contains(entry.getKey())) {
+                for (Integer rowNumber : entry.getValue()) {
+                    ValidationError error = new ValidationError();
+                    error.setRowNumber(rowNumber);
+                    error.setErrorDetails(errorMsg);
+                    error.setStatus(ValidationConstants.STATUS_INVALID);
+                    error.setColumnName(ProcessingConstants.WORKER_ID_COLUMN_KEY);
+                    errors.add(error);
+                }
+            }
+        }
+
+        log.info("Worker ID validation completed");
+    }
+
+    /**
+     * Validate that beneficiary code does not contain any whitespace characters.
+     */
+    private void validateBeneficiaryCode(List<Map<String, Object>> sheetData,
+                                          List<ValidationError> errors,
+                                          Map<String, String> localizationMap) {
+        validateFieldNoWhitespace(sheetData, errors, localizationMap,
+                ProcessingConstants.BENEFICIARY_CODE_COL,
+                ValidationConstants.LOC_BENEFICIARY_CODE_WHITESPACE,
+                ValidationConstants.DEFAULT_BENEFICIARY_CODE_WHITESPACE);
+    }
+
+    /**
+     * Validate that the given field does not contain any whitespace characters.
+     */
+    private void validateFieldNoWhitespace(List<Map<String, Object>> sheetData,
+                                            List<ValidationError> errors,
+                                            Map<String, String> localizationMap,
+                                            String columnKey,
+                                            String localizationKey,
+                                            String defaultMessage) {
+        log.info("Validating {} for whitespace", columnKey);
+        String errorMsg = LocalizationUtil.getLocalizedMessage(localizationMap, localizationKey, defaultMessage);
+
+        for (Map<String, Object> rowData : sheetData) {
+            String value = ExcelUtil.getValueAsString(rowData.get(columnKey));
+            if (value == null || value.isEmpty()) continue;
+            if (value.chars().anyMatch(Character::isWhitespace)) {
+                ValidationError error = new ValidationError();
+                error.setRowNumber((Integer) rowData.get("__actualRowNumber__"));
+                error.setErrorDetails(errorMsg);
+                error.setStatus(ValidationConstants.STATUS_INVALID);
+                error.setColumnName(columnKey);
+                errors.add(error);
+            }
+        }
+        log.info("Whitespace validation completed for {}", columnKey);
+    }
+
+    private List<Map<String, Object>> searchWorkersByIds(List<String> workerIds,
+                                                          String tenantId,
+                                                          RequestInfo requestInfo) throws Exception {
+        Map<String, Object> searchBody = new HashMap<>();
+        searchBody.put("RequestInfo", requestInfo);
+
+        Map<String, Object> workerSearch = new HashMap<>();
+        workerSearch.put("id", workerIds);
+        workerSearch.put("tenantId", tenantId);
+        searchBody.put("workerSearch", workerSearch);
+
+        StringBuilder urlWithParams = new StringBuilder(config.getWorkerRegistrySearchUrl())
+                .append("?limit=").append(workerIds.size())
+                .append("&offset=0&tenantId=").append(tenantId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(searchBody, headers);
+
+        log.info("Searching worker registry for {} IDs", workerIds.size());
+        ResponseEntity<Map> response = restTemplate.exchange(
+                urlWithParams.toString(), HttpMethod.POST, entity, Map.class);
+
+        if (response.getBody() != null && response.getBody().get("workers") != null) {
+            return (List<Map<String, Object>>) response.getBody().get("workers");
+        }
+        return new ArrayList<>();
     }
 
     /**

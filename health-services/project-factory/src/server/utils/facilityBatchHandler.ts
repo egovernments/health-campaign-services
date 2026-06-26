@@ -1,8 +1,8 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses } from '../config/constants';
-import { defaultRequestInfo } from '../api/coreApis';
+import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses } from '../config/constants';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
@@ -21,6 +21,7 @@ interface FacilityBatchMessage {
     facilityData: Record<string, any>; // { uniqueIdentifier: campaignRecord }
     batchNumber: number;
     totalBatches: number;
+    requestInfo: RequestInfo;
 }
 
 /**
@@ -55,14 +56,19 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
         if (!campaignDetails) {
             throw new Error(`Campaign not found for ID: ${campaignId}`);
         }
-        
+
+        if (campaignDetails.status === campaignStatuses.failed) {
+            logger.warn(`Campaign ${campaignId} is already failed. Skipping facility batch ${batchNumber}/${totalBatches}`);
+            return;
+        }
+
         // Transform facility data from campaign records
         const facilityRowDatas = uniqueIdentifiers.map(uniqueIdentifier => {
             const campaignRecord = facilityData[uniqueIdentifier];
             return campaignRecord?.data;
         });
         
-        const transformConfig = transformConfigs?.["FacilityUnified"];
+        const transformConfig = JSON.parse(JSON.stringify(transformConfigs?.["FacilityUnified"]));
         if (!transformConfig) {
             throw new Error('Facility transform configuration not found');
         }
@@ -70,14 +76,14 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
         transformConfig.metadata.tenantId = tenantId;
         transformConfig.metadata.hierarchy = campaignDetails.hierarchyType;
         const transformer = new DataTransformer(transformConfig);
-        const transformedFacilities = await transformer.transform(facilityRowDatas);
+        const transformedFacilities = await transformer.transform(facilityRowDatas, messageObject.requestInfo);
         
         logger.info(`Transformed ${transformedFacilities.length} facilities`);
         
         // Create facilities in parallel using Promise.allSettled
         const facilityPromises = transformedFacilities.map((transformedItem : any) => {
             const facilityBody = transformedItem?.Facility;
-            return createSingleFacilityFromBatch(facilityBody, useruuid);
+            return createSingleFacilityFromBatch(facilityBody, useruuid, messageObject.requestInfo);
         });
         
         const batchResults = await Promise.allSettled(facilityPromises);
@@ -138,9 +144,29 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
         
     } catch (error) {
         logger.error('Error in handleFacilityBatch:', error);
-        
-        // Send campaign failure message due to batch processing error
-        const batchError = new Error(`Facility batch processing error: ${error instanceof Error ? error.message : String(error)}`);
+        const errMsg = error instanceof Error ? error.message : String(error);
+
+        // Mark all non-completed rows in this batch as failed so the sheet reflects the error
+        const allRecords = Object.values(messageObject.facilityData);
+        const nonCompletedRecords = allRecords.filter((r: any) => r.status !== dataRowStatuses.completed);
+        if (nonCompletedRecords.length > 0) {
+            for (const record of nonCompletedRecords as any[]) {
+                record.status = dataRowStatuses.failed;
+                record.data["#status#"] = sheetDataRowStatuses.INVALID;
+                record.data["#errorDetails#"] = errMsg;
+            }
+            try {
+                await produceModifiedMessages(
+                    { datas: nonCompletedRecords },
+                    config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC,
+                    messageObject.tenantId
+                );
+            } catch (persistError) {
+                logger.error("Failed to persist failed row statuses after facility batch error:", persistError);
+            }
+        }
+
+        const batchError = new Error(`Facility batch processing error: ${errMsg}`);
         await sendCampaignFailureMessage(
             messageObject.campaignId,
             messageObject.tenantId,
@@ -154,17 +180,18 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
  */
 async function createSingleFacilityFromBatch(
     facilityBody: any,
-    userUuid: string
+    userUuid: string,
+    requestInfo: RequestInfo
 ): Promise<any | null> {
     try {
         const facilityName = facilityBody?.name;
-        
+
         if (!facilityName) {
             throw new Error('No facility name found in facility body');
         }
-        
+
         // Create facility via API
-        const response = await createFacilityOneByOne(facilityBody, userUuid);
+        const response = await createFacilityOneByOne(facilityBody, userUuid, requestInfo);
         const createdFacility = response?.Facility;
         
         if (createdFacility) {
@@ -182,14 +209,13 @@ async function createSingleFacilityFromBatch(
 /**
  * Create facility via API call
  */
-async function createFacilityOneByOne(facility: any, userUuid: string): Promise<any> {
+async function createFacilityOneByOne(facility: any, userUuid: string, requestInfo: RequestInfo): Promise<any> {
     const url = config.host.facilityHost + config.paths.facilityCreate;
-    
+
     const requestBody = {
-        RequestInfo: JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo)),
+        RequestInfo: requestInfo,
         Facility: facility
     };
-    requestBody.RequestInfo.userInfo.uuid = userUuid;
     
     try {
         const response = await httpRequest(url, requestBody);

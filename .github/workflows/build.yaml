@@ -64,6 +64,7 @@ on:
           - boundary-management
           - health-notification-service
           - egov-notification-push
+          - worker-registry-java-17
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
