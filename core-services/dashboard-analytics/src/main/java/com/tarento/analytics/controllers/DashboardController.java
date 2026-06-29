@@ -14,6 +14,7 @@ import org.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.tarento.analytics.ConfigurationLoader;
 import com.tarento.analytics.constant.Constants;
 import com.tarento.analytics.constant.ErrorCode;
 import com.tarento.analytics.dto.AggregateRequestDto;
@@ -56,6 +58,12 @@ public class DashboardController {
 
 	@Autowired
 	private ClientServiceFactory clientServiceFactory;
+
+	@Autowired
+	private ConfigurationLoader configurationLoader;
+
+	@Value("${is.central.instance:false}")
+	private boolean isCentralInstance;
 
 	@RequestMapping(value = PathRoutes.DashboardApi.FILE_PATH, method = RequestMethod.POST)
 	public Map<String, String> uploadFile(@RequestPart(value = "file") MultipartFile file)
@@ -97,9 +105,11 @@ public class DashboardController {
 	}
 
 	@RequestMapping(value = PathRoutes.DashboardApi.GET_DASHBOARD_CONFIG + "/{dashboardId}", method = RequestMethod.GET)
-	public String getDashboardConfiguration(@PathVariable String dashboardId, @RequestParam(value="catagory", required = false) String catagory, @RequestHeader(value = "x-user-info", required = false) String xUserInfo)
+	public String getDashboardConfiguration(@PathVariable String dashboardId,
+			@RequestParam(value = "catagory", required = false) String catagory,
+			@RequestParam(value = "tenantId", required = false) String tenantId,
+			@RequestHeader(value = "x-user-info", required = false) String xUserInfo)
 			throws AINException, IOException {
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		UserDto user = new UserDto();
 		user.setId(new Long("10007"));
 		user.setOrgId("1");
@@ -112,7 +122,19 @@ public class DashboardController {
 		user.setRoles(roles);
 		//gson.fromJson(xUserInfo, UserDto.class);
 
-		return ResponseGenerator.successResponse(metadataService.getDashboardConfiguration(dashboardId, catagory, user.getRoles()));
+		if (isCentralInstance && StringUtils.isBlank(tenantId)) {
+			logger.error("Please provide tenant ID for dashboard config");
+			throw new AINException(ErrorCode.ERR320, "tenant is missing");
+		}
+
+		if (StringUtils.isNotBlank(tenantId)) {
+			ConfigurationLoader.setCurrentTenant(tenantId);
+		}
+		try {
+			return ResponseGenerator.successResponse(metadataService.getDashboardConfiguration(dashboardId, catagory, user.getRoles()));
+		} finally {
+			ConfigurationLoader.clearCurrentTenant();
+		}
 	}
 
 	@RequestMapping(value = PathRoutes.DashboardApi.GET_CHART_V2, method = RequestMethod.POST)
@@ -163,7 +185,14 @@ public class DashboardController {
 				requestInfo.setModuleLevel(Constants.Modules.HOME_REVENUE);
 			}
 
-				Object responseData = clientServiceFactory.get(requestInfo.getVisualizationCode()).getAggregatedData(requestInfo, user.getRoles());
+			String tenantId = (String) headers.get("tenantId");
+			ConfigurationLoader.setCurrentTenant(tenantId);
+			Object responseData;
+			try {
+				responseData = clientServiceFactory.get(requestInfo.getVisualizationCode()).getAggregatedData(requestInfo, user.getRoles());
+			} finally {
+				ConfigurationLoader.clearCurrentTenant();
+			}
 			response = ResponseGenerator.successResponse(responseData);
 
 		} catch (AINException e) {

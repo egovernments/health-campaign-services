@@ -72,9 +72,17 @@ public class MdmsApiMappings {
      */
 
     private Map<String, String> getMappings() {
-        ObjectNode objectNode = configurationLoader.get(MDMS_CITY_NAME_CONFIG_FILE_NAME);
-        ArrayNode objectArrayNode = (ArrayNode) objectNode.get("ulbCityNamesMappings");
         Map<String, String> ulbCityNamesMappings = new HashMap<String, String>();
+        ObjectNode objectNode = configurationLoader.get(MDMS_CITY_NAME_CONFIG_FILE_NAME);
+        if (objectNode == null) {
+            logger.warn("{} not found in config — ulbCityNamesMappings will be empty", MDMS_CITY_NAME_CONFIG_FILE_NAME);
+            return ulbCityNamesMappings;
+        }
+        ArrayNode objectArrayNode = (ArrayNode) objectNode.get("ulbCityNamesMappings");
+        if (objectArrayNode == null) {
+            logger.warn("'ulbCityNamesMappings' key missing in {} — returning empty map", MDMS_CITY_NAME_CONFIG_FILE_NAME);
+            return ulbCityNamesMappings;
+        }
         for (JsonNode node : objectArrayNode) {
             ulbCityNamesMappings.put(node.get("tenantCode").asText(), node.get("tenantValue").asText());
         }
@@ -99,6 +107,12 @@ public class MdmsApiMappings {
                 JsonNode tenantId = tenant.findValue(Constants.MDMSKeys.CODE);
                 JsonNode ddrCode = tenant.findValue(Constants.MDMSKeys.DISTRICT_CODE);
                 JsonNode ddrName = tenant.findValue(Constants.MDMSKeys.DDR_NAME);
+
+                if (ddrCode == null || ddrName == null) {
+                    logger.warn("Skipping tenant {} - missing districtCode/ddrName in MDMS entry",
+                            tenantId != null ? tenantId.asText() : "<no code>");
+                    continue;
+                }
 
                 //JsonNode name = tenant.findValue(NAME);
                 //if(!codeValues.containsKey(tenantId.asText())) codeValues.put(tenantId.asText(), name.asText());
@@ -133,6 +147,7 @@ public class MdmsApiMappings {
 
             }
         } catch (Exception e){
+            logger.error("Failed to fetch DDR's from mdms", e);
             throw new CustomException("MDMS_ERROR","Failed to fetch DDR's from mdms");
         }
         ddrValueMap.entrySet().removeIf(map -> map.getValue().size()==0);

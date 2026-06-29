@@ -7,7 +7,17 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum ChartType {
 
-    XTABLE("xtable"), TABLE("table"), PERFORM("perform"), METRIC("metric"), PIE("pie"), LINE("line");
+    XTABLE("xtable"),
+    /**
+     * Uses nested-bucket XTABLE response transformation but returns chartType as "xtable".
+     */
+    XTABLE_NESTED("xtableNested"),
+    TABLE("table"),
+    PERFORM("perform"),
+    METRIC("metric"),
+    PIE("pie"),
+    LINE("line"),
+    RAW_RESPONSE("rawResponse");
     
     private String value;
 

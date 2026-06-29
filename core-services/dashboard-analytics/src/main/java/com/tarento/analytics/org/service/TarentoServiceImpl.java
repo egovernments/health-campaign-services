@@ -2,9 +2,14 @@ package com.tarento.analytics.org.service;
 
 import static com.tarento.analytics.handler.IResponseHandler.IS_CAPPED_TILL_TODAY;
 import com.tarento.analytics.constant.Constants.Interval;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -17,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -42,6 +48,7 @@ public class TarentoServiceImpl implements ClientService {
 	public static final Logger logger = LoggerFactory.getLogger(TarentoServiceImpl.class);
 
 	ObjectMapper mapper = new ObjectMapper();
+	private static final ObjectMapper QUERY_MAPPER = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
 	char insightPrefix = 'i';
 
 
@@ -90,10 +97,10 @@ public class TarentoServiceImpl implements ClientService {
 			insightsConfig = mapper.treeToValue(chartNode.get(Constants.JsonPaths.INSIGHT), InsightsConfiguration.class);
 		}
 		ChartType chartType = ChartType.fromValue(chartNode.get(Constants.JsonPaths.CHART_TYPE).asText());
+
 		boolean isDefaultPresent = chartType.equals(ChartType.LINE) && chartNode.get(Constants.JsonPaths.INTERVAL)!=null;
 		boolean isRequestContainsInterval = null == request.getRequestDate() ? false : (request.getRequestDate().getInterval()!=null && !request.getRequestDate().getInterval().isEmpty()) ;
 		String interval = isRequestContainsInterval? request.getRequestDate().getInterval(): (isDefaultPresent ? chartNode.get(Constants.JsonPaths.INTERVAL).asText():"");
-
 		if(isFilterForCurrentDayEnabled(chartNode)){
 			setDateRangeFilterForCurrentDay(request);
 		}
@@ -167,24 +174,44 @@ public class TarentoServiceImpl implements ClientService {
 
 		ArrayNode queries = (ArrayNode) chartNode.get(Constants.JsonPaths.QUERIES);
 		int randIndexCount = 1;
+		boolean isRawResponse = "rawResponse".equalsIgnoreCase(chartNode.get(Constants.JsonPaths.CHART_TYPE).asText());
 		for(JsonNode query : queries) {
 			String module = query.get(Constants.JsonPaths.MODULE).asText();
+			String aggregationFilterPath = query.has("aggregationFilterPath") ? query.get("aggregationFilterPath").asText() : null;
 			if(request.getModuleLevel().equals(Constants.Modules.HOME_REVENUE) ||
 					request.getModuleLevel().equals(Constants.Modules.HOME_SERVICES) ||
-					query.get(Constants.JsonPaths.MODULE).asText().equals(Constants.Modules.COMMON) ||
+					module.equals(Constants.Modules.COMMON) ||
 					request.getModuleLevel().equals(module)) {
 
 				String indexName = query.get(Constants.JsonPaths.INDEX_NAME).asText();
-				ObjectNode objectNode = queryService.getChartConfigurationQuery(request, query, indexName, interval);
+				// Use an explicit dataset key when provided so multiple datasets can come from the same index.
+				String datasetKey = query.hasNonNull("key")
+						? query.get("key").asText()
+						: (query.hasNonNull(Constants.JsonPaths.TRANSFORM_KEY)
+							? query.get(Constants.JsonPaths.TRANSFORM_KEY).asText()
+							: indexName);
+				String transformData = query.hasNonNull(Constants.JsonPaths.TRANSFORM_DATA)
+						? query.get(Constants.JsonPaths.TRANSFORM_DATA).asText()
+						: "";
+				// rawDocuments queries carry full ES body (size/_source/query) in aggrQuery,
+				// so use the "raw" builder to preserve that and just merge filters.
+				ObjectNode objectNode = !transformData.isEmpty()
+						? queryService.getChartConfigurationQueryRaw(request, query, indexName, interval)
+						: queryService.getChartConfigurationQuery(request, query, indexName, interval);
 				try {
-					JsonNode aggrNode = restService.search(indexName,objectNode.toString());
-					if(nodes.has(indexName)) {
-						indexName = indexName + "_" + randIndexCount;
+					String queryStr = QUERY_MAPPER.writeValueAsString(objectNode);
+					JsonNode aggrNode = restService.search(indexName, queryStr, aggregationFilterPath);
+					String responseKey = datasetKey;
+					if(nodes.has(responseKey)) {
+						responseKey = responseKey + "_" + randIndexCount;
 						randIndexCount += 1;
 					}
-					nodes.set(indexName,aggrNode.get(Constants.JsonPaths.AGGREGATIONS));
-				}catch (Exception e) {
-					logger.error("Encountered an Exception while Executing the Query : " + e.getMessage());
+					nodes.set(responseKey, isRawResponse ? aggrNode : aggrNode.get(Constants.JsonPaths.AGGREGATIONS));
+				} catch (JsonProcessingException e) {
+					logger.error("Failed to serialize ES query: {}", e.getMessage(), e);
+					throw new RuntimeException(e);
+				} catch (Exception e) {
+					logger.error("Encountered an Exception while Executing the Query: {}", e.getMessage(), e);
 					throw new RuntimeException(e);
 				}
 				aggrObjectNode.set(Constants.JsonPaths.AGGREGATIONS, nodes);

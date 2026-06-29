@@ -54,4 +54,8 @@ public class Plot {
     public void setValue(Double value) {
         this.value = value;
     }
+
+    public void setStrValue(String strValue) {
+        this.strValue = strValue;
+    }
 }
