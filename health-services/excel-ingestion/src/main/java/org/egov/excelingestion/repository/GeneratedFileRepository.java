@@ -135,10 +135,18 @@ public class GeneratedFileRepository {
 
         if (!CollectionUtils.isEmpty(criteria.getAdditionalDetails())) {
             query.append(" AND additionalDetails IS NOT NULL");
+            int adIndex = 0;
             for (Entry<String, String> entry : criteria.getAdditionalDetails().entrySet()) {
-                String paramKey = "ad_" + entry.getKey();
-                query.append(" AND additionalDetails->>'").append(entry.getKey()).append("' = :").append(paramKey);
-                preparedStmtList.put(paramKey, entry.getValue());
+                String keyParam = "adKey" + adIndex;
+                String valueParam = "adVal" + adIndex;
+                // Bind BOTH the JSON key and value as parameters; never concatenate the
+                // user-supplied key into the SQL string (prevents SQL injection). The
+                // CAST keeps the ->> text-operator resolution unambiguous.
+                query.append(" AND additionalDetails ->> CAST(:").append(keyParam)
+                        .append(" AS text) = :").append(valueParam);
+                preparedStmtList.put(keyParam, entry.getKey());
+                preparedStmtList.put(valueParam, entry.getValue());
+                adIndex++;
             }
         }
     }

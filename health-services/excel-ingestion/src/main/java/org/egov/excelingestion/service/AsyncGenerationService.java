@@ -8,6 +8,7 @@ import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -74,6 +75,23 @@ public class AsyncGenerationService {
             stampAudit(generateResource, requestInfo);
             publishUpdate(generateResource);
         }
+    }
+
+    /**
+     * Writes a terminal FAILED status for a record that could not be processed - e.g. its
+     * persisted row never materialized within the wait window. Without this the row would
+     * stay QUEUED forever with no terminal signal for the polling client.
+     */
+    public void markFailed(GenerateResource generateResource, RequestInfo requestInfo,
+                           String errorCode, String errorMessage) {
+        enrichmentUtil.enrichErrorDetailsInAdditionalDetails(generateResource,
+                new CustomException(errorCode, errorMessage));
+        generateResource.setStatus(GenerationConstants.STATUS_FAILED);
+        generateResource.setFileStoreId(null);
+        stampAudit(generateResource, requestInfo);
+        publishUpdate(generateResource);
+        log.warn("Marked generation id={} as FAILED ({}): {}",
+                generateResource.getId(), errorCode, errorMessage);
     }
 
     private void markInProgress(GenerateResource generateResource, RequestInfo requestInfo) {

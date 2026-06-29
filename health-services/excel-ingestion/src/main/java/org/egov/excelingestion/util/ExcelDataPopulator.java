@@ -421,10 +421,12 @@ public class ExcelDataPopulator {
             else if (column.getRequiredIf() != null) {
                 String triggerColName = column.getRequiredIf().getColumn();
                 Integer triggerColIdx = headerNameToColIndex.get(triggerColName);
-                if (triggerColIdx != null) {
+                List<String> triggerValues = column.getRequiredIf().getValues();
+                // Skip when there are no trigger values: an empty list has no condition to
+                // enforce and would build a malformed =OR(AND(),...) formula.
+                if (triggerColIdx != null && triggerValues != null && !triggerValues.isEmpty()) {
                     String triggerLetter = columnIndexToLetter(triggerColIdx);
                     String thisLetter = columnIndexToLetter(colIndex);
-                    List<String> triggerValues = column.getRequiredIf().getValues();
 
                     // Formula is valid when trigger column does NOT match any trigger value OR this cell is non-empty
                     String notTriggerPart = triggerValues.stream()

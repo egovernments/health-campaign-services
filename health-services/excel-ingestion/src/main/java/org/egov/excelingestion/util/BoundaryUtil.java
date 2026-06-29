@@ -68,9 +68,15 @@ public class BoundaryUtil {
 
         log.info("Processing {} starting boundaries", startingBoundaries.size());
 
+        // Pre-build a parent-code -> children index once so child lookup is O(1) instead of
+        // an O(n) scan per node (which made the whole traversal O(n^2)).
+        Map<String, List<Boundary>> childrenByParent = boundaries.stream()
+                .filter(b -> b.getParent() != null)
+                .collect(Collectors.groupingBy(Boundary::getParent));
+
         // Process each starting boundary independently
         for (Boundary startBoundary : startingBoundaries) {
-            processBoundary(startBoundary, boundaries, codeToEnrichedBoundary, boundaryRows,
+            processBoundary(startBoundary, childrenByParent, codeToEnrichedBoundary, boundaryRows,
                            processedCodes, new ArrayList<>(), levelTypes);
         }
 
@@ -129,7 +135,7 @@ public class BoundaryUtil {
     /**
      * Recursively processes a boundary and its children based on includeAllChildren flag
      */
-    private void processBoundary(Boundary boundary, List<Boundary> allBoundaries, 
+    private void processBoundary(Boundary boundary, Map<String, List<Boundary>> childrenByParent,
                                 Map<String, EnrichedBoundary> codeToEnrichedBoundary,
                                 List<BoundaryRowData> boundaryRows, Set<String> processedCodes,
                                 List<String> currentPath, List<String> levelTypes) {
@@ -143,7 +149,15 @@ public class BoundaryUtil {
         // Create new path with current boundary
         List<String> newPath = new ArrayList<>(currentPath);
         int levelIndex = getLevelIndex(boundary.getType(), levelTypes);
-        
+
+        // Defensive: a boundary whose type isn't one of the hierarchy levelTypes yields -1.
+        // Skip it (and its subtree) instead of crashing on newPath.set(-1, ...).
+        if (levelIndex < 0) {
+            log.warn("Skipping boundary {} - type '{}' not found in hierarchy levelTypes",
+                    boundary.getCode(), boundary.getType());
+            return;
+        }
+
         // Ensure path has enough elements
         while (newPath.size() <= levelIndex) {
             newPath.add(null);
@@ -160,12 +174,10 @@ public class BoundaryUtil {
             }
         } else {
             // Process only the boundaries that are in the input list and are children of current
-            List<Boundary> children = allBoundaries.stream()
-                    .filter(b -> boundary.getCode().equals(b.getParent()))
-                    .collect(Collectors.toList());
-                    
+            List<Boundary> children = childrenByParent.getOrDefault(boundary.getCode(), Collections.emptyList());
+
             for (Boundary child : children) {
-                processBoundary(child, allBoundaries, codeToEnrichedBoundary, 
+                processBoundary(child, childrenByParent, codeToEnrichedBoundary,
                               boundaryRows, processedCodes, newPath, levelTypes);
             }
         }
@@ -190,7 +202,15 @@ public class BoundaryUtil {
                 // Create new path with child
                 List<String> newPath = new ArrayList<>(currentPath);
                 int levelIndex = getLevelIndex(child.getBoundaryType(), levelTypes);
-                
+
+                // Defensive: skip a child whose type isn't a known hierarchy level (-1)
+                // instead of crashing on newPath.set(-1, ...).
+                if (levelIndex < 0) {
+                    log.warn("Skipping boundary {} - type '{}' not found in hierarchy levelTypes",
+                            child.getCode(), child.getBoundaryType());
+                    continue;
+                }
+
                 // Ensure path has enough elements
                 while (newPath.size() <= levelIndex) {
                     newPath.add(null);

@@ -210,4 +210,8 @@ public class ErrorConstants {
 
     public static final String ATTENDANCE_REGISTER_LOCALITY_MISSING = "ATTENDANCE_REGISTER_LOCALITY_MISSING";
     public static final String ATTENDANCE_REGISTER_LOCALITY_MISSING_MESSAGE = "Attendance register {0} has no localityCode set";
+
+    // Credential Decryption Errors
+    public static final String CREDENTIAL_DECRYPTION_ERROR = "CREDENTIAL_DECRYPTION_ERROR";
+    public static final String CREDENTIAL_DECRYPTION_ERROR_MESSAGE = "Failed to decrypt attendee credentials; aborting sheet generation to avoid emitting encrypted values";
 }

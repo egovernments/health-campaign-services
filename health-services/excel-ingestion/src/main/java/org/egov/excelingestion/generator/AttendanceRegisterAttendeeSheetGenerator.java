@@ -168,14 +168,23 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         try {
             Map<String, Object> mdmsData = mdmsList.get(0);
+            Object dataObj = mdmsData.get("data");
+            if (!(dataObj instanceof Map)) {
+                exceptionHandler.throwCustomException(ErrorConstants.INVALID_SCHEMA_FORMAT,
+                        ErrorConstants.INVALID_SCHEMA_FORMAT_MESSAGE,
+                        new RuntimeException("Schema record missing 'data' object: " + schemaName));
+            }
             @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
+            Map<String, Object> data = (Map<String, Object>) dataObj;
             @SuppressWarnings("unchecked")
             Map<String, Object> properties = (Map<String, Object>) data.get("properties");
 
             ObjectMapper mapper = new ObjectMapper();
             String schemaJson = mapper.writeValueAsString(properties);
             return schemaColumnDefUtil.convertSchemaToColumnDefs(schemaJson);
+        } catch (org.egov.tracer.model.CustomException ce) {
+            // Preserve a structured error (e.g. INVALID_SCHEMA_FORMAT) instead of masking it.
+            throw ce;
         } catch (Exception e) {
             log.error("Error extracting schema {}: {}", schemaName, e.getMessage(), e);
             exceptionHandler.throwCustomException(ErrorConstants.SCHEMA_CONVERSION_ERROR,
@@ -586,11 +595,12 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                     decryptedMap.put(batch.get(j), decryptedBatch.get(j));
                 }
             } catch (Exception e) {
-                log.error("Error decrypting batch starting at index {}: {}", i, e.getMessage());
-                // On failure, use encrypted values as fallback
-                for (String encrypted : batch) {
-                    decryptedMap.put(encrypted, encrypted);
-                }
+                // Do NOT fall back to the encrypted values - that would silently ship
+                // unusable ciphertext into the sheet as UserName/Password. Fail loud so the
+                // generation is marked FAILED and the user can retry.
+                log.error("Error decrypting credential batch starting at index {}: {}", i, e.getMessage(), e);
+                exceptionHandler.throwCustomException(ErrorConstants.CREDENTIAL_DECRYPTION_ERROR,
+                        ErrorConstants.CREDENTIAL_DECRYPTION_ERROR_MESSAGE, e);
             }
         }
 

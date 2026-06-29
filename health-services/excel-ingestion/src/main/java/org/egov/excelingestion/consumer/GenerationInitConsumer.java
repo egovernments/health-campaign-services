@@ -2,6 +2,8 @@ package org.egov.excelingestion.consumer;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.producer.Producer;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.service.AsyncGenerationService;
@@ -14,26 +16,41 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Listens on the generation init topic and drives a single record through the
- * IN_PROGRESS / COMPLETED / FAILED lifecycle. Configured (via
- * {@code generationInitListenerContainerFactory}) with:
- *   - max.poll.records = 1  (one event in flight per partition)
- *   - manual immediate ack  (we ack only after the run lands a terminal status)
+ * IN_PROGRESS / COMPLETED / FAILED lifecycle. The listener uses
+ * max.poll.records = 1 and manual immediate ack (so a single record is in flight
+ * per partition and the offset is committed only once we are done with it).
  *
- * Failure handling: an exception from the generation pipeline writes FAILED to
- * the DB/cache and then acks the offset. We deliberately do NOT redeliver on
- * failure - retry is user-driven via a fresh /generate/_init call, which
- * expires the prior record and supersedes it.
+ * Row-readiness: the QUEUED row is created by an external persister from a
+ * SEPARATE save topic, so there is no ordering/latency guarantee between that
+ * save and this init event. If the row has not materialized within the wait
+ * window we RE-QUEUE the init event (bounded retries) so it is reprocessed once
+ * the row exists. Re-queueing is used instead of (a) silently dropping the event
+ * (which left the row stuck QUEUED) or (b) publishing a FAILED update, which
+ * races with - and is overwritten by - the late save and is therefore
+ * unreliable. Only after the retries are exhausted do we write a terminal FAILED
+ * as a best-effort recovery signal for the polling client.
+ *
+ * Pipeline failures (an exception from processGeneration) write FAILED to the
+ * row and ack; we deliberately do NOT redeliver on those - retry is user-driven
+ * via a fresh /generate/_init, which expires the prior record and supersedes it.
  */
 @Component
 @Slf4j
 public class GenerationInitConsumer {
 
+    // Internal marker carried on the init event (not persisted) to bound retries.
+    private static final String INIT_ATTEMPT_KEY = "__initAttempt__";
+
     private final AsyncGenerationService asyncGenerationService;
     private final GeneratedFileRepository generatedFileRepository;
+    private final Producer producer;
+    private final KafkaTopicConfig kafkaTopicConfig;
 
     @Value("${excel.ingestion.generation.row.wait.timeout.ms:10000}")
     private long rowWaitTimeoutMs;
@@ -41,10 +58,17 @@ public class GenerationInitConsumer {
     @Value("${excel.ingestion.generation.row.wait.interval.ms:250}")
     private long rowWaitIntervalMs;
 
+    @Value("${excel.ingestion.generation.init.max.attempts:3}")
+    private int maxInitAttempts;
+
     public GenerationInitConsumer(AsyncGenerationService asyncGenerationService,
-                                  GeneratedFileRepository generatedFileRepository) {
+                                  GeneratedFileRepository generatedFileRepository,
+                                  Producer producer,
+                                  KafkaTopicConfig kafkaTopicConfig) {
         this.asyncGenerationService = asyncGenerationService;
         this.generatedFileRepository = generatedFileRepository;
+        this.producer = producer;
+        this.kafkaTopicConfig = kafkaTopicConfig;
     }
 
     @KafkaListener(topics = "${excel.ingestion.generation.init.topic}")
@@ -67,10 +91,12 @@ public class GenerationInitConsumer {
             // row to materialize so the IN_PROGRESS update has something to update.
             GenerateResource currentRecord = waitForRow(generateResource);
             if (currentRecord == null) {
-                log.warn("Generation row for id={} never appeared; acking and dropping event", id);
-                acknowledgment.acknowledge();
+                handleRowNotMaterialized(event, generateResource, id, tenantId, acknowledgment);
                 return;
             }
+
+            // Row found - drop the internal retry marker so it is not persisted into the row.
+            clearInitAttempt(generateResource);
 
             if (!GenerationConstants.STATUS_QUEUED.equalsIgnoreCase(currentRecord.getStatus())) {
                 // A newer init already superseded this record (expired it) - skip.
@@ -86,6 +112,63 @@ public class GenerationInitConsumer {
             log.error("Unhandled error processing generation init event id={}: {}", id, e.getMessage(), e);
         } finally {
             acknowledgment.acknowledge();
+        }
+    }
+
+    /**
+     * The QUEUED row did not appear in time (persister lag / cross-topic ordering). Re-queue
+     * the init event so it is retried once the row exists; this avoids the FAILED-update-vs-late-save
+     * race. Only after exhausting the retry budget do we write a terminal FAILED as a best-effort signal.
+     */
+    private void handleRowNotMaterialized(GenerateResourceRequest event, GenerateResource generateResource,
+                                          String id, String tenantId, Acknowledgment acknowledgment) {
+        int attempt = readInitAttempt(generateResource);
+        if (attempt < maxInitAttempts) {
+            int next = attempt + 1;
+            setInitAttempt(generateResource, next);
+            log.warn("Generation row for id={} not materialized yet; re-queuing init (attempt {}/{})",
+                    id, next, maxInitAttempts);
+            try {
+                producer.push(tenantId, kafkaTopicConfig.getGenerationInitTopic(), event);
+            } catch (Exception ex) {
+                log.error("Failed to re-queue init event for id={}: {}", id, ex.getMessage(), ex);
+            }
+            acknowledgment.acknowledge();
+            return;
+        }
+
+        log.warn("Generation row for id={} never appeared after {} attempts; marking FAILED", id, maxInitAttempts);
+        try {
+            clearInitAttempt(generateResource);
+            asyncGenerationService.markFailed(generateResource, event.getRequestInfo(),
+                    GenerationConstants.GENERATION_ROW_NOT_MATERIALIZED,
+                    GenerationConstants.GENERATION_ROW_NOT_MATERIALIZED_MESSAGE);
+        } catch (Exception ex) {
+            log.error("Failed to publish FAILED status for generation id={}: {}", id, ex.getMessage(), ex);
+        }
+        acknowledgment.acknowledge();
+    }
+
+    private int readInitAttempt(GenerateResource resource) {
+        Map<String, Object> ad = resource.getAdditionalDetails();
+        if (ad != null && ad.get(INIT_ATTEMPT_KEY) instanceof Number) {
+            return ((Number) ad.get(INIT_ATTEMPT_KEY)).intValue();
+        }
+        return 1;
+    }
+
+    private void setInitAttempt(GenerateResource resource, int attempt) {
+        Map<String, Object> ad = resource.getAdditionalDetails();
+        if (ad == null) {
+            ad = new HashMap<>();
+            resource.setAdditionalDetails(ad);
+        }
+        ad.put(INIT_ATTEMPT_KEY, attempt);
+    }
+
+    private void clearInitAttempt(GenerateResource resource) {
+        if (resource.getAdditionalDetails() != null) {
+            resource.getAdditionalDetails().remove(INIT_ATTEMPT_KEY);
         }
     }
 

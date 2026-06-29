@@ -41,7 +41,8 @@ class GenerationExpiryTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        when(kafkaTopicConfig.getGenerationUpdateTopic()).thenReturn("update-topic");
+        // lenient: only the tests that actually push consume this stub
+        lenient().when(kafkaTopicConfig.getGenerationUpdateTopic()).thenReturn("update-topic");
 
         generationService = new GenerationService(
                 generatedFileRepository,
