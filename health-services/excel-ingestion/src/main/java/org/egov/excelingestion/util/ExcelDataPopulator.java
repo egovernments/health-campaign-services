@@ -379,14 +379,14 @@ public class ExcelDataPopulator {
      * Apply protection using existing CellProtectionManager
      */
     private void applyProtection(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties, boolean unprotectedJoinMode) {
-        // Use existing cell protection manager (sets locked/unlocked cell STYLES; this is harmless
-        // and acts as a light visual cue even when the sheet itself is left unprotected).
+        // Use existing cell protection manager (sets locked/unlocked cell STYLES; the cell-lock styles
+        // only take effect once the sheet itself is protected, below).
         cellProtectionManager.applyCellProtection(workbook, sheet, columnProperties);
 
-        // Protect sheet with password if configured AND not in unprotected join mode.
-        // In join mode the sheet is left fully editable so copy/paste works; pre-filled immutability
-        // is enforced server-side at upload instead of by Excel protection.
-        if (!unprotectedJoinMode
+         boolean fixedRowSheet = columnProperties != null
+                && columnProperties.stream().anyMatch(ColumnDef::isUnFreezeColumnTillData);
+
+        if ((!unprotectedJoinMode || fixedRowSheet)
                 && config.getExcelSheetPassword() != null && !config.getExcelSheetPassword().isEmpty()) {
             sheet.protectSheet(config.getExcelSheetPassword());
         }
@@ -743,6 +743,8 @@ public class ExcelDataPopulator {
                             .multiSelectIndex(i)
                             .freezeTillData(column.isFreezeTillData())
                             .freezeColumnIfFilled(column.isFreezeColumnIfFilled())
+                            .freezeColumn(column.isFreezeColumn())
+                            .unFreezeColumnTillData(column.isUnFreezeColumnTillData())
                             .width(column.getWidth())
                             .wrapText(column.isWrapText())
                             .build();
