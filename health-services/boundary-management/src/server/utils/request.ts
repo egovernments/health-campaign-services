@@ -5,10 +5,23 @@ import config from "../config";
 
 var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
+const http = require("http");
+const https = require("https");
+
+// Keep-alive agents with an idle socket timeout so pooled sockets are proactively
+// recycled before an upstream / load-balancer idle timeout can silently close them.
+// This (together with the broadened EPIPE/ECONNRESET retry below) prevents the
+// "write EPIPE" failure on the first call issued after a long-running phase.
+const socketIdleTimeoutMs = parseInt(config.values.httpSocketIdleTimeoutMs) || 60000;
+const httpAgent = new http.Agent({ keepAlive: true, keepAliveMsecs: 1000, timeout: socketIdleTimeoutMs });
+const httpsAgent = new https.Agent({ keepAlive: true, keepAliveMsecs: 1000, timeout: socketIdleTimeoutMs });
+
 const axiosInstance = Axios.create({
   timeout: 0, // Set timeout to 0 to wait indefinitely
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
+  httpAgent,
+  httpsAgent,
 });
 
 // Axios interceptor to handle response errors

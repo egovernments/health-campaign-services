@@ -37,6 +37,8 @@ const config = {
     KAFKA_UPDATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_UPDATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC || "update-processed-boundary-management",
     KAFKA_UPDATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_UPDATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC || "update-generated-boundary-management",
     KAFKA_CREATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_CREATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC || "create-generated-boundary-management",
+    // Bulk boundary-relationship create job topic consumed by boundary-service (last 2 levels).
+    KAFKA_BULK_CREATE_BOUNDARY_RELATIONSHIP_JOB_TOPIC: process.env.KAFKA_BULK_CREATE_BOUNDARY_RELATIONSHIP_JOB_TOPIC || "boundary-relationship-bulk-create-job",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
   },
 
@@ -109,7 +111,16 @@ const config = {
     //module name
     unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "5010",
     maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4",
-    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" /* can be retry if there is any error for which default retry can be set */,
+    // Transport-level errors that should auto-retry. "socket hang up" was the only one matched before;
+    // a stale pooled keep-alive socket surfaces as "write EPIPE" / "(read )ECONNRESET", so cover those too.
+    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up,write EPIPE,read ECONNRESET,ECONNRESET,EPIPE" /* substring-matched against the failing error code */,
+    // Idle timeout (ms) for pooled keep-alive sockets in the shared axios agent (see utils/request.ts).
+    httpSocketIdleTimeoutMs: process.env.HTTP_SOCKET_IDLE_TIMEOUT_MS || "60000",
+    // Max concurrent boundary-relationship creates within a single dependency wave (siblings).
+    // Kept modest by default so parallel creates don't flood the asynchronous persister.
+    relationshipCreateConcurrency: process.env.RELATIONSHIP_CREATE_CONCURRENCY || "10",
+    // Chunk size for the boundary-service bulk relationship API (the last two hierarchy levels).
+    bulkRelationshipChunkSize: process.env.BULK_RELATIONSHIP_CHUNK_SIZE || "100",
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   },
 };
