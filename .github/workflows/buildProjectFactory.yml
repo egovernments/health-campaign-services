@@ -7,7 +7,7 @@ on:
       - master
       - nigeria-do-deep-2
       - master-nigeria-finalpull
-      - master-nigeria-finalpull-projectFactoryFixes
+      - master-nigeria-finalpull-projectFactory-codeRabbit
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}

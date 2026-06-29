@@ -18,7 +18,8 @@ import { processStatuses, allProcesses, dataRowStatuses } from "../config/consta
 export class TemplateClass {
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating attendance register template...");
-        logger.info(`Input payload: ${JSON.stringify(responseToSend)}`);
+        // Log only non-PII identifiers — the full payload carries requestInfo.userInfo (mobile/uuid/username).
+        logger.info(`Input identifiers: tenantId=${responseToSend?.tenantId}, type=${responseToSend?.type}, campaignId=${responseToSend?.campaignId}`);
 
         const { tenantId, type, campaignId } = responseToSend;
 
@@ -173,7 +174,10 @@ export class TemplateClass {
         // Step 2: Build tree - O(n)
         const roots: any[] = [];
         for (const boundary of boundaries) {
-            if (boundary.parent) {
+            // Treat a node as a root when it has no parent, or when its parent is not in the
+            // provided set (filtered / multi-hierarchy paths) — otherwise the parent lookup is
+            // undefined and `.children.push` throws.
+            if (boundary.parent && codeToBoundary[boundary.parent]) {
                 codeToBoundary[boundary.parent].children.push(codeToBoundary[boundary.code]);
             } else {
                 roots.push(codeToBoundary[boundary.code]);

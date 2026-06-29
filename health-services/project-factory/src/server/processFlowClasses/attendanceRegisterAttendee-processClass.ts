@@ -394,8 +394,8 @@ export class TemplateClass {
         const regEnd = registerData.register.endDate;
         const clampedEnrollment = (enrollmentDateEpoch !== null && regStart != null)
             ? Math.max(enrollmentDateEpoch, regStart) : enrollmentDateEpoch;
-        const clampedDeEnrollment = (deEnrollmentDateEpoch !== null && regEnd != null)
-            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch;
+        const clampedDeEnrollment = ((deEnrollmentDateEpoch !== null && regEnd != null)
+            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch) || null;
 
         if (!existing) {
             // Nothing provided at all — skip silently
@@ -515,8 +515,8 @@ export class TemplateClass {
         const regEnd = registerData.register.endDate;
         const clampedEnrollment = (enrollmentDateEpoch !== null && regStart != null)
             ? Math.max(enrollmentDateEpoch, regStart) : enrollmentDateEpoch;
-        const clampedDeEnrollment = (deEnrollmentDateEpoch !== null && regEnd != null)
-            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch;
+        const clampedDeEnrollment = ((deEnrollmentDateEpoch !== null && regEnd != null)
+            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch) || null;
 
         if (!existing) {
             // Nothing provided at all — skip silently
@@ -537,6 +537,7 @@ export class TemplateClass {
                 tenantId,
                 staffType
             };
+            if (clampedDeEnrollment !== null) payload.denrollmentDate = clampedDeEnrollment;
             staffToCreate.push({ payload, row });
             return;
         }
@@ -582,7 +583,7 @@ export class TemplateClass {
         // Active staff — allow de-enroll only (_delete)
         if (clampedDeEnrollment !== null) {
             staffToDelete.push({
-                payload: { registerId, userId: individualId, tenantId },
+                payload: { registerId, userId: individualId, denrollmentDate: clampedDeEnrollment, tenantId },
                 row
             });
         } else {
@@ -730,7 +731,11 @@ export class TemplateClass {
     private static midnightEpochInTz(year: number, month: number, day: number): number {
         const utcGuess = Date.UTC(year, month, day);
         const parts = this.getTzFormatter().formatToParts(new Date(utcGuess));
-        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        const get = (type: string) => {
+            const part = parts.find(p => p.type === type);
+            if (!part) throw new Error(`Intl.DateTimeFormat did not return a '${type}' part for timezone ${config.appTimezone}`);
+            return parseInt(part.value, 10);
+        };
         const localHour = get('hour') === 24 ? 0 : get('hour');
         const localMinute = get('minute');
         const localSecond = get('second');
@@ -757,7 +762,11 @@ export class TemplateClass {
      */
     private static epochToDatePartsInTz(epochMs: number): { year: number; month: number; day: number } {
         const parts = this.getTzFormatter().formatToParts(new Date(epochMs));
-        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        const get = (type: string) => {
+            const part = parts.find(p => p.type === type);
+            if (!part) throw new Error(`Intl.DateTimeFormat did not return a '${type}' part for timezone ${config.appTimezone}`);
+            return parseInt(part.value, 10);
+        };
         return { year: get('year'), month: get('month'), day: get('day') };
     }
 

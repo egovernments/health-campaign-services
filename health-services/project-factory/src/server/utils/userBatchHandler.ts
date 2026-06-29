@@ -269,6 +269,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 
             try {
                 const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
+                await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
                 const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
                 logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 
@@ -628,4 +629,53 @@ export async function fetchExistingUsersByPhone(
         }
     }
     return result;
+}
+
+/** Bounded poll until just-created individuals are searchable, so worker-registry create does not race them into INDIVIDUAL_NOT_FOUND; fail-open (returns the still-missing ids, never throws). */
+export async function waitForIndividualsSearchable(
+    individualIds: string[],
+    tenantId: string,
+    requestInfo: RequestInfo
+): Promise<{ found: Set<string>; missing: string[] }> {
+    const found = new Set<string>();
+    const uniqueIds = [...new Set(individualIds.filter(Boolean))];
+    if (uniqueIds.length === 0) return { found, missing: [] };
+
+    const searchBatchSize = config.user.individualSearchBatchSize;
+    const pollInterval = config.user.individualConsistencyPollIntervalMs;
+    const maxAttempts = config.user.individualConsistencyMaxPollAttempts;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const pending = uniqueIds.filter(id => !found.has(id));
+
+        for (let i = 0; i < pending.length; i += searchBatchSize) {
+            const batch = pending.slice(i, i + searchBatchSize);
+            try {
+                const response = await httpRequest(
+                    config.host.healthIndividualHost + config.paths.healthIndividualSearch,
+                    { RequestInfo: requestInfo, Individual: { id: batch } },
+                    { tenantId, limit: searchBatchSize + 5, offset: 0, includeDeleted: false }
+                );
+                for (const individual of response?.Individual ?? []) {
+                    if (individual?.id) found.add(String(individual.id));
+                }
+            } catch (err) {
+                logger.warn(`Individual consistency poll batch at index ${i} failed (attempt ${attempt}/${maxAttempts}): ${err}`);
+            }
+        }
+
+        if (found.size >= uniqueIds.length) {
+            logger.info(`All ${uniqueIds.length} individual(s) searchable after ${attempt} attempt(s)`);
+            return { found, missing: [] };
+        }
+
+        logger.info(`Individual consistency poll attempt ${attempt}/${maxAttempts}: ${found.size}/${uniqueIds.length} searchable`);
+        if (attempt < maxAttempts) {
+            await new Promise(res => setTimeout(res, pollInterval));
+        }
+    }
+
+    const missing = uniqueIds.filter(id => !found.has(id));
+    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${maxAttempts} attempt(s); proceeding — worker-registry will gate the rest`);
+    return { found, missing };
 }
