@@ -58,6 +58,7 @@ public class ProjectStaffTransformationService {
         String projectId = projectStaff.getProjectId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
+        String campaignNumber = projectService.getCampaignNumberByProjectId(projectId, tenantId);
         String localityCode;
         if (project.getAddress() != null) {
             localityCode = project.getAddress().getBoundary() != null ?
@@ -73,6 +74,7 @@ public class ProjectStaffTransformationService {
         JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
         ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                 .id(projectStaff.getId())
+                .campaignNumber(campaignNumber)
                 .projectId(projectId)
                 .projectType(project.getProjectType())
                 .projectTypeId(projectTypeId)

@@ -18,6 +18,8 @@ import java.util.Map;
 public class ProjectStaffIndexV1 {
     @JsonProperty("id")
     private String id;
+    @JsonProperty("campaignNumber")
+    private String campaignNumber;
     @JsonProperty("userId")
     private String userId;
     @JsonProperty("projectId")
