@@ -91,6 +91,9 @@ public class IndividualProperties {
     @Value("${individual.beneficiary.id.validation.enabled:false}")
     private Boolean beneficiaryIdValidationEnabled;
 
+    @Value("${individual.beneficiary.id.update.enabled:true}")
+    private Boolean beneficiaryIdUpdateEnabled;
+
     @Value("${egov.beneficiary.idgen.integration.enabled:false}")
     private Boolean beneficiaryIdGenIntegrationEnabled;
 

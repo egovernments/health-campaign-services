@@ -299,7 +299,7 @@ public class IndividualService {
                 // save
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
-                if (properties.getBeneficiaryIdGenIntegrationEnabled()) {
+                if (properties.getBeneficiaryIdGenIntegrationEnabled() && properties.getBeneficiaryIdUpdateEnabled()) {
                     // update beneficiary ids in idgen
                     beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIdsToUpdate, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
