@@ -24,7 +24,6 @@ No PVC is required as files don't need to persist after upload.
 """
 
 import os
-import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -34,8 +33,6 @@ from airflow.models import Variable
 
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s_models
-from confluent_kafka import Producer
-
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
 
@@ -79,12 +76,6 @@ CONTAINER_RESOURCES = k8s_models.V1ResourceRequirements(
         "cpu": "1000m"       # Max 1 CPU core
     }
 )
-
-#Kafka config
-KAFKA_BROKER = os.getenv("KAFKA_BROKER")
-
-if not KAFKA_BROKER:
-    raise ValueError("Missing required field: KAFKA_BROKER")
 
 # -------------------------------------------------
 # HELPER FUNCTIONS
@@ -516,62 +507,6 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
 #       DAG DEFINITION
 # ============================
 
-def on_pod_failure(context):
-    """
-    Airflow on_failure_callback for campaign_pods.
-    Runs in the Airflow worker — fires even when the pod is OOM-killed (SIGKILL),
-    which bypasses all Python exception/finally handlers inside the pod.
-    """
-    ti = context["task_instance"]
-    dag_run = context["dag_run"]
-
-    env_vars = {}
-    try:
-        env_list = ti.xcom_pull(task_ids="build_payload", dag_id=dag_run.dag_id)
-        if env_list and ti.map_index is not None and ti.map_index < len(env_list):
-            env_vars = env_list[ti.map_index]
-    except Exception as pull_err:
-        logger.warning("[on_pod_failure] Could not pull env vars from XCom: %s", pull_err)
-
-    tenant_id = env_vars.get("TENANT_ID", "")
-    is_central = env_vars.get("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
-    topic_base = (
-        env_vars.get("CUSTOM_REPORTS_AUTOMATION_TOPIC")
-        or os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC", "save-hcm-report-metadata")
-    )
-    kafka_topic = f"{tenant_id}-{topic_base}" if is_central and tenant_id else topic_base
-
-    exc = context.get("exception")
-    data = {
-        "dag_run_id": dag_run.run_id,
-        "dag_name": dag_run.dag_id,
-        "campaign_identifier": env_vars.get("CAMPAIGN_IDENTIFIER", ""),
-        "report_name": env_vars.get("REPORT_NAME", ""),
-        "trigger_frequency": env_vars.get("TRIGGER_FREQUENCY", ""),
-        "file_store_id": "",
-        "trigger_time": env_vars.get("TRIGGER_TIME", ""),
-        "tenant_id": tenant_id,
-        "report_dates": f"{env_vars.get('START_DATE', '')}_{env_vars.get('END_DATE', '')}",
-        "report_generation_time_seconds": None,
-        "status": "FAILED",
-        "error": {
-            "message": str(exc) if exc else "Pod killed externally (OOM or timeout)",
-            "type": type(exc).__name__ if exc else "PodKilled",
-        },
-    }
-
-    try:
-        _producer = Producer({"bootstrap.servers": KAFKA_BROKER, "client.id": "airflow-pod-failure-reporter"})
-        _producer.produce(topic=kafka_topic, value=json.dumps(data).encode("utf-8"))
-        remaining = _producer.flush(10)
-        if remaining == 0:
-            logger.info("[KAFKA] FAILED status pushed for campaign: %s", env_vars.get("CAMPAIGN_IDENTIFIER"))
-        else:
-            logger.warning("[KAFKA] Could not flush failure message for campaign: %s", env_vars.get("CAMPAIGN_IDENTIFIER"))
-    except Exception as kafka_err:
-        logger.error("[KAFKA] Failed to push failure status: %s", kafka_err)
-
-
 default_args = {
     "owner": "hcm-reports-team",
     "depends_on_past": False,
@@ -759,7 +694,7 @@ with DAG(
 
                 #Kafka configurations
                 "CUSTOM_REPORTS_AUTOMATION_TOPIC" : os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC"),
-                "KAFKA_BROKER" : KAFKA_BROKER,
+                "KAFKA_BROKER" : os.getenv("KAFKA_BROKER"),
                 "IS_CENTRAL_INSTANCE_ENABLED" : IS_CENTRAL_INSTANCE_ENABLED,
                 "CREATED_BY" : c.get("createdBy", ""),
                 "CREATED_TIME" : c.get("createdTime", "")
@@ -839,8 +774,6 @@ with DAG(
             "managed-by": "airflow"
         },
 
-        # Push FAILED to Kafka even when pod is OOM-killed (runs in Airflow worker)
-        on_failure_callback=on_pod_failure,
     ).expand(
         # ✅ CRITICAL: .expand() creates dynamic tasks
         # Each env dict becomes a separate pod with those environment variables
