@@ -10,7 +10,16 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import org.egov.healthnotification.Constants;
+
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Service for interacting with the Project Service.
@@ -22,12 +31,21 @@ public class ProjectService {
 
     private final ServiceRequestClient serviceRequestClient;
     private final HealthNotificationProperties properties;
+    private final ObjectMapper objectMapper;
+    private final Cache<String, Project> projectCache;
 
     @Autowired
     public ProjectService(ServiceRequestClient serviceRequestClient,
-                          HealthNotificationProperties properties) {
+                          HealthNotificationProperties properties,
+                          ObjectMapper objectMapper) {
         this.serviceRequestClient = serviceRequestClient;
         this.properties = properties;
+        this.objectMapper = objectMapper;
+        this.projectCache = CacheBuilder.newBuilder()
+                .maximumSize(properties.getProjectCacheMaxSize())
+                .expireAfterWrite(properties.getProjectCacheTtlMinutes(), TimeUnit.MINUTES)
+                .recordStats()
+                .build();
     }
 
     /**
@@ -155,6 +173,12 @@ public class ProjectService {
      * @return Project object
      */
     public Project searchProjectById(String projectId, String tenantId) {
+        String cacheKey = tenantId + ":" + projectId;
+        Project cached = projectCache.getIfPresent(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
         log.info("Searching project by ID: {} for tenant: {}", projectId, tenantId);
 
         Project searchCriteria = Project.builder()
@@ -186,7 +210,9 @@ public class ProjectService {
                 Project project = response.getProject().get(0);
                 log.info("Successfully fetched project: {}, projectType: {}",
                         projectId, project.getProjectType());
-                return project;
+                Project slim = buildSlimProject(project);
+                projectCache.put(cacheKey, slim);
+                return slim;
             }
 
             log.error("Project not found for id: {}", projectId);
@@ -215,5 +241,41 @@ public class ProjectService {
             return null;
         }
         return project.getProjectType();
+    }
+
+    private Project buildSlimProject(Project project) {
+        Project slim = Project.builder()
+                .id(project.getId())
+                .tenantId(project.getTenantId())
+                .projectType(project.getProjectType())
+                .name(project.getName())
+                .build();
+
+        String beneficiaryType = extractBeneficiaryType(project);
+        if (beneficiaryType != null) {
+            Map<String, Object> additionalDetails = new HashMap<>();
+            additionalDetails.put(Constants.FIELD_PROJECT_TYPE,
+                    Collections.singletonMap(Constants.FIELD_BENEFICIARY_TYPE, beneficiaryType));
+            slim.setAdditionalDetails(additionalDetails);
+        }
+        return slim;
+    }
+
+    private String extractBeneficiaryType(Project project) {
+        try {
+            if (project.getAdditionalDetails() != null) {
+                JsonNode additionalDetailsNode = objectMapper.valueToTree(project.getAdditionalDetails());
+                JsonNode projectTypeNode = additionalDetailsNode.get(Constants.FIELD_PROJECT_TYPE);
+                if (projectTypeNode != null && !projectTypeNode.isNull()) {
+                    JsonNode beneficiaryTypeNode = projectTypeNode.get(Constants.FIELD_BENEFICIARY_TYPE);
+                    if (beneficiaryTypeNode != null && !beneficiaryTypeNode.isNull()) {
+                        return beneficiaryTypeNode.asText();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error extracting beneficiaryType from project additionalDetails", e);
+        }
+        return null;
     }
 }

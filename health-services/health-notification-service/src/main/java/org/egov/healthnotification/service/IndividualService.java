@@ -6,13 +6,18 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.IndividualSearchRequest;
+import org.egov.common.models.individual.Name;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.util.RequestInfoUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Service for interacting with the Individual Service.
@@ -24,12 +29,18 @@ public class IndividualService {
 
     private final ServiceRequestClient serviceRequestClient;
     private final HealthNotificationProperties properties;
+    private final Cache<String, Individual> individualCache;
 
     @Autowired
     public IndividualService(ServiceRequestClient serviceRequestClient,
                              HealthNotificationProperties properties) {
         this.serviceRequestClient = serviceRequestClient;
         this.properties = properties;
+        this.individualCache = CacheBuilder.newBuilder()
+                .maximumSize(properties.getIndividualCacheMaxSize())
+                .expireAfterWrite(properties.getIndividualCacheTtlMinutes(), TimeUnit.MINUTES)
+                .recordStats()
+                .build();
     }
 
     /**
@@ -40,6 +51,12 @@ public class IndividualService {
      * @return The Individual object
      */
     public Individual searchIndividualById(String individualId, String tenantId) {
+        String cacheKey = tenantId + ":" + individualId;
+        Individual cachedIndividual = individualCache.getIfPresent(cacheKey);
+        if (cachedIndividual != null) {
+            return cachedIndividual;
+        }
+
         log.info("Searching individual by ID: {} for tenant: {}", individualId, tenantId);
 
         IndividualSearchRequest request = IndividualSearchRequest.builder()
@@ -66,7 +83,9 @@ public class IndividualService {
                     && !response.getIndividual().isEmpty()) {
                 Individual individual = response.getIndividual().get(0);
                 log.info("Successfully fetched individual: {}", individualId);
-                return individual;
+                Individual slim = buildSlimIndividual(individual);
+                individualCache.put(cacheKey, slim);
+                return slim;
             }
 
             log.error("Individual not found for id: {}", individualId);
@@ -113,5 +132,21 @@ public class IndividualService {
                 + (individual.getName().getFamilyName() != null
                 ? " " + individual.getName().getFamilyName()
                 : "");
+    }
+
+    private Individual buildSlimIndividual(Individual individual) {
+        Name name = null;
+        if (individual.getName() != null) {
+            name = Name.builder()
+                    .givenName(individual.getName().getGivenName())
+                    .familyName(individual.getName().getFamilyName())
+                    .build();
+        }
+        return Individual.builder()
+                .name(name)
+                .mobileNumber(individual.getMobileNumber())
+                .altContactNumber(individual.getAltContactNumber())
+                .email(individual.getEmail())
+                .build();
     }
 }

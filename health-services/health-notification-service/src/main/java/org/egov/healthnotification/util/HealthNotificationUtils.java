@@ -106,8 +106,14 @@ public class HealthNotificationUtils {
                         beneficiaryClientReferenceId, householdId);
 
                 // Fetch the child's details for their name
-                Individual child = individualService.searchIndividualById(member.getIndividualId(), tenantId);
-                String childName = child.getName() != null ? child.getName().getGivenName() : null;
+                String childName = null;
+                try {
+                    Individual child = individualService.searchIndividualById(member.getIndividualId(), tenantId);
+                    childName = child.getName() != null ? child.getName().getGivenName() : null;
+                } catch (Exception e) {
+                    log.warn("Child individual not found for id: {}; continuing without child name: {}",
+                            member.getIndividualId(), e.getMessage());
+                }
                 log.info("Child name resolved: {}", childName);
 
                 HouseholdMember head = householdService.searchHouseholdHead(householdId, tenantId);

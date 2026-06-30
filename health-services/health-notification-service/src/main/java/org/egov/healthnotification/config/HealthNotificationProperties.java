@@ -35,6 +35,19 @@ public class HealthNotificationProperties {
     @Value("${state.level.tenant.id}")
     private String stateLevelTenantId;
 
+    // In-memory cache sizing (Guava)
+    @Value("${cache.project.max-size:100000}")
+    private long projectCacheMaxSize;
+
+    @Value("${cache.project.ttl-minutes:360}")
+    private long projectCacheTtlMinutes;
+
+    @Value("${cache.individual.max-size:50000}")
+    private long individualCacheMaxSize;
+
+    @Value("${cache.individual.ttl-minutes:360}")
+    private long individualCacheTtlMinutes;
+
     // Household Service
     @Value("${egov.household.host}")
     private String householdServiceHost;
