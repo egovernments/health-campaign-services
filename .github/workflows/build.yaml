@@ -65,6 +65,7 @@ on:
           - health-notification-service
           - egov-notification-push
           - worker-registry-java-17
+          - airflow-trigger-service
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
