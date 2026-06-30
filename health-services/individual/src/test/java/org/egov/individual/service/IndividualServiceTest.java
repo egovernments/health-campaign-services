@@ -75,6 +75,8 @@ class IndividualServiceTest {
 
     @Mock
     private NotificationService notificationService;
+
+
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
     @BeforeEach

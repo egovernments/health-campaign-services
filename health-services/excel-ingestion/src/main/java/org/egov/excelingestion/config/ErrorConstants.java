@@ -60,6 +60,9 @@ public class ErrorConstants {
     public static final String EXCEL_PROCESSING_ERROR = "EXCEL_PROCESSING_ERROR";
     public static final String EXCEL_PROCESSING_ERROR_MESSAGE = "Error processing Excel file";
     public static final String EXCEL_PROCESSING_ERROR_DESCRIPTION = "An error occurred while processing the Excel file: {0}";
+
+    public static final String EXCEL_ROW_LIMIT_EXCEEDED = "EXCEL_ROW_LIMIT_EXCEEDED";
+    public static final String EXCEL_ROW_LIMIT_EXCEEDED_MESSAGE = "Sheet '{0}' exceeds the maximum allowed rows ({1}). Please split the data and retry.";
     
     public static final String INVALID_SCHEMA_FORMAT = "INVALID_SCHEMA_FORMAT";
     public static final String INVALID_SCHEMA_FORMAT_MESSAGE = "Invalid schema format received from MDMS";
@@ -191,7 +194,24 @@ public class ErrorConstants {
     
     public static final String FACILITY_VALIDATION_FAILED = "FACILITY_VALIDATION_FAILED";
     public static final String FACILITY_VALIDATION_FAILED_MESSAGE = "Failed to process facility validation sheet";
-    
+
     public static final String TARGET_PROCESSING_FAILED = "TARGET_PROCESSING_FAILED";
     public static final String TARGET_PROCESSING_FAILED_MESSAGE = "Error processing target sheet";
+
+    // Attendance Register Errors
+    public static final String ATTENDANCE_REGISTER_NOT_FOUND = "ATTENDANCE_REGISTER_NOT_FOUND";
+    public static final String ATTENDANCE_REGISTER_NOT_FOUND_MESSAGE = "Attendance register not found with ID: {0}";
+
+    public static final String ATTENDANCE_REGISTER_VALIDATION_FAILED = "ATTENDANCE_REGISTER_VALIDATION_FAILED";
+    public static final String ATTENDANCE_REGISTER_VALIDATION_FAILED_MESSAGE = "Attendance register validation failed";
+
+    public static final String ATTENDEE_VALIDATION_FAILED = "ATTENDEE_VALIDATION_FAILED";
+    public static final String ATTENDEE_VALIDATION_FAILED_MESSAGE = "Attendance register attendee validation failed";
+
+    public static final String ATTENDANCE_REGISTER_LOCALITY_MISSING = "ATTENDANCE_REGISTER_LOCALITY_MISSING";
+    public static final String ATTENDANCE_REGISTER_LOCALITY_MISSING_MESSAGE = "Attendance register {0} has no localityCode set";
+
+    // Credential Decryption Errors
+    public static final String CREDENTIAL_DECRYPTION_ERROR = "CREDENTIAL_DECRYPTION_ERROR";
+    public static final String CREDENTIAL_DECRYPTION_ERROR_MESSAGE = "Failed to decrypt attendee credentials; aborting sheet generation to avoid emitting encrypted values";
 }

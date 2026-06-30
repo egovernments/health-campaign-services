@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
@@ -7,8 +8,16 @@ import { generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampai
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
-import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
+import { searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
 import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
+
+// Dedicated axios instance for filestore uploads — isolated connection pool,
+// never shared with attendance or other service calls, preventing pool poisoning
+const filestoreAxiosInstance = require("axios").default.create({
+  timeout: 0,
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
+});
 import { MDMSModels } from "../models";
 
 //Function to get Workbook with different tabs (for type target)
@@ -93,7 +102,7 @@ function getSheetDataFromWorksheet(worksheet: any) {
 
     row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
       const cellValue = getRawCellValue(cell);
-      rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
+      rowData[colNumber - 1] = typeof cellValue === 'string' ? cellValue.trim() : cellValue; // Store cell value (0-based index)
     });
 
     // Push non-empty row only
@@ -383,49 +392,38 @@ async function createAndUploadFile(
   request: any,
   tenantId?: any
 ) {
-  let retries: any = 3;
-  // Enrich metadatas
   if (request?.body?.RequestInfo && request?.query?.campaignId) {
     enrichTemplateMetaData(updatedWorkbook, getLocaleFromRequestInfo(request?.body?.RequestInfo), request?.query?.campaignId);
   }
-  while (retries--) {
+  const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+  const maxAttempts = parseInt(config.values.maxHttpRetries) || 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const formData = new FormData();
+    formData.append("file", buffer, "filename.xlsx");
+    formData.append("tenantId", tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId);
+    formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
     try {
-      // Write the updated workbook to a buffer
-      const buffer = await updatedWorkbook.xlsx.writeBuffer();
-
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append("file", buffer, "filename.xlsx");
-      formData.append(
-        "tenantId",
-        tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
-      );
-      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
-
-      // Make HTTP request to upload file
-      var fileCreationResult = await httpRequest(
+      logger.info(`FILESTORE :: REQUEST :: ${config.host.filestore + config.paths.filestore}`);
+      const response = await filestoreAxiosInstance.post(
         config.host.filestore + config.paths.filestore,
         formData,
-        undefined,
-        undefined,
-        undefined,
         {
-          "Content-Type": "multipart/form-data",
-          "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+          headers: {
+            ...formData.getHeaders(),
+            "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+          },
         }
       );
-
-      // Extract response data
-      const responseData = fileCreationResult?.files;
-      if (responseData) {
-        return responseData;
-      }
-    }
-    catch (error: any) {
-      console.error(`Attempt failed:`, error.message);
-
-      // Add a delay before the next retry (2 seconds)
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      const responseData = response?.data?.files;
+      if (responseData) return responseData;
+    } catch (error: any) {
+      const apiError = error?.response?.data?.Errors?.[0]?.message;
+      const msg = apiError || error?.message;
+      const code = error?.code || error?.response?.status || "unknown";
+      const stackLine = error?.stack?.split("\n")[1]?.trim() || "";
+      logger.warn(`FILESTORE :: ATTEMPT ${attempt}/${maxAttempts} FAILED :: code=${code} :: ${msg} :: ${stackLine}`);
+      if (attempt === maxAttempts) throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
     }
   }
   throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
@@ -435,46 +433,32 @@ export async function createAndUploadFileWithOutRequest(
   updatedWorkbook: any,
   tenantId: any
 ) {
-  let retries: any = 3;
-  while (retries--) {
+  logger.info("Creating form data for file upload...");
+  const buffer = await updatedWorkbook.xlsx.writeBuffer();
+  logger.info("Form data created.");
+
+  const maxAttempts = parseInt(config.values.maxHttpRetries) || 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const formData = new FormData();
+    formData.append("file", buffer, "filename.xlsx");
+    formData.append("tenantId", tenantId);
+    formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
     try {
-      // Write the updated workbook to a buffer
-      logger.info("Creating form data for file upload...");
-      const buffer = await updatedWorkbook.xlsx.writeBuffer();
-
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append("file", buffer, "filename.xlsx");
-      formData.append(
-        "tenantId",
-        tenantId
-      );
-      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
-      logger.info("Form data created.");
-
-      // Make HTTP request to upload file
-      var fileCreationResult = await httpRequest(
+      logger.info(`FILESTORE :: REQUEST :: ${config.host.filestore + config.paths.filestore}`);
+      const response = await filestoreAxiosInstance.post(
         config.host.filestore + config.paths.filestore,
         formData,
-        undefined,
-        undefined,
-        undefined,
-        {
-          "Content-Type": "multipart/form-data"
-        }
+        { headers: { ...formData.getHeaders() } }
       );
-
-      // Extract response data
-      const responseData = fileCreationResult?.files;
-      if (responseData) {
-        return responseData;
-      }
-    }
-    catch (error: any) {
-      console.error(`Attempt failed:`, error.message);
-
-      // Add a delay before the next retry (2 seconds)
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      const responseData = response?.data?.files;
+      if (responseData) return responseData;
+    } catch (error: any) {
+      const apiError = error?.response?.data?.Errors?.[0]?.message;
+      const msg = apiError || error?.message;
+      const code = error?.code || error?.response?.status || "unknown";
+      const stackLine = error?.stack?.split("\n")[1]?.trim() || "";
+      logger.warn(`FILESTORE :: ATTEMPT ${attempt}/${maxAttempts} FAILED :: code=${code} :: ${msg} :: ${stackLine}`);
+      if (attempt === maxAttempts) throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
     }
   }
   throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
@@ -716,6 +700,104 @@ export async function createProjectFacility(resouceBody: any) {
   // validateProjectFacilityResponse(projectFacilityResponse);
 }
 
+async function searchProjectMappingsByProjects(
+  path: string,
+  bodyKey: string,
+  responseKey: string,
+  extractKey: (item: any) => string | undefined,
+  projectIds: string[],
+  tenantId: string,
+  requestInfo: RequestInfo,
+  entityFilter?: { field: string; ids: string[] }
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const distinctProjectIds = Array.from(new Set(projectIds.filter(Boolean)));
+  if (distinctProjectIds.length === 0) return result;
+
+  const distinctEntityIds = entityFilter ? Array.from(new Set(entityFilter.ids.filter(Boolean))) : [];
+  const entityCriteria = entityFilter && distinctEntityIds.length > 0 ? { [entityFilter.field]: distinctEntityIds } : {};
+
+  const url = `${config.host.projectHost}${path}`;
+  const CHUNK_SIZE = config.mapping.projectSearchChunkSize;
+  const PAGE_SIZE = config.mapping.searchPageSize;
+
+  for (let i = 0; i < distinctProjectIds.length; i += CHUNK_SIZE) {
+    const chunk = distinctProjectIds.slice(i, i + CHUNK_SIZE);
+    let offset = 0;
+    while (true) {
+      const response = await httpRequest(
+        url,
+        { RequestInfo: requestInfo, [bodyKey]: { projectId: chunk, ...entityCriteria } },
+        { tenantId, limit: PAGE_SIZE, offset, includeDeleted: false }
+      );
+      const items: any[] = response?.[responseKey] || [];
+      for (const item of items) {
+        const key = extractKey(item);
+        if (key && item?.id) result.set(key, item.id);
+      }
+      if (items.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+  }
+  return result;
+}
+
+/**
+ * Resource search has no productVariantId filter server-side; projectId-only is acceptable
+ * because resource cardinality per project is low.
+ */
+export async function searchProjectResourcesByProjects(
+  projectIds: string[],
+  tenantId: string,
+  requestInfo: RequestInfo
+): Promise<Map<string, string>> {
+  return searchProjectMappingsByProjects(
+    config.paths.projectResourceSearch,
+    "ProjectResource",
+    "ProjectResources",
+    (item: any) => item?.resource?.productVariantId && item?.projectId ? `${item.resource.productVariantId}|${item.projectId}` : undefined,
+    projectIds,
+    tenantId,
+    requestInfo
+  );
+}
+
+export async function searchProjectFacilitiesByProjects(
+  projectIds: string[],
+  tenantId: string,
+  requestInfo: RequestInfo,
+  facilityIds: string[] = []
+): Promise<Map<string, string>> {
+  return searchProjectMappingsByProjects(
+    config.paths.projectFacilitySearch,
+    "ProjectFacility",
+    "ProjectFacilities",
+    (item: any) => item?.facilityId && item?.projectId ? `${item.facilityId}|${item.projectId}` : undefined,
+    projectIds,
+    tenantId,
+    requestInfo,
+    { field: "facilityId", ids: facilityIds }
+  );
+}
+
+export async function searchProjectStaffByProjects(
+  projectIds: string[],
+  tenantId: string,
+  requestInfo: RequestInfo,
+  staffIds: string[] = []
+): Promise<Map<string, string>> {
+  return searchProjectMappingsByProjects(
+    config.paths.projectStaffSearch,
+    "ProjectStaff",
+    "ProjectStaff",
+    (item: any) => item?.userId && item?.projectId ? `${item.userId}|${item.projectId}` : undefined,
+    projectIds,
+    tenantId,
+    requestInfo,
+    { field: "staffId", ids: staffIds }
+  );
+}
+
 // Helper function to create staff
 const createProjectStaffHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
   try {
@@ -940,9 +1022,10 @@ async function callMdmsTypeSchema(
   tenantId: string,
   isUpdate: boolean,
   type: any,
-  campaignType = "all"
+  campaignType = "all",
+  requestInfo?: RequestInfo
 ) {
-  const RequestInfo = defaultRequestInfo?.RequestInfo;
+  const RequestInfo = requestInfo;
   const requestBody = {
     RequestInfo,
     MdmsCriteria: {

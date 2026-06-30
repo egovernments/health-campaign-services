@@ -1,5 +1,7 @@
 import * as express from "express";
 import { generateDataService, processDataService } from "../../service/sheetManageService";
+import { searchProjectTypeCampaignService } from "../../service/campaignManageService";
+import { campaignStatuses, httpStatusCodes, errorModules, errorCodes } from "../../config/constants";
 import { errorResponder, sendResponse, throwError } from "../../utils/genericUtils";
 import { logger } from "../../utils/logger";
 import { getLocaleFromRequest } from "../../utils/localisationUtils";
@@ -45,7 +47,8 @@ class SheetManageController {
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
 
-            const GeneratedResource = await generateDataService(generateTemplateQuery, userUuid, locale);
+            const requestInfo = req.body?.RequestInfo;
+            const GeneratedResource = await generateDataService(generateTemplateQuery, userUuid, locale, requestInfo);
 
             return sendResponse(res, { GeneratedResource }, req);
         } catch (e: any) {
@@ -72,7 +75,32 @@ class SheetManageController {
             const ResourceDetails: ResourceDetails = parsed.data;
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
+            ResourceDetails.requestInfo = req.body?.RequestInfo;
             filterResourceDetailType(ResourceDetails.type);
+
+            // Check for concurrent upload to same campaign (409 guard)
+            if (ResourceDetails.campaignId) {
+                try {
+                    const campaignResp = await searchProjectTypeCampaignService({
+                        tenantId: ResourceDetails.tenantId,
+                        ids: [ResourceDetails.campaignId]
+                    });
+                    const campaign = campaignResp?.CampaignDetails?.[0];
+                    if (campaign?.status === campaignStatuses.started) {
+                        throwError(
+                            errorModules.common,
+                            httpStatusCodes.conflict,
+                            errorCodes.campaignProcessingInProgress,
+                            `Campaign ${campaign.campaignName} is currently being processed. Retry once it reaches a terminal status.`
+                        );
+                    }
+                } catch (e: any) {
+                    if (e?.status === httpStatusCodes.conflict) throw e;
+                    logger.warn(`Failed to check campaign status for concurrent upload guard:`, e?.message);
+                    // Non-fatal: continue with processing
+                }
+            }
+
             const processedData = await processDataService(ResourceDetails, userUuid, locale);
             // Continue processing with validated `validData`
             return sendResponse(res, { ResourceDetails : processedData }, req);
@@ -100,6 +128,7 @@ class SheetManageController {
             const ResourceDetails: ResourceDetails = parsed.data;
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
+            ResourceDetails.requestInfo = req.body?.RequestInfo;
             const processedData = await processDataService(ResourceDetails, userUuid, locale);
             // Continue processing with validated `validData`
             return sendResponse(res, { ResourceDetails: processedData }, req);

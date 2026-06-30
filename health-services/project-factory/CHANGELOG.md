@@ -49,3 +49,11 @@ All notable changes to this module will be documented in this file.
   4. Unified Excel Support
   5. Enhanced Error Reporting
   6. Boundary Management clean up 
+
+## 1.0.1 - 2026-06-24
+#### ProjectFactory service version 1.0.1
+  1. Reliable startup Kafka topic creation and connection (including per-state prefixed topics for central instance) so campaigns no longer get stuck failing to start.
+  2. GZIP-compressed Kafka messages and raised consumer fetch size (4MB) to handle large campaign payloads without running out of memory.
+  3. Facility-to-boundary mapping keyed on facility id / boundary code instead of name, fixing facilities mapping to the wrong boundary.
+  4. All batch / chunk sizes made configurable, and MAX_CONCURRENT made configurable.
+  5. Resources deactivated when the campaign hierarchy or boundaries change.

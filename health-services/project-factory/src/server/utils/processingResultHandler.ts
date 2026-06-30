@@ -1,11 +1,12 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
-import { searchSheetData } from './excelIngestionUtils';
+import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses } from '../config/constants';
-import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData, defaultRequestInfo } from '../api/coreApis';
-import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration } from './campaignUtils';
+import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses } from '../config/constants';
+import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
+import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration, markAllToCreateResourcesAsCompleted } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
 import Localisation from '../controllers/localisationController/localisation.controller';
 import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTypeUtils';
@@ -16,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import config from '../config';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { triggerUserCredentialEmailFlow } from './mailUtils';
+import { runMappingReconciler } from './mappingReconciler';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -108,22 +110,34 @@ export async function handleProcessingResult(messageObject: any) {
         const totalErrors = messageObject?.additionalDetails?.totalErrors || 0;
         var createdByEmail = null;
         const locale = messageObject.locale || config.localisation.defaultLocale;
-        
+
         logger.info(`Validation Status: ${validationStatus}`);
         logger.info(`Total Rows Processed: ${totalRowsProcessed}`);
         logger.info(`Total Errors: ${totalErrors}`);
-        
+
+        // Resolve campaignId: for attendanceRegister referenceType, campaignId is in additionalDetails
+        const referenceType = messageObject.referenceType;
+        const campaignId = referenceType === 'attendanceRegister'
+            ? messageObject?.additionalDetails?.campaignId
+            : messageObject.referenceId;
+
+        if (!campaignId) {
+            logger.error(`Cannot resolve campaignId from message: referenceType=${referenceType}, referenceId=${messageObject.referenceId}`);
+            return;
+        }
+        logger.info(`Resolved campaignId: ${campaignId} (referenceType: ${referenceType})`);
+
         // Fetch campaign details first (needed for validation failure handling)
         logger.info('=== FETCHING CAMPAIGN DETAILS ===');
         const campaignSearchCriteria = {
             tenantId: messageObject.tenantId,
-            ids: [messageObject.referenceId]
+            ids: [campaignId]
         };
         const campaignResponse = await searchProjectTypeCampaignService(campaignSearchCriteria);
         const campaignDetails = campaignResponse?.CampaignDetails?.[0];
-        
+
                 if (!campaignDetails) {
-                    logger.error(`No campaign found with campaignId: ${messageObject.referenceId}`);
+                    logger.error(`No campaign found with campaignId: ${campaignId}`);
                     return;
                 }
         
@@ -136,7 +150,7 @@ export async function handleProcessingResult(messageObject: any) {
                         tenantId: messageObject.tenantId,
                     };
                     const searchBody = {
-                        RequestInfo: defaultRequestInfo.RequestInfo,
+                        RequestInfo: messageObject?.requestInfo,
                         Individual: {
                             type: "EMPLOYEE",
                             userUuid: [campaignCreatedBy],
@@ -171,7 +185,24 @@ export async function handleProcessingResult(messageObject: any) {
             logger.warn('Campaign is already marked as failed, skipping further processing');
             return;
         }
-        
+
+        // Clean up failed/invalid user rows from prior attempts on same-campaign re-upload.
+        // Use a positive check: only run for known user-data upload types ('user-microplan-ingestion'
+        // or the unified console template whose type name contains 'unified').
+        // Attendance register uploads (type contains 'attendance') must never trigger this cleanup
+        // even when they arrive with referenceType='campaign' (legacy path in the AR processor).
+        const messageType = String(messageObject.type || '').toLowerCase();
+        const isUserOrUnifiedUpload =
+            messageType.includes('user') || messageType.includes('unified');
+        if (isUserOrUnifiedUpload) {
+            try {
+                await deleteCampaignDataFailedAndInvalid(campaignDetails.campaignNumber, 'user', messageObject.tenantId);
+            } catch (cleanupError) {
+                logger.error(`Failed to clean up prior failed/invalid rows:`, cleanupError);
+                throw cleanupError;
+            }
+        }
+
         // Fetch parent campaign if exists
         let parentCampaign = null;
         if (campaignDetails.parentId) {
@@ -193,24 +224,70 @@ export async function handleProcessingResult(messageObject: any) {
             }
         }
         
-        // Only proceed if validation status is valid
-        if (validationStatus !== 'valid' || messageObject.status !== 'completed') {
-            logger.warn('=== VALIDATION STATUS IS NOT VALID - STOPPING PROCESSING ===');
-            logger.warn(`Validation Status: ${validationStatus}, cannot proceed with campaign data processing`);
-            
-            // Mark campaign as failed
+        // Read per-sheet validation statuses (if present)
+        const boundarySheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.boundarySheetStatus];
+        const facilitySheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.facilitySheetStatus];
+        const userSheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.userSheetStatus];
 
-            // const validationError = new Error(`Validation failed: ${validationStatus}, Status: ${messageObject.status}`);
-            throwError('COMMON', 400, 'VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE', "Unified console template is not valid. Please correct the errors and try again.");
-            logger.info('Campaign marked as failed due to validation failure');
+        // Check message status first
+        if (messageObject.status !== 'completed') {
+            logger.warn('=== MESSAGE STATUS IS NOT COMPLETED - STOPPING PROCESSING ===');
+            logger.warn(`Message Status: ${messageObject.status}, cannot proceed with campaign data processing`);
+            throwError(errorModules.common, httpStatusCodes.badRequest, errorCodes.processingFailed, `Excel ingestion processing failed with status: ${messageObject.status}. Error: ${messageObject.additionalDetails?.errorMessage || 'unknown'}`);
             return;
         }
+
+        // Determine if we should hard-block (boundary or facility errors)
+        const hardBlock =
+            boundarySheetStatus === sheetValidationStatuses.invalid ||
+            facilitySheetStatus === sheetValidationStatuses.invalid ||
+            // Legacy fallback: if no per-sheet keys are set, use overall validationStatus
+            (
+                boundarySheetStatus === undefined &&
+                facilitySheetStatus === undefined &&
+                userSheetStatus === undefined &&
+                validationStatus !== sheetValidationStatuses.valid
+            );
+
+        if (hardBlock) {
+            logger.warn('=== HARD BLOCK: BOUNDARY OR FACILITY VALIDATION FAILED ===');
+            logger.warn(`Boundary Status: ${boundarySheetStatus}, Facility Status: ${facilitySheetStatus}, overall validationStatus: ${validationStatus}`);
+
+            // Log all available error details so we can debug what went wrong
+            if (messageObject.additionalDetails?.errorCode) {
+                logger.error(`Error Code: ${messageObject.additionalDetails.errorCode}`);
+                logger.error(`Error Message: ${messageObject.additionalDetails.errorMessage}`);
+            }
+            if (messageObject.additionalDetails?.sheetErrorCounts) {
+                logger.warn(`Sheet Error Counts: ${JSON.stringify(messageObject.additionalDetails.sheetErrorCounts)}`);
+            }
+            logger.warn(`Full additionalDetails: ${JSON.stringify(messageObject.additionalDetails)}`);
+
+            throwError(errorModules.common, httpStatusCodes.badRequest, errorCodes.validationErrorUnifiedConsoleTemplate, "Unified console template is not valid. Please correct the errors and try again.");
+            return;
+        }
+
+        // If user sheet has errors but boundary/facility are valid, log and proceed
+        if (userSheetStatus === sheetValidationStatuses.invalid) {
+            logger.info(`Proceeding with campaign despite user-sheet validation errors: campaignNumber=${campaignDetails.campaignName}`);
+        }
         
-        // Add timing delay based on totalRowsProcessed 
-        // Minimum 5 seconds, or 8ms per row processed
-        const delayMs = Math.max(5000, totalRowsProcessed * 8);
-        logger.info(`=== WAITING ${delayMs}ms BEFORE PROCESSING (${totalRowsProcessed} rows * 8ms, min 5s) ===`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        // Poll until the ingestion service has persisted all rows before reading.
+        // Compare against the service's true TotalCount (count-only call) rather than
+        // a capped Data.length — the latter silently stalls for files > the fetch limit.
+        if (totalRowsProcessed > 0) {
+            logger.info(`=== WAITING FOR INGESTION PERSISTER: expecting ${totalRowsProcessed} rows ===`);
+            await pollUntilCountFn(
+                () => getSheetDataCount(messageObject.tenantId, messageObject.referenceId, messageObject.fileStoreId),
+                totalRowsProcessed,
+                {
+                    label: 'ingestion sheet data',
+                    // Wait as long as rows keep landing; fail only if persistence stalls.
+                    stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs,
+                    pollIntervalMs: config.excelIngestion.persistencePollIntervalMs,
+                }
+            );
+        }
         
         // Check for errors
         if (messageObject.additionalDetails.errorCode) {
@@ -228,25 +305,27 @@ export async function handleProcessingResult(messageObject: any) {
         
         // Fetch localization data
         logger.info('=== FETCHING LOCALIZATION DATA ===');
-        const localizationMap = await fetchLocalizationData(messageObject.tenantId, messageObject.referenceId, locale);
+        const localizationMap = await fetchLocalizationData(messageObject.tenantId, campaignId, locale);
         logger.info(`Localization data fetched with ${Object.keys(localizationMap).length} keys`);
         
         // Search temp data and process campaign data
         logger.info('=== SEARCHING TEMP DATA AND PROCESSING CAMPAIGN DATA ===');
         
         if (messageObject.referenceId && messageObject.fileStoreId && messageObject.tenantId) {
-            const tempData = await searchSheetData(
+            // Presence check only — use the true count instead of fetching (and
+            // discarding) thousands of rows. The per-type processors below read
+            // their own sheets via bounded pagination.
+            const tempDataCount = await getSheetDataCount(
                 messageObject.tenantId,
                 messageObject.referenceId,
-                messageObject.fileStoreId,
-                5000 // Increased limit for processing
+                messageObject.fileStoreId
             );
-            
-            if (tempData && tempData.length > 0) {
+
+            if (tempDataCount && tempDataCount > 0) {
                 
                 // Process campaign data from all sheets in parallel
                 logger.info('=== PROCESSING ALL CAMPAIGN DATA TYPES IN PARALLEL ===');
-                await Promise.all([
+                const [expectedBoundaryCount, , expectedUserCount] = await Promise.all([
                     processCampaignBoundariesFromExcelData(
                         messageObject.tenantId,
                         messageObject.fileStoreId,
@@ -267,10 +346,10 @@ export async function handleProcessingResult(messageObject: any) {
                     )
                 ]);
                 logger.info('=== ALL CAMPAIGN DATA PROCESSING COMPLETED ===');
-                
+
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale,createdByEmail);
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, messageObject?.requestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }
@@ -283,13 +362,18 @@ export async function handleProcessingResult(messageObject: any) {
     } catch (error) {
         logger.error('Error handling HCM processing result:', error);
         
-        // Mark campaign as failed if we have referenceId and tenantId
-        if (messageObject?.referenceId && messageObject?.tenantId) {
-            try {
-                await sendCampaignFailureMessage(messageObject.referenceId, messageObject.tenantId, error);
-                logger.info(`Campaign ${messageObject.referenceId} marked as failed due to processing error`);
-            } catch (failureError) {
-                logger.error('Error marking campaign as failed:', failureError);
+        // Mark campaign as failed if we have referenceId/campaignId and tenantId
+        if (messageObject?.tenantId) {
+            const failureCampaignId = messageObject?.referenceType === 'attendanceRegister'
+                ? messageObject?.additionalDetails?.campaignId
+                : messageObject?.referenceId;
+            if (failureCampaignId) {
+                try {
+                    await sendCampaignFailureMessage(failureCampaignId, messageObject.tenantId, error);
+                    logger.info(`Campaign ${failureCampaignId} marked as failed due to processing error`);
+                } catch (failureError) {
+                    logger.error('Error marking campaign as failed:', failureError);
+                }
             }
         }
     }
@@ -303,7 +387,7 @@ async function processCampaignBoundariesFromExcelData(
     fileStoreId: string,
     localizationMap: Record<string, string>,
     campaignDetails: any
-): Promise<void> {
+): Promise<number> {
     try {
         logger.info('=== PROCESSING CAMPAIGN BOUNDARIES FROM EXCEL DATA ===');
         
@@ -322,7 +406,7 @@ async function processCampaignBoundariesFromExcelData(
         const response = await searchMDMSDataViaV2Api(MdmsCriteria, true);
         if (!response?.mdms?.[0]?.data) {
             logger.error(`Target Config not found for ${campaignDetails.projectType}`);
-            return;
+            return 0;
         }
 
         const targetConfig = response.mdms[0].data;
@@ -359,30 +443,32 @@ async function processCampaignBoundariesFromExcelData(
 
         logger.info(`Enriched ${boundaries.length} boundaries with includeChildren=true`);
 
-        // Step 4: Search specific boundary hierarchy sheet data  
+        // Step 4: Search specific boundary hierarchy sheet data (paginated to bound
+        // memory). Only the {boundaryCode, target-columns} projection is retained
+        // across pages — never the full rowjson for the whole sheet.
         const boundarySheetName = getLocalizedSheetName('HCM_CONSOLE_BOUNDARY_HIERARCHY', localizationMap);
         logger.info(`Searching ${boundarySheetName} sheet data...`);
-        const boundarySheetData = await searchSheetData(
-            tenantId, 
-            campaignId, 
+
+        const sheetTargetData: any[] = [];
+        const boundaryRowTotal = await forEachSheetDataPage(
+            tenantId,
+            campaignId,
             fileStoreId,
-            null,
-            boundarySheetName
+            boundarySheetName,
+            getSheetFetchPageSize(),
+            (rows) => { extractTargetDataFromBoundarySheet(rows, targetColumns, sheetTargetData); }
         );
 
-        if (!boundarySheetData || boundarySheetData.length === 0) {
+        if (boundaryRowTotal === 0) {
             logger.warn('No boundary hierarchy sheet data found');
-            return;
+            return 0;
         }
 
-        logger.info(`Found ${boundarySheetData.length} records in boundary hierarchy sheet`);
-
-        // Step 5: Extract target data from sheet (only lowest level boundaries have targets)
-        const sheetTargetData = extractTargetDataFromBoundarySheet(boundarySheetData, targetColumns);
+        logger.info(`Found ${boundaryRowTotal} records in boundary hierarchy sheet`);
 
         if (sheetTargetData.length === 0) {
             logger.warn('No boundary target data found in sheets');
-            return;
+            return 0;
         }
 
         logger.info(`Extracted target data for ${sheetTargetData.length} boundaries from sheet`);
@@ -392,12 +478,13 @@ async function processCampaignBoundariesFromExcelData(
         logger.info(`Mapped targets to ${allBoundaryDataWithTargets.length} total boundaries (all hierarchy levels)`);
 
         // Step 8: Process all boundary data (with cascaded targets) and update eg_cm_campaign_data
-        await processBoundaryDataInCampaignTable(campaignNumber, tenantId, allBoundaryDataWithTargets, targetColumns);
+        const boundaryRowCount = await processBoundaryDataInCampaignTable(campaignNumber, tenantId, allBoundaryDataWithTargets, targetColumns);
 
         // Step 9: Process resource-boundary mappings for campaign resources
         await processResourceBoundaryMappings(campaignNumber, tenantId, boundaries, campaignDetails);
 
         logger.info('=== CAMPAIGN BOUNDARY PROCESSING COMPLETED ===');
+        return boundaryRowCount;
 
     } catch (error) {
         logger.error('Error processing campaign boundaries from excel data:', error);
@@ -406,41 +493,44 @@ async function processCampaignBoundariesFromExcelData(
 }
 
 /**
- * Extract target data from boundary hierarchy sheet records (only lowest level boundaries)
+ * Extract target data from a page of boundary hierarchy sheet records (only
+ * lowest-level boundaries carry targets) and push it into `accumulator`.
+ *
+ * Pushes a lightweight {boundaryCode, target-columns} projection rather than the
+ * full rowjson, so the cross-row target cascade can run over the accumulated
+ * leaves without retaining the entire sheet in memory.
  */
-function extractTargetDataFromBoundarySheet(sheetData: any[], targetColumns: string[]): any[] {
-    const boundaryDataList: any[] = [];
+function extractTargetDataFromBoundarySheet(sheetData: any[], targetColumns: string[], accumulator: any[]): void {
     const BOUNDARY_CODE_COLUMN = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
-    
+
     sheetData.forEach(record => {
         const rowJson = record.rowjson || record.rowJson || {};
         const boundaryCode = rowJson[BOUNDARY_CODE_COLUMN];
-        
+
         if (!boundaryCode) {
             logger.warn(`No boundary code found in row`);
             return;
         }
 
-        // Check if row has any target data
+        // Keep only the target columns that have a value (plus the boundary code).
+        const projected: any = {};
         let hasTargets = false;
         targetColumns.forEach(targetColumn => {
             const targetValue = rowJson[targetColumn];
             if (targetValue !== undefined && targetValue !== null && targetValue !== '') {
+                projected[targetColumn] = targetValue;
                 hasTargets = true;
             }
         });
 
         if (hasTargets) {
-            boundaryDataList.push({
+            accumulator.push({
                 boundaryCode,
-                data: rowJson
+                data: projected
             });
             logger.debug(`Extracted boundary: ${boundaryCode} with targets`);
         }
     });
-
-    logger.info(`Extracted ${boundaryDataList.length} boundary records with targets from boundary hierarchy sheet`);
-    return boundaryDataList;
 }
 
 /**
@@ -548,13 +638,13 @@ function enrichDatasForParents(boundaries: any[], datas: any[], targetColumns: s
  * Process boundary data and update eg_cm_campaign_data table
  */
 async function processBoundaryDataInCampaignTable(
-    campaignNumber: string, 
-    tenantId: string, 
+    campaignNumber: string,
+    tenantId: string,
     boundaryDataList: any[],
     targetColumns: string[]
-): Promise<void> {
+): Promise<number> {
     if (boundaryDataList.length === 0) {
-        return;
+        return 0;
     }
 
     const BOUNDARY_CODE_COLUMN = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
@@ -627,6 +717,8 @@ async function processBoundaryDataInCampaignTable(
     } else {
         logger.info(`Campaign data table updated: ${newEntries.length} new, ${updatedEntries.length} updated`);
     }
+
+    return newEntries.length + updatedEntries.length;
 }
 
 /**
@@ -841,22 +933,42 @@ async function monitorCampaignDataCompletion(
                 logger.warn(`Could not check campaign status, continuing with data monitoring: ${campaignCheckError}`);
             }
             
+            // Check boundary and facility status (hard-blocking failures)
+            const boundaryStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'boundary');
+            const facilityStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'facility');
+
+            // Check user status (non-blocking failures allowed)
+            const userStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'user');
+
+            // Overall status
             const status = await checkCampaignDataCompletionStatus(campaignNumber, tenantId);
-            
+
             logger.info(`Campaign ${campaignNumber} polling attempt ${attempt}/${maxAttempts}: ${status.completedRows}/${status.totalRows} completed, ${status.failedRows} failed, ${status.pendingRows} pending`);
-            
-            if (status.anyFailed) {
-                logger.error(`Campaign ${campaignNumber} has failed data entries. Marking campaign as failed.`);
-                const failureError = new Error(`Data creation failed: ${status.failedRows} out of ${status.totalRows} data entries failed`);
-                await sendCampaignFailureMessage(campaignId, tenantId, failureError);
-                throw failureError;
-            }
-            
-            if (status.allCompleted && status.totalRows > 0) {
-                logger.info(`Campaign ${campaignNumber} data creation completed successfully. All ${status.totalRows} entries are completed.`);
-                // Mark all creation processes as completed
-                await markCreationProcessesAsCompleted(campaignNumber, tenantId, userUuid);
-                return;
+            logger.info(`  Boundary: ${boundaryStatus.completedRows}/${boundaryStatus.totalRows} completed, ${boundaryStatus.failedRows} failed`);
+            logger.info(`  Facility: ${facilityStatus.completedRows}/${facilityStatus.totalRows} completed, ${facilityStatus.failedRows} failed`);
+            logger.info(`  User: ${userStatus.completedRows}/${userStatus.totalRows} completed, ${userStatus.failedRows} failed`);
+
+            // Only act once all rows have settled (no pending) — failing immediately while other
+            // types are still in progress would create ghost resources that can't be recalled.
+            if (status.totalRows > 0 && status.pendingRows === 0) {
+                // Hard-block: boundary or facility failures prevent campaign success
+                if (boundaryStatus.anyFailed || facilityStatus.anyFailed) {
+                    logger.error(`Campaign ${campaignNumber} has hard-blocking failures (boundary: ${boundaryStatus.failedRows} failed, facility: ${facilityStatus.failedRows} failed). Marking campaign as failed.`);
+                    const failureError = new Error(`Boundary/Facility creation failed: boundary ${boundaryStatus.failedRows} failed, facility ${facilityStatus.failedRows} failed`);
+                    await sendCampaignFailureMessage(campaignId, tenantId, failureError);
+                    throw failureError;
+                }
+
+                // Non-blocking: user failures are allowed, log them but continue
+                if (userStatus.anyFailed) {
+                    logger.warn(`Campaign ${campaignNumber} has user-level failures: ${userStatus.failedRows} out of ${userStatus.totalRows} users failed. Failures are non-blocking and visible in error worksheet.`);
+                }
+
+                if (status.allCompleted || (status.totalRows > 0 && status.failedRows > 0 && status.pendingRows === 0 && !boundaryStatus.anyFailed && !facilityStatus.anyFailed)) {
+                    logger.info(`Campaign ${campaignNumber} data creation completed. Boundary/Facility validation passed. (${status.completedRows} completed, ${status.failedRows} failed)`);
+                    await markCreationProcessesAsCompleted(campaignNumber, tenantId, userUuid);
+                    return;
+                }
             }
             
             // If not the last attempt, wait before next poll
@@ -873,134 +985,6 @@ async function monitorCampaignDataCompletion(
         
     } catch (error) {
         logger.error(`Error monitoring campaign ${campaignNumber} data completion:`, error);
-        throw error;
-    }
-}
-
-/**
- * Mark all mapping processes as completed
- */
-async function markMappingProcessesAsCompleted(
-    campaignNumber: string,
-    tenantId: string,
-    userUuid: string
-): Promise<void> {
-    try {
-        logger.info(`Marking mapping processes as completed for campaign: ${campaignNumber}`);
-        
-        // Get all mapping processes
-        const mappingProcessTypes = [
-            allProcesses.facilityMapping,
-            allProcesses.userMapping,
-            allProcesses.resourceMapping
-        ];
-        
-        const processesToUpdate = [];
-        const currentTime = Date.now();
-        
-        // Check each mapping process type
-        for (const processType of mappingProcessTypes) {
-            const processes = await getCurrentProcesses(campaignNumber, tenantId, processType);
-            
-            for (const process of processes) {
-                // Only update if not already completed
-                if (process.status !== processStatuses.completed) {
-                    process.status = processStatuses.completed;
-                    process.auditDetails = {
-                        createdBy: process.auditDetails?.createdBy || userUuid,
-                        createdTime: process.auditDetails?.createdTime || currentTime,
-                        lastModifiedBy: userUuid,
-                        lastModifiedTime: currentTime
-                    };
-                    processesToUpdate.push(process);
-                }
-            }
-        }
-        
-        // Update processes via Kafka if any need updating
-        if (processesToUpdate.length > 0) {
-            logger.info(`Updating ${processesToUpdate.length} mapping processes to completed status`);
-            await produceModifiedMessages(
-                { processes: processesToUpdate }, 
-                config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, 
-                tenantId
-            );
-        } else {
-            logger.info('All mapping processes are already completed');
-        }
-        
-    } catch (error) {
-        logger.error(`Error marking mapping processes as completed: ${error}`);
-        throwError('COMMON', 500, 'PROCESS_UPDATE_ERROR', 'Error updating the statuses of mapping processes');
-    }
-}
-
-/**
- * Monitor campaign mapping completion status with polling
- */
-async function monitorCampaignMappingCompletion(
-    campaignNumber: string,
-    tenantId: string,
-    campaignId: string,
-    campaignAlreadyFailed: { value: boolean },
-    userUuid: string
-): Promise<void> {
-    try {
-        logger.info(`Starting mapping completion monitoring for campaign: ${campaignNumber}`);
-        
-        const maxAttempts = config.resourceCreationConfig.maxAttemptsForResourceCreationOrMapping;
-        const waitTimeMs = config.resourceCreationConfig.waitTimeOfEachAttemptOfResourceCreationOrMappping;
-        
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            // Check if campaign itself is failed
-            try {
-                const campaignResponse = await searchProjectTypeCampaignService({
-                    tenantId: tenantId,
-                    ids: [campaignId]
-                });
-                const campaign = campaignResponse?.CampaignDetails?.[0];
-                
-                if (campaign?.status === campaignStatuses.failed) {
-                    logger.info(`Campaign ${campaignNumber} is already marked as failed. Stopping mapping monitoring.`);
-                    campaignAlreadyFailed.value = true;
-                    return;
-                }
-            } catch (campaignCheckError) {
-                logger.warn(`Could not check campaign status, continuing with mapping monitoring: ${campaignCheckError}`);
-            }
-            
-            const status = await checkCampaignMappingCompletionStatus(campaignNumber, tenantId);
-            
-            logger.info(`Campaign ${campaignNumber} mapping attempt ${attempt}/${maxAttempts}: ${status.completedMappings}/${status.totalMappings} completed, ${status.failedMappings} failed, ${status.pendingMappings} pending`);
-            
-            if (status.anyFailed) {
-                logger.error(`Campaign ${campaignNumber} has failed mappings. Marking campaign as failed.`);
-                const failureError = new Error(`Mapping failed: ${status.failedMappings} out of ${status.totalMappings} mappings failed`);
-                await sendCampaignFailureMessage(campaignId, tenantId, failureError);
-                throw failureError;
-            }
-            
-            if (status.allCompleted && status.totalMappings > 0) {
-                logger.info(`Campaign ${campaignNumber} mapping completed successfully. All ${status.totalMappings} mappings are completed.`);
-                // Mark all mapping processes as completed
-                await markMappingProcessesAsCompleted(campaignNumber, tenantId, userUuid);
-                return;
-            }
-            
-            // If not the last attempt, wait before next poll
-            if (attempt < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, waitTimeMs));
-            }
-        }
-        
-        // Max attempts reached
-        logger.error(`Campaign ${campaignNumber} mapping timed out after ${maxAttempts} attempts`);
-        const timeoutError = new Error(`Mapping timed out: polling exceeded ${maxAttempts} attempts`);
-        await sendCampaignFailureMessage(campaignId, tenantId, timeoutError);
-        throw timeoutError;
-        
-    } catch (error) {
-        logger.error(`Error monitoring campaign ${campaignNumber} mapping completion:`, error);
         throw error;
     }
 }
@@ -1066,21 +1050,12 @@ async function markCampaignCompletedConditionally(
  * Persist data in batches using Kafka
  */
 async function persistDataInBatches(dataList: any[], topic: string, tenantId: string): Promise<void> {
-    const batchSize = 100;
-    
+    const batchSize = config.sheetData.persistBatchSize;
+
     for (let i = 0; i < dataList.length; i += batchSize) {
         const batch = dataList.slice(i, i + batchSize);
         await produceModifiedMessages({ datas: batch }, topic, tenantId);
-        
-        if (i + batchSize < dataList.length) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
     }
-
-    // Wait for persistence to complete
-    const waitTime = Math.max(5000, dataList.length * 8);
-    logger.info(`Waiting ${waitTime}ms for persistence to complete`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
 }
 
 /**
@@ -1099,26 +1074,44 @@ async function processCampaignFacilitiesFromExcelData(
         const campaignId = campaignDetails.id;
         logger.info(`Processing facilities for campaign: ${campaignDetails.campaignName}`);
 
-        // Search facilities sheet data
+        // Search facilities sheet data (paginated to bound memory).
         const facilitySheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_FACILITIES_LIST', localizationMap);
         logger.info(`Searching ${facilitySheetName} sheet data...`);
-        const facilitySheetData = await searchSheetData(
-            tenantId, 
-            campaignId, 
-            fileStoreId,
-            null,
-            facilitySheetName
+
+        const FACILITY_NAME_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_NAME';
+
+        // Existing facilities come from the DB (not the sheet) — fetch once and
+        // reuse across every page.
+        const existingFacilities = await getRelatedDataWithCampaign('facility', campaignNumber, tenantId);
+        logger.info(`Found ${existingFacilities.length} existing facility records in eg_cm_campaign_data`);
+        const existingFacilityMap = new Map(
+            existingFacilities.map((f: any) => [f?.data?.[FACILITY_NAME_KEY], f])
         );
 
-        if (!facilitySheetData || facilitySheetData.length === 0) {
+        // Accumulate only the lightweight {facilityName, boundaryCode, active}
+        // mappings across pages; the demap diff needs the complete set.
+        const facilityBoundaryMappings: any[] = [];
+
+        const facilityRowTotal = await forEachSheetDataPage(
+            tenantId,
+            campaignId,
+            fileStoreId,
+            facilitySheetName,
+            getSheetFetchPageSize(),
+            (rows) => processFacilityDataAndMappings(campaignNumber, tenantId, rows, existingFacilityMap, facilityBoundaryMappings)
+        );
+
+        if (facilityRowTotal === 0) {
             logger.info('No facilities sheet data found');
             return;
         }
 
-        logger.info(`Found ${facilitySheetData.length} records in facilities sheet`);
+        logger.info(`Found ${facilityRowTotal} records in facilities sheet`);
 
-        // Process facilities and their mappings
-        await processFacilityDataAndMappings(campaignNumber, tenantId, facilitySheetData);
+        // Process facility-boundary mappings once, against the full accumulated set.
+        if (facilityBoundaryMappings.length > 0) {
+            await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings);
+        }
 
         logger.info('=== CAMPAIGN FACILITIES PROCESSING COMPLETED ===');
 
@@ -1129,32 +1122,29 @@ async function processCampaignFacilitiesFromExcelData(
 }
 
 /**
- * Process facility data and update campaign data and mapping tables
+ * Process a page of facility sheet rows: classify into new/updated, persist this
+ * page, and append this page's boundary mappings to the shared accumulator.
+ *
+ * `existingFacilityMap` (DB state) and `facilityBoundaryMappings` (cross-page
+ * accumulator) are supplied by the caller so the function can run per page while
+ * the demap diff still sees the complete mapping set afterwards.
  */
 async function processFacilityDataAndMappings(
     campaignNumber: string,
     tenantId: string,
-    sheetData: any[]
+    sheetData: any[],
+    existingFacilityMap: Map<any, any>,
+    facilityBoundaryMappings: any[]
 ): Promise<void> {
     const FACILITY_NAME_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_NAME';
     const FACILITY_CODE_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_CODE';
     const BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_USAGE';
-    
-    // Get existing facility data
-    const existingFacilities = await getRelatedDataWithCampaign('facility', campaignNumber, tenantId);
-    logger.info(`Found ${existingFacilities.length} existing facility records in eg_cm_campaign_data`);
-    
-    // Create map for existing facilities
-    const existingFacilityMap = new Map(
-        existingFacilities.map((f: any) => [f?.data?.[FACILITY_NAME_KEY], f])
-    );
-    
-    // Process facilities from sheet
+
+    // Process facilities from this page
     const newFacilities: any[] = [];
     const updatedFacilities: any[] = [];
-    const facilityBoundaryMappings: any[] = [];
-    
+
     sheetData.forEach(record => {
         const rowJson = record.rowjson || record.rowJson || {};
         const facilityName = rowJson[FACILITY_NAME_KEY];
@@ -1224,23 +1214,20 @@ async function processFacilityDataAndMappings(
         }
     });
     
-    // Persist facility data changes
+    // Persist this page's facility data changes
     if (newFacilities.length > 0) {
         logger.info(`Persisting ${newFacilities.length} new facility entries`);
         await persistDataInBatches(newFacilities, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
     }
-    
+
     if (updatedFacilities.length > 0) {
         logger.info(`Updating ${updatedFacilities.length} existing facility entries`);
         await persistDataInBatches(updatedFacilities, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
     }
-    
-    // Process facility-boundary mappings
-    if (facilityBoundaryMappings.length > 0) {
-        await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings);
-    }
-    
-    logger.info(`Facility processing completed: ${newFacilities.length} new, ${updatedFacilities.length} updated`);
+
+    // Boundary mappings are accumulated and diffed once by the caller after all
+    // pages — the demap step needs the complete sheet-wide mapping set.
+    logger.info(`Facility page processed: ${newFacilities.length} new, ${updatedFacilities.length} updated`);
 }
 
 /**
@@ -1304,6 +1291,29 @@ async function processFacilityBoundaryMappings(
 }
 
 /**
+ * Returns true when the clone campaign has a newly uploaded sheet (filestoreId differs from the source campaign).
+ * Returns false when the borrowed sheet is reused (same filestoreId), allowing HRMS account reuse.
+ */
+async function isNewSheetUploadedForClone(campaignDetails: any, tenantId: string, currentFileStoreId: string): Promise<boolean> {
+    const cloneFromNumber = campaignDetails.additionalDetails.cloneFrom;
+    try {
+        const resp = await searchProjectTypeCampaignService({ tenantId, campaignNumber: cloneFromNumber });
+        const cloneFromCampaign = resp?.CampaignDetails?.[0];
+        const cloneFromUnified = cloneFromCampaign?.resources?.find((r: any) => r?.type === 'unified-console-resources');
+        if (!cloneFromUnified?.filestoreId) {
+            logger.warn(`Clone source campaign ${cloneFromNumber} has no unified-console-resources; treating as new sheet`);
+            return true;
+        }
+        const isNew = cloneFromUnified.filestoreId !== currentFileStoreId;
+        logger.info(`Clone campaign (cloneFrom=${cloneFromNumber}): isNewSheet=${isNew}`);
+        return isNew;
+    } catch (err) {
+        logger.warn(`Could not fetch cloneFrom campaign ${cloneFromNumber}; defaulting to skip reuse`, err);
+        return true;
+    }
+}
+
+/**
  * Process campaign users from excel data
  */
 async function processCampaignUsersFromExcelData(
@@ -1311,7 +1321,7 @@ async function processCampaignUsersFromExcelData(
     fileStoreId: string,
     localizationMap: Record<string, string>,
     campaignDetails: any
-): Promise<void> {
+): Promise<number> {
     try {
         logger.info('=== PROCESSING CAMPAIGN USERS FROM EXCEL DATA ===');
         
@@ -1319,44 +1329,56 @@ async function processCampaignUsersFromExcelData(
         const campaignId = campaignDetails.id;
         logger.info(`Processing users for campaign: ${campaignDetails.campaignName}`);
 
-        // Search users sheet data
+        // Search users sheet data. Two-pass paginated to keep memory bounded:
+        //   Pass A (here) — collect phone numbers only (cheap strings).
+        //   Pass B (processUsersSimple) — classify + persist per page.
         const userSheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_USERS_LIST', localizationMap);
         logger.info(`Searching ${userSheetName} sheet data...`);
-        const userSheetData = await searchSheetData(
-            tenantId, 
-            campaignId, 
+
+        const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
+
+        // Pass A — collect phone numbers across all pages (no rowjson retained).
+        const phoneNumbers: string[] = [];
+        const userRowTotal = await forEachSheetDataPage(
+            tenantId,
+            campaignId,
             fileStoreId,
-            null,
-            userSheetName
+            userSheetName,
+            getSheetFetchPageSize(),
+            (rows) => {
+                for (const row of rows) {
+                    const rowJson = row?.rowjson || {};
+                    const phone = rowJson[PHONE_KEY];
+                    const trimmed = phone ? String(phone).trim() : null;
+                    if (trimmed && trimmed !== "") phoneNumbers.push(trimmed);
+                }
+            }
         );
 
-        if (!userSheetData || userSheetData.length === 0) {
+        if (userRowTotal === 0) {
             logger.info('No users sheet data found');
-            return;
+            return 0;
         }
 
-        logger.info(`Found ${userSheetData.length} records in users sheet`);
-
-        // Extract phone numbers from sheet data
-        const phoneNumbers = userSheetData
-            .map((row: any) => {
-                const rowJson = row?.rowjson || {};
-                const phone = rowJson["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
-                return phone ? String(phone).trim() : null;
-            })
-            .filter((phone: string | null) => phone && phone !== "");
+        logger.info(`Found ${userRowTotal} records in users sheet`);
 
         if (phoneNumbers.length === 0) {
             logger.info('No phone numbers found in user sheet data');
-            return;
+            return 0;
         }
 
         logger.info(`Processing ${phoneNumbers.length} unique phone numbers`);
 
-        // Simple user processing logic
-        await processUsersSimple(userSheetData, phoneNumbers, campaignNumber, tenantId);
+        let skipOtherCampaignReuse = false;
+        const isCloneCampaign = !!campaignDetails?.additionalDetails?.cloneFrom && !campaignDetails?.parentId;
+        if (isCloneCampaign) {
+            skipOtherCampaignReuse = await isNewSheetUploadedForClone(campaignDetails, tenantId, fileStoreId);
+        }
+
+        const count = await processUsersSimple(tenantId, campaignId, fileStoreId, userSheetName, phoneNumbers, campaignNumber, skipOtherCampaignReuse);
 
         logger.info('=== CAMPAIGN USERS PROCESSING COMPLETED ===');
+        return count;
 
     } catch (error) {
         logger.error('Error processing campaign users from excel data:', error);
@@ -1368,48 +1390,109 @@ async function processCampaignUsersFromExcelData(
  * Simple user processing - handles both data persistence and mappings
  */
 async function processUsersSimple(
-    userSheetData: any[],
+    tenantId: string,
+    referenceId: string,
+    fileStoreId: string,
+    userSheetName: string,
     phoneNumbers: any[],
     campaignNumber: string,
-    tenantId: string
-): Promise<void> {
+    skipOtherCampaignReuse: boolean = false
+): Promise<number> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
     const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_USER_USAGE';
-    
-    // Step 1: Get existing users from current campaign
+
+    // Step 1: Get existing users from current campaign (DB) and the cross-campaign
+    // reuse map (one batched lookup over all phones collected in Pass A). Built once.
     const currentCampaignUsers = await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
     const currentUserMap = new Map(
         currentCampaignUsers.map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
     );
-    
-    // Step 2: Get completed users from other campaigns to reuse
-    const otherCampaignUsers = await getRelatedDataWithUniqueIdentifiers(
-        "user", phoneNumbers, tenantId, dataRowStatuses.completed
-    );
+
+    const otherCampaignUsers = skipOtherCampaignReuse
+        ? []
+        : await getRelatedDataWithUniqueIdentifiers("user", phoneNumbers, tenantId, dataRowStatuses.completed);
     const otherUserMap = new Map(
         otherCampaignUsers
             .filter((u: any) => u.campaignNumber !== campaignNumber)
             .map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
     );
-    
-    // Step 3: Process each user from sheet
+
+    // Cross-page accumulators: mappings, sheet-invalid phones, and running counts.
+    // usersToSave/usersToUpdate are page-local (persisted per page).
+    const userBoundaryMappings: any[] = [];
+    // Phones whose sheet row is sheet-invalid. handleUserBoundaryMappings uses
+    // this to preserve their existing mappings (don't demap a user just because
+    // a later sheet upload had a validation error on their row).
+    const invalidUserPhones = new Set<string>();
+    // Phones explicitly present in this upload with a recognized usage value.
+    // handleUserBoundaryMappings only demaps phones in this set — absence from
+    // the sheet preserves existing mappings (incl. adopted external staff).
+    const sheetUserPhones = new Set<string>();
+    let savedCount = 0;
+    let updatedCount = 0;
+
+    // Step 3 (Pass B): classify + persist each page using the prebuilt lookups,
+    // so the full user sheet is never held in memory at once.
+    await forEachSheetDataPage(
+        tenantId,
+        referenceId,
+        fileStoreId,
+        userSheetName,
+        getSheetFetchPageSize(),
+        async (rows) => {
     const usersToSave: any[] = [];
     const usersToUpdate: any[] = [];
-    const userBoundaryMappings: any[] = [];
-    
-    userSheetData.forEach(record => {
+
+    rows.forEach(record => {
         const rowJson = record.rowjson || {};
         const phoneNumber = String(rowJson[PHONE_KEY]).trim();
         const boundaryCode = rowJson[BOUNDARY_KEY];
         const usage = rowJson[USAGE_KEY];
-        
+
         if (!phoneNumber || phoneNumber === 'undefined') return;
-        
+
+        // excel-ingestion tags rowjson with #status# = INVALID for rows that
+        // failed sheet validation. We persist those rows so they appear in the
+        // credential sheet, but skip HRMS creation and mapping for them.
+        const sheetRowStatus = rowJson?.[campaignDataRowFields.status];
+        const isInvalidFromSheet = sheetRowStatus === sheetDataRowStatuses.INVALID;
+        if (isInvalidFromSheet) invalidUserPhones.add(phoneNumber);
+        if (!isInvalidFromSheet && (usage === usageColumnStatus.active || usage === usageColumnStatus.inactive)) {
+            sheetUserPhones.add(phoneNumber);
+        }
+
         const currentUser = currentUserMap.get(phoneNumber);
         const otherUser = otherUserMap.get(phoneNumber);
-        
+
         if (currentUser) {
+            if (isInvalidFromSheet) {
+                if (currentUser.status === dataRowStatuses.completed) {
+                    // This user already exists in HRMS.  A later re-upload that
+                    // has a validation error on their row must NOT overwrite a
+                    // working user's boundary/usage or discard their credentials.
+                    logger.info(`Sheet-invalid row for completed user ${phoneNumber}; preserving existing record and mappings`);
+                    return;
+                }
+                // The user is failed or pending and the new sheet row is invalid.
+                // Tag their DB record as INVALID so the HRMS dispatch filter
+                // (data["#status#"] !== INVALID) blocks any retry attempt.
+                const updatedRecord = {
+                    ...currentUser,
+                    status: dataRowStatuses.failed,
+                    data: {
+                        ...currentUser.data,
+                        [campaignDataRowFields.status]: sheetDataRowStatuses.INVALID,
+                        [campaignDataRowFields.errorDetails]:
+                            rowJson[campaignDataRowFields.errorDetails] ||
+                            currentUser.data[campaignDataRowFields.errorDetails] ||
+                            "",
+                    },
+                };
+                usersToUpdate.push(updatedRecord);
+                logger.info(`Sheet-invalid row for failed/pending user ${phoneNumber}; updated to INVALID to block HRMS retry`);
+                return;
+            }
             // User exists in current campaign - check if boundary and usage need to be updated
             const existingBoundary = currentUser.data[BOUNDARY_KEY];
             const existingUsage = currentUser.data[USAGE_KEY];
@@ -1421,10 +1504,10 @@ async function processUsersSimple(
                 });
                 logger.info(`Updated boundary for user ${phoneNumber}: ${existingBoundary} -> ${boundaryCode}`);
             }
-        } else if (otherUser) {
+        } else if (otherUser && !isInvalidFromSheet) {
             // User exists in other campaign - reuse with all fields preserved except boundary and usage
             const reusedData = { ...otherUser.data, [BOUNDARY_KEY]: boundaryCode, [USAGE_KEY]: usage };
-            
+
             usersToSave.push({
                 campaignNumber,
                 data: reusedData,
@@ -1434,8 +1517,20 @@ async function processUsersSimple(
                 status: dataRowStatuses.completed
             });
             logger.info(`Reused user ${phoneNumber} from other campaign with new boundary: ${boundaryCode}`);
+        } else if (isInvalidFromSheet) {
+            // Sheet-invalid new user — persist as failed (visible in credential sheet),
+            // skip HRMS, skip boundary mapping creation.
+            usersToSave.push({
+                campaignNumber,
+                data: rowJson,
+                type: 'user',
+                uniqueIdentifier: phoneNumber,
+                uniqueIdAfterProcess: null,
+                status: dataRowStatuses.failed
+            });
+            logger.info(`Skipping HRMS for invalid user ${phoneNumber}; marked failed for credential sheet visibility`);
         } else {
-            // Completely new user
+            // Completely new valid user
             usersToSave.push({
                 campaignNumber,
                 data: rowJson,
@@ -1446,9 +1541,10 @@ async function processUsersSimple(
             });
             logger.info(`Added new user ${phoneNumber}`);
         }
-        
-        // Prepare boundary mappings for active users
-        if (usage === usageColumnStatus.active && boundaryCode) {
+
+        // Boundary mappings: only for valid active users. Invalid rows skip
+        // mapping entirely so the staff-creation step doesn't cascade-fail.
+        if (!isInvalidFromSheet && usage === usageColumnStatus.active && boundaryCode) {
             const boundaries = boundaryCode.split(',').map((b: string) => b.trim()).filter(Boolean);
             boundaries.forEach((boundary : String ) => {
                 userBoundaryMappings.push({
@@ -1459,46 +1555,60 @@ async function processUsersSimple(
             });
         }
     });
-    
-    // Step 4: Persist user data
-    if (usersToSave.length > 0) {
-        logger.info(`Persisting ${usersToSave.length} user records`);
-        await persistDataInBatches(usersToSave, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
-    }
-    
-    if (usersToUpdate.length > 0) {
-        logger.info(`Updating ${usersToUpdate.length} user records`);
-        await persistDataInBatches(usersToUpdate, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
-    }
-    
-    // Step 5: Handle boundary mappings
-    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings);
-    
-    logger.info(`User processing completed: ${usersToSave.length} saved, ${usersToUpdate.length} updated, ${userBoundaryMappings.length} mappings processed`);
+
+            // Step 4: Persist this page's user data
+            if (usersToSave.length > 0) {
+                logger.info(`Persisting ${usersToSave.length} user records`);
+                await persistDataInBatches(usersToSave, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
+                savedCount += usersToSave.length;
+            }
+
+            if (usersToUpdate.length > 0) {
+                logger.info(`Updating ${usersToUpdate.length} user records`);
+                await persistDataInBatches(usersToUpdate, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+                updatedCount += usersToUpdate.length;
+            }
+        }
+    );
+
+    // Step 5: Handle boundary mappings once across all pages — invalidUserPhones
+    // lets the helper preserve mappings for users whose sheet row failed validation.
+    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings, invalidUserPhones, sheetUserPhones);
+
+    logger.info(`User processing completed: ${savedCount} saved, ${updatedCount} updated, ${userBoundaryMappings.length} mappings processed`);
+    return savedCount + updatedCount;
 }
 
 /**
- * Handle user boundary mappings - active users get mapped, inactive get demapped
+ * Handle user boundary mappings — demap is sheet-presence-driven, never
+ * absence-driven: only phones in `sheetUserPhones` (explicitly Active or
+ * Inactive in this upload) can be demapped. An Inactive phone contributes no
+ * new mapping keys so all its mappings demap; an Active phone demaps only
+ * stale boundaries. Phones absent from the sheet keep their mappings —
+ * including staff adopted from health-project that PF never created.
+ * `invalidUserPhones` preserves mappings for sheet-invalid rows.
  */
-async function handleUserBoundaryMappings(
+export async function handleUserBoundaryMappings(
     campaignNumber: string,
     tenantId: string,
-    newMappings: any[]
+    newMappings: any[],
+    invalidUserPhones: Set<string> = new Set(),
+    sheetUserPhones: Set<string> = new Set()
 ): Promise<void> {
     // Get existing mappings for this campaign
     const existingMappings = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId);
     const existingMappingSet = new Set(
         existingMappings.map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`)
     );
-    
+
     // Prepare new mappings to be created
     const mappingsToCreate: any[] = [];
     const newMappingSet = new Set();
-    
+
     newMappings.forEach(mapping => {
         const key = `${mapping.phoneNumber}#${mapping.boundaryCode}`;
         newMappingSet.add(key);
-        
+
         if (!existingMappingSet.has(key)) {
             mappingsToCreate.push({
                 campaignNumber,
@@ -1510,10 +1620,14 @@ async function handleUserBoundaryMappings(
             });
         }
     });
-    
-    // Prepare mappings to be demapped (exist in DB but not in new mappings)
+
+    // Prepare mappings to be demapped — only for phones explicitly present in
+    // this upload (Active/Inactive). Absent phones are preserved so partial or
+    // target-only updates never tear down mappings PF didn't create.
     const mappingsToDemap: any[] = [];
     existingMappings.forEach((existing: any) => {
+        if (invalidUserPhones.has(existing.uniqueIdentifierForData)) return;
+        if (!sheetUserPhones.has(existing.uniqueIdentifierForData)) return;
         const key = `${existing.uniqueIdentifierForData}#${existing.boundaryCode}`;
         if (!newMappingSet.has(key) && existing.status !== mappingStatuses.toBeDeMapped) {
             mappingsToDemap.push({
@@ -1543,7 +1657,10 @@ async function triggerBackgroundResourceCreationFlow(
     campaignDetails: any,
     parentCampaign: any,
     locale: string,
-    createdByEmail? : string,
+    createdByEmail?: string,
+    requestInfo?: RequestInfo,
+    expectedUserCount?: number,
+    expectedBoundaryCount?: number,
 ): Promise<void> {
     try {
         const useruuid = campaignDetails?.auditDetails?.createdBy;
@@ -1554,8 +1671,11 @@ async function triggerBackgroundResourceCreationFlow(
             logger.info(`With parent campaign: ${parentCampaign.campaignName}`);
         }
 
-        // Prepare DB setup synchronously
-        await prepareProcessesInDb(campaignNumber, tenantId, useruuid);
+        const excludeForUnifiedFlow = [
+            allProcesses.attendanceRegisterCreation,
+            allProcesses.attendanceRegisterAttendeeCreation,
+        ];
+        await prepareProcessesInDb(campaignNumber, tenantId, useruuid, excludeForUnifiedFlow);
         
         // Use setImmediate to run resource creation in background without blocking
         setImmediate(async () => {
@@ -1568,9 +1688,9 @@ async function triggerBackgroundResourceCreationFlow(
                 // Create Projects, Facilities, and Users in parallel along with data completion polling
                 logger.info('Creating projects, facilities, and users in parallel with data completion monitoring...');
                 await Promise.all([
-                    createProjectsFromBoundaryData(campaignDetails, tenantId),
-                    createFacilitiesFromFacilityData(campaignDetails, tenantId),
-                    createUsersFromUserData(campaignDetails, tenantId),
+                    createProjectsFromBoundaryData(campaignDetails, tenantId, requestInfo, expectedBoundaryCount),
+                    createFacilitiesFromFacilityData(campaignDetails, tenantId, requestInfo),
+                    createUsersFromUserData(campaignDetails, tenantId, requestInfo, expectedUserCount),
                     monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
                 ]);
                 
@@ -1584,12 +1704,9 @@ async function triggerBackgroundResourceCreationFlow(
                 logger.info('=== WAITING 10 SECONDS BEFORE STARTING MAPPING PROCESS ===');
                 await new Promise(resolve => setTimeout(resolve, 10000));
                 
-                // Start mapping process for all types in batches with monitoring
-                logger.info('=== STARTING MAPPING PROCESS IN BATCHES WITH MONITORING ===');
-                await Promise.all([
-                    startAllMappingsInBatches(campaignDetails, useruuid, tenantId),
-                    monitorCampaignMappingCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
-                ]);
+                // Start mapping process via the convergence-driven reconciler
+                logger.info('=== STARTING MAPPING RECONCILIATION ===');
+                await runMappingReconciler(campaignDetails, useruuid, tenantId, requestInfo, campaignAlreadyFailed);
                 
                 // Check if campaign failed during mapping
                 if (campaignAlreadyFailed.value) {
@@ -1608,11 +1725,7 @@ async function triggerBackgroundResourceCreationFlow(
                 }
                 
                 logger.info('=== TRIGGERING USER CREDENTIAL EMAIL FLOW ===');
-                const requestInfoObject = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
-                requestInfoObject.RequestInfo.userInfo.tenantId = tenantId;
-                requestInfoObject.RequestInfo.userInfo.uuid = useruuid;
-                const msgId = `${new Date().getTime()}|${locale || config?.localisation?.defaultLocale}`;
-                requestInfoObject.RequestInfo.msgId = msgId;
+                const requestInfoObject = { RequestInfo: { ...(requestInfo || {}), userInfo: { ...((requestInfo as any)?.userInfo || {}), tenantId, uuid: useruuid }, msgId: `${new Date().getTime()}|${locale || config?.localisation?.defaultLocale}` } };
 
                 triggerUserCredentialEmailFlow({
                     RequestInfo: requestInfoObject.RequestInfo,
@@ -1622,7 +1735,12 @@ async function triggerBackgroundResourceCreationFlow(
             );
                 
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW COMPLETED SUCCESSFULLY ===');
-                
+
+                // Mark any resource detail rows still at toCreate as completed.
+                // For unified template child campaigns, resources are copied from the parent
+                // with status=toCreate but never go through the task system — close them out here.
+                await markAllToCreateResourcesAsCompleted(campaignDetails.id, tenantId, useruuid);
+
                 // Mark campaign as completed if not failed
                 await markCampaignCompletedConditionally(campaignDetails, parentCampaign, useruuid, tenantId);
                 
@@ -1651,11 +1769,11 @@ async function triggerBackgroundResourceCreationFlow(
 /**
  * Create projects from boundary data following the same pattern as boundary-processClass
  */
-async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: string): Promise<void> {
+async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedBoundaryCount?: number): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
-        
-        // Get target configuration from MDMS 
+
+        // Get target configuration from MDMS
         const MdmsCriteria = {
             MdmsCriteria: {
                 tenantId,
@@ -1689,17 +1807,27 @@ async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: st
             boundaryChildren
         );
         
-        // Get current boundary data using the same pattern as process classes
-        const currentBoundaryData = await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
+        // Poll until boundary rows are persisted by the Kafka consumer before reading them.
+        // Boundary rows are written via Kafka from processBoundaryDataInCampaignTable; without
+        // this poll, the rows may not be in DB yet when the setImmediate fires.
+        const currentBoundaryData = expectedBoundaryCount && expectedBoundaryCount > 0
+            ? await pollUntilCount(
+                () => getRelatedDataWithCampaign('boundary', campaignNumber, tenantId),
+                expectedBoundaryCount,
+                // Stall-based: wait as long as rows keep landing; fail only on no progress.
+                { label: 'boundary data', stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs, pollIntervalMs: config.excelIngestion.persistencePollIntervalMs }
+              )
+            : await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
+
         logger.info(`Found ${currentBoundaryData.length} boundary records for project creation`);
-        
+
         if (currentBoundaryData.length === 0) {
             logger.warn('No boundary data found for project creation');
             return;
         }
         
         // Create and update projects using the boundary data
-        await createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig);
+        await createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig, requestInfo);
         
         logger.info('Project creation from boundary data completed successfully');
         
@@ -1712,7 +1840,7 @@ async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: st
 /**
  * Create and update projects following boundary-processClass pattern
  */
-async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetails: any, boundaries: any, targetConfig: any): Promise<void> {
+async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetails: any, boundaries: any, targetConfig: any, requestInfo?: RequestInfo): Promise<void> {
     try {
         logger.info('Creating and updating projects...');
         
@@ -1720,11 +1848,19 @@ async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetai
         const boundaryChildrenToTypeAndParentMap: any = getBoundaryChildrenToTypeAndParentMap(boundaries, currentBoundaryData);
         
         // Prepare project creation context
-        const { projectCreateBody, Projects } = await prepareProjectCreationContext(campaignDetails);
+        const { projectCreateBody, Projects } = await prepareProjectCreationContext(campaignDetails, requestInfo);
         
         // Topologically sort boundaries to ensure parent projects are created first
         const sortedBoundaryData = topologicallySortBoundaries(currentBoundaryData, boundaryChildrenToTypeAndParentMap);
         
+        // Log status summary to diagnose 0-boundary scenarios
+        const statusSummary = sortedBoundaryData.reduce((acc: any, d: any) => {
+            const key = `${d?.status || 'unknown'}${d?.uniqueIdAfterProcess ? '+projectId' : ''}`;
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {});
+        logger.info(`Boundary data status summary: ${JSON.stringify(statusSummary)}`);
+
         // Filter for creation (no uniqueIdAfterProcess) and updates (has uniqueIdAfterProcess)
         const sortedBoundaryDataForCreate = sortedBoundaryData.filter((d: any) => !d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
         const sortedBoundaryDataForUpdate = sortedBoundaryData.filter((d: any) => d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
@@ -1735,10 +1871,10 @@ async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetai
         logger.info(`Processing ${sortedBoundaryDataForUpdate.length} boundaries for project updates`);
         
         // Process project creation in topological order (parents first)
-        await processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap, useruuid);
+        await processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap, useruuid, requestInfo);
         
         // Process project updates
-        await processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, useruuid);
+        await processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, useruuid, requestInfo);
         
         logger.info('Project creation and updates completed successfully');
         
@@ -1783,7 +1919,7 @@ function getBoundaryChildrenToTypeAndParentMap(boundaries: any[], currentBoundar
 /**
  * Prepare project creation context with enriched project details
  */
-async function prepareProjectCreationContext(campaignDetails: any) {
+async function prepareProjectCreationContext(campaignDetails: any, requestInfo?: RequestInfo) {
     const MdmsCriteria : any = {
         tenantId: campaignDetails?.tenantId,
         schemaCode: "HCM-PROJECT-TYPES.projectTypes",
@@ -1799,7 +1935,7 @@ async function prepareProjectCreationContext(campaignDetails: any) {
 
     const Projects = enrichProjectDetailsFromCampaignDetails(campaignDetails, mdmsResponse?.mdms?.[0]?.data);
     const projectCreateBody = {
-        RequestInfo: { ...defaultRequestInfo?.RequestInfo, userInfo: { uuid: campaignDetails?.auditDetails?.createdBy } },
+        RequestInfo: { ...(requestInfo || {}), userInfo: { uuid: campaignDetails?.auditDetails?.createdBy } },
         Projects
     };
 
@@ -1857,7 +1993,8 @@ async function processProjectCreationInOrder(
     projectCreateBody: any,
     Projects: any,
     boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
-    useruuid: string
+    useruuid: string,
+    requestInfo?: RequestInfo
 ) {
     logger.info("Processing project creation level-wise with batching");
     
@@ -1873,15 +2010,16 @@ async function processProjectCreationInOrder(
         
         // Process this level in batches of 20 using Promise.all
         await processLevelInBatches(
-            levelBoundaries, 
-            tenantId, 
-            campaignNumber, 
-            targetConfig, 
-            projectCreateBody, 
-            Projects, 
-            boundaryMap, 
+            levelBoundaries,
+            tenantId,
+            campaignNumber,
+            targetConfig,
+            projectCreateBody,
+            Projects,
+            boundaryMap,
             useruuid,
-            levelIndex + 1
+            levelIndex + 1,
+            requestInfo
         );
         
         logger.info(`✅ Level ${levelIndex + 1} completed`);
@@ -1947,10 +2085,11 @@ async function processLevelInBatches(
     Projects: any,
     boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
     useruuid: string,
-    levelNumber: number
+    levelNumber: number,
+    requestInfo?: RequestInfo
 ) {
-    const BATCH_SIZE = 20;
-    
+    const BATCH_SIZE = config.project.creationBatchSize;
+
     for (let i = 0; i < levelBoundaries.length; i += BATCH_SIZE) {
         const batch = levelBoundaries.slice(i, i + BATCH_SIZE);
         const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
@@ -1959,7 +2098,7 @@ async function processLevelInBatches(
         logger.info(`Processing level ${levelNumber} batch ${batchNumber}/${totalBatches}: ${batch.length} projects`);
         
         // Create promises for parallel execution
-        const batchPromises = batch.map(boundaryData => 
+        const batchPromises = batch.map(boundaryData =>
             createSingleProject(
                 boundaryData,
                 tenantId,
@@ -1968,7 +2107,8 @@ async function processLevelInBatches(
                 projectCreateBody,
                 Projects,
                 boundaryMap,
-                useruuid
+                useruuid,
+                requestInfo
             )
         );
         
@@ -2009,7 +2149,8 @@ async function createSingleProject(
     projectCreateBody: any,
     Projects: any,
     boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
-    useruuid: string
+    useruuid: string,
+    requestInfo?: RequestInfo
 ): Promise<void> {
     const data = boundaryData?.data;
     const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
@@ -2029,7 +2170,7 @@ async function createSingleProject(
             const parentProjectId = boundaryMap?.[parent]?.projectId;
             projectTemplate.parent = parentProjectId;
             if(!config.values.skipParentProjectConfirmation) {
-                await confirmProjectParentCreation(tenantId, useruuid, parentProjectId);
+                await confirmProjectParentCreation(tenantId, useruuid, parentProjectId, requestInfo);
             }
         }
         else if (parent && !boundaryMap?.[parent]?.projectId) {
@@ -2100,14 +2241,14 @@ async function processProjectUpdateInOrder(
     tenantId: string,
     campaignNumber: string,
     targetConfig: any,
-    useruuid: string
+    useruuid: string,
+    requestInfo?: RequestInfo
 ) {
     logger.info("Processing project update in order");
     for (const boundaryData of sortedBoundaryData) {
         const data = boundaryData?.data;
         const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
-        const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-        RequestInfo.userInfo.uuid = useruuid;
+        const RequestInfo = requestInfo || {};
         try {
             const projectSearchResponse =
                 await fetchProjectsWithBoundaryCodeAndReferenceId(
@@ -2182,7 +2323,7 @@ async function processProjectUpdateInOrder(
 /**
  * Create facilities via Kafka batch processing
  */
-async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: string): Promise<void> {
+async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
         const campaignId = campaignDetails.id;
@@ -2214,7 +2355,7 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
         logger.info(`${facilitiesToCreate.length} facilities to create via Kafka batches`);
         
         // Send facility batches to Kafka topic for processing
-        const BATCH_SIZE = 30;
+        const BATCH_SIZE = config.facility.kafkaCreateBatchSize;
         const totalBatches = Math.ceil(facilitiesToCreate.length / BATCH_SIZE);
         
         for (let i = 0; i < facilitiesToCreate.length; i += BATCH_SIZE) {
@@ -2237,7 +2378,8 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
                 useruuid: userUuid,
                 facilityData,
                 batchNumber,
-                totalBatches
+                totalBatches,
+                requestInfo
             };
             
             logger.info(`Sending facility batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} facilities`);
@@ -2262,97 +2404,29 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
 }
 
 /**
- * Start all mappings (resource, facility, user) in batches via Kafka
- */
-async function startAllMappingsInBatches(
-    campaignDetails: any,
-    useruuid: string,
-    tenantId: string
-): Promise<void> {
-    try {
-        const campaignNumber = campaignDetails.campaignNumber;
-        logger.info(`Starting all mappings for campaign: ${campaignNumber}`);
-        
-        // Get all mappings for all types - both toBeMapped and toBeDeMapped
-        const allMappings: any[] = [];
-        
-        // Resource mappings
-        const resourceToBeMapped = await getMappingDataRelatedToCampaign('resource', campaignNumber, tenantId, mappingStatuses.toBeMapped);
-        const resourceToBeDeMapped = await getMappingDataRelatedToCampaign('resource', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
-        allMappings.push(...resourceToBeMapped, ...resourceToBeDeMapped);
-        
-        // Facility mappings
-        const facilityToBeMapped = await getMappingDataRelatedToCampaign('facility', campaignNumber, tenantId, mappingStatuses.toBeMapped);
-        const facilityToBeDeMapped = await getMappingDataRelatedToCampaign('facility', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
-        allMappings.push(...facilityToBeMapped, ...facilityToBeDeMapped);
-        
-        // User mappings
-        const userToBeMapped = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId, mappingStatuses.toBeMapped);
-        const userToBeDeMapped = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
-        allMappings.push(...userToBeMapped, ...userToBeDeMapped);
-        
-        if (allMappings.length === 0) {
-            logger.info('No mappings found to process');
-            return;
-        }
-        
-        logger.info(`Found ${allMappings.length} total mappings to process`);
-        logger.info(`Resource: ${resourceToBeMapped.length + resourceToBeDeMapped.length}, Facility: ${facilityToBeMapped.length + facilityToBeDeMapped.length}, User: ${userToBeMapped.length + userToBeDeMapped.length}`);
-        
-        // Send mappings in batches of 30
-        const BATCH_SIZE = 30;
-        const totalBatches = Math.ceil(allMappings.length / BATCH_SIZE);
-        
-        for (let i = 0; i < allMappings.length; i += BATCH_SIZE) {
-            const batch = allMappings.slice(i, i + BATCH_SIZE);
-            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-            
-            // Send batch to Kafka
-            const batchMessage = {
-                tenantId,
-                campaignNumber,
-                campaignId: campaignDetails.id,
-                useruuid,
-                mappings: batch,
-                batchNumber,
-                totalBatches
-            };
-            
-            logger.info(`Sending mapping batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} mappings`);
-            
-            // Use random UUID as partition key for load balancing
-            const partitionKey = uuidv4();
-            
-            await produceModifiedMessages(
-                batchMessage,
-                config.kafka.KAFKA_MAPPING_BATCH_TOPIC,
-                tenantId,
-                partitionKey
-            );
-        }
-        
-        logger.info(`All ${totalBatches} mapping batches sent to Kafka for processing`);
-        
-    } catch (error) {
-        logger.error('Error starting mappings in batches:', error);
-        throw error;
-    }
-}
-
-/**
  * Create users via Kafka batch processing
  */
-async function createUsersFromUserData(campaignDetails: any, tenantId: string): Promise<void> {
+async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedUserCount?: number): Promise<void> {
     try {
+        if (!requestInfo?.userInfo) {
+            throw new Error('RequestInfo with userInfo is required for user creation batches');
+        }
         const campaignNumber = campaignDetails.campaignNumber;
         const campaignId = campaignDetails.id;
         const parentCampaignId = campaignDetails.parentId;
         const userUuid = campaignDetails?.auditDetails?.createdBy;
-        
+
         logger.info(`Creating users for campaign: ${campaignNumber} via Kafka batches`);
-        
-        // Get all existing users for this campaign from campaign data table
-        const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
+
+        // Poll until all user rows are persisted before sending Kafka batches
+        const allCurrentUsers = expectedUserCount && expectedUserCount > 0
+            ? await pollUntilCount(
+                () => getRelatedDataWithCampaign("user", campaignNumber, tenantId),
+                expectedUserCount,
+                // Stall-based: wait as long as rows keep landing; fail only on no progress.
+                { label: 'user data', stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs, pollIntervalMs: config.excelIngestion.persistencePollIntervalMs }
+              )
+            : await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
         
         if (allCurrentUsers.length === 0) {
             logger.info('No user data found for user creation');
@@ -2361,9 +2435,14 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string): 
         
         logger.info(`Found ${allCurrentUsers.length} user records in campaign data`);
         
-        // Filter users that need creation (pending or failed status)
+        // Filter users that need creation (pending or failed status), but
+        // exclude rows flagged as sheet-invalid — those were marked failed
+        // upstream as a sheet-validation outcome and must not be retried.
         const usersToCreate = allCurrentUsers.filter(
-            (u: any) => u?.status === dataRowStatuses.pending || u?.status === dataRowStatuses.failed
+            (u: any) =>
+                (u?.status === dataRowStatuses.pending ||
+                 u?.status === dataRowStatuses.failed) &&
+                u?.data?.[campaignDataRowFields.status] !== sheetDataRowStatuses.INVALID
         );
         
         if (usersToCreate.length === 0) {
@@ -2374,7 +2453,7 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string): 
         logger.info(`${usersToCreate.length} users to create via Kafka batches`);
         
         // Send user batches to Kafka topic for processing
-        const BATCH_SIZE = 30;
+        const BATCH_SIZE = config.user.kafkaCreateBatchSize;
         const totalBatches = Math.ceil(usersToCreate.length / BATCH_SIZE);
         
         for (let i = 0; i < usersToCreate.length; i += BATCH_SIZE) {
@@ -2397,7 +2476,8 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string): 
                 useruuid: userUuid,
                 userData,
                 batchNumber,
-                totalBatches
+                totalBatches,
+                requestInfo
             };
             
             logger.info(`Sending user batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} users`);

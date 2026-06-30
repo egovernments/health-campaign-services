@@ -31,6 +31,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 
 
+import org.springframework.web.bind.annotation.RequestParam;
+
 @Controller
 @RequestMapping("")
 public class StockApiController {
@@ -78,6 +80,7 @@ public class StockApiController {
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<StockBulkResponse> stockV1SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
+            @RequestParam(value = "includeOnlyUpdatedByOthers", required = false, defaultValue = "false") Boolean includeOnlyUpdatedByOthers,
             @ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest stockSearchRequest
     ) throws Exception {
 
@@ -87,7 +90,8 @@ public class StockApiController {
                 urlParams.getOffset(),
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
-                urlParams.getIncludeDeleted()
+                urlParams.getIncludeDeleted(),
+                includeOnlyUpdatedByOthers
         );
         StockBulkResponse response = StockBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(stockSearchRequest.getRequestInfo(), true)).stock(searchResponse.getResponse()).totalCount(searchResponse.getTotalCount()).build();

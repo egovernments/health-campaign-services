@@ -2,6 +2,16 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.2.3 - 2026-06-24
+
+- Disabled row-version validation on user-action (stock-count) updates and lifted the search limit cap to support bulk stock-count updates.
+- Added project-facility search by boundary type, returning a map of boundary type to facility ids, with query performance tuning.
+- Added new task statuses for referral handling and no-resource tasks.
+- Added an `includeImmediateChildren` flag to project search (returns only direct children instead of the full descendant subtree).
+- Included the linked project-facility object in project search responses.
+- Fixed missing request info in the project update Kafka message.
+- Null-pointer guarding and dedupe in the boundary-service validation step.
+
 ## 1.2.2 - 2026-03-04
 
 - Upgraded tracer to 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.

@@ -105,12 +105,20 @@ public class CellProtectionManager {
         // 1. unFreezeColumnTillData - Highest priority
         // Unlock cells till data exists, lock cells after last data row
         if (column.isUnFreezeColumnTillData()) {
+            // lastDataRow <= 1 means only header rows exist (empty template).
+            // Boundary code formulas evaluate to "" so findActualLastRowWithData returns 1.
+            // In this case unlock all rows to allow data entry on a fresh template.
+            if (lastDataRow <= 1) {
+                log.trace("Cell UNLOCKED by unFreezeColumnTillData (empty template) at row {} for column {}",
+                        rowIdx, column.getName());
+                return false;
+            }
             if (rowIdx <= lastDataRow) {
-                log.trace("Cell UNLOCKED by unFreezeColumnTillData at row {} for column {} (row <= lastDataRow {})", 
+                log.trace("Cell UNLOCKED by unFreezeColumnTillData at row {} for column {} (row <= lastDataRow {})",
                         rowIdx, column.getName(), lastDataRow);
                 return false; // Unlock where data exists
             } else {
-                log.trace("Cell LOCKED by unFreezeColumnTillData at row {} for column {} (row > lastDataRow {})", 
+                log.trace("Cell LOCKED by unFreezeColumnTillData at row {} for column {} (row > lastDataRow {})",
                         rowIdx, column.getName(), lastDataRow);
                 return true; // Lock empty rows after data
             }

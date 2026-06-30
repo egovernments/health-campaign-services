@@ -5,6 +5,9 @@ on:
     branches:
       - allValidations
       - master
+      - nigeria-do-deep-2
+      - master-nigeria-finalpull
+      - master-nigeria-finalpull-projectFactory-codeRabbit
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}

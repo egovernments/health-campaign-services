@@ -402,7 +402,61 @@ class FacilitySheetGeneratorMergeTest {
             "Facility with non-root boundary BLOCK_001 should be included");
     }
 
+    @Test
+    void testMerge_SameNameDifferentBoundary_BothKept() throws Exception {
+        List<Map<String, Object>> permanentFacilities = Arrays.asList(
+            createFacilityWithBoundaryKey("FACILITY_001", "Clinic A", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "b1"),
+            createFacilityWithBoundaryKey("FACILITY_002", "Clinic A", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "b2")
+        );
+        List<Map<String, Object>> campaignFacilities = new ArrayList<>();
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = (List<Map<String, Object>>)
+            mergeAndDeduplicateMethod.invoke(facilitySheetGenerator, permanentFacilities, campaignFacilities);
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void testMerge_ExistingFacility_KeepsTrueLocalityBoundaryOverStaleCampaignValue() throws Exception {
+        List<Map<String, Object>> permanentFacilities = Arrays.asList(
+            createFacilityWithBoundaryKey("FACILITY_001", "Clinic A", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "b1")
+        );
+        List<Map<String, Object>> campaignFacilities = Arrays.asList(
+            createFacilityWithBoundaryKey("FACILITY_001", "Clinic A", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", "b2")
+        );
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = (List<Map<String, Object>>)
+            mergeAndDeduplicateMethod.invoke(facilitySheetGenerator, permanentFacilities, campaignFacilities);
+
+        assertEquals(1, result.size());
+        assertEquals("b1", result.get(0).get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+    }
+
+    @Test
+    void testResolveBoundaryCode_ReadsMandatoryKeyAndTakesFirstOfCommaList() throws Exception {
+        Method resolve = FacilitySheetGenerator.class.getDeclaredMethod("resolveBoundaryCode", Map.class);
+        resolve.setAccessible(true);
+
+        Map<String, Object> multi = new HashMap<>();
+        multi.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", "b1,b2,b3");
+        assertEquals("b1", resolve.invoke(facilitySheetGenerator, multi));
+
+        Map<String, Object> plain = new HashMap<>();
+        plain.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "b9");
+        assertEquals("b9", resolve.invoke(facilitySheetGenerator, plain));
+    }
+
     // Helper methods
+    private Map<String, Object> createFacilityWithBoundaryKey(String code, String name, String boundaryKey, String boundaryValue) {
+        Map<String, Object> facility = new HashMap<>();
+        facility.put("HCM_ADMIN_CONSOLE_FACILITY_CODE", code);
+        facility.put("HCM_ADMIN_CONSOLE_FACILITY_NAME", name);
+        facility.put(boundaryKey, boundaryValue);
+        return facility;
+    }
+
     private Map<String, Object> createFacility(String code, String name, String status, String usage) {
         Map<String, Object> facility = new HashMap<>();
         facility.put("HCM_ADMIN_CONSOLE_FACILITY_CODE", code);

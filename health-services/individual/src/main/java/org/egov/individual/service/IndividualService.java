@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.user.enums.UserType;
 import org.egov.common.ds.Tuple;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
@@ -81,6 +82,7 @@ public class IndividualService {
 
     private final BeneficiaryIdGenUtil beneficiaryIdGenUtil;
 
+
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(IBoundaryValidator.class)
@@ -130,9 +132,13 @@ public class IndividualService {
     }
 
     public List<Individual> create(IndividualRequest request) {
+        return create(request, true);
+    }
+
+    public List<Individual> create(IndividualRequest request, boolean generateDummyMobile) {
         IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .individuals(Collections.singletonList(request.getIndividual())).build();
-        List<Individual> individuals = create(bulkRequest, false);
+        List<Individual> individuals = create(bulkRequest, false, generateDummyMobile);
 
         // check if sms feature is enable for the environment role
         if(properties.getIsSMSEnabled() && isSmsEnabledForRole(request))
@@ -141,6 +147,10 @@ public class IndividualService {
     }
 
     public List<Individual> create(IndividualBulkRequest request, boolean isBulk) {
+        return create(request, isBulk, true);
+    }
+
+    public List<Individual> create(IndividualBulkRequest request, boolean isBulk, boolean generateDummyMobile) {
 
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
@@ -153,7 +163,7 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 // integrate with user service create call
-                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap);
+                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap, generateDummyMobile);
                 //encrypt PII data
 
                 // BenificiaryIds to Update
@@ -449,6 +459,12 @@ public class IndividualService {
     private List<Individual> integrateWithUserService(IndividualBulkRequest request,
                                           List<Individual> individualList, ApiOperation apiOperation,
                                           Map<Individual, ErrorDetails> errorDetails) {
+        return integrateWithUserService(request, individualList, apiOperation, errorDetails, true);
+    }
+
+    private List<Individual> integrateWithUserService(IndividualBulkRequest request,
+                                          List<Individual> individualList, ApiOperation apiOperation,
+                                          Map<Individual, ErrorDetails> errorDetails, boolean generateDummyMobile) {
         List<Individual> validIndividuals = new ArrayList<>(individualList);
         if (properties.isUserSyncEnabled()) {
             for (Individual individual : individualList) {
@@ -460,7 +476,7 @@ public class IndividualService {
                                 individual.getName());
                     } else if (apiOperation.equals(ApiOperation.CREATE)) {
                         List<UserRequest> userRequests = userIntegrationService.createUser(individual,
-                                request.getRequestInfo());
+                                request.getRequestInfo(), generateDummyMobile);
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
                             individual.setUserUuid(userRequests.get(0).getUuid());
                         log.info("successfully created user for {} ",

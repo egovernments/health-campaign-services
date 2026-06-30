@@ -8,7 +8,9 @@ import org.apache.poi.xssf.usermodel.XSSFConditionalFormattingRule;
 import org.apache.poi.xssf.usermodel.XSSFSheetConditionalFormatting;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.ConditionalRequired;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Utility class for populating Excel sheets with data
@@ -24,6 +27,9 @@ import java.util.Map;
 @Component
 @Slf4j
 public class ExcelDataPopulator {
+
+    private static final String DROPDOWN_HELPER_SHEET_NAME = "_h_Dropdowns_h_";
+    private static final int INLINE_LIST_CHAR_LIMIT = 255;
 
     private final ExcelIngestionConfig config;
     private final ExcelStyleHelper excelStyleHelper;
@@ -99,9 +105,6 @@ public class ExcelDataPopulator {
         // 8. Apply Validation - reuse existing dropdown creation logic
         applyValidations(workbook, sheet, expandedColumns, localizationMap);
         
-        // 9. Apply multiselect formulas if any
-        applyMultiSelectFormulas(sheet, expandedColumns);
-
         log.info("Successfully added sheet: {} to workbook", sheetName);
         return workbook;
     }
@@ -197,6 +200,21 @@ public class ExcelDataPopulator {
             }
         }
 
+        // Build map: parent column name -> ordered list of _MULTISELECT_* column indexes
+        Map<String, List<Integer>> parentToMultiselectColIndexes = new HashMap<>();
+        for (ColumnDef col : columnProperties) {
+            if ("multiselect_item".equals(col.getType())) {
+                parentToMultiselectColIndexes
+                    .computeIfAbsent(col.getParentColumn(), k -> new ArrayList<>())
+                    .add(headerToColumnMap.getOrDefault(col.getName(), -1));
+            }
+        }
+
+        // Map column name -> ColumnDef once (O(1) lookup inside the row loop instead of a per-cell
+        // stream scan). Merge fn keeps the first def on duplicate names, matching the prior findFirst().
+        Map<String, ColumnDef> colDefByName = columnProperties.stream()
+                .collect(Collectors.toMap(ColumnDef::getName, col -> col, (a, b) -> a));
+
         // Fill data rows using header mapping
         for (int rowIdx = 0; rowIdx < dataRows.size(); rowIdx++) {
             Map<String, Object> dataRow = dataRows.get(rowIdx);
@@ -209,7 +227,24 @@ public class ExcelDataPopulator {
             for (Map.Entry<String, Object> entry : dataRow.entrySet()) {
                 String dataKey = entry.getKey();
                 Object value = entry.getValue();
-                
+
+                // If this key is a multiselect parent with comma-separated value, split into individual columns
+                List<Integer> multiselectColIndexes = parentToMultiselectColIndexes.get(dataKey);
+                if (multiselectColIndexes != null && value != null && !value.toString().trim().isEmpty()) {
+                    String[] parts = value.toString().split(",");
+                    for (int p = 0; p < parts.length && p < multiselectColIndexes.size(); p++) {
+                        int msColIdx = multiselectColIndexes.get(p);
+                        if (msColIdx < 0) continue;
+                        String part = parts[p].trim();
+                        if (!part.isEmpty()) {
+                            Cell cell = excelRow.getCell(msColIdx);
+                            if (cell == null) cell = excelRow.createCell(msColIdx);
+                            cell.setCellValue(part);
+                        }
+                    }
+                    continue;
+                }
+
                 // Find column index for this data key from header mapping
                 Integer colIdx = headerToColumnMap.get(dataKey);
                 if (colIdx != null && value != null) {
@@ -217,13 +252,10 @@ public class ExcelDataPopulator {
                     if (cell == null) {
                         cell = excelRow.createCell(colIdx);
                     }
-                    
-                    // Find corresponding ColumnDef for validation/formatting
-                    ColumnDef columnDef = columnProperties.stream()
-                        .filter(col -> col.getName().equals(dataKey))
-                        .findFirst()
-                        .orElse(null);
-                    
+
+                    // Find corresponding ColumnDef for validation/formatting (O(1))
+                    ColumnDef columnDef = colDefByName.get(dataKey);
+
                     setCellValue(cell, value, columnDef);
                 } else if (colIdx == null) {
                     log.debug("No header column found for data key: {}", dataKey);
@@ -336,25 +368,39 @@ public class ExcelDataPopulator {
      */
     private void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns, Map<String, String> localizationMap) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
-        
+
         // Find starting column index (same as headers)
         Row visibleRow = sheet.getRow(1);
         int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
         int startCol = Math.max(0, totalExistingCols - columns.size());
-        
+
+        // Build map: technical column name → column index (from hidden row 0)
+        Map<String, Integer> headerNameToColIndex = new HashMap<>();
+        Row technicalRow = sheet.getRow(0);
+        if (technicalRow != null) {
+            for (int i = 0; i < technicalRow.getLastCellNum(); i++) {
+                Cell cell = technicalRow.getCell(i);
+                if (cell != null && cell.getCellType() == CellType.STRING) {
+                    headerNameToColIndex.put(cell.getStringCellValue(), i);
+                }
+            }
+        }
+
         for (int i = 0; i < columns.size(); i++) {
             int colIndex = startCol + i;
             ColumnDef column = columns.get(i);
             
-            // Skip multi-select hidden columns from validation
-            if ("multiselect_hidden".equals(column.getType())) {
-                continue;
-            }
-            
-            // Apply enum dropdown validation - keep as is (no changes for dropdowns)
+            // Apply enum dropdown validation
             if (column.getEnumValues() != null && !column.getEnumValues().isEmpty()) {
-                String[] enumArray = column.getEnumValues().toArray(new String[0]);
-                DataValidationConstraint constraint = dvHelper.createExplicitListConstraint(enumArray);
+                DataValidationConstraint constraint;
+                if (String.join(",", column.getEnumValues()).length() > INLINE_LIST_CHAR_LIMIT) {
+                    Sheet dropdownSheet = getOrCreateDropdownSheet(workbook);
+                    int dropColIdx = writeEnumToDropdownSheet(dropdownSheet, column.getEnumValues());
+                    String rangeName = createDropdownNamedRange(workbook, column.getTechnicalName(), dropColIdx, column.getEnumValues().size());
+                    constraint = dvHelper.createFormulaListConstraint(rangeName);
+                } else {
+                    constraint = dvHelper.createExplicitListConstraint(column.getEnumValues().toArray(new String[0]));
+                }
                 // Use actual data row count or config limit, whichever is larger to cover all rows
                 // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
                 int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
@@ -370,21 +416,233 @@ public class ExcelDataPopulator {
                 validation.setShowPromptBox(false); // No input prompt, only error on invalid data
                 sheet.addValidationData(validation);
             }
-            
+
+            // Apply conditional required validation (formula-based DataValidation with STOP style)
+            else if (column.getRequiredIf() != null) {
+                String triggerColName = column.getRequiredIf().getColumn();
+                Integer triggerColIdx = headerNameToColIndex.get(triggerColName);
+                List<String> triggerValues = column.getRequiredIf().getValues();
+                // Skip when there are no trigger values: an empty list has no condition to
+                // enforce and would build a malformed =OR(AND(),...) formula.
+                if (triggerColIdx != null && triggerValues != null && !triggerValues.isEmpty()) {
+                    String triggerLetter = columnIndexToLetter(triggerColIdx);
+                    String thisLetter = columnIndexToLetter(colIndex);
+
+                    // Formula is valid when trigger column does NOT match any trigger value OR this cell is non-empty
+                    String notTriggerPart = triggerValues.stream()
+                            .map(v -> "$" + triggerLetter + "3<>\"" + v + "\"")
+                            .collect(Collectors.joining(","));
+                    String formula = "=OR(AND(" + notTriggerPart + "),LEN(TRIM($" + thisLetter + "3))>0)";
+
+                    int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
+                    int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+                    CellRangeAddressList range = new CellRangeAddressList(2, maxRow, colIndex, colIndex);
+                    DataValidationConstraint constraint = dvHelper.createCustomConstraint(formula);
+                    DataValidation dv = dvHelper.createValidation(constraint, range);
+                    dv.setErrorStyle(DataValidation.ErrorStyle.STOP);
+                    dv.setShowErrorBox(true);
+                    String errMsg = column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()
+                            ? column.getErrorMessage()
+                            : "This field is required for the selected payment provider.";
+                    dv.createErrorBox(
+                        LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_CONDITIONAL_REQUIRED", "Required Field"),
+                        LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), errMsg)
+                    );
+                    sheet.addValidationData(dv);
+
+                    // Apply visual validation (conditional formatting): highlight empty required cells
+                    // and cells with invalid format when the trigger condition is met
+                    applyConditionalVisualValidation(workbook, sheet, column, colIndex,
+                            triggerColIdx, triggerValues, localizationMap);
+                }
+            }
+
             // Apply pure visual validation for string and number fields: conditional formatting + cell comments only
             else if ("string".equals(column.getType()) && hasStringValidation(column)) {
                 // Apply only visual formatting - no data validation to avoid vanishing entries
                 applyPureVisualValidation(workbook, sheet, column, colIndex, localizationMap);
             }
-            
-            // Apply pure visual validation for number fields: conditional formatting + cell comments only  
+
+            // Apply pure visual validation for number fields: conditional formatting + cell comments only
             else if ("number".equals(column.getType()) && hasNumberValidation(column)) {
                 // Apply only visual formatting - no data validation to avoid vanishing entries
                 applyPureVisualValidation(workbook, sheet, column, colIndex, localizationMap);
             }
         }
+
+        // Apply payee-field-specific conditional formatting rules (payment provider conditions)
+        int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
+        int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+        applyPayeeFieldConditionalFormatting(sheet, headerNameToColIndex, maxRow);
+    }
+
+    /**
+     * Applies conditional formatting rules for payee/worker detail fields based on payment provider.
+     * All rules use only sheet data (Excel formulas) — no API validation required.
+     *
+     * BANK provider:
+     *   payeeName        — required; max 35 chars when beneficiaryCode is filled, else max 100
+     *   beneficiaryCode  — required; max 35 chars
+     *   bankAccount      — required; must be exactly 10 numeric digits
+     *   bankCode         — required; must be empty, 3 digits, or 9 digits
+     *
+     * MTN provider:
+     *   payeePhoneNumber — required
+     *
+     * Non-BANK:
+     *   payeeName        — not required, but max 35 chars if filled
+     */
+    private void applyPayeeFieldConditionalFormatting(Sheet sheet, Map<String, Integer> colIndexMap, int maxRow) {
+        Integer providerIdx      = colIndexMap.get(ProcessingConstants.PAYMENT_PROVIDER_COL);
+        Integer payeeNameIdx     = colIndexMap.get(ProcessingConstants.PAYEE_NAME_COL);
+        Integer beneficiaryIdx   = colIndexMap.get(ProcessingConstants.BENEFICIARY_CODE_COL);
+        Integer bankAccountIdx   = colIndexMap.get(ProcessingConstants.BANK_ACCOUNT_COL);
+        Integer bankCodeIdx      = colIndexMap.get(ProcessingConstants.BANK_CODE_COL);
+        Integer payeePhoneIdx    = colIndexMap.get(ProcessingConstants.PAYEE_PHONE_NUMBER_COL);
+
+        if (providerIdx == null) {
+            log.debug("Payment provider column not found in sheet — skipping payee conditional formatting");
+            return;
+        }
+
+        XSSFSheetConditionalFormatting cf = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
+        String p = columnIndexToLetter(providerIdx);
+
+        // --- payeeName ---
+        if (payeeNameIdx != null) {
+            String n = columnIndexToLetter(payeeNameIdx);
+            String b = beneficiaryIdx != null ? columnIndexToLetter(beneficiaryIdx) : null;
+
+            // Required when BANK or MTN and empty (skip if provider is empty)
+            addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                    "AND(OR($" + p + "3=\"BANK\",$" + p + "3=\"MTN\"),LEN(TRIM($" + n + "3))=0)");
+
+            if (b != null) {
+                // BANK + beneficiaryCode filled: max 35 chars
+                addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                        "AND($" + p + "3=\"BANK\",LEN(TRIM($" + b + "3))>0,$" + n + "3<>\"\",LEN($" + n + "3)>35)");
+                // BANK + beneficiaryCode empty: max 100 chars
+                addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                        "AND($" + p + "3=\"BANK\",LEN(TRIM($" + b + "3))=0,$" + n + "3<>\"\",LEN($" + n + "3)>100)");
+            } else {
+                // No beneficiaryCode column — apply single max 100 rule for BANK
+                addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                        "AND($" + p + "3=\"BANK\",$" + n + "3<>\"\",LEN($" + n + "3)>100)");
+            }
+
+            // Non-BANK, non-empty provider: not required, but max 35 chars if filled
+            addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                    "AND($" + p + "3<>\"BANK\",$" + p + "3<>\"\",$" + n + "3<>\"\",LEN($" + n + "3)>35)");
+        }
+
+        // --- beneficiaryCode ---
+        if (beneficiaryIdx != null) {
+            String b = columnIndexToLetter(beneficiaryIdx);
+
+            // Required when BANK and empty
+            addPayeeCfRule(cf, maxRow, beneficiaryIdx,
+                    "AND($" + p + "3=\"BANK\",LEN(TRIM($" + b + "3))=0)");
+
+            // Non-empty: max 35 chars (BANK only) or contains whitespace (any provider)
+            addPayeeCfRule(cf, maxRow, beneficiaryIdx,
+                    "AND($" + b + "3<>\"\",OR(AND($" + p + "3=\"BANK\",LEN($" + b + "3)>35),LEN($" + b + "3)<>LEN(SUBSTITUTE($" + b + "3,\" \",\"\"))))");
+        }
+
+        // --- bankAccount ---
+        if (bankAccountIdx != null) {
+            String a = columnIndexToLetter(bankAccountIdx);
+
+            // Required when BANK and empty
+            addPayeeCfRule(cf, maxRow, bankAccountIdx,
+                    "AND($" + p + "3=\"BANK\",LEN(TRIM($" + a + "3))=0)");
+
+            // Non-empty: exactly 10 numeric digits (BANK only) or contains whitespace (any provider)
+            addPayeeCfRule(cf, maxRow, bankAccountIdx,
+                    "AND($" + a + "3<>\"\",OR(AND($" + p + "3=\"BANK\",OR(LEN($" + a + "3)<>10,NOT(ISNUMBER(VALUE($" + a + "3))))),LEN($" + a + "3)<>LEN(SUBSTITUTE($" + a + "3,\" \",\"\"))))");
+        }
+
+        // --- bankCode ---
+        if (bankCodeIdx != null) {
+            String bc = columnIndexToLetter(bankCodeIdx);
+
+            // Required when BANK and empty
+            addPayeeCfRule(cf, maxRow, bankCodeIdx,
+                    "AND($" + p + "3=\"BANK\",LEN(TRIM($" + bc + "3))=0)");
+
+            // Non-empty: 3 or 9 numeric digits (BANK only) or contains whitespace (any provider)
+            addPayeeCfRule(cf, maxRow, bankCodeIdx,
+                    "AND($" + bc + "3<>\"\",OR(AND($" + p + "3=\"BANK\",OR(NOT(ISNUMBER(VALUE($" + bc + "3))),AND(LEN($" + bc + "3)<>3,LEN($" + bc + "3)<>9))),LEN($" + bc + "3)<>LEN(SUBSTITUTE($" + bc + "3,\" \",\"\"))))");
+        }
+
+        // --- payeePhoneNumber (MTN: required) ---
+        if (payeePhoneIdx != null) {
+            String pp = columnIndexToLetter(payeePhoneIdx);
+            addPayeeCfRule(cf, maxRow, payeePhoneIdx,
+                    "AND($" + p + "3=\"MTN\",LEN(TRIM($" + pp + "3))=0)");
+        }
+
+        log.info("Applied payee field conditional formatting rules");
+    }
+
+    private void addPayeeCfRule(XSSFSheetConditionalFormatting cf, int maxRow, int colIndex, String formula) {
+        CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
+        XSSFConditionalFormattingRule rule = cf.createConditionalFormattingRule(formula);
+        PatternFormatting fill = rule.createPatternFormatting();
+        setValidationErrorColor(fill);
+        fill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+        cf.addConditionalFormatting(regions, rule);
     }
     
+    /**
+     * Convert a 0-based column index to an Excel column letter (A, B, ..., Z, AA, AB, ...)
+     */
+    private String columnIndexToLetter(int index) {
+        StringBuilder sb = new StringBuilder();
+        index++; // 0-based to 1-based
+        while (index > 0) {
+            index--;
+            sb.insert(0, (char) ('A' + (index % 26)));
+            index /= 26;
+        }
+        return sb.toString();
+    }
+
+    private Sheet getOrCreateDropdownSheet(Workbook workbook) {
+        Sheet existing = workbook.getSheet(DROPDOWN_HELPER_SHEET_NAME);
+        if (existing != null) {
+            return existing;
+        }
+        Sheet sheet = workbook.createSheet(DROPDOWN_HELPER_SHEET_NAME);
+        workbook.setSheetHidden(workbook.getSheetIndex(DROPDOWN_HELPER_SHEET_NAME), true);
+        return sheet;
+    }
+
+    private int writeEnumToDropdownSheet(Sheet dropdownSheet, List<String> values) {
+        Row firstRow = dropdownSheet.getRow(0);
+        int colIdx = (firstRow != null && firstRow.getLastCellNum() > 0) ? firstRow.getLastCellNum() : 0;
+        for (int rowIdx = 0; rowIdx < values.size(); rowIdx++) {
+            Row row = dropdownSheet.getRow(rowIdx);
+            if (row == null) row = dropdownSheet.createRow(rowIdx);
+            row.createCell(colIdx).setCellValue(values.get(rowIdx));
+        }
+        return colIdx;
+    }
+
+    private String createDropdownNamedRange(Workbook workbook, String technicalName, int colIdx, int rowCount) {
+        String safeName = (technicalName != null ? technicalName : "col_" + colIdx)
+                .replaceAll("[^A-Za-z0-9_]", "_");
+        String rangeName = "_DR_" + safeName;
+        Name existing = workbook.getName(rangeName);
+        if (existing != null) {
+            workbook.removeName(existing);
+        }
+        String colLetter = columnIndexToLetter(colIdx);
+        Name name = workbook.createName();
+        name.setNameName(rangeName);
+        name.setRefersToFormula("'" + DROPDOWN_HELPER_SHEET_NAME + "'!$" + colLetter + "$1:$" + colLetter + "$" + rowCount);
+        return rangeName;
+    }
+
     /**
      * Check if column has string LENGTH validation rules (only minLength/maxLength)
      */
@@ -433,21 +691,6 @@ public class ExcelDataPopulator {
                             .build();
                     expandedColumns.add(multiCol);
                 }
-                
-                // Add the hidden concatenated column
-                ColumnDef hiddenCol = ColumnDef.builder()
-                        .name(column.getName())
-                        .technicalName(column.getName())
-                        .type("multiselect_hidden")
-                        .colorHex(column.getColorHex())
-                        .orderNumber(column.getOrderNumber())
-                        .hideColumn(column.isHideColumn())
-                        .parentColumn(column.getName())
-                        .multiSelectMaxSelections(maxSelections)
-                        .freezeColumnIfFilled(column.isFreezeColumnIfFilled())
-                        .width(column.getWidth())
-                        .build();
-                expandedColumns.add(hiddenCol);
             } else {
                 // Regular column (string, number, enum)
                 ColumnDef regularCol = ColumnDef.builder()
@@ -481,88 +724,14 @@ public class ExcelDataPopulator {
                         .multipleOf(column.getMultipleOf())
                         .exclusiveMinimum(column.getExclusiveMinimum())
                         .exclusiveMaximum(column.getExclusiveMaximum())
+                        // Copy conditional required validation
+                        .requiredIf(column.getRequiredIf())
                         .build();
                 expandedColumns.add(regularCol);
             }
         }
         
         return expandedColumns;
-    }
-
-    /**
-     * Apply multiselect formulas - copied from ExcelSchemaSheetCreator
-     */
-    private void applyMultiSelectFormulas(Sheet sheet, List<ColumnDef> columns) {
-        Map<String, List<Integer>> multiSelectGroups = new HashMap<>();
-        Map<String, Integer> hiddenColumnIndexes = new HashMap<>();
-        
-        // Find starting column index (same as headers)
-        Row visibleRow = sheet.getRow(1);
-        int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
-        int startCol = Math.max(0, totalExistingCols - columns.size());
-        
-        // Group columns by parent and find hidden column indexes
-        for (int i = 0; i < columns.size(); i++) {
-            ColumnDef column = columns.get(i);
-            if ("multiselect_item".equals(column.getType())) {
-                multiSelectGroups.computeIfAbsent(column.getParentColumn(), k -> new ArrayList<>()).add(startCol + i);
-            } else if ("multiselect_hidden".equals(column.getType())) {
-                hiddenColumnIndexes.put(column.getParentColumn(), startCol + i);
-            }
-        }
-        
-        // Apply CONCATENATE formula to hidden columns
-        for (Map.Entry<String, List<Integer>> entry : multiSelectGroups.entrySet()) {
-            String parentColumn = entry.getKey();
-            List<Integer> itemColumns = entry.getValue();
-            Integer hiddenColumnIndex = hiddenColumnIndexes.get(parentColumn);
-            
-            if (hiddenColumnIndex != null && !itemColumns.isEmpty()) {
-                // Build CONCATENATE formula similar to project-factory
-                List<String> colLetters = new ArrayList<>();
-                for (Integer colIndex : itemColumns) {
-                    colLetters.add(getColumnLetter(colIndex + 1)); // +1 because Excel is 1-indexed
-                }
-                
-                // Create formula for concatenating non-blank values with commas
-                // Start from row 3 to match validation expectations (row 3 = first data row)
-                StringBuilder formulaBuilder = new StringBuilder("=IF(AND(");
-                for (String colLetter : colLetters) {
-                    formulaBuilder.append("ISBLANK(").append(colLetter).append("3),");
-                }
-                // Remove last comma
-                if (colLetters.size() > 0) {
-                    formulaBuilder.setLength(formulaBuilder.length() - 1);
-                }
-                formulaBuilder.append("),\"\",TRIM(CONCATENATE(");
-                
-                for (String colLetter : colLetters) {
-                    formulaBuilder.append("IF(ISBLANK(").append(colLetter).append("3),\"\",")
-                                  .append(colLetter).append("3&\",\"),");
-                }
-                // Remove last comma
-                if (colLetters.size() > 0) {
-                    formulaBuilder.setLength(formulaBuilder.length() - 1);
-                }
-                formulaBuilder.append(")))");
-                
-                String formula = formulaBuilder.toString();
-                
-                // Apply formula starting from row 3 (first data row) to match validation expectations
-                for (int row = 3; row <= 101; row++) { // Apply to first 100 data rows (3-102)
-                    String rowFormula = formula.replace("3", String.valueOf(row));
-                    Row excelRow = sheet.getRow(row - 1); // POI rows are 0-indexed, so row 3 = index 2
-                    if (excelRow == null) {
-                        excelRow = sheet.createRow(row - 1);
-                    }
-                    Cell cell = excelRow.getCell(hiddenColumnIndex);
-                    if (cell == null) {
-                        cell = excelRow.createCell(hiddenColumnIndex);
-                    }
-                    cell.setCellFormula(rowFormula.substring(1)); // Remove the leading '='
-                }
-            }
-        }
     }
 
     /**
@@ -624,6 +793,80 @@ public class ExcelDataPopulator {
     }
     
     
+    /**
+     * Apply visual validation (conditional formatting) that only triggers when the requiredIf condition is met.
+     * E.g., highlight bankAccount red only when paymentProvider = BANK and the value is invalid.
+     */
+    private void applyConditionalVisualValidation(Workbook workbook, Sheet sheet, ColumnDef column, int colIndex,
+                                                   int triggerColIdx, List<String> triggerValues,
+                                                   Map<String, String> localizationMap) {
+        try {
+            String errorMessage = buildErrorMessage(column, localizationMap);
+            String colLetter = getColumnLetter(colIndex + 1);
+            String triggerLetter = columnIndexToLetter(triggerColIdx);
+
+            // Build trigger match: OR($AA3="BANK",$AA3="MTN")
+            String triggerMatch = triggerValues.stream()
+                    .map(v -> "$" + triggerLetter + "3=\"" + v + "\"")
+                    .collect(Collectors.joining(","));
+            String triggerCondition = triggerValues.size() == 1 ? triggerMatch : "OR(" + triggerMatch + ")";
+
+            XSSFSheetConditionalFormatting cf = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
+            int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
+            int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+            CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
+
+            // Rule 1: required-but-empty — highlight when trigger is met and cell is empty
+            String requiredEmptyFormula = "AND(" + triggerCondition + ",LEN(TRIM(" + colLetter + "3))=0)";
+            XSSFConditionalFormattingRule emptyRule = cf.createConditionalFormattingRule(requiredEmptyFormula);
+            PatternFormatting emptyFill = emptyRule.createPatternFormatting();
+            setValidationErrorColor(emptyFill);
+            emptyFill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+            cf.addConditionalFormatting(regions, emptyRule);
+
+            // Rule 2: format violation — highlight when trigger is met, cell is non-empty, but format is invalid
+            String violation = buildFormatViolation(column, colLetter);
+            if (violation != null) {
+                String formatFormula = "AND(" + triggerCondition + "," + colLetter + "3<>\"\"," + violation + ")";
+                XSSFConditionalFormattingRule formatRule = cf.createConditionalFormattingRule(formatFormula);
+                PatternFormatting formatFill = formatRule.createPatternFormatting();
+                setValidationErrorColor(formatFill);
+                formatFill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+                cf.addConditionalFormatting(regions, formatRule);
+            }
+
+            addCellComments(sheet, colIndex, errorMessage, localizationMap);
+            log.info("Applied conditional visual validation for column '{}': {}", column.getName(), errorMessage);
+        } catch (Exception e) {
+            log.warn("Failed to apply conditional visual validation for column '{}': {}", column.getName(), e.getMessage());
+        }
+    }
+
+    /**
+     * Build the format violation part of a conditional formatting formula.
+     * Returns null if no format constraints exist.
+     */
+    private String buildFormatViolation(ColumnDef column, String colLetter) {
+        if ("string".equals(column.getType())) {
+            if (column.getMinLength() != null && column.getMaxLength() != null) {
+                return "OR(LEN(" + colLetter + "3)<" + column.getMinLength()
+                        + ",LEN(" + colLetter + "3)>" + column.getMaxLength() + ")";
+            } else if (column.getMaxLength() != null) {
+                return "LEN(" + colLetter + "3)>" + column.getMaxLength();
+            } else if (column.getMinLength() != null) {
+                return "LEN(" + colLetter + "3)<" + column.getMinLength();
+            }
+        } else if ("number".equals(column.getType())) {
+            if (column.getMinimum() != null && column.getMaximum() != null) {
+                return "OR(NOT(ISNUMBER(" + colLetter + "3)),"
+                        + colLetter + "3<" + column.getMinimum() + ","
+                        + colLetter + "3>" + column.getMaximum() + ")";
+            }
+            return "NOT(ISNUMBER(" + colLetter + "3))";
+        }
+        return null;
+    }
+
     /**
      * Build error message based on column constraints
      */

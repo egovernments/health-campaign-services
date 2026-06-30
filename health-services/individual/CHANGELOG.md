@@ -1,5 +1,12 @@
 All notable changes to this module will be documented in this file.
 
+## 1.2.3 - 2026-06-24
+
+- Made dummy mobile-number generation conditional during individual create (no longer adds a placeholder mobile number when one is not supplied).
+- Hardened boundary validation against addresses with a null or blank locality code (null-pointer guarding).
+- Marked the primary `ObjectMapper` bean with `@Primary` to resolve bean-selection ambiguity.
+- Upgraded Lombok to 1.18.30 for Java 17 compatibility.
+
 ## 1.2.2 - 2026-03-10
 
 - Upgraded tracer to 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.

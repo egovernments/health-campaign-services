@@ -122,6 +122,7 @@ public class ProjectService {
             Boolean includeDeleted,
             Boolean includeAncestors,
             Boolean includeDescendants,
+            Boolean includeImmediateChildren,
             Long createdFrom,
             Long createdTo,
             boolean isAncestorProjectId
@@ -136,6 +137,7 @@ public class ProjectService {
                 includeDeleted,
                 includeAncestors,
                 includeDescendants,
+                includeImmediateChildren,
                 createdFrom,
                 createdTo,
                 isAncestorProjectId
@@ -161,7 +163,7 @@ public class ProjectService {
         List<Project> projectsFromDB = searchProject(
             getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false),
             projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(),
-            request.getProjects().get(0).getTenantId(), null, false, false, false, null, null, false
+            request.getProjects().get(0).getTenantId(), null, false, false, false, false, null, null, false
         );
         log.info("Fetched projects for update request");
 
@@ -316,6 +318,7 @@ public class ProjectService {
             false,
             true,
             true,
+            false,
             null,
             null,
             false
@@ -330,7 +333,7 @@ public class ProjectService {
         /*
          * Enrich project cascading dates based on the retrieved data
          */
-        projectEnrichment.enrichProjectCascadingDatesOnUpdate(project, projectFromDbWithAncestorsAndDescendants);
+        projectEnrichment.enrichProjectCascadingDatesOnUpdate(project, projectFromDbWithAncestorsAndDescendants, request.getRequestInfo());
     }
 
 
@@ -385,7 +388,7 @@ public class ProjectService {
           projectConfiguration.getMaxLimit(),
           projectConfiguration.getDefaultOffset(),
           searchRequest.getProjects().get(0).getTenantId(),
-          null, false, false, false, null, null, false
+          null, false, false, false, false, null, null, false
       );
 
       for (Project parent : dbProjects) {

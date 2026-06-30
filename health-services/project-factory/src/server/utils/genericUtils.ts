@@ -12,6 +12,7 @@ import Localisation from "../controllers/localisationController/localisation.con
 import { executeQuery, getTableName } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
+import { getProcessNamesForResourceTypes } from "../config/resourceTypeRegistry";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -43,16 +44,15 @@ const appCache = new NodeCache({ stdTTL: 1800000, checkperiod: 300 });
 Send The Error Response back to client with proper response code 
 */
 const throwErrorViaRequest = (message: any = "Internal Server Error") => {
+  logger.error("Error : ", message);
   if (message?.message || message?.code) {
     let error: any = new Error(message?.message || message?.code);
     error = Object.assign(error, { status: message?.status || 500 });
-    logger.error("Error : " + error + " " + (message?.description || ""));
     throw error;
   }
   else {
     let error: any = new Error(message);
     error = Object.assign(error, { status: 500 });
-    logger.error("Error : " + error);
     throw error;
   }
 };
@@ -399,7 +399,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
         const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
         const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
-        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
+        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFileStoreId;
         fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility, request?.query?.tenantId);
       }
 
@@ -684,7 +684,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  await handledropdownthings(facilitySheet, schema, localizationMap);
+  await handledropdownthings(workbook, facilitySheet, schema, localizationMap);
   protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
@@ -698,7 +698,24 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-export async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
+const DROPDOWN_HELPER_SHEET = "_h_Dropdowns_h_";
+const INLINE_LIST_CHAR_LIMIT = 255;
+
+function getOrCreateDropdownHelperSheet(workbook: any): any {
+  const existing = workbook.getWorksheet(DROPDOWN_HELPER_SHEET);
+  if (existing) return existing;
+  const ws = workbook.addWorksheet(DROPDOWN_HELPER_SHEET);
+  ws.state = "veryHidden";
+  return ws;
+}
+
+function writeEnumToDropdownSheet(helperSheet: any, values: string[]): string {
+  const colIdx = helperSheet.columnCount + 1;
+  helperSheet.getColumn(colIdx).values = values;
+  return helperSheet.getColumn(colIdx).letter;
+}
+
+export async function handledropdownthings(workbook: any, sheet: any, schema: any, localizationMap: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
@@ -725,6 +742,15 @@ export async function handledropdownthings(sheet: any, schema: any, localization
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
+          const values: string[] = dropdowns[key];
+          let resolvedFormulae: string[];
+          if (values.join(',').length > INLINE_LIST_CHAR_LIMIT) {
+            const helperSheet = getOrCreateDropdownHelperSheet(workbook);
+            const colLetter = writeEnumToDropdownSheet(helperSheet, values);
+            resolvedFormulae = [`'${DROPDOWN_HELPER_SHEET}'!$${colLetter}$1:$${colLetter}$${values.length}`];
+          } else {
+            resolvedFormulae = [`"${values.join(',')}"`];
+          }
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
               if (cell.protection?.locked) { // Check if the cell is locked
@@ -732,7 +758,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
                 // Set dropdown list with no typing allowed
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -744,7 +770,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
               else {
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -765,7 +791,7 @@ export async function handledropdownthings(sheet: any, schema: any, localization
   }
 }
 
-export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
+export async function handledropdownthingsUnLocalised(workbook: any, sheet: any, schema: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
@@ -791,6 +817,15 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
+          const values: string[] = dropdowns[key];
+          let resolvedFormulae: string[];
+          if (values.join(',').length > INLINE_LIST_CHAR_LIMIT) {
+            const helperSheet = getOrCreateDropdownHelperSheet(workbook);
+            const colLetter = writeEnumToDropdownSheet(helperSheet, values);
+            resolvedFormulae = [`'${DROPDOWN_HELPER_SHEET}'!$${colLetter}$1:$${colLetter}$${values.length}`];
+          } else {
+            resolvedFormulae = [`"${values.join(',')}"`];
+          }
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 2) {
               if (cell.protection?.locked) { // Check if the cell is locked
@@ -798,7 +833,7 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
                 // Set dropdown list with no typing allowed
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -810,7 +845,7 @@ export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
               else {
                 cell.dataValidation = {
                   type: 'list',
-                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  formulae: resolvedFormulae,
                   showDropDown: true,
                   error: 'Please select a value from the dropdown list.',
                   errorStyle: 'stop',
@@ -875,7 +910,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
   //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
   // }
-  await handledropdownthings(userSheet, schema, localizationMap);
+  await handledropdownthings(workbook, userSheet, schema, localizationMap);
   protectSheet(userSheet);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
@@ -893,7 +928,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
-  const allFacilities = await getAllFacilities(tenantId);
+  const allFacilities = await getAllFacilities(tenantId, request?.body?.RequestInfo);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
   let facilitySheetDataFinal: any;
@@ -932,7 +967,6 @@ function addMultiSelectColumn(properties: any, headers: string[]) {
       for (let i = 1; i <= maxColumns; i++) {
         newHeaders.push(`${header}_MULTISELECT_${i}`);
       }
-      newHeaders.push(header);
     } else {
       newHeaders.push(header);
     }
@@ -1070,7 +1104,7 @@ async function generateUserSheetForMicroPlan(
     // Create a sheet for each role, using the role name as the sheet name
     const userSheet: any = workbook.addWorksheet(role);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
-    await handledropdownthings(userSheet, schema, localizationMap);
+    await handledropdownthings(workbook, userSheet, schema, localizationMap);
     protectSheet(userSheet);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   }
@@ -1446,6 +1480,46 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
   return rows;
 }
 
+export async function deleteCampaignDataFailedAndInvalid(
+  campaignNumber: string,
+  type: string,
+  tenantId: string
+): Promise<{ deletedCount: number }> {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+    const queryString = `DELETE FROM ${tableName}
+      WHERE campaignnumber = $1
+        AND type = $2
+        AND (status = 'failed' OR data->>'#status#' = 'INVALID')`;
+
+    const result = await executeQuery(queryString, [campaignNumber, type]);
+    const deletedCount = result?.rowCount || 0;
+
+    if (deletedCount > 0) {
+      logger.info(`Cleaned up ${deletedCount} failed/invalid rows for campaign ${campaignNumber} type ${type} before re-validation`);
+    }
+
+    return { deletedCount };
+  } catch (error) {
+    logger.error(`Error deleting failed/invalid rows for campaign ${campaignNumber}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Returns all campaign ids in eg_cm_campaign_details sharing the given campaignNumber + tenant.
+ * Child (and nested-child) campaigns inherit the parent's campaignNumber, so this resolves the
+ * whole campaign family at any nesting depth. No isactive column exists on this table.
+ */
+export async function getCampaignIdsByCampaignNumber(campaignNumber: string, tenantId: string): Promise<string[]> {
+  const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `SELECT id FROM ${tableName} WHERE campaignnumber = $1 AND tenantid = $2`,
+    [campaignNumber, tenantId]
+  );
+  return (result?.rows || []).map((row: any) => row.id);
+}
+
 export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], tenantId : string, status ?: string ){
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1`;
@@ -1542,12 +1616,12 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 }
 
 
-export async function prepareProcessesInDb(campaignNumber: any, tenantId: string, userUuid?: string) {
+export async function prepareProcessesInDb(campaignNumber: any, tenantId: string, userUuid?: string, excludeProcessNames: string[] = []) {
   logger.info("Preparing processes in DB...");
   let allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
-  
+
   const currentTime = Date.now();
-  
+
   // Add audit details to existing processes being updated
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
       allCurrentProcesses[i].status = processStatuses.pending;
@@ -1558,17 +1632,19 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
         lastModifiedTime: currentTime
       };
   }
-  
+
   produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
-  
+
   let allProcessesJson: any = JSON.parse(JSON.stringify(allProcesses))
   let newProcesses = [];
   for (let processKey in allProcesses) {
-    let isProcessNameAvailableInAllCurrentProcesses = allCurrentProcesses.find((process: any) => process?.processName == allProcessesJson[processKey]);
+    const processName = allProcessesJson[processKey];
+    if (excludeProcessNames.includes(processName)) continue;
+    let isProcessNameAvailableInAllCurrentProcesses = allCurrentProcesses.find((process: any) => process?.processName == processName);
     if (!isProcessNameAvailableInAllCurrentProcesses) {
       newProcesses.push({
         campaignNumber: campaignNumber,
-        processName: allProcessesJson[processKey],
+        processName: processName,
         status: processStatuses.pending,
         auditDetails: {
           createdBy: userUuid,
@@ -1579,9 +1655,73 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
       })
     }
   }
-  
+
   produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
   // wait for 2 second
+  logger.info("Waiting for 10 seconds for processes to get updated...");
+  await new Promise(resolve => setTimeout(resolve, 10000));
+}
+
+/**
+ * Prepare process entries in DB for only the specified resource types.
+ * Unlike prepareProcessesInDb which creates entries for ALL process types,
+ * this creates only the process entries needed for the given resource types.
+ */
+export async function prepareProcessesForResourceTypes(
+  campaignNumber: string,
+  tenantId: string,
+  resourceTypes: string[],
+  userUuid?: string
+) {
+  const processNames = getProcessNamesForResourceTypes(resourceTypes);
+  if (processNames.length === 0) {
+    logger.warn("No process names found for resource types: {}", resourceTypes.join(", "));
+    return;
+  }
+
+  logger.info("Preparing processes for resource types: {}", resourceTypes.join(", "));
+  const allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+  const currentTime = Date.now();
+
+  // Reset existing matching processes to pending
+  const existingToUpdate = [];
+  for (const process of allCurrentProcesses) {
+    if (processNames.includes(process?.processName)) {
+      process.status = processStatuses.pending;
+      process.auditDetails = {
+        createdBy: process.auditDetails?.createdBy || userUuid,
+        createdTime: process.auditDetails?.createdTime || currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      };
+      existingToUpdate.push(process);
+    }
+  }
+
+  if (existingToUpdate.length > 0) {
+    await produceModifiedMessages({ processes: existingToUpdate }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
+  }
+
+  // Create new process entries for those not yet in DB
+  const existingProcessNames = new Set(allCurrentProcesses.map((p: any) => p?.processName));
+  const newProcesses = processNames
+    .filter(pn => !existingProcessNames.has(pn))
+    .map(pn => ({
+      campaignNumber: campaignNumber,
+      processName: pn,
+      status: processStatuses.pending,
+      auditDetails: {
+        createdBy: userUuid,
+        createdTime: currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      }
+    }));
+
+  if (newProcesses.length > 0) {
+    await produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
+  }
+
   logger.info("Waiting for 10 seconds for processes to get updated...");
   await new Promise(resolve => setTimeout(resolve, 10000));
 }
@@ -1832,21 +1972,23 @@ export async function searchMappingData(searchParams: {
  * Fast check for campaign data completion status
  * Returns: { allCompleted: boolean, anyFailed: boolean, totalRows: number, completedRows: number, failedRows: number }
  */
-export async function checkCampaignDataCompletionStatus(campaignNumber: string, tenantId: string) {
+export async function checkCampaignDataCompletionStatus(campaignNumber: string, tenantId: string, type?: string) {
   try {
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
-    
-    // Fast query to get status counts - only select minimal fields for performance
+
+    const queryParams: any[] = [campaignNumber];
+    const typeFilter = type ? `AND type = $${queryParams.push(type)}` : '';
+
     const queryString = `
-      SELECT 
+      SELECT
         status,
         COUNT(*) as count
-      FROM ${tableName} 
-      WHERE campaignNumber = $1 
+      FROM ${tableName}
+      WHERE campaignNumber = $1 ${typeFilter}
       GROUP BY status
     `;
-    
-    const result = await executeQuery(queryString, [campaignNumber]);
+
+    const result = await executeQuery(queryString, queryParams);
     
     let totalRows = 0;
     let completedRows = 0;
@@ -1883,57 +2025,175 @@ export async function checkCampaignDataCompletionStatus(campaignNumber: string, 
 }
 
 /**
- * Fast check for campaign mapping completion status
- * Returns: { allCompleted: boolean, anyFailed: boolean, totalMappings: number, completedMappings: number, failedMappings: number }
+ * Fast check for campaign mapping completion status.
+ * Pass `type` (e.g. 'user', 'facility', 'resource') to scope the count to a single
+ * mapping type — used by the mapping monitor to apply per-type blocking policy
+ * (facility/resource hard-block; user is non-blocking).
+ *
+ * Mappings in `mapped`, `deMapped`, or `skipped` state count toward completion.
+ * `skipped` covers mappings whose dependency (e.g. a failed user) means the
+ * mapping was intentionally not attempted — these must not block the campaign.
+ *
+ * Returns: { allCompleted, anyFailed, totalMappings, completedMappings, failedMappings, pendingMappings }
  */
-export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string) {
+/**
+ * The terminal/retryable failure split depends on maxRetries — pass it explicitly
+ * when the caller's policy differs from the service default.
+ */
+export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string, type?: string, maxRetries: number = config.mapping.maxRetries) {
   try {
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
-    
-    // Fast query to get mapping status counts - only select minimal fields for performance
+
     const queryString = `
-      SELECT 
+      SELECT
         status,
-        COUNT(*) as count
-      FROM ${tableName} 
-      WHERE campaignNumber = $1 
+        COUNT(*) as count,
+        COUNT(*) FILTER (WHERE retryCount >= $3) as terminalcount
+      FROM ${tableName}
+      WHERE campaignNumber = $1
+        AND ($2::text IS NULL OR type = $2)
       GROUP BY status
     `;
-    
-    const result = await executeQuery(queryString, [campaignNumber]);
-    
+
+    const result = await executeQuery(queryString, [campaignNumber, type ?? null, maxRetries]);
+
     let totalMappings = 0;
     let completedMappings = 0;
     let failedMappings = 0;
-    
-    // Process the grouped results using constants
+    let terminallyFailedMappings = 0;
+
     result.rows.forEach((row: any) => {
       const count = parseInt(row.count);
       totalMappings += count;
-      
-      if (row.status === mappingStatuses.mapped || row.status === mappingStatuses.deMapped) {
+
+      if (
+        row.status === mappingStatuses.mapped ||
+        row.status === mappingStatuses.deMapped ||
+        row.status === mappingStatuses.skipped
+      ) {
         completedMappings += count;
-      } else if (row.status === mappingStatuses.failed) {
+      } else if (row.status === mappingStatuses.failed || row.status === mappingStatuses.deMapFailed) {
         failedMappings += count;
+        terminallyFailedMappings += parseInt(row.terminalcount ?? '0');
       }
     });
-    
+
     const allCompleted = totalMappings > 0 && completedMappings === totalMappings;
     const anyFailed = failedMappings > 0;
-    
+
     return {
       allCompleted,
       anyFailed,
       totalMappings,
       completedMappings,
       failedMappings,
+      terminallyFailedMappings,
+      retryableFailedMappings: failedMappings - terminallyFailedMappings,
       pendingMappings: totalMappings - completedMappings - failedMappings
     };
-    
+
   } catch (error) {
     logger.error('Error checking campaign mapping completion status:', error);
     throw error;
   }
+}
+
+/**
+ * Shared polling loop for "wait until enough has been persisted".
+ *
+ * Two waiting modes (both shared by pollUntilCount and pollUntilCountFn):
+ *  - `stallTimeoutMs` set → progress-based: the wait continues as long as the
+ *    observed count keeps increasing, and only fails if it makes NO progress for
+ *    that long. Right for a persister streaming thousands of rows — a large,
+ *    steadily-filling source is never failed for being slow. The count is
+ *    monotonic (rows are only added), so there is no absolute cap.
+ *  - otherwise → absolute deadline `timeoutMs` (default 2 min). Backward-compatible.
+ *
+ * `getCount` maps each fetch result to a numeric progress value; the resolved
+ * fetch result is returned so array callers get their data back.
+ */
+async function waitUntilCountReached<R>(
+  fetchFn: () => Promise<R>,
+  getCount: (result: R) => number,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number }
+): Promise<R> {
+  const { timeoutMs = 120_000, pollIntervalMs = 1_000, label = 'data', stallTimeoutMs } = options;
+
+  // Progress-based (stall) waiting: reset the clock whenever the count grows.
+  if (stallTimeoutMs !== undefined) {
+    let lastCount = -1;
+    let lastProgressAt = Date.now();
+    while (true) {
+      const result = await fetchFn();
+      const count = getCount(result);
+      if (count >= expectedCount) return result;
+      const now = Date.now();
+      if (count > lastCount) {
+        lastCount = count;
+        lastProgressAt = now;
+      } else if (now - lastProgressAt >= stallTimeoutMs) {
+        throw new Error(`Persistence stalled: ${label} stuck at ${count}/${expectedCount} for ${stallTimeoutMs}ms`);
+      }
+      logger.info(`Waiting for ${label}: ${count}/${expectedCount} persisted`);
+      await new Promise(r => setTimeout(r, pollIntervalMs));
+    }
+  }
+
+  // Absolute-deadline waiting (legacy).
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await fetchFn();
+    const count = getCount(result);
+    if (count >= expectedCount) return result;
+    logger.info(`Waiting for ${label}: ${count}/${expectedCount} persisted`);
+    await new Promise(r => setTimeout(r, pollIntervalMs));
+  }
+
+  throw new Error(`Persistence timeout: ${label} not ready within ${timeoutMs}ms`);
+}
+
+/**
+ * Poll an array-returning fetch until it reports at least `expectedCount` items,
+ * then return that array. Supports `stallTimeoutMs` (progress-based) — see
+ * waitUntilCountReached. A null fetch result counts as length 0.
+ */
+export async function pollUntilCount<T>(
+  fetchFn: () => Promise<T[] | null>,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number } = {}
+): Promise<T[]> {
+  const result = await waitUntilCountReached<T[] | null>(
+    fetchFn,
+    (r) => r?.length ?? 0,
+    expectedCount,
+    options
+  );
+  return result as T[];
+}
+
+/**
+ * Like pollUntilCount, but polls a function that returns a COUNT (number | null)
+ * rather than an array. Resolves once the count reaches expectedCount.
+ *
+ * Use this when the underlying source can report a true total independent of any
+ * fetch limit (e.g. excel-ingestion's TotalCount). pollUntilCount measures an
+ * array's length, which silently caps at the fetch `limit` and therefore never
+ * reaches expectations larger than that limit (the >5000-row persistence bug).
+ *
+ * A null count is treated as 0 (not ready, keep polling).
+ */
+export async function pollUntilCountFn(
+  fetchCountFn: () => Promise<number | null>,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string; stallTimeoutMs?: number } = {}
+): Promise<void> {
+  await waitUntilCountReached<number | null>(
+    fetchCountFn,
+    (c) => c ?? 0,
+    expectedCount,
+    options
+  );
 }
 
 export {

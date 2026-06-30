@@ -1,4 +1,4 @@
-import { defaultRequestInfo } from "../api/coreApis";
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { mappingStatuses } from "../config/constants";
 import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign, throwError } from "./genericUtils";
 import { logger } from "./logger";
@@ -7,12 +7,12 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { httpRequest } from "./request";
 
-export async function startUserMappingAndDemapping(campaignDetails: any, useruuid: string) {
-    await startUserMapping(campaignDetails, useruuid );
-    await startUserDemapping(campaignDetails, useruuid );
+export async function startUserMappingAndDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
+    await startUserMapping(campaignDetails, useruuid, requestInfo);
+    await startUserDemapping(campaignDetails, useruuid, requestInfo);
 }
 
-export async function startUserMapping(campaignDetails: any, useruuid: string) {
+export async function startUserMapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeMapped);
     if (allCurrentMappingsToDo.length <= 0) {
         return;
@@ -29,12 +29,22 @@ export async function startUserMapping(campaignDetails: any, useruuid: string) {
     }
     const startDate = campaignDetails.startDate;
     const endDate = campaignDetails.endDate;
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid || campaignDetails?.auditDetails?.createdBy;
+    const RequestInfo = requestInfo;
     for (let i = 0; i < allCurrentMappingsToDo.length; i++) {
         try {
             const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDo[i]?.boundaryCode];
             const userId = phoneToUserIdMapping[allCurrentMappingsToDo[i]?.uniqueIdentifierForData];
+
+            // No user means HRMS creation failed or the row was sheet-invalid.
+            // Skip the staff API call and mark the mapping as skipped — does
+            // not fail the campaign.
+            if (!userId) {
+                allCurrentMappingsToDo[i].status = mappingStatuses.skipped;
+                await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+                logger.info(`Skipping user mapping for ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData} — user not created`);
+                continue;
+            }
+
             const ProjectStaff = {
                 tenantId: campaignDetails.tenantId,
                 projectId,
@@ -54,14 +64,20 @@ export async function startUserMapping(campaignDetails: any, useruuid: string) {
             await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }
         catch (error) {
-            // Log the error if the API call fails
+            // Genuine staff API error — mark this mapping as failed and continue
+            // with the rest. User-level mapping failures are non-blocking.
             logger.error(`Failed to create project staff for user with phone ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, error);
-            throw error; // Rethrow the error to propagate it
+            allCurrentMappingsToDo[i].status = mappingStatuses.failed;
+            try {
+                await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+            } catch (persistError) {
+                logger.error(`Failed to persist failed user mapping status for ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, persistError);
+            }
         }
     }
 }
 
-export async function startUserDemapping(campaignDetails: any, useruuid: string) {
+export async function startUserDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const allCurrentMappingsToDeMap = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeDeMapped);
     if (allCurrentMappingsToDeMap.length <= 0) {
         return;
@@ -76,22 +92,28 @@ export async function startUserDemapping(campaignDetails: any, useruuid: string)
     for (let i = 0; i < getUsersRelatedToCampaign.length; i++) {
         phoneToUserIdMapping[getUsersRelatedToCampaign[i]?.uniqueIdentifier] = getUsersRelatedToCampaign[i]?.uniqueIdAfterProcess;
     }
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid || campaignDetails?.auditDetails?.createdBy;
+    const RequestInfo = requestInfo;
     for (let i = 0; i < allCurrentMappingsToDeMap.length; i++) {
         try {
             const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDeMap[i]?.boundaryCode];
             const userId = phoneToUserIdMapping[allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData];
             if(!userId || !projectId || !allCurrentMappingsToDeMap[i]?.mappingId){
+                // No server-side state to undo — drop the local mapping row.
                 await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+                continue;
             }
             await fetchProjectStaffWsearchProjectStaff(RequestInfo, campaignDetails.tenantId, projectId, userId);
             await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }
         catch (error) {
-            // Log the error if the API call fails
+            // Genuine demap API error — mark deMapFailed (non-blocking) and continue.
             logger.error(`Failed to demap project staff for user with phone ${allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData}:`, error);
-            throw error; // Rethrow the error to propagate it
+            allCurrentMappingsToDeMap[i].status = mappingStatuses.deMapFailed;
+            try {
+                await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+            } catch (persistError) {
+                logger.error(`Failed to persist failed user demap status for ${allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData}:`, persistError);
+            }
         }
     }
 }
