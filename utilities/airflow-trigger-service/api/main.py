@@ -65,6 +65,7 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "")
 DB_USERNAME = os.getenv("DB_USERNAME", "")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_SCHEMA = os.getenv("DB_SCHEMA", "health")
 IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
 
 
@@ -72,6 +73,7 @@ def _get_db_conn():
     return psycopg2.connect(
         host=DB_HOST, port=DB_PORT, dbname=DB_NAME,
         user=DB_USERNAME, password=DB_PASSWORD,
+        options=f"-c search_path={DB_SCHEMA}",
     )
 
 
@@ -271,7 +273,7 @@ async def search_reports_metadata(req: ReportsMetadataRequest):
     if IS_CENTRAL_INSTANCE_ENABLED:
         table = f"{tenant_id}.REPORTS_METADATA"
     else:
-        table = "REPORTS_METADATA"
+        table = f"{DB_SCHEMA}.REPORTS_METADATA"
 
     query = f"SELECT * FROM {table} WHERE tenantId = %s"
     params: list[str] = [tenant_id]
