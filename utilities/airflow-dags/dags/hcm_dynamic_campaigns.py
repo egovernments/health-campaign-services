@@ -749,7 +749,8 @@ with DAG(
 
         # Pod behavior
         get_logs=True,                    # Stream pod logs to Airflow task logs
-        is_delete_operator_pod=True,      # Delete pod after completion (cleanup)
+        is_delete_operator_pod=False,     # Keep pod after failure so logs/events can be inspected
+        log_events_on_failure=True,       # Dump K8s pod events to Airflow logs on failure
         in_cluster=True,                  # Running inside Kubernetes cluster
         startup_timeout_seconds=600,      # Wait up to 10 minutes for pod to start
 
