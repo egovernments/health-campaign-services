@@ -2,6 +2,7 @@ package org.egov.transformer.service;
 
 import org.egov.transformer.models.user.UserSearchRequest;
 import org.egov.transformer.models.user.UserSearchResponse;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.transformer.http.client.ServiceRequestClient;
@@ -23,6 +24,7 @@ public class UserService {
     private final String host;
     private final String searchUrl;
     private final MdmsService mdmsService;
+    private final TransformerErrorProducer errorProducer;
     private static Map<String, Map<String, String>> userIdVsUserInfoCache = new ConcurrentHashMap<>();
     private static final int MAX_RETRY_COUNT = 10;
     private static final int RETRY_DELAY_MS = 5000;
@@ -30,12 +32,13 @@ public class UserService {
     @Autowired
     public UserService(ServiceRequestClient restRepo,
                        @Value("${egov.user.host}") String host,
-                       @Value("${egov.search.user.url}") String searchUrl, MdmsService mdmsService) {
+                       @Value("${egov.search.user.url}") String searchUrl, MdmsService mdmsService, TransformerErrorProducer errorProducer) {
 
         this.restRepo = restRepo;
         this.host = host;
         this.searchUrl = searchUrl;
         this.mdmsService = mdmsService;
+        this.errorProducer = errorProducer;
     }
 
 
@@ -93,6 +96,7 @@ public class UserService {
             }
         } catch (Exception e) {
             log.error("Exception while searching users : {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(searchRequest, null, e);
         }
         return new ArrayList<>();
     }

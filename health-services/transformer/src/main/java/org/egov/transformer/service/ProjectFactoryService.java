@@ -7,6 +7,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.models.projectFactory.CampaignDetails;
 import org.egov.transformer.models.projectFactory.CampaignSearchCriteria;
 import org.egov.transformer.models.projectFactory.CampaignSearchRequest;
@@ -25,14 +26,16 @@ public class ProjectFactoryService {
 
     private final ObjectMapper objectMapper;
 
-
     private final TransformerCacheService cacheService;
 
-    public ProjectFactoryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper, TransformerCacheService cacheService) {
+    private final TransformerErrorProducer errorProducer;
+
+    public ProjectFactoryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper, TransformerCacheService cacheService, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.cacheService = cacheService;
+        this.errorProducer = errorProducer;
     }
 
     public String getCampaignIdFromCampaignNumber(String tenantId, Boolean isActive, String campaignNumber) {
@@ -83,7 +86,7 @@ public class ProjectFactoryService {
             );
         } catch (Exception e) {
             log.error("Error while fetching campaign list {}", ExceptionUtils.getStackTrace(e));
-            log.debug("Returning null for campaign number {}", campaignNumber);
+            errorProducer.sendToErrorTopic(request, null, e);
             return null;
         }
         return response.getCampaignDetails();
