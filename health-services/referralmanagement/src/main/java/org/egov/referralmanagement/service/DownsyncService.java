@@ -472,46 +472,48 @@ public class DownsyncService {
     private List<String> searchTasks(DownsyncRequest downsyncRequest, Downsync downsync,
                                      List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType) throws InvalidTenantIdException {
 
-        DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
-        RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-        String tenantId = criteria.getTenantId();
+        return Collections.emptyList();
 
-        List<String> taskIds = getPrimaryIds(tenantId, beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
-                criteria.getLastSyncedTime());
-
-        if(CollectionUtils.isEmpty(taskIds))
-            return Collections.emptyList();
-
-        StringBuilder url = new StringBuilder(configs.getProjectHost())
-                 .append(configs.getProjectTaskSearchUrl());
-
-        List<Task> allTasks = new ArrayList<>();
-
-        /* get batch size to fetch project tasks from environment */
-        int batchSize = configs.getProjectTaskSearchBatchSize();
-
-        appendUrlParams(url, criteria, 0, batchSize, false);
-
-        /* fetches the data in the batches of batch size */
-        for (int i = 0; i < taskIds.size(); i += batchSize) {
-            List<String> batch = getIdsForBatch(batchSize, i, taskIds);
-
-            TaskSearch search = TaskSearch.builder()
-                    .id(batch)
-                    .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
-                    .build();
-
-        TaskSearchRequest searchRequest = TaskSearchRequest.builder()
-                .task(search)
-                .requestInfo(requestInfo)
-                .build();
-
-            List<Task> tasks = restClient.fetchResult(url, searchRequest, TaskBulkResponse.class).getTasks();
-            allTasks.addAll(tasks);
-        }
-        downsync.setTasks(allTasks);
-
-        return allTasks.stream().map(Task::getClientReferenceId).collect(Collectors.toList());
+//        DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
+//        RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+//        String tenantId = criteria.getTenantId();
+//
+//        List<String> taskIds = getPrimaryIds(tenantId, beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
+//                criteria.getLastSyncedTime());
+//
+//        if(CollectionUtils.isEmpty(taskIds))
+//            return Collections.emptyList();
+//
+//        StringBuilder url = new StringBuilder(configs.getProjectHost())
+//                 .append(configs.getProjectTaskSearchUrl());
+//
+//        List<Task> allTasks = new ArrayList<>();
+//
+//        /* get batch size to fetch project tasks from environment */
+//        int batchSize = configs.getProjectTaskSearchBatchSize();
+//
+//        appendUrlParams(url, criteria, 0, batchSize, false);
+//
+//        /* fetches the data in the batches of batch size */
+//        for (int i = 0; i < taskIds.size(); i += batchSize) {
+//            List<String> batch = getIdsForBatch(batchSize, i, taskIds);
+//
+//            TaskSearch search = TaskSearch.builder()
+//                    .id(batch)
+//                    .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
+//                    .build();
+//
+//        TaskSearchRequest searchRequest = TaskSearchRequest.builder()
+//                .task(search)
+//                .requestInfo(requestInfo)
+//                .build();
+//
+//            List<Task> tasks = restClient.fetchResult(url, searchRequest, TaskBulkResponse.class).getTasks();
+//            allTasks.addAll(tasks);
+//        }
+//        downsync.setTasks(allTasks);
+//
+//        return allTasks.stream().map(Task::getClientReferenceId).collect(Collectors.toList());
     }
 
     /**
