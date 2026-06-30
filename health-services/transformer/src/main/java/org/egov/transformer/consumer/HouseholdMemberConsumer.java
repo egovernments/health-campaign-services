@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.household.HouseholdMember;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.HouseholdMemberTransformationService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -22,11 +22,11 @@ public class HouseholdMemberConsumer {
 
     private final ObjectMapper objectMapper;
     private final HouseholdMemberTransformationService householdMemberTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     public HouseholdMemberConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                                    HouseholdMemberTransformationService householdMemberTransformationService,
-                                   ErrorQueueProducer errorQueueProducer) {
+                                   TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.householdMemberTransformationService = householdMemberTransformationService;
         this.errorQueueProducer = errorQueueProducer;

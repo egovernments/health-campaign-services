@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.Referral;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.ReferralTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,12 +22,12 @@ import java.util.List;
 public class ReferralConsumer {
     private final ObjectMapper objectMapper;
     private final ReferralTransformationService referralTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public ReferralConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                             ReferralTransformationService referralTransformationService,
-                            ErrorQueueProducer errorQueueProducer) {
+                            TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.referralTransformationService = referralTransformationService;
         this.errorQueueProducer = errorQueueProducer;

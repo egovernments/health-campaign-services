@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.sideeffect.*;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -25,12 +25,12 @@ public class SideEffectConsumer {
 
     private final SideEffectTransformationService sideEffectTransformationService;
 
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public SideEffectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                               SideEffectTransformationService sideEffectTransformationService,
-                              ErrorQueueProducer errorQueueProducer) {
+                              TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.sideEffectTransformationService = sideEffectTransformationService;
         this.errorQueueProducer = errorQueueProducer;

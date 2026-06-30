@@ -9,14 +9,14 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-public class ErrorQueueProducer {
+public class TransformerErrorProducer {
 
     private final Producer producer;
 
     private final TransformerProperties properties;
 
     @Autowired
-    public ErrorQueueProducer(Producer producer, TransformerProperties properties) {
+    public TransformerErrorProducer(Producer producer, TransformerProperties properties) {
         this.producer = producer;
         this.properties = properties;
     }

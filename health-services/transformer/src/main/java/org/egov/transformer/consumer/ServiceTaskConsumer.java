@@ -6,7 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceRequest;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.ServiceTaskTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -24,12 +24,12 @@ import java.util.stream.Collectors;
 public class ServiceTaskConsumer {
     private final ObjectMapper objectMapper;
     private final ServiceTaskTransformationService serviceTaskTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public ServiceTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                                ServiceTaskTransformationService serviceTaskTransformationService,
-                               ErrorQueueProducer errorQueueProducer) {
+                               TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.serviceTaskTransformationService = serviceTaskTransformationService;
         this.errorQueueProducer = errorQueueProducer;

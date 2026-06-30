@@ -6,7 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.attendance.AttendeeCreateRequest;
 import org.egov.transformer.models.attendance.IndividualEntry;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.AttendeeTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,12 +23,12 @@ import java.util.List;
 public class AttendeeConsumer {
     private final ObjectMapper objectMapper;
     private final AttendeeTransformationService attendeeTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public AttendeeConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                             AttendeeTransformationService attendeeTransformationService,
-                            ErrorQueueProducer errorQueueProducer) {
+                            TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.attendeeTransformationService = attendeeTransformationService;
         this.errorQueueProducer = errorQueueProducer;

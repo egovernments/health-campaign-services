@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.facility.Facility;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.service.FacilityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,12 +25,12 @@ public class FacilityConsumer {
 
     private final FacilityService facilityService;
 
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public FacilityConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                             FacilityService facilityService,
-                            ErrorQueueProducer errorQueueProducer) {
+                            TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.facilityService = facilityService;
         this.errorQueueProducer = errorQueueProducer;

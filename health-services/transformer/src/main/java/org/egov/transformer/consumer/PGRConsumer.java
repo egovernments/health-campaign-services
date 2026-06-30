@@ -6,7 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.pgr.Service;
 import org.egov.transformer.models.pgr.ServiceRequest;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.PGRTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,12 +27,12 @@ public class PGRConsumer {
 
     private final PGRTransformationService pgrTransformationService;
 
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public PGRConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                        PGRTransformationService pgrTransformationService,
-                       ErrorQueueProducer errorQueueProducer) {
+                       TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.pgrTransformationService = pgrTransformationService;
         this.errorQueueProducer = errorQueueProducer;

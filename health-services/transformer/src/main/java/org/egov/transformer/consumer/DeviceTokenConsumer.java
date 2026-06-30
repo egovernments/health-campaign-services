@@ -6,7 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.devicetoken.DeviceToken;
 import org.egov.transformer.models.devicetoken.DeviceTokenRequest;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.DeviceTokenTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,12 +23,12 @@ import java.util.List;
 public class DeviceTokenConsumer {
     private final ObjectMapper objectMapper;
     private final DeviceTokenTransformationService deviceTokenTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public DeviceTokenConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                                DeviceTokenTransformationService deviceTokenTransformationService,
-                               ErrorQueueProducer errorQueueProducer) {
+                               TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.deviceTokenTransformationService = deviceTokenTransformationService;
         this.errorQueueProducer = errorQueueProducer;

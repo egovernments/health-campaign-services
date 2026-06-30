@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.ProjectStaff;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.ProjectStaffTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,12 +23,12 @@ public class ProjectStaffConsumer {
 
     private final ObjectMapper objectMapper;
     private final ProjectStaffTransformationService projectStaffTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public ProjectStaffConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                                 ProjectStaffTransformationService projectStaffTransformationService,
-                                ErrorQueueProducer errorQueueProducer) {
+                                TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.projectStaffTransformationService = projectStaffTransformationService;
         this.errorQueueProducer = errorQueueProducer;

@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.attendance.*;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.AttendanceTransformationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,12 +23,12 @@ import java.util.List;
 public class AttendanceConsumer {
     private final ObjectMapper objectMapper;
     private final AttendanceTransformationService attendanceTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public AttendanceConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                               AttendanceTransformationService attendanceTransformationService,
-                              ErrorQueueProducer errorQueueProducer) {
+                              TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.attendanceTransformationService = attendanceTransformationService;
         this.errorQueueProducer = errorQueueProducer;

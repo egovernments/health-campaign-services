@@ -6,7 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.musterRoll.MusterRoll;
 import org.egov.transformer.models.musterRoll.MusterRollRequest;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.MusterRollTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,12 +21,12 @@ import org.springframework.stereotype.Component;
 public class MusterRollConsumer {
     private final ObjectMapper objectMapper;
     private final MusterRollTransformationService musterRollTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public MusterRollConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                               MusterRollTransformationService musterRollTransformationService,
-                              ErrorQueueProducer errorQueueProducer) {
+                              TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.musterRollTransformationService = musterRollTransformationService;
         this.errorQueueProducer = errorQueueProducer;

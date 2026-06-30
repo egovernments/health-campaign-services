@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.bill.BillDetail;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.BillTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,12 +21,12 @@ import org.springframework.stereotype.Component;
 public class BillDetailConsumer {
     private final ObjectMapper objectMapper;
     private final BillTransformationService billTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public BillDetailConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                               BillTransformationService billTransformationService,
-                              ErrorQueueProducer errorQueueProducer) {
+                              TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.billTransformationService = billTransformationService;
         this.errorQueueProducer = errorQueueProducer;

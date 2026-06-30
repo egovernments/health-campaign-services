@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.Stock;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.StockTransformationService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,11 +24,11 @@ public class StockConsumer {
 
     private final StockTransformationService stockTransformationService;
 
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     public StockConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                          StockTransformationService stockTransformationService,
-                         ErrorQueueProducer errorQueueProducer) {
+                         TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.stockTransformationService = stockTransformationService;
         this.errorQueueProducer = errorQueueProducer;

@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
-import org.egov.transformer.producer.ErrorQueueProducer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.HfReferralTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,12 +22,12 @@ import java.util.List;
 public class HfReferralConsumer {
     private final ObjectMapper objectMapper;
     private final HfReferralTransformationService hfReferralTransformationService;
-    private final ErrorQueueProducer errorQueueProducer;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
     public HfReferralConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
                               HfReferralTransformationService hfReferralTransformationService,
-                              ErrorQueueProducer errorQueueProducer) {
+                              TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.hfReferralTransformationService = hfReferralTransformationService;
         this.errorQueueProducer = errorQueueProducer;
