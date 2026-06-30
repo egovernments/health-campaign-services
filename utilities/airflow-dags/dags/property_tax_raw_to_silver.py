@@ -80,17 +80,21 @@ CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'punjab_property_tax')
 STREAM_BATCH_SIZE = 10000  # INSERT chunk size: large batches → fewer ClickHouse parts created
 CH_FETCH_SIZE = 2000       # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
                             # Rows accumulate in InsertBuffer until STREAM_BATCH_SIZE is reached
-CHUNK_SLEEP_SEC = 1.0       # Base sleep between chunk iterations
-CHUNK_SLEEP_JITTER = 1.0    # Random jitter added to base sleep each iteration.
+# Throttling knobs. These exist to keep ClickHouse RSS under a tight (~1.80 GiB)
+# ceiling when up to 5 pipelines run concurrently. On a roomy environment
+# (e.g. 8 GB ClickHouse) they are pure overhead, so the defaults below disable them.
+# Still overridable via env vars if a memory-constrained deployment needs throttling
+# (e.g. CHUNK_SLEEP_SEC=1, TASK_START_JITTER=15).
+CHUNK_SLEEP_SEC = float(os.getenv('CHUNK_SLEEP_SEC', '0'))        # Base sleep between chunk iterations (0 = none)
+CHUNK_SLEEP_JITTER = float(os.getenv('CHUNK_SLEEP_JITTER', '0'))  # Random jitter added to base sleep each iteration.
                             # Combined uniform(CHUNK_SLEEP_SEC, CHUNK_SLEEP_SEC+JITTER) breaks
-                            # lockstep: 5 tasks starting together drift apart and stay apart.
-JEMALLOC_PURGE_INTERVAL = 3   # Run SYSTEM JEMALLOC PURGE every N chunks to force JeMalloc to
-                               # return freed INSERT/SELECT arenas to the OS, keeping RSS under
-                               # the 1.80 GiB server limit despite concurrent transforms (up to
-                               # 3 at a time, capped by the 'transform_load_pool' Airflow pool).
-TASK_START_JITTER = 15.0      # Max random delay (seconds) before each transform's first SELECT,
-                               # to stagger simultaneous task starts and avoid the collective
-                               # initial RSS spike that pushed CH past the 1.80 GiB limit.
+                            # lockstep when set: 5 tasks starting together drift apart and stay apart.
+JEMALLOC_PURGE_INTERVAL = max(1, int(os.getenv('JEMALLOC_PURGE_INTERVAL', '10')))  # SYSTEM JEMALLOC PURGE every N
+                               # chunks to return freed INSERT/SELECT arenas to the OS. Clamped to >=1 to avoid a
+                               # modulo-by-zero; raise N (less frequent) on roomy boxes, lower it under tight RSS.
+TASK_START_JITTER = float(os.getenv('TASK_START_JITTER', '0'))   # Max random delay (seconds) before each transform's
+                               # first SELECT, to stagger simultaneous task starts (0 = start immediately). Raise it
+                               # under a tight RSS ceiling to avoid the collective initial spike.
 
 default_args = {
     'owner': 'property_tax',
