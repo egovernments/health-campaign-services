@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.ProjectRequest;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.ProjectTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,10 +21,15 @@ public class ProjectConsumer {
 
     private final ProjectTransformationService projectTransformationService;
 
+    private final TransformerErrorProducer errorQueueProducer;
+
     @Autowired
-    public ProjectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ProjectTransformationService projectTransformationService) {
+    public ProjectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                           ProjectTransformationService projectTransformationService,
+                           TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.projectTransformationService = projectTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.project.topic}",
@@ -37,6 +43,7 @@ public class ProjectConsumer {
             projectTransformationService.transform(request.getProjects());
         } catch (Exception exception) {
             log.error("TRANSFORMER error in project consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

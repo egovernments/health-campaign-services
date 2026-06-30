@@ -12,6 +12,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProductService;
 import org.egov.transformer.service.ProjectFactoryService;
@@ -36,8 +37,9 @@ public class ProjectTransformationService {
     private final ProductService productService;
     private final BoundaryService boundaryService;
     private final ProjectFactoryService projectFactoryService;
+    private final TransformerErrorProducer errorProducer;
 
-    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
+    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -46,6 +48,7 @@ public class ProjectTransformationService {
         this.productService = productService;
         this.boundaryService = boundaryService;
         this.projectFactoryService = projectFactoryService;
+        this.errorProducer = errorProducer;
     }
 
 
@@ -185,6 +188,7 @@ public class ProjectTransformationService {
 
                                 } catch (JsonProcessingException e) {
                                     log.error("target object : " + target + " could not be processed {}", ExceptionUtils.getStackTrace(e));
+                                    errorProducer.sendToErrorTopic(target, null, e);
                                 }
                             }
                         }

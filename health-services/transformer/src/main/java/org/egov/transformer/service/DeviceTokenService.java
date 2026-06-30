@@ -11,6 +11,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.devicetoken.DeviceToken;
 import org.egov.transformer.models.devicetoken.DeviceTokenSearchRequest;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -30,10 +31,13 @@ public class DeviceTokenService {
 
     private final ObjectMapper objectMapper;
 
-    public DeviceTokenService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper) {
+    private final TransformerErrorProducer errorProducer;
+
+    public DeviceTokenService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper, TransformerErrorProducer errorProducer) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
+        this.errorProducer = errorProducer;
     }
 
     public void updateFacilitiesInCache(List<Facility> facilities) {
@@ -66,7 +70,8 @@ public class DeviceTokenService {
             List<DeviceToken> deviceTokens = objectMapper.convertValue(response.get("deviceTokens"), List.class);
             return deviceTokens.get(0);
         } catch (Exception e) {
-            log.info("Error while fetching Device Token {}", ExceptionUtils.getStackTrace(e));
+            log.error("Error while fetching Device Token {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(deviceTokenSearchRequest, null, e);
             return null;
         }
     }
@@ -95,6 +100,7 @@ public class DeviceTokenService {
             return facilities.isEmpty() ? null : facilities.get(0);
         } catch (Exception e) {
             log.error("error while fetching facility {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(facilitySearchRequest, null, e);
             return null;
         }
     }

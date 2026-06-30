@@ -231,4 +231,7 @@ public class TransformerProperties {
     @Value("${transformer.producer.billreport.index.v1.topic}")
     private String transformerProducerBillReportIndexV1Topic;
 
+    @Value("${transformer.error.topic}")
+    private String transformerErrorTopic;
+
 }

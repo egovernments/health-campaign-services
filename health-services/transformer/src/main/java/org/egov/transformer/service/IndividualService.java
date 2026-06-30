@@ -7,6 +7,7 @@ import org.egov.common.contract.request.User;
 import org.egov.common.models.individual.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -22,12 +23,14 @@ public class IndividualService {
     private final TransformerProperties properties;
     private final ServiceRequestClient serviceRequestClient;
     private final CommonUtils commonUtils;
+    private final TransformerErrorProducer errorProducer;
     private static final List<String> INDIVIDUAL_INTEGER_ADDITIONAL_FIELDS = new ArrayList<>(Arrays.asList(HEIGHT));
 
-    public IndividualService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils) {
+    public IndividualService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils, TransformerErrorProducer errorProducer) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
         this.commonUtils = commonUtils;
+        this.errorProducer = errorProducer;
     }
 
     private Individual getIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
@@ -69,6 +72,7 @@ public class IndividualService {
         } catch (Exception e) {
             log.error("Error while fetching Individual Details for id {}, clRefId {}, Exception: {}",
                     individualSearchRequest.getIndividual().getId(), individualSearchRequest.getIndividual().getClientReferenceId(), ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(individualSearchRequest, null, e);
             return null;
         }
     }

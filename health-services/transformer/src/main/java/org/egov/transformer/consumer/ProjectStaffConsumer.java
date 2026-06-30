@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.ProjectStaff;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.ProjectStaffTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,14 +21,17 @@ import java.util.List;
 @Slf4j
 public class ProjectStaffConsumer {
 
-
     private final ObjectMapper objectMapper;
     private final ProjectStaffTransformationService projectStaffTransformationService;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
-    public ProjectStaffConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ProjectStaffTransformationService projectStaffTransformationService) {
+    public ProjectStaffConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                                ProjectStaffTransformationService projectStaffTransformationService,
+                                TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.projectStaffTransformationService = projectStaffTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.bulk.create.project.staff.topic}",
@@ -41,6 +45,7 @@ public class ProjectStaffConsumer {
             projectStaffTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in projectStaff consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

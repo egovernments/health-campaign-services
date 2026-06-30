@@ -6,6 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.musterRoll.MusterRoll;
 import org.egov.transformer.models.musterRoll.MusterRollRequest;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.MusterRollTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,11 +21,15 @@ import org.springframework.stereotype.Component;
 public class MusterRollConsumer {
     private final ObjectMapper objectMapper;
     private final MusterRollTransformationService musterRollTransformationService;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
-    public MusterRollConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, MusterRollTransformationService musterRollTransformationService) {
+    public MusterRollConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                              MusterRollTransformationService musterRollTransformationService,
+                              TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.musterRollTransformationService = musterRollTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.musterroll.topic}",
@@ -37,6 +42,7 @@ public class MusterRollConsumer {
             musterRollTransformationService.transform(musterRoll);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in musterRoll consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

@@ -7,6 +7,7 @@ import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.models.upstream.ServiceDefinitionCriteria;
 import org.egov.transformer.models.upstream.ServiceDefinitionResponse;
@@ -25,11 +26,13 @@ public class ServiceDefinitionService {
 
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
+    private final TransformerErrorProducer errorProducer;
     private static Map<String, ServiceDefinition> serviceMap = new ConcurrentHashMap<>();
 
-    public ServiceDefinitionService( TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient) {
+    public ServiceDefinitionService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
+        this.errorProducer = errorProducer;
     }
 
     public ServiceDefinition getServiceDefinition(String serviceDefId, String tenantId) {
@@ -72,6 +75,7 @@ public class ServiceDefinitionService {
                     ServiceDefinitionResponse.class);
         } catch (Exception e) {
             log.error("error while fetching serviceDefinition list {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
             throw new CustomException("ServiceDefinition_FETCH_ERROR",
                     "error while fetching service details for id: " + serviceDefId);
         }

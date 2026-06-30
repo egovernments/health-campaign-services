@@ -9,6 +9,7 @@ import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -19,10 +20,12 @@ public class BillService {
 
     private final ServiceRequestClient serviceRequestClient;
     private final TransformerProperties transformerProperties;
+    private final TransformerErrorProducer errorProducer;
 
-    public BillService(ServiceRequestClient serviceRequestClient, TransformerProperties transformerProperties) {
+    public BillService(ServiceRequestClient serviceRequestClient, TransformerProperties transformerProperties, TransformerErrorProducer errorProducer) {
         this.serviceRequestClient = serviceRequestClient;
         this.transformerProperties = transformerProperties;
+        this.errorProducer = errorProducer;
     }
 
     public String getBillNumber (String billId, String tenantId) {
@@ -53,6 +56,7 @@ public class BillService {
             }
         } catch (Exception e) {
             log.warn("Unable to fetch bill for billid={}, Exception: {}", billId, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
             return null;
         }
         return null;
@@ -87,6 +91,7 @@ public class BillService {
             response = serviceRequestClient.fetchResult(url, infoWrapper, ProcessInstanceResponse.class);
         } catch (Exception e) {
             log.warn("Unable to fetch process instances for businessId={}, Exception: {}", businessId, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(infoWrapper, null, e);
             return null;
         }
         return response;

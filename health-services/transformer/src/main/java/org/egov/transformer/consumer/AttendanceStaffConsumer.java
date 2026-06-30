@@ -6,6 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.attendance.StaffPermission;
 import org.egov.transformer.models.attendance.StaffPermissionRequest;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.AttendanceStaffTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,11 +23,15 @@ import java.util.List;
 public class AttendanceStaffConsumer {
     private final ObjectMapper objectMapper;
     private final AttendanceStaffTransformationService attendanceStaffTransformationService;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
-    public AttendanceStaffConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, AttendanceStaffTransformationService attendanceStaffTransformationService) {
+    public AttendanceStaffConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                                   AttendanceStaffTransformationService attendanceStaffTransformationService,
+                                   TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.attendanceStaffTransformationService = attendanceStaffTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.attendance.staff.topic}",
@@ -39,6 +44,7 @@ public class AttendanceStaffConsumer {
             attendanceStaffTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in attendance staff consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

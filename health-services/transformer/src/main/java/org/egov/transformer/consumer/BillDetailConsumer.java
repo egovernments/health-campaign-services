@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.bill.BillDetail;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.BillTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,11 +21,15 @@ import org.springframework.stereotype.Component;
 public class BillDetailConsumer {
     private final ObjectMapper objectMapper;
     private final BillTransformationService billTransformationService;
+    private final TransformerErrorProducer errorQueueProducer;
 
     @Autowired
-    public BillDetailConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, BillTransformationService billTransformationService) {
+    public BillDetailConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                              BillTransformationService billTransformationService,
+                              TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.billTransformationService = billTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.billdetail.topic}",
@@ -40,6 +45,7 @@ public class BillDetailConsumer {
             billTransformationService.transform(billDetail);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in bill detail consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }
