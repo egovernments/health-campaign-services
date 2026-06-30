@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.Task;
+import org.egov.transformer.producer.ErrorQueueProducer;
 import org.egov.transformer.transformationservice.ProjectTaskTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,11 +22,15 @@ import java.util.List;
 public class ProjectTaskConsumer {
     private final ObjectMapper objectMapper;
     private final ProjectTaskTransformationService projectTaskTransformationService;
+    private final ErrorQueueProducer errorQueueProducer;
 
     @Autowired
-    public ProjectTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ProjectTaskTransformationService projectTaskTransformationService) {
+    public ProjectTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                               ProjectTaskTransformationService projectTaskTransformationService,
+                               ErrorQueueProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.projectTaskTransformationService = projectTaskTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = { "${transformer.consumer.bulk.create.project.task.topic}",
@@ -39,6 +44,7 @@ public class ProjectTaskConsumer {
             projectTaskTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("error in project task bulk consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

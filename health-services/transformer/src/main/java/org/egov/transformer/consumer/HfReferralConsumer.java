@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
+import org.egov.transformer.producer.ErrorQueueProducer;
 import org.egov.transformer.transformationservice.HfReferralTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,11 +22,15 @@ import java.util.List;
 public class HfReferralConsumer {
     private final ObjectMapper objectMapper;
     private final HfReferralTransformationService hfReferralTransformationService;
+    private final ErrorQueueProducer errorQueueProducer;
 
     @Autowired
-    public HfReferralConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, HfReferralTransformationService hfReferralTransformationService) {
+    public HfReferralConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                              HfReferralTransformationService hfReferralTransformationService,
+                              ErrorQueueProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.hfReferralTransformationService = hfReferralTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.hfreferral.topic}",
@@ -39,6 +44,7 @@ public class HfReferralConsumer {
             hfReferralTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("error in hfReferral consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

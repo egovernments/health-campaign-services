@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.sideeffect.*;
+import org.egov.transformer.producer.ErrorQueueProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,16 +21,19 @@ import java.util.List;
 @Slf4j
 public class SideEffectConsumer {
 
-
     private final ObjectMapper objectMapper;
 
     private final SideEffectTransformationService sideEffectTransformationService;
 
-    @Autowired
-    public SideEffectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, SideEffectTransformationService sideEffectTransformationService) {
+    private final ErrorQueueProducer errorQueueProducer;
 
+    @Autowired
+    public SideEffectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                              SideEffectTransformationService sideEffectTransformationService,
+                              ErrorQueueProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.sideEffectTransformationService = sideEffectTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}",
@@ -43,6 +47,7 @@ public class SideEffectConsumer {
             sideEffectTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in side effect consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.StockReconciliation;
+import org.egov.transformer.producer.ErrorQueueProducer;
 import org.egov.transformer.transformationservice.StockReconciliationTransformationService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,9 +24,14 @@ public class StockReconciliationConsumer {
 
     private final StockReconciliationTransformationService stockReconciliationTransformationService;
 
-    public StockReconciliationConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, StockReconciliationTransformationService stockReconciliationTransformationService) {
+    private final ErrorQueueProducer errorQueueProducer;
+
+    public StockReconciliationConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                                       StockReconciliationTransformationService stockReconciliationTransformationService,
+                                       ErrorQueueProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.stockReconciliationTransformationService = stockReconciliationTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.stock.reconciliation.create.topic}",
@@ -39,6 +45,7 @@ public class StockReconciliationConsumer {
             stockReconciliationTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in stockReconciliationConsumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

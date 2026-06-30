@@ -6,6 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceRequest;
+import org.egov.transformer.producer.ErrorQueueProducer;
 import org.egov.transformer.transformationservice.ServiceTaskTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,11 +24,15 @@ import java.util.stream.Collectors;
 public class ServiceTaskConsumer {
     private final ObjectMapper objectMapper;
     private final ServiceTaskTransformationService serviceTaskTransformationService;
+    private final ErrorQueueProducer errorQueueProducer;
 
     @Autowired
-    public ServiceTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ServiceTaskTransformationService serviceTaskTransformationService) {
+    public ServiceTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                               ServiceTaskTransformationService serviceTaskTransformationService,
+                               ErrorQueueProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.serviceTaskTransformationService = serviceTaskTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.service.topic}"})
@@ -40,6 +45,7 @@ public class ServiceTaskConsumer {
             serviceTaskTransformationService.transform(collect);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in service task consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 

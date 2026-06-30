@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.attendance.*;
+import org.egov.transformer.producer.ErrorQueueProducer;
 import org.egov.transformer.transformationservice.AttendanceTransformationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,11 +23,15 @@ import java.util.List;
 public class AttendanceConsumer {
     private final ObjectMapper objectMapper;
     private final AttendanceTransformationService attendanceTransformationService;
+    private final ErrorQueueProducer errorQueueProducer;
 
     @Autowired
-    public AttendanceConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, AttendanceTransformationService attendanceTransformationService) {
+    public AttendanceConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                              AttendanceTransformationService attendanceTransformationService,
+                              ErrorQueueProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.attendanceTransformationService = attendanceTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.attendance.log.topic}",
@@ -39,6 +44,7 @@ public class AttendanceConsumer {
             attendanceTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in attendance consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

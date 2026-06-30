@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.facility.Facility;
+import org.egov.transformer.producer.ErrorQueueProducer;
 import org.egov.transformer.service.FacilityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -24,10 +25,15 @@ public class FacilityConsumer {
 
     private final FacilityService facilityService;
 
+    private final ErrorQueueProducer errorQueueProducer;
+
     @Autowired
-    public FacilityConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, FacilityService facilityService) {
+    public FacilityConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                            FacilityService facilityService,
+                            ErrorQueueProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.facilityService = facilityService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = { "${transformer.consumer.create.facility.topic}",
@@ -41,6 +47,7 @@ public class FacilityConsumer {
             facilityService.updateFacilitiesInCache(facilities);
         } catch (Exception exception) {
             log.error("error in facility consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

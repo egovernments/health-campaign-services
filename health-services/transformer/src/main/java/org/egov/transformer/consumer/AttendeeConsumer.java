@@ -4,11 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.egov.transformer.models.attendance.AttendanceLog;
-import org.egov.transformer.models.attendance.AttendanceLogRequest;
 import org.egov.transformer.models.attendance.AttendeeCreateRequest;
 import org.egov.transformer.models.attendance.IndividualEntry;
-import org.egov.transformer.transformationservice.AttendanceTransformationService;
+import org.egov.transformer.producer.ErrorQueueProducer;
 import org.egov.transformer.transformationservice.AttendeeTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,11 +23,15 @@ import java.util.List;
 public class AttendeeConsumer {
     private final ObjectMapper objectMapper;
     private final AttendeeTransformationService attendeeTransformationService;
+    private final ErrorQueueProducer errorQueueProducer;
 
     @Autowired
-    public AttendeeConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, AttendeeTransformationService attendeeTransformationService) {
+    public AttendeeConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                            AttendeeTransformationService attendeeTransformationService,
+                            ErrorQueueProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.attendeeTransformationService = attendeeTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.attendee.topic}",
@@ -42,6 +44,7 @@ public class AttendeeConsumer {
             attendeeTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in attendee consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }
