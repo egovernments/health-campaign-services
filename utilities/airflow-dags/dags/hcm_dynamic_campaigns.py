@@ -733,6 +733,7 @@ with DAG(
         # Kubernetes configuration
         namespace=K8S_NAMESPACE,
         image=REPORT_IMAGE,
+        node_selector={"kubernetes.io/arch": "amd64"},
 
         # No cmds/arguments needed - Dockerfile ENTRYPOINT handles execution
         # Dockerfile should contain: ENTRYPOINT ["python3", "/app/main.py"]
