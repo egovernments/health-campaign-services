@@ -269,8 +269,9 @@ def log_clickhouse_select_breakdown(client, log_comment: str) -> None:
     Logs a one-line distribution (min/avg/max) first so the "same or different?"
     answer is immediate, then one line per SELECT. Best-effort; never raises.
 
-    Note: this is verbose (one line per page). It is wired into the property
-    task only, on purpose.
+    Generic: keyed solely on log_comment, so every transform task calls it in
+    its finally block. Note this is verbose (one line per SELECT page, ~51 lines
+    per task at 100k events / CH_FETCH_SIZE).
     """
     try:
         client.command("SYSTEM FLUSH LOGS")
@@ -1420,6 +1421,11 @@ def transform_load_demand_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
+        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        last_cpu_sec = ru.ru_utime + ru.ru_stime
+        last_cpu_wall = time.monotonic()
+
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_demand_events(client, ws, we, limit=CH_FETCH_SIZE,
@@ -1459,6 +1465,17 @@ def transform_load_demand_events(**context):
             processed += chunk_len
             logger.info(f"Chunk {prev_processed}-{processed}: {n_demands} demands | Total: {total_demands}")
             chunk_idx += 1
+
+            # -- Per-chunk resource snapshot: server memory + merges + CPU --
+            ru = resource.getrusage(resource.RUSAGE_SELF)
+            now_cpu_sec = ru.ru_utime + ru.ru_stime
+            now_wall = time.monotonic()
+            cpu_dt = now_wall - last_cpu_wall
+            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
+                              if cpu_dt > 0 else 0.0)
+            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
+            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
+
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
@@ -1477,6 +1494,7 @@ def transform_load_demand_events(**context):
 
     finally:
         log_clickhouse_query_stats(client, log_comment)
+        log_clickhouse_select_breakdown(client, log_comment)
         log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
@@ -1520,6 +1538,11 @@ def transform_load_payment_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
+        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        last_cpu_sec = ru.ru_utime + ru.ru_stime
+        last_cpu_wall = time.monotonic()
+
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_payment_events(client, ws, we, limit=CH_FETCH_SIZE,
@@ -1558,6 +1581,17 @@ def transform_load_payment_events(**context):
             processed += chunk_len
             logger.info(f"Chunk {prev_processed}-{processed}: {n_payments} payments | Total: {total_payments}")
             chunk_idx += 1
+
+            # -- Per-chunk resource snapshot: server memory + merges + CPU --
+            ru = resource.getrusage(resource.RUSAGE_SELF)
+            now_cpu_sec = ru.ru_utime + ru.ru_stime
+            now_wall = time.monotonic()
+            cpu_dt = now_wall - last_cpu_wall
+            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
+                              if cpu_dt > 0 else 0.0)
+            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
+            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
+
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
@@ -1576,6 +1610,7 @@ def transform_load_payment_events(**context):
 
     finally:
         log_clickhouse_query_stats(client, log_comment)
+        log_clickhouse_select_breakdown(client, log_comment)
         log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
@@ -1654,6 +1689,11 @@ def transform_load_bill_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
+        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        last_cpu_sec = ru.ru_utime + ru.ru_stime
+        last_cpu_wall = time.monotonic()
+
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_bill_events(client, ws, we, limit=CH_FETCH_SIZE,
@@ -1708,6 +1748,17 @@ def transform_load_bill_events(**context):
                 f"Total: {total_bills}/{total_details}"
             )
             chunk_idx += 1
+
+            # -- Per-chunk resource snapshot: server memory + merges + CPU --
+            ru = resource.getrusage(resource.RUSAGE_SELF)
+            now_cpu_sec = ru.ru_utime + ru.ru_stime
+            now_wall = time.monotonic()
+            cpu_dt = now_wall - last_cpu_wall
+            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
+                              if cpu_dt > 0 else 0.0)
+            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
+            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
+
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
@@ -1731,6 +1782,7 @@ def transform_load_bill_events(**context):
 
     finally:
         log_clickhouse_query_stats(client, log_comment)
+        log_clickhouse_select_breakdown(client, log_comment)
         log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
@@ -1807,6 +1859,11 @@ def transform_load_assessment_events(**context):
             pass
         time.sleep(random.uniform(0, TASK_START_JITTER))
 
+        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        last_cpu_sec = ru.ru_utime + ru.ru_stime
+        last_cpu_wall = time.monotonic()
+
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
             rows = fetch_assessment_events(client, ws, we, limit=CH_FETCH_SIZE,
@@ -1848,6 +1905,17 @@ def transform_load_assessment_events(**context):
                 f"{n_assessments} assessments | Total: {total_assessments}"
             )
             chunk_idx += 1
+
+            # -- Per-chunk resource snapshot: server memory + merges + CPU --
+            ru = resource.getrusage(resource.RUSAGE_SELF)
+            now_cpu_sec = ru.ru_utime + ru.ru_stime
+            now_wall = time.monotonic()
+            cpu_dt = now_wall - last_cpu_wall
+            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
+                              if cpu_dt > 0 else 0.0)
+            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
+            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
+
             if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
                 try:
                     client.command("SYSTEM JEMALLOC PURGE")
@@ -1866,6 +1934,7 @@ def transform_load_assessment_events(**context):
 
     finally:
         log_clickhouse_query_stats(client, log_comment)
+        log_clickhouse_select_breakdown(client, log_comment)
         log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
