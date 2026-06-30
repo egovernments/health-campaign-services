@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
 import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
@@ -73,30 +75,45 @@ public class FirebasePushService implements PushNotificationService {
     }
 
     private void sendMulticastMessage(Notification notification, PushNotificationRequest request, List<String> tokens) {
-        int batchSize = pushProperties.getFcmBatchSize();
+        int chunkSize = Math.min(pushProperties.getFcmSendChunkSize(), 500);
 
-        for (int i = 0; i < tokens.size(); i += batchSize) {
-            List<String> batch = tokens.subList(i, Math.min(i + batchSize, tokens.size()));
+        List<List<String>> chunks = new ArrayList<>();
+        List<ApiFuture<BatchResponse>> futures = new ArrayList<>();
+
+        for (int i = 0; i < tokens.size(); i += chunkSize) {
+            List<String> chunk = tokens.subList(i, Math.min(i + chunkSize, tokens.size()));
 
             MulticastMessage.Builder builder = MulticastMessage.builder()
                     .setNotification(notification)
-                    .addAllTokens(batch);
+                    .addAllTokens(chunk);
 
             if (request.getData() != null) {
                 builder.putAllData(request.getData());
             }
 
-            try {
-                BatchResponse response = firebaseMessaging.sendEachForMulticast(builder.build());
-                log.info("Multicast batch sent: {} success, {} failure",
-                        response.getSuccessCount(), response.getFailureCount());
+            chunks.add(chunk);
+            futures.add(firebaseMessaging.sendEachForMulticastAsync(builder.build()));
+        }
 
+        try {
+            List<BatchResponse> responses = ApiFutures.allAsList(futures).get();
+
+            int success = 0;
+            int failure = 0;
+            for (int i = 0; i < responses.size(); i++) {
+                BatchResponse response = responses.get(i);
+                success += response.getSuccessCount();
+                failure += response.getFailureCount();
                 if (response.getFailureCount() > 0) {
-                    handleBatchFailures(response.getResponses(), batch, request.getTenantId());
+                    handleBatchFailures(response.getResponses(), chunks.get(i), request.getTenantId());
                 }
-            } catch (FirebaseMessagingException e) {
-                log.error("Failed to send multicast push notification batch: {}", e.getMessage());
             }
+            log.info("Multicast batch sent: {} success, {} failure", success, failure);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted while sending multicast push notification: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to send multicast push notification: {}", e.getMessage());
         }
     }
 

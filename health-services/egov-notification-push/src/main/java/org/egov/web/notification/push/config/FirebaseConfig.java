@@ -29,6 +29,7 @@ public class FirebaseConfig {
     public void initFirebase() {
         try {
             if (FirebaseApp.getApps().isEmpty()) {
+                System.setProperty("http.maxConnections", String.valueOf(pushProperties.getFcmHttpMaxConnections()));
                 String json = pushProperties.getFcmServiceAccountKeyJson();
                 if (json == null || json.isBlank()) {
                     throw new IllegalStateException("fcm.service-account-key-json is not set");

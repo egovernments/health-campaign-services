@@ -28,6 +28,12 @@ public class PushProperties {
     @Value("${fcm.batch.size}")
     private Integer fcmBatchSize;
 
+    @Value("${fcm.send.chunk.size:50}")
+    private Integer fcmSendChunkSize;
+
+    @Value("${fcm.http.max.connections:100}")
+    private Integer fcmHttpMaxConnections;
+
     @Value("${kafka.topics.notification.push}")
     private String pushNotificationTopic;
 

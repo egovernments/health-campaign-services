@@ -22,6 +22,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.google.api.core.ApiFutures;
 import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
@@ -129,15 +130,15 @@ class FirebasePushServiceTest {
                 .data(Map.of("notificationType", "STOCK"))
                 .build();
 
-        when(pushProperties.getFcmBatchSize()).thenReturn(500);
+        when(pushProperties.getFcmSendChunkSize()).thenReturn(500);
 
         BatchResponse batchResponse = createBatchResponse(3, 0);
-        when(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
-                .thenReturn(batchResponse);
+        when(firebaseMessaging.sendEachForMulticastAsync(any(MulticastMessage.class)))
+                .thenReturn(ApiFutures.immediateFuture(batchResponse));
 
         firebasePushService.sendPushNotification(request);
 
-        verify(firebaseMessaging).sendEachForMulticast(any(MulticastMessage.class));
+        verify(firebaseMessaging).sendEachForMulticastAsync(any(MulticastMessage.class));
     }
 
     @Test
@@ -153,16 +154,16 @@ class FirebasePushServiceTest {
                 .deviceTokens(tokens)
                 .build();
 
-        when(pushProperties.getFcmBatchSize()).thenReturn(2);
+        when(pushProperties.getFcmSendChunkSize()).thenReturn(2);
 
         BatchResponse batchResponse = createBatchResponse(2, 0);
-        when(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
-                .thenReturn(batchResponse);
+        when(firebaseMessaging.sendEachForMulticastAsync(any(MulticastMessage.class)))
+                .thenReturn(ApiFutures.immediateFuture(batchResponse));
 
         firebasePushService.sendPushNotification(request);
 
-        // 5 tokens with batch size 2 = 3 batches (2, 2, 1)
-        verify(firebaseMessaging, times(3)).sendEachForMulticast(any(MulticastMessage.class));
+        // 5 tokens with chunk size 2 = 3 chunks (2, 2, 1)
+        verify(firebaseMessaging, times(3)).sendEachForMulticastAsync(any(MulticastMessage.class));
     }
 
     @Test
@@ -173,9 +174,9 @@ class FirebasePushServiceTest {
                 .deviceTokens(Arrays.asList("tok1", "tok2"))
                 .build();
 
-        when(pushProperties.getFcmBatchSize()).thenReturn(500);
-        when(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
-                .thenThrow(FirebaseMessagingException.class);
+        when(pushProperties.getFcmSendChunkSize()).thenReturn(500);
+        when(firebaseMessaging.sendEachForMulticastAsync(any(MulticastMessage.class)))
+                .thenReturn(ApiFutures.immediateFailedFuture(new RuntimeException("send failed")));
 
         assertDoesNotThrow(() -> firebasePushService.sendPushNotification(request));
     }
