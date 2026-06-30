@@ -290,7 +290,8 @@ def log_clickhouse_select_breakdown(client, log_comment: str) -> None:
         rows = client.query(
             "SELECT query_duration_ms, "
             "  formatReadableSize(memory_usage) AS peak_mem, "
-            "  read_rows, "
+            "  read_rows, "              # rows scanned from storage to satisfy the query
+            "  result_rows, "           # rows actually returned to the client (the LIMIT page)
             "  formatReadableSize(read_bytes) AS read_bytes "
             "FROM system.query_log "
             "WHERE type = 'QueryFinish' AND log_comment = {lc:String} "
@@ -298,9 +299,13 @@ def log_clickhouse_select_breakdown(client, log_comment: str) -> None:
             "ORDER BY event_time_microseconds",
             parameters={'lc': log_comment},
         )
-        for page, (dur, peak_mem, read_rows, read_bytes) in enumerate(rows.result_rows, 1):
+        # storage_rows_scanned = rows read off disk (grows when the index can't seek
+        # to the keyset cursor); returned_rows = the LIMIT page size actually handed back.
+        # Naming them distinctly avoids reading the (large) scan count as "rows processed".
+        for page, (dur, peak_mem, read_rows, result_rows, read_bytes) in enumerate(rows.result_rows, 1):
             logger.info(f"select_mem[{log_comment}] page={page} dur={dur}ms "
-                        f"peak_mem={peak_mem} read_rows={read_rows} read_bytes={read_bytes}")
+                        f"peak_mem={peak_mem} storage_rows_scanned={read_rows} "
+                        f"returned_rows={result_rows} read_bytes={read_bytes}")
     except Exception as e:
         logger.warning(f"select breakdown unavailable for {log_comment}: {e}")
 
