@@ -15,7 +15,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PGRIndex {
+public class PGRIndex extends ProjectInfo {
     @JsonProperty("service")
     private Service service;
     @JsonProperty("userName")
@@ -28,6 +28,8 @@ public class PGRIndex {
     private String userAddress;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("taskDates")
     private String taskDates;
     @JsonProperty("localityCode")

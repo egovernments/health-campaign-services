@@ -3,12 +3,15 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.AdditionalFields;
 import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.HouseholdService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
@@ -32,8 +35,9 @@ public class HouseholdTransformationService {
     private final CommonUtils commonUtils;
     private final ProjectService projectService;
     private final HouseholdService householdService;
+    private final BoundaryService boundaryService;
 
-    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService) {
+    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -41,6 +45,7 @@ public class HouseholdTransformationService {
         this.commonUtils = commonUtils;
         this.projectService = projectService;
         this.householdService = householdService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<Household> householdList) {
@@ -60,13 +65,16 @@ public class HouseholdTransformationService {
     private HouseholdIndexV1 transform(Household household) {
         householdService.searchHousehold(household.getClientReferenceId(), household.getTenantId());
         Map<String, String> boundaryHierarchy = null;
+        Map<String, String> boundaryHierarchyCode = null;
 
         String localityCode;
         if (household.getAddress() != null
                 && household.getAddress().getLocality() != null
                 && household.getAddress().getLocality().getCode() != null) {
             localityCode = household.getAddress().getLocality().getCode();
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
 
         Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
@@ -76,7 +84,7 @@ public class HouseholdTransformationService {
         AdditionalFields additionalFields = household.getAdditionalFields();
         if (additionalFields != null && additionalFields.getFields() != null
                 && !CollectionUtils.isEmpty(additionalFields.getFields())) {
-            additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
+            householdService.additionalFieldsToDetails(additionalDetails, additionalFields.getFields());
         }
         int pregnantWomenCount = additionalDetails.has(PREGNANTWOMEN) ? additionalDetails.get(PREGNANTWOMEN).asInt(0) : 0;
         int childrenCount = additionalDetails.has(CHILDREN) ? additionalDetails.get(CHILDREN).asInt(0) : 0;
@@ -84,7 +92,8 @@ public class HouseholdTransformationService {
             additionalDetails.put(ISVULNERABLE, true);
         }
 
-        return HouseholdIndexV1.builder()
+
+        HouseholdIndexV1 householdIndexV1 = HouseholdIndexV1.builder()
                 .household(household)
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
@@ -92,18 +101,19 @@ public class HouseholdTransformationService {
                 .userAddress(userInfoMap.get(CITY))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .taskDates(commonUtils.getDateFromEpoch(household.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(syncedTimeStamp)
-                .additionalDetails(additionalDetails)
                 .build();
+        commonUtils.addProjectDetailsForUserIdAndTenantId(householdIndexV1,
+                household.getClientAuditDetails().getLastModifiedBy(),
+                household.getTenantId());
+
+        String cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), householdIndexV1.getProjectId(), household.getClientAuditDetails());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        householdIndexV1.setAdditionalDetails(additionalDetails);
+        return householdIndexV1;
     }
 
-    private ObjectNode additionalFieldsToDetails(List<Field> fields) {
-        ObjectNode additionalDetails = objectMapper.createObjectNode();
-        fields.forEach(
-                f -> additionalDetails.put(f.getKey(), f.getValue())
-        );
-        return additionalDetails;
-    }
 }

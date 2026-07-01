@@ -4,16 +4,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.StockReconciliationIndexV1;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.FacilityService;
-import org.egov.transformer.service.ProductService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -35,12 +36,14 @@ public class StockReconciliationTransformationService {
     private final UserService userService;
     private final ProductService productService;
     private final ProjectService projectService;
+    private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(
             RECEIVED, ISSUED, RETURNED, LOST, GAINED, DAMAGED, INHAND
     ));
 
-    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService, ProjectService projectService) {
+    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService, ProjectService projectService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.facilityService = facilityService;
@@ -49,6 +52,8 @@ public class StockReconciliationTransformationService {
         this.userService = userService;
         this.productService = productService;
         this.projectService = projectService;
+        this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<StockReconciliation> stockReconciliationList) {
@@ -67,19 +72,26 @@ public class StockReconciliationTransformationService {
 
     public StockReconciliationIndexV1 transform(StockReconciliation stockReconciliation) {
         Map<String, String> boundaryHierarchy = new HashMap<>();
+        Map<String, String> boundaryHierarchyCode = new HashMap<>();
         String tenantId = stockReconciliation.getTenantId();
         Facility facility = facilityService.findFacilityById(stockReconciliation.getFacilityId(), tenantId);
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
         String localityCode = null;
+        String projectId = stockReconciliation.getReferenceId();
+        Project project = projectService.getProject(projectId, tenantId);
 
         if (facility != null && facility.getAddress() != null &&
                 facility.getAddress().getLocality() != null &&
                 facility.getAddress().getLocality().getCode() != null) {
             localityCode = facility.getAddress().getLocality().getCode();
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else if (stockReconciliation.getReferenceIdType().equals(PROJECT)) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (stockReconciliation.getAdditionalFields() != null && stockReconciliation.getAdditionalFields().getFields() != null
@@ -90,6 +102,11 @@ public class StockReconciliationTransformationService {
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
         String productName = String.join(COMMA, productService.getProductVariantNames(Collections.singletonList(stockReconciliation.getProductVariantId()), tenantId));
+
+        String campaignId = null;
+        if  (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
+        }
 
         StockReconciliationIndexV1 stockReconciliationIndexV1 = StockReconciliationIndexV1.builder()
                 .stockReconciliation(stockReconciliation)
@@ -103,13 +120,16 @@ public class StockReconciliationTransformationService {
                 .syncedTimeStamp(syncedTimeStamp)
                 .syncedTime(stockReconciliation.getAuditDetails().getLastModifiedTime())
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .productName(productName)
                 .localityCode(localityCode)
                 .additionalDetails(additionalDetails)
                 .taskDates(commonUtils.getDateFromEpoch(stockReconciliation.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime()))
                 .build();
-
+        stockReconciliationIndexV1.setProjectInfo(projectId, project.getProjectType(), project.getProjectTypeId(), project.getName());
+        stockReconciliationIndexV1.setCampaignNumber(project.getReferenceID());
+        stockReconciliationIndexV1.setCampaignId(campaignId);
         return stockReconciliationIndexV1;
     }
 

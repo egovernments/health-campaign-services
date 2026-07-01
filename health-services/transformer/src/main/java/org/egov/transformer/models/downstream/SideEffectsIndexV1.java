@@ -16,7 +16,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SideEffectsIndexV1 {
+public class SideEffectsIndexV1 extends ProjectInfo {
 
     @JsonProperty("sideEffect")
     private SideEffect sideEffect;
@@ -29,6 +29,9 @@ public class SideEffectsIndexV1 {
 
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
 
     @JsonProperty("localityCode")
     private String localityCode;

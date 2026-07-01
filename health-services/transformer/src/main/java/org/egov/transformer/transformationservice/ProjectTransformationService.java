@@ -4,13 +4,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Target;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProductService;
+import org.egov.transformer.service.ProjectFactoryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -30,14 +34,18 @@ public class ProjectTransformationService {
     private final CommonUtils commonUtils;
     private final ProjectService projectService;
     private final ProductService productService;
+    private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
-    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService) {
+    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
         this.commonUtils = commonUtils;
         this.projectService = projectService;
         this.productService = productService;
+        this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
 
@@ -66,8 +74,11 @@ public class ProjectTransformationService {
         } else {
             localityCode = null;
         }
-        Map<String, String> boundaryHierarchy = localityCode != null ?
-                projectService.getBoundaryHierarchyWithLocalityCode(project.getAddress().getBoundary(), project.getTenantId()) : null;
+        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(localityCode, project.getTenantId());
+
+        Map<String, String> boundaryHierarchy = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchy() : null;
+        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchyCode() : null;
+
         String tenantId = project.getTenantId();
         String projectTypeId = project.getProjectTypeId();
         List<Target> targets = project.getTargets();
@@ -81,9 +92,19 @@ public class ProjectTransformationService {
         }
         isValidTargetsAdditionalDetails(project, targets, FIELD_TARGET, fieldsToCheck, BENEFICIARY_TYPE);
 
-        JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
+        JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, project.getId());
 
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(tenantId, projectTypeId);
+
+        String campaignId;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        } else {
+            campaignId = null;
+        }
+
 
         return targets.stream().map(r -> {
                     Long startDate = project.getStartDate();
@@ -92,10 +113,14 @@ public class ProjectTransformationService {
                     Integer campaignDurationInDays = null;
                     Integer targetPerDay = null;
                     Long milliSecForOneDay = (long) (24 * 60 * 60 * 1000);
-                    if (startDate != null && endDate != null) {
-                        campaignDurationInDays = (int) ((endDate - startDate) / milliSecForOneDay);
-                        if (targetNo != null && campaignDurationInDays > 0) {
-                            targetPerDay = targetNo / campaignDurationInDays;
+                    if(transformerProperties.getProjectTargetNumberType().equals(PROJECT_TARGET_NUMBER_TYPE_PER_DAY)) {
+                        targetPerDay = targetNo;
+                    } else if (transformerProperties.getProjectTargetNumberType().equals(PROJECT_TARGET_NUMBER_TYPE_OVERALL)){
+                        if (startDate != null && endDate != null) {
+                            campaignDurationInDays = (int) ((endDate - startDate) / milliSecForOneDay);
+                            if (targetNo != null && campaignDurationInDays > 0) {
+                                targetPerDay = targetNo / campaignDurationInDays;
+                            }
                         }
                     }
 
@@ -111,7 +136,6 @@ public class ProjectTransformationService {
 
                     ProjectIndexV1 projectIndexV1 = ProjectIndexV1.builder()
                             .id(r.getId())
-                            .projectId(project.getId())
                             .projectBeneficiaryType(projectBeneficiaryType)
                             .overallTarget(targetNo)
                             .targetPerDay(targetPerDay)
@@ -123,15 +147,19 @@ public class ProjectTransformationService {
                             .targetType(r.getBeneficiaryType())
                             .tenantId(tenantId)
                             .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
-                            .projectType(project.getProjectType())
                             .subProjectType(project.getProjectSubType())
-                            .projectTypeId(projectTypeId)
                             .localityCode(localityCode)
                             .createdTime(project.getAuditDetails().getCreatedTime())
                             .createdBy(project.getAuditDetails().getCreatedBy())
                             .additionalDetails(additionalDetails)
                             .boundaryHierarchy(boundaryHierarchy)
+                            .boundaryHierarchyCode(boundaryHierarchyCode)
+                            .referenceID(project.getReferenceID())
+                            .projectNumber(project.getProjectNumber())
                             .build();
+                    projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName());
+                    projectIndexV1.setCampaignNumber(project.getReferenceID());
+                    projectIndexV1.setCampaignId(campaignId);
                     return projectIndexV1;
                 }
         ).collect(Collectors.toList());
@@ -164,5 +192,12 @@ public class ProjectTransformationService {
                 }
             }
         }
+    }
+
+    private BoundaryHierarchyResult getBoundaryHierarchyResult(String localityCode, String tenantId) {
+        if (localityCode != null) {
+            return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+        }
+        return null;
     }
 }

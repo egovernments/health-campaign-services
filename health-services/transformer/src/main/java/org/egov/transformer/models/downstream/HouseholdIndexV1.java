@@ -18,7 +18,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class HouseholdIndexV1 {
+public class HouseholdIndexV1 extends ProjectInfo {
     @JsonProperty("household")
     private Household household;
     @JsonProperty("userName")
@@ -37,6 +37,8 @@ public class HouseholdIndexV1 {
     private String syncedTimeStamp;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("geoPoint")
     private List<Double> geoPoint;
     @JsonProperty("additionalDetails")

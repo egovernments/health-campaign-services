@@ -81,7 +81,8 @@ public class AttendanceRegisterService {
             if (attendeesIdNameCache.containsKey(id)) {
                 return attendeesIdNameCache.get(id);
             } else {
-                Name attendeeName = individualService.getIndividualNameById(id, tenantId);
+                Individual individual = individualService.getIndividualById(id, tenantId);
+                Name attendeeName = (individual != null) ? individual.getName() : null;
                 if (attendeeName != null) {
                     attendeesIdNameCache.put(id, attendeeName);
                 }

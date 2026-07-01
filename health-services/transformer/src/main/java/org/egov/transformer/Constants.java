@@ -97,4 +97,22 @@ public interface Constants {
     String CLOSED_HOUSEHOLD ="CLOSED_HOUSEHOLD";
     String REASON_OF_REFUSAL = "reasonOfRefusal";
     String NO_OF_ROOMS= "noOfRooms";
+    String MEN_COUNT = "menCount";
+    String WOMEN_COUNT = "womenCount";
+    String PROJECT_ID = "projectId";
+    String PROJECT_TYPE_ID = "projectTypeId";
+    String PROJECT_TARGET_NUMBER_TYPE_PER_DAY = "PER_DAY";
+    String PROJECT_TARGET_NUMBER_TYPE_OVERALL = "OVERALL";
+    String NO_OF_ROOMS_SPRAYED_KEY = "noOfRoomsSprayedKey";
+    String LAT = "lat";
+    String LNG = "lng";
+    String STAFF = "STAFF";
+    String BOUNDARY_CODE_KEY = "boundaryCode";
+    String ADDITIONAL_FIELDS_FIELDS_KEY = "fields";
+    String ADDITIONAL_FIELDS_FIELDS_KEY_KEY = "key";
+    String ADDITIONAL_FIELDS_FIELDS_VALUE_KEY = "value";
+
+    String PROJECT_TYPE = "projectType";
+
+    String REDIS_CACHE_PREFIX = "transformer:";
 }
