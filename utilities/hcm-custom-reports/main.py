@@ -97,7 +97,7 @@ def get_data_to_be_pushed(file_store_id):
         "file_store_id" : file_store_id,
         "trigger_time" : normalize_timestamp_to_utc(TRIGGER_TIME),
         "tenant_id" : TENANT_ID,
-        "report_dates" : str(START_DATE) + "_" + str(END_DATE)
+        "report_dates" : f"{START_DATE}_{END_DATE}"
     }
 
     return data
