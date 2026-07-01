@@ -1,5 +1,5 @@
-# Use an official Node runtime as a parent image
-FROM node:14
+# Use a maintained Node 20 LTS runtime (node:14 is EOL)
+FROM node:20-alpine
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
@@ -15,6 +15,9 @@ COPY . .
 
 # Set server port
 ENV SERVER_PORT 8080
+
+# Run as the built-in non-root 'node' user
+USER node
 
 # Define the command to run your app using CMD which defines your runtime
 CMD ["npm", "start"]
