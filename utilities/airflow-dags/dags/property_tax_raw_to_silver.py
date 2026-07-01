@@ -319,9 +319,15 @@ def log_server_resource_stats(client, label: str, chunk_idx: int,
                               worker_cpu_pct: float = None) -> None:
     """Per-chunk snapshot of ClickHouse server memory + in-flight merges + CPU.
 
-    Watch `mem_tracking` (whole-server MemoryTracker) and `merges.mem` climb in
-    real time to confirm the 1.8 GiB pressure comes from accumulating background
-    merges, not the (flat) SELECTs.
+    Memory has two distinct numbers:
+      - `server_rss` (asynchronous_metrics.MemoryResident) is the ACTUAL physical
+        memory of the ClickHouse process — this is what the cgroup/OOM-killer sees
+        and what the 2 GiB limit is checked against.
+      - `mem_tracking` (metrics.MemoryTracking) is ClickHouse's own allocator
+        accounting; it UNDER-reports RSS (excludes jemalloc fragmentation, unpurged
+        arenas, thread stacks, page cache), so RSS can sit well above it.
+    Watch both plus `merges.mem` climb to attribute the 1.8 GiB pressure to
+    accumulating background merges, not the (flat) SELECTs.
 
     CPU: `ch_cpu` is server CPU (user+system, normalized so 1.0 ≈ one full core)
     and `worker_cpu` is this task process's CPU% over the last chunk interval.
@@ -344,17 +350,20 @@ def log_server_resource_stats(client, label: str, chunk_idx: int,
         cpu_rows = client.query(
             "SELECT metric, value FROM system.asynchronous_metrics "
             "WHERE metric IN ('OSUserTimeNormalized', 'OSSystemTimeNormalized', "
-            "'LoadAverage1')"
+            "'LoadAverage1', 'MemoryResident')"
         ).result_rows
         cpu = {m: v for m, v in cpu_rows}
         ch_cpu = cpu.get('OSUserTimeNormalized', 0.0) + cpu.get('OSSystemTimeNormalized', 0.0)
         load1 = cpu.get('LoadAverage1', 0.0)
+        # Actual server RSS (bytes) — the OOM-relevant number, distinct from mem_tracking.
+        server_rss_mib = cpu.get('MemoryResident', 0.0) / (1024 * 1024)
 
         worker_str = (f" | worker_cpu={worker_cpu_pct:.0f}%"
                       if worker_cpu_pct is not None else "")
         logger.info(
             f"server_stats[{label}] chunk={chunk_idx} "
-            f"mem_tracking={mem_tracking} running_query_mem={proc_mem} | "
+            f"server_rss={server_rss_mib:.0f} MiB mem_tracking={mem_tracking} "
+            f"running_query_mem={proc_mem} | "
             f"merges: n={merge_count} mem={merge_mem} rows_read={merge_rows} | "
             f"ch_cpu={ch_cpu:.2f}cores load1={load1:.2f}{worker_str}"
         )
