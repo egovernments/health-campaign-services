@@ -2,6 +2,7 @@ package org.egov.id.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -22,12 +23,13 @@ public class DispatchLimitCacheService {
     private final ConcurrentHashMap<String, DispatchLimitConfig> lastKnownConfigs;
     private final Cache<String, DispatchLimitConfig> cache;
 
-    public DispatchLimitCacheService(PropertiesManager propertiesManager, MdmsService mdmsService) {
+    public DispatchLimitCacheService(PropertiesManager propertiesManager, MdmsService mdmsService, Ticker ticker) {
         this.propertiesManager = propertiesManager;
         this.mdmsService = mdmsService;
         this.lastKnownConfigs = new ConcurrentHashMap<>();
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(propertiesManager.getDispatchLimitCacheTtlMinutes(), TimeUnit.MINUTES)
+                .ticker(ticker)
                 .build();
     }
 
@@ -35,8 +37,7 @@ public class DispatchLimitCacheService {
         if (StringUtils.isBlank(tenantId)) {
             return propertiesManager.getDefaultDispatchLimitConfig();
         }
-        String normalizedTenantId = normalizeTenantId(tenantId);
-        return cache.get(normalizedTenantId, key -> loadConfig(key, requestInfo));
+        return cache.get(tenantId, key -> loadConfig(key, requestInfo));
     }
 
     private DispatchLimitConfig loadConfig(String tenantId, RequestInfo requestInfo) {
@@ -50,16 +51,7 @@ public class DispatchLimitCacheService {
             return propertiesManager.getDefaultDispatchLimitConfig();
         } catch (Exception e) {
             log.error("Failed to fetch dispatch limit config from MDMS for tenantId={}", tenantId, e);
-            DispatchLimitConfig staleConfig = lastKnownConfigs.get(tenantId);
-            if (staleConfig != null) {
-                log.warn("Using stale dispatch limit config for tenantId={}", tenantId);
-                return staleConfig;
-            }
-            return propertiesManager.getDefaultDispatchLimitConfig();
+            throw e;
         }
-    }
-
-    private String normalizeTenantId(String tenantId) {
-        return tenantId.toLowerCase();
     }
 }

@@ -125,14 +125,20 @@ public class MdmsService {
         Map<String, Object> configData = (Map<String, Object>) mdmsResponse.getMdmsRes().get(module).get(master).get(0);
         DocumentContext documentContext = JsonPath.parse(configData);
 
-        boolean perDayEnabled = readBooleanField(documentContext, "perDayEnabled", true);
+        boolean perDayEnabled = readBooleanField(documentContext, "perDayEnabled", propertiesManager.isDispatchLimitUserDevicePerDayEnabled());
         int totalLimit = readIntField(documentContext, "totalLimit", propertiesManager.getDispatchLimitUserDeviceTotal());
         int perDayLimit = readIntField(documentContext, "perDayLimit", propertiesManager.getDispatchLimitUserDevicePerDay());
+        int perDayExpireDays = readIntField(documentContext, "perDayExpireDays", propertiesManager.getDispatchUsageUserDevicePerDayExpireDays());
+        int totalExpireDays = readIntField(documentContext, "totalExpireDays", propertiesManager.getDispatchUsageUserDeviceTotalExpireDays());
+        boolean restrictToTodayEnabled = readBooleanField(documentContext, "restrictToTodayEnabled", propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
 
         return Optional.of(DispatchLimitConfig.builder()
                 .perDayEnabled(perDayEnabled)
                 .totalLimit(totalLimit)
                 .perDayLimit(perDayLimit)
+                .perDayExpireDays(perDayExpireDays)
+                .totalExpireDays(totalExpireDays)
+                .restrictToTodayEnabled(restrictToTodayEnabled)
                 .build());
     }
 

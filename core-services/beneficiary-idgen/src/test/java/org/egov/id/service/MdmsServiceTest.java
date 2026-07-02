@@ -3,6 +3,7 @@ package org.egov.id.service;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.idgen.IdRequest;
+import org.egov.id.config.PropertiesManager;
 import org.egov.mdms.model.MasterDetail;
 import org.egov.mdms.model.MdmsResponse;
 import org.egov.mdms.service.MdmsClientService;
@@ -26,6 +27,9 @@ import static org.mockito.Mockito.*;
 class MdmsServiceTest {
     @MockBean
     private MdmsClientService mdmsClientService;
+
+    @MockBean
+    private PropertiesManager propertiesManager;
 
     @Autowired
     private MdmsService mdmsService;

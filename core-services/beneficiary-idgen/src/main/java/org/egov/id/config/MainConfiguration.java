@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.egov.common.utils.MultiStateInstanceUtil;
+import com.github.benmanes.caffeine.cache.Ticker;
 import org.egov.tracer.config.TracerConfiguration;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,5 +62,10 @@ public class MainConfiguration {
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
         converter.setObjectMapper(objectMapper);
         return converter;
+    }
+
+    @Bean
+    public Ticker caffeineTicker() {
+        return Ticker.systemTicker();
     }
 }
