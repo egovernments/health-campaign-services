@@ -1,5 +1,6 @@
 package org.egov.id.config;
 
+import org.egov.id.model.DispatchLimitConfig;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
@@ -108,5 +109,25 @@ public class PropertiesManager {
 	}
 	public String getIdPoolBulkCreateTopic() {
 		return environment.getProperty("kafka.topics.consumer.bulk.create.topic");
+	}
+
+	public String getMdmsDispatchLimitModule() {
+		return environment.getProperty("mdms.dispatch.limit.module", "beneficiary-idgen");
+	}
+
+	public String getMdmsDispatchLimitMaster() {
+		return environment.getProperty("mdms.dispatch.limit.master", "IdDispatchConfig");
+	}
+
+	public int getDispatchLimitCacheTtlMinutes() {
+		return Integer.parseInt(environment.getProperty("dispatch.limit.cache.ttl.minutes", "30"));
+	}
+
+	public DispatchLimitConfig getDefaultDispatchLimitConfig() {
+		return DispatchLimitConfig.builder()
+				.perDayEnabled(isDispatchLimitUserDevicePerDayEnabled())
+				.totalLimit(getDispatchLimitUserDeviceTotal())
+				.perDayLimit(getDispatchLimitUserDevicePerDay())
+				.build();
 	}
 }

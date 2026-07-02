@@ -13,6 +13,7 @@ import org.egov.common.models.Error;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.egov.id.config.PropertiesManager;
+import org.egov.id.model.DispatchLimitConfig;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.id.repository.IdRepository;
 import org.egov.id.validators.IdPoolValidatorForUpdate;
@@ -42,6 +43,7 @@ public class IdDispatchService {
     private final IdRepository idRepo;
     private final IdGenProducer idGenProducer;
     private final PropertiesManager propertiesManager;
+    private final DispatchLimitCacheService dispatchLimitCacheService;
 
     @Autowired
     private RedissonIDService redissonIDService;
@@ -66,11 +68,13 @@ public class IdDispatchService {
     public IdDispatchService(IdRepository idRepo,
                              IdGenProducer idGenProducer,
                              PropertiesManager propertiesManager,
+                             DispatchLimitCacheService dispatchLimitCacheService,
                              List<Validator<IdRecordBulkRequest, IdRecord>> validators,
                              EnrichmentService enrichmentservice) {
         this.idRepo = idRepo;
         this.idGenProducer = idGenProducer;
         this.propertiesManager = propertiesManager;
+        this.dispatchLimitCacheService = dispatchLimitCacheService;
         this.validators = validators;
         this.enrichmentService  = enrichmentservice;
     }
@@ -106,16 +110,14 @@ public class IdDispatchService {
         // Log incoming dispatch request details
         log.debug("Dispatch request received: userUuid={}, deviceUuid={}, tenantId={}, count={}", userUuid, deviceUuid, tenantId, count);
 
-        long totalLimit = propertiesManager.getDispatchLimitUserDeviceTotal();
-        if (propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
-            totalLimit = propertiesManager.getDispatchLimitUserDevicePerDay();
-        }
+        DispatchLimitConfig limitConfig = dispatchLimitCacheService.getEffectiveLimitConfig(tenantId, requestInfo);
+        long totalLimit = limitConfig.isPerDayEnabled() ? limitConfig.getPerDayLimit() : limitConfig.getTotalLimit();
 
         // Handle special case: if client requests fetching previously allocated IDs instead of new dispatch
         if (!ObjectUtils.isEmpty(request.getClientInfo().getFetchAllocatedIds())
                 && request.getClientInfo().getFetchAllocatedIds()) {
             // Get count of IDs already dispatched to this user and device from Redis cache
-            long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, false, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
+            long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, false, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled(),requestInfo);
             log.debug("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
 
             // Fetch all IDs already dispatched to this user/device
@@ -134,7 +136,7 @@ public class IdDispatchService {
         }
 
         // Get count of IDs already dispatched to this user and device from Redis cache
-        long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, true, true);
+        long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, true, true, requestInfo);
         long fetchCount = Math.min(remainingCount, count);
 
         List<IdRecord> idRecordsToDispatch = idRepo.fetchUnassigned(tenantId, userUuid, (int) fetchCount);

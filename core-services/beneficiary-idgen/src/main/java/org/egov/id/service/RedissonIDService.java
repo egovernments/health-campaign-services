@@ -1,7 +1,9 @@
 package org.egov.id.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.id.config.PropertiesManager;
+import org.egov.id.model.DispatchLimitConfig;
 import org.egov.tracer.model.CustomException;
 import org.redisson.api.RAtomicLong;
 import org.redisson.api.RedissonClient;
@@ -25,10 +27,12 @@ public class RedissonIDService {
 
     private final RedissonClient redissonClient;
     private final PropertiesManager propertiesManager;
+    private final DispatchLimitCacheService dispatchLimitCacheService;
 
-    public RedissonIDService(RedissonClient redissonClient, PropertiesManager propertiesManager) {
+    public RedissonIDService(RedissonClient redissonClient, PropertiesManager propertiesManager, DispatchLimitCacheService dispatchLimitCacheService) {
         this.redissonClient = redissonClient;
         this.propertiesManager = propertiesManager;
+        this.dispatchLimitCacheService = dispatchLimitCacheService;
     }
 
     /**
@@ -68,15 +72,17 @@ public class RedissonIDService {
      * @return The remaining dispatch limit, either the total or the daily limit, depending on system configuration.
      * @throws CustomException If validation is enabled and the count is invalid or exceeds configured limits.
      */
-    public long getUserDeviceDispatchedIDRemaining(String tenantId, String userId, String deviceId, boolean validateCount, boolean allowToday) throws CustomException {
+    public long getUserDeviceDispatchedIDRemaining(String tenantId, String userId, String deviceId, boolean validateCount, boolean allowToday, RequestInfo requestInfo) throws CustomException {
         long totalCount = getUserDeviceDispatchedIDCountTotal(tenantId, userId, deviceId);
-        long remainingLimit = propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount;
+        DispatchLimitConfig limitConfig = dispatchLimitCacheService.getEffectiveLimitConfig(tenantId, requestInfo);
+
+        long remainingLimit = limitConfig.getTotalLimit() - totalCount;
         if(validateCount && remainingLimit <= 0) {
             throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "ID generation limit exceeded: Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + remainingLimit + ". Please try again later.");
         }
-        if(allowToday && propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
+        if(allowToday && limitConfig.isPerDayEnabled()) {
             long todayCount = getUserDeviceDispatchedIDCountToday(tenantId, userId, deviceId);
-            remainingLimit = Math.min(remainingLimit, propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount);
+            remainingLimit = Math.min(remainingLimit, limitConfig.getPerDayLimit() - todayCount);
             if(validateCount && remainingLimit <= 0) {
                 throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "ID generation limit exceeded: Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + (propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount) + ". Please try again later.");
             }
