@@ -103,27 +103,14 @@ public class MdmsService {
     public Optional<DispatchLimitConfig> getDispatchLimitConfig(RequestInfo requestInfo, String tenantId) {
         String module = propertiesManager.getMdmsDispatchLimitModule();
         String master = propertiesManager.getMdmsDispatchLimitMaster();
-
-        MasterDetail masterDetail = MasterDetail.builder()
-                .name(master)
-                .filter("[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]")
-                .build();
-
-        Map<String, List<MasterDetail>> masterDetails = new HashMap<>();
-        masterDetails.put(module, Collections.singletonList(masterDetail));
-
-        MdmsResponse mdmsResponse = getMasterData(requestInfo, tenantId, masterDetails);
-
-        if (mdmsResponse.getMdmsRes() == null
-                || !mdmsResponse.getMdmsRes().containsKey(module)
-                || !mdmsResponse.getMdmsRes().get(module).containsKey(master)
-                || mdmsResponse.getMdmsRes().get(module).get(master).isEmpty()
-                || mdmsResponse.getMdmsRes().get(module).get(master).get(0) == null) {
+        String filter = "[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]";
+        Optional<Map<String, Object>> configDataOpt = getFirstMdmsRecord(requestInfo, tenantId, module, master, filter);
+        if (configDataOpt.isEmpty()) {
             log.debug("No dispatch limit config found in MDMS for tenantId={}", tenantId);
             return Optional.empty();
         }
 
-        Map<String, Object> configData = (Map<String, Object>) mdmsResponse.getMdmsRes().get(module).get(master).get(0);
+        Map<String, Object> configData = configDataOpt.get();
         DocumentContext documentContext = JsonPath.parse(configData);
 
         boolean perDayEnabled = readBooleanField(documentContext, "perDayEnabled", propertiesManager.isDispatchLimitUserDevicePerDayEnabled());
@@ -144,27 +131,22 @@ public class MdmsService {
     }
 
     public Optional<IdPoolConfig> getIdPoolConfig(RequestInfo requestInfo, String tenantId) {
-        MasterDetail masterDetail = MasterDetail.builder()
-                .name("IdPoolConfig")
-                .filter("[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]")
-                .build();
-
-        Map<String, List<MasterDetail>> masterDetails = new HashMap<>();
-        masterDetails.put("beneficiary-idgen", Collections.singletonList(masterDetail));
-
-        MdmsResponse mdmsResponse = getMasterData(requestInfo, tenantId, masterDetails);
-
-        if (mdmsResponse.getMdmsRes() == null
-                || !mdmsResponse.getMdmsRes().containsKey("beneficiary-idgen")
-                || !mdmsResponse.getMdmsRes().get("beneficiary-idgen").containsKey("IdPoolConfig")
-                || mdmsResponse.getMdmsRes().get("beneficiary-idgen").get("IdPoolConfig").isEmpty()
-                || mdmsResponse.getMdmsRes().get("beneficiary-idgen").get("IdPoolConfig").get(0) == null) {
+        String module = propertiesManager.getMdmsIdPoolModule();
+        if (module == null || module.isBlank()) {
+            module = "beneficiary-idgen";
+        }
+        String master = propertiesManager.getMdmsIdPoolMaster();
+        if (master == null || master.isBlank()) {
+            master = "IdPoolConfig";
+        }
+        String filter = "[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]";
+        Optional<Map<String, Object>> configDataOpt = getFirstMdmsRecord(requestInfo, tenantId, module, master, filter);
+        if (configDataOpt.isEmpty()) {
             log.debug("No id pool config found in MDMS for tenantId={}", tenantId);
             return Optional.empty();
         }
 
-        Map<String, Object> configData =
-                (Map<String, Object>) mdmsResponse.getMdmsRes().get("beneficiary-idgen").get("IdPoolConfig").get(0);
+        Map<String, Object> configData = configDataOpt.get();
         DocumentContext documentContext = JsonPath.parse(configData);
 
         String seqCode = readStringField(documentContext, "seqCode", propertiesManager.getDefaultIdPoolConfig().getSeqCode());
@@ -174,6 +156,41 @@ public class MdmsService {
                 .seqCode(seqCode)
                 .paddingLength(paddingLength)
                 .build());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Optional<Map<String, Object>> getFirstMdmsRecord(
+            RequestInfo requestInfo,
+            String tenantId,
+            String module,
+            String master,
+            String filter
+    ) {
+        MasterDetail masterDetail = MasterDetail.builder()
+                .name(master)
+                .filter(filter)
+                .build();
+
+        Map<String, List<MasterDetail>> masterDetails = new HashMap<>();
+        masterDetails.put(module, Collections.singletonList(masterDetail));
+
+        MdmsResponse mdmsResponse = getMasterData(requestInfo, tenantId, masterDetails);
+        if (mdmsResponse == null
+                || mdmsResponse.getMdmsRes() == null
+                || !mdmsResponse.getMdmsRes().containsKey(module)
+                || mdmsResponse.getMdmsRes().get(module) == null
+                || !mdmsResponse.getMdmsRes().get(module).containsKey(master)
+                || mdmsResponse.getMdmsRes().get(module).get(master) == null
+                || mdmsResponse.getMdmsRes().get(module).get(master).isEmpty()
+                || mdmsResponse.getMdmsRes().get(module).get(master).get(0) == null) {
+            return Optional.empty();
+        }
+
+        Object record = mdmsResponse.getMdmsRes().get(module).get(master).get(0);
+        if (!(record instanceof Map)) {
+            return Optional.empty();
+        }
+        return Optional.of((Map<String, Object>) record);
     }
 
     private String readStringField(DocumentContext documentContext, String field, String defaultValue) {

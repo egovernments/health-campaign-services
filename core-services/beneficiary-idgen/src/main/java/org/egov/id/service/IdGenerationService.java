@@ -178,11 +178,9 @@ public class IdGenerationService {
      * @throws CustomException if configuration is missing or fetching format fails
      * @throws IllegalArgumentException if fetched ID format is null or empty
      */
-    private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo) {
+    private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo, IdPoolConfig idPoolConfig) {
         log.info("Fetching ID format for tenantId={}, batchSize={}", tenantId, batchSize);
 
-        IdPoolConfig idPoolConfig = mdmsService.getIdPoolConfig(requestInfo, tenantId)
-                .orElseGet(propertiesManager::getDefaultIdPoolConfig);
         this.paddingLength = idPoolConfig.getPaddingLength();
         String idPoolName = idPoolConfig.getSeqCode();
 
@@ -245,12 +243,13 @@ public class IdGenerationService {
                 throw new CustomException("INVALID_BATCH_SIZE", "Batch size must be > 0");
             }
 
-            // Fetch ID format and adjust batch size if necessary
-            String idFormat = fetchIdFormat(tenantId, chunkSize, requestInfo);
-            // Adjust batch size if ID format contains random patterns
-            Integer adjustedSize = adjustBatchSizeIfRandom(chunkSize, idFormat);
             IdPoolConfig idPoolConfig = mdmsService.getIdPoolConfig(requestInfo, tenantId)
                     .orElseGet(propertiesManager::getDefaultIdPoolConfig);
+
+            // Fetch ID format and adjust batch size if necessary
+            String idFormat = fetchIdFormat(tenantId, chunkSize, requestInfo, idPoolConfig);
+            // Adjust batch size if ID format contains random patterns
+            Integer adjustedSize = adjustBatchSizeIfRandom(chunkSize, idFormat);
             this.paddingLength = idPoolConfig.getPaddingLength();
             IdRequest idRequest = new IdRequest(idPoolConfig.getSeqCode(), tenantId, null, adjustedSize);
             // Generate IDs
