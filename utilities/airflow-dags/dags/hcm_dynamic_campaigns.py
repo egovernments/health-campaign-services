@@ -414,6 +414,23 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     trigger_h, trigger_m, trigger_s, trigger_tz_offset = parse_time_with_timezone(trigger_time_str)
 
     # ================================================================
+    # CUSTOM FREQUENCY — use customReportStartTime and customReportEndTime directly
+    # ================================================================
+    if freq == "custom":
+        report_start_date_str = campaign.get("customReportStartTime", "")
+        report_end_date_str = campaign.get("customReportEndTime", "")
+        try:
+            start = datetime.strptime(report_start_date_str, "%d-%m-%Y %H:%M:%S%z")
+            end = datetime.strptime(report_end_date_str, "%d-%m-%Y %H:%M:%S%z")
+            # Convert to UTC (keep tzinfo so strftime %z produces +0000)
+            start = start.astimezone(timezone.utc)
+            end = end.astimezone(timezone.utc)
+            logger.info("CUSTOM report range: %s to %s", start, end)
+            return (start, end)
+        except (ValueError, TypeError) as e:
+            logger.warning("Failed to parse customReportStartTime/customReportEndTime for CUSTOM frequency: %s", e)
+
+    # ================================================================
     # FINAL PARTIAL REPORT (for WEEKLY/MONTHLY campaigns ending mid-cycle)
     # ================================================================
     # This handles campaigns that end before a full cycle completes.
