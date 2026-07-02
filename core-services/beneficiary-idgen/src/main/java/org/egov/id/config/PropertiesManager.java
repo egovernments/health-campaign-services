@@ -120,6 +120,14 @@ public class PropertiesManager {
 		return environment.getProperty("mdms.dispatch.limit.master", "IdDispatchConfig");
 	}
 
+	public String getMdmsIdPoolModule() {
+		return environment.getProperty("mdms.id.pool.module", "beneficiary-idgen");
+	}
+
+	public String getMdmsIdPoolMaster() {
+		return environment.getProperty("mdms.id.pool.master", "IdPoolConfig");
+	}
+
 	public int getDispatchLimitCacheTtlMinutes() {
 		return Integer.parseInt(environment.getProperty("dispatch.limit.cache.ttl.minutes", "30"));
 	}
