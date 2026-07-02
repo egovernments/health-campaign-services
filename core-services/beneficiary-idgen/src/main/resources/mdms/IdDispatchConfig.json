@@ -1,0 +1,16 @@
+{
+  "tenantId": "pb",
+  "moduleName": "beneficiary-idgen",
+  "IdDispatchConfig": [
+    {
+      "tenantId": "pb",
+      "totalLimit": 500,
+      "perDayEnabled": true,
+      "perDayLimit": 50,
+      "perDayExpireDays": 30,
+      "totalExpireDays": 30,
+      "restrictToTodayEnabled": true,
+      "isActive": true
+    }
+  ]
+}
