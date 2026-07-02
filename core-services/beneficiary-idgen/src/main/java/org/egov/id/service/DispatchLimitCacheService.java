@@ -11,7 +11,6 @@ import org.egov.id.model.DispatchLimitConfig;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -20,13 +19,11 @@ public class DispatchLimitCacheService {
 
     private final PropertiesManager propertiesManager;
     private final MdmsService mdmsService;
-    private final ConcurrentHashMap<String, DispatchLimitConfig> lastKnownConfigs;
     private final Cache<String, DispatchLimitConfig> cache;
 
     public DispatchLimitCacheService(PropertiesManager propertiesManager, MdmsService mdmsService, Ticker ticker) {
         this.propertiesManager = propertiesManager;
         this.mdmsService = mdmsService;
-        this.lastKnownConfigs = new ConcurrentHashMap<>();
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(propertiesManager.getDispatchLimitCacheTtlMinutes(), TimeUnit.MINUTES)
                 .ticker(ticker)
@@ -44,7 +41,6 @@ public class DispatchLimitCacheService {
         try {
             Optional<DispatchLimitConfig> mdmsConfig = mdmsService.getDispatchLimitConfig(requestInfo, tenantId);
             if (mdmsConfig.isPresent()) {
-                lastKnownConfigs.put(tenantId, mdmsConfig.get());
                 return mdmsConfig.get();
             }
             log.debug("Using default dispatch limit config for tenantId={}", tenantId);
