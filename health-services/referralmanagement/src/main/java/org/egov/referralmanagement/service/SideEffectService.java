@@ -56,17 +56,23 @@ public class SideEffectService {
 
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
+    // Read the relationship-validation flag live at request time. Kept as a method so the (blank-final) config
+    // bean is not referenced directly inside the predicate field-initializers (definite-assignment compile error).
+    private boolean relationshipValidationEnabled() {
+        return referralManagementConfiguration.isRelationshipValidation();
+    }
+
     private final SideEffectEnrichmentService sideEffectEnrichmentService;
 
     private final List<Validator<SideEffectBulkRequest, SideEffect>> validators;
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForCreate = validator ->
-            validator.getClass().equals(SeProjectTaskIdValidator.class)
+            (relationshipValidationEnabled() && validator.getClass().equals(SeProjectTaskIdValidator.class))
                 || validator.getClass().equals(SeExistentEntityValidator.class)
-                || validator.getClass().equals(SeProjectBeneficiaryIdValidator.class);
+                || (relationshipValidationEnabled() && validator.getClass().equals(SeProjectBeneficiaryIdValidator.class));
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(SeProjectTaskIdValidator.class)
+            (relationshipValidationEnabled() && validator.getClass().equals(SeProjectTaskIdValidator.class))
                 || validator.getClass().equals(SeNullIdValidator.class)
                 || validator.getClass().equals(SeIsDeletedValidator.class)
                 || validator.getClass().equals(SeUniqueEntityValidator.class)

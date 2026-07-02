@@ -115,6 +115,14 @@ public class HouseholdMemberEnrichmentService {
     private void enrichWithHouseholdId(Map<String, Household> householdMap, HouseholdMember householdMember) {
         log.info("enriching householdMember with household id and householdClientReferenceId");
         Household household = householdMap.get(getHouseholdId(householdMember));
+        if (household == null) {
+            // With household.member.relationship.validation=false, HmHouseholdValidator no longer rejects a
+            // member whose parent household is absent/still on the persister queue, so it reaches enrichment.
+            // Leave householdId/householdClientReferenceId unset and log rather than NPE, so the member persists.
+            log.warn("household not resolved for household member (clientReferenceId={}, id={}); leaving householdId unset",
+                    householdMember.getClientReferenceId(), householdMember.getId());
+            return;
+        }
         householdMember.setHouseholdId(household.getId());
         householdMember.setHouseholdClientReferenceId(household.getClientReferenceId());
     }

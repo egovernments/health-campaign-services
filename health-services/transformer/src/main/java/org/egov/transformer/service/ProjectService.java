@@ -93,6 +93,13 @@ public class ProjectService {
 
     public Map<String, String> getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
+        if (project == null || project.getAddress() == null || project.getAddress().getBoundary() == null) {
+            // Defensive: with cross-entity existence validation disabled upstream, a task/staff/stock record can
+            // reference a project not (yet) resolvable here. Skip boundary enrichment rather than NPE (which would
+            // silently drop the document from indexing).
+            log.warn("could not resolve project/boundary for projectId {}; skipping boundary enrichment", projectId);
+            return new java.util.HashMap<>();
+        }
         String locationCode = project.getAddress().getBoundary();
         return getBoundaryCodeToNameMap(locationCode, tenantId);
     }

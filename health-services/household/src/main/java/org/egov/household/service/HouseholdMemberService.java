@@ -59,6 +59,13 @@ public class HouseholdMemberService {
 
     private final HouseholdMemberConfiguration householdMemberConfiguration;
 
+    // Read the relationship-validation flag live at request time. Kept as a method so the (blank-final) config
+    // bean is not referenced directly inside the predicate field-initializers (which would be a definite-assignment
+    // compile error); the method is invoked when the predicate runs, by which point Spring has injected the bean.
+    private boolean relationshipValidationEnabled() {
+        return householdMemberConfiguration.isHouseholdMemberRelationshipValidation();
+    }
+
     private final ServiceRequestClient serviceRequestClient;
     
     private final HouseholdMemberEnrichmentService householdMemberEnrichmentService;
@@ -71,14 +78,14 @@ public class HouseholdMemberService {
                     || validator.getClass().equals(HmIsDeletedValidator.class)
                     || validator.getClass().equals(HmRowVersionValidator.class)
                     || validator.getClass().equals(HmUniqueEntityValidator.class)
-                    || validator.getClass().equals(HmHouseholdValidator.class)
-                    || validator.getClass().equals(HmIndividualValidator.class)
+                    || (relationshipValidationEnabled() && validator.getClass().equals(HmHouseholdValidator.class))
+                    || (relationshipValidationEnabled() && validator.getClass().equals(HmIndividualValidator.class))
                     || validator.getClass().equals(HmHouseholdHeadValidator.class)
                     || validator.getClass().equals(HmRelationshipTypeValidator.class)
                     || validator.getClass().equals(HmRelativeExistentValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
-            validator.getClass().equals(HmHouseholdValidator.class)
+            (relationshipValidationEnabled() && validator.getClass().equals(HmHouseholdValidator.class))
                     || validator.getClass().equals(HmExistentEntityValidator.class)
                     || validator.getClass().equals(HmUniqueIndividualValidator.class)
                     || validator.getClass().equals(HmHouseholdHeadValidator.class)

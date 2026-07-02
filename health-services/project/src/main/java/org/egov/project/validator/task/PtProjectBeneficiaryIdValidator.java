@@ -6,6 +6,7 @@ import org.egov.common.models.Error;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.common.validator.Validator;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -35,9 +36,13 @@ public class PtProjectBeneficiaryIdValidator implements Validator<TaskBulkReques
 
     private final ProjectBeneficiaryRepository projectBeneficiaryRepository;
 
+    private final ProjectConfiguration projectConfiguration;
+
     @Autowired
-    public PtProjectBeneficiaryIdValidator(ProjectBeneficiaryRepository projectBeneficiaryRepository) {
+    public PtProjectBeneficiaryIdValidator(ProjectBeneficiaryRepository projectBeneficiaryRepository,
+                                           ProjectConfiguration projectConfiguration) {
         this.projectBeneficiaryRepository = projectBeneficiaryRepository;
+        this.projectConfiguration = projectConfiguration;
     }
 
 
@@ -59,7 +64,8 @@ public class PtProjectBeneficiaryIdValidator implements Validator<TaskBulkReques
             });
         }
 
-        if (!eMap.isEmpty()) {
+        // Existence lookup gated behind the flag; the null-related-id INVALID_RELATED_ENTITY_ID check above always runs.
+        if (!eMap.isEmpty() && projectConfiguration.getIsRelationshipValidationEnabled()) {
             String columnName = "id";
             if (idMethod.getName().contains("getProjectBeneficiaryClientReferenceId")) {
                 columnName = "clientReferenceId";

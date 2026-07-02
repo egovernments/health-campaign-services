@@ -70,22 +70,28 @@ public class ProjectTaskService {
 
     private final ProjectConfiguration projectConfiguration;
 
+    // Read the relationship-validation flag live at request time. Kept as a method so the (blank-final) config
+    // bean is not referenced directly inside the predicate field-initializers (definite-assignment compile error).
+    private boolean relationshipValidationEnabled() {
+        return projectConfiguration.getIsRelationshipValidationEnabled();
+    }
+
     private final ProjectTaskEnrichmentService enrichmentService;
     //                    || validator.getClass().equals(PtResourceQuantityValidator.class) FIXME add this back once requirement confirmation is done
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PtProjectIdValidator.class)
+            (relationshipValidationEnabled() && validator.getClass().equals(PtProjectIdValidator.class))
                     || validator.getClass().equals(PtExistentEntityValidator.class)
                     || validator.getClass().equals(PtIsResouceEmptyValidator.class)
 
                     || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
-                    || validator.getClass().equals(PtProductVariantIdValidator.class);
+                    || (relationshipValidationEnabled() && validator.getClass().equals(PtProductVariantIdValidator.class));
 
     //                    || validator.getClass().equals(PtResourceQuantityValidator.class) FIXME add this back once requirement confirmation is done
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(PtProjectIdValidator.class)
+            (relationshipValidationEnabled() && validator.getClass().equals(PtProjectIdValidator.class))
                     || validator.getClass().equals(PtIsResouceEmptyValidator.class)
                     || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
-                    || validator.getClass().equals(PtProductVariantIdValidator.class)
+                    || (relationshipValidationEnabled() && validator.getClass().equals(PtProductVariantIdValidator.class))
                     || validator.getClass().equals(PtNullIdValidator.class)
                     || validator.getClass().equals(PtIsDeletedValidator.class)
                     || validator.getClass().equals(PtIsDeletedSubEntityValidator.class)
