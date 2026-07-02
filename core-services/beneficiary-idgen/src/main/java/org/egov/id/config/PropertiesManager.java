@@ -128,6 +128,9 @@ public class PropertiesManager {
 				.perDayEnabled(isDispatchLimitUserDevicePerDayEnabled())
 				.totalLimit(getDispatchLimitUserDeviceTotal())
 				.perDayLimit(getDispatchLimitUserDevicePerDay())
+				.perDayExpireDays(getDispatchUsageUserDevicePerDayExpireDays())
+				.totalExpireDays(getDispatchUsageUserDeviceTotalExpireDays())
+				.restrictToTodayEnabled(isIdDispatchRetrievalRestrictToTodayEnabled())
 				.build();
 	}
 }
