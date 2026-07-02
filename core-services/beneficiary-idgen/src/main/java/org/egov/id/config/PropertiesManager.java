@@ -1,6 +1,7 @@
 package org.egov.id.config;
 
 import org.egov.id.model.DispatchLimitConfig;
+import org.egov.id.model.IdPoolConfig;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
@@ -131,6 +132,13 @@ public class PropertiesManager {
 				.perDayExpireDays(getDispatchUsageUserDevicePerDayExpireDays())
 				.totalExpireDays(getDispatchUsageUserDeviceTotalExpireDays())
 				.restrictToTodayEnabled(isIdDispatchRetrievalRestrictToTodayEnabled())
+				.build();
+	}
+
+	public IdPoolConfig getDefaultIdPoolConfig() {
+		return IdPoolConfig.builder()
+				.seqCode(environment.getProperty("id.pool.seq.code", "id.pool.number"))
+				.paddingLength(Integer.parseInt(environment.getProperty("id.pool.padding.length", "11")))
 				.build();
 	}
 }

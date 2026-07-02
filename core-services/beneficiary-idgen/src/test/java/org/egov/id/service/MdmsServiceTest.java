@@ -236,5 +236,44 @@ class MdmsServiceTest {
         assertEquals(40, result.get().getTotalExpireDays());
         assertFalse(result.get().isRestrictToTodayEnabled());
     }
+
+    @Test
+    void testGetIdPoolConfigParsesData() {
+        when(propertiesManager.getDefaultIdPoolConfig()).thenReturn(org.egov.id.model.IdPoolConfig.builder()
+                .seqCode("id.pool.number")
+                .paddingLength(12)
+                .build());
+
+        Map<String, Object> config = new HashMap<>();
+        config.put("tenantId", "ch");
+        config.put("seqCode", "id.pool.number");
+        config.put("paddingLength", 14);
+
+        JSONArray masterList = new JSONArray();
+        masterList.add(config);
+        Map<String, JSONArray> moduleMap = new HashMap<>();
+        moduleMap.put("IdPoolConfig", masterList);
+        Map<String, Map<String, JSONArray>> mdmsRes = new HashMap<>();
+        mdmsRes.put("beneficiary-idgen", moduleMap);
+
+        when(this.mdmsClientService.getMaster(any(), any(), any()))
+                .thenReturn(new MdmsResponse(new ResponseInfo(), (Map) mdmsRes));
+
+        Optional<org.egov.id.model.IdPoolConfig> result = this.mdmsService.getIdPoolConfig(new RequestInfo(), "ch");
+
+        assertTrue(result.isPresent());
+        assertEquals("id.pool.number", result.get().getSeqCode());
+        assertEquals(14, result.get().getPaddingLength());
+    }
+
+    @Test
+    void testGetIdPoolConfigReturnsEmptyWhenNoData() {
+        when(this.mdmsClientService.getMaster(any(), any(), any()))
+                .thenReturn(new MdmsResponse(new ResponseInfo(), new HashMap<>()));
+
+        Optional<org.egov.id.model.IdPoolConfig> result = this.mdmsService.getIdPoolConfig(new RequestInfo(), "ch");
+
+        assertTrue(result.isEmpty());
+    }
 }
 
