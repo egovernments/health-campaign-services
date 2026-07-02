@@ -6,6 +6,8 @@ import java.util.*;
 import lombok.extern.log4j.Log4j2;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
+import org.egov.id.config.PropertiesManager;
+import org.egov.id.model.DispatchLimitConfig;
 import org.egov.mdms.model.MasterDetail;
 import org.egov.mdms.model.MdmsCriteria;
 import org.egov.mdms.model.MdmsCriteriaReq;
@@ -25,6 +27,9 @@ public class MdmsService {
 
     @Autowired
     MdmsClientService mdmsClientService;
+
+    @Autowired
+    PropertiesManager propertiesManager;
 
     // 'tenants' & 'citymodule' are the JSON files inside the folder 'tenant'.
     private static final String tenantMaster = "tenants";
@@ -92,6 +97,61 @@ public class MdmsService {
             throw new CustomException("PARSING ERROR", "Failed to get formatid from MDMS");
         }
         return idFormat;
+    }
+
+    public Optional<DispatchLimitConfig> getDispatchLimitConfig(RequestInfo requestInfo, String tenantId) {
+        String module = propertiesManager.getMdmsDispatchLimitModule();
+        String master = propertiesManager.getMdmsDispatchLimitMaster();
+
+        MasterDetail masterDetail = MasterDetail.builder()
+                .name(master)
+                .filter("[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]")
+                .build();
+
+        Map<String, List<MasterDetail>> masterDetails = new HashMap<>();
+        masterDetails.put(module, Collections.singletonList(masterDetail));
+
+        MdmsResponse mdmsResponse = getMasterData(requestInfo, tenantId, masterDetails);
+
+        if (mdmsResponse.getMdmsRes() == null
+                || !mdmsResponse.getMdmsRes().containsKey(module)
+                || !mdmsResponse.getMdmsRes().get(module).containsKey(master)
+                || mdmsResponse.getMdmsRes().get(module).get(master).isEmpty()
+                || mdmsResponse.getMdmsRes().get(module).get(master).get(0) == null) {
+            log.debug("No dispatch limit config found in MDMS for tenantId={}", tenantId);
+            return Optional.empty();
+        }
+
+        Map<String, Object> configData = (Map<String, Object>) mdmsResponse.getMdmsRes().get(module).get(master).get(0);
+        DocumentContext documentContext = JsonPath.parse(configData);
+
+        boolean perDayEnabled = readBooleanField(documentContext, "perDayEnabled", true);
+        int totalLimit = readIntField(documentContext, "totalLimit", propertiesManager.getDispatchLimitUserDeviceTotal());
+        int perDayLimit = readIntField(documentContext, "perDayLimit", propertiesManager.getDispatchLimitUserDevicePerDay());
+
+        return Optional.of(DispatchLimitConfig.builder()
+                .perDayEnabled(perDayEnabled)
+                .totalLimit(totalLimit)
+                .perDayLimit(perDayLimit)
+                .build());
+    }
+
+    private boolean readBooleanField(DocumentContext documentContext, String field, boolean defaultValue) {
+        try {
+            Boolean value = documentContext.read("$." + field);
+            return value != null ? value : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    private int readIntField(DocumentContext documentContext, String field, int defaultValue) {
+        try {
+            Number value = documentContext.read("$." + field);
+            return value != null ? value.intValue() : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
     }
 
     /**

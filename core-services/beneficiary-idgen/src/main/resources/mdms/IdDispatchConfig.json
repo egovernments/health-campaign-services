@@ -1,0 +1,20 @@
+{
+  "tenantId": "pb",
+  "moduleName": "beneficiary-idgen",
+  "IdDispatchConfig": [
+    {
+      "tenantId": "pb.amritsar",
+      "totalLimit": 500,
+      "perDayEnabled": true,
+      "perDayLimit": 50,
+      "isActive": true
+    },
+    {
+      "tenantId": "pb.ludhiana",
+      "totalLimit": 1000,
+      "perDayEnabled": false,
+      "perDayLimit": 100,
+      "isActive": true
+    }
+  ]
+}
