@@ -13,6 +13,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.egov.id.config.PropertiesManager;
+import org.egov.id.model.IdPoolConfig;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,9 +61,6 @@ public class IdGenerationService {
     //default count value
     public Integer defaultCount = 1;
 
-    @Value("${id.pool.seq.code}")
-    public String idPoolName;
-
     @Value("${idgen.random.buffer:5}")
     public Integer defaultBufferPercentage;
 
@@ -86,7 +84,6 @@ public class IdGenerationService {
      * Padding length for sequence numbers in generated IDs.
      * This ensures that sequence numbers are zero-padded to a fixed length for consistency.
      */
-    @Value("${id.pool.padding.length:12}")
     private Integer paddingLength;
 
     /**
@@ -184,10 +181,10 @@ public class IdGenerationService {
     private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo) {
         log.info("Fetching ID format for tenantId={}, batchSize={}", tenantId, batchSize);
 
-        if (ObjectUtils.isEmpty(idPoolName)) {
-            log.error("Configuration Error - 'id.pool.seq.code' is not set.");
-            throw new CustomException("Configuration Error:", "Please configure the 'id.pool.seq.code' on the service level.");
-        }
+        IdPoolConfig idPoolConfig = mdmsService.getIdPoolConfig(requestInfo, tenantId)
+                .orElseGet(propertiesManager::getDefaultIdPoolConfig);
+        this.paddingLength = idPoolConfig.getPaddingLength();
+        String idPoolName = idPoolConfig.getSeqCode();
 
         IdRequest tempRequest = new IdRequest(idPoolName, tenantId, null, batchSize);
         String idFormat;
@@ -252,7 +249,10 @@ public class IdGenerationService {
             String idFormat = fetchIdFormat(tenantId, chunkSize, requestInfo);
             // Adjust batch size if ID format contains random patterns
             Integer adjustedSize = adjustBatchSizeIfRandom(chunkSize, idFormat);
-            IdRequest idRequest = new IdRequest(idPoolName, tenantId, null, adjustedSize);
+            IdPoolConfig idPoolConfig = mdmsService.getIdPoolConfig(requestInfo, tenantId)
+                    .orElseGet(propertiesManager::getDefaultIdPoolConfig);
+            this.paddingLength = idPoolConfig.getPaddingLength();
+            IdRequest idRequest = new IdRequest(idPoolConfig.getSeqCode(), tenantId, null, adjustedSize);
             // Generate IDs
             List<String> generatedIds = generateIds(idRequest, requestInfo);
             // Persist generated IDs to Kafka

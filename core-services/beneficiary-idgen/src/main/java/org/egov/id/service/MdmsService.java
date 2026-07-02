@@ -8,6 +8,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
 import org.egov.id.config.PropertiesManager;
 import org.egov.id.model.DispatchLimitConfig;
+import org.egov.id.model.IdPoolConfig;
 import org.egov.mdms.model.MasterDetail;
 import org.egov.mdms.model.MdmsCriteria;
 import org.egov.mdms.model.MdmsCriteriaReq;
@@ -140,6 +141,48 @@ public class MdmsService {
                 .totalExpireDays(totalExpireDays)
                 .restrictToTodayEnabled(restrictToTodayEnabled)
                 .build());
+    }
+
+    public Optional<IdPoolConfig> getIdPoolConfig(RequestInfo requestInfo, String tenantId) {
+        MasterDetail masterDetail = MasterDetail.builder()
+                .name("IdPoolConfig")
+                .filter("[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]")
+                .build();
+
+        Map<String, List<MasterDetail>> masterDetails = new HashMap<>();
+        masterDetails.put("beneficiary-idgen", Collections.singletonList(masterDetail));
+
+        MdmsResponse mdmsResponse = getMasterData(requestInfo, tenantId, masterDetails);
+
+        if (mdmsResponse.getMdmsRes() == null
+                || !mdmsResponse.getMdmsRes().containsKey("beneficiary-idgen")
+                || !mdmsResponse.getMdmsRes().get("beneficiary-idgen").containsKey("IdPoolConfig")
+                || mdmsResponse.getMdmsRes().get("beneficiary-idgen").get("IdPoolConfig").isEmpty()
+                || mdmsResponse.getMdmsRes().get("beneficiary-idgen").get("IdPoolConfig").get(0) == null) {
+            log.debug("No id pool config found in MDMS for tenantId={}", tenantId);
+            return Optional.empty();
+        }
+
+        Map<String, Object> configData =
+                (Map<String, Object>) mdmsResponse.getMdmsRes().get("beneficiary-idgen").get("IdPoolConfig").get(0);
+        DocumentContext documentContext = JsonPath.parse(configData);
+
+        String seqCode = readStringField(documentContext, "seqCode", propertiesManager.getDefaultIdPoolConfig().getSeqCode());
+        int paddingLength = readIntField(documentContext, "paddingLength", propertiesManager.getDefaultIdPoolConfig().getPaddingLength());
+
+        return Optional.of(IdPoolConfig.builder()
+                .seqCode(seqCode)
+                .paddingLength(paddingLength)
+                .build());
+    }
+
+    private String readStringField(DocumentContext documentContext, String field, String defaultValue) {
+        try {
+            String value = documentContext.read("$." + field);
+            return value != null ? value : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
     }
 
     private boolean readBooleanField(DocumentContext documentContext, String field, boolean defaultValue) {
