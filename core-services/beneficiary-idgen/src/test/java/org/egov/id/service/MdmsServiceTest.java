@@ -14,10 +14,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import net.minidev.json.JSONArray;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -180,6 +183,58 @@ class MdmsServiceTest {
         assertThrows(CustomException.class, () -> this.mdmsService.getIdFormat(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
+    }
+
+    @Test
+    void testGetDispatchLimitConfigReturnsEmptyWhenNoData() {
+        when(propertiesManager.getMdmsDispatchLimitModule()).thenReturn("beneficiary-idgen");
+        when(propertiesManager.getMdmsDispatchLimitMaster()).thenReturn("IdDispatchConfig");
+        when(this.mdmsClientService.getMaster(any(), any(), any())).thenReturn(new MdmsResponse(new ResponseInfo(), new HashMap<>()));
+
+        Optional<?> result = this.mdmsService.getDispatchLimitConfig(new RequestInfo(), "ch");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testGetDispatchLimitConfigParsesDataAndAppliesDefaults() {
+        when(propertiesManager.getMdmsDispatchLimitModule()).thenReturn("beneficiary-idgen");
+        when(propertiesManager.getMdmsDispatchLimitMaster()).thenReturn("IdDispatchConfig");
+        when(propertiesManager.isDispatchLimitUserDevicePerDayEnabled()).thenReturn(true);
+        when(propertiesManager.getDispatchLimitUserDeviceTotal()).thenReturn(10000);
+        when(propertiesManager.getDispatchLimitUserDevicePerDay()).thenReturn(100);
+        when(propertiesManager.getDispatchUsageUserDevicePerDayExpireDays()).thenReturn(30);
+        when(propertiesManager.getDispatchUsageUserDeviceTotalExpireDays()).thenReturn(30);
+        when(propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled()).thenReturn(true);
+
+        Map<String, Object> config = new HashMap<>();
+        config.put("tenantId", "ch");
+        config.put("totalLimit", 500);
+        config.put("perDayEnabled", false);
+        config.put("perDayLimit", 50);
+        config.put("perDayExpireDays", 20);
+        config.put("totalExpireDays", 40);
+        config.put("restrictToTodayEnabled", false);
+
+        JSONArray masterList = new JSONArray();
+        masterList.add(config);
+        Map<String, JSONArray> moduleMap = new HashMap<>();
+        moduleMap.put("IdDispatchConfig", masterList);
+        Map<String, Map<String, JSONArray>> mdmsRes = new HashMap<>();
+        mdmsRes.put("beneficiary-idgen", moduleMap);
+
+        when(this.mdmsClientService.getMaster(any(), any(), any()))
+                .thenReturn(new MdmsResponse(new ResponseInfo(), (Map) mdmsRes));
+
+        Optional<org.egov.id.model.DispatchLimitConfig> result = this.mdmsService.getDispatchLimitConfig(new RequestInfo(), "ch");
+
+        assertTrue(result.isPresent());
+        assertEquals(500, result.get().getTotalLimit());
+        assertFalse(result.get().isPerDayEnabled());
+        assertEquals(50, result.get().getPerDayLimit());
+        assertEquals(20, result.get().getPerDayExpireDays());
+        assertEquals(40, result.get().getTotalExpireDays());
+        assertFalse(result.get().isRestrictToTodayEnabled());
     }
 }
 
