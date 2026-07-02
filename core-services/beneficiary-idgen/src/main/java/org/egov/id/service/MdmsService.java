@@ -101,6 +101,7 @@ public class MdmsService {
     }
 
     public Optional<DispatchLimitConfig> getDispatchLimitConfig(RequestInfo requestInfo, String tenantId) {
+        validateTenantIdForMdmsFilter(tenantId);
         String module = propertiesManager.getMdmsDispatchLimitModule();
         String master = propertiesManager.getMdmsDispatchLimitMaster();
         String filter = "[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]";
@@ -131,6 +132,7 @@ public class MdmsService {
     }
 
     public Optional<IdPoolConfig> getIdPoolConfig(RequestInfo requestInfo, String tenantId) {
+        validateTenantIdForMdmsFilter(tenantId);
         String module = propertiesManager.getMdmsIdPoolModule();
         if (module == null || module.isBlank()) {
             module = "beneficiary-idgen";
@@ -156,6 +158,15 @@ public class MdmsService {
                 .seqCode(seqCode)
                 .paddingLength(paddingLength)
                 .build());
+    }
+
+    private void validateTenantIdForMdmsFilter(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new CustomException("INVALID_TENANT_ID", "TenantId cannot be null/blank");
+        }
+        if (!tenantId.matches("^[A-Za-z0-9._-]+$")) {
+            throw new CustomException("INVALID_TENANT_ID", "TenantId contains unsafe characters");
+        }
     }
 
     @SuppressWarnings("unchecked")
