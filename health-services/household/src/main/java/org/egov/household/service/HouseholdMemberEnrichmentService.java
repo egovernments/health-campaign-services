@@ -88,6 +88,15 @@ public class HouseholdMemberEnrichmentService {
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
         log.info("finding households from householdService with ids: {}", houseHoldIds);
         List<Household> householdList =  householdService.findById(tenantId, houseHoldIds, columnName, false).getResponse();
+        if (CollectionUtils.isEmpty(householdList)) {
+            // With household.member.relationship.validation=false, none of the referenced households may be
+            // persisted yet (still on the persister queue). Skip household enrichment (householdId left unset)
+            // rather than fail at getIdMethod/getObjClass, which throws "No value present" on an empty list.
+            // The per-member enrichWithHouseholdId null-guard below covers the partial (some-found) case.
+            log.warn("no households resolved for the household-member batch; leaving householdId unset for {} member(s)",
+                    householdMembers.size());
+            return;
+        }
         log.info("getting method for householdList with columnName: {}", columnName);
         Method householdMethod = getIdMethod(householdList, columnName);
         log.info("getting Map of households");
