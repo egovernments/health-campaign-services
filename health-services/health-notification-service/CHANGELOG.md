@@ -16,3 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Health services common library integration
 - Multi-tenancy support
 - Basic notification table schema
+
+### Fixed
+- Added `egov-state-level-tenant-id` configuration for the encryption/decryption service so PII encryption resolves the correct tenant on a central instance.
+- Corrected the Kafka tenant-id topic pattern used by notification config.
