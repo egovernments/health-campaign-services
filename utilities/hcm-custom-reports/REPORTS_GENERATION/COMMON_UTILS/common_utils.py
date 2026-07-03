@@ -26,7 +26,7 @@ def get_resp(url, data, es=False):
                 response = requests.post(
                     url,
                     data=json.dumps(data),
-                    headers={"Content-Type": "application/json", "Authorization": "Basic ZWxhc3RpYzpaRFJsT0RJME1UQTNNV1ppTVRGbFptRms="},
+                    headers={"Content-Type": "application/json", "Authorization": "Basic ZWxhc3RpYzptR21telVPRUJZQWNKTzZEYmtFZm11dkU="},
                     verify=False,
                     timeout=30
                 )
