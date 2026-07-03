@@ -3,6 +3,7 @@ package org.egov.referralmanagement.repository;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.utils.MultiStateInstanceUtil;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.web.models.DownsyncGenerationJob;
 import org.egov.referralmanagement.web.models.DownsyncGenerationLocality;
 import org.egov.referralmanagement.web.models.DownsyncJobDetail;
@@ -14,6 +15,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,6 +29,9 @@ public class DownsyncGenerationJobRepository {
 
     @Autowired
     private MultiStateInstanceUtil multiStateInstanceUtil;
+
+    @Autowired
+    private ReferralManagementConfiguration config;
 
     // ── SQL templates — {schema} replaced at call time ────────────────────────
 
@@ -357,12 +362,53 @@ public class DownsyncGenerationJobRepository {
         }
     }
 
-    /** Discovers all schemas that contain the downsync audit tables. Used by startup scanner. */
+    /**
+     * Tenant schemas the startup resume scanner should walk.
+     *
+     * <p>Reads directly from ops config — no {@code information_schema} probing. The
+     * source of truth for "which schemas do we serve" already exists in two well-known
+     * places, so we consult them and trust them:
+     *
+     * <ol>
+     *   <li><b>Central instance</b> — the {@code SCHEMA_NAME} env var (bound here as
+     *       {@code schema.name}). This is the exact same value the Helm chart passes
+     *       to the db-migration init container, so whatever set Flyway migrated is
+     *       exactly the set the app scans.</li>
+     *   <li><b>Non-central instance</b> — {@code egov.state.level.tenant.id}, i.e. the
+     *       single tenant this pod serves.</li>
+     * </ol>
+     *
+     * <p>The tracer/common library ({@link MultiStateInstanceUtil}) owns the
+     * central-instance flag, so we don't duplicate it in this service's config.
+     *
+     * <p>Any schema in the DB not covered by these config values is ignored (previous
+     * deploy's orphans, tables from other apps, etc.) — the app never touches them.
+     */
     private List<String> auditTableSchemas() {
-        return jdbcTemplate.queryForList(
-                "SELECT table_schema FROM information_schema.tables " +
-                "WHERE table_name = 'downsync_generation_job' ORDER BY table_schema",
-                new MapSqlParameterSource(), String.class);
+        Boolean central = multiStateInstanceUtil.getIsEnvironmentCentralInstance();
+        boolean isCentral = central != null && central;
+
+        if (!isCentral) {
+            String schema = config.getStateLevelTenantId();
+            if (schema == null || schema.isBlank()) {
+                log.warn("Non-central instance but egov.state.level.tenant.id is empty — " +
+                        "no schemas will be scanned.");
+                return List.of();
+            }
+            return List.of(schema);
+        }
+
+        String csv = config.getTenantSchemas();
+        if (csv == null || csv.isBlank()) {
+            log.warn("Central instance mode but SCHEMA_NAME is empty on the app container — " +
+                    "no schemas will be scanned. Wire SCHEMA_NAME via Helm (same value passed " +
+                    "to the db-migration init container).");
+            return List.of();
+        }
+        return Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 
     // ── Public methods — Job ──────────────────────────────────────────────────
@@ -460,8 +506,9 @@ public class DownsyncGenerationJobRepository {
     }
 
     /**
-     * Scans all schemas that have the audit table — used only at startup to resume
-     * interrupted jobs. Schemas are discovered dynamically from information_schema.
+     * Scans the ops-configured tenant schemas for IN_PROGRESS jobs. Used only at
+     * startup by the resume runner. Schema list comes from {@link #auditTableSchemas()}
+     * (SCHEMA_NAME in central mode; state-level tenant otherwise).
      */
     public List<DownsyncGenerationJob> findInProgressJobs() {
         return auditTableSchemas().stream()
