@@ -30,4 +30,7 @@ public class ProjectFacilitySearch extends EgovSearchModel {
     @JsonProperty("projectId")
     private List<String> projectId = null;
 
+    @JsonProperty("boundaryTypes")
+    private List<String> boundaryTypes = null;
+
 }

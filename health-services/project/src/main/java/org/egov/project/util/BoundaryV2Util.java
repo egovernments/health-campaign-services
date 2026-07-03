@@ -44,8 +44,9 @@ public class BoundaryV2Util {
      */
     public void validateBoundaryDetails(Map<String, List<String>> boundaryTypeBoundariesMap, String tenantId,
                                         RequestInfo requestInfo, String hierarchyTypeCode) {
-        // Flatten the lists of boundary codes from the map values
+        // Flatten and dedupe boundary codes (Boundary Service expects one value per unique code).
         List<String> boundaries = boundaryTypeBoundariesMap.values().stream().flatMap(List::stream)
+                .distinct()
                 .collect(Collectors.toList());
         if(CollectionUtils.isEmpty(boundaries)) return;
         try {
@@ -64,10 +65,12 @@ public class BoundaryV2Util {
 
             // Extract invalid boundary codes
             List<String> invalidBoundaryCodes = new ArrayList<>(boundaries);
-            invalidBoundaryCodes.removeAll(boundarySearchResponse.getBoundary().stream()
-                    .map(Boundary::getCode)
-                    .collect(Collectors.toList())
-            );
+            if (!CollectionUtils.isEmpty(boundarySearchResponse.getBoundary())) {
+                invalidBoundaryCodes.removeAll(boundarySearchResponse.getBoundary().stream()
+                        .map(Boundary::getCode)
+                        .collect(Collectors.toList())
+                );
+            }
 
             // Throw exception if invalid boundary codes are found
             if (!invalidBoundaryCodes.isEmpty()) {

@@ -64,7 +64,7 @@ export const enrichProjectDetailsFromCampaignDetails = (
   CampaignDetails: any = {},
   projectTypeObject: any = {}
 ) => {
-  var { tenantId, projectType, startDate, endDate, campaignName } =
+  var { tenantId, projectType, startDate, endDate, campaignName, hierarchyType } =
     CampaignDetails;
   logger.info("campaign transformation for project type : " + projectType);
   logger.debug(
@@ -84,6 +84,7 @@ export const enrichProjectDetailsFromCampaignDetails = (
       name: campaignName,
       additionalDetails: {
         projectType: defaultProject,
+        hierarchyType: hierarchyType,
       },
     },
   ];

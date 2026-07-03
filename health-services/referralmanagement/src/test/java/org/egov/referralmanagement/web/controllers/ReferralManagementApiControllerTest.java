@@ -161,6 +161,7 @@ public class ReferralManagementApiControllerTest {
                 ArgumentMatchers.any(Integer.class),
                 ArgumentMatchers.any(String.class),
                 ArgumentMatchers.any(Long.class),
+                ArgumentMatchers.any(Boolean.class),
                 ArgumentMatchers.any(Boolean.class))).thenReturn(
                         SearchResponse.<Referral>builder()
                                 .response(Arrays.asList(ReferralTestBuilder.builder().withId().withAuditDetails().build()))
@@ -194,6 +195,7 @@ public class ReferralManagementApiControllerTest {
                 ArgumentMatchers.any(Integer.class),
                 ArgumentMatchers.any(String.class),
                 ArgumentMatchers.any(Long.class),
+                ArgumentMatchers.any(Boolean.class),
                 ArgumentMatchers.any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No Referral found."));
 
 

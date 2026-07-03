@@ -49,3 +49,17 @@ All notable changes to this module will be documented in this file.
   4. Unified Excel Support
   5. Enhanced Error Reporting
   6. Boundary Management clean up 
+
+## 1.0.1 - 2026-06-24
+#### ProjectFactory service version 1.0.1
+  1. Reliable startup Kafka topic creation and connection (including per-state prefixed topics for central instance) so campaigns no longer get stuck failing to start.
+  2. GZIP-compressed Kafka messages and raised consumer fetch size (4MB) to handle large campaign payloads without running out of memory.
+  3. Facility-to-boundary mapping keyed on facility id / boundary code instead of name, fixing facilities mapping to the wrong boundary.
+  4. All batch / chunk sizes made configurable, and MAX_CONCURRENT made configurable.
+  5. Resources deactivated when the campaign hierarchy or boundaries change.
+  6. Campaign user (worker) creation now waits for newly created individuals to become searchable before the worker bulk-create call, fixing rows intermittently failing with `INDIVIDUAL_NOT_FOUND` (a read-after-write race between HRMS individual creation and worker-registry).
+  7. Attendance Register hardening (PR #2018): guarded crashes on a missing parent boundary during template generation and on out-of-range row indexes in register validation; removed user PII from generation logs; made attendee username de-duplication O(n); the HTTP client timeout is now NaN/blank-safe and falls back to a 5-minute default (an explicit 0 still disables it).
+  8. De-enrollment date is now sent on attendee/staff create and staff delete, with zero-clamped dates skipped.
+  9. attendanceRegister / attendee resource search now resolves across the whole campaign family via the shared `campaignNumber`.
+  10. User mappings are de-mapped only for phone numbers explicitly present in the uploaded sheet, preserving externally-created project staff on target-only updates.
+  11. Mapping reconciliation reworked into a convergence-driven reconciler with retry budgets and direction-aware failure tracking.

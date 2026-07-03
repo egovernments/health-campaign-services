@@ -1,5 +1,13 @@
 All notable changes to this module will be documented in this file.
 
+## 1.2.2 - 2026-06-24
+
+- Added `campaignNumber` to stock, with a new migration (`V20260422000000__add_campaignNumber_to_stock.sql`) and support for searching stock by campaign number (#1942).
+- Added `includeOnlyUpdatedByOthers` filter to stock search; combined with a changed-since time it excludes records last modified by the calling user (#1991).
+- Enhanced stock search by facility id using an `orGroup` annotation so a facility matches as either sender or receiver.
+- Added `lastSyncedTime`-based search to support incremental sync flows.
+- Upgraded health-services-common to 1.1.5 and health-services-models to 1.0.35.
+
 ## 1.2.1 - 2026-03-04
 
 - Upgraded tracer to 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.

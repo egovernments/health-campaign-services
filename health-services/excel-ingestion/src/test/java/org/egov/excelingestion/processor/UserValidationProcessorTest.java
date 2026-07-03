@@ -9,7 +9,7 @@ import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -136,7 +136,7 @@ class UserValidationProcessorTest {
         
         // Check that validation was performed (verify restTemplate was called)
         verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any(), anyString());
     }
 
     @Test
@@ -169,7 +169,7 @@ class UserValidationProcessorTest {
         
         // Check that validation was performed (verify restTemplate was called)
         verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any(), anyString());
     }
 
     @Test
@@ -194,7 +194,7 @@ class UserValidationProcessorTest {
         
         // Check that validation was performed (verify restTemplate was called)
         verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any(), anyString());
         
         // Verify validation service was not called to add error columns (no errors found)
         verify(validationService, never()).addValidationColumns(any(), any());

@@ -3,7 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 
 import org.egov.excelingestion.config.ErrorConstants;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.localization.LocalisationRequest;
 import org.egov.excelingestion.web.models.localization.LocalisationResponse;

@@ -129,32 +129,32 @@ public class ProjectEnrichment {
         projectRequest.setAuditDetails(auditDetails);
         log.info("Enriched project audit details for project " + projectRequest.getId());
     }
-    public void enrichProjectCascadingDatesOnUpdate(Project project, Project projectFromDB)
+    public void enrichProjectCascadingDatesOnUpdate(Project project, Project projectFromDB, RequestInfo requestInfo)
     {
         // enrich project start and end dates along with ancestors and descendants
         enrichProjectStartAndEndDateOfBothAncestorsAndDescendantsIfFoundAccordingly(project,
-            projectFromDB);
+            projectFromDB, requestInfo);
     }
 
     private void enrichProjectStartAndEndDateOfBothAncestorsAndDescendantsIfFoundAccordingly(
-        Project projectRequest, Project projectFromDB) {
+        Project projectRequest, Project projectFromDB, RequestInfo requestInfo) {
         long startDate = projectRequest.getStartDate();
         long endDate = projectRequest.getEndDate();
 
         /*
          * Update both cycle dates and project start and end dates of descendants
          */
-        updateProjects(projectRequest, projectFromDB, startDate, endDate, true);
+        updateProjects(projectRequest, projectFromDB, startDate, endDate, true, requestInfo);
 
         /*
          * Update both cycle dates and project start and end dates of ancestors in a way like start date = min(current, existing)
          * and end date = max(current, existing)
          */
-        updateProjects(projectRequest, projectFromDB, startDate, endDate, false);
+        updateProjects(projectRequest, projectFromDB, startDate, endDate, false, requestInfo);
     }
 
 
-    private void updateProjects(Project projectRequest, Project projectFromDB, long startDate, long endDate, boolean isDescendant) {
+    private void updateProjects(Project projectRequest, Project projectFromDB, long startDate, long endDate, boolean isDescendant, RequestInfo requestInfo) {
         /*
          * Get the list of projects from the database that are either descendants or ancestors
          */
@@ -182,7 +182,7 @@ public class ProjectEnrichment {
             /*
              * Push the modified projects to Kafka
              */
-            pushProjectsToKafka(modifiedProjectsFromDb);
+            pushProjectsToKafka(modifiedProjectsFromDb, requestInfo);
         }
     }
 
@@ -277,7 +277,7 @@ public class ProjectEnrichment {
     }
 
 
-    private void pushProjectsToKafka(List<Project> projects) {
+    private void pushProjectsToKafka(List<Project> projects, RequestInfo requestInfo) {
         if (projects == null || projects.isEmpty()) {
             log.warn("No projects to push to Kafka");
             return;
@@ -285,7 +285,7 @@ public class ProjectEnrichment {
 
         String tenantId = getTenantId(projects);
         int batchSize = projectConfiguration.getKafkaBatchSize();
-        
+
         log.info("Pushing {} projects to Kafka in batches of {}", projects.size(), batchSize);
 
         /*
@@ -294,19 +294,20 @@ public class ProjectEnrichment {
         for (int i = 0; i < projects.size(); i += batchSize) {
             int endIndex = Math.min(i + batchSize, projects.size());
             List<Project> batch = projects.subList(i, endIndex);
-            
+
             /*
              * Create a ProjectRequest object with the current batch of projects
              */
             ProjectRequest projectRequest = ProjectRequest.builder()
                 .projects(batch)
+                .requestInfo(requestInfo)
                 .build();
 
             /*
              * Push the current batch to the Kafka topic for updating projects
              */
             log.info("Pushing batch {} with {} projects to Kafka", (i / batchSize) + 1, batch.size());
-            
+
             producer.push(tenantId, projectConfiguration.getUpdateProjectTopic(), projectRequest);
         }
     }

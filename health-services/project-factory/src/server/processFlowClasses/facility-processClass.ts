@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
@@ -9,7 +10,6 @@ import { transformConfigs } from "../config/transformConfigs";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { httpRequest } from "../utils/request";
-import { defaultRequestInfo } from "../api/coreApis";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { executeQuery, getTableName } from "../utils/db";
 
@@ -51,7 +51,7 @@ export class TemplateClass {
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
 
-        await this.createFacilityFromTableData(resourceDetails, userUuid);
+        await this.createFacilityFromTableData(resourceDetails, userUuid, resourceDetails?.requestInfo);
         await this.syncFacilityBoundaryMapping(campaign.campaignNumber, sheetData, facilityNameKey, "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", resourceDetails?.tenantId);
 
         const allCurrentFacilties = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, campaign?.tenantId, dataRowStatuses.completed);
@@ -147,14 +147,14 @@ export class TemplateClass {
     }
 
     private static async persistInBatches(facilities: any[], topic: string, tenantId: string): Promise<void> {
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.facility.persistBatchSize;
         for (let i = 0; i < facilities.length; i += BATCH_SIZE) {
             const batch = facilities.slice(i, i + BATCH_SIZE);
             await produceModifiedMessages({ datas: batch }, topic, tenantId);
         }
     }
 
-    static async createFacilityFromTableData(resourceDetails: any, userUuid: string): Promise<any> {
+    static async createFacilityFromTableData(resourceDetails: any, userUuid: string, requestInfo: RequestInfo): Promise<any> {
         const response = await searchProjectTypeCampaignService({
             tenantId: resourceDetails.tenantId,
             ids: [resourceDetails?.campaignId],
@@ -193,17 +193,17 @@ export class TemplateClass {
         const transformer = new DataTransformer(transformConfig);
 
         logger.info("Transforming facilities...");
-        const transformedFacilities = await transformer.transform(facilityRowDatas);
+        const transformedFacilities = await transformer.transform(facilityRowDatas, requestInfo);
         logger.info(`${transformedFacilities?.length} transformed facilities`);
 
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = config.facility.creationBatchSize;
         const successfullyCreatedFacilities: any[] = [];
         for (let i = 0; i < transformedFacilities.length; i += BATCH_SIZE) {
             const batch = transformedFacilities.slice(i, i + BATCH_SIZE);
 
             for (const facilityItem of batch) {
 
-                const response: any = await this.createFacilitiesOneByOne(facilityItem?.Facility, userUuid);
+                const response: any = await this.createFacilitiesOneByOne(facilityItem?.Facility, userUuid, requestInfo);
 
                 const createdFacility = response?.Facility;
 
@@ -242,14 +242,13 @@ export class TemplateClass {
         return sheetData
     }
 
-    static async createFacilitiesOneByOne(facility: any, userUuid: string) {
+    static async createFacilitiesOneByOne(facility: any, userUuid: string, requestInfo: RequestInfo) {
         const url = config.host.facilityHost + config.paths.facilityCreate; // Update accordingly
 
         const requestBody = {
-            RequestInfo: defaultRequestInfo?.RequestInfo,
+            RequestInfo: requestInfo,
             Facility: facility
         };
-        requestBody.RequestInfo.userInfo.uuid = userUuid;
 
         let response: any;
         try {

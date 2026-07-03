@@ -3,14 +3,21 @@ package org.egov.excelingestion.integration;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.repository.GeneratedFileRepository;
+import org.egov.excelingestion.repository.ProcessingRepository;
+import org.egov.excelingestion.repository.SheetDataTempRepository;
 import org.egov.excelingestion.service.*;
 import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
@@ -26,6 +33,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
+@EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class})
 @TestPropertySource(properties = {
     "excel.row.limit=10000",
     "excel.sheet.password="
@@ -44,9 +52,17 @@ class ExcelIngestionIntegrationTest {
     @MockBean
     private LocalizationService localizationService;
 
-
     @MockBean
     private ConfigBasedProcessingService configBasedProcessingService;
+
+    @MockBean
+    private GeneratedFileRepository generatedFileRepository;
+
+    @MockBean
+    private ProcessingRepository processingRepository;
+
+    @MockBean
+    private SheetDataTempRepository sheetDataTempRepository;
 
     private RequestInfo requestInfo;
     private Map<String, String> localizationMap;

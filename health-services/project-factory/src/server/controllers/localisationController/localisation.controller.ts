@@ -3,7 +3,6 @@ import { logger } from "../../utils/logger";
 import { httpRequest } from "../../utils/request";
 import config from "../../config/index";
 import { convertLocalisationResponseToMap } from "../../utils/localisationUtils";
-import { defaultRequestInfo } from "../../api/coreApis";
 
 let cachedResponse = {};
 
@@ -177,23 +176,6 @@ class Localisation {
 
     return this.cachedResponse[cacheKey];
   };
-
-
-  
-  
-  // Calls the cache burst API of localization
-  public cacheBurst = async (
-  ) => {
-    logger.info(`Calling localization cache burst api`);
-    const RequestInfo = defaultRequestInfo;
-    const requestBody = {
-      RequestInfo
-    }
-    await httpRequest(
-      this.localizationHost + config.paths.cacheBurst,
-      requestBody)
-  };
-
 
   private checkCacheAndDeleteIfExists = (module: string, locale: "string") => {
     logger.info(

@@ -21,7 +21,7 @@ export class TemplateClass {
         const readMeSchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_README_SHEETNAME")[0]?.schema;
         const readMeColumnHeader = Object.keys(readMeSchema?.properties || {})?.[0];
         const readMeData: any = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
-        const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId);
+        const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId, responseToSend?.requestInfo);
         const completedFacilitiesRow = await getRelatedDataWithCampaign(responseToSend.type, campaignDetails.campaignNumber, responseToSend?.tenantId, dataRowStatuses.completed);
         const permanentCodes = new Set(
             allPermanentFacilities.map(f => f?.id)
@@ -37,7 +37,7 @@ export class TemplateClass {
         );
 
         const dbFacilityUniqueIdentifierToDataMap = new Map(
-            permanentCompletedFacilitiesFromDB.map((f: any) => [f.uniqueIdentifier, f.data])
+            permanentCompletedFacilitiesFromDB.map((f: any) => [f?.data?.HCM_ADMIN_CONSOLE_FACILITY_CODE, f.data])
         );
 
 
@@ -186,7 +186,7 @@ export class TemplateClass {
 
             boundaryTypes.forEach((type: string, index: number) => {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
-                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', freezeColumn: true };
             });
             result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);
@@ -213,10 +213,10 @@ export class TemplateClass {
                 return codesOfBoundaries.has(boundaryCode);
             })
             .map((d: any) => {
-                const facilityName = d?.["HCM_ADMIN_CONSOLE_FACILITY_NAME"];
+                const facilityCode = d?.["HCM_ADMIN_CONSOLE_FACILITY_CODE"];
                 const transformedUsage = d?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"];
 
-                const dbData = dbFacilityMap.get(facilityName);
+                const dbData = dbFacilityMap.get(facilityCode);
 
                 if (!transformedUsage) {
                     const usageFromDB = dbData?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"];

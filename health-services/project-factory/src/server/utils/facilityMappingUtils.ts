@@ -1,4 +1,4 @@
-import { defaultRequestInfo } from "../api/coreApis";
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign } from "./genericUtils";
 import { mappingStatuses } from "../config/constants";
@@ -7,12 +7,12 @@ import { createProjectFacility } from "../api/genericApis";
 import config from "../config";
 import { httpRequest } from "./request";
 
-export async function startFacilityMappingAndDemapping(campaignDetails: any, useruuid: string) {
-    await startFacilityMapping(campaignDetails, useruuid);
-    await startFacilityDemapping(campaignDetails, useruuid);
+export async function startFacilityMappingAndDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
+    await startFacilityMapping(campaignDetails, useruuid, requestInfo);
+    await startFacilityDemapping(campaignDetails, useruuid, requestInfo);
 }
 
-export async function startFacilityMapping(campaignDetails: any, useruuid: string) {
+export async function startFacilityMapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const facilitiesToMap = await getMappingDataRelatedToCampaign("facility", campaignDetails.campaignNumber, campaignDetails?.tenantId, mappingStatuses.toBeMapped);
     if (facilitiesToMap.length === 0) return;
 
@@ -30,10 +30,7 @@ export async function startFacilityMapping(campaignDetails: any, useruuid: strin
 
     const startDate = campaignDetails.startDate;
     const endDate = campaignDetails.endDate;
-    const RequestInfo = {
-        ...JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo)),
-        userInfo: { uuid: useruuid || campaignDetails?.auditDetails?.createdBy }
-    };
+    const RequestInfo = requestInfo;
 
     for (const row of facilitiesToMap) {
         try {
@@ -67,7 +64,7 @@ export async function startFacilityMapping(campaignDetails: any, useruuid: strin
 }
 
 
-export async function startFacilityDemapping(campaignDetails: any, useruuid: string) {
+export async function startFacilityDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const facilitiesToDeMap = await getMappingDataRelatedToCampaign("facility", campaignDetails.campaignNumber, campaignDetails?.tenantId, mappingStatuses.toBeDeMapped);
     if (facilitiesToDeMap.length === 0) return;
 
@@ -83,10 +80,7 @@ export async function startFacilityDemapping(campaignDetails: any, useruuid: str
         facilityMap[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
     });
 
-    const RequestInfo = {
-        ...JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo)),
-        userInfo: { uuid: useruuid || campaignDetails?.auditDetails?.createdBy }
-    };
+    const RequestInfo = requestInfo;
 
     for (const row of facilitiesToDeMap) {
         try {

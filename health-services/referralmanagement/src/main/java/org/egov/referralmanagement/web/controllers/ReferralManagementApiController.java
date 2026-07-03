@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
+import org.springframework.web.bind.annotation.RequestParam;
+
 /**
  * Referral Management Api Controller
  */
@@ -95,6 +97,7 @@ public class ReferralManagementApiController {
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ReferralBulkResponse> referralV1SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
+            @RequestParam(value = "includeOnlyUpdatedByOthers", required = false, defaultValue = "false") Boolean includeOnlyUpdatedByOthers,
             @ApiParam(value = "Referral Search.", required = true) @Valid @RequestBody ReferralSearchRequest referralSearchRequest
     ) throws Exception {
 
@@ -104,7 +107,8 @@ public class ReferralManagementApiController {
                 urlParams.getOffset(),
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
-                urlParams.getIncludeDeleted());
+                urlParams.getIncludeDeleted(),
+                includeOnlyUpdatedByOthers);
         ReferralBulkResponse response = ReferralBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(referralSearchRequest.getRequestInfo(), true))
                 .referrals(referralSearchResponse.getResponse())

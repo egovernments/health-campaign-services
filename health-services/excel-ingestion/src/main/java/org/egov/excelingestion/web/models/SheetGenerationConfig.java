@@ -49,4 +49,16 @@ public class SheetGenerationConfig {
      * Whether this sheet should be visible or hidden
      */
     private Boolean visible;
+
+    /**
+     * If true, skip fetching schema columns for this sheet (e.g., boundary data sheet without target columns)
+     */
+    private Boolean skipSchemaColumns;
+
+    /**
+     * Boundary filter configuration for this sheet.
+     * Controls which users are included based on their boundary relative to the register locality.
+     * If null, defaults to self-only (register locality exact match).
+     */
+    private BoundaryFilterConfig boundaryFilter;
 }

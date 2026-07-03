@@ -30,8 +30,14 @@ public class UserIntegrationService {
 
     public List<UserRequest> createUser(Individual validIndividual,
                                             RequestInfo requestInfo) {
+        return createUser(validIndividual, requestInfo, true);
+    }
+
+    public List<UserRequest> createUser(Individual validIndividual,
+                                            RequestInfo requestInfo,
+                                            boolean generateDummyMobile) {
         log.info("integrating with user service");
-        UserRequest userRequest = IndividualMapper.toUserRequest(validIndividual, individualProperties);
+        UserRequest userRequest = IndividualMapper.toUserRequest(validIndividual, individualProperties, generateDummyMobile);
         return userService.create(new CreateUserRequest(requestInfo, userRequest));
     }
 

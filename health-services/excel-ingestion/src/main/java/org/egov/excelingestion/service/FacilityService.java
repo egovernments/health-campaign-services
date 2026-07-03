@@ -3,7 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.repository.ServiceRequestRepository;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.stereotype.Service;
 
 import java.util.*;

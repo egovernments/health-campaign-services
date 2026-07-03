@@ -27,11 +27,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -71,9 +67,9 @@ public class ProjectRepository extends GenericRepository<Project> {
 
 
     /**
-    * @param isAncestorProjectId When true, treats the project IDs in the ProjectRequest as ancestor project IDs
-    */
-    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
+     * @param isAncestorProjectId When true, treats the project IDs in the ProjectRequest as ancestor project IDs
+     */
+    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Boolean includeImmediateChildren ,Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
 
         //Fetch Projects based on search criteria
         List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId);
@@ -94,13 +90,19 @@ public class ProjectRepository extends GenericRepository<Project> {
                 }
             }
             //Get Project descendants if includeDescendants flag is true
-            if (includeDescendants) {
+            if (includeImmediateChildren) {
+                descendants = getProjectImmediateDescendants(tenantId, projects);
+            } else if (includeDescendants) {
                 descendants = getProjectDescendants(tenantId, projects);
-                if (descendants != null && !descendants.isEmpty()) {
-                    List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
-                    projectIds.addAll(descendantsProjectIds);
-                }
+
             }
+
+            if (descendants == null) {
+                descendants = Collections.EMPTY_LIST;
+            }
+
+            List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
+            projectIds.addAll(descendantsProjectIds);
 
             //Fetch targets based on Project Ids
             targets = getTargetsBasedOnProjectIds(tenantId, projectIds);
@@ -196,6 +198,15 @@ public class ProjectRepository extends GenericRepository<Project> {
         return projects;
     }
 
+    /* Fetch Project descendants based on Project ids */
+    private List<Project> getProjectsImmediateDescendantsBasedOnProjectIds(String tenantId, List<String> projectIds, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
+        String queryDescendents = queryBuilder.getProjectImmediateDescendantsSearchQueryBasedOnIds(projectIds, preparedStmtListDescendants);
+        String query = multiStateInstanceUtil.replaceSchemaPlaceholder(queryDescendents, tenantId);
+        List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
+        log.info("Fetched project immediate descendants list based on given Project Ids");
+        return projects;
+    }
+
     /* Fetch targets based on Project Ids */
     private List<Target> getTargetsBasedOnProjectIds(String tenantId, Set<String> projectIds) throws InvalidTenantIdException {
         List<Object> preparedStmtListTarget = new ArrayList<>();
@@ -248,6 +259,16 @@ public class ProjectRepository extends GenericRepository<Project> {
         log.info("Fetching descendant projects");
 
         return getProjectsDescendantsBasedOnProjectIds(tenantId, projectIds, preparedStmtListDescendants);
+    }
+
+    /* Fetch projects where project parent for projects in db contains project ID of requested project.*/
+    private List<Project> getProjectImmediateDescendants(String tenantId, List<Project> projects) throws InvalidTenantIdException {
+        List<String> requestProjectIds = projects.stream().map(Project::getId).collect(Collectors.toList());
+
+        List<Object> preparedStmtListDescendants = new ArrayList<>();
+        log.info("Fetching immediate descendant projects");
+
+        return getProjectsImmediateDescendantsBasedOnProjectIds(tenantId, requestProjectIds, preparedStmtListDescendants);
     }
 
     /* Constructs Project Objects with fetched projects, targets and documents using Project id and return list of Projects */

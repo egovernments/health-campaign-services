@@ -2,6 +2,15 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.2.4 - 2026-06-24
+
+- Added `includeOnlyUpdatedByOthers` filter to referral search; combined with a changed-since time it excludes records last modified by the calling user (#1991).
+- Reworked beneficiary downsync with background pre-generation of per-locality / per-project files to S3, serving fresh bundles and falling back to pre-generated file links for cold/stale syncs.
+- Added a master switch `egov.downsync.pregen.enabled` (default `false`) to turn the gzip pre-generated downsync flow on or off; when off, downsync falls back to the original live DB-scan path.
+- Made downsync jobs resumable and safe to retry (per-tenant and per-project single-flight locks, interrupted-job cleanup, multi-threaded resume).
+- Disabled central instance by default for referral management.
+- Upgraded health-services-models dependency.
+
 ## 1.2.3 - 2026-03-04
 
 - Upgraded tracer to 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.

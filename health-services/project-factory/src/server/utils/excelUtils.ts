@@ -299,33 +299,25 @@ export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any
     if (schema?.properties[property]?.multiSelectDetails) {
       const multiSelectDetails = schema?.properties[property]?.multiSelectDetails;
       const maxSelections = multiSelectDetails?.maxSelections;
-      const currentColumnHeader = getLocalizedName(property, localizationMap);
+      const lastMultiSelectHeader = getLocalizedName(`${property}_MULTISELECT_${maxSelections}`, localizationMap);
       const enumsList = multiSelectDetails?.enum;
 
-      // Find column index for the current column
-      let currentColumnIndex = -1;
+      // Find the last _MULTISELECT_N column index
+      let lastMultiSelectColIndex = -1;
       headerRow.eachCell((cell: any, colNumber: any) => {
-        if (cell.value === currentColumnHeader) {
-          currentColumnIndex = colNumber;
+        if (cell.value === lastMultiSelectHeader) {
+          lastMultiSelectColIndex = colNumber;
         }
       });
 
-      if (currentColumnIndex === -1) {
-        console.warn(`Column with header ${currentColumnHeader} not found`);
+      if (lastMultiSelectColIndex === -1) {
+        console.warn(`Column with header ${lastMultiSelectHeader} not found`);
         continue;
       }
 
-      // Apply dropdowns for previous columns
+      // Apply dropdowns for all _MULTISELECT_* columns
       if (Array.isArray(enumsList) && enumsList.length > 0) {
-        applyDropdownsForMultiSelect(sheet, currentColumnIndex, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
-      }
-
-      // Apply CONCATENATE formula
-      applyConcatenateFormula(sheet, currentColumnIndex, maxSelections);
-
-      // Hide the column if specified
-      if (schema?.properties[property]?.hideColumn) {
-        sheet.getColumn(currentColumnIndex).hidden = true;
+        applyDropdownsForMultiSelect(sheet, lastMultiSelectColIndex + 1, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
       }
     }
   }
@@ -341,31 +333,24 @@ export function manageMultiSelectUnlocalised(sheet: any, schema: any, fileUrl?: 
       const multiSelectDetails = schema?.properties[property]?.multiSelectDetails;
       const maxSelections = multiSelectDetails?.maxSelections;
       const enumsList = multiSelectDetails?.enum;
+      const lastMultiSelectHeader = `${property}_MULTISELECT_${maxSelections}`;
 
-      // Find column index for the current column
-      let currentColumnIndex = -1;
+      // Find the last _MULTISELECT_N column index
+      let lastMultiSelectColIndex = -1;
       headerRow.eachCell((cell: any, colNumber: any) => {
-        if (cell.value === property) {
-          currentColumnIndex = colNumber;
+        if (cell.value === lastMultiSelectHeader) {
+          lastMultiSelectColIndex = colNumber;
         }
       });
 
-      if (currentColumnIndex === -1) {
-        console.warn(`Column with header ${property} not found`);
+      if (lastMultiSelectColIndex === -1) {
+        console.warn(`Column with header ${lastMultiSelectHeader} not found`);
         continue;
       }
 
-      // Apply dropdowns for previous columns
+      // Apply dropdowns for all _MULTISELECT_* columns
       if (Array.isArray(enumsList) && enumsList.length > 0) {
-        applyDropdownsForMultiSelectForUnlocalised(sheet, currentColumnIndex, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
-      }
-
-      // Apply CONCATENATE formula
-      applyConcatenateFormulaForUnlocalised(sheet, currentColumnIndex, maxSelections);
-
-      // Hide the column if specified
-      if (schema?.properties[property]?.hideColumn) {
-        sheet.getColumn(currentColumnIndex).hidden = true;
+        applyDropdownsForMultiSelectForUnlocalised(sheet, lastMultiSelectColIndex + 1, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
       }
     }
   }
@@ -434,68 +419,6 @@ function applyDropdownsForMultiSelectForUnlocalised(sheet: any, currentColumnInd
   }
 }
 
-
-// -----------------------------
-// Function to Apply CONCATENATE Formula
-// -----------------------------
-function applyConcatenateFormula(sheet: any, currentColumnIndex: number, maxSelections: number) {
-  const colLetters = [];
-  for (let i = 1; i <= maxSelections; i++) {
-    const colIndex = currentColumnIndex - maxSelections + i - 1;
-    const colLetter = getColumnLetter(colIndex);
-    colLetters.push(colLetter);
-  }
-
-  const blankCheck = colLetters.map(col => `ISBLANK(${col}2)`).join(", ");
-  const formulaParts = colLetters.map(
-    (col, i) => `IF(ISBLANK(${col}2), "", ${col}2 & IF(${i === colLetters.length - 1}, "", ","))`
-  );
-
-  const formula = `=IF(AND(${blankCheck}), "", IF(RIGHT(CONCATENATE(${formulaParts.join(",")}),1)=",", LEFT(CONCATENATE(${formulaParts.join(",")}), LEN(CONCATENATE(${formulaParts.join(",")}) )-1), CONCATENATE(${formulaParts.join(",")})))`;
-
-
-  for (let row = 2; row <= sheet.rowCount; row++) {
-    const rowFormula = formula.replace(/2/g, row.toString());
-    sheet.getCell(row, currentColumnIndex).value = {
-      formula: rowFormula
-    };
-  }
-}
-
-export function applyConcatenateFormulaForUnlocalised(sheet: any, currentColumnIndex: number, maxSelections: number) {
-  const colLetters = [];
-  for (let i = 1; i <= maxSelections; i++) {
-    const colIndex = currentColumnIndex - maxSelections + i - 1;
-    const colLetter = getColumnLetter(colIndex);
-    colLetters.push(colLetter);
-  }
-
-  const blankCheck = colLetters.map(col => `ISBLANK(${col}2)`).join(", ");
-  const formulaParts = colLetters.map(
-    (col, i) => `IF(ISBLANK(${col}2), "", ${col}2 & IF(${i === colLetters.length - 1}, "", ","))`
-  );
-
-  const formula = `=IF(AND(${blankCheck}), "", IF(RIGHT(CONCATENATE(${formulaParts.join(",")}),1)=",", LEFT(CONCATENATE(${formulaParts.join(",")}), LEN(CONCATENATE(${formulaParts.join(",")}) )-1), CONCATENATE(${formulaParts.join(",")})))`;
-
-
-  for (let row = 3; row <= sheet.rowCount; row++) {
-    const rowFormula = formula.replace(/2/g, row.toString());
-    sheet.getCell(row, currentColumnIndex).value = {
-      formula: rowFormula
-    };
-  }
-}
-
-// Utility function to get column letter from index
-function getColumnLetter(index: number): string {
-  let letter = '';
-  while (index > 0) {
-    const remainder = (index - 1) % 26;
-    letter = String.fromCharCode(65 + remainder) + letter;
-    index = Math.floor((index - 1) / 26);
-  }
-  return letter;
-}
 
 // Function to format the first row
 function formatFirstRow(row: any, sheet: any, firstRowColor: string, columnWidth: number, frozeCells: boolean) {

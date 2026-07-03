@@ -96,4 +96,6 @@ public class IndividualProperties {
     @Value("${individual.beneficiary.id.length}")
     private Integer beneficiaryIdLength;
 
+
+
 }

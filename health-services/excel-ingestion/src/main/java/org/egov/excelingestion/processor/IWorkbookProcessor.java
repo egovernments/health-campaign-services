@@ -2,7 +2,7 @@ package org.egov.excelingestion.processor;
 
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.web.models.ProcessResource;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 
 import java.util.Map;
 

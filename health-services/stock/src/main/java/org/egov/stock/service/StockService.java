@@ -30,15 +30,7 @@ import org.egov.stock.validator.stock.SSenderIdReceiverIdEqualsValidator;
 import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.egov.stock.validator.stock.SStockTransferPartiesValidator;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ReflectionUtils;
-
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
 import static org.egov.stock.Constants.GET_STOCK;
@@ -178,29 +170,34 @@ public class StockService {
         return validEntities;
     }
 
+    // Removed the in-memory "search by id only" fast path so all searches go through findWithCount,
+    // keeping lastChangedSince/tenantId/includeDeleted/lastModifiedBy filtering consistent in one DB query.
     public SearchResponse<Stock> search(StockSearchRequest stockSearchRequest,
                                         Integer limit,
                                         Integer offset,
                                         String tenantId,
                                         Long lastChangedSince,
-                                        Boolean includeDeleted) throws Exception  {
+                                        Boolean includeDeleted,
+                                        Boolean includeOnlyUpdatedByOthers) throws Exception  {
         log.info("starting search method for stock");
-        String idFieldName = getIdFieldName(stockSearchRequest.getStock());
-        if (isSearchByIdOnly(stockSearchRequest.getStock(), idFieldName)) {
-            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
-                            .singletonList(stockSearchRequest.getStock())),
-                    stockSearchRequest.getStock());
-            // fetching stock with ids
-            List<Stock> stocks = stockRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
-                    .filter(lastChangedSince(lastChangedSince))
-                    .filter(havingTenantId(tenantId))
-                    .filter(includeDeleted(includeDeleted))
-                    .collect(Collectors.toList());
-            return SearchResponse.<Stock>builder().response(stocks).build();
+
+        // Use lastSyncedTime from request body if provided, otherwise fall back to lastChangedSince from URL params
+        Long effectiveLastChangedSince = stockSearchRequest.getStock().getLastSyncedTime() != null
+                ? stockSearchRequest.getStock().getLastSyncedTime()
+                : lastChangedSince;
+
+        String currentUserUuid = stockSearchRequest.getRequestInfo() != null
+                && stockSearchRequest.getRequestInfo().getUserInfo() != null
+                ? stockSearchRequest.getRequestInfo().getUserInfo().getUuid()
+                : null;
+
+        String lastModifiedByFilter = null;
+        if (effectiveLastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers) && currentUserUuid != null) {
+            lastModifiedByFilter = currentUserUuid;
         }
 
         log.info("completed search method for stock");
         return stockRepository.findWithCount(stockSearchRequest.getStock(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+                limit, offset, tenantId, effectiveLastChangedSince, includeDeleted, lastModifiedByFilter);
     }
 }

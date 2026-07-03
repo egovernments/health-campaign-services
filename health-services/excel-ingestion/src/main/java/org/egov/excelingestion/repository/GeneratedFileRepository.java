@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
@@ -130,6 +131,23 @@ public class GeneratedFileRepository {
         if (criteria.getLocale() != null && !criteria.getLocale().trim().isEmpty()) {
             query.append(" AND locale = :locale");
             preparedStmtList.put("locale", criteria.getLocale());
+        }
+
+        if (!CollectionUtils.isEmpty(criteria.getAdditionalDetails())) {
+            query.append(" AND additionalDetails IS NOT NULL");
+            int adIndex = 0;
+            for (Entry<String, String> entry : criteria.getAdditionalDetails().entrySet()) {
+                String keyParam = "adKey" + adIndex;
+                String valueParam = "adVal" + adIndex;
+                // Bind BOTH the JSON key and value as parameters; never concatenate the
+                // user-supplied key into the SQL string (prevents SQL injection). The
+                // CAST keeps the ->> text-operator resolution unambiguous.
+                query.append(" AND additionalDetails ->> CAST(:").append(keyParam)
+                        .append(" AS text) = :").append(valueParam);
+                preparedStmtList.put(keyParam, entry.getKey());
+                preparedStmtList.put(valueParam, entry.getValue());
+                adIndex++;
+            }
         }
     }
 

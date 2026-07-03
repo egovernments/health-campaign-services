@@ -16,6 +16,11 @@ export async function sendNotificationEmail(
 
     try {
         const requestInfo = requestBody?.RequestInfo;
+        const emailId = requestInfo?.userInfo?.emailId || createdByEmail;
+        if (!emailId) {
+            logger.info("Email id is empty, skipping notification");
+            return;
+        }
         logger.info("Step 1: Starting sendNotificationEmail");
         const GenerateSearchResponse = await callExcelIngestionGenerateSearch(requestBody);
         
@@ -173,8 +178,7 @@ export async function sendNotificationEmail(
         const message = {
             requestInfo: requestInfo,
             email: {
-                emailTo: requestInfo?.userInfo?.emailId ? [requestInfo.userInfo.emailId] : createdByEmail 
-                        ? [createdByEmail] : null,
+                emailTo: [emailId],
                 subject,
                 body: fullBody,
                 fileStoreId: fileStoreIdMap,

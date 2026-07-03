@@ -1,4 +1,4 @@
-import { defaultRequestInfo } from "../api/coreApis";
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { mappingStatuses } from "../config/constants";
 import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign } from "./genericUtils";
 import { logger } from "./logger";
@@ -6,7 +6,7 @@ import { createProjectResource } from "../api/genericApis";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 
-export async function startResourceMapping(campaignDetails : any, useruuid : string) {
+export async function startResourceMapping(campaignDetails : any, useruuid : string, requestInfo: RequestInfo) {
     const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("resource", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeMapped);
     if(allCurrentMappingsToDo.length <= 0){
         return;
@@ -18,8 +18,7 @@ export async function startResourceMapping(campaignDetails : any, useruuid : str
     }
     const startDate = campaignDetails.startDate;
     const endDate = campaignDetails.endDate;
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid || campaignDetails?.auditDetails?.createdBy;
+    const RequestInfo = requestInfo;
     for(let i = 0; i < allCurrentMappingsToDo.length; i++){
         try {
             const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDo[i]?.boundaryCode];

@@ -23,4 +23,20 @@ public interface Constants {
     public static final String HCM_MDMS_PROJECTTYPE_RES_PATH = "$.MdmsRes." + HCM_MDMS_PROJECT_MODULE_NAME + "." + HCM_MASTER_PROJECTTYPE + ".*";
 
     String INVALID_RECIPIENT_TYPE = "Invalid Recipient Type";
+
+    // Table names
+    String TABLE_INDIVIDUAL = "INDIVIDUAL";
+    String TABLE_HOUSEHOLD_MEMBER = "HOUSEHOLD_MEMBER";
+    String TABLE_PROJECT_BENEFICIARY = "PROJECT_BENEFICIARY";
+    String TABLE_PROJECT_TASK = "PROJECT_TASK";
+    String TABLE_SIDE_EFFECT = "SIDE_EFFECT";
+    String TABLE_HF_REFERRAL = "HF_REFERRAL";
+
+    // Field names
+    String FIELD_CLIENT_REFERENCE_ID = "clientReferenceId";
+    String FIELD_HOUSEHOLD_CLIENT_REFERENCE_ID = "householdClientReferenceId";
+    String FIELD_BENEFICIARY_CLIENT_REFERENCE_ID = "beneficiaryclientreferenceid";
+    String FIELD_PROJECT_BENEFICIARY_CLIENT_REFERENCE_ID = "projectBeneficiaryClientReferenceId";
+    String FIELD_TASK_CLIENT_REFERENCE_ID = "taskClientReferenceId";
+    String FIELD_PROJECT_ID = "projectid";
 }

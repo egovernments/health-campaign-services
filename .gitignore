@@ -86,3 +86,5 @@ Thumbs.db
 
 utilities/project-factory/node_modules/*
 frontend/micro-ui/web/micro-ui-internals/node_modules/*
+**/node_modules/**
+**/dist/**

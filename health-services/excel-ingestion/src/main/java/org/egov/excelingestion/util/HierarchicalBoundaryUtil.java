@@ -8,6 +8,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -418,7 +419,7 @@ public class HierarchicalBoundaryUtil {
         // Use PLAIN display names (without type suffix) so VLOOKUP can match dropdown values
         rowNum += 2; // Add spacing
         int displayNameMappingStartRow = rowNum;
-        
+
         // Build map of combination strings to codes - use plain display names for dropdown matching
         Map<String, String> comboToCodeMap = new HashMap<>();
         for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
@@ -541,16 +542,15 @@ public class HierarchicalBoundaryUtil {
         addLevel1BoundaryValidation(workbook, sheet, dvHelper, visibleColIndices.get(0), level1Boundaries);
 
         // Cascading Validations for Levels 2+ using Helper Column Architecture
-        // Key-to-Hash lookup table is in a SEPARATE section (columns H and I)
+        // Key-to-Hash lookup table is in a SEPARATE section (columns H=code key, I=display key, J=hash)
         // This ensures children data (cols B onwards) never overlaps with the lookup keys
         int keyHashStartRow = mappingResult.keyHashTableStartRow + 1; // Excel rows are 1-based
         int keyHashEndRow = mappingResult.keyHashTableEndRow;
-        String keyColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN);   // Column H
-        String hashColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN); // Column I
+        String displayKeyColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN + 1);
+        String hashColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN);
 
-        // Lookup ranges for the separate key-to-hash table
-        String lookupRangeKeys = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
-                keyColLetter, keyHashStartRow, keyColLetter, keyHashEndRow);
+        String lookupRangeDisplayKeys = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
+                displayKeyColLetter, keyHashStartRow, displayKeyColLetter, keyHashEndRow);
         String lookupRangeHashes = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
                 hashColLetter, keyHashStartRow, hashColLetter, keyHashEndRow);
 
@@ -559,41 +559,35 @@ public class HierarchicalBoundaryUtil {
             // The helper column is located immediately to the left of the visible column
             int helperColIdx = currentVisibleColIdx - 1;
 
-            // Build the CONCATENATE formula to create the lookup key from previous selections
-            // e.g., for District: CONCATENATE(Country, "#", State)
-            StringBuilder keyBuilder = new StringBuilder();
-            for (int i = 0; i < level; i++) {
-                if (i > 0) keyBuilder.append(", \"").append(BOUNDARY_SEPARATOR).append("\", ");
-                String colLetter = CellReference.convertNumToColString(visibleColIndices.get(i));
-                // Use INDIRECT("A"&ROW()) to get value from the correct row dynamically
-                // This works in CELL FORMULAS (helper column) but NOT in data validation
-                keyBuilder.append("INDIRECT(\"").append(colLetter).append("\"&ROW())");
-            }
-
-            // Helper formula: finds the display-name key in Col I, returns hash from Col J
-            // Uses the SEPARATE key-to-hash table with columns: H=code key, I=display key, J=hash
-            String displayKeyCol = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
-                    CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN + 1),
-                    keyHashStartRow, CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN + 1),
-                    keyHashEndRow);
-            String hashCol = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
-                    CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN),
-                    keyHashStartRow, CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN),
-                    keyHashEndRow);
-            String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
-                    hashCol, keyBuilder.toString(), displayKeyCol);
-
             // Data validation formula: simple relative reference to helper column
             // Uses row 3 as template - Excel automatically adjusts for each row
             String helperColLetter = CellReference.convertNumToColString(helperColIdx);
             String validationFormula = String.format("INDIRECT(IF(%s3<>\"\", %s3 & \"%s\", \"_h_EmptyList\"))",
                                                      helperColLetter, helperColLetter, LIST_SUFFIX);
 
-            // Apply the helper formula to every cell in the helper column
+            // Apply the helper formula to every cell in the helper column.
+            // The lookup key is built with literal relative cell references (e.g. B3, C3) for the
+            // current row instead of INDIRECT("B"&ROW()). INDIRECT is a volatile function, so the
+            // previous approach forced every helper cell to recalculate on every edit/open/scroll
+            // across the whole sheet. Plain relative references are non-volatile and auto-adjust per
+            // row, so a cell now recalculates only when its own parent selections change. This keeps
+            // the cascade behaviour identical while removing the dominant recalculation cost.
             for (int r = 2; r <= config.getExcelRowLimit(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) row = sheet.createRow(r);
                 Cell helperCell = row.createCell(helperColIdx);
+
+                int excelRow = r + 1; // POI row index is 0-based; Excel rows are 1-based
+                // Build the CONCATENATE key from previous selections, e.g. CONCATENATE(B3, "#", C3)
+                StringBuilder keyBuilder = new StringBuilder();
+                for (int i = 0; i < level; i++) {
+                    if (i > 0) keyBuilder.append(", \"").append(BOUNDARY_SEPARATOR).append("\", ");
+                    String colLetter = CellReference.convertNumToColString(visibleColIndices.get(i));
+                    keyBuilder.append(colLetter).append(excelRow);
+                }
+
+                String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
+                                                     lookupRangeHashes, keyBuilder.toString(), lookupRangeDisplayKeys);
                 helperCell.setCellFormula(helperFormula);
             }
 
@@ -796,6 +790,7 @@ public class HierarchicalBoundaryUtil {
     private String extractBoundaryCodeFromData(Map<String, Object> dataRow) {
         String[] possibleFields = {
                 "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+                "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
                 "boundaryCode",
                 "boundary_code",
                 "BOUNDARY_CODE",
@@ -805,7 +800,9 @@ public class HierarchicalBoundaryUtil {
         for (String field : possibleFields) {
             Object value = dataRow.get(field);
             if (value != null && !value.toString().isEmpty()) {
-                return value.toString();
+                String code = value.toString().trim();
+                int comma = code.indexOf(',');
+                return comma >= 0 ? code.substring(0, comma).trim() : code;
             }
         }
 

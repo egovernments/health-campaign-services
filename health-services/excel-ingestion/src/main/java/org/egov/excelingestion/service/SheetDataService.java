@@ -126,8 +126,8 @@ public class SheetDataService {
 
             // Push to delete topic
             producer.push(tenantId, kafkaTopicConfig.getSheetDataDeleteTopic(), deleteMessage);
-            
-            log.info("Delete request pushed to topic for tenantId: {}, referenceId: {}, fileStoreId: {}", 
+            log.info("Delete request pushed to topic: {} for tenantId: {}, referenceId: {}, fileStoreId: {}",
+                    producer.getResolvedTopicName(tenantId, kafkaTopicConfig.getSheetDataDeleteTopic()),
                     tenantId, referenceId, fileStoreId);
             
         } catch (Exception e) {

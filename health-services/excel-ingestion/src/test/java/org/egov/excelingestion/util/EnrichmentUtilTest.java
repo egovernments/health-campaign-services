@@ -244,4 +244,30 @@ public class EnrichmentUtilTest {
         assertEquals(6L, resource.getAdditionalDetails().get("totalErrors")); // 5 + 1 = 6
         assertEquals(ValidationConstants.STATUS_INVALID, resource.getAdditionalDetails().get("validationStatus"));
     }
+
+    @Test
+    public void testEnrichErrorAndStatusInAdditionalDetails_GenericErrorThenValidPerSheet_ShouldStayInvalid() {
+        // Regression for the masking bug: a generic (2-arg) schema error records totalErrors with
+        // NO per-sheet key; a later per-sheet (3-arg) pass with no errors must NOT flip the
+        // overall status to valid (totalErrors must remain authoritative).
+        ProcessResource resource = ProcessResource.builder().id("test-id").build();
+
+        // Step 1: generic schema validation finds an error (no per-sheet key set)
+        enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, Arrays.asList(
+                ValidationError.builder()
+                        .status(ValidationConstants.STATUS_INVALID)
+                        .errorDetails("schema error")
+                        .build()));
+
+        // Step 2: a per-sheet processor finds no errors and sets a VALID user-sheet status
+        enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, Collections.emptyList(),
+                ValidationConstants.SHEET_KIND_USER);
+
+        // Then: overall must remain INVALID despite the valid per-sheet key
+        assertEquals(1L, resource.getAdditionalDetails().get("totalErrors"));
+        assertEquals(ValidationConstants.STATUS_VALID,
+                resource.getAdditionalDetails().get(ValidationConstants.ADDITIONAL_DETAILS_USER_SHEET_STATUS));
+        assertEquals(ValidationConstants.STATUS_INVALID,
+                resource.getAdditionalDetails().get("validationStatus"));
+    }
 }

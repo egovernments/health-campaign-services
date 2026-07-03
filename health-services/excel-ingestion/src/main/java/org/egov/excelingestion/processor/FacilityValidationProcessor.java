@@ -8,6 +8,7 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
@@ -81,6 +82,7 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
             validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
             
             log.info("Facility validation completed with {} errors", errors.size());
+            enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 
             // Only add error columns if there are validation errors and enrich existing if present
             if (!errors.isEmpty()) {
@@ -96,8 +98,8 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
             }
             
             // Enrich resource additional details with error information
-            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors);
-            
+            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors, ValidationConstants.SHEET_KIND_FACILITY);
+
             return workbook;
 
         } catch (Exception e) {

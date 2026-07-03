@@ -2,8 +2,10 @@ package org.egov.common.models.project;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -48,6 +50,13 @@ public class ProjectFacilityBulkResponse {
     @NotNull
     @Valid
     private List<ProjectFacility> projectFacilities = new ArrayList<>();
+
+    /**
+     * Map of boundaryType to list of facilityIds. Populated only for hierarchy-based search.
+     */
+    @JsonProperty("FacilityMap")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Map<String, List<String>> facilityMap = null;
 
     /**
      * Adds a single project facility to the list and returns the updated response.

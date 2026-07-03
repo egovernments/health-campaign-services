@@ -11,7 +11,9 @@ import { tracingMiddleware } from "./tracing";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
+import { validateRequiredSchema } from "./utils/schemaValidation";
 import { Server } from "http";
+import { createTerminus } from "@godaddy/terminus";
 
 class App {
   public app: express.Application;
@@ -96,11 +98,19 @@ class App {
   }
 
   public async listen() {
+    await validateRequiredSchema();
     const server: Server = await new Promise((resolve) => {
       const serverInstance = this.app.listen(this.port, () => {
         logger.info(`App listening on port ${this.port}`);
         resolve(serverInstance);
       });
+    });
+
+    createTerminus(server, {
+      healthChecks: {
+        [`${config.app.contextPath}/health`]: async () => {}
+      },
+      logger: (msg, err) => logger.error(msg, err)
     });
 
     // Configure server timeouts

@@ -4,6 +4,7 @@ package org.egov.referralmanagement.service;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -168,8 +169,19 @@ public class ReferralManagementService {
                                            Integer offset,
                                            String tenantId,
                                            Long lastChangedSince,
-                                           Boolean includeDeleted) throws InvalidTenantIdException {
+                                           Boolean includeDeleted,
+                                           Boolean includeOnlyUpdatedByOthers) throws InvalidTenantIdException {
         log.info("received request to search referrals");
+        
+        String currentUserUuid = referralSearchRequest.getRequestInfo() != null
+                && referralSearchRequest.getRequestInfo().getUserInfo() != null
+                ? referralSearchRequest.getRequestInfo().getUserInfo().getUuid()
+                : null;
+
+        String lastModifiedByFilter =
+                (lastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers))
+                        ? currentUserUuid : null;
+
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {
             log.info("searching referrals by id");
@@ -182,11 +194,20 @@ public class ReferralManagementService {
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            if (lastModifiedByFilter != null) {
+                // keep only referrals last modified by someone other than the current user
+                referrals = referrals.stream().filter(referral -> {
+                    String lastModifiedBy = Optional.ofNullable(referral.getAuditDetails())
+                            .map(ad -> ad.getLastModifiedBy())
+                            .orElse(null);
+                    return !lastModifiedByFilter.equals(lastModifiedBy);
+                }).collect(Collectors.toList());
+            }
             return SearchResponse.<Referral>builder().response(referrals).build();
         }
         log.info("searching referrals using criteria");
         return referralRepository.find(referralSearchRequest.getReferral(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+                limit, offset, tenantId, lastChangedSince, includeDeleted, lastModifiedByFilter);
     }
 
     public Referral delete(ReferralRequest referralRequest) {

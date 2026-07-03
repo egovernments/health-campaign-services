@@ -46,4 +46,16 @@ public class Producer {
     public void push(String topic, Object value) {
         kafkaTemplate.send(topic, value);
     }
+
+    /**
+     * Returns the actual resolved topic name for a given tenantId and base topic.
+     * Useful for logging the correct topic name before pushing.
+     *
+     * @param tenantId  tenant id used to resolve the state-specific topic.
+     * @param baseTopic base topic name.
+     * @return resolved topic name (prefixed when central instance is enabled).
+     */
+    public String getResolvedTopicName(String tenantId, String baseTopic) {
+        return multiStateInstanceUtil.getStateSpecificTopicName(tenantId, baseTopic);
+    }
 }

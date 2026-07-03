@@ -54,6 +54,11 @@ public class ReferralRepository extends GenericRepository<Referral> {
      * @*/
     public SearchResponse<Referral> find(ReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
+        return find(searchObject, limit, offset, tenantId, lastChangedSince, includeDeleted, null);
+    }
+
+    public SearchResponse<Referral> find(ReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
+                               Long lastChangedSince, Boolean includeDeleted, String lastModifiedByFilter) throws InvalidTenantIdException {
       
         String query = String.format("SELECT r.id, r.clientreferenceid, r.tenantid, r.projectbeneficiaryid, r.projectbeneficiaryclientreferenceid, r.referrerid, r.recipientid, r.recipienttype, r.reasons, r.sideeffectid, r.referralCode, r.sideeffectclientreferenceid, r.projectid, r.createdby, r.createdtime, r.lastmodifiedby, r.lastmodifiedtime, r.clientcreatedby, r.clientcreatedtime, r.clientlastmodifiedby, r.clientlastmodifiedtime, r.rowversion, r.isdeleted, r.additionaldetails, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedTime, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM %s.referral r left join %s.side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid",
                 SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
@@ -78,6 +83,12 @@ public class ReferralRepository extends GenericRepository<Referral> {
         if (lastChangedSince != null) {
             query = query + "and r.lastModifiedTime>=:lastModifiedTime ";
         }
+        
+        if (lastModifiedByFilter != null) {
+            query = query + "and r.lastModifiedBy!=:lastModifiedByFilter ";
+            paramsMap.put("lastModifiedByFilter", lastModifiedByFilter);
+        }
+
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);

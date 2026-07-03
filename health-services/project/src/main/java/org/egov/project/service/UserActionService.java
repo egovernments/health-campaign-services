@@ -68,7 +68,8 @@ public class UserActionService {
             validator.getClass().equals(UaProjectIdValidator.class)
                     || validator.getClass().equals(UaNullIdValidator.class)
                     || validator.getClass().equals(UaNonExistentEntityValidator.class)
-                    || validator.getClass().equals(UaRowVersionValidator.class)
+                    // Disabling to allow stock count update
+//                    || validator.getClass().equals(UaRowVersionValidator.class)
                     || validator.getClass().equals(UaBoundaryValidator.class);
 
     // Constructor for dependency injection
