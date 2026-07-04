@@ -64,9 +64,25 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
             jobRegistry.release(job.getTenantId(), job.getProjectId());
             return;
         }
-        // Our claim incremented rowVersion. From here on, the heartbeat scheduler
-        // must use the NEW rowVersion (claimed value + 1) as its CAS expectation.
+        // Our claim incremented rowVersion. Delegate the post-claim work to the shared
+        // helper so both the startup path (this method) and the periodic OrphanReclaimer
+        // reuse the exact same sweep + generate + finalize flow.
         long ownedRowVersion = job.getRowVersion() + 1;
+        resumeAlreadyClaimed(job, ownedRowVersion);
+    }
+
+    /**
+     * Post-claim resume logic — sweep abandoned files, refresh MV, run
+     * generateRegistry/Project on the remaining PENDING localities, and CAS the
+     * job to its terminal state. Callers MUST have already won the job-level
+     * claim (either via {@link DownsyncGenerationJobRepository#claimResumeJob}
+     * from the startup runner, or via the periodic
+     * {@link OrphanReclaimer#tick}).
+     *
+     * @param job              the claimed job row as read from the DB BEFORE the claim
+     * @param ownedRowVersion  the rowVersion this pod now owns (= job.getRowVersion() + 1)
+     */
+    public void resumeAlreadyClaimed(DownsyncGenerationJob job, long ownedRowVersion) {
         log.info("Resuming job {} for tenant {} (ownedRowVersion={})",
                 job.getId(), job.getTenantId(), ownedRowVersion);
 
