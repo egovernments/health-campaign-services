@@ -54,6 +54,27 @@ public class DownsyncGenerationJobRepository {
             "FROM {schema}.downsync_generation_job WHERE status = 'IN_PROGRESS'";
 
     /**
+     * Same shape as {@link #FIND_IN_PROGRESS_JOBS_IN_SCHEMA} but pre-filtered to jobs
+     * whose owner has apparently gone away — used by the periodic OrphanReclaimer.
+     * Two-condition filter:
+     * <ul>
+     *   <li>{@code lastHeartbeat IS NULL} — job was just inserted and its owning pod
+     *       died before the first heartbeat fired.</li>
+     *   <li>{@code lastHeartbeat &lt; :staleThreshold} — job's owning pod has stopped
+     *       bumping (dead, hung, or partitioned).</li>
+     * </ul>
+     * Ordered by createdTime so the oldest orphans are recovered first; LIMIT bounds
+     * the per-tick batch so a mass-recovery scenario doesn't stampede the DB pool.
+     */
+    private static final String FIND_STALE_HEARTBEAT_JOBS_IN_SCHEMA =
+            "SELECT id, tenantId, projectId, createdBy, rowVersion, lastHeartbeat " +
+            "FROM {schema}.downsync_generation_job " +
+            "WHERE status = 'IN_PROGRESS' " +
+            "  AND (lastHeartbeat IS NULL OR lastHeartbeat < :staleThreshold) " +
+            "ORDER BY createdTime ASC " +
+            "LIMIT :batchSize";
+
+    /**
      * Claim an abandoned IN_PROGRESS job. Two protections in one statement:
      *   • rowVersion CAS — defeats SIMULTANEOUS claims (only one of N pods
      *     reading the same snapshot wins).
@@ -529,6 +550,38 @@ public class DownsyncGenerationJobRepository {
                 .flatMap(schema -> {
                     String sql = qualifySql(FIND_IN_PROGRESS_JOBS_IN_SCHEMA, schema);
                     return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, i) -> {
+                        long heartbeat = rs.getLong("lastHeartbeat");
+                        return DownsyncGenerationJob.builder()
+                                .id(rs.getString("id"))
+                                .tenantId(rs.getString("tenantId"))
+                                .projectId(rs.getString("projectId"))
+                                .createdBy(rs.getString("createdBy"))
+                                .rowVersion(rs.getLong("rowVersion"))
+                                .lastHeartbeat(rs.wasNull() ? null : heartbeat)
+                                .build();
+                    }).stream();
+                })
+                .toList();
+    }
+
+    /**
+     * Returns up to {@code batchSize} IN_PROGRESS jobs whose {@code lastHeartbeat}
+     * is either {@code NULL} or older than {@code staleThreshold} millis — i.e.
+     * jobs whose owning pod has apparently gone away. Scans every ops-configured
+     * tenant schema and merges results ordered by createdTime.
+     *
+     * <p>Used by {@link org.egov.referralmanagement.service.OrphanReclaimer} on
+     * every scheduled tick. The caller iterates the returned list and tries
+     * {@link #claimResumeJob} on each — the CAS decides which pod wins each row.
+     */
+    public List<DownsyncGenerationJob> findStaleHeartbeatJobs(long staleThreshold, int batchSize) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("staleThreshold", staleThreshold)
+                .addValue("batchSize", batchSize);
+        return auditTableSchemas().stream()
+                .flatMap(schema -> {
+                    String sql = qualifySql(FIND_STALE_HEARTBEAT_JOBS_IN_SCHEMA, schema);
+                    return jdbcTemplate.query(sql, params, (rs, i) -> {
                         long heartbeat = rs.getLong("lastHeartbeat");
                         return DownsyncGenerationJob.builder()
                                 .id(rs.getString("id"))
