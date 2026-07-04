@@ -195,23 +195,19 @@ public class ReferralManagementConfiguration {
     @Value("${egov.downsync.heartbeat.stale.threshold.seconds:90}")
     private int heartbeatStaleThresholdSeconds;
 
-    /** State-level tenant id — the single schema used in non-central-instance deployments. */
-    @Value("${egov.state.level.tenant.id:}")
-    private String stateLevelTenantId;
-
     /**
-     * Comma-separated list of tenant schemas the app should serve.
-     *
-     * <p>Bound to the {@code SCHEMA_NAME} env var (Spring maps
-     * {@code SCHEMA_NAME} → {@code schema.name}) — the SAME value the Helm
-     * chart passes to the db-migration init container. That gives us a single
-     * source of truth: whatever set of schemas Flyway migrates is exactly the
-     * set the running app will scan.
+     * Comma-separated list of tenant schemas the app should serve. Bound to the
+     * {@code SCHEMA_NAME} env var (Spring maps {@code SCHEMA_NAME → schema.name}) —
+     * the same value the Helm chart passes to the db-migration init container. That
+     * gives one source of truth: whatever set of schemas Flyway migrates is exactly
+     * the set the running app will scan.
      *
      * <p>Only consulted when
-     * {@code MultiStateInstanceUtil#getIsEnvironmentCentralInstance()} is
-     * {@code true}. In non-central deployments the code uses
-     * {@link #stateLevelTenantId} instead.
+     * {@code MultiStateInstanceUtil#getIsEnvironmentCentralInstance()} is {@code true}.
+     * In non-central deployments the code emits unqualified SQL and lets the JDBC
+     * connection's {@code search_path} pick the schema — {@code egov.state.level.
+     * tenant.id} is a tenant identifier (not necessarily a Postgres schema name),
+     * so it is deliberately not used here.
      */
     @Value("${schema.name:}")
     private String tenantSchemas;
