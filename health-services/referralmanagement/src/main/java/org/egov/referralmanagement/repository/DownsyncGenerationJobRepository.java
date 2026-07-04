@@ -365,23 +365,25 @@ public class DownsyncGenerationJobRepository {
     /**
      * Tenant schemas the startup resume scanner should walk.
      *
-     * <p>Reads directly from ops config — no {@code information_schema} probing. The
-     * source of truth for "which schemas do we serve" already exists in two well-known
-     * places, so we consult them and trust them:
+     * <p>Reads directly from ops config — no {@code information_schema} probing.
      *
      * <ol>
-     *   <li><b>Central instance</b> — the {@code SCHEMA_NAME} env var (bound here as
-     *       {@code schema.name}). This is the exact same value the Helm chart passes
-     *       to the db-migration init container, so whatever set Flyway migrated is
-     *       exactly the set the app scans.</li>
-     *   <li><b>Non-central instance</b> — {@code egov.state.level.tenant.id}, i.e. the
-     *       single tenant this pod serves.</li>
+     *   <li><b>Central instance</b>
+     *       ({@code MultiStateInstanceUtil.getIsEnvironmentCentralInstance() == true})
+     *       — returns the parsed {@code SCHEMA_NAME} env var (bound as
+     *       {@code schema.name}), the exact same value the Helm chart gives the
+     *       db-migration init container. Each entry is a real Postgres schema name.</li>
+     *
+     *   <li><b>Non-central instance</b> — returns a single-element list containing an
+     *       empty string {@code [""]}. Callers detect the empty entry and strip
+     *       {@code {schema}.} entirely from the SQL, so the query runs unqualified
+     *       against the JDBC connection's default {@code search_path} — which is
+     *       exactly what a single-tenant deploy wants. The value of
+     *       {@code egov.state.level.tenant.id} is NOT used as a schema name (it's a
+     *       tenant identifier, not necessarily a Postgres schema).</li>
      * </ol>
      *
-     * <p>The tracer/common library ({@link MultiStateInstanceUtil}) owns the
-     * central-instance flag, so we don't duplicate it in this service's config.
-     *
-     * <p>Any schema in the DB not covered by these config values is ignored (previous
+     * <p>Any schema in the DB not covered by these values is ignored (previous
      * deploy's orphans, tables from other apps, etc.) — the app never touches them.
      */
     private List<String> auditTableSchemas() {
@@ -389,13 +391,9 @@ public class DownsyncGenerationJobRepository {
         boolean isCentral = central != null && central;
 
         if (!isCentral) {
-            String schema = config.getStateLevelTenantId();
-            if (schema == null || schema.isBlank()) {
-                log.warn("Non-central instance but egov.state.level.tenant.id is empty — " +
-                        "no schemas will be scanned.");
-                return List.of();
-            }
-            return List.of(schema);
+            // Single-tenant deploy — one iteration, no schema qualifier. Callers must
+            // handle "" by stripping the "{schema}." placeholder from the SQL.
+            return List.of("");
         }
 
         String csv = config.getTenantSchemas();
@@ -409,6 +407,22 @@ public class DownsyncGenerationJobRepository {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
+    }
+
+    /**
+     * Prepare a schema-templated SQL for execution.
+     * <ul>
+     *   <li>{@code schema.isEmpty()} → strip {@code "{schema}."} entirely. SQL becomes
+     *       unqualified and hits whatever the JDBC connection's search_path points at
+     *       (non-central single-tenant mode).</li>
+     *   <li>Otherwise substitute {@code schema} for the {@code "{schema}"} token
+     *       (central multi-tenant mode).</li>
+     * </ul>
+     */
+    private String qualifySql(String template, String schema) {
+        return schema.isEmpty()
+                ? template.replace("{schema}.", "")
+                : template.replace("{schema}", schema);
     }
 
     // ── Public methods — Job ──────────────────────────────────────────────────
@@ -513,7 +527,7 @@ public class DownsyncGenerationJobRepository {
     public List<DownsyncGenerationJob> findInProgressJobs() {
         return auditTableSchemas().stream()
                 .flatMap(schema -> {
-                    String sql = FIND_IN_PROGRESS_JOBS_IN_SCHEMA.replace("{schema}", schema);
+                    String sql = qualifySql(FIND_IN_PROGRESS_JOBS_IN_SCHEMA, schema);
                     return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, i) -> {
                         long heartbeat = rs.getLong("lastHeartbeat");
                         return DownsyncGenerationJob.builder()
@@ -569,7 +583,7 @@ public class DownsyncGenerationJobRepository {
 
     public DownsyncGenerationJob findJobById(String jobId) {
         for (String schema : auditTableSchemas()) {
-            String sql = FIND_JOB_BY_ID.replace("{schema}", schema);
+            String sql = qualifySql(FIND_JOB_BY_ID, schema);
             List<DownsyncGenerationJob> rows = jdbcTemplate.query(sql,
                     new MapSqlParameterSource("id", jobId), (rs, i) ->
                             DownsyncGenerationJob.builder()

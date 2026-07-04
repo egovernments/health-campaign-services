@@ -100,12 +100,26 @@ public class DownsyncFileGenController {
         long now = System.currentTimeMillis();
         int totalRequested = allLocalities.size() + projectLocPairs.size();
 
-        jobRepository.insertJob(DownsyncGenerationJob.builder()
-                .id(jobId).tenantId(tenantId).projectId(rootProjectId)
-                .totalRequested(totalRequested).totalSucceeded(0).totalFailed(0)
-                .status("IN_PROGRESS").createdBy(createdBy).createdTime(now)
-                .lastModifiedBy(createdBy).lastModifiedTime(now).rowVersion(1L)
-                .build());
+        // The partial unique index ux_downsync_generation_job_one_inprogress_per_tenant
+        // enforces at-most-one IN_PROGRESS row per tenant. A concurrent /generate
+        // that raced past the application-level gate above is atomically rejected
+        // here — the duplicate INSERT throws DuplicateKeyException and we return
+        // 409 with the same currentJob shape the early gate uses.
+        try {
+            jobRepository.insertJob(DownsyncGenerationJob.builder()
+                    .id(jobId).tenantId(tenantId).projectId(rootProjectId)
+                    .totalRequested(totalRequested).totalSucceeded(0).totalFailed(0)
+                    .status("IN_PROGRESS").createdBy(createdBy).createdTime(now)
+                    .lastModifiedBy(createdBy).lastModifiedTime(now).rowVersion(1L)
+                    .build());
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            log.info("Concurrent /generate raced past app-level gate for tenant={} — " +
+                    "unique index caught it; returning 409", tenantId);
+            DownsyncGenerationJob existing = jobRepository.findInProgressJobByTenant(tenantId);
+            String activeId = existing != null ? existing.getId() : "unknown";
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(buildConflictResponse(tenantId, activeId, "Registry"));
+        }
 
         // Begin heartbeating immediately so any other pod attempting a claim
         // (e.g. a parallel _generate that races past the conflict gate, or a
