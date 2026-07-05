@@ -205,10 +205,10 @@ def run_insert(client, table, data, column_names):
         op_stats.record('insert', (time.monotonic() - t0) * 1000.0, len(data))
 
 
-def peak_rss_mib() -> int:
-    """Peak resident set size of THIS worker process in MiB.
+def peak_memory_mib() -> int:
+    """Peak physical memory of THIS worker process in MiB.
 
-    On Linux ru_maxrss is reported in KiB, so divide by 1024 for MiB."""
+    On Linux getrusage reports peak memory in KiB, so divide by 1024 for MiB."""
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
 
 
@@ -293,24 +293,50 @@ def log_clickhouse_select_breakdown(client, log_comment: str) -> None:
                     f"min={min_mem} avg={avg_mem} max={max_mem}")
 
         rows = client.query(
-            "SELECT query_duration_ms, "
-            "  formatReadableSize(memory_usage) AS peak_mem, "
-            "  read_rows, "              # rows scanned from storage to satisfy the query
-            "  result_rows, "           # rows actually returned to the client (the LIMIT page)
-            "  formatReadableSize(read_bytes) AS read_bytes "
-            "FROM system.query_log "
-            "WHERE type = 'QueryFinish' AND log_comment = {lc:String} "
-            "AND query_kind = 'Select' "
-            "ORDER BY event_time_microseconds",
+            """
+            SELECT
+                query_id,
+                query_duration_ms,
+                formatReadableSize(memory_usage) AS peak_mem,
+                read_rows,
+                result_rows,
+                formatReadableSize(read_bytes) AS read_bytes,
+                ProfileEvents['SelectedMarks'] AS selected_marks,
+                left(query, 200) AS query_text
+            FROM system.query_log
+            WHERE type = 'QueryFinish'
+            AND log_comment = {lc:String}
+            AND query_kind = 'Select'
+            ORDER BY event_time_microseconds
+            """,
             parameters={'lc': log_comment},
         )
         # storage_rows_scanned = rows read off disk (grows when the index can't seek
         # to the keyset cursor); returned_rows = the LIMIT page size actually handed back.
         # Naming them distinctly avoids reading the (large) scan count as "rows processed".
-        for page, (dur, peak_mem, read_rows, result_rows, read_bytes) in enumerate(rows.result_rows, 1):
-            logger.info(f"select_mem[{log_comment}] page={page} dur={dur}ms "
-                        f"peak_mem={peak_mem} storage_rows_scanned={read_rows} "
-                        f"returned_rows={result_rows} read_bytes={read_bytes}")
+        for page, (
+                query_id,
+                dur,
+                peak_mem,
+                read_rows,
+                result_rows,
+                read_bytes,
+                selected_marks,
+                query_text
+        ) in enumerate(rows.result_rows, 1):
+
+            logger.info(
+                f"select_mem[{log_comment}] "
+                f"page={page} "
+                f"query_id={query_id} "
+                f"dur={dur}ms "
+                f"peak_mem={peak_mem} "
+                f"storage_rows_scanned={read_rows} "
+                f"returned_rows={result_rows} "
+                f"read_bytes={read_bytes} "
+                f"selected_marks={selected_marks} "
+                f"query={query_text}"
+            )
     except Exception as e:
         logger.warning(f"select breakdown unavailable for {log_comment}: {e}")
 
@@ -320,12 +346,13 @@ def log_server_resource_stats(client, label: str, chunk_idx: int,
     """Per-chunk snapshot of ClickHouse server memory + in-flight merges + CPU.
 
     Memory has two distinct numbers:
-      - `server_rss` (asynchronous_metrics.MemoryResident) is the ACTUAL physical
-        memory of the ClickHouse process — this is what the cgroup/OOM-killer sees
-        and what the 2 GiB limit is checked against.
-      - `mem_tracking` (metrics.MemoryTracking) is ClickHouse's own allocator
-        accounting; it UNDER-reports RSS (excludes jemalloc fragmentation, unpurged
-        arenas, thread stacks, page cache), so RSS can sit well above it.
+      - `ch_server_memory` (asynchronous_metrics.MemoryResident) is the ACTUAL
+        physical memory of the ClickHouse process — this is what the cgroup/OOM-killer
+        sees and what the 2 GiB limit is checked against.
+      - `ch_tracked_alloc` (metrics.MemoryTracking) is ClickHouse's own allocator
+        accounting; it UNDER-reports physical memory (excludes jemalloc fragmentation,
+        unpurged arenas, thread stacks, page cache), so physical memory can sit well
+        above it.
     Watch both plus `merges.mem` climb to attribute the 1.8 GiB pressure to
     accumulating background merges, not the (flat) SELECTs.
 
@@ -354,18 +381,19 @@ def log_server_resource_stats(client, label: str, chunk_idx: int,
         ).result_rows
         cpu = {m: v for m, v in cpu_rows}
         ch_cpu = cpu.get('OSUserTimeNormalized', 0.0) + cpu.get('OSSystemTimeNormalized', 0.0)
-        load1 = cpu.get('LoadAverage1', 0.0)
-        # Actual server RSS (bytes) — the OOM-relevant number, distinct from mem_tracking.
-        server_rss_mib = cpu.get('MemoryResident', 0.0) / (1024 * 1024)
+        os_load_avg_1min = cpu.get('LoadAverage1', 0.0)
+        # Actual server physical memory (bytes) — the OOM-relevant number,
+        # distinct from ch_tracked_alloc.
+        ch_server_memory_mib = cpu.get('MemoryResident', 0.0) / (1024 * 1024)
 
         worker_str = (f" | worker_cpu={worker_cpu_pct:.0f}%"
                       if worker_cpu_pct is not None else "")
         logger.info(
             f"server_stats[{label}] chunk={chunk_idx} "
-            f"server_rss={server_rss_mib:.0f} MiB mem_tracking={mem_tracking} "
-            f"running_query_mem={proc_mem} | "
+            f"ch_server_memory={ch_server_memory_mib:.0f} MiB ch_tracked_alloc={mem_tracking} "
+            f"in_flight_query_mem={proc_mem} | "
             f"merges: n={merge_count} mem={merge_mem} rows_read={merge_rows} | "
-            f"ch_cpu={ch_cpu:.2f}cores load1={load1:.2f}{worker_str}"
+            f"ch_cpu={ch_cpu:.2f}cores os_load_avg_1min={os_load_avg_1min:.2f}{worker_str}"
         )
     except Exception as e:
         logger.warning(f"server_resource_stats unavailable for {label}: {e}")
@@ -380,7 +408,7 @@ def log_resource_summary(label: str, t0: float, op_stats: 'OpStats' = None) -> N
     pod = pod_peak_mem_mib()
     pod_str = f"{pod} MiB" if pod is not None else "n/a"
     logger.info(f"resource_summary[{label}]: wall={time.monotonic() - t0:.1f}s "
-                f"worker_peak_rss={peak_rss_mib()} MiB pod_peak_mem={pod_str}")
+                f"pod_peak_memory={pod_str}")
 
 
 def parse_ts(val) -> Optional[datetime]:
@@ -1261,7 +1289,7 @@ def transform_load_property_events(**context):
     t0 = time.monotonic()
     op_stats = OpStats()
     log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} property events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
+    logger.info(f"Processing {total_count} property events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
 
     client = instrument_client(get_client(), log_comment, op_stats)
     try:
@@ -1412,7 +1440,7 @@ def transform_load_demand_events(**context):
     t0 = time.monotonic()
     op_stats = OpStats()
     log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} demand events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
+    logger.info(f"Processing {total_count} demand events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
 
     client = instrument_client(get_client(), log_comment, op_stats)
     try:
@@ -1529,7 +1557,7 @@ def transform_load_payment_events(**context):
     t0 = time.monotonic()
     op_stats = OpStats()
     log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} payment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
+    logger.info(f"Processing {total_count} payment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
 
     client = instrument_client(get_client(), log_comment, op_stats)
     try:
@@ -1678,7 +1706,7 @@ def transform_load_bill_events(**context):
     t0 = time.monotonic()
     op_stats = OpStats()
     log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} bill events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
+    logger.info(f"Processing {total_count} bill events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
 
     client = instrument_client(get_client(), log_comment, op_stats)
     try:
@@ -1850,7 +1878,7 @@ def transform_load_assessment_events(**context):
     t0 = time.monotonic()
     op_stats = OpStats()
     log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} assessment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | base_memory={peak_rss_mib()} MiB")
+    logger.info(f"Processing {total_count} assessment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
 
     client = instrument_client(get_client(), log_comment, op_stats)
     try:
