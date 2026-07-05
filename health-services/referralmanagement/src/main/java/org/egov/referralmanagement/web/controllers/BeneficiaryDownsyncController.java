@@ -63,14 +63,20 @@ public class BeneficiaryDownsyncController {
 				log.info("lastSyncedTime is older than {}h — routing to pregen path, locality={}",
 						config.getDownsyncStaleThresholdHours(), request.getDownsyncCriteria().getLocality());
 			List<DownsyncFileLink> links = pregenService.getPregenLinks(request.getDownsyncCriteria());
+			// Return 200 with an empty DownloadLinks list when no pregen files exist for the
+			// locality (no generation has run yet, or the locality genuinely has no data). This
+			// gives mobile clients an unambiguous "nothing to sync here" answer instead of
+			// forcing them to catch a 400. Cases distinguished by looking at the links array:
+			//   • links present     → download and consume as usual
+			//   • links empty       → locality has no pregen data yet; retry later or trigger a
+			//                         generation job via /downsync/v1/_generate
 			if (links.isEmpty()) {
-				log.warn("No pre-generated files for locality={} tenant={} — generation not yet run",
+				log.warn("No pre-generated files for locality={} tenant={} — returning empty DownloadLinks",
 						request.getDownsyncCriteria().getLocality(), request.getDownsyncCriteria().getTenantId());
-				throw new CustomException("PREGEN_NOT_AVAILABLE",
-						"No pre-generated data available for this locality. Trigger a generation job first.");
+			} else {
+				log.info("Returning {} pre-generated file links for locality={}",
+						links.size(), request.getDownsyncCriteria().getLocality());
 			}
-			log.info("Returning {} pre-generated file links for locality={}",
-					links.size(), request.getDownsyncCriteria().getLocality());
 			return ResponseEntity.ok(PregenDownsyncResponse.builder()
 					.responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
 					.downloadLinks(links)
