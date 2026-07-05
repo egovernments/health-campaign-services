@@ -466,7 +466,13 @@ def get_window(context):
 
     # Scheduled runs use Airflow interval
     if dag_run and dag_run.run_type == "scheduled":
-        return dag_run.data_interval_start, dag_run.data_interval_end
+        logger.info(f"context data_interval_start = {context.get('data_interval_start')}")
+        logger.info(f"context data_interval_end   = {context.get('data_interval_end')}")
+
+        return (
+            context.get("data_interval_start"),
+            context.get("data_interval_end"),
+        )
 
     # Manual/backfill/etc → rolling 24 hr window
     end_time = utcnow()
