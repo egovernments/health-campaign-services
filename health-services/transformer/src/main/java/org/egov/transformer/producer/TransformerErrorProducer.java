@@ -7,6 +7,8 @@ import org.egov.transformer.models.ErrorMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 @Slf4j
 public class TransformerErrorProducer {
@@ -24,6 +26,7 @@ public class TransformerErrorProducer {
     public void sendToErrorTopic(Object payload, String sourceTopic, Exception exception) {
         try {
             ErrorMessage errorMessage = ErrorMessage.builder()
+                    .id(UUID.randomUUID().toString())
                     .topic(sourceTopic)
                     .payload(payload != null ? payload.toString() : null)
                     .errorMessage(exception.getMessage())
