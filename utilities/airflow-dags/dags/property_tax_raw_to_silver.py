@@ -5,37 +5,27 @@ Reads raw JSON events from ClickHouse raw tables, parses JSON,
 and inserts into silver tables using ReplacingMergeTree.
 
 Schedule: Daily at 1:30 AM
-Window:   data_interval_start .. data_interval_end (by event_time column)
+Window:   scheduled runs use data_interval_start .. data_interval_end;
+          manual/backfill runs use a rolling 24h window (see get_window).
+          Events are filtered by the event_time column.
 
 Architecture (Extract → Transform+Load per chunk):
-  Property pipeline (runs in parallel with Demand pipeline):
-    extract_property_events  (count + pass window metadata via XCom)
-        -> transform_load_property_events  (per chunk: fetch → transform → insert)
-            -> property_address_entity
-            -> property_unit_entity
-            -> property_owner_entity
-            -> property_audit_entity     (MergeTree; one audit row per event, not replacing)
+  All five pipelines below fan out from `start` and run in parallel. Once every
+  transform_load task completes, trigger_rmv_refresh fires the downstream
+  `clickhouse_rmv_parallel_refresh` DAG, then `end`.
 
-  Demand pipeline:
-    extract_demand_events  (count + pass window metadata via XCom)
-        -> transform_load_demand_events  (per chunk: fetch → transform → insert)
-            -> demand_with_details_entity
+  Each pipeline is Extract -> Transform+Load:
+    extract_*_events            (count + pass window metadata via XCom)
+        -> transform_load_*_events  (per chunk: fetch → transform → insert)
 
-  Payment pipeline (runs in parallel with Property and Demand pipelines):
-    extract_payment_events  (count + pass window metadata via XCom)
-        -> transform_load_payment_events  (per chunk: fetch → transform → insert)
-            -> payment_with_details_entity
-
-  Bill pipeline (runs in parallel with all other pipelines):
-    extract_bill_events  (count + pass window metadata via XCom)
-        -> transform_load_bill_events  (per chunk: fetch → transform → insert)
-            -> bill_entity               (one row per bill)
-            -> bill_detail_entity        (one row per billDetail inside each bill)
-
-  Assessment pipeline (runs in parallel with all other pipelines):
-    extract_assessment_events  (count + pass window metadata via XCom)
-        -> transform_load_assessment_events  (per chunk: fetch → transform → insert)
-            -> property_assessment_entity    (one row per assessment)
+  Property   -> property_address_entity, property_unit_entity,
+                property_owner_entity,
+                property_audit_entity  (MergeTree; one audit row per event, not replacing)
+  Demand     -> demand_with_details_entity
+  Payment    -> payment_with_details_entity
+  Bill       -> bill_entity (one row per bill),
+                bill_detail_entity (one row per billDetail inside each bill)
+  Assessment -> property_assessment_entity (one row per assessment)
 
   Extract passes only lightweight metadata (window + count) via XCom.
   Transform+Load reads from ClickHouse one chunk at a time, transforms it,
@@ -47,13 +37,11 @@ ReplacingMergeTree Logic:
   (based on last_modified_time) is automatically kept after merges.
 """
 
+
 import os
 import json
 import logging
 import gc
-import resource
-import time
-import random
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import List, Dict, Optional, Tuple
@@ -80,21 +68,6 @@ CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'punjab_property_tax')
 STREAM_BATCH_SIZE = 10000  # INSERT chunk size: large batches → fewer ClickHouse parts created
 CH_FETCH_SIZE = 2000       # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
                             # Rows accumulate in InsertBuffer until STREAM_BATCH_SIZE is reached
-# Throttling knobs. These exist to keep ClickHouse RSS under a tight (~1.80 GiB)
-# ceiling when up to 5 pipelines run concurrently. On a roomy environment
-# (e.g. 8 GB ClickHouse) they are pure overhead, so the defaults below disable them.
-# Still overridable via env vars if a memory-constrained deployment needs throttling
-# (e.g. CHUNK_SLEEP_SEC=1, TASK_START_JITTER=15).
-CHUNK_SLEEP_SEC = float(os.getenv('CHUNK_SLEEP_SEC', '0'))        # Base sleep between chunk iterations (0 = none)
-CHUNK_SLEEP_JITTER = float(os.getenv('CHUNK_SLEEP_JITTER', '0'))  # Random jitter added to base sleep each iteration.
-                            # Combined uniform(CHUNK_SLEEP_SEC, CHUNK_SLEEP_SEC+JITTER) breaks
-                            # lockstep when set: 5 tasks starting together drift apart and stay apart.
-JEMALLOC_PURGE_INTERVAL = max(1, int(os.getenv('JEMALLOC_PURGE_INTERVAL', '10')))  # SYSTEM JEMALLOC PURGE every N
-                               # chunks to return freed INSERT/SELECT arenas to the OS. Clamped to >=1 to avoid a
-                               # modulo-by-zero; raise N (less frequent) on roomy boxes, lower it under tight RSS.
-TASK_START_JITTER = float(os.getenv('TASK_START_JITTER', '0'))   # Max random delay (seconds) before each transform's
-                               # first SELECT, to stagger simultaneous task starts (0 = start immediately). Raise it
-                               # under a tight RSS ceiling to avoid the collective initial spike.
 
 default_args = {
     'owner': 'property_tax',
@@ -114,301 +87,28 @@ def get_client():
         username=CLICKHOUSE_USER,
         password=CLICKHOUSE_PASSWORD,
         database=CLICKHOUSE_DB,
-        settings={
-            # ClickHouse defaults to max_threads = number of CPUs, meaning each query
-            # spawns N parallel decompression threads. With 5 concurrent transform tasks
-            # this multiplies peak RSS by N×5 and easily exceeds the 1.80 GiB server limit.
-            # Single-threaded reads use ~5-10× less peak decompression memory per query.
+                settings={
+            # Single-threaded reads: ClickHouse defaults max_threads to the core count,
+            # so each query spawns N decompression threads and N× the peak memory. Our
+            # pages are small (CH_FETCH_SIZE rows), so 1 thread costs ~nothing in speed
+            # but keeps peak RSS low when several pipelines read concurrently.
             'max_threads': 1,
-            # Prevent concurrent queries from accumulating in the global uncompressed cache,
-            # which persists between queries and pushes the server RSS to its ceiling.
+            # This ETL reads each block once, so the uncompressed cache gives no hit-rate
+            # benefit — disable it so it can't accumulate server RSS across queries.
             'use_uncompressed_cache': 0,
         },
     )
 
 
-# -- Observability: timing + memory instrumentation -------------------------
-#
-# Three layers are measured per task and logged (logs only, no metrics tables):
-#   1. ClickHouse side  - app-side wall-clock per SELECT/INSERT (OpStats), plus
-#      authoritative server peak memory + duration from system.query_log.
-#   2. Airflow worker   - wall-clock + peak process RSS (resource.getrusage).
-#   3. Task pod         - peak pod memory from cgroup accounting.
-#
-# run_query/run_insert read the per-task log_comment + OpStats off the client
-# object (set by instrument_client), so the fetch_*/batch_insert helpers don't
-# each need new parameters threaded through their signatures.
-
-
-class OpStats:
-    """Accumulates per-operation wall-clock timing for one task.
-
-    Summarised once at task end (count / total / avg / max per op type) instead
-    of logging one line per 500-row page, which would flood the task log.
-    """
-
-    def __init__(self):
-        self._ops = {}  # op -> [count, total_ms, max_ms, rows]
-
-    def record(self, op: str, wall_ms: float, rows: int = 0) -> None:
-        s = self._ops.get(op)
-        if s is None:
-            self._ops[op] = [1, wall_ms, wall_ms, rows]
-        else:
-            s[0] += 1
-            s[1] += wall_ms
-            s[2] = max(s[2], wall_ms)
-            s[3] += rows
-
-    def summary(self) -> str:
-        parts = []
-        for op, (count, total_ms, max_ms, rows) in sorted(self._ops.items()):
-            avg = total_ms / count if count else 0.0
-            parts.append(f"{op}: n={count} total={total_ms / 1000:.2f}s "
-                         f"avg={avg:.1f}ms max={max_ms:.1f}ms rows={rows}")
-        return " | ".join(parts) if parts else "no ops"
-
-
-def instrument_client(client, log_comment: str, op_stats: 'OpStats'):
-    """Attach a per-task log_comment + OpStats accumulator to a client so that
-    run_query/run_insert can tag every operation and time it."""
-    client._etl_log_comment = log_comment
-    client._etl_op_stats = op_stats
-    return client
+# -- Query helpers -----------------------------------------------------------
 
 
 def run_query(client, query, parameters=None):
-    """client.query with per-task log_comment tagging + wall-clock timing.
-
-    The log_comment lets us attribute server-side peak memory back to this task
-    via system.query_log. Falls back to a plain query if the client was never
-    instrumented (e.g. ad-hoc use)."""
-    log_comment = getattr(client, '_etl_log_comment', None)
-    op_stats = getattr(client, '_etl_op_stats', None)
-    settings = {'log_comment': log_comment} if log_comment else None
-    t0 = time.monotonic()
-    result = client.query(query, parameters=parameters, settings=settings)
-    if op_stats is not None:
-        op_stats.record('select', (time.monotonic() - t0) * 1000.0,
-                        len(result.result_rows))
-    return result
+    return client.query(query, parameters=parameters)
 
 
 def run_insert(client, table, data, column_names):
-    """client.insert with per-task log_comment tagging + wall-clock timing."""
-    log_comment = getattr(client, '_etl_log_comment', None)
-    op_stats = getattr(client, '_etl_op_stats', None)
-    settings = {'log_comment': log_comment} if log_comment else None
-    t0 = time.monotonic()
-    client.insert(table, data=data, column_names=column_names, settings=settings)
-    if op_stats is not None:
-        op_stats.record('insert', (time.monotonic() - t0) * 1000.0, len(data))
-
-
-def peak_memory_mib() -> int:
-    """Peak physical memory of THIS worker process in MiB.
-
-    On Linux getrusage reports peak memory in KiB, so divide by 1024 for MiB."""
-    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
-
-
-def pod_peak_mem_mib():
-    """Peak memory of the whole task pod from cgroup accounting, in MiB.
-
-    Tries cgroup v2 (memory.peak) then v1 (memory.max_usage_in_bytes). Returns
-    None if neither is readable (e.g. local non-container runs) so callers can
-    degrade gracefully rather than crash."""
-    for path in ('/sys/fs/cgroup/memory.peak',
-                 '/sys/fs/cgroup/memory/memory.max_usage_in_bytes'):
-        try:
-            with open(path) as fh:
-                return int(fh.read().strip()) // (1024 * 1024)
-        except (OSError, ValueError):
-            continue
-    return None
-
-
-def log_clickhouse_query_stats(client, log_comment: str) -> None:
-    """Log ClickHouse-measured time + authoritative peak memory per op type for
-    this task, read from system.query_log.
-
-    Best-effort: SYSTEM FLUSH LOGS surfaces the just-finished ops (query_log
-    flushes asynchronously). Wrapped so a missing privilege never fails the task.
-    """
-    try:
-        client.command("SYSTEM FLUSH LOGS")
-        result = client.query(
-            "SELECT "
-            "  multiIf(query_kind='Select','select', "
-            "          query_kind='Insert','insert', lower(query_kind)) AS op, "
-            "  count() AS n, "
-            "  round(avg(query_duration_ms)) AS avg_ms, "
-            "  max(query_duration_ms) AS max_ms, "
-            "  formatReadableSize(max(memory_usage)) AS peak_mem, "
-            "  formatReadableSize(sum(read_bytes) + sum(written_bytes)) AS io "
-            "FROM system.query_log "
-            "WHERE type = 'QueryFinish' AND log_comment = {lc:String} "
-            "GROUP BY op ORDER BY op",
-            parameters={'lc': log_comment},
-        )
-        if not result.result_rows:
-            logger.info(f"clickhouse_query_stats[{log_comment}]: no rows in query_log yet")
-            return
-        for op, n, avg_ms, max_ms, peak_mem, io in result.result_rows:
-            logger.info(f"clickhouse_query_stats[{log_comment}] {op}: n={n} "
-                        f"avg={avg_ms}ms max={max_ms}ms peak_mem={peak_mem} io={io}")
-    except Exception as e:
-        logger.warning(f"clickhouse_query_stats unavailable for {log_comment}: {e}")
-
-
-def log_clickhouse_select_breakdown(client, log_comment: str) -> None:
-    """Log peak memory + duration for EVERY individual SELECT of this task, read
-    from system.query_log.
-
-    Use this to see whether per-query memory is flat or growing across pages.
-    Logs a one-line distribution (min/avg/max) first so the "same or different?"
-    answer is immediate, then one line per SELECT. Best-effort; never raises.
-
-    Generic: keyed solely on log_comment, so every transform task calls it in
-    its finally block. Note this is verbose (one line per SELECT page, ~51 lines
-    per task at 100k events / CH_FETCH_SIZE).
-    """
-    try:
-        client.command("SYSTEM FLUSH LOGS")
-        dist = client.query(
-            "SELECT count() AS n, "
-            "  formatReadableSize(min(memory_usage)) AS min_mem, "
-            "  formatReadableSize(round(avg(memory_usage))) AS avg_mem, "
-            "  formatReadableSize(max(memory_usage)) AS max_mem "
-            "FROM system.query_log "
-            "WHERE type = 'QueryFinish' AND log_comment = {lc:String} "
-            "AND query_kind = 'Select'",
-            parameters={'lc': log_comment},
-        )
-        if not dist.result_rows or not dist.result_rows[0][0]:
-            logger.info(f"select_mem[{log_comment}]: no SELECTs in query_log yet")
-            return
-        n, min_mem, avg_mem, max_mem = dist.result_rows[0]
-        logger.info(f"select_mem_dist[{log_comment}]: n={n} "
-                    f"min={min_mem} avg={avg_mem} max={max_mem}")
-
-        rows = client.query(
-            """
-            SELECT
-                query_id,
-                query_duration_ms,
-                formatReadableSize(memory_usage) AS peak_mem,
-                read_rows,
-                result_rows,
-                formatReadableSize(read_bytes) AS read_bytes,
-                ProfileEvents['SelectedMarks'] AS selected_marks,
-                left(query, 200) AS query_text
-            FROM system.query_log
-            WHERE type = 'QueryFinish'
-            AND log_comment = {lc:String}
-            AND query_kind = 'Select'
-            ORDER BY event_time_microseconds
-            """,
-            parameters={'lc': log_comment},
-        )
-        # storage_rows_scanned = rows read off disk (grows when the index can't seek
-        # to the keyset cursor); returned_rows = the LIMIT page size actually handed back.
-        # Naming them distinctly avoids reading the (large) scan count as "rows processed".
-        for page, (
-                query_id,
-                dur,
-                peak_mem,
-                read_rows,
-                result_rows,
-                read_bytes,
-                selected_marks,
-                query_text
-        ) in enumerate(rows.result_rows, 1):
-
-            logger.info(
-                f"select_mem[{log_comment}] "
-                f"page={page} "
-                f"query_id={query_id} "
-                f"dur={dur}ms "
-                f"peak_mem={peak_mem} "
-                f"storage_rows_scanned={read_rows} "
-                f"returned_rows={result_rows} "
-                f"read_bytes={read_bytes} "
-                f"selected_marks={selected_marks} "
-                f"query={query_text}"
-            )
-    except Exception as e:
-        logger.warning(f"select breakdown unavailable for {log_comment}: {e}")
-
-
-def log_server_resource_stats(client, label: str, chunk_idx: int,
-                              worker_cpu_pct: float = None) -> None:
-    """Per-chunk snapshot of ClickHouse server memory + in-flight merges + CPU.
-
-    Memory has two distinct numbers:
-      - `ch_server_memory` (asynchronous_metrics.MemoryResident) is the ACTUAL
-        physical memory of the ClickHouse process — this is what the cgroup/OOM-killer
-        sees and what the 2 GiB limit is checked against.
-      - `ch_tracked_alloc` (metrics.MemoryTracking) is ClickHouse's own allocator
-        accounting; it UNDER-reports physical memory (excludes jemalloc fragmentation,
-        unpurged arenas, thread stacks, page cache), so physical memory can sit well
-        above it.
-    Watch both plus `merges.mem` climb to attribute the 1.8 GiB pressure to
-    accumulating background merges, not the (flat) SELECTs.
-
-    CPU: `ch_cpu` is server CPU (user+system, normalized so 1.0 ≈ one full core)
-    and `worker_cpu` is this task process's CPU% over the last chunk interval.
-    Best-effort: never raises, so a missing grant can't fail the task.
-    """
-    try:
-        mem = client.query(
-            "SELECT "
-            "  formatReadableSize((SELECT value FROM system.metrics "
-            "    WHERE metric='MemoryTracking')) AS mem_tracking, "
-            "  (SELECT count() FROM system.merges) AS merge_count, "
-            "  formatReadableSize((SELECT ifNull(sum(memory_usage), 0) "
-            "    FROM system.merges)) AS merge_mem, "
-            "  (SELECT ifNull(sum(rows_read), 0) FROM system.merges) AS merge_rows, "
-            "  formatReadableSize((SELECT ifNull(sum(memory_usage), 0) "
-            "    FROM system.processes)) AS proc_mem"
-        ).result_rows[0]
-        mem_tracking, merge_count, merge_mem, merge_rows, proc_mem = mem
-
-        cpu_rows = client.query(
-            "SELECT metric, value FROM system.asynchronous_metrics "
-            "WHERE metric IN ('OSUserTimeNormalized', 'OSSystemTimeNormalized', "
-            "'LoadAverage1', 'MemoryResident')"
-        ).result_rows
-        cpu = {m: v for m, v in cpu_rows}
-        ch_cpu = cpu.get('OSUserTimeNormalized', 0.0) + cpu.get('OSSystemTimeNormalized', 0.0)
-        os_load_avg_1min = cpu.get('LoadAverage1', 0.0)
-        # Actual server physical memory (bytes) — the OOM-relevant number,
-        # distinct from ch_tracked_alloc.
-        ch_server_memory_mib = cpu.get('MemoryResident', 0.0) / (1024 * 1024)
-
-        worker_str = (f" | worker_cpu={worker_cpu_pct:.0f}%"
-                      if worker_cpu_pct is not None else "")
-        logger.info(
-            f"server_stats[{label}] chunk={chunk_idx} "
-            f"ch_server_memory={ch_server_memory_mib:.0f} MiB ch_tracked_alloc={mem_tracking} "
-            f"in_flight_query_mem={proc_mem} | "
-            f"merges: n={merge_count} mem={merge_mem} rows_read={merge_rows} | "
-            f"ch_cpu={ch_cpu:.2f}cores os_load_avg_1min={os_load_avg_1min:.2f}{worker_str}"
-        )
-    except Exception as e:
-        logger.warning(f"server_resource_stats unavailable for {label}: {e}")
-
-
-def log_resource_summary(label: str, t0: float, op_stats: 'OpStats' = None) -> None:
-    """Log the worker/pod resource line (and optional app-side op summary) for a task.
-
-    t0 is a time.monotonic() captured at task start."""
-    if op_stats is not None:
-        logger.info(f"app_ops[{label}]: {op_stats.summary()}")
-    pod = pod_peak_mem_mib()
-    pod_str = f"{pod} MiB" if pod is not None else "n/a"
-    logger.info(f"resource_summary[{label}]: wall={time.monotonic() - t0:.1f}s "
-                f"pod_peak_memory={pod_str}")
+    client.insert(table, data=data, column_names=column_names)
 
 
 def parse_ts(val) -> Optional[datetime]:
@@ -553,10 +253,10 @@ def fetch_property_events(client, window_start: datetime,
                           last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw events in [window_start, window_end).
 
-    Pagination is cursor-based on the (event_time, id) sort key rather than
-    LIMIT/OFFSET: each page continues strictly after the last (event_time, id)
-    seen. This avoids OFFSET rescans (O(n) instead of O(n^2)) and the
-    skip/duplicate bug that LIMIT/OFFSET hits when event_time has ties.
+    Pagination is cursor-based on the (event_time, id) sort key: each page
+    continues strictly after the last (event_time, id) seen. Because the sort
+    key is unique, this stays an index seek that always advances and handles
+    ties on event_time without skipping or duplicating rows.
 
     The cursor timestamp is carried as an integer millisecond value
     (toUnixTimestamp64Milli) and rebuilt server-side with
@@ -610,10 +310,12 @@ def fetch_demand_events(client, window_start: datetime,
                         last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw events in [window_start, window_end).
 
-    Cursor-based on the (event_time, id) sort key (same as fetch_property_events).
-    The cursor timestamp is carried as integer ms (toUnixTimestamp64Milli) and
-    rebuilt with fromUnixTimestamp64Milli so the DateTime64(3) comparison stays
-    exact and always advances. Returns (raw, event_time, id, et_ms) tuples.
+    Cursor-based on the (event_time, id) sort key:
+    each page continues strictly after the last (event_time, id) seen, and because
+    that key is unique the read stays an index seek that always advances and never
+    skips or duplicates rows on event_time ties. The cursor timestamp is carried as
+    integer ms (toUnixTimestamp64Milli) and rebuilt with fromUnixTimestamp64Milli so
+    the DateTime64(3) comparison stays exact. Returns (raw, event_time, id, et_ms) tuples.
     """
     query = (
         "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
@@ -655,10 +357,12 @@ def fetch_payment_events(client, window_start: datetime,
                          last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw events in [window_start, window_end).
 
-    Cursor-based on the (event_time, id) sort key (same as fetch_property_events).
-    The cursor timestamp is carried as integer ms (toUnixTimestamp64Milli) and
-    rebuilt with fromUnixTimestamp64Milli so the DateTime64(3) comparison stays
-    exact and always advances. Returns (raw, event_time, id, et_ms) tuples.
+    Cursor-based on the (event_time, id) sort key:
+    each page continues strictly after the last (event_time, id) seen, and because
+    that key is unique the read stays an index seek that always advances and never
+    skips or duplicates rows on event_time ties. The cursor timestamp is carried as
+    integer ms (toUnixTimestamp64Milli) and rebuilt with fromUnixTimestamp64Milli so
+    the DateTime64(3) comparison stays exact. Returns (raw, event_time, id, et_ms) tuples.
     """
     query = (
         "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
@@ -701,10 +405,12 @@ def fetch_bill_events(client, window_start: datetime,
     """Fetch one keyset page of raw payment JSON — bill data is embedded in
     Payment.paymentDetails[n].bill.
 
-    Cursor-based on the (event_time, id) sort key (same as fetch_property_events).
-    The cursor timestamp is carried as integer ms (toUnixTimestamp64Milli) and
-    rebuilt with fromUnixTimestamp64Milli so the DateTime64(3) comparison stays
-    exact and always advances. Returns (raw, event_time, id, et_ms) tuples.
+    Cursor-based on the (event_time, id) sort key:
+    each page continues strictly after the last (event_time, id) seen, and because
+    that key is unique the read stays an index seek that always advances and never
+    skips or duplicates rows on event_time ties. The cursor timestamp is carried as
+    integer ms (toUnixTimestamp64Milli) and rebuilt with fromUnixTimestamp64Milli so
+    the DateTime64(3) comparison stays exact. Returns (raw, event_time, id, et_ms) tuples.
     """
     query = (
         "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
@@ -746,10 +452,12 @@ def fetch_assessment_events(client, window_start: datetime,
                             last_id: str = None) -> List[tuple]:
     """Fetch one keyset page of raw events from assessment_events_raw.
 
-    Cursor-based on the (event_time, id) sort key (same as fetch_property_events).
-    The cursor timestamp is carried as integer ms (toUnixTimestamp64Milli) and
-    rebuilt with fromUnixTimestamp64Milli so the DateTime64(3) comparison stays
-    exact and always advances. Returns (raw, event_time, id, et_ms) tuples.
+    Cursor-based on the (event_time, id) sort key:
+    each page continues strictly after the last (event_time, id) seen, and because
+    that key is unique the read stays an index seek that always advances and never
+    skips or duplicates rows on event_time ties. The cursor timestamp is carried as
+    integer ms (toUnixTimestamp64Milli) and rebuilt with fromUnixTimestamp64Milli so
+    the DateTime64(3) comparison stays exact. Returns (raw, event_time, id, et_ms) tuples.
     """
     query = (
         "SELECT raw, event_time, id, toUnixTimestamp64Milli(event_time) AS et_ms "
@@ -1192,10 +900,7 @@ def extract_property_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Property extract window: [{window_start}, {window_end})")
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_count = count_property_events(client, window_start, window_end)
         logger.info(f"Property events found: {total_count}")
@@ -1207,7 +912,6 @@ def extract_property_events(**context):
         }
 
     finally:
-        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -1222,10 +926,7 @@ def extract_demand_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Demand extract window: [{window_start}, {window_end})")
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_count = count_demand_events(client, window_start, window_end)
         logger.info(f"Demand events found: {total_count}")
@@ -1237,7 +938,6 @@ def extract_demand_events(**context):
         }
 
     finally:
-        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -1252,10 +952,7 @@ def extract_payment_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Payment extract window: [{window_start}, {window_end})")
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_count = count_payment_events(client, window_start, window_end)
         logger.info(f"Payment events found: {total_count}")
@@ -1267,7 +964,6 @@ def extract_payment_events(**context):
         }
 
     finally:
-        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -1292,19 +988,15 @@ def transform_load_property_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} property events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
+    logger.info(f"Processing {total_count} property events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE}")
 
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_props = 0
         total_units = 0
         total_owners = 0
         total_audits = 0
         processed = 0
-        chunk_idx = 0
         # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
         last_ms = None
         last_id = None
@@ -1313,17 +1005,6 @@ def transform_load_property_events(**context):
         unit_buf = InsertBuffer(client, 'property_unit_entity')
         owner_buf = InsertBuffer(client, 'property_owner_entity')
         audit_buf = InsertBuffer(client, 'property_audit_entity')
-
-        try:
-            client.command("SYSTEM JEMALLOC PURGE")
-        except Exception:
-            pass
-        time.sleep(random.uniform(0, TASK_START_JITTER))
-
-        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
-        ru = resource.getrusage(resource.RUSAGE_SELF)
-        last_cpu_sec = ru.ru_utime + ru.ru_stime
-        last_cpu_wall = time.monotonic()
 
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
@@ -1380,24 +1061,6 @@ def transform_load_property_events(**context):
                 f"{n_props} props, {n_units} units, {n_owners} owners, {n_audits} audits | "
                 f"Total: {total_props}/{total_units}/{total_owners}/{total_audits}"
             )
-            chunk_idx += 1
-
-            # -- Per-chunk resource snapshot: server memory + merges + CPU --
-            ru = resource.getrusage(resource.RUSAGE_SELF)
-            now_cpu_sec = ru.ru_utime + ru.ru_stime
-            now_wall = time.monotonic()
-            cpu_dt = now_wall - last_cpu_wall
-            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
-                              if cpu_dt > 0 else 0.0)
-            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
-            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
-
-            if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
-                try:
-                    client.command("SYSTEM JEMALLOC PURGE")
-                except Exception:
-                    pass
-            time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1419,9 +1082,6 @@ def transform_load_property_events(**context):
         return counts
 
     finally:
-        log_clickhouse_query_stats(client, log_comment)
-        log_clickhouse_select_breakdown(client, log_comment)
-        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
@@ -1443,31 +1103,16 @@ def transform_load_demand_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} demand events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
+    logger.info(f"Processing {total_count} demand events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE}")
 
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_demands = 0
         processed = 0
-        chunk_idx = 0
         # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
         last_ms = None
         last_id = None
         demand_buf = InsertBuffer(client, 'demand_with_details_entity')
-
-        try:
-            client.command("SYSTEM JEMALLOC PURGE")
-        except Exception:
-            pass
-        time.sleep(random.uniform(0, TASK_START_JITTER))
-
-        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
-        ru = resource.getrusage(resource.RUSAGE_SELF)
-        last_cpu_sec = ru.ru_utime + ru.ru_stime
-        last_cpu_wall = time.monotonic()
 
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
@@ -1507,24 +1152,6 @@ def transform_load_demand_events(**context):
             prev_processed = processed
             processed += chunk_len
             logger.info(f"Chunk {prev_processed}-{processed}: {n_demands} demands | Total: {total_demands}")
-            chunk_idx += 1
-
-            # -- Per-chunk resource snapshot: server memory + merges + CPU --
-            ru = resource.getrusage(resource.RUSAGE_SELF)
-            now_cpu_sec = ru.ru_utime + ru.ru_stime
-            now_wall = time.monotonic()
-            cpu_dt = now_wall - last_cpu_wall
-            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
-                              if cpu_dt > 0 else 0.0)
-            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
-            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
-
-            if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
-                try:
-                    client.command("SYSTEM JEMALLOC PURGE")
-                except Exception:
-                    pass
-            time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1536,9 +1163,6 @@ def transform_load_demand_events(**context):
         return {'demands': total_demands}
 
     finally:
-        log_clickhouse_query_stats(client, log_comment)
-        log_clickhouse_select_breakdown(client, log_comment)
-        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
@@ -1560,31 +1184,16 @@ def transform_load_payment_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} payment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
+    logger.info(f"Processing {total_count} payment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE}")
 
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_payments = 0
         processed = 0
-        chunk_idx = 0
         # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
         last_ms = None
         last_id = None
         payment_buf = InsertBuffer(client, 'payment_with_details_entity')
-
-        try:
-            client.command("SYSTEM JEMALLOC PURGE")
-        except Exception:
-            pass
-        time.sleep(random.uniform(0, TASK_START_JITTER))
-
-        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
-        ru = resource.getrusage(resource.RUSAGE_SELF)
-        last_cpu_sec = ru.ru_utime + ru.ru_stime
-        last_cpu_wall = time.monotonic()
 
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
@@ -1623,24 +1232,6 @@ def transform_load_payment_events(**context):
             prev_processed = processed
             processed += chunk_len
             logger.info(f"Chunk {prev_processed}-{processed}: {n_payments} payments | Total: {total_payments}")
-            chunk_idx += 1
-
-            # -- Per-chunk resource snapshot: server memory + merges + CPU --
-            ru = resource.getrusage(resource.RUSAGE_SELF)
-            now_cpu_sec = ru.ru_utime + ru.ru_stime
-            now_wall = time.monotonic()
-            cpu_dt = now_wall - last_cpu_wall
-            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
-                              if cpu_dt > 0 else 0.0)
-            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
-            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
-
-            if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
-                try:
-                    client.command("SYSTEM JEMALLOC PURGE")
-                except Exception:
-                    pass
-            time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1652,9 +1243,6 @@ def transform_load_payment_events(**context):
         return {'payments': total_payments}
 
     finally:
-        log_clickhouse_query_stats(client, log_comment)
-        log_clickhouse_select_breakdown(client, log_comment)
-        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
@@ -1669,10 +1257,7 @@ def extract_bill_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Bill extract window: [{window_start}, {window_end})")
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_count = count_bill_events(client, window_start, window_end)
         logger.info(f"Bill events found: {total_count}")
@@ -1684,7 +1269,6 @@ def extract_bill_events(**context):
         }
 
     finally:
-        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -1709,33 +1293,18 @@ def transform_load_bill_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} bill events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
+    logger.info(f"Processing {total_count} bill events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE}")
 
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_bills = 0
         total_details = 0
         processed = 0
-        chunk_idx = 0
         # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
         last_ms = None
         last_id = None
         bill_buf = InsertBuffer(client, 'bill_entity')
         detail_buf = InsertBuffer(client, 'bill_detail_entity')
-
-        try:
-            client.command("SYSTEM JEMALLOC PURGE")
-        except Exception:
-            pass
-        time.sleep(random.uniform(0, TASK_START_JITTER))
-
-        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
-        ru = resource.getrusage(resource.RUSAGE_SELF)
-        last_cpu_sec = ru.ru_utime + ru.ru_stime
-        last_cpu_wall = time.monotonic()
 
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
@@ -1790,24 +1359,6 @@ def transform_load_bill_events(**context):
                 f"{n_bills} bills, {n_details} details | "
                 f"Total: {total_bills}/{total_details}"
             )
-            chunk_idx += 1
-
-            # -- Per-chunk resource snapshot: server memory + merges + CPU --
-            ru = resource.getrusage(resource.RUSAGE_SELF)
-            now_cpu_sec = ru.ru_utime + ru.ru_stime
-            now_wall = time.monotonic()
-            cpu_dt = now_wall - last_cpu_wall
-            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
-                              if cpu_dt > 0 else 0.0)
-            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
-            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
-
-            if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
-                try:
-                    client.command("SYSTEM JEMALLOC PURGE")
-                except Exception:
-                    pass
-            time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1824,9 +1375,6 @@ def transform_load_bill_events(**context):
         return counts
 
     finally:
-        log_clickhouse_query_stats(client, log_comment)
-        log_clickhouse_select_breakdown(client, log_comment)
-        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 
@@ -1844,10 +1392,7 @@ def extract_assessment_events(**context):
     logger.info(f"Logical date: {context['dag_run'].logical_date}")
     logger.info(f"Assessment extract window: [{window_start}, {window_end})")
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{context['ti'].task_id}:{context['ti'].run_id}"
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_count = count_assessment_events(client, window_start, window_end)
         logger.info(f"Assessment events found: {total_count}")
@@ -1859,7 +1404,6 @@ def extract_assessment_events(**context):
         }
 
     finally:
-        log_resource_summary(context['ti'].task_id, t0, op_stats)
         client.close()
 
 
@@ -1881,31 +1425,16 @@ def transform_load_assessment_events(**context):
     ws = datetime.fromisoformat(metadata['window_start'])
     we = datetime.fromisoformat(metadata['window_end'])
 
-    t0 = time.monotonic()
-    op_stats = OpStats()
-    log_comment = f"{ti.task_id}:{ti.run_id}"
-    logger.info(f"Processing {total_count} assessment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE} | worker_start_memory={peak_memory_mib()} MiB")
+    logger.info(f"Processing {total_count} assessment events | fetch={CH_FETCH_SIZE}/insert={STREAM_BATCH_SIZE}")
 
-    client = instrument_client(get_client(), log_comment, op_stats)
+    client = get_client()
     try:
         total_assessments = 0
         processed = 0
-        chunk_idx = 0
         # Keyset cursor: last (event_time, id) seen, timestamp carried as integer ms.
         last_ms = None
         last_id = None
         assessment_buf = InsertBuffer(client, 'property_assessment_entity')
-
-        try:
-            client.command("SYSTEM JEMALLOC PURGE")
-        except Exception:
-            pass
-        time.sleep(random.uniform(0, TASK_START_JITTER))
-
-        # Worker CPU sampling baseline (ru_utime + ru_stime = cumulative CPU seconds).
-        ru = resource.getrusage(resource.RUSAGE_SELF)
-        last_cpu_sec = ru.ru_utime + ru.ru_stime
-        last_cpu_wall = time.monotonic()
 
         while True:
             # -- EXTRACT: keyset page → continue after the last (event_time, id) --
@@ -1947,24 +1476,6 @@ def transform_load_assessment_events(**context):
                 f"Chunk {prev_processed}-{processed}: "
                 f"{n_assessments} assessments | Total: {total_assessments}"
             )
-            chunk_idx += 1
-
-            # -- Per-chunk resource snapshot: server memory + merges + CPU --
-            ru = resource.getrusage(resource.RUSAGE_SELF)
-            now_cpu_sec = ru.ru_utime + ru.ru_stime
-            now_wall = time.monotonic()
-            cpu_dt = now_wall - last_cpu_wall
-            worker_cpu_pct = ((now_cpu_sec - last_cpu_sec) / cpu_dt * 100.0
-                              if cpu_dt > 0 else 0.0)
-            last_cpu_sec, last_cpu_wall = now_cpu_sec, now_wall
-            log_server_resource_stats(client, log_comment, chunk_idx, worker_cpu_pct)
-
-            if chunk_idx % JEMALLOC_PURGE_INTERVAL == 0:
-                try:
-                    client.command("SYSTEM JEMALLOC PURGE")
-                except Exception:
-                    pass
-            time.sleep(CHUNK_SLEEP_SEC + random.uniform(0, CHUNK_SLEEP_JITTER))
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1976,9 +1487,6 @@ def transform_load_assessment_events(**context):
         return {'assessments': total_assessments}
 
     finally:
-        log_clickhouse_query_stats(client, log_comment)
-        log_clickhouse_select_breakdown(client, log_comment)
-        log_resource_summary(ti.task_id, t0, op_stats)
         client.close()
 
 

@@ -15,7 +15,6 @@ Poll:     Every 60 seconds
 import os
 import time
 import logging
-import resource
 from datetime import datetime
 
 from airflow import DAG
@@ -103,100 +102,9 @@ def get_row_count(client, view_name):
             f"SELECT count() FROM `{CLICKHOUSE_DB}`.`{view_name}`"
         ).result_rows
         return rows[0][0] if rows else None
-    except Exception as exc:  # noqa: BLE001 - counting must never fail the task
+    except Exception as exc:  # counting must never fail the task
         logger.warning(f"{view_name}: could not read row count ({exc})")
         return None
-
-
-def _read_first_int(path):
-    """Read a single integer from a file (e.g. a cgroup stat). None on failure."""
-    try:
-        with open(path) as f:
-            return int(f.read().strip())
-    except Exception:  # noqa: BLE001 - file may be absent or hold 'max'
-        return None
-
-
-def get_clickhouse_memory(client, view_name):
-    """
-    Memory used on the ClickHouse server.
-
-    Reports memory of any query currently running for this view (from
-    system.processes) plus the server-wide tracked memory (system.metrics).
-    Never raises - monitoring must not fail the refresh task.
-    """
-    parts = []
-    try:
-        rows = client.query(
-            """
-            SELECT count(), sum(memory_usage), max(peak_memory_usage)
-            FROM system.processes
-            WHERE query ILIKE {pat:String}
-            """,
-            parameters={'pat': f'%{view_name}%'},
-        ).result_rows
-        if rows and rows[0][0]:
-            n, cur, peak = rows[0]
-            parts.append(
-                f"{n} running query(s): current {cur / 1024 / 1024:.0f} MiB, "
-                f"peak {peak / 1024 / 1024:.0f} MiB"
-            )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(f"{view_name}: could not read query memory ({exc})")
-
-    try:
-        rows = client.query(
-            "SELECT value FROM system.metrics WHERE metric = 'MemoryTracking'"
-        ).result_rows
-        if rows:
-            parts.append(f"server total {int(rows[0][0]) / 1024 / 1024:.0f} MiB")
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(f"{view_name}: could not read server memory ({exc})")
-
-    return ", ".join(parts) if parts else None
-
-
-def get_pod_memory():
-    """
-    Memory used by the Airflow task itself (the worker process / pod).
-
-    Combines the process RSS with the container's cgroup memory so you can see
-    both what this task consumes and how close the pod is to its limit.
-    Never raises.
-    """
-    parts = []
-
-    # Peak resident memory of this process (ru_maxrss is in KiB on Linux)
-    try:
-        peak_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        parts.append(f"process peak memory {peak_kb / 1024:.0f} MiB")
-    except Exception:  # noqa: BLE001
-        pass
-
-    # Current resident memory from /proc/self/status (VmRSS is in KiB)
-    try:
-        with open('/proc/self/status') as f:
-            for line in f:
-                if line.startswith('VmRSS:'):
-                    parts.append(f"process memory in use {int(line.split()[1]) / 1024:.0f} MiB")
-                    break
-    except Exception:  # noqa: BLE001
-        pass
-
-    # Container/pod memory from cgroup (v2 first, then v1)
-    cur = _read_first_int('/sys/fs/cgroup/memory.current')          # cgroup v2
-    lim = _read_first_int('/sys/fs/cgroup/memory.max')              # 'max' -> None
-    if cur is None:
-        cur = _read_first_int('/sys/fs/cgroup/memory/memory.usage_in_bytes')  # v1
-        lim = _read_first_int('/sys/fs/cgroup/memory/memory.limit_in_bytes')
-    if cur is not None:
-        s = f"pod memory {cur / 1024 / 1024:.0f} MiB"
-        # cgroup v1 reports a huge sentinel value when there is no real limit
-        if lim and lim < (1 << 62):
-            s += f" / {lim / 1024 / 1024:.0f} MiB limit"
-        parts.append(s)
-
-    return ", ".join(parts) if parts else "memory usage unavailable"
 
 
 def wait_for_refresh(client, view_name):
@@ -233,10 +141,6 @@ def wait_for_refresh(client, view_name):
                 f"written {written_rows:,} rows / {written_bytes:,} bytes, "
                 f"elapsed={int(elapsed)}s)"
             )
-            ch_mem = get_clickhouse_memory(client, view_name)
-            if ch_mem:
-                logger.info(f"{view_name}: ClickHouse memory - {ch_mem}")
-            logger.info(f"{view_name}: Airflow task - {get_pod_memory()}")
             time.sleep(POLL_INTERVAL_SECONDS)
             continue
 
@@ -292,7 +196,6 @@ def refresh_single_mv(view_name, **context):
                      if rows_before is not None else "")
             logger.info(f"{view_name}: {rows_after:,} rows after refresh{delta}")
 
-        logger.info(f"{view_name}: Airflow task - {get_pod_memory()}")
         logger.info(f"{view_name}: SUCCESS")
 
     finally:
