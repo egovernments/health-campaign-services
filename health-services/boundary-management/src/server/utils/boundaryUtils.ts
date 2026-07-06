@@ -380,8 +380,8 @@ const autoGenerateBoundaryCodes = async (
 
   checkForMixedBoundaryFlowInArrays(withoutBoundaryCode, manualBoundaryCode);
 
-  // Nothing new to create: every uploaded boundary already exists. Skip entity/relationship
-  // creation (which would throw) but still regenerate and persist the processed template.
+  // Every uploaded boundary entity already exists: skip entity creation, but still reconcile
+  // any missing relationships and regenerate the processed template.
   const noNewBoundaries = withoutBoundaryCode.length === 0 && manualBoundaryCode.length === 0;
   if (noNewBoundaries) {
     logger.info(
@@ -403,7 +403,13 @@ const autoGenerateBoundaryCodes = async (
 
   let boundaryMap: Map<{ key: string; value: string }, string>;
 
-  if (manualServiceFlow) {
+  if (noNewBoundaries) {
+    logger.info("Reconciling relationships for already-existing boundaries");
+    boundaryMap = buildBoundaryMapFromWithBoundaryCode(withBoundaryCode, hierarchy, localizationMap);
+    const reconcileChildParentMap = getChildParentMap([...withBoundaryCode]);
+    const reconcileModifiedChildParentMap = modifyChildParentMap(reconcileChildParentMap, boundaryMap);
+    await createBoundaryRelationship(request, boundaryMap, reconcileModifiedChildParentMap, true);
+  } else if (manualServiceFlow) {
     // Manual flow: Use user-provided boundary codes
     logger.info("Using manual boundary code flow");
     boundaryMap = await getManualBoundaryCodesHandler(
@@ -812,6 +818,49 @@ function getChildParentMap(modifiedBoundaryData: any) {
     }
   });
   return childParentMap;
+}
+
+function buildBoundaryMapFromWithBoundaryCode(
+  withBoundaryCode: any[],
+  hierarchy: any[],
+  localizationMap: any
+): Map<{ key: string; value: string }, string> {
+  const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
+  const seen = new Set<string>();
+  const entries: { levelIndex: number; keyObj: { key: string; value: string }; code: string }[] = [];
+
+  withBoundaryCode.forEach((row: any[]) => {
+    let leafObj: any = null;
+    let leafIndex = -1;
+    for (let i = hierarchy.length - 1; i >= 0; i--) {
+      const obj = row.find((o: any) => o.key === hierarchy[i]);
+      if (obj && obj.value && obj.value.toString().trim()) {
+        leafObj = obj;
+        leafIndex = i;
+        break;
+      }
+    }
+
+    const codeObj = row.find((o: any) => o.key === boundaryCodeKey);
+    if (leafObj && codeObj && codeObj.value) {
+      const name = leafObj.value.toString().trim();
+      const dedupeKey = `${leafIndex}|${name}`;
+      if (!seen.has(dedupeKey)) {
+        seen.add(dedupeKey);
+        entries.push({
+          levelIndex: leafIndex,
+          keyObj: { key: leafObj.key, value: name },
+          code: codeObj.value.toString().trim(),
+        });
+      }
+    }
+  });
+
+  entries.sort((a, b) => a.levelIndex - b.levelIndex);
+
+  const boundaryMap = new Map<{ key: string; value: string }, string>();
+  entries.forEach((e) => boundaryMap.set(e.keyObj, e.code));
+  return boundaryMap;
 }
 
 function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localizationMap: any) {

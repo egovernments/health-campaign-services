@@ -39,7 +39,7 @@ const getSheetData = async (
  * @param boundaryTypeMap Map of boundary codes to types.
  * @param modifiedChildParentMap Modified child-parent map.
  */
-async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: string, value: string }, string>, modifiedChildParentMap: Map<string, string | null>) {
+async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: string, value: string }, string>, modifiedChildParentMap: Map<string, string | null>, reconcileOnly: boolean = false) {
   try {
 
     const updatedBoundaryMap: Array<{ key: string, value: string }> = Array.from(boundaryMap).map(([key, value]) => ({ key: value, value: key.key }));
@@ -95,6 +95,10 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
     };
 
     if (flag === 1) {
+      if (reconcileOnly) {
+        logger.info("Reconcile: all relationships already present, nothing to create.");
+        return;
+      }
       throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary already present in the system");
     }
 
