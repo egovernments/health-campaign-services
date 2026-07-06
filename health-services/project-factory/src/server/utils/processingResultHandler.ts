@@ -1597,25 +1597,36 @@ export async function handleUserBoundaryMappings(
 ): Promise<void> {
     // Get existing mappings for this campaign
     const existingMappings = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId);
-    const existingMappingSet = new Set(
-        existingMappings.map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`)
+    const existingMappingByKey = new Map<string, any>(
+        existingMappings.map((m: any) => [`${m.uniqueIdentifierForData}#${m.boundaryCode}`, m])
     );
 
-    // Prepare new mappings to be created
+    // Prepare new mappings to be created, and skipped rows to revive
     const mappingsToCreate: any[] = [];
+    // A prior run marks a staff row `skipped` when its user had no HRMS id yet.
+    // `skipped` is terminal and the reconciler never revives it, so on retry —
+    // once the user is created — the existing row must be flipped back to
+    // toBeMapped or the user is never assigned to the project.
+    const mappingsToRevive: any[] = [];
     const newMappingSet = new Set();
 
     newMappings.forEach(mapping => {
         const key = `${mapping.phoneNumber}#${mapping.boundaryCode}`;
         newMappingSet.add(key);
 
-        if (!existingMappingSet.has(key)) {
+        const existing = existingMappingByKey.get(key);
+        if (!existing) {
             mappingsToCreate.push({
                 campaignNumber,
                 type: 'user',
                 uniqueIdentifierForData: mapping.phoneNumber,
                 boundaryCode: mapping.boundaryCode,
                 mappingId: null,
+                status: mappingStatuses.toBeMapped
+            });
+        } else if (existing.status === mappingStatuses.skipped) {
+            mappingsToRevive.push({
+                ...existing,
                 status: mappingStatuses.toBeMapped
             });
         }
@@ -1642,7 +1653,12 @@ export async function handleUserBoundaryMappings(
         logger.info(`Creating ${mappingsToCreate.length} new user-boundary mappings`);
         await persistDataInBatches(mappingsToCreate, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, tenantId);
     }
-    
+
+    if (mappingsToRevive.length > 0) {
+        logger.info(`Reviving ${mappingsToRevive.length} skipped user-boundary mappings for retry`);
+        await persistDataInBatches(mappingsToRevive, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+    }
+
     if (mappingsToDemap.length > 0) {
         logger.info(`Demapping ${mappingsToDemap.length} user-boundary mappings`);
         await persistDataInBatches(mappingsToDemap, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);

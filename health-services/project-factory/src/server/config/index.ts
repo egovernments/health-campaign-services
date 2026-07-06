@@ -70,6 +70,8 @@ const config = {
     KAFKA_CONSUMER_MAX_CONCURRENT: process.env.KAFKA_CONSUMER_MAX_CONCURRENT ? parseInt(process.env.KAFKA_CONSUMER_MAX_CONCURRENT, 10) : 5,
     // Chunk size for user search-by-mobile-number calls.
     searchBatchSize: process.env.USER_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_SEARCH_BATCH_SIZE, 10) : 50,
+    // Max number of user search-by-mobile-number batch requests fired concurrently.
+    searchConcurrency: process.env.USER_SEARCH_CONCURRENCY ? parseInt(process.env.USER_SEARCH_CONCURRENCY, 10) : 10,
     // Chunk size for individual-id lookups during user validation.
     validationSearchBatchSize: process.env.USER_VALIDATION_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_VALIDATION_SEARCH_BATCH_SIZE, 10) : 50,
     // Chunk size for individual-service search-by-phone-number calls during validation/retry.
