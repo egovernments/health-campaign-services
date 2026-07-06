@@ -80,8 +80,29 @@ public class EmployeeController {
 	@PostMapping(value = "/_create")
 	@ResponseBody
 	public ResponseEntity<?> create(@RequestBody @Valid EmployeeRequest employeeRequest) {
-		validator.validateCreateEmployee(employeeRequest);
+		// Row-level failures (username already exists) are collected here
+		// instead of aborting the batch. Batch-fatal issues still throw.
+		java.util.List<java.util.Map<String, Object>> rowFailures = new java.util.ArrayList<>();
+		validator.validateCreateEmployee(employeeRequest, rowFailures);
+
+		// If ALL rows failed the pre-check, don't call the service — return
+		// the failures now.
+		if (employeeRequest.getEmployees().isEmpty()) {
+			EmployeeResponse empty = EmployeeResponse.builder()
+					.responseInfo(new org.egov.common.contract.response.ResponseInfo())
+					.employees(java.util.Collections.emptyList())
+					.totalCount(0L)
+					.errors(rowFailures)
+					.build();
+			return new ResponseEntity<>(empty, HttpStatus.OK);
+		}
+
 		EmployeeResponse employeeResponse = employeeService.create(employeeRequest);
+
+		// Merge pre-check failures with any service-level failures.
+		java.util.List<java.util.Map<String, Object>> merged = new java.util.ArrayList<>(rowFailures);
+		if (employeeResponse.getErrors() != null) merged.addAll(employeeResponse.getErrors());
+		employeeResponse.setErrors(merged);
         return new ResponseEntity<>(employeeResponse, HttpStatus.ACCEPTED);
 	}
 

@@ -5,11 +5,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.jayway.jsonpath.JsonPath;
@@ -76,11 +79,41 @@ public class EmployeeValidator {
 	 * @param request
 	 */
 	public void validateCreateEmployee(EmployeeRequest request) {
+		validateCreateEmployee(request, new ArrayList<>());
+	}
+
+	/**
+	 * Validates the create request. Row-level failures (per-employee username
+	 * duplicates) are appended to {@code rowFailuresOut} and the corresponding
+	 * employees are REMOVED from {@code request.getEmployees()} so the caller
+	 * can proceed with the surviving subset — enabling partial-success on bulk
+	 * creates. Batch-fatal issues (invalid MDMS codes, missing passwords,
+	 * in-batch duplicate codes) still {@code throw CustomException} so a
+	 * malformed request never gets partially processed.
+	 *
+	 * @param request         the create request; its employees list is mutated
+	 *                        by removing rows that failed row-level checks.
+	 * @param rowFailuresOut  populated with one entry per row that was filtered
+	 *                        out. Each entry contains at least {@code code},
+	 *                        {@code errorCode}, {@code errorMessage}, and
+	 *                        {@code source}.
+	 */
+	public void validateCreateEmployee(EmployeeRequest request,
+			List<Map<String, Object>> rowFailuresOut) {
 		Map<String, String> errorMap = new HashMap<>();
-		validateExistingDuplicates(request ,errorMap);
+		validateDataUniqueness(request.getEmployees(), errorMap);
+		autoGenerateMissingMobileNumbers(request.getEmployees(), request.getRequestInfo());
+		// Row-level: per-employee failures don't populate errorMap; they mark
+		// the offender for exclusion and let the batch proceed.
+		filterExistingUsernames(request.getEmployees(), request.getRequestInfo(), rowFailuresOut);
 		validatePassword(request, errorMap);
 		if(!CollectionUtils.isEmpty(errorMap.keySet()))
 			throw new CustomException(errorMap);
+		if (request.getEmployees().isEmpty()) {
+			// All rows failed row-level checks. Nothing to validate against MDMS.
+			// Caller (controller) will return a response containing just the failures.
+			return;
+		}
 		Map<String, List<String>> boundaryMap = getBoundaryList(request.getRequestInfo(),request.getEmployees().get(0));
 		//FIXME hierarchy type has to be validated
 		Map<String, List<String>> mdmsData = mdmsService.getMDMSData(request.getRequestInfo(), request.getEmployees().get(0).getTenantId());
@@ -208,11 +241,15 @@ public class EmployeeValidator {
 	 * @param request
 	 * @param errorMap
 	 */
+	// Kept for backward compatibility with any external caller that still
+	// invokes the old signature. New code should use
+	// {@link #validateCreateEmployee(EmployeeRequest, List)} which supports
+	// partial-success semantics.
 	private void validateExistingDuplicates(EmployeeRequest request, Map<String, String> errorMap) {
 		List<Employee> employees = request.getEmployees();
 		validateDataUniqueness(employees,errorMap);
-        validateUserMobile(employees,errorMap,request.getRequestInfo());
-        validateUserName(employees,errorMap,request.getRequestInfo());
+        autoGenerateMissingMobileNumbers(employees, request.getRequestInfo());
+        validateExistingUsernames(employees, errorMap, request.getRequestInfo());
 	}
 
 	/**
@@ -234,75 +271,144 @@ public class EmployeeValidator {
 	}
 
 	/**
-	 * Checks if the mobile number used in the request is duplicate.
-	 * 
+	 * Auto-generates a mobile number for any employee that doesn't already have one.
+	 *
+	 * Mobile-number duplicates are now permitted (only usernames must be unique), so the generated
+	 * number is no longer re-queried against the user service for uniqueness, and duplicate mobile
+	 * numbers within the request are no longer flagged as errors.
+	 *
 	 * @param employees
-	 * @param errorMap
 	 * @param requestInfo
 	 */
-    private void validateUserMobile(List<Employee> employees, Map<String, String> errorMap, RequestInfo requestInfo) {
-		HashSet < String> mobileNos = new HashSet<>();
+    private void autoGenerateMissingMobileNumbers(List<Employee> employees, RequestInfo requestInfo) {
         employees.forEach(employee -> {
 			boolean autoGenerateMobileNumber = employee.getUser().getMobileNumber() == null ||
 					employee.getUser().getMobileNumber().isEmpty();
-			int maxRetryCount = 5;
 			if (autoGenerateMobileNumber) {
-				int retryCount = 0;
-				String generatedMobileNumber = hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId());
-				while ((retryCount < maxRetryCount) && mobileNos.contains(generatedMobileNumber)) {
-					generatedMobileNumber = hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId());
-					retryCount++;
-				}
-				employee.getUser().setMobileNumber(generatedMobileNumber);
+				employee.getUser().setMobileNumber(
+						hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId()));
 			}
-			if(mobileNos.contains(employee.getUser().getMobileNumber()))
-				errorMap.put(ErrorConstants.HRMS_BULK_CREATE_DUPLICATE_MOBILE_CODE, ErrorConstants.HRMS_BULK_CREATE_DUPLICATE_MOBILE_MSG );
-			else
-				mobileNos.add(employee.getUser().getMobileNumber());
-			Map<String, Object> userSearchCriteria = new HashMap<>();
-			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
-			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,employee.getTenantId());
-			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_MOBILENO,employee.getUser().getMobileNumber());
-			UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
-			if (autoGenerateMobileNumber && !CollectionUtils.isEmpty(userResponse.getUser())) {
-				int retryCount = 0;
-				String generatedMobileNumber = hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId());
-				while ((retryCount < maxRetryCount) && !CollectionUtils.isEmpty(userResponse.getUser())) {
-					generatedMobileNumber = hrmsUtils.generateMobileNumber(requestInfo, employee.getTenantId());
-					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_MOBILENO,generatedMobileNumber);
-					userResponse = userService.getUser(requestInfo, userSearchCriteria);
-					retryCount++;
-				}
-				employee.getUser().setMobileNumber(generatedMobileNumber);
-			}
-            if(!CollectionUtils.isEmpty(userResponse.getUser())){
-                errorMap.put(ErrorConstants.HRMS_USER_EXIST_MOB_CODE,
-                		ErrorConstants.HRMS_USER_EXIST_MOB_MSG);
-            }
         });
     }
 
     /**
-     * Checks if the username is duplicate
-     * 
+     * Checks whether any employee's username (employee code) already exists as an EMPLOYEE user.
+     *
+     * Uses a single bulk search per tenant ({@link UserService#searchByUsernames}) instead of the
+     * earlier per-employee search loop. Duplicate rule: a username match is a duplicate (whether or
+     * not the mobile number also matches); a mobile-number-only match is not an issue, so mobile
+     * numbers are not searched.
+     *
      * @param employees
      * @param errorMap
      * @param requestInfo
      */
-    private void validateUserName(List<Employee> employees, Map<String, String> errorMap, RequestInfo requestInfo) {
+    /**
+     * Partial-success variant of {@link #validateExistingUsernames} that
+     * REMOVES any employee whose code already exists in the user backend from
+     * the passed-in list and records one entry per removed row in
+     * {@code rowFailuresOut}. The remaining employees proceed with create.
+     *
+     * The failure entry records WHICH source detected the duplicate — either
+     * "individual" (the primary search hit) or "egov-user" (the cross-check
+     * hit that catches legacy users with no matching individual row). Callers
+     * see the exact backend that owns the conflict.
+     */
+    private void filterExistingUsernames(List<Employee> employees,
+            RequestInfo requestInfo, List<Map<String, Object>> rowFailuresOut) {
+        // Group the usernames (employee codes) to look up, per tenant
+        Map<String, Set<String>> usernamesByTenant = new HashMap<>();
         employees.forEach(employee -> {
-            if(!StringUtils.isEmpty(employee.getCode())){
-				Map<String, Object> userSearchCriteria = new HashMap<>();
-				userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
-				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,employee.getTenantId());
-				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME,employee.getCode());
-				UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
-				if(!CollectionUtils.isEmpty(userResponse.getUser())){
-                    errorMap.put(ErrorConstants.HRMS_USER_EXIST_USERNAME_CODE,
-                    		ErrorConstants.HRMS_USER_EXIST_USERNAME_MSG);
-                }
+            if (!StringUtils.isEmpty(employee.getCode())) {
+                usernamesByTenant
+                        .computeIfAbsent(employee.getTenantId(), k -> new LinkedHashSet<>())
+                        .add(employee.getCode());
             }
         });
+        if (usernamesByTenant.isEmpty()) return;
+
+        // Ask userService.searchByUsernames — that implementation queries
+        // Individual and cross-checks egov-user, returning hits from either
+        // AND attributing each hit to its source in sourceByUsername.
+        Set<String> existingUsernames = new HashSet<>();
+        Map<String, String> sourceByUsername = new HashMap<>();
+        usernamesByTenant.forEach((tenantId, usernames) -> {
+            UserResponse resp = userService.searchByUsernames(requestInfo, new ArrayList<>(usernames), tenantId);
+            if (resp != null && !CollectionUtils.isEmpty(resp.getUser())) {
+                resp.getUser().forEach(u -> {
+                    if (!StringUtils.isEmpty(u.getUserName())) existingUsernames.add(u.getUserName());
+                });
+            }
+            if (resp != null && resp.getSourceByUsername() != null) {
+                sourceByUsername.putAll(resp.getSourceByUsername());
+            }
+        });
+        if (existingUsernames.isEmpty()) return;
+
+        // Remove duplicates from the batch and record a failure entry for each.
+        Iterator<Employee> it = employees.iterator();
+        while (it.hasNext()) {
+            Employee e = it.next();
+            if (StringUtils.isEmpty(e.getCode())) continue;
+            if (existingUsernames.contains(e.getCode())) {
+                String src = sourceByUsername.getOrDefault(e.getCode(), "unknown");
+                String storeLabel = "individual".equals(src) ? "the individual data store (os.individual)"
+                        : "egov-user".equals(src) ? "the egov-user data store (eg_user)"
+                        : "the individual/egov-user store";
+                Map<String, Object> row = new HashMap<>();
+                row.put("code", e.getCode());
+                row.put("userName", e.getUser() != null ? e.getUser().getUserName() : null);
+                row.put("mobileNumber", e.getUser() != null ? e.getUser().getMobileNumber() : null);
+                row.put("errorCode", "HRMS_EMPLOYEE_CREATE_USERNAME_ALREADY_EXISTS");
+                row.put("errorMessage", String.format(
+                        "Employee code '%s' already exists as a username in %s. "
+                                + "This row was skipped. Fresh rows in the batch (if any) were created.",
+                        e.getCode(), storeLabel));
+                row.put("source", src);
+                rowFailuresOut.add(row);
+                it.remove();
+            }
+        }
+    }
+
+    private void validateExistingUsernames(List<Employee> employees, Map<String, String> errorMap, RequestInfo requestInfo) {
+        // Group the usernames (employee codes) to look up, per tenant
+        Map<String, Set<String>> usernamesByTenant = new HashMap<>();
+        employees.forEach(employee -> {
+            if (!StringUtils.isEmpty(employee.getCode())) {
+                usernamesByTenant
+                        .computeIfAbsent(employee.getTenantId(), k -> new LinkedHashSet<>())
+                        .add(employee.getCode());
+            }
+        });
+        if (usernamesByTenant.isEmpty())
+            return;
+
+        // Collect the usernames that already exist in the user/individual service
+        Set<String> existingUsernames = new HashSet<>();
+        usernamesByTenant.forEach((tenantId, usernames) -> {
+            UserResponse userResponse = userService.searchByUsernames(requestInfo, new ArrayList<>(usernames), tenantId);
+            if (userResponse != null && !CollectionUtils.isEmpty(userResponse.getUser())) {
+                userResponse.getUser().forEach(user -> {
+                    if (!StringUtils.isEmpty(user.getUserName()))
+                        existingUsernames.add(user.getUserName());
+                });
+            }
+        });
+
+        // Flag duplicates with the actual usernames that collided (client
+        // must know WHICH employee code is the offender).
+        List<String> duplicateUsernames = employees.stream()
+                .map(Employee::getCode)
+                .filter(code -> !StringUtils.isEmpty(code) && existingUsernames.contains(code))
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+        if (!duplicateUsernames.isEmpty()) {
+            errorMap.put("HRMS_EMPLOYEE_CREATE_USERNAME_ALREADY_EXISTS",
+                    String.format("The following employee code(s) already exist as usernames in the user service: [%s]. "
+                                    + "Choose different codes or update the existing employees.",
+                            String.join(", ", duplicateUsernames)));
+        }
     }
 
     /**
@@ -355,21 +461,8 @@ public class EmployeeValidator {
 	private void validateUserData(Employee existingEmp, Employee employee, Map<String, String> errorMap, RequestInfo requestInfo) {
 		if(!employee.getCode().equals(existingEmp.getCode()))
 			errorMap.put(ErrorConstants.HRMS_UPDATE_EMPLOYEE_CODE_CHANGE_CODE,ErrorConstants.HRMS_UPDATE_EMPLOYEE_CODE_CHANGE_MSG);
-		if(!employee.getUser().getMobileNumber().equals(existingEmp.getUser().getMobileNumber())){
-			Map<String, Object> userSearchCriteria = new HashMap<>();
-			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
-			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,employee.getTenantId());
-			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_MOBILENO,employee.getUser().getMobileNumber());
-			UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
-			if(!CollectionUtils.isEmpty(userResponse.getUser())){
-				if(!employee.getUser().getUuid().equals(userResponse.getUser().get(0).getUuid())){
-					errorMap.put(ErrorConstants.HRMS_UPDATE_EXISTING_MOBNO_CODE,ErrorConstants.HRMS_UPDATE_EXISTING_MOBNO_MSG);
-				}
-			}
-
-
-		}
-
+		// Mobile-number duplicates are now permitted (only usernames must be unique), so the previous
+		// "mobile number already used by another user" check on update has been removed.
 	}
 
 	/**
@@ -386,29 +479,52 @@ public class EmployeeValidator {
 	 */
 	private void validateEmployee(Employee employee, Map<String, String> errorMap, Map<String, List<String>> mdmsData) {
 
-		if(employee.getUser().getMobileNumber().length() != 10 && employee.getUser().getMobileNumber().length() != 9) {
-			errorMap.put(ErrorConstants.HRMS_INVALID_MOB_NO_CODE, ErrorConstants.HRMS_INVALID_MOB_NO_MSG);
+		String empCode = employee.getCode() != null ? employee.getCode() : "<no-code>";
+		String mob = employee.getUser() != null ? employee.getUser().getMobileNumber() : null;
+
+		if (mob == null || (mob.length() != 10 && mob.length() != 9)) {
+			errorMap.put("HRMS_EMPLOYEE_CREATE_INVALID_MOBILE_NUMBER:" + empCode,
+					String.format("Employee code='%s' has invalid mobileNumber='%s'. "
+									+ "Expected 9 or 10 digits.",
+							empCode, mob));
 		}
-		
-		if(CollectionUtils.isEmpty(employee.getUser().getRoles()))
-			errorMap.put(ErrorConstants.HRMS_MISSING_ROLES_CODE, ErrorConstants.HRMS_INVALID_ROLES_MSG);
-		else {
-			for(org.egov.hrms.model.Role role: employee.getUser().getRoles()) {
-				if(!mdmsData.get(HRMSConstants.HRMS_MDMS_ROLES_CODE).contains(role.getCode()))
-					errorMap.put(ErrorConstants.HRMS_INVALID_ROLE_CODE, ErrorConstants.HRMS_INVALID_ROLE_MSG );
+
+		if (CollectionUtils.isEmpty(employee.getUser().getRoles())) {
+			errorMap.put("HRMS_EMPLOYEE_CREATE_MISSING_ROLES:" + empCode,
+					String.format("Employee code='%s' has no roles. At least one role is required.", empCode));
+		} else {
+			List<String> validRoles = mdmsData.get(HRMSConstants.HRMS_MDMS_ROLES_CODE);
+			for (org.egov.hrms.model.Role role : employee.getUser().getRoles()) {
+				if (!validRoles.contains(role.getCode())) {
+					errorMap.put("HRMS_EMPLOYEE_CREATE_INVALID_ROLE:" + empCode + ":" + role.getCode(),
+							String.format("Employee code='%s' has invalid role code='%s'. "
+											+ "Not present in MDMS ACCESSCONTROL-ROLES. Sample valid codes: %s",
+									empCode, role.getCode(),
+									validRoles.stream().limit(5).collect(Collectors.joining(", "))));
+				}
 			}
 		}
-		/*if(!mdmsData.get(HRMSConstants.HRMS_MDMS_EMP_STATUS_CODE).contains(employee.getEmployeeStatus()))
-			errorMap.put(ErrorConstants.HRMS_INVALID_EMP_STATUS_CODE, ErrorConstants.HRMS_INVALID_EMP_STATUS_MSG);*/
-		if(!mdmsData.get(HRMSConstants.HRMS_MDMS_EMP_TYPE_CODE).contains(employee.getEmployeeType()))
-			errorMap.put(ErrorConstants.HRMS_INVALID_EMP_TYPE_CODE, ErrorConstants.HRMS_INVALID_EMP_TYPE_MSG);
-		if(null != employee.getDateOfAppointment() && employee.getDateOfAppointment() > new Date().getTime())
-			errorMap.put(ErrorConstants.HRMS_INVALID_DATE_OF_APPOINTMENT_CODE, ErrorConstants.HRMS_INVALID_DATE_OF_APPOINTMENT_MSG);
-		if(null != employee.getUser().getDob()) {
-			if(employee.getUser().getDob() >= new Date().getTime())
-				errorMap.put(ErrorConstants.HRMS_INVALID_DOB_CODE, ErrorConstants.HRMS_INVALID_DOB_MSG);
-			if(null != employee.getDateOfAppointment() && employee.getDateOfAppointment() < employee.getUser().getDob())
-				errorMap.put(ErrorConstants.HRMS_INVALID_DATE_OF_APPOINTMENT_DOB_CODE, ErrorConstants.HRMS_INVALID_DATE_OF_APPOINTMENT_DOB_MSG);
+		List<String> validTypes = mdmsData.get(HRMSConstants.HRMS_MDMS_EMP_TYPE_CODE);
+		if (!validTypes.contains(employee.getEmployeeType())) {
+			errorMap.put("HRMS_EMPLOYEE_CREATE_INVALID_EMPLOYEE_TYPE:" + empCode,
+					String.format("Employee code='%s' has invalid employeeType='%s'. "
+									+ "Valid values: [%s]",
+							empCode, employee.getEmployeeType(),
+							String.join(", ", validTypes)));
+		}
+		if (null != employee.getDateOfAppointment() && employee.getDateOfAppointment() > new Date().getTime())
+			errorMap.put("HRMS_EMPLOYEE_CREATE_INVALID_DATE_OF_APPOINTMENT:" + empCode,
+					String.format("Employee code='%s' has dateOfAppointment=%d in the future.",
+							empCode, employee.getDateOfAppointment()));
+		if (null != employee.getUser().getDob()) {
+			if (employee.getUser().getDob() >= new Date().getTime())
+				errorMap.put("HRMS_EMPLOYEE_CREATE_INVALID_DOB:" + empCode,
+						String.format("Employee code='%s' has user.dob=%d in the future.",
+								empCode, employee.getUser().getDob()));
+			if (null != employee.getDateOfAppointment() && employee.getDateOfAppointment() < employee.getUser().getDob())
+				errorMap.put("HRMS_EMPLOYEE_CREATE_APPOINTMENT_BEFORE_DOB:" + empCode,
+						String.format("Employee code='%s' has dateOfAppointment=%d earlier than user.dob=%d.",
+								empCode, employee.getDateOfAppointment(), employee.getUser().getDob()));
 		}
 	}
 	
@@ -445,11 +561,17 @@ public class EmployeeValidator {
 			if (overlappingCheck)
 				errorMap.put(ErrorConstants.HRMS_OVERLAPPING_ASSGN_CODE, ErrorConstants.HRMS_OVERLAPPING_ASSGN_MSG);
 
+			String empCode = employee.getCode() != null ? employee.getCode() : "<no-code>";
+			List<String> validDepts = mdmsData.get(HRMSConstants.HRMS_MDMS_DEPT_CODE);
 			for (Assignment assignment : employee.getAssignments()) {
 				if (!assignment.getIsCurrentAssignment() && !CollectionUtils.isEmpty(currentAssignments) && null != assignment.getToDate() && currentAssignments.get(0).getFromDate() < assignment.getToDate())
 					errorMap.put(ErrorConstants.HRMS_OVERLAPPING_ASSGN_CURRENT_CODE, ErrorConstants.HRMS_OVERLAPPING_ASSGN_CURRENT_MSG);
-				if (!mdmsData.get(HRMSConstants.HRMS_MDMS_DEPT_CODE).contains(assignment.getDepartment()))
-					errorMap.put(ErrorConstants.HRMS_INVALID_DEPT_CODE, ErrorConstants.HRMS_INVALID_DEPT_MSG);
+				if (!validDepts.contains(assignment.getDepartment()))
+					errorMap.put("HRMS_EMPLOYEE_CREATE_INVALID_DEPARTMENT:" + empCode + ":" + assignment.getDepartment(),
+							String.format("Employee code='%s' has invalid assignment department='%s'. "
+											+ "Not present in MDMS common-masters.Department. Valid codes: [%s]",
+									empCode, assignment.getDepartment(),
+									String.join(", ", validDepts)));
 				/*if (!assignment.getDesignation().equalsIgnoreCase("undefined") &&
 						!mdmsData.get(HRMSConstants.HRMS_MDMS_DESG_CODE).contains(assignment.getDesignation()))
 					errorMap.put(ErrorConstants.HRMS_INVALID_DESG_CODE, ErrorConstants.HRMS_INVALID_DESG_MSG);*/

@@ -49,6 +49,7 @@ import org.egov.common.contract.request.Role;
 import org.egov.common.contract.request.User;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.hrms.config.PropertiesManager;
+import org.egov.hrms.model.Employee;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
 import org.egov.hrms.web.contract.UserRequest;
@@ -56,6 +57,7 @@ import org.egov.hrms.web.contract.UserResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.CollectionUtils;
 
 import jakarta.annotation.PostConstruct;
 import java.text.ParseException;
@@ -109,7 +111,14 @@ public class DefaultUserService implements UserService {
 				createInternalMicroserviceUser(requestInfo);
 			internalMicroserviceRoleUuid = (String) users.get(0).get("uuid");
 		}catch (Exception e) {
-			throw new CustomException("EG_USER_SEARCH_ERROR", "Service returned null while fetching user");
+			throw new CustomException("HRMS_USER_SEARCH_ERROR",
+					String.format("Failed to fetch user from egov-user (roleCode=%s, tenantId=%s) at %s. "
+									+ "downstreamExceptionClass=%s downstreamMessage=%s",
+							INTERNALMICROSERVICEROLE_CODE,
+							propertiesManager.getStateLevelTenantId(),
+							uri.toString(),
+							e.getClass().getSimpleName(),
+							e.getMessage() != null ? e.getMessage() : "(no message)"));
 		}
 
 	}
@@ -136,7 +145,15 @@ public class DefaultUserService implements UserService {
 			List<LinkedHashMap<String, Object>> users = (List<LinkedHashMap<String, Object>>) responseMap.get("user");
 			internalMicroserviceRoleUuid = (String) users.get(0).get("uuid");
 		}catch (Exception e) {
-			throw new CustomException("EG_USER_CRETE_ERROR", "Service returned throws error while creating user");
+			throw new CustomException("HRMS_USER_CREATE_ERROR",
+					String.format("Failed to create user in egov-user (userName=%s, roleCode=%s, tenantId=%s) at %s. "
+									+ "downstreamExceptionClass=%s downstreamMessage=%s",
+							INTERNALMICROSERVICEUSER_USERNAME,
+							INTERNALMICROSERVICEROLE_CODE,
+							propertiesManager.getStateLevelTenantId(),
+							uri.toString(),
+							e.getClass().getSimpleName(),
+							e.getMessage() != null ? e.getMessage() : "(no message)"));
 		}
 	}
 	
@@ -196,6 +213,120 @@ public class DefaultUserService implements UserService {
 		return userResponse;
 	}
 
+	@Override
+	public UserResponse searchByUsernames(RequestInfo requestInfo, List<String> usernames, String tenantId) {
+		UserResponse aggregated = new UserResponse();
+		List<org.egov.hrms.web.contract.User> matchedUsers = new ArrayList<>();
+		aggregated.setUser(matchedUsers);
+		aggregated.setTotalCount(0L);
+		if (usernames == null || usernames.isEmpty())
+			return aggregated;
+
+		// De-duplicate to avoid redundant lookups while preserving order
+		List<String> distinctUsernames = new ArrayList<>(new LinkedHashSet<>(usernames));
+
+		// egov-user caps external search results at a default page size, so chunk the usernames:
+		// each batch stays within that cap and no existing user is missed. userType (EMPLOYEE) is
+		// applied by getUser(...) itself.
+		int batchSize = HRMSConstants.HRMS_USER_BULK_SEARCH_BATCH_SIZE;
+		for (int start = 0; start < distinctUsernames.size(); start += batchSize) {
+			List<String> batch = new ArrayList<>(
+					distinctUsernames.subList(start, Math.min(start + batchSize, distinctUsernames.size())));
+			Map<String, Object> userSearchCriteria = new HashMap<>();
+			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID, tenantId);
+			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAMES, batch);
+			userSearchCriteria.put("pageSize", batch.size());
+			UserResponse batchResponse = getUser(requestInfo, userSearchCriteria);
+			if (batchResponse != null && !CollectionUtils.isEmpty(batchResponse.getUser()))
+				matchedUsers.addAll(batchResponse.getUser());
+		}
+		aggregated.setTotalCount((long) matchedUsers.size());
+		return aggregated;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public UserResponse createUsers(RequestInfo requestInfo, List<Employee> employees) {
+		UserResponse aggregated = new UserResponse();
+		List<org.egov.hrms.web.contract.User> createdUsers = new ArrayList<>();
+		aggregated.setUser(createdUsers);
+		aggregated.setTotalCount(0L);
+		if (CollectionUtils.isEmpty(employees))
+			return aggregated;
+
+		StringBuilder uri = new StringBuilder();
+		uri.append(propertiesManager.getUserHost()).append(propertiesManager.getUserCreateBulkEndpoint());
+
+		// egov-user's bulk create (/users/v2/_create) caps the batch at egov.user.bulk.max (default 100),
+		// so chunk the employees to stay within that limit.
+		int batchSize = HRMSConstants.HRMS_USER_BULK_CREATE_BATCH_SIZE;
+		for (int start = 0; start < employees.size(); start += batchSize) {
+			List<Employee> batch = employees.subList(start, Math.min(start + batchSize, employees.size()));
+
+			List<Map<String, Object>> userMaps = new ArrayList<>();
+			for (Employee employee : batch)
+				userMaps.add(toBulkUserMap(employee.getUser()));
+
+			Map<String, Object> bulkRequest = new HashMap<>();
+			bulkRequest.put("RequestInfo", requestInfo);
+			// v2 bulk endpoint reads the list under the lowercase key "users"
+			bulkRequest.put("users", userMaps);
+
+			LinkedHashMap<String, Object> responseMap =
+					(LinkedHashMap<String, Object>) restCallRepository.fetchResult(uri, bulkRequest);
+			List<LinkedHashMap<String, Object>> responseUsers =
+					(List<LinkedHashMap<String, Object>>) responseMap.get("users");
+			if (responseUsers != null) {
+				for (LinkedHashMap<String, Object> responseUser : responseUsers) {
+					Object uuid = responseUser.get("uuid");
+					// a null uuid/id means egov-user skipped this row (duplicate); leave it unmapped
+					if (uuid == null)
+						continue;
+					Object id = responseUser.get("id");
+					createdUsers.add(org.egov.hrms.web.contract.User.builder()
+							// v2 serializes the domain field verbatim as lowercase "username"
+							.userName((String) responseUser.get("username"))
+							.uuid((String) uuid)
+							.id(id != null ? Long.valueOf(String.valueOf(id)) : null)
+							.build());
+				}
+			}
+		}
+		aggregated.setTotalCount((long) createdUsers.size());
+		return aggregated;
+	}
+
+	/**
+	 * Builds a single user entry for the egov-user v2 bulk create request. The v2 endpoint binds the
+	 * request to the domain User with the default mapper, so the JSON keys are the domain field names
+	 * verbatim - notably the login id is lowercase "username" (not "userName" as in v1).
+	 */
+	private Map<String, Object> toBulkUserMap(org.egov.hrms.web.contract.User user) {
+		Map<String, Object> userMap = new HashMap<>();
+		userMap.put("username", user.getUserName());
+		userMap.put("name", user.getName());
+		userMap.put("mobileNumber", user.getMobileNumber());
+		userMap.put("tenantId", user.getTenantId());
+		userMap.put("type", user.getType());
+		userMap.put("password", user.getPassword());
+		userMap.put("active", user.getActive());
+		userMap.put("gender", user.getGender());
+		userMap.put("emailId", user.getEmailId());
+		userMap.put("dob", user.getDob());
+		if (user.getRoles() != null) {
+			List<Map<String, Object>> roleMaps = new ArrayList<>();
+			user.getRoles().forEach(role -> {
+				Map<String, Object> roleMap = new HashMap<>();
+				roleMap.put("code", role.getCode());
+				roleMap.put("name", role.getName());
+				roleMap.put("tenantId", role.getTenantId() != null ? role.getTenantId() : user.getTenantId());
+				roleMaps.add(roleMap);
+			});
+			userMap.put("roles", roleMaps);
+		}
+		return userMap;
+	}
+
 	private User getEncrichedandCopiedUserInfo(String tenantId){
 		//Creating role with INTERNAL_MICROSERVICE_ROLE
 		Role role = Role.builder()
@@ -232,7 +363,11 @@ public class DefaultUserService implements UserService {
 			return userDetailResponse;
 		}
 		catch(IllegalArgumentException  e) {
-			throw new CustomException("IllegalArgumentException","ObjectMapper not able to convertValue in userCall");
+			throw new CustomException("HRMS_USER_CALL_RESPONSE_MAP_ERROR",
+					String.format("ObjectMapper failed to convert egov-user response to UserResponse. "
+									+ "endpoint=%s downstreamExceptionMessage=%s. "
+									+ "The response body did not match the expected shape.",
+							uri.toString(), e.getMessage() != null ? e.getMessage() : "(no message)"));
 		}
 	}
 

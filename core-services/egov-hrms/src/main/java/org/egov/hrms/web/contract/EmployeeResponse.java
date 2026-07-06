@@ -40,7 +40,9 @@
 
 package org.egov.hrms.web.contract;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.hrms.model.Employee;
@@ -73,5 +75,16 @@ public class EmployeeResponse {
 	@JsonProperty("TotalCount")
 	@Builder.Default
 	private Long totalCount = 0L;
+
+	/**
+	 * Per-record failures in a partial-success response. Each entry carries at
+	 * least {@code code} (employee code), {@code errorCode}, {@code errorMessage},
+	 * and {@code source} (which backend detected the failure — validator,
+	 * individual, egov-user, etc.). Empty when everything in the request was
+	 * created.
+	 */
+	@JsonProperty("Errors")
+	@Builder.Default
+	private List<Map<String, Object>> errors = new ArrayList<>();
 
 }
