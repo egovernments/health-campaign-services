@@ -84,7 +84,7 @@ config:
   - name: "builds/health-campaign-services/health-services/household-graalvm-native"
     build:
       - work-dir: "health-services/household"
-        image-name: "household-native"
+        image-name: "household"
         dockerfile: "build/graalvm/maven/Dockerfile"
       - work-dir: "health-services/household/src/main/resources/db"
         image-name: "household-db"
