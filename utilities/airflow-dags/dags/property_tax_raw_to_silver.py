@@ -206,12 +206,10 @@ def batch_insert(client, table: str, rows: List[dict], chunk_size: int = 10000):
         try:
             run_insert(client, table, data, cols)
             total_inserted += len(chunk)
-            logger.info(f"Inserted {len(chunk)} rows into {table} (progress: {total_inserted}/{len(rows)})")
+            logger.info(f"Inserted {len(chunk)} rows into {table}")
         except Exception as e:
             logger.error(f"Failed to insert chunk into {table} at offset {i}: {e}")
             raise
-    
-    logger.info(f"Completed: {total_inserted} rows inserted into {table}")
 
 
 class InsertBuffer:
@@ -1047,13 +1045,6 @@ def transform_load_property_events(**context):
             n_owners = len(owner_rows); total_owners += n_owners
             n_audits = len(audit_rows); total_audits += n_audits
 
-            prop_buf.add(prop_rows); prop_rows.clear()
-            unit_buf.add(unit_rows); unit_rows.clear()
-            owner_buf.add(owner_rows); owner_rows.clear()
-            audit_buf.add(audit_rows); audit_rows.clear()
-
-            gc.collect()
-
             prev_processed = processed
             processed += chunk_len
             logger.info(
@@ -1061,6 +1052,13 @@ def transform_load_property_events(**context):
                 f"{n_props} props, {n_units} units, {n_owners} owners, {n_audits} audits | "
                 f"Total: {total_props}/{total_units}/{total_owners}/{total_audits}"
             )
+
+            prop_buf.add(prop_rows); prop_rows.clear()
+            unit_buf.add(unit_rows); unit_rows.clear()
+            owner_buf.add(owner_rows); owner_rows.clear()
+            audit_buf.add(audit_rows); audit_rows.clear()
+
+            gc.collect()
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1146,12 +1144,13 @@ def transform_load_demand_events(**context):
 
             # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
             n_demands = len(demand_rows); total_demands += n_demands
-            demand_buf.add(demand_rows); demand_rows.clear()
-            gc.collect()
 
             prev_processed = processed
             processed += chunk_len
             logger.info(f"Chunk {prev_processed}-{processed}: {n_demands} demands | Total: {total_demands}")
+
+            demand_buf.add(demand_rows); demand_rows.clear()
+            gc.collect()
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1226,12 +1225,13 @@ def transform_load_payment_events(**context):
 
             # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
             n_payments = len(payment_rows); total_payments += n_payments
-            payment_buf.add(payment_rows); payment_rows.clear()
-            gc.collect()
 
             prev_processed = processed
             processed += chunk_len
             logger.info(f"Chunk {prev_processed}-{processed}: {n_payments} payments | Total: {total_payments}")
+
+            payment_buf.add(payment_rows); payment_rows.clear()
+            gc.collect()
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1347,11 +1347,6 @@ def transform_load_bill_events(**context):
             n_bills = len(bill_rows); total_bills += n_bills
             n_details = len(detail_rows); total_details += n_details
 
-            bill_buf.add(bill_rows); bill_rows.clear()
-            detail_buf.add(detail_rows); detail_rows.clear()
-
-            gc.collect()
-
             prev_processed = processed
             processed += chunk_len
             logger.info(
@@ -1359,6 +1354,11 @@ def transform_load_bill_events(**context):
                 f"{n_bills} bills, {n_details} details | "
                 f"Total: {total_bills}/{total_details}"
             )
+
+            bill_buf.add(bill_rows); bill_rows.clear()
+            detail_buf.add(detail_rows); detail_rows.clear()
+
+            gc.collect()
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
@@ -1467,8 +1467,6 @@ def transform_load_assessment_events(**context):
 
             # -- LOAD: buffer accumulates; flushes in STREAM_BATCH_SIZE chunks --
             n_assessments = len(assessment_rows); total_assessments += n_assessments
-            assessment_buf.add(assessment_rows); assessment_rows.clear()
-            gc.collect()
 
             prev_processed = processed
             processed += chunk_len
@@ -1476,6 +1474,9 @@ def transform_load_assessment_events(**context):
                 f"Chunk {prev_processed}-{processed}: "
                 f"{n_assessments} assessments | Total: {total_assessments}"
             )
+
+            assessment_buf.add(assessment_rows); assessment_rows.clear()
+            gc.collect()
 
             # A short page means the window is exhausted — no further pages.
             if chunk_len < CH_FETCH_SIZE:
