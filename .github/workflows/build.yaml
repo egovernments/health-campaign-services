@@ -19,6 +19,7 @@ on:
           - referralmanagement
           - household
           - household-java-17
+          - household-java-25
           - health-project-java-17
           - project-java-17
           - referralmanagement-java-17

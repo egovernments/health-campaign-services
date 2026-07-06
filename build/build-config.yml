@@ -74,6 +74,13 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/household/src/main/resources/db"
         image-name: "household-db"
+  - name: "builds/health-campaign-services/health-services/household-java-25"
+    build:
+      - work-dir: "health-services/household"
+        image-name: "household"
+        dockerfile: "build/25/maven/Dockerfile"
+      - work-dir: "health-services/household/src/main/resources/db"
+        image-name: "household-db"
   - name: "builds/health-campaign-services/health-services/health-project-java-17"
     build:
       - work-dir: "health-services/project"
