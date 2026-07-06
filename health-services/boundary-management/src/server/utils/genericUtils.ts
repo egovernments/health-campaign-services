@@ -868,9 +868,54 @@ async function searchGeneratedBoundaryResources(searchQuery : any, locale : any)
 
 
 
+// Stable string key for {key, value} boundary elements so Maps/Sets can do O(1)
+// structural-equality lookups (object keys would compare by reference).
+function boundaryKeyOf(element: any): string {
+  return `${element?.key} ${element?.value}`;
+}
+
+// Recursively collect every relationship code from a boundary-relationship search tree.
+function collectRelationshipCodes(nodes: any[], codes: Set<string>) {
+  if (!Array.isArray(nodes)) return;
+  for (const node of nodes) {
+    if (node?.code !== undefined && node?.code !== null) codes.add(node.code.toString());
+    collectRelationshipCodes(node?.children, codes);
+  }
+}
+
+/**
+ * Returns every relationship code already present in the hierarchy being uploaded, via ONE
+ * boundary-relationships/_search (includeChildren=true) scoped to (tenantId, hierarchyType).
+ * This replaces the previous tenant-global entity lookup done in chunks of 20:
+ *  - correctness: existence is now scoped to the hierarchy being uploaded (Issue 2),
+ *  - performance: one call instead of ~N/20 calls, so the segregation/entity phases scale
+ *    with the delta rather than the total hierarchy size (Issue 5).
+ */
+async function getExistingHierarchyCodes(request: any): Promise<Set<string>> {
+  const codes = new Set<string>();
+  const resolvedTenantId = request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId;
+  const hierarchyType = request?.body?.ResourceDetails?.hierarchyType || request?.query?.hierarchyType;
+  const response = await httpRequest(
+    config.host.boundaryHost + config.paths.boundaryRelationship,
+    request.body,
+    {
+      type: "boundaryManagement",
+      tenantId: resolvedTenantId,
+      boundaryType: null,
+      codes: null,
+      includeChildren: true,
+      hierarchyType,
+    }
+  );
+  const boundaryData = response?.TenantBoundary?.[0]?.boundary;
+  collectRelationshipCodes(boundaryData, codes);
+  return codes;
+}
+
 export {  appCache,errorLogger,invalidPathHandler
   ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
   ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
   ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap
   ,processGenerate ,getDataSheetReady , replicateRequest ,searchGeneratedBoundaryResources , checkForMixedBoundaryFlowInArrays
+  ,boundaryKeyOf ,getExistingHierarchyCodes
 };

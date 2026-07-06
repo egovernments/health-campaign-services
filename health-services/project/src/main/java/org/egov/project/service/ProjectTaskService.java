@@ -26,6 +26,7 @@ import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
+import org.egov.project.validator.task.PtRequiredLinkValidator;
 import org.egov.project.validator.task.PtExistentEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedSubEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedValidator;
@@ -79,6 +80,7 @@ public class ProjectTaskService {
     private final ProjectTaskEnrichmentService enrichmentService;
     //                    || validator.getClass().equals(PtResourceQuantityValidator.class) FIXME add this back once requirement confirmation is done
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
+            validator.getClass().equals(PtRequiredLinkValidator.class) ||
             (relationshipValidationEnabled() && validator.getClass().equals(PtProjectIdValidator.class))
                     || validator.getClass().equals(PtExistentEntityValidator.class)
                     || validator.getClass().equals(PtIsResouceEmptyValidator.class)

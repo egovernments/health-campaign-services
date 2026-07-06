@@ -25,6 +25,7 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.ReferralRepository;
 import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
+import org.egov.referralmanagement.validator.RmRequiredLinkValidator;
 import org.egov.referralmanagement.validator.RmExistentEntityValidator;
 import org.egov.referralmanagement.validator.RmIsDeletedValidator;
 import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
@@ -71,6 +72,7 @@ public class ReferralManagementService {
     private final List<Validator<ReferralBulkRequest, Referral>> validators;
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForCreate = validator ->
+            validator.getClass().equals(RmRequiredLinkValidator.class) ||
             (relationshipValidationEnabled() && validator.getClass().equals(RmProjectBeneficiaryIdValidator.class))
                 || (relationshipValidationEnabled() && validator.getClass().equals(RmProjectIdValidator.class))
                 || validator.getClass().equals(RmExistentEntityValidator.class)

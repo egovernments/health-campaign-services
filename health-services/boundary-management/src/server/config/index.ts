@@ -71,6 +71,21 @@ const config = {
     localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
     localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "30000"),
     localizationChunkSizeForBoundaryCreation: parseInt(process.env.LOCALIZATION_CHUNK_SIZE_FOR_BOUNDARY_CREATION || "2000"),
+    localizationUpsertConcurrency: parseInt(process.env.LOCALIZATION_UPSERT_CONCURRENCY || "5"),
+  },
+  // Kafka job distribution for bulk relationship chunks: spread the village-level chunks
+  // across boundary-management pods (shared consumer group) instead of executing them all
+  // in-process on the orchestrating pod. Off by default; the in-process path remains.
+  // Reuses the topic infra already provisioned for the (removed) boundary-service bulk
+  // consumer, so no Kafka-level change is needed; the group starts at latest, so stale
+  // v1-format messages are ignored.
+  boundaryJobs: {
+    enabled: process.env.BOUNDARY_JOBS_ENABLED === "true",
+    topic: process.env.BOUNDARY_JOBS_TOPIC || "boundary-relationship-bulk-create-job",
+    groupId: process.env.BOUNDARY_JOBS_GROUP_ID || "bm-boundary-jobs",
+    partitionConcurrency: parseInt(process.env.BOUNDARY_JOBS_PARTITION_CONCURRENCY || "1"),
+    completionPollMs: parseInt(process.env.BOUNDARY_JOBS_POLL_MS || "2000"),
+    completionTimeoutMs: parseInt(process.env.BOUNDARY_JOBS_TIMEOUT_MS || "900000"),
   },
   // targetColumnsForSpecificCampaigns: {
   //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],
@@ -103,13 +118,26 @@ const config = {
     localizationCreate: "localization/messages/v1/_upsert",
     cacheBurst: process.env.CACHE_BURST || "localization/messages/cache-bust",
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
+    boundaryRelationshipBulkCreate: process.env.EGOV_BOUNDARY_RELATIONSHIP_BULK_CREATE || "boundary-service/boundary-relationships/bulk/_create",
   },
   // Values configuration
   values: {
     //module name
     unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "5010",
     maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4",
-    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" /* can be retry if there is any error for which default retry can be set */,
+    // Transport-level errors that should auto-retry. "socket hang up" was the only one matched before;
+    // a stale pooled keep-alive socket surfaces as "write EPIPE" / "(read )ECONNRESET", so cover those too.
+    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up,write EPIPE,read ECONNRESET,ECONNRESET,EPIPE" /* substring-matched against the failing error code */,
+    // Idle timeout (ms) for pooled keep-alive sockets in the shared axios agent (see utils/request.ts).
+    httpSocketIdleTimeoutMs: process.env.HTTP_SOCKET_IDLE_TIMEOUT_MS || "60000",
+    // Max concurrent boundary-relationship creates within a single dependency wave (siblings).
+    // Kept modest by default so parallel creates don't flood the asynchronous persister.
+    relationshipCreateConcurrency: process.env.RELATIONSHIP_CREATE_CONCURRENCY || "10",
+    // Chunk size for the boundary-service bulk relationship API (the last two hierarchy levels).
+    bulkRelationshipChunkSize: process.env.BULK_RELATIONSHIP_CHUNK_SIZE || "100",
+    // Transient-retry budget for /bulk/_create (records awaiting parent/entity persistence).
+    bulkRelationshipRetryAttempts: process.env.BULK_RELATIONSHIP_RETRY_ATTEMPTS || "30",
+    bulkRelationshipRetryDelayMs: process.env.BULK_RELATIONSHIP_RETRY_DELAY_MS || "2000",
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   },
 };
