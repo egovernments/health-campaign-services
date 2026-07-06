@@ -1,11 +1,11 @@
 # Multi-stage build for GraalVM native image
-FROM ghcr.io/graalvm/graalvm-ce:ol9-java21-22.3.3 AS build
+FROM container-registry.oracle.com/graalvm/native-image:21-ol9 AS build
 ARG WORK_DIR
 WORKDIR /app
 
-# Install Maven and native-image
+# Install Maven
 RUN microdnf install -y maven && \
-    gu install native-image
+    microdnf clean all
 
 # Copy project files
 COPY ${WORK_DIR}/pom.xml ./pom.xml
