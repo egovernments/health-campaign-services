@@ -165,7 +165,16 @@ public class UserIntegrationService {
                 ? generateDummyMobileNumber(ind.getMobileNumber())
                 : ind.getMobileNumber());
         u.put("emailId", ind.getEmail());
-        u.put("type", individualProperties.getUserServiceUserType());
+        // Prefer the caller-supplied user type (HRMS employee flows send
+        // EMPLOYEE via individual.userDetails.userType). Fall back to the
+        // helm-configured default only when the caller left it null. This
+        // matches the pre-bulk-refactor behaviour of IndividualMapper where
+        // the builder's second .type() call overrode the property-based one.
+        String userType = ind.getUserDetails() != null
+                && ind.getUserDetails().getUserType() != null
+                ? ind.getUserDetails().getUserType().name()
+                : individualProperties.getUserServiceUserType();
+        u.put("type", userType);
         u.put("accountLocked", individualProperties.isUserServiceAccountLocked());
         u.put("active", ind.getIsSystemUserActive());
         if (ind.getUserDetails() != null && ind.getUserDetails().getPassword() != null) {
