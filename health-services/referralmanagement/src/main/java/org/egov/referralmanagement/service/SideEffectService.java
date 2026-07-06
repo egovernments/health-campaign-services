@@ -28,6 +28,7 @@ import org.egov.referralmanagement.validator.sideeffect.SeNonExistentEntityValid
 import org.egov.referralmanagement.validator.sideeffect.SeNullIdValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeProjectBeneficiaryIdValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeProjectTaskIdValidator;
+import org.egov.referralmanagement.validator.sideeffect.SeRequiredLinkValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeRowVersionValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeUniqueEntityValidator;
 import org.egov.tracer.model.CustomException;
@@ -67,7 +68,8 @@ public class SideEffectService {
     private final List<Validator<SideEffectBulkRequest, SideEffect>> validators;
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForCreate = validator ->
-            (relationshipValidationEnabled() && validator.getClass().equals(SeProjectTaskIdValidator.class))
+            validator.getClass().equals(SeRequiredLinkValidator.class)
+                || (relationshipValidationEnabled() && validator.getClass().equals(SeProjectTaskIdValidator.class))
                 || validator.getClass().equals(SeExistentEntityValidator.class)
                 || (relationshipValidationEnabled() && validator.getClass().equals(SeProjectBeneficiaryIdValidator.class));
 
