@@ -380,7 +380,16 @@ const autoGenerateBoundaryCodes = async (
 
   checkForMixedBoundaryFlowInArrays(withoutBoundaryCode, manualBoundaryCode);
 
-  validateHierarchyCurrentFlow(currentFlow, hierarchyType, withoutBoundaryCode, manualBoundaryCode, withBoundaryCode);
+  // Nothing new to create: every uploaded boundary already exists. Skip entity/relationship
+  // creation (which would throw) but still regenerate and persist the processed template.
+  const noNewBoundaries = withoutBoundaryCode.length === 0 && manualBoundaryCode.length === 0;
+  if (noNewBoundaries) {
+    logger.info(
+      "No new boundaries to process - all uploaded boundaries already exist. Skipping creation and regenerating the processed template."
+    );
+  } else {
+    validateHierarchyCurrentFlow(currentFlow, hierarchyType, withoutBoundaryCode, manualBoundaryCode, withBoundaryCode);
+  }
 
   // Determine and store currentFlow for first-time processing
   if (!currentFlow || currentFlow === "") {
@@ -452,41 +461,43 @@ const autoGenerateBoundaryCodes = async (
     );
     logger.info("Boundary Code Auto Generation Completed");
   }
-  await createBoundaryEntities(request, boundaryMap);
-  logger.info(
-    "waiting for 2 secs to persist the boundary entities before creating boundary relationship"
-  );
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // Create child-parent map and relationships based on flow type
-  let modifiedChildParentMap: Map<string, string | null>;
-  if (manualServiceFlow) {
-    // Manual flow: Create child-parent map from manual boundary codes
-    const manualChildParentMap = getChildParentMap([
-      ...withBoundaryCode,
-      ...manualBoundaryCode,
-    ]);
-    modifiedChildParentMap = modifyChildParentMap(
-      manualChildParentMap,
-      boundaryMap
+  if (!noNewBoundaries) {
+    await createBoundaryEntities(request, boundaryMap);
+    logger.info(
+      "waiting for 2 secs to persist the boundary entities before creating boundary relationship"
     );
-  } else {
-    // Auto-generation flow: Use existing child-parent map
-    const childParentMap = getChildParentMap([
-      ...withBoundaryCode,
-      ...withoutBoundaryCode,
-    ]);
-    modifiedChildParentMap = modifyChildParentMap(
-      childParentMap,
-      boundaryMap
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Create child-parent map and relationships based on flow type
+    let modifiedChildParentMap: Map<string, string | null>;
+    if (manualServiceFlow) {
+      // Manual flow: Create child-parent map from manual boundary codes
+      const manualChildParentMap = getChildParentMap([
+        ...withBoundaryCode,
+        ...manualBoundaryCode,
+      ]);
+      modifiedChildParentMap = modifyChildParentMap(
+        manualChildParentMap,
+        boundaryMap
+      );
+    } else {
+      // Auto-generation flow: Use existing child-parent map
+      const childParentMap = getChildParentMap([
+        ...withBoundaryCode,
+        ...withoutBoundaryCode,
+      ]);
+      modifiedChildParentMap = modifyChildParentMap(
+        childParentMap,
+        boundaryMap
+      );
+    }
+
+    await createBoundaryRelationship(
+      request,
+      boundaryMap,
+      modifiedChildParentMap
     );
   }
-
-  await createBoundaryRelationship(
-    request,
-    boundaryMap,
-    modifiedChildParentMap
-  );
 
   // Prepare boundary data for sheet based on flow type
   let boundaryDataForSheet: any[];
