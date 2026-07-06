@@ -1,4 +1,4 @@
-FROM maven:3.9.9-amazoncorretto-25 AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
 ARG WORK_DIR
 WORKDIR /app
 
@@ -10,8 +10,8 @@ COPY ${WORK_DIR}/src ./src
 # Build the project
 RUN mvn -B -f /app/pom.xml package
 
-# Runtime image – using a multi-arch base image
-FROM amazoncorretto:25-alpine
+# Runtime image – using Eclipse Temurin Alpine for Java 25
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /opt/egov
 
