@@ -1,5 +1,5 @@
-# Multi-stage build for GraalVM native image
-FROM container-registry.oracle.com/graalvm/native-image:25-ol9 AS build
+# Multi-stage build for GraalVM native image (Community Edition)
+FROM ghcr.io/graalvm/native-image-community:25 AS build
 ARG WORK_DIR
 WORKDIR /app
 
