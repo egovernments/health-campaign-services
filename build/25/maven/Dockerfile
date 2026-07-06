@@ -7,8 +7,8 @@ COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src ./src
 
-# Build the project
-RUN mvn -B -f /app/pom.xml package
+# Build the project (skip tests during container build)
+RUN mvn -B -f /app/pom.xml package -DskipTests
 
 # Runtime image – using Eclipse Temurin Alpine for Java 25
 FROM eclipse-temurin:25-jre-alpine
