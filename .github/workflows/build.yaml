@@ -20,6 +20,7 @@ on:
           - household
           - household-java-17
           - household-java-25
+          - household-graalvm-native
           - health-project-java-17
           - project-java-17
           - referralmanagement-java-17

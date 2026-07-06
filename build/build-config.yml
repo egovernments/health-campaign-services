@@ -81,6 +81,13 @@ config:
         dockerfile: "build/25/maven/Dockerfile"
       - work-dir: "health-services/household/src/main/resources/db"
         image-name: "household-db"
+  - name: "builds/health-campaign-services/health-services/household-graalvm-native"
+    build:
+      - work-dir: "health-services/household"
+        image-name: "household-native"
+        dockerfile: "build/graalvm/maven/Dockerfile"
+      - work-dir: "health-services/household/src/main/resources/db"
+        image-name: "household-db"
   - name: "builds/health-campaign-services/health-services/health-project-java-17"
     build:
       - work-dir: "health-services/project"

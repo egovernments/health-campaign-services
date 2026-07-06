@@ -11,6 +11,7 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <lombok.version>1.18.46</lombok.version>
+        <native.maven.plugin.version>0.10.4</native.maven.plugin.version>
     </properties>
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -43,6 +44,20 @@
                             </goals>
                         </execution>
                     </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.graalvm.buildtools</groupId>
+                    <artifactId>native-maven-plugin</artifactId>
+                    <version>${native.maven.plugin.version}</version>
+                    <configuration>
+                        <buildArgs>
+                            <buildArg>--no-fallback</buildArg>
+                            <buildArg>--enable-url-protocols=http,https</buildArg>
+                            <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                            <buildArg>--initialize-at-build-time=org.slf4j,ch.qos.logback</buildArg>
+                            <buildArg>--trace-class-initialization=org.postgresql.Driver</buildArg>
+                        </buildArgs>
+                    </configuration>
                 </plugin>
             </plugins>
     </build>
