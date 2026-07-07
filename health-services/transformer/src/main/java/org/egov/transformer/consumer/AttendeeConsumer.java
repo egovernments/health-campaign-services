@@ -39,15 +39,14 @@ public class AttendeeConsumer {
     public void consumeAttendee(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            errorQueueProducer.setSourceTopic(topic);
+            errorQueueProducer.withSourceTopic(topic, () -> {
             AttendeeCreateRequest attendeeCreateRequest = objectMapper.readValue((String) payload.value(), AttendeeCreateRequest.class);
             List<IndividualEntry> payloadList = attendeeCreateRequest.getAttendees();
             attendeeTransformationService.transform(payloadList);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in attendee consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
-        } finally {
-            errorQueueProducer.clearSourceTopic();
         }
     }
 }

@@ -37,18 +37,17 @@ public class BillDetailConsumer {
     public void consumeBillDetails(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            errorQueueProducer.setSourceTopic(topic);
+            errorQueueProducer.withSourceTopic(topic, () -> {
             JsonNode root = objectMapper.readTree((String) payload.value());
             BillDetail billDetail = objectMapper.treeToValue(
                     root.get("billDetail"),
                     BillDetail.class
             );
             billTransformationService.transform(billDetail);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in bill detail consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
-        } finally {
-            errorQueueProducer.clearSourceTopic();
         }
     }
 }

@@ -39,16 +39,15 @@ public class StockConsumer {
     public void consumeStock(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            errorQueueProducer.setSourceTopic(topic);
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<Stock> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Stock[].class));
             stockTransformationService.transform(payloadList, topic);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in stockConsumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
-        } finally {
-            errorQueueProducer.clearSourceTopic();
         }
     }
 }

@@ -32,16 +32,48 @@ public class TransformerErrorProducer {
     }
 
     /**
-     * Stamp the source topic for the record being processed on the current thread.
-     * Consumers call this at the start of handling a Kafka record.
+     * Work to run with the source topic stamped on the current thread. Allowed to throw so
+     * consumers can run their (checked-exception) deserialize/transform logic inside it.
+     */
+    @FunctionalInterface
+    public interface SourceTopicScopedWork {
+        void run() throws Exception;
+    }
+
+    /**
+     * PREFERRED entry point for consumers. Stamps {@code topic} for the current thread, runs
+     * {@code work}, and ALWAYS clears the stamp in a finally — so a consumer can never leak a
+     * stale topic onto a pooled listener thread. Any exception from {@code work} propagates to
+     * the caller (the consumer's catch), exactly as before.
+     *
+     * <pre>
+     * errorQueueProducer.withSourceTopic(topic, () -&gt; {
+     *     List&lt;T&gt; list = objectMapper.readValue(payload, T[].class);
+     *     service.transform(list);
+     * });
+     * </pre>
+     */
+    public void withSourceTopic(String sourceTopic, SourceTopicScopedWork work) throws Exception {
+        setSourceTopic(sourceTopic);
+        try {
+            work.run();
+        } finally {
+            clearSourceTopic();
+        }
+    }
+
+    /**
+     * Low-level stamp; prefer {@link #withSourceTopic}. If you call this directly you MUST call
+     * {@link #clearSourceTopic()} in a finally, or a stale topic will leak onto the pooled
+     * listener thread and stamp the next unrelated record's error with the wrong source topic.
      */
     public void setSourceTopic(String sourceTopic) {
         CURRENT_SOURCE_TOPIC.set(sourceTopic);
     }
 
     /**
-     * Clear the stamped source topic. Consumers MUST call this in a finally block so the
-     * value does not leak to the next record processed on a pooled listener thread.
+     * Clear the stamped source topic. Uses remove() (not set(null)) to avoid retaining empty
+     * entries on pooled threads. Prefer {@link #withSourceTopic} which does this for you.
      */
     public void clearSourceTopic() {
         CURRENT_SOURCE_TOPIC.remove();

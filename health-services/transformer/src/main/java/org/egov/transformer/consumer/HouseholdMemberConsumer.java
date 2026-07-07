@@ -37,16 +37,15 @@ public class HouseholdMemberConsumer {
     public void consumeHouseholdMember(ConsumerRecord<String, Object> payload,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            errorQueueProducer.setSourceTopic(topic);
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<HouseholdMember> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             HouseholdMember[].class));
             householdMemberTransformationService.transform(payloadList);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in householdMemberConsumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
-        } finally {
-            errorQueueProducer.clearSourceTopic();
         }
     }
 
