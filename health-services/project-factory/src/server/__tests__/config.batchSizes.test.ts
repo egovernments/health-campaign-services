@@ -20,6 +20,7 @@ const BATCH_SIZE_KEYS: Record<string, [string, number]> = {
   'user.persistBatchSize': ['USER_PERSIST_BATCH_SIZE', 100],
   'user.creationBatchSize': ['USER_CREATION_BATCH_SIZE', 100],
   'user.kafkaCreateBatchSize': ['USER_KAFKA_CREATE_BATCH_SIZE', 20],
+  'user.hrmsFallbackConcurrency': ['USER_HRMS_FALLBACK_CONCURRENCY', 5],
   'user.searchBatchSize': ['USER_SEARCH_BATCH_SIZE', 50],
   'user.searchConcurrency': ['USER_SEARCH_CONCURRENCY', 10],
   'user.validationSearchBatchSize': ['USER_VALIDATION_SEARCH_BATCH_SIZE', 50],

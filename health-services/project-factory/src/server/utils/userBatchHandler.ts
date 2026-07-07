@@ -439,8 +439,12 @@ async function createUsersViaHrmsApi(
             const mobileToUserServiceMap: Record<string, string> = {};
             const mobileToIndividualIdMap: Record<string, string> = {};
 
-            // Create per-user promises for each employee
-            const perUserPromises = transformedUsers.map(async (transformedUser) => {
+            // One per-user create. Kept as a thunk (not pre-mapped) so requests are
+            // only started when their chunk is awaited — an unbounded
+            // Promise.allSettled over the whole batch caused a thundering herd that
+            // exhausted the downstream DB connection pool ("Failed to obtain JDBC
+            // Connection") on large uploads.
+            const createOne = async (transformedUser: any): Promise<{ success: boolean; mobileNumber: string; error?: string }> => {
                 const mobileNumber = String(transformedUser?.user?.mobileNumber ?? '');
                 try {
                     const singleRequestBody = {
@@ -468,10 +472,16 @@ async function createUsersViaHrmsApi(
                     const errorMsg = extractHrmsErrorMessage(perUserError);
                     return { success: false, mobileNumber, error: errorMsg };
                 }
-            });
+            };
 
-            // Wait for all per-user calls to complete
-            const results = await Promise.allSettled(perUserPromises);
+            // Run per-user creates in bounded concurrency windows (never the whole batch at once).
+            const fallbackConcurrency = config.user.hrmsFallbackConcurrency > 0 ? config.user.hrmsFallbackConcurrency : 5;
+            const results: PromiseSettledResult<{ success: boolean; mobileNumber: string; error?: string }>[] = [];
+            for (let i = 0; i < transformedUsers.length; i += fallbackConcurrency) {
+                const window = transformedUsers.slice(i, i + fallbackConcurrency);
+                const settled = await Promise.allSettled(window.map((tu) => createOne(tu)));
+                results.push(...settled);
+            }
 
             // Log outcomes and track failures
             let successCount = 0;
