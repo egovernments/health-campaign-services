@@ -17,7 +17,6 @@ import org.egov.individual.producer.IndividualProducer;
 import org.egov.individual.repository.ServiceRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import static org.egov.individual.Constants.INDIVIDUAL_CREATE_LOCALIZATION_CODE;
 import static org.egov.individual.Constants.INDIVIDUAL_UPDATE_LOCALIZATION_CODE;
@@ -32,9 +31,6 @@ public class NotificationService {
     private IndividualProducer producer;
     @Autowired
     private ServiceRequestRepository repository;
-
-    @Autowired
-    private RestTemplate restTemplate;
 
     /**
      * Sends notification by putting the sms content onto the core-sms topic
