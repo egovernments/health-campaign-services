@@ -70,6 +70,11 @@ const config = {
     // Max concurrent per-user HRMS creates in the bulk-create fallback path.
     // Bounded to avoid a thundering herd that exhausts the downstream DB pool.
     hrmsFallbackConcurrency: process.env.USER_HRMS_FALLBACK_CONCURRENCY ? parseInt(process.env.USER_HRMS_FALLBACK_CONCURRENCY, 10) : 5,
+    // Retries + exponential backoff base (ms) for transient per-user HRMS create failures.
+    hrmsFallbackMaxRetries: process.env.USER_HRMS_FALLBACK_MAX_RETRIES ? parseInt(process.env.USER_HRMS_FALLBACK_MAX_RETRIES, 10) : 2,
+    hrmsFallbackBackoffMs: process.env.USER_HRMS_FALLBACK_BACKOFF_MS ? parseInt(process.env.USER_HRMS_FALLBACK_BACKOFF_MS, 10) : 500,
+    // Throttle pause (ms) between per-user fallback concurrency windows.
+    hrmsFallbackWindowDelayMs: process.env.USER_HRMS_FALLBACK_WINDOW_DELAY_MS ? parseInt(process.env.USER_HRMS_FALLBACK_WINDOW_DELAY_MS, 10) : 200,
     KAFKA_CONSUMER_MAX_CONCURRENT: process.env.KAFKA_CONSUMER_MAX_CONCURRENT ? parseInt(process.env.KAFKA_CONSUMER_MAX_CONCURRENT, 10) : 5,
     // Chunk size for user search-by-mobile-number calls.
     searchBatchSize: process.env.USER_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_SEARCH_BATCH_SIZE, 10) : 50,

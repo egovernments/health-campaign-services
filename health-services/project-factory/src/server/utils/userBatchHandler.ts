@@ -444,43 +444,53 @@ async function createUsersViaHrmsApi(
             // Promise.allSettled over the whole batch caused a thundering herd that
             // exhausted the downstream DB connection pool ("Failed to obtain JDBC
             // Connection") on large uploads.
+            const maxRetries = config.user.hrmsFallbackMaxRetries >= 0 ? config.user.hrmsFallbackMaxRetries : 2;
+            const backoffMs = config.user.hrmsFallbackBackoffMs > 0 ? config.user.hrmsFallbackBackoffMs : 500;
             const createOne = async (transformedUser: any): Promise<{ success: boolean; mobileNumber: string; error?: string }> => {
                 const mobileNumber = String(transformedUser?.user?.mobileNumber ?? '');
-                try {
-                    const singleRequestBody = {
-                        RequestInfo,
-                        Employees: [transformedUser],
-                    };
-
-                    const response = await httpRequest(url, singleRequestBody);
-
-                    if (response?.Employees?.[0]) {
-                        const employee = response.Employees[0];
-                        const serviceUuid = employee?.user?.userServiceUuid;
-                        const individualId = employee?.user?.uuid;
-                        if (mobileNumber && serviceUuid) {
-                            mobileToUserServiceMap[mobileNumber] = serviceUuid;
+                const singleRequestBody = { RequestInfo, Employees: [transformedUser] };
+                let lastError = 'Unknown error';
+                // Retry transient downstream failures (e.g. "Failed to obtain JDBC
+                // Connection") with exponential backoff + jitter; permanent errors
+                // (already-exists, validation) are returned immediately.
+                for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                    try {
+                        const response = await httpRequest(url, singleRequestBody);
+                        if (response?.Employees?.[0]) {
+                            const employee = response.Employees[0];
+                            const serviceUuid = employee?.user?.userServiceUuid;
+                            const individualId = employee?.user?.uuid;
+                            if (mobileNumber && serviceUuid) mobileToUserServiceMap[mobileNumber] = serviceUuid;
+                            if (mobileNumber && individualId) mobileToIndividualIdMap[mobileNumber] = individualId;
+                            return { success: true, mobileNumber };
                         }
-                        if (mobileNumber && individualId) {
-                            mobileToIndividualIdMap[mobileNumber] = individualId;
+                        return { success: false, mobileNumber, error: 'No employee data in response' };
+                    } catch (perUserError: any) {
+                        lastError = extractHrmsErrorMessage(perUserError);
+                        if (attempt < maxRetries && isRetryableHrmsError(lastError)) {
+                            const delay = backoffMs * (2 ** attempt) + Math.floor((attempt + 1) * 37);
+                            logger.warn(`Per-user create for ${mobileNumber} hit a transient error (attempt ${attempt + 1}/${maxRetries + 1}), backing off ${delay}ms: ${lastError}`);
+                            await sleep(delay);
+                            continue;
                         }
-                        return { success: true, mobileNumber };
+                        return { success: false, mobileNumber, error: lastError };
                     }
-                    return { success: false, mobileNumber, error: 'No employee data in response' };
-                } catch (perUserError: any) {
-                    // Extract concise error message (mirror workerRegistryUtils pattern)
-                    const errorMsg = extractHrmsErrorMessage(perUserError);
-                    return { success: false, mobileNumber, error: errorMsg };
                 }
+                return { success: false, mobileNumber, error: lastError };
             };
 
-            // Run per-user creates in bounded concurrency windows (never the whole batch at once).
+            // Run per-user creates in bounded concurrency windows (never the whole batch
+            // at once), with a throttle pause between windows to smooth downstream load.
             const fallbackConcurrency = config.user.hrmsFallbackConcurrency > 0 ? config.user.hrmsFallbackConcurrency : 5;
+            const windowDelayMs = config.user.hrmsFallbackWindowDelayMs >= 0 ? config.user.hrmsFallbackWindowDelayMs : 200;
             const results: PromiseSettledResult<{ success: boolean; mobileNumber: string; error?: string }>[] = [];
             for (let i = 0; i < transformedUsers.length; i += fallbackConcurrency) {
                 const window = transformedUsers.slice(i, i + fallbackConcurrency);
                 const settled = await Promise.allSettled(window.map((tu) => createOne(tu)));
                 results.push(...settled);
+                if (windowDelayMs > 0 && i + fallbackConcurrency < transformedUsers.length) {
+                    await sleep(windowDelayMs);
+                }
             }
 
             // Log outcomes and track failures
@@ -517,6 +527,32 @@ async function createUsersViaHrmsApi(
         logger.error("HRMS employee creation failed :: " + (error?.stack || error?.message || error));
         throw new Error(`HRMS API failed: ${error.message || error}`);
     }
+}
+
+/** Promise-based delay used for fallback throttling and backoff. */
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * True when an HRMS create error is transient/overload-related and worth retrying
+ * (e.g. DB connection-pool exhaustion, timeouts, 5xx). Permanent errors like
+ * already-exists / validation are NOT retryable.
+ */
+function isRetryableHrmsError(message: string): boolean {
+    const m = String(message ?? '').toLowerCase();
+    if (m.includes('already exist') || m.includes('duplicate') || m.includes('conflict')) return false;
+    return m.includes('failed to obtain jdbc')
+        || m.includes('jdbc')
+        || m.includes('database_error')
+        || m.includes('user creation failed at the user service')
+        || m.includes('timeout')
+        || m.includes('econnreset')
+        || m.includes('econnrefused')
+        || m.includes('connection refused')
+        || m.includes('socket hang up')
+        || / 5\d\d\b/.test(m)
+        || m.includes('http 502') || m.includes('http 503') || m.includes('http 504');
 }
 
 /**
