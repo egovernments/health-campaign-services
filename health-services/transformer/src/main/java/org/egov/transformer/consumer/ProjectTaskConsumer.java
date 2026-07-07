@@ -38,16 +38,15 @@ public class ProjectTaskConsumer {
     public void consumeTask(ConsumerRecord<String, Object> payload,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            errorQueueProducer.setSourceTopic(topic);
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<Task> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Task[].class));
             projectTaskTransformationService.transform(payloadList);
+            });
         } catch (Exception exception) {
             log.error("error in project task bulk consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
-        } finally {
-            errorQueueProducer.clearSourceTopic();
         }
     }
 }

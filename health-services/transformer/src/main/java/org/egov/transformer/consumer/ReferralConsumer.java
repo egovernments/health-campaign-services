@@ -38,16 +38,15 @@ public class ReferralConsumer {
     public void consumeReferral(ConsumerRecord<String, Object> payload,
                                 @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            errorQueueProducer.setSourceTopic(topic);
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<Referral> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Referral[].class));
             referralTransformationService.transform(payloadList);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in referral consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
-        } finally {
-            errorQueueProducer.clearSourceTopic();
         }
     }
 }

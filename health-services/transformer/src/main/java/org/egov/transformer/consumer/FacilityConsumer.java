@@ -41,16 +41,15 @@ public class FacilityConsumer {
     public void consumeFacilities(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            errorQueueProducer.setSourceTopic(topic);
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<Facility> facilities = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Facility[].class));
             facilityService.updateFacilitiesInCache(facilities);
+            });
         } catch (Exception exception) {
             log.error("error in facility consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
-        } finally {
-            errorQueueProducer.clearSourceTopic();
         }
     }
 }

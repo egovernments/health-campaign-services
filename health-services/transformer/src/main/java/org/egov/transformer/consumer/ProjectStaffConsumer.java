@@ -39,16 +39,15 @@ public class ProjectStaffConsumer {
     public void consumeStaff(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            errorQueueProducer.setSourceTopic(topic);
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<ProjectStaff> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             ProjectStaff[].class));
             projectStaffTransformationService.transform(payloadList);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in projectStaff consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
-        } finally {
-            errorQueueProducer.clearSourceTopic();
         }
     }
 }

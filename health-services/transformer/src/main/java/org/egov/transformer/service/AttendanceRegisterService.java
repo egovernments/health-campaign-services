@@ -74,6 +74,12 @@ public class AttendanceRegisterService {
                 log.info("ATTENDANCE_REGISTER with registerId {} FETCHED_FROM_CACHE.", registerId);
             } else {
                 log.warn("UNABLE_TO_FETCH_ATTENDANCE_REGISTER with registerId {} from both source and cache.", registerId);
+                // NOTE: unlike BoundaryService/ProjectService (which re-throw so the consumer records
+                // the error once), this method deliberately SWALLOWS the exception and returns null/cached
+                // so transformation continues. Because it does not propagate, the consumer never sees it,
+                // so this is the only place the failure can be recorded -> we emit here on purpose.
+                // Do not remove this to "match" the rethrow sites. topic is null on purpose and resolved
+                // from the thread-local source topic set by the consumer.
                 errorProducer.sendToErrorTopic(registerId, null, e);
             }
             return attendanceRegister;
