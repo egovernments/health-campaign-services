@@ -8,6 +8,7 @@ on:
       - nigeria-do-deep-2
       - master-nigeria-finalpull
       - master-nigeria-finalpull-projectFactory-codeRabbit
+      - staff-mapping-revive-and-search-batching
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
