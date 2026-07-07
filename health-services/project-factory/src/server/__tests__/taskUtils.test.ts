@@ -63,6 +63,7 @@ jest.mock('../utils/localisationUtils', () => ({
 
 jest.mock('../utils/genericUtils', () => ({
     getLocalizedMessagesHandlerViaLocale: jest.fn().mockResolvedValue({}),
+    getCurrentProcesses: jest.fn().mockResolvedValue([]),
     throwError: jest.fn()
 }));
 
@@ -86,12 +87,14 @@ import { produceModifiedMessages } from '../kafka/Producer';
 import { processRequest } from '../utils/sheetManageUtils';
 import { createAndUploadFileWithOutRequest } from '../api/genericApis';
 import { searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
+import { getCurrentProcesses } from '../utils/genericUtils';
 import { logger } from '../utils/logger';
 
 const mockProduceModifiedMessages = produceModifiedMessages as jest.Mock;
 const mockProcessRequest = processRequest as jest.Mock;
 const mockCreateAndUpload = createAndUploadFileWithOutRequest as jest.Mock;
 const mockSearchResourceDetails = searchResourceDetailsFromDB as jest.Mock;
+const mockGetCurrentProcesses = getCurrentProcesses as jest.Mock;
 const mockLoggerError = logger.error as jest.Mock;
 const mockLoggerWarn = logger.warn as jest.Mock;
 
@@ -148,6 +151,30 @@ describe('handleTaskForCampaign', () => {
         jest.clearAllMocks();
         mockProcessRequest.mockResolvedValue(undefined);
         mockSearchResourceDetails.mockResolvedValue([DB_ROW]);
+        mockGetCurrentProcesses.mockResolvedValue([]);
+    });
+
+    it('T7: process already completed (redelivery) — short-circuits without re-running processRequest', async () => {
+        mockGetCurrentProcesses.mockResolvedValue([{ processName: 'CAMPAIGN_FACILITY_CREATION_PROCESS', status: 'completed' }]);
+
+        await handleTaskForCampaign(buildMessageObject({
+            task: { processName: 'CAMPAIGN_FACILITY_CREATION_PROCESS', status: 'pending', auditDetails: {}, campaignNumber: 'CMP-1' }
+        }));
+
+        expect(mockGetCurrentProcesses).toHaveBeenCalledWith('CMP-1', 'default', 'CAMPAIGN_FACILITY_CREATION_PROCESS', 'completed');
+        expect(mockProcessRequest).not.toHaveBeenCalled();
+        expect(mockProduceModifiedMessages).not.toHaveBeenCalled();
+    });
+
+    it('T8: process not yet completed — proceeds to processRequest normally', async () => {
+        mockGetCurrentProcesses.mockResolvedValue([]);
+        mockCreateAndUpload.mockResolvedValue([{ fileStoreId: 'proc-123' }]);
+
+        await handleTaskForCampaign(buildMessageObject({
+            task: { processName: 'CAMPAIGN_FACILITY_CREATION_PROCESS', status: 'pending', auditDetails: {}, campaignNumber: 'CMP-1' }
+        }));
+
+        expect(mockProcessRequest).toHaveBeenCalled();
     });
 
     it('T1: success + upload succeeds — persists completed with processedFileStoreId', async () => {

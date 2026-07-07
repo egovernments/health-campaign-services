@@ -4,6 +4,7 @@ import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses } from '../config/constants';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
+import { getCampaignDataRowsWithUniqueIdentifiers } from './genericUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
 import { transformConfigs } from '../config/transformConfigs';
@@ -62,8 +63,26 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
             return;
         }
 
+        // Idempotency guard for at-least-once delivery: the batch payload carries the rows'
+        // dispatch-time status, so a crash-redelivered batch would re-create facilities that
+        // the first attempt already created (the facility service mints a fresh id per call).
+        // Re-read current DB status and create only rows not already completed; adopt the rest.
+        const rowType = facilityData[uniqueIdentifiers[0]]?.type;
+        const alreadyCompletedRows = await getCampaignDataRowsWithUniqueIdentifiers(
+            rowType, uniqueIdentifiers, tenantId, dataRowStatuses.completed
+        );
+        const alreadyCompletedIds = new Set(alreadyCompletedRows.map((r: any) => r.uniqueIdentifier));
+        const identifiersToCreate = uniqueIdentifiers.filter(id => !alreadyCompletedIds.has(id));
+        if (alreadyCompletedIds.size > 0) {
+            logger.info(`Facility batch ${batchNumber}/${totalBatches}: adopting ${alreadyCompletedIds.size} already-created facility(ies), creating ${identifiersToCreate.length} (redelivery-safe)`);
+        }
+        if (identifiersToCreate.length === 0) {
+            logger.info(`Facility batch ${batchNumber}/${totalBatches}: all facilities already created — nothing to do`);
+            return;
+        }
+
         // Transform facility data from campaign records
-        const facilityRowDatas = uniqueIdentifiers.map(uniqueIdentifier => {
+        const facilityRowDatas = identifiersToCreate.map(uniqueIdentifier => {
             const campaignRecord = facilityData[uniqueIdentifier];
             return campaignRecord?.data;
         });
@@ -94,7 +113,7 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
         const updatedFacilities: any[] = [];
         
         batchResults.forEach((result, index) => {
-            const uniqueIdentifier = uniqueIdentifiers[index];
+            const uniqueIdentifier = identifiersToCreate[index];
             const campaignRecord = facilityData[uniqueIdentifier];
             
             if (result.status === 'fulfilled' && result.value) {

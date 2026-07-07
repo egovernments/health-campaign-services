@@ -67,6 +67,11 @@ const config = {
     creationBatchSize: process.env.USER_CREATION_BATCH_SIZE ? parseInt(process.env.USER_CREATION_BATCH_SIZE, 10) : 100,
     // Batch size for user-create batches dispatched to Kafka.
     kafkaCreateBatchSize: process.env.USER_KAFKA_CREATE_BATCH_SIZE ? parseInt(process.env.USER_KAFKA_CREATE_BATCH_SIZE, 10) : 20,
+    // Producer pacing for user-create batches: pause kafkaProduceWindowDelayMs after every
+    // kafkaProduceWindowSize batches so the topic fills gradually instead of dumping every
+    // batch at once. Delay defaults to 0 (no pacing) — behavior unchanged until tuned.
+    kafkaProduceWindowSize: process.env.USER_KAFKA_PRODUCE_WINDOW_SIZE ? parseInt(process.env.USER_KAFKA_PRODUCE_WINDOW_SIZE, 10) : 100,
+    kafkaProduceWindowDelayMs: process.env.USER_KAFKA_PRODUCE_WINDOW_DELAY_MS ? parseInt(process.env.USER_KAFKA_PRODUCE_WINDOW_DELAY_MS, 10) : 0,
     // Max concurrent per-user HRMS creates in the bulk-create fallback path.
     // Bounded to avoid a thundering herd that exhausts the downstream DB pool.
     hrmsFallbackConcurrency: process.env.USER_HRMS_FALLBACK_CONCURRENCY ? parseInt(process.env.USER_HRMS_FALLBACK_CONCURRENCY, 10) : 5,

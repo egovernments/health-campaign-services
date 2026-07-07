@@ -2170,8 +2170,25 @@ async function createSingleProject(
 ): Promise<void> {
     const data = boundaryData?.data;
     const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
-    
+
     try {
+        // Idempotency guard: health-project mints a fresh id per _create with no natural key,
+        // so any re-drive (at-least-once redelivery, or the create→async-persist window where
+        // the row is still `pending` in DB) would double-create the project for this boundary.
+        // Adopt an existing project for boundary+campaignNumber instead of creating a duplicate.
+        const existingProjects = await fetchProjectsWithBoundaryCodeAndReferenceId(
+            boundaryCode, tenantId, campaignNumber, requestInfo || {}
+        );
+        const existingProjectId = existingProjects?.Project?.[0]?.id;
+        if (existingProjectId) {
+            logger.info(`Project already exists for boundary ${boundaryCode} (${existingProjectId}) — adopting instead of creating (redelivery-safe)`);
+            boundaryMap[boundaryCode].projectId = existingProjectId;
+            boundaryData.uniqueIdAfterProcess = existingProjectId;
+            boundaryData.status = dataRowStatuses.completed;
+            await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+            return;
+        }
+
         // Clone project template for this boundary
         const projectTemplate = JSON.parse(JSON.stringify(Projects[0]));
         
@@ -2422,7 +2439,7 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
 /**
  * Create users via Kafka batch processing
  */
-async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedUserCount?: number): Promise<void> {
+export async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedUserCount?: number): Promise<void> {
     try {
         if (!requestInfo?.userInfo) {
             throw new Error('RequestInfo with userInfo is required for user creation batches');
@@ -2471,7 +2488,13 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
         // Send user batches to Kafka topic for processing
         const BATCH_SIZE = config.user.kafkaCreateBatchSize;
         const totalBatches = Math.ceil(usersToCreate.length / BATCH_SIZE);
-        
+
+        // Producer pacing: with small batch sizes a large campaign emits thousands of batch
+        // messages; producing them all back-to-back floods the topic instantly. Pause after
+        // every windowSize batches so the topic fills gradually (delay 0 = no pacing).
+        const produceWindowSize = config.user.kafkaProduceWindowSize > 0 ? config.user.kafkaProduceWindowSize : 100;
+        const produceWindowDelayMs = config.user.kafkaProduceWindowDelayMs > 0 ? config.user.kafkaProduceWindowDelayMs : 0;
+
         for (let i = 0; i < usersToCreate.length; i += BATCH_SIZE) {
             const batch = usersToCreate.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
@@ -2502,13 +2525,20 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
             const partitionKey = uuidv4();
             
             await produceModifiedMessages(
-                batchMessage, 
-                config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC, 
+                batchMessage,
+                config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC,
                 tenantId,
                 partitionKey
             );
+
+            // Pace the producer: pause between windows so batches don't all land at once.
+            const isLastBatch = i + BATCH_SIZE >= usersToCreate.length;
+            if (produceWindowDelayMs > 0 && !isLastBatch && batchNumber % produceWindowSize === 0) {
+                logger.info(`Producer pacing: sent ${batchNumber}/${totalBatches} user batches, pausing ${produceWindowDelayMs}ms`);
+                await new Promise(resolve => setTimeout(resolve, produceWindowDelayMs));
+            }
         }
-        
+
         logger.info(`All ${totalBatches} user batches sent to Kafka for processing`);
         
     } catch (error) {
