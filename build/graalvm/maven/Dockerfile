@@ -12,8 +12,8 @@ COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src ./src
 
-# Build the native image
-RUN mvn -Pnative clean native:compile -DskipTests
+# Build the native image with Spring AOT processing
+RUN mvn clean compile spring-boot:process-aot package -Pnative native:compile -DskipTests
 
 # Lightweight runtime image
 FROM oraclelinux:9-slim
