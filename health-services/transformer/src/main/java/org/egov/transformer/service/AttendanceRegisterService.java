@@ -10,6 +10,7 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.attendance.AttendanceRegister;
 import org.egov.transformer.models.attendance.AttendanceRegisterRequest;
 import org.egov.transformer.models.attendance.AttendanceRegisterResponse;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -29,16 +30,19 @@ public class AttendanceRegisterService {
 
     private final IndividualService individualService;
 
+    private final TransformerErrorProducer errorProducer;
+
 
     private static Map<String, AttendanceRegister> attendanceRegisterMapCache = new ConcurrentHashMap<>();
 
     private static Map<String, String> attendeesIdUserIdCache = new ConcurrentHashMap<>();
 
-    public AttendanceRegisterService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, UserService userService, IndividualService individualService) {
+    public AttendanceRegisterService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, UserService userService, IndividualService individualService, TransformerErrorProducer errorProducer) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
         this.userService = userService;
         this.individualService = individualService;
+        this.errorProducer = errorProducer;
     }
 
 
@@ -70,6 +74,7 @@ public class AttendanceRegisterService {
                 log.info("ATTENDANCE_REGISTER with registerId {} FETCHED_FROM_CACHE.", registerId);
             } else {
                 log.warn("UNABLE_TO_FETCH_ATTENDANCE_REGISTER with registerId {} from both source and cache.", registerId);
+                errorProducer.sendToErrorTopic(registerId, null, e);
             }
             return attendanceRegister;
         }
