@@ -37,12 +37,15 @@ public class MusterRollConsumer {
     public void consumeMusterRoll(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             MusterRollRequest musterRollRequest = objectMapper.readValue((String) payload.value(), MusterRollRequest.class);
             MusterRoll musterRoll = musterRollRequest.getMusterRoll();
             musterRollTransformationService.transform(musterRoll);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in musterRoll consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }

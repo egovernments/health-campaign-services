@@ -39,12 +39,15 @@ public class AttendanceConsumer {
     public void consumeAttendanceLog(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             AttendanceLogRequest attendanceLogRequest = objectMapper.readValue((String) payload.value(), AttendanceLogRequest.class);
             List<AttendanceLog> payloadList = attendanceLogRequest.getAttendance();
             attendanceTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in attendance consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }

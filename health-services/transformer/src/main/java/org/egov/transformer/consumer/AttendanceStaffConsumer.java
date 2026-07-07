@@ -39,12 +39,15 @@ public class AttendanceStaffConsumer {
     public void consumeAttendanceStaff(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             StaffPermissionRequest staffPermissionRequest = objectMapper.readValue((String) payload.value(), StaffPermissionRequest.class);
             List<StaffPermission> payloadList = staffPermissionRequest.getStaff();
             attendanceStaffTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in attendance staff consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }

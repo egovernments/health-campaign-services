@@ -39,6 +39,7 @@ public class ServiceTaskConsumer {
     public void consumeServiceTask(ConsumerRecord<String, Object> payload,
                                    @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             List<ServiceRequest> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(), ServiceRequest.class));
             List<Service> collect = payloadList.stream().map(p -> p.getService()).collect(Collectors.toList());
@@ -46,6 +47,8 @@ public class ServiceTaskConsumer {
         } catch (Exception exception) {
             log.error("TRANSFORMER error in service task consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 

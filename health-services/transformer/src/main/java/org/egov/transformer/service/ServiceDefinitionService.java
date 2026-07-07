@@ -75,7 +75,8 @@ public class ServiceDefinitionService {
                     ServiceDefinitionResponse.class);
         } catch (Exception e) {
             log.error("error while fetching serviceDefinition list {}", ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(request, null, e);
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new CustomException("ServiceDefinition_FETCH_ERROR",
                     "error while fetching service details for id: " + serviceDefId);
         }

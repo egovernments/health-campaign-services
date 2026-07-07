@@ -121,7 +121,9 @@ public class ProjectService {
 
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(boundaryRequest, null, e);
+            // Do not emit an error record here: the exception propagates to the consumer,
+            // which pushes a single error record with the correct source topic and the
+            // original payload. Emitting here would produce a duplicate record with topic=null.
             throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }
 
@@ -202,7 +204,8 @@ public class ProjectService {
             log.info(objectMapper.writeValueAsString(request));
         } catch (JsonProcessingException e) {
             log.error("error while serializing project request for name: {}, Exception: {}", projectName, ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(request, null, e);
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new RuntimeException(e);
         }
         ProjectResponse response;
@@ -218,7 +221,8 @@ public class ProjectService {
                     ProjectResponse.class);
         } catch (Exception e) {
             log.error("error while fetching project list {}", ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(request, null, e);
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for name: " + projectName);
         }
@@ -364,7 +368,8 @@ public class ProjectService {
             return mdmsService.fetchConfig(serviceRegistry, JsonNode.class).get(MDMS_RESPONSE);
         } catch (Exception e) {
             log.error("Error while fetching mdms config for module: {}, name: {}, Exception: {}", moduleName, name, ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(serviceRegistry, null, e);
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching mdms config");
         }
     }
@@ -382,7 +387,8 @@ public class ProjectService {
             return requiredProjectType.get(Constants.BOUNDARY_DATA);
         } catch (IOException e) {
             log.error("Error while fetching boundary data for projectTypeId: {}, Exception: {}", projectTypeId, ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(projectTypeId, null, e);
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new RuntimeException(e);
         }
 
@@ -406,7 +412,8 @@ public class ProjectService {
             return null;
         } catch (IOException e) {
             log.error("Error while fetching boundary data for tenantId: {}, Exception: {}", tenantId, ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(tenantId, null, e);
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new RuntimeException(e);
         }
 

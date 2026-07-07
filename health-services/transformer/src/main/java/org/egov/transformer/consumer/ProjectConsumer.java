@@ -37,6 +37,7 @@ public class ProjectConsumer {
     public void consumeProjects(ConsumerRecord<String, Object> payload,
                                 @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             ProjectRequest request = objectMapper
                     .readValue((String) payload.value(),
                             ProjectRequest.class);
@@ -44,6 +45,8 @@ public class ProjectConsumer {
         } catch (Exception exception) {
             log.error("TRANSFORMER error in project consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }

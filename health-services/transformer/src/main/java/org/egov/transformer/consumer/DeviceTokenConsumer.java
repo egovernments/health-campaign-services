@@ -38,12 +38,15 @@ public class DeviceTokenConsumer {
     public void consumeDeviceToken(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             DeviceTokenRequest deviceTokenRequest = objectMapper.readValue((String) payload.value(), DeviceTokenRequest.class);
             List<DeviceToken> payloadList = deviceTokenRequest.getDeviceTokens();
             deviceTokenTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in DeviceToken CONSUMER {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }

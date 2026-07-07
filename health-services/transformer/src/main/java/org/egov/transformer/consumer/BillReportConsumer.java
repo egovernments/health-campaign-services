@@ -37,12 +37,15 @@ public class BillReportConsumer {
     public void consumeAttendanceLog(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             BillReportRequest billReportRequest = objectMapper.readValue((String) payload.value(), BillReportRequest.class);
             BillReport billReport = billReportRequest.getBillReport();
             billReportTransformationService.transform(billReport);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in bill report consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }

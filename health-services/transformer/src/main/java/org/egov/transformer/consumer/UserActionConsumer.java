@@ -38,6 +38,7 @@ public class UserActionConsumer {
     public void consumeUserActions(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             List<UserAction> userActions = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             UserAction[].class));
@@ -45,6 +46,8 @@ public class UserActionConsumer {
         } catch (Exception exception) {
             log.error("error in user action consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }
