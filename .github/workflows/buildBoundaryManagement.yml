@@ -1,9 +1,10 @@
 name: Auto Trigger for boundary-management Multi-Arch Build
 
-# Disabled auto-trigger: boundary-management is built by the build-config-driven build.yaml
-# (context = repo root + WORK_DIR). Kept for manual runs only.
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - console
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}

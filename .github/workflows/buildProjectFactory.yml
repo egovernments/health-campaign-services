@@ -1,9 +1,13 @@
 name: Auto Trigger for project-factory Multi-Arch Build
 
-# Disabled auto-trigger: project-factory is built by the build-config-driven build.yaml
-# (context = repo root + WORK_DIR). Kept for manual runs only.
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - allValidations
+      - master
+      - nigeria-do-deep-2
+      - master-nigeria-finalpull
+      - master-nigeria-finalpull-projectFactory-codeRabbit
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
