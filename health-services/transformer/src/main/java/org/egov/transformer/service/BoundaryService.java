@@ -180,7 +180,9 @@ public class BoundaryService {
 
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(boundaryRequest, null, e);
+            // Do not emit an error record here: the exception propagates to the consumer,
+            // which pushes a single error record with the correct source topic and the
+            // original payload. Emitting here would produce a duplicate record with topic=null.
             throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }
 

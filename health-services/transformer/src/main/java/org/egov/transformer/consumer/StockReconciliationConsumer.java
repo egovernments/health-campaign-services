@@ -39,6 +39,7 @@ public class StockReconciliationConsumer {
     public void consumeStockReconciliation(ConsumerRecord<String, Object> payload,
                                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             List<StockReconciliation> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             StockReconciliation[].class));
@@ -46,6 +47,8 @@ public class StockReconciliationConsumer {
         } catch (Exception exception) {
             log.error("TRANSFORMER error in stockReconciliationConsumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }

@@ -38,6 +38,7 @@ public class HouseholdConsumer {
     public void consumeHouseholds(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             List<Household> households = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Household[].class));
@@ -45,6 +46,8 @@ public class HouseholdConsumer {
         } catch (Exception exception) {
             log.error("error in household consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }

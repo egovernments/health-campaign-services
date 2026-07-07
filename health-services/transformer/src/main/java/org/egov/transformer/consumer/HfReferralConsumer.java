@@ -38,6 +38,7 @@ public class HfReferralConsumer {
     public void consumeReferral(ConsumerRecord<String, Object> payload,
                                 @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.setSourceTopic(topic);
             List<HFReferral> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             HFReferral[].class));
@@ -45,6 +46,8 @@ public class HfReferralConsumer {
         } catch (Exception exception) {
             log.error("error in hfReferral consumer {}", ExceptionUtils.getStackTrace(exception));
             errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        } finally {
+            errorQueueProducer.clearSourceTopic();
         }
     }
 }
