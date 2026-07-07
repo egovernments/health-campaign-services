@@ -77,7 +77,16 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
       }));
 
     if (toCreate.length === 0) {
-      throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary already present in the system");
+      // Every boundary in the sheet already exists in the tree. A re-upload with no new rows is an
+      // idempotent no-op, NOT a failure: returning here lets the process be marked completed instead
+      // of failing the whole batch. (Incremental uploads with some new rows fall through and create
+      // only the new ones — existing codes are already filtered out of toCreate above.)
+      logger.info("All boundary relationships already present — idempotent no-op, nothing to create.");
+      request.body = {
+        ...request.body,
+        Activities: activityMessage
+      };
+      return;
     }
 
     const concurrency = parseInt(config.values.relationshipCreateConcurrency) || 10;

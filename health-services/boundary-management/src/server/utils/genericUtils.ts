@@ -200,6 +200,11 @@ async function enrichResourceDetails(request: any) {
   request.body.ResourceDetails.id = uuidv4();
   request.body.ResourceDetails.processedFileStoreId = null;
   request.body.ResourceDetails.referenceId = request?.body?.ResourceDetails?.referenceId || null;
+  // additionalDetails is mapped (JSONB) by the create-processed-boundary-management persister
+  // config. It MUST be present as a key: the persister reads $.ResourceDetails.additionalDetails
+  // with a strict JsonPath (no DEFAULT_PATH_LEAF_TO_NULL), so an absent key throws
+  // PathNotFoundException and the whole status record is dead-lettered/parked. Default to {}.
+  request.body.ResourceDetails.additionalDetails = request?.body?.ResourceDetails?.additionalDetails || {};
   if (request?.body?.ResourceDetails?.action == "create") {
     request.body.ResourceDetails.status = resourceDataStatuses.accepted
   }
