@@ -16,6 +16,8 @@ export const CONSTANTS: any = {
         BOUNDARY: {
             BOUNDARY_SHEET_HEADER_ERROR: "Boundary sheet header error",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
+            BOUNDARY_PARENT_NOT_FOUND: "Parent boundary not found - cannot create its child boundary relationship(s)",
+            BOUNDARY_RELATIONSHIP_INCOMPLETE: "Some boundary relationships failed to persist and were not silently dropped",
             BOUNDARY_SHEET_UPLOADED_INVALID_ERROR: "Error in the boundary data uploaded",
             BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR: "First Column Of Boundary Sheet uploaded should be unique as it is the root of hierarchy"
         },

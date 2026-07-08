@@ -102,15 +102,58 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
       throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary already present in the system");
     }
 
+    {
+      const codeToType = new Map<string, string>(updatedBoundaryMap.map(({ key, value }) => [key, value] as [string, string]));
+      let missing: string[] = [];
+      const maxVerify = 8;
+      for (let attempt = 1; attempt <= maxVerify; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const verifyResp = await httpRequest(url, request.body, params, undefined, undefined, header);
+        const persisted = extractCodesFromBoundaryRelationshipResponse(verifyResp?.TenantBoundary?.[0]?.boundary);
+        missing = Array.from(codeToType.keys()).filter((c) => !persisted.has(c));
+        if (missing.length === 0) break;
+        logger.warn(`Boundary relationship completeness check (attempt ${attempt}/${maxVerify}): ${missing.length} relationship(s) not yet persisted; retrying: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? " ..." : ""}`);
+        for (const code of missing) {
+          try {
+            await confirmBoundaryParentCreation(request, modifiedChildParentMap.get(code) || null);
+            const retryBody = {
+              RequestInfo: request.body.RequestInfo,
+              BoundaryRelationship: {
+                tenantId: request?.body?.ResourceDetails?.tenantId,
+                boundaryType: codeToType.get(code),
+                code: code,
+                hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+                parent: modifiedChildParentMap.get(code) || null,
+              },
+            };
+            await httpRequest(`${config.host.boundaryHost}${config.paths.boundaryRelationshipCreate}`, retryBody, {}, 'POST', undefined, undefined, true);
+          } catch (e) {
+            logger.error(`Completeness retry create failed for code ${code}: `, e);
+          }
+        }
+      }
+      if (missing.length > 0) {
+        const incompleteMsg = `${missing.length} boundary relationship(s) failed to persist and would have been silently dropped: ${missing.slice(0, 20).join(", ")}${missing.length > 20 ? " ..." : ""}`;
+        logger.error(`BOUNDARY_RELATIONSHIP_INCOMPLETE :: ${incompleteMsg}`);
+        throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_INCOMPLETE", incompleteMsg);
+      }
+      logger.info(`Boundary relationship completeness verified: all ${codeToType.size} intended relationship(s) persisted.`);
+    }
+
     request.body = {
       ...request.body,
       Activities: activityMessage
     };
   } catch (error: any) {
-    const errorCode = error.code || "INTERNAL_SERVER_ERROR";
-    const errorMessage = error.description || "Error while boundary relationship create";
-    logger.error(`Error in createBoundaryRelationship: ${errorMessage}`, error);
-    throwError("COMMON", 500, errorCode, errorMessage);
+    logger.error(`Error in createBoundaryRelationship: ${error?.description || error?.message}`, error);
+    // If this is already a structured throwError (has a code), re-throw it AS-IS so the specific
+    // code + message + description (e.g. BOUNDARY_PARENT_NOT_FOUND naming the missing parent, or
+    // BOUNDARY_RELATIONSHIP_INCOMPLETE listing the missing codes) reach the API response intact,
+    // instead of being flattened to a generic COMMON/INTERNAL_SERVER_ERROR.
+    if (error?.code) {
+      throw error;
+    }
+    throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR", error?.message || "Error while boundary relationship create");
   }
 }
 
@@ -142,7 +185,7 @@ async function confirmBoundaryParentCreation(request: any, code: any) {
       }
     }
     if (!boundaryFound) {
-      throwError("BOUNDARY", 500, "INTERNAL_SERVER_ERROR", "Boundary creation failed, for the boundary with code " + code);
+      throwError("BOUNDARY", 400, "BOUNDARY_PARENT_NOT_FOUND", `Parent boundary '${code}' does not exist (not persisted) — cannot create its child boundary relationship(s)`);
     }
   }
 }
