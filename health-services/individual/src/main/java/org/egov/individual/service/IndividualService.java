@@ -253,6 +253,14 @@ public class IndividualService {
                     }).collect(Collectors.toList());
                 }
 
+                // find existing individuals from db (reused for userDetails restoration below and identifier merging further down)
+                List<Individual> existingIndividuals = individualRepository.findById(tenantId,
+                        new ArrayList<>(getIdToObjMap(individualsToEncrypt).keySet()), "id", false).getResponse();
+
+                // if a system user's incoming payload has no roles, retain the existing userDetails
+                // so that the user service update call does not wipe out the roles already assigned
+                restoreUserDetailsWhenRolesMissing(individualsToEncrypt, getIdToObjMap(existingIndividuals));
+
                 // integrate with user service update call
                 individualsToEncrypt = integrateWithUserService(request, individualsToEncrypt, ApiOperation.UPDATE, errorDetailsMap);
 
@@ -267,12 +275,6 @@ public class IndividualService {
                 // encrypt new data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(tenantId, request, individualsToEncrypt, "IndividualEncrypt", isBulk);
-
-
-                Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
-                // find existing individuals from db
-                List<Individual> existingIndividuals = individualRepository.findById(tenantId, new ArrayList<>(idToObjMap.keySet()),
-                        "id", false).getResponse();
 
                 if (identifiersPresent) {
                     // extract existing identifiers (encrypted) from existing individuals
@@ -446,6 +448,19 @@ public class IndividualService {
         log.info("putting {} individuals in cache", individuals.size());
         individualRepository.putInCache(individuals);
         log.info("successfully put individuals in cache");
+    }
+
+    private void restoreUserDetailsWhenRolesMissing(List<Individual> individuals, Map<String, Individual> existingIndividualsMap) {
+        individuals.stream()
+                .filter(individual -> Boolean.TRUE.equals(individual.getIsSystemUser()))
+                .filter(individual -> individual.getUserDetails() == null
+                        || CollectionUtils.isEmpty(individual.getUserDetails().getRoles()))
+                .forEach(individual -> {
+                    Individual existing = existingIndividualsMap.get(individual.getId());
+                    if (existing != null) {
+                        individual.setUserDetails(existing.getUserDetails());
+                    }
+                });
     }
 
     private List<Individual> integrateWithUserService(IndividualBulkRequest request,
