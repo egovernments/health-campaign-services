@@ -452,7 +452,8 @@ public class IndividualService {
 
     private void restoreUserDetailsWhenRolesMissing(List<Individual> individuals, Map<String, Individual> existingIndividualsMap) {
         individuals.stream()
-                .filter(individual -> Boolean.TRUE.equals(individual.getIsSystemUser()))
+                .filter(individual -> StringUtils.isNotBlank(individual.getUserId())
+                        && StringUtils.isNotBlank(individual.getUserUuid()))
                 .filter(individual -> individual.getUserDetails() == null
                         || CollectionUtils.isEmpty(individual.getUserDetails().getRoles()))
                 .forEach(individual -> {
