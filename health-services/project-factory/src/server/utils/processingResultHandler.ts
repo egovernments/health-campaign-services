@@ -18,6 +18,7 @@ import config from '../config';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { triggerUserCredentialEmailFlow } from './mailUtils';
 import { runMappingReconciler } from './mappingReconciler';
+import { fetchExistingUsersByPhone, selectReconcilableUserRows } from './userBatchHandler';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -900,6 +901,35 @@ async function markCreationProcessesAsCompleted(
 }
 
 /**
+ * Reconcile user rows stuck 'pending' whose user already exists in HRMS/individual — mark them
+ * completed so a partially-created campaign converges (pendingRows → 0) instead of timing out.
+ * Idempotent and mapping-independent: it writes the terminal status directly rather than relying
+ * on the persister deriving it. Returns the number of rows reconciled.
+ */
+export async function reconcilePendingUserRows(
+    campaignNumber: string,
+    tenantId: string,
+    requestInfo: RequestInfo
+): Promise<number> {
+    const pendingRows = await getRelatedDataWithCampaign('user', campaignNumber, tenantId, dataRowStatuses.pending);
+    if (!pendingRows || pendingRows.length === 0) return 0;
+
+    const phones = pendingRows
+        .map((r: any) => String(r?.uniqueIdentifier ?? ''))
+        .filter((p: string) => p && p !== 'undefined');
+    if (phones.length === 0) return 0;
+
+    const existingByPhone = await fetchExistingUsersByPhone(phones, tenantId, requestInfo);
+    const reconciled = selectReconcilableUserRows(pendingRows as any[], existingByPhone);
+
+    if (reconciled.length > 0) {
+        await persistDataInBatches(reconciled, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+        logger.info(`Reconciler: marked ${reconciled.length}/${pendingRows.length} pending user row(s) as completed for campaign ${campaignNumber} (user already present in HRMS)`);
+    }
+    return reconciled.length;
+}
+
+/**
  * Monitor campaign data completion status with polling
  */
 async function monitorCampaignDataCompletion(
@@ -907,7 +937,8 @@ async function monitorCampaignDataCompletion(
     tenantId: string,
     campaignId: string,
     campaignAlreadyFailed: { value: boolean },
-    userUuid: string
+    userUuid: string,
+    requestInfo: RequestInfo | undefined
 ): Promise<void> {
     try {
         logger.info(`Starting data completion monitoring for campaign: ${campaignNumber}`);
@@ -932,7 +963,18 @@ async function monitorCampaignDataCompletion(
             } catch (campaignCheckError) {
                 logger.warn(`Could not check campaign status, continuing with data monitoring: ${campaignCheckError}`);
             }
-            
+
+            // Converge partially-created campaigns: adopt any 'pending' user row whose user already
+            // exists in HRMS so pendingRows can reach 0 (otherwise a retry plateaus below the total
+            // and this poller times out). Non-fatal — a failed pass just retries next attempt.
+            if (requestInfo) {
+                try {
+                    await reconcilePendingUserRows(campaignNumber, tenantId, requestInfo);
+                } catch (reconcileError) {
+                    logger.warn(`User reconciliation pass failed (non-fatal), continuing: ${reconcileError}`);
+                }
+            }
+
             // Check boundary and facility status (hard-blocking failures)
             const boundaryStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'boundary');
             const facilityStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'facility');
@@ -1707,7 +1749,7 @@ async function triggerBackgroundResourceCreationFlow(
                     createProjectsFromBoundaryData(campaignDetails, tenantId, requestInfo, expectedBoundaryCount),
                     createFacilitiesFromFacilityData(campaignDetails, tenantId, requestInfo),
                     createUsersFromUserData(campaignDetails, tenantId, requestInfo, expectedUserCount),
-                    monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
+                    monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid, requestInfo)
                 ]);
                 
                 // Check if campaign failed during data creation

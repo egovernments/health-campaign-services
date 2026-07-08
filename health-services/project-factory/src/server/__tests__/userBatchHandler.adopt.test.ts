@@ -45,7 +45,7 @@ jest.mock('../utils/cryptUtils', () => ({
     encrypt: jest.fn((v: string) => `enc(${v})`),
 }));
 
-import { markAdoptedUserRecordCompleted, CampaignRecord } from '../utils/userBatchHandler';
+import { markAdoptedUserRecordCompleted, selectReconcilableUserRows, CampaignRecord, ExistingHrmsUser } from '../utils/userBatchHandler';
 import { dataRowStatuses, sheetDataRowStatuses, campaignDataRowFields, userCredentialFields } from '../config/constants';
 
 function makeRecord(overrides: Partial<CampaignRecord> = {}): CampaignRecord {
@@ -100,5 +100,52 @@ describe('markAdoptedUserRecordCompleted', () => {
             expect(rec.data.HCM_ADMIN_CONSOLE_USER_NAME).toBe('Test User');
             expect(rec.data.HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER).toBe('7000000001');
         });
+    });
+});
+
+function pendingRow(phone: string): CampaignRecord {
+    return { status: dataRowStatuses.pending, uniqueIdentifier: phone, data: { x: '1' } } as CampaignRecord;
+}
+function existing(uuid: string): ExistingHrmsUser {
+    return { serviceUuid: uuid, individualId: `ind-${uuid}`, existingName: 'N' };
+}
+
+describe('selectReconcilableUserRows', () => {
+    it('reconciles only pending rows whose phone exists in HRMS', () => {
+        const rows = [pendingRow('700001'), pendingRow('700002'), pendingRow('700003')];
+        const map = { '700001': existing('u1'), '700003': existing('u3') }; // 700002 absent
+
+        const result = selectReconcilableUserRows(rows, map);
+
+        expect(result.map(r => r.uniqueIdentifier)).toEqual(['700001', '700003']);
+        result.forEach(r => {
+            expect(r.status).toBe(dataRowStatuses.completed);
+            expect(r.data[campaignDataRowFields.status]).toBe(sheetDataRowStatuses.EXISTING);
+        });
+    });
+
+    it('does not touch a row whose phone is absent from HRMS (stays pending)', () => {
+        const rows = [pendingRow('700002')];
+        const result = selectReconcilableUserRows(rows, {});
+        expect(result).toHaveLength(0);
+        expect(rows[0].status).toBe(dataRowStatuses.pending);
+    });
+
+    it('ignores a map entry with no serviceUuid', () => {
+        const rows = [pendingRow('700001')];
+        const result = selectReconcilableUserRows(rows, { '700001': { serviceUuid: '', individualId: '', existingName: '' } });
+        expect(result).toHaveLength(0);
+        expect(rows[0].status).toBe(dataRowStatuses.pending);
+    });
+
+    it('returns empty for no pending rows', () => {
+        expect(selectReconcilableUserRows([], { '700001': existing('u1') })).toEqual([]);
+    });
+
+    it('stamps the adopted serviceUuid onto reconciled rows', () => {
+        const rows = [pendingRow('700001')];
+        const result = selectReconcilableUserRows(rows, { '700001': existing('u1') });
+        expect(result[0].uniqueIdAfterProcess).toBe('u1');
+        expect(result[0].data[userCredentialFields.userServiceUuids]).toBe('u1');
     });
 });

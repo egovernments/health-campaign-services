@@ -16,6 +16,10 @@ jest.mock('../utils/logger', () => ({
     logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 jest.mock('../kafka/Producer', () => ({ produceModifiedMessages: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../utils/userBatchHandler', () => ({
+    fetchExistingUsersByPhone: jest.fn().mockResolvedValue({}),
+    selectReconcilableUserRows: jest.fn(() => []),
+}));
 jest.mock('../utils/campaignFailureHandler', () => ({ sendCampaignFailureMessage: jest.fn() }));
 jest.mock('../service/campaignManageService', () => ({ searchProjectTypeCampaignService: jest.fn() }));
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));

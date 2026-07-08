@@ -52,6 +52,27 @@ export function markAdoptedUserRecordCompleted(campaignRecord: CampaignRecord, s
 }
 
 /**
+ * Reconcile-selector: from a set of still-`pending` user rows and a phone→existing-HRMS-user map,
+ * mark every row whose user already exists as terminally completed and return only those rows.
+ * Pure (no I/O) so the convergence rule is unit-testable; the DB fetch / HRMS search / persist
+ * are orchestrated by the caller (see reconcilePendingUserRows in processingResultHandler).
+ */
+export function selectReconcilableUserRows(
+    pendingRows: CampaignRecord[],
+    existingByPhone: Record<string, ExistingHrmsUser>
+): CampaignRecord[] {
+    const reconciled: CampaignRecord[] = [];
+    for (const row of pendingRows) {
+        const existing = existingByPhone[String(row?.uniqueIdentifier ?? '')];
+        if (existing?.serviceUuid) {
+            markAdoptedUserRecordCompleted(row, existing.serviceUuid);
+            reconciled.push(row);
+        }
+    }
+    return reconciled;
+}
+
+/**
  * Handle user batch creation from Kafka message
  */
 export async function handleUserBatch(messageObject: UserBatchMessage): Promise<void> {
