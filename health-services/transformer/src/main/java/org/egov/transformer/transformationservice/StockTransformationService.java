@@ -155,6 +155,7 @@ public class StockTransformationService {
                 .productVariant(stock.getProductVariantId())
                 .productName(productName)
                 .facilityId(facilityId)
+                .projectId(projectId)
                 .facilityName(facilityName)
                 .facilityType(facilityType)
                 .facilityLevel(facilityLevel)
