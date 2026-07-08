@@ -37,6 +37,21 @@ interface UserBatchMessage {
 }
 
 /**
+ * Mark an already-existing (adopted) user row as terminally completed — symmetric with the
+ * newly-created path — so a retry of a partially-created campaign converges (pendingRows → 0)
+ * instead of leaving adopted rows stuck 'pending'.
+ */
+export function markAdoptedUserRecordCompleted(campaignRecord: CampaignRecord, serviceUuid: string): void {
+    campaignRecord.status = dataRowStatuses.completed;
+    campaignRecord.data = {
+        ...campaignRecord.data,
+        [userCredentialFields.userServiceUuids]: serviceUuid,
+        [campaignDataRowFields.status]: sheetDataRowStatuses.EXISTING,
+    };
+    campaignRecord.uniqueIdAfterProcess = serviceUuid;
+}
+
+/**
  * Handle user batch creation from Kafka message
  */
 export async function handleUserBatch(messageObject: UserBatchMessage): Promise<void> {
@@ -118,12 +133,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             const hrmsName = normalizeNameForCompare(existing.existingName);
 
             const wasRetry = campaignRecord.status === dataRowStatuses.failed;
-            campaignRecord.status = dataRowStatuses.completed;
-            campaignRecord.data = {
-                ...campaignRecord.data,
-                [userCredentialFields.userServiceUuids]: existing.serviceUuid,
-            };
-            campaignRecord.uniqueIdAfterProcess = existing.serviceUuid;
+            markAdoptedUserRecordCompleted(campaignRecord, existing.serviceUuid);
 
             if (sheetName && hrmsName && sheetName !== hrmsName) {
                 const reason = `${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS as '${existing.existingName}' but sheet provided '${campaignRecord?.data?.[userDataFields.name] ?? ''}'. HRMS user kept as source of truth.`;
@@ -213,7 +223,10 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     [userCredentialFields.userServiceUuids]: serviceUuid,
                     [userCredentialFields.userName]: userName ? encrypt(userName) : campaignRecord.data[userCredentialFields.userName],
                     [userCredentialFields.password]: password ? encrypt(password) : campaignRecord.data[userCredentialFields.password],
-                    [campaignDataRowFields.status]: sheetDataRowStatuses.CREATED
+                    // Preserve EXISTING for adopted rows; only newly-created rows are CREATED.
+                    [campaignDataRowFields.status]: campaignRecord.data[campaignDataRowFields.status] === sheetDataRowStatuses.EXISTING
+                        ? sheetDataRowStatuses.EXISTING
+                        : sheetDataRowStatuses.CREATED
                 };
                 campaignRecord.uniqueIdAfterProcess = serviceUuid;
                 updatedUsers.push(campaignRecord);

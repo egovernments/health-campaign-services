@@ -535,6 +535,8 @@ export class TemplateClass {
             u.data = {
                 ...u.data,
                 [userCredentialFields.userServiceUuids]: existing.serviceUuid,
+                // Terminal sheet status so adopted rows converge (pendingRows → 0), symmetric with the created path.
+                [campaignDataRowFields.status]: sheetDataRowStatuses.EXISTING,
             };
             u.uniqueIdAfterProcess = existing.serviceUuid;
 
