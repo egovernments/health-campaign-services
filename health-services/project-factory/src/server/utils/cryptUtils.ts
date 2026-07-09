@@ -19,8 +19,15 @@ export function encrypt(plainText: string): string {
 }
 
 export function decrypt(encryptedText: string): string {
+    // Defensive: only values in encrypt()'s "ivB64:cipherB64" format are decryptable.
+    // Adopted/existing-user rows carry a plaintext username and no generated password, so
+    // decrypt() is called with a non-encrypted or undefined value — return it as-is instead
+    // of crashing on Buffer.from(undefined) (which previously failed credential-sheet generation).
+    if (!encryptedText || !encryptedText.includes(':')) {
+        return encryptedText ?? '';
+    }
     const [ivB64, encryptedB64] = encryptedText.split(':');
-    
+
     const iv = Buffer.from(ivB64, 'base64');
     const encrypted = Buffer.from(encryptedB64, 'base64');
     
