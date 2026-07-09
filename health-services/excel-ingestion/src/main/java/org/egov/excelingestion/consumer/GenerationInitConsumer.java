@@ -71,7 +71,7 @@ public class GenerationInitConsumer {
         this.kafkaTopicConfig = kafkaTopicConfig;
     }
 
-    @KafkaListener(topics = "${excel.ingestion.generation.init.topic}")
+    @KafkaListener(topicPattern = "(${kafka.tenant.id.pattern}){0,1}${excel.ingestion.generation.init.topic}")
     public void consume(GenerateResourceRequest event, Acknowledgment acknowledgment) {
         if (event == null || event.getGenerateResource() == null) {
             log.warn("Received null/invalid generation init event; acking and skipping");
