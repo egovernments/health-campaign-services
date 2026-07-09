@@ -352,10 +352,12 @@ export async function handleProcessingResult(messageObject: any) {
 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                // ensure a userInfo (creator uuid) — user-creation batches require it
+                // ensure a userInfo (creator uuid) — user-creation batches require it; skip when no creator uuid to avoid a userInfo with an undefined uuid
                 const creationRequestInfo = messageObject?.requestInfo?.userInfo?.uuid
                     ? messageObject.requestInfo
-                    : withUserInfo(messageObject?.requestInfo ?? {}, { uuid: campaignCreatedBy, tenantId: messageObject.tenantId });
+                    : campaignCreatedBy
+                        ? withUserInfo(messageObject?.requestInfo ?? {}, { uuid: campaignCreatedBy, tenantId: messageObject.tenantId })
+                        : messageObject?.requestInfo ?? {};
                 await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
