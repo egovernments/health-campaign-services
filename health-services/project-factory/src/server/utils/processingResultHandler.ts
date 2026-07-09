@@ -1,4 +1,4 @@
-import { RequestInfo } from "../config/models/requestInfoSchema";
+import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
@@ -149,8 +149,11 @@ export async function handleProcessingResult(messageObject: any) {
                         offset: 0,
                         tenantId: messageObject.tenantId,
                     };
+                    // hcm-processing-result may carry no requestInfo (excel-ingestion < PR #2018) OR a requestInfo whose userInfo is null (system-triggered flows). Both fail the individual service's @NotNull(userInfo). Ensure a userInfo (campaign creator uuid) is always present for this non-blocking lookup, while preserving a real requestInfo when it already has one.
                     const searchBody = {
-                        RequestInfo: messageObject?.requestInfo,
+                        RequestInfo: messageObject?.requestInfo?.userInfo
+                            ? messageObject.requestInfo
+                            : { ...(messageObject?.requestInfo ?? {}), userInfo: { uuid: campaignCreatedBy } },
                         Individual: {
                             type: "EMPLOYEE",
                             userUuid: [campaignCreatedBy],
@@ -349,7 +352,11 @@ export async function handleProcessingResult(messageObject: any) {
 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, messageObject?.requestInfo, expectedUserCount, expectedBoundaryCount);
+                // hcm-processing-result may omit requestInfo, or carry one whose userInfo is null (central-instance / system-triggered flows). The background user-creation batches hard-require userInfo.uuid (IDGen username generation), so fall back to the campaign creator while preserving a real userInfo when present.
+                const creationRequestInfo = messageObject?.requestInfo?.userInfo?.uuid
+                    ? messageObject.requestInfo
+                    : withUserInfo(messageObject?.requestInfo ?? {}, { uuid: campaignCreatedBy, tenantId: messageObject.tenantId });
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }

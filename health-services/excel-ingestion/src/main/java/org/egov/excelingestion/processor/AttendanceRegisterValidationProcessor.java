@@ -14,6 +14,7 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.util.RequestInfoUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
@@ -300,6 +301,7 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                .append("&includeAttendee=false")
                .append("&includeStaff=false");
 
+            RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
             Map<String, Object> payload = new HashMap<>();
             payload.put("RequestInfo", requestInfo);
 
