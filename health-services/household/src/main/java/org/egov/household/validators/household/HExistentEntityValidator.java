@@ -67,10 +67,23 @@ public class HExistentEntityValidator implements Validator<HouseholdBulkRequest,
                 .map(Household::getClientReferenceId) // Map to client reference IDs
                 .collect(Collectors.toList()); // Collect the IDs into a list
 
-        // Create a map of client reference ID to Household entity for easy lookup
-        Map<String, Household> map = entities.stream()
-                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty
-                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map
+        // Create a map of client reference ID to Household entity for easy lookup.
+        // A WITHIN-BATCH duplicate clientReferenceId must NOT crash Collectors.toMap (that
+        // IllegalStateException previously propagated to the consumer and dropped the ENTIRE bulk
+        // batch, losing the unrelated valid records too). Instead, keep the first occurrence and
+        // isolate each subsequent duplicate as a per-record uniqueness error so the good records
+        // in the same call still persist.
+        Map<String, Household> map = new HashMap<>();
+        for (Household entity : entities) {
+            if (!StringUtils.hasText(entity.getClientReferenceId())) {
+                continue;
+            }
+            if (map.containsKey(entity.getClientReferenceId())) {
+                populateErrorDetails(entity, getErrorForUniqueEntity(), errorDetailsMap);
+            } else {
+                map.put(entity.getClientReferenceId(), entity);
+            }
+        }
 
         // Create a search object for querying entities by client reference IDs
         HouseholdSearch householdSearch = HouseholdSearch.builder()
