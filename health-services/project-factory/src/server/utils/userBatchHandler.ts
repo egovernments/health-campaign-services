@@ -41,12 +41,15 @@ interface UserBatchMessage {
  * newly-created path — so a retry of a partially-created campaign converges (pendingRows → 0)
  * instead of leaving adopted rows stuck 'pending'.
  */
-export function markAdoptedUserRecordCompleted(campaignRecord: CampaignRecord, serviceUuid: string): void {
+export function markAdoptedUserRecordCompleted(campaignRecord: CampaignRecord, serviceUuid: string, userName?: string): void {
     campaignRecord.status = dataRowStatuses.completed;
     campaignRecord.data = {
         ...campaignRecord.data,
         [userCredentialFields.userServiceUuids]: serviceUuid,
         [campaignDataRowFields.status]: sheetDataRowStatuses.EXISTING,
+        // Adopted users have no campaign-generated credentials; surface their real login id
+        // (authoritative from egov-user) on the credential sheet. Password stays blank (unrecoverable).
+        ...(userName ? { [userCredentialFields.userName]: userName } : {}),
     };
     campaignRecord.uniqueIdAfterProcess = serviceUuid;
 }
@@ -65,7 +68,7 @@ export function selectReconcilableUserRows(
     for (const row of pendingRows) {
         const existing = existingByPhone[String(row?.uniqueIdentifier ?? '')];
         if (existing?.serviceUuid) {
-            markAdoptedUserRecordCompleted(row, existing.serviceUuid);
+            markAdoptedUserRecordCompleted(row, existing.serviceUuid, existing.userName);
             reconciled.push(row);
         }
     }
@@ -154,7 +157,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             const hrmsName = normalizeNameForCompare(existing.existingName);
 
             const wasRetry = campaignRecord.status === dataRowStatuses.failed;
-            markAdoptedUserRecordCompleted(campaignRecord, existing.serviceUuid);
+            markAdoptedUserRecordCompleted(campaignRecord, existing.serviceUuid, existing.userName);
 
             if (sheetName && hrmsName && sheetName !== hrmsName) {
                 const reason = `${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS as '${existing.existingName}' but sheet provided '${campaignRecord?.data?.[userDataFields.name] ?? ''}'. HRMS user kept as source of truth.`;
@@ -641,6 +644,42 @@ export interface ExistingHrmsUser {
     serviceUuid: string;
     individualId: string;
     existingName: string;
+    /** Existing egov-user login username, resolved by serviceUuid — shown on the credential sheet
+     *  for adopted users (their password is unrecoverable, but the login id is). */
+    userName?: string;
+}
+
+/**
+ * Resolve existing egov-user login usernames by user uuid. Adopted (already-in-HRMS) users have no
+ * campaign-generated credentials, so we surface their real login id on the credential sheet.
+ * Non-fatal: a failed lookup just leaves the username blank.
+ */
+export async function fetchUserNamesByUuid(
+    uuids: string[],
+    tenantId: string,
+    requestInfo: RequestInfo
+): Promise<Record<string, string>> {
+    const result: Record<string, string> = {};
+    const unique = Array.from(new Set(uuids.filter(Boolean)));
+    if (unique.length === 0) return result;
+
+    const batchSize = config.user.individualSearchBatchSize;
+    for (let i = 0; i < unique.length; i += batchSize) {
+        const batch = unique.slice(i, i + batchSize);
+        try {
+            const response = await httpRequest(
+                config.host.userHost + config.paths.userSearch,
+                { RequestInfo: requestInfo, tenantId, uuid: batch },
+                { tenantId }
+            );
+            for (const user of response?.user ?? []) {
+                if (user?.uuid && user?.userName) result[String(user.uuid)] = String(user.userName);
+            }
+        } catch (err) {
+            logger.warn(`Existing-username lookup failed for batch starting at index ${i}: ${err}`);
+        }
+    }
+    return result;
 }
 
 /**
@@ -708,6 +747,19 @@ export async function fetchExistingUsersByPhone(
             logger.warn(`Idempotency pre-check failed for batch starting at index ${i}: ${err}`);
         }
     }
+
+    // Resolve the existing login usernames (by serviceUuid) so adopted users show their real
+    // user id on the credential sheet. Non-fatal — leaves userName blank on failure.
+    const uuidToName = await fetchUserNamesByUuid(
+        Object.values(result).map(u => u.serviceUuid),
+        tenantId,
+        requestInfo
+    );
+    for (const existing of Object.values(result)) {
+        const name = uuidToName[existing.serviceUuid];
+        if (name) existing.userName = name;
+    }
+
     return result;
 }
 

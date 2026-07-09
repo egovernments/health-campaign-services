@@ -537,6 +537,8 @@ export class TemplateClass {
                 [userCredentialFields.userServiceUuids]: existing.serviceUuid,
                 // Terminal sheet status so adopted rows converge (pendingRows → 0), symmetric with the created path.
                 [campaignDataRowFields.status]: sheetDataRowStatuses.EXISTING,
+                // Authoritative existing login id for the credential sheet (adopted users get no new creds).
+                ...(existing.userName ? { [userCredentialFields.userName]: existing.userName } : {}),
             };
             u.uniqueIdAfterProcess = existing.serviceUuid;
 

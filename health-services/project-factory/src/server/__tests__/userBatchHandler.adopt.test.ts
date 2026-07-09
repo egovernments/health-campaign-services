@@ -76,6 +76,18 @@ describe('markAdoptedUserRecordCompleted', () => {
             expect(rec.data[userCredentialFields.userServiceUuids]).toBe('svc-uuid-1');
             expect(rec.uniqueIdAfterProcess).toBe('svc-uuid-1');
         });
+
+        it('applies the existing login username when provided', () => {
+            const rec = makeRecord();
+            markAdoptedUserRecordCompleted(rec, 'svc-uuid-1', 'testuser124');
+            expect(rec.data[userCredentialFields.userName]).toBe('testuser124');
+        });
+
+        it('leaves the uploaded username untouched when no existing username is resolved', () => {
+            const rec = makeRecord({ data: { [userCredentialFields.userName]: 'from-sheet' } } as any);
+            markAdoptedUserRecordCompleted(rec, 'svc-uuid-1'); // no userName arg
+            expect(rec.data[userCredentialFields.userName]).toBe('from-sheet');
+        });
     });
 
     describe('idempotency & preservation', () => {
@@ -106,8 +118,8 @@ describe('markAdoptedUserRecordCompleted', () => {
 function pendingRow(phone: string): CampaignRecord {
     return { status: dataRowStatuses.pending, uniqueIdentifier: phone, data: { x: '1' } } as CampaignRecord;
 }
-function existing(uuid: string): ExistingHrmsUser {
-    return { serviceUuid: uuid, individualId: `ind-${uuid}`, existingName: 'N' };
+function existing(uuid: string, userName?: string): ExistingHrmsUser {
+    return { serviceUuid: uuid, individualId: `ind-${uuid}`, existingName: 'N', userName };
 }
 
 describe('selectReconcilableUserRows', () => {
@@ -147,5 +159,11 @@ describe('selectReconcilableUserRows', () => {
         const result = selectReconcilableUserRows(rows, { '700001': existing('u1') });
         expect(result[0].uniqueIdAfterProcess).toBe('u1');
         expect(result[0].data[userCredentialFields.userServiceUuids]).toBe('u1');
+    });
+
+    it('stamps the existing username onto reconciled rows when resolved', () => {
+        const rows = [pendingRow('700001')];
+        const result = selectReconcilableUserRows(rows, { '700001': existing('u1', 'testuser1') });
+        expect(result[0].data[userCredentialFields.userName]).toBe('testuser1');
     });
 });
