@@ -3,6 +3,7 @@ package org.egov.excelingestion.util;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.junit.jupiter.api.BeforeEach;
@@ -414,6 +415,61 @@ class ExcelDataPopulatorTest {
         Sheet sheet = workbook.getSheetAt(0);
         assertTrue(sheet.getProtect(), "Sheet should be protected");
         
+        workbook.close();
+    }
+
+    @Test
+    void testPopulateSheetWithData_JoinMode_StampsRowIdAndLeavesUnprotected() throws IOException {
+        // Given - a password IS configured, but unprotected join mode must skip protection anyway
+        List<ColumnDef> columns = createBasicColumnDefs();
+        List<Map<String, Object>> data = createBasicDataRows(); // 2 pre-filled rows
+
+        // When - generate in join mode (6-arg overload, unprotectedJoinMode = true)
+        Workbook workbook = excelDataPopulator.populateSheetWithData(
+                new XSSFWorkbook(), "JoinSheet", columns, data, localizationMap, true);
+
+        // Then
+        Sheet sheet = workbook.getSheet("JoinSheet");
+        assertFalse(sheet.getProtect(), "Join-mode sheet must be left UNPROTECTED so copy-paste works");
+
+        // A hidden row-id column is appended; its technical header sits in row 0
+        Row header = sheet.getRow(0);
+        int idCol = -1;
+        for (int c = 0; c < header.getLastCellNum(); c++) {
+            Cell cell = header.getCell(c);
+            if (cell != null && ProcessingConstants.ROW_ID_COLUMN_NAME.equals(cell.getStringCellValue())) {
+                idCol = c;
+                break;
+            }
+        }
+        assertTrue(idCol >= 0, "Hidden row-id column should be present in join mode");
+        assertTrue(sheet.isColumnHidden(idCol), "Row-id column should be hidden");
+
+        // Each pre-filled data row gets a distinct, non-empty id
+        String id0 = sheet.getRow(2).getCell(idCol).getStringCellValue();
+        String id1 = sheet.getRow(3).getCell(idCol).getStringCellValue();
+        assertNotNull(id0);
+        assertFalse(id0.isEmpty(), "Pre-filled row should carry a row-id");
+        assertNotEquals(id0, id1, "Each pre-filled row should get a distinct row-id");
+
+        workbook.close();
+    }
+
+    @Test
+    void testPopulateSheetWithData_ProtectedMode_NoRowIdColumn() throws IOException {
+        // Default (protected) generation must NOT add a row-id column - backward compatibility
+        List<ColumnDef> columns = createBasicColumnDefs();
+        List<Map<String, Object>> data = createBasicDataRows();
+
+        Workbook workbook = excelDataPopulator.populateSheetWithData("PlainSheet", columns, data, localizationMap);
+
+        Sheet sheet = workbook.getSheetAt(0);
+        Row header = sheet.getRow(0);
+        for (int c = 0; c < header.getLastCellNum(); c++) {
+            Cell cell = header.getCell(c);
+            assertFalse(cell != null && ProcessingConstants.ROW_ID_COLUMN_NAME.equals(cell.getStringCellValue()),
+                    "Protected-mode generation must not stamp a row-id column");
+        }
         workbook.close();
     }
 

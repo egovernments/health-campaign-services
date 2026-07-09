@@ -110,7 +110,7 @@ public class UserSheetGenerator implements ISheetGenerator {
                 }
                 
                 // Then add schema columns and data using ExcelDataPopulator
-                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap);
+                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap, generateResource.isUnprotectedJoinMode());
             }
             
         } catch (Exception e) {

@@ -194,23 +194,14 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
             })));
           }
         }
-        if (config.boundaryJobs.enabled) {
-          // Distribute the chunks as Kafka jobs so they execute across all boundary-management
-          // pods (same consumer group) instead of this pod running every chunk itself. The
-          // dispatcher blocks until every job is accounted for, so the wave barrier holds.
-          const { dispatchBulkChunksAsJobs } = require("../kafka/boundaryJobQueue");
-          await dispatchBulkChunksAsJobs(request, chunks);
-        } else {
-          // Run the chunk creates via boundary-service's synchronous /bulk/_create with the same
-          // bounded parallelism as the single creates. The endpoint validates + enriches every
-          // record in-request and only then publishes it to the persister, so nothing
-          // un-validated is ever placed on Kafka.
-          for (let i = 0; i < chunks.length; i += concurrency) {
-            const batch = chunks.slice(i, i + concurrency);
-            await Promise.all(batch.map((records) => createBulkBoundaryRelationships(request, records)));
-          }
+        // Create the chunks via boundary-service's synchronous /bulk/_create with the same bounded
+        // parallelism as the single creates. The endpoint validates + enriches every record
+        // in-request and only then publishes it to the persister.
+        for (let i = 0; i < chunks.length; i += concurrency) {
+          const batch = chunks.slice(i, i + concurrency);
+          await Promise.all(batch.map((records) => createBulkBoundaryRelationships(request, records)));
         }
-        logger.info(`Created ${chunks.length} bulk relationship chunk(s) via ${config.boundaryJobs.enabled ? "Kafka jobs" : "/bulk/_create"} for level(s) [${Array.from(new Set(bulkItems.map((it) => it.boundaryType))).join(", ")}]`);
+        logger.info(`Created ${chunks.length} bulk relationship chunk(s) via /bulk/_create for level(s) [${Array.from(new Set(bulkItems.map((it) => it.boundaryType))).join(", ")}]`);
       }
 
       ready.forEach((it) => created.add(it.boundaryCode));

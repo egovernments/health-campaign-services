@@ -135,46 +135,54 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
     logger.error("Invalid chunkSize provided");
     return;
   }
-  if (!tenantId || !request) {
-    logger.error("tenantId or request is not defined");
-    return;
-  }
   const MAX_RETRIES = 3; // Maximum number of retries for a chunk
-
-  // Chunks are independent upserts, so they run in parallel with bounded concurrency instead
-  // of serially — on a 50k create the serial loop made localisation the dominant phase.
-  const concurrency = config.localisation.localizationUpsertConcurrency;
-  const chunks: any[][] = [];
+  // Break the messages array into chunks
   for (let i = 0; i < messages.length; i += chunkSize) {
-    chunks.push(messages.slice(i, i + chunkSize));
-  }
-  logger.info(`Total messages count ${messages.length}; uploading ${chunks.length} chunk(s) with concurrency ${concurrency}`);
-  const localisation = Localisation.getInstance();
-
-  const uploadChunk = async (chunk: any[], chunkNo: number) => {
     let retries = 0;
+    let success = false;
+    const chunk = messages.slice(i, i + chunkSize);
+    logger.info(`Total messages count ${messages?.length}`);
     while (retries <= MAX_RETRIES) {
       try {
-        logger.info(`Uploading chunk ${chunkNo}/${chunks.length} of size ${chunk.length}`);
+        logger.info(`Uploading chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(messages.length / chunkSize)} of size ${chunkSize}`);
+
+        // Check if tenantId and request are defined
+        if (!tenantId || !request) {
+          throw new Error("tenantId or request is not defined");
+        }
+
+        // Instantiate localisation controller
+        const localisation = Localisation.getInstance();
+
+        // Upload the current chunk
         await localisation.createLocalisation(chunk, tenantId, request?.body?.RequestInfo);
-        logger.info(`Successfully uploaded chunk ${chunkNo}`);
-        return;
+
+        // NOTE: The localisation messages are only read back later by the generate step (which runs after its
+        // own delay), so the settle is now done ONCE after all chunks (see after the loop) instead.
+        logger.info(`Successfully uploaded chunk ${Math.floor(i / chunkSize) + 1}`);
+        success = true; // Mark as successful
+        break;
       } catch (error: any) {
         retries += 1;
-        logger.info(`Retrying chunk ${chunkNo}, Attempt ${retries}`);
-        logger.error(`Error uploading chunk ${chunkNo}, Attempt ${retries}: ${error.message}`);
+        logger.info(`Retrying chunk ${Math.floor(i / chunkSize) + 1}, Attempt ${retries}`);
+        logger.error(
+          `Error uploading chunk ${Math.floor(i / chunkSize) + 1}, Attempt ${retries}: ${error.message}`
+        );
+
+        // If retries are exhausted, log failure and move on
+        if (retries > MAX_RETRIES) {
+          logger.error(
+            `Failed to upload chunk ${Math.floor(i / chunkSize) + 1} after ${MAX_RETRIES} retries`
+          );
+        }
+
+        // Optional: Add a delay between retries
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
-    // Exhausted retries: log and move on — the completeness verification pass afterwards
-    // detects and flags whatever this chunk left missing.
-    logger.error(`Failed to upload chunk ${chunkNo} after ${MAX_RETRIES} retries`);
-    logger.warn(`Skipping chunk ${chunkNo} after exhausting retries`);
-  };
-
-  for (let i = 0; i < chunks.length; i += concurrency) {
-    const batch = chunks.slice(i, i + concurrency);
-    await Promise.all(batch.map((chunk, j) => uploadChunk(chunk, i + j + 1)));
+    if (!success) {
+      logger.warn(`Skipping chunk ${Math.floor(i / chunkSize) + 1} after exhausting retries`);
+    }
   }
   // Single settle + cache-burst AFTER all chunks (replaces the former per-chunk 30s wait). One
   // settle preserves the "localisation is fresh before it is read back" guarantee (the generate

@@ -26,6 +26,10 @@ public class GenerationConstants {
     public static final String GENERATION_ROW_NOT_MATERIALIZED_MESSAGE =
             "Generation record was not persisted in time; please retry";
 
+    // Hidden metadata sheet (and cell) carrying the generationId in unprotected join-mode files.
+    // The "_h_..._h_" name is auto-hidden at generation and auto-skipped by the processing pipeline.
+    public static final String META_SHEET_NAME = "_h_Meta_h_";
+
     private GenerationConstants() {
         // Private constructor to prevent instantiation
     }

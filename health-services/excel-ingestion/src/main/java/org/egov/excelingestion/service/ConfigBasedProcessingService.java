@@ -257,28 +257,9 @@ public class ConfigBasedProcessingService {
      */
     private Map<String, Object> fetchSchemaFromMDMS(String tenantId, String schemaName, RequestInfo requestInfo) {
         try {
-            Map<String, Object> filters = new HashMap<>();
-            filters.put("title", schemaName);
-            
-            java.util.List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
-                    requestInfo, tenantId, ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
-            
-            if (!mdmsList.isEmpty()) {
-                Map<String, Object> mdmsData = mdmsList.get(0);
-                Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
-                
-                if (data != null) {
-                    Map<String, Object> properties = (Map<String, Object>) data.get("properties");
-                    if (properties != null) {
-                        log.info("Successfully fetched MDMS schema for: {}", schemaName);
-                        return properties;
-                    }
-                }
-            }
-            
-            log.warn("No MDMS data found for schema: {}", schemaName);
-            return null;
-            
+            // Delegate to the cached lookup on MDMSService (cross-bean call, so @Cacheable applies):
+            // the schema is stable config and was previously re-fetched over HTTP on every upload.
+            return mdmsService.getSchemaProperties(requestInfo, tenantId, schemaName);
         } catch (Exception e) {
             log.error("Error fetching MDMS schema {}: {}", schemaName, e.getMessage(), e);
             return null;
@@ -344,7 +325,9 @@ public class ConfigBasedProcessingService {
                     // Apply the results back to the workbook using ExcelDataPopulator
                     if (result != null) {
                         ExcelDataPopulator populator = applicationContext.getBean(ExcelDataPopulator.class);
-                        populator.populateSheetWithData(workbook, configuredSheetName, result.getColumnDefs(), result.getData(), localizationMap);
+                        // Force protected (non-join) mode: this is the upload-side processed-sheet rebuild,
+                        // not template generation, so it must not unprotect or stamp row-ids.
+                        populator.populateSheetWithData(workbook, configuredSheetName, result.getColumnDefs(), result.getData(), localizationMap, false);
                     }
                 } else {
                     throw new IllegalArgumentException("Processor " + processorClass + " must implement either IWorkbookProcessor or ISheetDataProcessor");

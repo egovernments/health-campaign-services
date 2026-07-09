@@ -229,7 +229,7 @@ public class ProjectConfiguration {
     // When false, the cross-entity existence checks (project / product-variant / beneficiary-subject) are skipped
     // on the task & beneficiary create/update chains so records are not rejected while a referenced parent is
     // still on the persister queue. Default FALSE = disabled (validators off) for the unified-dev rollout test; set true to enforce.
-    @Value("${project.relationship.validation.enabled:false}")
+    @Value("${project.relationship.validation:false}")
     private Boolean isRelationshipValidationEnabled;
 
     @Value("${project.create.cache.key}")

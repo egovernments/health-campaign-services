@@ -12,6 +12,47 @@ public class ProcessingConstants {
     public static final String BOUNDARY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String WORKER_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
 
+    // User active/inactive column - user-editable, excluded from the immutable-baseline join
+    public static final String USER_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_USAGE";
+
+    // Template type families the unprotected join-mode immutability feature applies to.
+    // Generation types are e.g. "unified-console" / "attendanceRegister" / "attendanceRegisterAttendee";
+    // the matching processing types append a suffix ("-validation"/"-parse"), so the scope gate matches
+    // on a startsWith prefix rather than equality.
+    public static final String UNIFIED_CONSOLE_TYPE = "unified-console";
+    public static final String ATTENDANCE_REGISTER_TYPE = "attendanceRegister";
+    public static final String ATTENDANCE_REGISTER_ATTENDEE_TYPE = "attendanceRegisterAttendee";
+
+    // Prefixes a resource type must start with to use join mode. attendanceRegisterAttendee is listed
+    // explicitly for clarity even though the "attendanceRegister" prefix already matches it (startsWith).
+    // The list match also covers the "-validation"/"-parse" processing suffixes.
+    private static final java.util.List<String> JOIN_MODE_TYPE_PREFIXES =
+            java.util.List.of(UNIFIED_CONSOLE_TYPE, ATTENDANCE_REGISTER_TYPE, ATTENDANCE_REGISTER_ATTENDEE_TYPE);
+
+    /**
+     * Whether the given resource type belongs to a template family that uses unprotected join-mode
+     * pre-filled immutability. Single source of truth shared by the generation and upload gates.
+     * Null-safe.
+     */
+    public static boolean isJoinModeType(String type) {
+        if (type == null) {
+            return false;
+        }
+        for (String prefix : JOIN_MODE_TYPE_PREFIXES) {
+            if (type.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Hidden, server-stamped per-row identifier used to join an uploaded row to its generated
+    // baseline row (unprotected join mode). Robust to row insertion/reordering/deletion.
+    public static final String ROW_ID_COLUMN_NAME = "HCM_ADMIN_CONSOLE____ROW_ID";
+
+    // Suffix of hidden per-level boundary helper columns - excluded from the immutable set
+    public static final String HELPER_COLUMN_SUFFIX = "_HELPER";
+
     // Payee field column keys
     public static final String PAYMENT_PROVIDER_COL = "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER";
     public static final String PAYEE_NAME_COL = "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME";

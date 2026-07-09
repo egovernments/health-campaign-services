@@ -73,20 +73,6 @@ const config = {
     localizationChunkSizeForBoundaryCreation: parseInt(process.env.LOCALIZATION_CHUNK_SIZE_FOR_BOUNDARY_CREATION || "2000"),
     localizationUpsertConcurrency: parseInt(process.env.LOCALIZATION_UPSERT_CONCURRENCY || "5"),
   },
-  // Kafka job distribution for bulk relationship chunks: spread the village-level chunks
-  // across boundary-management pods (shared consumer group) instead of executing them all
-  // in-process on the orchestrating pod. Off by default; the in-process path remains.
-  // Reuses the topic infra already provisioned for the (removed) boundary-service bulk
-  // consumer, so no Kafka-level change is needed; the group starts at latest, so stale
-  // v1-format messages are ignored.
-  boundaryJobs: {
-    enabled: process.env.BOUNDARY_JOBS_ENABLED === "true",
-    topic: process.env.BOUNDARY_JOBS_TOPIC || "boundary-relationship-bulk-create-job",
-    groupId: process.env.BOUNDARY_JOBS_GROUP_ID || "bm-boundary-jobs",
-    partitionConcurrency: parseInt(process.env.BOUNDARY_JOBS_PARTITION_CONCURRENCY || "1"),
-    completionPollMs: parseInt(process.env.BOUNDARY_JOBS_POLL_MS || "2000"),
-    completionTimeoutMs: parseInt(process.env.BOUNDARY_JOBS_TIMEOUT_MS || "900000"),
-  },
   // targetColumnsForSpecificCampaigns: {
   //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],
   //   smcCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET_SMC_AGE_3_TO_11", "HCM_ADMIN_CONSOLE_TARGET_SMC_AGE_12_TO_59"]
