@@ -252,9 +252,11 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
 
         ExecutorService executor = Executors.newFixedThreadPool(Math.min(parallelCalls, batches.size()));
         try {
+            // normalize once before the parallel boundary so tasks don't mutate a shared RequestInfo concurrently
+            RequestInfo resolvedRequestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
             List<Future<?>> futures = new ArrayList<>();
             for (List<String> batch : batches) {
-                futures.add(executor.submit(() -> searchBatch(batch, tenantId, requestInfo, existingServiceCodes)));
+                futures.add(executor.submit(() -> searchBatch(batch, tenantId, resolvedRequestInfo, existingServiceCodes)));
             }
             for (Future<?> future : futures) {
                 try {
@@ -301,7 +303,6 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                .append("&includeAttendee=false")
                .append("&includeStaff=false");
 
-            requestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
             Map<String, Object> payload = new HashMap<>();
             payload.put("RequestInfo", requestInfo);
 
