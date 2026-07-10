@@ -97,6 +97,7 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None):
         return
 
     tenant_id = campaign.get("tenantId", TENANT_ID_DEFAULT)
+    now_dt = datetime.datetime.now(datetime.timezone.utc)
     event = {
         "event_id": str(uuid.uuid4()),
         "tenant_id": tenant_id,
@@ -116,7 +117,10 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None):
         "row_count": None,
         "report_dates": None,
         "report_generation_time_seconds": None,
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        # Epoch millis is what's actually bound into the DB (plain number -> BIGINT,
+        # no JDBC string-to-timestamp cast risk); ISO string kept for readability only.
+        "timestamp_ms": int(now_dt.timestamp() * 1000),
+        "timestamp": now_dt.isoformat(),
     }
 
     topic = _topic_for(REPORT_STATUS_TOPIC, tenant_id)
