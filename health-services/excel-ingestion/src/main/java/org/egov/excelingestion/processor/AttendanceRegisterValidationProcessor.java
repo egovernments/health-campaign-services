@@ -301,7 +301,7 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                .append("&includeAttendee=false")
                .append("&includeStaff=false");
 
-            RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
+            requestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
             Map<String, Object> payload = new HashMap<>();
             payload.put("RequestInfo", requestInfo);
 

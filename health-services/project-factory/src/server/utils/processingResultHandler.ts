@@ -83,6 +83,17 @@ async function fetchLocalizationData(tenantId: string, campaignId: string, local
     }
 }
 
+// Resolve the RequestInfo for background resource creation: keep a real userInfo, else stamp the campaign creator, else leave it for the downstream userInfo guard.
+export function resolveCreationRequestInfo(requestInfo: RequestInfo | undefined, campaignCreatedBy: string | undefined, tenantId: string): RequestInfo {
+    if (requestInfo?.userInfo?.uuid) {
+        return requestInfo;
+    }
+    if (campaignCreatedBy) {
+        return withUserInfo(requestInfo ?? ({} as RequestInfo), { uuid: campaignCreatedBy, tenantId });
+    }
+    return requestInfo ?? ({} as RequestInfo);
+}
+
 /**
  * Handler for HCM processing result messages from excel-ingestion service
  * This handler receives the ProcessResource object after Excel processing is complete
@@ -352,12 +363,8 @@ export async function handleProcessingResult(messageObject: any) {
 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                // ensure a userInfo (creator uuid) — user-creation batches require it; skip when no creator uuid to avoid a userInfo with an undefined uuid
-                const creationRequestInfo = messageObject?.requestInfo?.userInfo?.uuid
-                    ? messageObject.requestInfo
-                    : campaignCreatedBy
-                        ? withUserInfo(messageObject?.requestInfo ?? {}, { uuid: campaignCreatedBy, tenantId: messageObject.tenantId })
-                        : messageObject?.requestInfo ?? {};
+                // ensure userInfo (creator uuid) for user-creation batches; skip when no creator uuid
+                const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
                 await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
                 throw new Error('No temp data found to process for campaign');

@@ -105,7 +105,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         log.info("Generating attendance register attendee sheet: {} for tenant: {}", sheetName, tenantId);
 
-        RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
+        requestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
         // 1. Fetch schema from MDMS → convert to ColumnDefs
         List<ColumnDef> columnDefs = fetchSchemaColumnDefs(sheetConfig.getSchemaName(), tenantId, requestInfo);
 

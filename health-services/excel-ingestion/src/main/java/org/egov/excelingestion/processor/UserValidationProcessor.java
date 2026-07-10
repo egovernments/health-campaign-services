@@ -512,7 +512,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                                                                      RequestInfo requestInfo) throws Exception {
         String url = config.getHealthIndividualHost() + config.getHealthIndividualSearchPath();
         
-        RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
+        requestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
         Map<String, Object> searchBody = new HashMap<>();
         searchBody.put("RequestInfo", requestInfo);
         
@@ -555,7 +555,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                                                                 RequestInfo requestInfo) throws Exception {
         String url = config.getHealthIndividualHost() + config.getHealthIndividualSearchPath();
         
-        RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
+        requestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
         Map<String, Object> searchBody = new HashMap<>();
         searchBody.put("RequestInfo", requestInfo);
 

@@ -14,7 +14,7 @@
  * while still preferring the real requestInfo when the message carries one.
  */
 
-import { handleProcessingResult } from '../utils/processingResultHandler';
+import { handleProcessingResult, resolveCreationRequestInfo } from '../utils/processingResultHandler';
 import { additionalDetailKeys } from '../config/constants';
 
 // ── core service mocks ──────────────────────────────────────────────────────
@@ -208,5 +208,46 @@ describe('handleProcessingResult: creator-email individual lookup RequestInfo', 
         // preserves the incoming fields, but guarantees a userInfo the individual service accepts
         expect(body.RequestInfo).toEqual({ apiId: 'pf', authToken: 'tok-abc', userInfo: { uuid: CREATOR_UUID } });
         expect(body.RequestInfo.userInfo).toEqual({ uuid: CREATOR_UUID });
+    });
+});
+
+// Covers the background-flow RequestInfo construction (handler line ~356) that drives user/project/facility creation.
+describe('resolveCreationRequestInfo (background resource-creation fallback)', () => {
+    const TENANT = 'demo';
+
+    it('preserves the real requestInfo when it already carries a userInfo.uuid', () => {
+        const real = { apiId: 'pf', authToken: 'tok', userInfo: { uuid: 'real-user', tenantId: TENANT } } as any;
+
+        const out = resolveCreationRequestInfo(real, CREATOR_UUID, TENANT);
+
+        expect(out).toBe(real); // same reference, untouched
+        expect(out.userInfo?.uuid).toBe('real-user');
+    });
+
+    it('injects the campaign creator uuid when userInfo.uuid is missing', () => {
+        const out = resolveCreationRequestInfo({ apiId: 'pf' } as any, CREATOR_UUID, TENANT);
+
+        expect(out.userInfo).toEqual({ uuid: CREATOR_UUID, tenantId: TENANT });
+        expect(out.apiId).toBe('pf'); // existing fields preserved
+    });
+
+    it('builds a creator RequestInfo when the incoming requestInfo is undefined', () => {
+        const out = resolveCreationRequestInfo(undefined, CREATOR_UUID, TENANT);
+
+        expect(out.userInfo).toEqual({ uuid: CREATOR_UUID, tenantId: TENANT });
+    });
+
+    it('does NOT fabricate a userInfo when there is no creator uuid (avoids uuid:undefined)', () => {
+        const out = resolveCreationRequestInfo({ apiId: 'pf' } as any, undefined, TENANT);
+
+        // returns the raw requestInfo so the downstream guard fails clearly, instead of a userInfo with a dropped uuid
+        expect(out.userInfo).toBeUndefined();
+        expect(out.apiId).toBe('pf');
+    });
+
+    it('returns an empty object (no crash) when both requestInfo and creator are absent', () => {
+        const out = resolveCreationRequestInfo(undefined, undefined, TENANT);
+
+        expect(out).toEqual({});
     });
 });
