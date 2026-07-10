@@ -33,6 +33,9 @@ from airflow.models import Variable
 
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s_models
+
+from common.kafka_status import push_status_event
+
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
 
@@ -503,6 +506,48 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     return (start, end)
 
 
+def pod_failure_callback(context):
+    """
+    on_failure_callback for the campaign_pods mapped task.
+
+    Catches Kubernetes-level failures (image pull errors, OOM kill, startup
+    timeout, node eviction) that happen before main.py's own error handling
+    inside the pod ever gets a chance to run, and reports them via the same
+    status pipeline as everything else.
+    """
+    try:
+        ti = context["ti"]
+        map_index = ti.map_index
+        env_list = ti.xcom_pull(task_ids="build_payload") or []
+
+        if map_index is None or map_index < 0 or map_index >= len(env_list):
+            logger.warning(
+                "pod_failure_callback: cannot resolve map_index=%s against %d build_payload entries",
+                map_index, len(env_list)
+            )
+            return
+
+        env_dict = env_list[map_index]
+        campaign_like = {
+            "campaignIdentifier": env_dict.get("CAMPAIGN_IDENTIFIER"),
+            "identifierType": env_dict.get("IDENTIFIER_TYPE"),
+            "reportName": env_dict.get("REPORT_NAME"),
+            "triggerFrequency": env_dict.get("TRIGGER_FREQUENCY"),
+            "triggerTime": env_dict.get("TRIGGER_TIME"),
+            "tenantId": env_dict.get("TENANT_ID"),
+        }
+
+        push_status_event(
+            "POD_INFRA_FAILED",
+            campaign_like,
+            dag_id=env_dict.get("DAG_ID") or "hcm_dynamic_campaigns",
+            dag_run_id=env_dict.get("DAG_RUN_ID"),
+            error_message=str(context.get("exception")) if context.get("exception") else "Pod execution failed",
+        )
+    except Exception:
+        logger.exception("pod_failure_callback itself failed")
+
+
 # ============================
 #       DAG DEFINITION
 # ============================
@@ -618,14 +663,18 @@ with DAG(
             # Check if frequency is due (DAILY/WEEKLY/MONTHLY)
             # Final reports bypass frequency check (campaign ending mid-cycle)
             if not is_final_report and not frequency_due(c, now):
-                logger.info("  ⏭️ SKIP: Frequency not due (%s)", frequency)
+                reason = f"Frequency not due ({frequency})"
+                logger.info("  ⏭️ SKIP: %s", reason)
+                push_status_event("SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason)
                 continue
 
             # Check if first day AND report would cover yesterday's data
             # On first day, only allow if reportEndTime < triggerTime (report covers today)
             # Skip if reportEndTime >= triggerTime (would try to report yesterday before campaign existed)
             if is_first_day(c, now) and not should_report_today(c, now):
-                logger.info("  ⏭️ SKIP: First day and report would cover yesterday (no data exists)")
+                reason = "First day and report would cover yesterday (no data exists)"
+                logger.info("  ⏭️ SKIP: %s", reason)
+                push_status_event("SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason)
                 continue
 
             # Calculate report date range based on frequency
@@ -701,6 +750,7 @@ with DAG(
             }
 
             env_list.append(env_dict)
+            push_status_event("TRIGGERED", c, dag_id=dag_id, dag_run_id=dag_run_id)
 
         logger.info("=" * 80)
         logger.info("PAYLOAD BUILT: %d environment configurations", len(env_list))
@@ -775,6 +825,11 @@ with DAG(
             "app": "hcm-reports",
             "managed-by": "airflow"
         },
+
+        # Reports a POD_INFRA_FAILED status event for K8s-level failures (image pull,
+        # OOM kill, startup timeout, node eviction) that never reach main.py's own
+        # error handling inside the pod.
+        on_failure_callback=pod_failure_callback,
 
     ).expand(
         # ✅ CRITICAL: .expand() creates dynamic tasks

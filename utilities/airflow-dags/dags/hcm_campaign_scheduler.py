@@ -33,6 +33,8 @@ from airflow.utils.types import DagRunType
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.models import Variable
 
+from common.kafka_status import push_status_event
+
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
 
@@ -521,6 +523,11 @@ with DAG(
         run_id,
         )
 
+        for c in final:
+            try:
+                push_status_event("SCHEDULED", c, dag_id="hcm_campaign_scheduler", dag_run_id=run_id)
+            except Exception:
+                logger.exception("Failed to push SCHEDULED status event for %s", c.get("campaignIdentifier"))
 
         # TriggerDagRunOperator dynamically created and executed inside Python callable
         trigger_op = TriggerDagRunOperator(
