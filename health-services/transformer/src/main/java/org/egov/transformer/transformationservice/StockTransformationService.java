@@ -93,7 +93,6 @@ public class StockTransformationService {
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-        String campaignNumber = projectService.getCampaignNumberByProjectId(projectId, tenantId);
 
         if (!STAFF.equalsIgnoreCase(facilityType)) {
             Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
@@ -155,7 +154,6 @@ public class StockTransformationService {
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
-                .campaignNumber(campaignNumber)
                 .clientReferenceId(stock.getClientReferenceId())
                 .tenantId(tenantId)
                 .productVariant(stock.getProductVariantId())

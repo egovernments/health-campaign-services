@@ -24,9 +24,6 @@ public class StockIndexV1 extends ProjectInfo {
     @JsonProperty("id")
     private String id;
 
-    @JsonProperty("campaignNumber")
-    private String campaignNumber;
-
     @JsonProperty("facilityId")
     private String facilityId;
 
