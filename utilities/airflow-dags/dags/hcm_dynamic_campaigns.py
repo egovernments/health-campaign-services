@@ -749,6 +749,13 @@ with DAG(
                 "CREATED_TIME" : c.get("createdTime", "")
             }
 
+            # Kubernetes' EnvVar.value is strictly a string - the K8s API rejects the
+            # entire pod creation (400 Bad Request) if any value is a raw JSON number/bool/null,
+            # which can happen since env_dict pulls some values straight from the DAG run's
+            # conf (untyped, whatever the trigger caller sent). Coerce defensively so a bad
+            # value in one field can never block pod creation for the whole batch.
+            env_dict = {k: ("" if v is None else str(v)) for k, v in env_dict.items()}
+
             env_list.append(env_dict)
             push_status_event("TRIGGERED", c, dag_id=dag_id, dag_run_id=dag_run_id)
 
