@@ -451,8 +451,7 @@ const autoGenerateBoundaryCodes = async (
     // DELTA / no-codes update safety: the sheet carried no existing (with-code) rows. If the hierarchy
     // already has boundaries, rehydrate them from the DB so the codegen CONTINUES the per-parent
     // sequence and reuses existing boundaries by name-path (instead of minting a same-named sibling
-    // with a fresh code). Full-template updates already carry the existing rows, so this only runs for
-    // delta / no-codes auto uploads.
+    // with a fresh code).
     if (withBoundaryCode.length === 0) {
       const seed = await buildExistingSeedFromDb(request);
       if (seed.mappingMap.size > 0) {
@@ -463,6 +462,61 @@ const autoGenerateBoundaryCodes = async (
         // deliberately NOT added here: the delta-upsert in transformAndCreateLocalisation already skips
         // unchanged names AND re-creates any that are missing, so we must not bypass that self-heal.
         seed.mappingMap.forEach((_v: any, k: any) => existingKeySet.add(boundaryKeyOf(k)));
+      }
+    } else {
+      // FULL-SHEET update safety: the sheet DOES carry the existing (with-code) rows, but the
+      // sheet-derived countMap above only registers a parent when that parent itself appeared earlier
+      // as the deepest element of a coded row (getCodeMappingsOfExistingBoundaryCodes only counts when
+      // mappingIndex already has the parent key). A parent that exists only as an ancestor column of
+      // deeper rows (e.g. a locality that appears solely on its villages' rows) is never counted, so
+      // its per-parent sequence RESTARTS: a new uncoded sibling is minted as _01_, positionally
+      // colliding with the existing _01_ child — uniqueness today survives only because the child's
+      // name is glued onto the code. Seed from the DB here too and MERGE (never replace) the
+      // sheet-derived maps, so counters continue from MAX(db-count, sheet-count) and existing
+      // boundaries stay reusable by name-path. buildExistingSeedFromDb already warns and returns empty
+      // maps on failure, so the merge degrades to a no-op (sheet-only context — today's behavior).
+      const seed = await buildExistingSeedFromDb(request);
+      if (seed.mappingMap.size > 0) {
+        // mappingMap merge — sheet wins, keyed by boundaryKeyOf (logical name-path identity), NEVER
+        // object identity. The codegen collapses duplicate structural keys last-wins into its own
+        // string index, but the object-keyed map itself flows on into modifyElementCodesMap, which
+        // de-duplicates VALUES by appending _N — a logical duplicate carrying the same code would get
+        // one copy mangled into a phantom code and then entity-created. So exactly ONE logical entry
+        // per boundary may survive. A seed entry is also skipped when its code is already carried by
+        // some sheet row (a renamed row keeps the code but changes the name-path): that boundary is
+        // sheet-managed, and adding its DB twin would duplicate the code.
+        const sheetKeySet = new Set<string>();
+        const sheetCodeSet = new Set<string>();
+        mappingMap.forEach((code: any, elem: any) => {
+          sheetKeySet.add(boundaryKeyOf(elem));
+          if (code !== undefined && code !== null) sheetCodeSet.add(code.toString().trim());
+        });
+        seed.mappingMap.forEach((code: string, elem: any) => {
+          const seedKey = boundaryKeyOf(elem);
+          if (sheetKeySet.has(seedKey) || sheetCodeSet.has(code?.toString()?.trim())) return;
+          mappingMap.set(elem, code);
+          // Seed-ONLY boundaries (in the DB but absent from the sheet) provably have their names in
+          // localisation (that is where the seed read them from), so skip re-localising them below —
+          // a full sheet must not re-localise hierarchy parts it does not even carry. Sheet-carried
+          // rows are deliberately NOT added: transformAndCreateLocalisation's upsert skips unchanged
+          // names AND re-creates missing ones, and we must not bypass that self-heal.
+          existingKeySet.add(seedKey);
+        });
+        // countMap merge — the per-parent counter continues from MAX(db-count, sheet-count), with
+        // exactly ONE canonical entry per logical parent. The codegen folds countMap into a
+        // boundaryKeyOf-keyed index last-wins, so leaving two structural duplicates in the map would
+        // silently keep whichever was inserted later, NOT the max — resolve the max here instead.
+        const mergedCounts = new Map<string, { elem: any; count: number }>();
+        const absorbCounts = (m: Map<any, number>) => m.forEach((count: number, elem: any) => {
+          const countKey = boundaryKeyOf(elem);
+          const prev = mergedCounts.get(countKey);
+          if (!prev) mergedCounts.set(countKey, { elem, count });
+          else if (count > prev.count) prev.count = count;
+        });
+        absorbCounts(countMap);
+        absorbCounts(seed.countMap);
+        countMap = new Map<{ key: string; value: string }, number>();
+        mergedCounts.forEach(({ elem, count }) => countMap.set(elem, count));
       }
     }
     const childParentMap = getChildParentMap([
@@ -630,6 +684,52 @@ function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
   }
   return codes;
 }
+
+// Persistence-drain gate: boundary-service's persister commits relationships asynchronously, so at
+// bulk scale (50k) the DB catches up minutes AFTER every create was accepted. Marking the run
+// completed before that makes an immediate follow-up upload fail MIXED_BOUNDARY_FLOW, because the
+// codes from this run's processed sheet are not searchable yet. Poll the relationship tree until it
+// reaches the count this run intended (stashed by createBoundaryRelationship), bounded by a timeout;
+// on timeout warn loudly and proceed — the run itself succeeded, the DB is only late.
+async function waitForRelationshipPersistenceDrain(request: any) {
+  const expected = request?.body?.expectedFinalRelationshipCount;
+  if (!expected || !(expected > 0)) return;
+  const timeoutMs = parseInt(config.values.persistenceDrainTimeoutMs) || 600000;
+  const pollMs = parseInt(config.values.persistenceDrainPollIntervalMs) || 5000;
+  const deadline = Date.now() + timeoutMs;
+  // Same proven full-tree search shape as createBoundaryRelationship's seed read; counting the tree's
+  // codes is the only relationship count boundary-service exposes (there is no count-only search).
+  const params = {
+    type: "boundaryManagement",
+    tenantId: request?.body?.ResourceDetails?.tenantId,
+    boundaryType: null,
+    codes: null,
+    includeChildren: true,
+    hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+  };
+  logger.info(`Persistence drain: waiting for ${expected} relationships to become searchable (timeout ${timeoutMs} ms)`);
+  let lastCount = -1;
+  while (Date.now() < deadline) {
+    try {
+      // No cachekey header: the drain must observe the live DB, not a cached tree.
+      const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params);
+      lastCount = extractCodesFromBoundaryRelationshipResponse(response?.TenantBoundary?.[0]?.boundary || []).size;
+      if (lastCount >= expected) {
+        logger.info(`Persistence drain complete: ${lastCount}/${expected} relationships searchable`);
+        return;
+      }
+      logger.info(`Persistence drain: ${lastCount}/${expected} relationships searchable, waiting ${pollMs} ms`);
+    } catch (e: any) {
+      // A failed count probe must not fail an already-successful run — keep polling until deadline.
+      logger.warn(`Persistence drain count probe failed (${e?.message || e}); retrying`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+  logger.warn(`PERSISTENCE DRAIN TIMEOUT after ${timeoutMs} ms: only ${lastCount}/${expected} relationships searchable — marking completed anyway; an immediate follow-up upload may not yet see all codes`);
+}
+
+
+
 async function generateProcessedFileAndPersist(
   request: any,
   localizationMap?: { [key: string]: string }
@@ -656,6 +756,11 @@ async function generateProcessedFileAndPersist(
   if (
     request?.body?.ResourceDetails?.status === resourceDataStatuses.completed 
   ) {
+    // Gate "completed" on the DB actually having drained this run's relationships (bounded; on
+    // timeout it warns and proceeds). Must run before the completed status is produced below and
+    // before the regenerate scheduled further down reads the tree.
+    await waitForRelationshipPersistenceDrain(request);
+
     // delete redis cache key with prefix boundaryRelatiionshipSearch
     await deleteRedisCacheKeysWithPrefix("boundaryRelationShipSearch");
 

@@ -124,6 +124,12 @@ const config = {
     // Transient-retry budget for /bulk/_create (records awaiting parent/entity persistence).
     bulkRelationshipRetryAttempts: process.env.BULK_RELATIONSHIP_RETRY_ATTEMPTS || "30",
     bulkRelationshipRetryDelayMs: process.env.BULK_RELATIONSHIP_RETRY_DELAY_MS || "2000",
+    // Bounded gate before a bulk upload is marked completed: boundary-service's persister commits
+    // relationships asynchronously, so the DB can lag the accepted creates by minutes at 50k scale.
+    // The gate polls the relationship search until every intended relationship is visible; on
+    // timeout the run still completes (the gate only defers "completed", it never fails the run).
+    persistenceDrainTimeoutMs: process.env.PERSISTENCE_DRAIN_TIMEOUT_MS || "600000",
+    persistenceDrainPollIntervalMs: process.env.PERSISTENCE_DRAIN_POLL_INTERVAL_MS || "5000",
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   },
 };

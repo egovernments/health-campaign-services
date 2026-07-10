@@ -724,7 +724,9 @@ async function generateNewRequestObject(request: any) {
     additionalDetails: additionalDetails,
     count: null,
     referenceId : request?.query?.referenceId ? request.query.referenceId : null,
-    locale: request?.body?.RequestInfo?.msgId?.split('|')[1] || null
+    // Default the locale instead of storing null: _generate-search filters rows by locale via
+    // getLocaleFromRequestInfo (same default constant), so a null-locale row is invisible to it.
+    locale: request?.body?.RequestInfo?.msgId?.split('|')[1] || config?.localisation?.defaultLocale
   };
   return [newEntry];
 }

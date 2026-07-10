@@ -89,6 +89,12 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
       return;
     }
 
+    // Total relationships the hierarchy must show once the asynchronous persister drains: everything
+    // already in the tree plus everything this run creates. generateProcessedFileAndPersist gates
+    // "completed" on the relationship search reaching this count, so an immediate follow-up upload
+    // sees all of this run's codes instead of failing MIXED_BOUNDARY_FLOW.
+    request.body.expectedFinalRelationshipCount = allCodes.size + toCreate.length;
+
     const concurrency = parseInt(config.values.relationshipCreateConcurrency) || 10;
     const BULK = parseInt(config.values.bulkRelationshipChunkSize) || 100;
     // The last two (high-cardinality) levels of the hierarchy are created in bulk via Kafka batch
