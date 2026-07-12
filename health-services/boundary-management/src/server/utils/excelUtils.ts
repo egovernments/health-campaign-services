@@ -30,33 +30,57 @@ const getNewExcelWorkbook = () => {
   const workbook = new ExcelJS.Workbook();
   return workbook;
 };
-// Function to retrieve workbook from Excel file URL and sheet name
+// Function to retrieve workbook from Excel file URL and sheet name.
+// Optional `request` enables a per-request parse-once cache: the same uploaded file was previously
+// downloaded + DOM-parsed once per phase (validation headers, validation data, auto-generate) — 3
+// full parses of the same immutable file in a single request execution. When `request` is supplied
+// the workbook is memoised on it (keyed by fileUrl) so the download + xlsx.load happens ONCE; later
+// callers reuse the already-parsed read-only workbook. Callers that do not pass `request` keep the
+// original download-every-time behaviour, so this is opt-in and cannot regress other paths.
 const getExcelWorkbookFromFileURL = async (
   fileUrl: string,
-  sheetName?: string
+  sheetName?: string,
+  request?: any
 ) => {
-  // Define headers for HTTP request
-  const headers = {
-    "Content-Type": "application/json",
-    Accept: "application/pdf",
-  };
-  logger.info("loading for the file based on fileurl");
-  // Make HTTP request to retrieve Excel file as arraybuffer
-  const responseFile = await httpRequest(
-    fileUrl,
-    null,
-    {},
-    "get",
-    "arraybuffer",
-    headers
-  );
-  logger.info("received the file response");
+  let workbook: any;
+  const cacheStore = request?.body;
+  // Key on the path only, dropping the query string: filestore returns pre-signed URLs whose
+  // signature/expiry query params can differ between the validation and processing resolutions of
+  // the SAME fileStoreId, which would otherwise defeat the cache. Within one request there is exactly
+  // one uploaded file, so the path uniquely identifies it.
+  const cacheKey = typeof fileUrl === "string" ? fileUrl.split("?")[0] : fileUrl;
+  const cached = cacheStore?.__workbookCache?.[cacheKey];
+  if (cached) {
+    logger.info("reusing already-parsed workbook for fileurl (parse-once)");
+    workbook = cached;
+  } else {
+    // Define headers for HTTP request
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/pdf",
+    };
+    logger.info("loading for the file based on fileurl");
+    // Make HTTP request to retrieve Excel file as arraybuffer
+    const responseFile = await httpRequest(
+      fileUrl,
+      null,
+      {},
+      "get",
+      "arraybuffer",
+      headers
+    );
+    logger.info("received the file response");
 
 
-  const workbook = getNewExcelWorkbook();
-  await workbook.xlsx.load(responseFile);
-  logger.info("workbook created based on the fileresponse");
+    workbook = getNewExcelWorkbook();
+    await workbook.xlsx.load(responseFile);
+    logger.info("workbook created based on the fileresponse");
 
+    if (cacheStore) {
+      if (!cacheStore.__workbookCache) cacheStore.__workbookCache = {};
+      cacheStore.__workbookCache[cacheKey] = workbook;
+    }
+  }
 
   if (sheetName) {
     // Check if the specified sheet exists in the workbook

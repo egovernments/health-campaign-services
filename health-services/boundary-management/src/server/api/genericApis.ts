@@ -15,11 +15,12 @@ const getSheetData = async (
   sheetName: string,
   getRow = false,
   createAndSearchConfig?: any,
-  localizationMap?: { [key: string]: string }
+  localizationMap?: { [key: string]: string },
+  request?: any
 ) => {
   // Retrieve workbook using the getExcelWorkbookFromFileURL function
   const localizedSheetName = getLocalizedName(sheetName, localizationMap);
-  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
+  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName, request);
 
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
 

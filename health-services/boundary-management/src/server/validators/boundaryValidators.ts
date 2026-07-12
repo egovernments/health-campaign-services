@@ -59,12 +59,12 @@ async function validateFile(request: any) {
  */
 async function validateBoundarySheetData(request: any, fileUrl: any, localizationMap?: any) {
     const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
-    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap);
+    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap, request);
     const hierarchy = await getHierarchy(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
     const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase())
     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
     await validateHeaders(localizedHierarchy, headersOfBoundarySheet, request, localizationMap)
-    const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap);
+    const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap, request);
     //validate for whether root boundary level column should not be empty
     validateForRootElementExists(boundaryData, localizedHierarchy, localizedBoundaryTab);
     // validate for duplicate rows(array of objects)

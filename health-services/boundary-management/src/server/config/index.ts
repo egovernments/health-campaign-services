@@ -24,7 +24,11 @@ const config = {
     boundaryCodeOld: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",
     boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
     // default configurable number of data of boundary type on which generate different tabs
-    numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2"
+    numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
+    // Settle time (ms) after creating boundary entities and before creating relationships. The bulk
+    // relationship path already retries ENTITY/PARENT_NOT_FOUND transients, so this is defence-in-depth.
+    // Default kept at 2000ms to stay safe; ops may set BOUNDARY_ENTITY_SETTLE_TIME=0 to skip it.
+    entitySettleTimeBeforeRelationship: parseInt(process.env.BOUNDARY_ENTITY_SETTLE_TIME || "2000")
   },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,

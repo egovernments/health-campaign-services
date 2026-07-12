@@ -58,7 +58,8 @@ const getHeadersOfBoundarySheet = async (
   fileUrl: string,
   sheetName: string,
   getRow = false,
-  localizationMap?: any
+  localizationMap?: any,
+  request?: any
 ) => {
   const localizedBoundarySheetName = getLocalizedName(
     sheetName,
@@ -66,7 +67,8 @@ const getHeadersOfBoundarySheet = async (
   );
   const workbook: any = await getExcelWorkbookFromFileURL(
     fileUrl,
-    localizedBoundarySheetName
+    localizedBoundarySheetName,
+    request
   );
 
   const worksheet = workbook.getWorksheet(localizedBoundarySheetName);
@@ -352,7 +354,8 @@ const autoGenerateBoundaryCodes = async (
     localizedBoundaryTab,
     false,
     undefined,
-    localizationMap
+    localizationMap,
+    request
   );
   var latLongData: any;
   if (type === "boundaryManagement") {
@@ -534,10 +537,16 @@ const autoGenerateBoundaryCodes = async (
     logger.info("Boundary Code Auto Generation Completed");
   }
   await createBoundaryEntities(request, boundaryMap);
-  logger.info(
-    "waiting for 2 secs to persist the boundary entities before creating boundary relationship"
-  );
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  // Settle time before creating relationships. The bulk relationship path already retries
+  // ENTITY/PARENT_NOT_FOUND transients, so this wait is defence-in-depth and configurable
+  // (BOUNDARY_ENTITY_SETTLE_TIME, default 2000ms; set 0 to skip).
+  const entitySettleTime = config?.boundary?.entitySettleTimeBeforeRelationship ?? 2000;
+  if (entitySettleTime > 0) {
+    logger.info(
+      `waiting for ${entitySettleTime / 1000} secs to persist the boundary entities before creating boundary relationship`
+    );
+    await new Promise((resolve) => setTimeout(resolve, entitySettleTime));
+  }
 
   // Create child-parent map and relationships based on flow type
   let modifiedChildParentMap: Map<string, string | null>;
