@@ -310,6 +310,7 @@ public class IndividualService implements UserService {
         // De-duplicate; the individual search resolves the whole username list in a single
         // IN (...) query (see getIndividualResponse which already requests limit=1000).
         List<String> distinctUsernames = usernames.stream().distinct().collect(Collectors.toList());
+        requestInfo.setMsgId("username-hrms");
         IndividualSearchRequest request = IndividualSearchRequest.builder()
                 .requestInfo(requestInfo)
                 .individual(IndividualSearch.builder()
