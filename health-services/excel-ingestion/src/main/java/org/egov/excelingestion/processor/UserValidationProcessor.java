@@ -329,21 +329,39 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                                     Map<String, String> localizationMap) {
         log.info("Validating phone numbers for {} records", sheetData.size());
         
-        // Map phone numbers to their row numbers
-        Map<String, Integer> phoneNumberToRowMap = new HashMap<>();
+        // Map each phone number to ALL rows that use it (so in-sheet duplicates can be flagged).
+        // seenPhones gives O(1) dedup, keeping allPhoneNumbers unique+ordered without O(n^2) List.contains.
+        Map<String, List<Integer>> phoneNumberToRowMap = new HashMap<>();
         List<String> allPhoneNumbers = new ArrayList<>();
-        
+        Set<String> seenPhones = new HashSet<>();
+
         for (Map<String, Object> rowData : sheetData) {
             String phoneNumber = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"));
             if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
                 phoneNumber = phoneNumber.trim();
-                phoneNumberToRowMap.put(phoneNumber, (Integer) rowData.get("__actualRowNumber__"));
-                if (!allPhoneNumbers.contains(phoneNumber)) {
+                phoneNumberToRowMap.computeIfAbsent(phoneNumber, k -> new ArrayList<>())
+                        .add((Integer) rowData.get("__actualRowNumber__"));
+                if (seenPhones.add(phoneNumber)) {
                     allPhoneNumbers.add(phoneNumber);
                 }
             }
         }
-        
+
+        // Flag phone numbers duplicated within the uploaded sheet itself (no I/O needed).
+        for (Map.Entry<String, List<Integer>> entry : phoneNumberToRowMap.entrySet()) {
+            if (entry.getValue().size() > 1) {
+                for (Integer row : entry.getValue()) {
+                    ValidationError error = new ValidationError();
+                    error.setRowNumber(row);
+                    error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                        "HCM_USER_PHONE_NUMBER_DUPLICATE_IN_SHEET",
+                        "Phone number " + entry.getKey() + " is duplicated within the uploaded file"));
+                    error.setStatus(ValidationConstants.STATUS_INVALID);
+                    errors.add(error);
+                }
+            }
+        }
+
         if (allPhoneNumbers.isEmpty()) {
             log.info("No phone numbers to validate");
             return new HashSet<>();
@@ -399,21 +417,24 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 phoneNumbersToValidate.size(), existingInCampaign.size());
         
         // Search in batches of 50 for remaining phone numbers
-        final int BATCH_SIZE = 50;
+        final int BATCH_SIZE = config.getUserValidationIndividualSearchBatchSize();
         for (int i = 0; i < phoneNumbersToValidate.size(); i += BATCH_SIZE) {
             int endIndex = Math.min(i + BATCH_SIZE, phoneNumbersToValidate.size());
             List<String> batch = phoneNumbersToValidate.subList(i, endIndex);
             
             try {
-                List<Map<String, Object>> existingUsers = searchIndividualsByMobileNumber(batch, tenantId, requestInfo);
-                
-                for (Map<String, Object> user : existingUsers) {
-                    String mobileNumber = (String) user.get("mobileNumber");
-                    if (mobileNumber != null && phoneNumberToRowMap.containsKey(mobileNumber)) {
+                Set<String> existingMobileNumbers = searchIndividualsByMobileNumber(batch, tenantId, requestInfo);
+
+                for (String mobileNumber : existingMobileNumbers) {
+                    List<Integer> rows = phoneNumberToRowMap.get(mobileNumber);
+                    if (rows == null) {
+                        continue;
+                    }
+                    for (Integer row : rows) {
                         ValidationError error = new ValidationError();
-                        error.setRowNumber(phoneNumberToRowMap.get(mobileNumber));
-                        error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
-                            "HCM_USER_PHONE_NUMBER_EXISTS", 
+                        error.setRowNumber(row);
+                        error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                            "HCM_USER_PHONE_NUMBER_EXISTS",
                             "User with this phone number already exists, and is not suitable for this campaign"));
                         error.setStatus(ValidationConstants.STATUS_INVALID);
                         errors.add(error);
@@ -437,61 +458,79 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         log.info("Validating usernames for {} records (will skip {} phones already in campaign)", 
                 sheetData.size(), existingPhonesInCampaign.size());
         
-        // Map usernames to their row numbers  
-        Map<String, Integer> userNameToRowMap = new HashMap<>();
+        // Map each username to ALL rows that use it (so in-sheet duplicates can be flagged).
+        // seenUserNames gives O(1) dedup, keeping allUserNames unique+ordered without O(n^2) List.contains.
+        Map<String, List<Integer>> userNameToRowMap = new HashMap<>();
         List<String> allUserNames = new ArrayList<>();
-        
+        Set<String> seenUserNames = new HashSet<>();
+
         for (Map<String, Object> rowData : sheetData) {
             String userName = ExcelUtil.getValueAsString(rowData.get("UserName"));
             String phoneNumber = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"));
             String userServiceUuids = ExcelUtil.getValueAsString(rowData.get("UserService Uuids"));
-            
+
             // Skip username validation if phone number already exists in campaign with completed status
             if (phoneNumber != null && existingPhonesInCampaign.contains(phoneNumber.trim())) {
                 log.debug("Skipping username validation for phone {} - already exists in campaign", phoneNumber.trim());
                 continue;
             }
-            
+
             // Only validate username if phone number doesn't already exist and no service UUIDs provided
-            if (userName != null && !userName.trim().isEmpty() && 
+            if (userName != null && !userName.trim().isEmpty() &&
                 phoneNumber != null && !phoneNumber.trim().isEmpty() &&
                 (userServiceUuids == null || userServiceUuids.trim().isEmpty())) {
-                
+
                 userName = userName.trim();
-                userNameToRowMap.put(userName, (Integer) rowData.get("__actualRowNumber__"));
-                if (!allUserNames.contains(userName)) {
+                userNameToRowMap.computeIfAbsent(userName, k -> new ArrayList<>())
+                        .add((Integer) rowData.get("__actualRowNumber__"));
+                if (seenUserNames.add(userName)) {
                     allUserNames.add(userName);
                 }
             }
         }
-        
+
+        // Flag usernames duplicated within the uploaded sheet itself (no I/O needed).
+        for (Map.Entry<String, List<Integer>> entry : userNameToRowMap.entrySet()) {
+            if (entry.getValue().size() > 1) {
+                for (Integer row : entry.getValue()) {
+                    ValidationError error = new ValidationError();
+                    error.setRowNumber(row);
+                    error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                        "HCM_USER_USERNAME_DUPLICATE_IN_SHEET",
+                        "Username " + entry.getKey() + " is duplicated within the uploaded file"));
+                    error.setStatus(ValidationConstants.STATUS_INVALID);
+                    errors.add(error);
+                }
+            }
+        }
+
         if (allUserNames.isEmpty()) {
             log.info("No usernames to validate");
             return;
         }
         
         // Search in batches of 50
-        final int BATCH_SIZE = 50;
+        final int BATCH_SIZE = config.getUserValidationIndividualSearchBatchSize();
         for (int i = 0; i < allUserNames.size(); i += BATCH_SIZE) {
             int endIndex = Math.min(i + BATCH_SIZE, allUserNames.size());
             List<String> batch = allUserNames.subList(i, endIndex);
             
             try {
-                List<Map<String, Object>> existingUsers = searchIndividualsByUsername(batch, tenantId, requestInfo);
-                
-                for (Map<String, Object> user : existingUsers) {
-                    Map<String, Object> userDetails = (Map<String, Object>) user.get("userDetails");
-                    if (userDetails != null) {
-                        String username = (String) userDetails.get("username");
-                        if (username != null && userNameToRowMap.containsKey(username)) {
-                            ValidationError error = new ValidationError();
-                            error.setRowNumber(userNameToRowMap.get(username));
-                            error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
-                                "HCM_USER_USERNAME_EXISTS", 
-                                "User with this username already exists"));
-                            error.setStatus(ValidationConstants.STATUS_INVALID);
-                            errors.add(error);
-                        }
+                Set<String> existingUsernames = searchIndividualsByUsername(batch, tenantId, requestInfo);
+
+                for (String username : existingUsernames) {
+                    List<Integer> rows = userNameToRowMap.get(username);
+                    if (rows == null) {
+                        continue;
+                    }
+                    for (Integer row : rows) {
+                        ValidationError error = new ValidationError();
+                        error.setRowNumber(row);
+                        error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                            "HCM_USER_USERNAME_EXISTS",
+                            "User with this username already exists"));
+                        error.setStatus(ValidationConstants.STATUS_INVALID);
+                        errors.add(error);
                     }
                 }
                 
@@ -505,87 +544,103 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         log.info("Username validation completed");
     }
     
-    private List<Map<String, Object>> searchIndividualsByMobileNumber(List<String> mobileNumbers, 
-                                                                     String tenantId, 
-                                                                     RequestInfo requestInfo) throws Exception {
+    private Set<String> searchIndividualsByMobileNumber(List<String> mobileNumbers,
+                                                        String tenantId,
+                                                        RequestInfo requestInfo) throws Exception {
         String url = config.getHealthIndividualHost() + config.getHealthIndividualSearchPath();
-        
+
         Map<String, Object> searchBody = new HashMap<>();
         searchBody.put("RequestInfo", requestInfo);
-        
+
         Map<String, Object> individual = new HashMap<>();
         individual.put("mobileNumber", mobileNumbers);
         searchBody.put("Individual", individual);
-        
+
+        // No limit: results are naturally bounded by the input batch. A single mobile number can
+        // map to multiple individuals, so matches are collected into a Set to dedupe.
         Map<String, String> params = new HashMap<>();
-        params.put("limit", "55");
         params.put("offset", "0");
         params.put("tenantId", tenantId);
         params.put("includeDeleted", "true");
-        
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        
+
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(searchBody, headers);
-        
+
         // Build URL with parameters
         StringBuilder urlWithParams = new StringBuilder(url).append("?");
         params.forEach((key, value) -> urlWithParams.append(key).append("=").append(value).append("&"));
-        
+
         log.info("Searching individuals by mobile number: {}", mobileNumbers);
         ResponseEntity<Map> response = restTemplate.exchange(
-            urlWithParams.toString(), 
-            HttpMethod.POST, 
-            entity, 
+            urlWithParams.toString(),
+            HttpMethod.POST,
+            entity,
             Map.class
         );
-        
+
+        Set<String> foundMobileNumbers = new HashSet<>();
         if (response.getBody() != null && response.getBody().get("Individual") != null) {
-            return (List<Map<String, Object>>) response.getBody().get("Individual");
+            List<Map<String, Object>> individuals = (List<Map<String, Object>>) response.getBody().get("Individual");
+            for (Map<String, Object> user : individuals) {
+                String mobileNumber = (String) user.get("mobileNumber");
+                if (mobileNumber != null) {
+                    foundMobileNumbers.add(mobileNumber);
+                }
+            }
         }
-        
-        return new ArrayList<>();
+        return foundMobileNumbers;
     }
     
-    private List<Map<String, Object>> searchIndividualsByUsername(List<String> usernames, 
-                                                                String tenantId, 
-                                                                RequestInfo requestInfo) throws Exception {
+    private Set<String> searchIndividualsByUsername(List<String> usernames,
+                                                    String tenantId,
+                                                    RequestInfo requestInfo) throws Exception {
         String url = config.getHealthIndividualHost() + config.getHealthIndividualSearchPath();
-        
+
         Map<String, Object> searchBody = new HashMap<>();
         searchBody.put("RequestInfo", requestInfo);
-        
+
         Map<String, Object> individual = new HashMap<>();
         individual.put("username", usernames);
         searchBody.put("Individual", individual);
-        
+
+        // No limit: usernames are unique, so a batch of N usernames returns at most N records.
         Map<String, String> params = new HashMap<>();
         params.put("tenantId", tenantId);
-        params.put("limit", "51");
         params.put("offset", "0");
-        
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        
+
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(searchBody, headers);
-        
+
         // Build URL with parameters
         StringBuilder urlWithParams = new StringBuilder(url).append("?");
         params.forEach((key, value) -> urlWithParams.append(key).append("=").append(value).append("&"));
-        
+
         log.info("Searching individuals by username: {}", usernames);
         ResponseEntity<Map> response = restTemplate.exchange(
-            urlWithParams.toString(), 
-            HttpMethod.POST, 
-            entity, 
+            urlWithParams.toString(),
+            HttpMethod.POST,
+            entity,
             Map.class
         );
-        
+
+        Set<String> foundUsernames = new HashSet<>();
         if (response.getBody() != null && response.getBody().get("Individual") != null) {
-            return (List<Map<String, Object>>) response.getBody().get("Individual");
+            List<Map<String, Object>> individuals = (List<Map<String, Object>>) response.getBody().get("Individual");
+            for (Map<String, Object> user : individuals) {
+                Map<String, Object> userDetails = (Map<String, Object>) user.get("userDetails");
+                if (userDetails != null) {
+                    String username = (String) userDetails.get("username");
+                    if (username != null) {
+                        foundUsernames.add(username);
+                    }
+                }
+            }
         }
-        
-        return new ArrayList<>();
+        return foundUsernames;
     }
     
     /**

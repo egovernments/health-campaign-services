@@ -117,6 +117,10 @@ public class ExcelIngestionConfig {
     @Value("${egov.worker.registry.search.batch.size:100}")
     private int workerRegistrySearchBatchSize;
 
+    // Number of mobile numbers / usernames sent per individual _search call during user-sheet validation.
+    @Value("${egov.user.validation.individual.search.batch.size:100}")
+    private int userValidationIndividualSearchBatchSize;
+
     @Value("${app.timezone:UTC}")
     private String serverTimezone;
 
