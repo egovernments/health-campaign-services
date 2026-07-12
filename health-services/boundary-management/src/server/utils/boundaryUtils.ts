@@ -1258,6 +1258,11 @@ function validateHierarchyCurrentFlow(
     return;
   }
 
+  if (withoutBoundaryCode.length === 0 && manualBoundaryCode.length === 0) {
+    logger.info(`All ${withBoundaryCode.length} rows already processed (0 auto, 0 manual) - allowing idempotent re-upload under existing '${currentFlow}' flow`);
+    return;
+  }
+
   // Case 2: Current flow is auto AND new upload has auto boundaries
   if (currentFlow === "auto" && withoutBoundaryCode.length > 0) {
     logger.info("Auto flow validated - allowing auto-generation boundaries");
@@ -1286,5 +1291,6 @@ function validateHierarchyCurrentFlow(
 
 export {getHeadersOfBoundarySheet ,getLocalizedName,getHierarchy,validateHeaders,boundaryBulkUpload
   ,extractCodesFromBoundaryRelationshipResponse ,getLocalizedNameOnlyIfMessagePresent ,buildGenerateRequest,processDataSearchRequest
+  ,validateHierarchyCurrentFlow
 };
 ;

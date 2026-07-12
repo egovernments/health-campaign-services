@@ -131,8 +131,9 @@ public class ConfigBasedGenerationService {
         // Apply workbook settings
         applyWorkbookSettings(workbook, processorConfig, firstVisibleSheetName, localizationMap, generateResource.getId(), generateResource.isUnprotectedJoinMode());
         
-        // Convert to byte array
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        // Convert to byte array. Pre-size the buffer (like the processing write path) so a
+        // multi-MB template does not repeatedly double-and-copy its backing array while writing.
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(8 * 1024 * 1024);
         try {
             workbook.write(bos);
             bos.flush(); // Ensure all POI buffers are flushed
