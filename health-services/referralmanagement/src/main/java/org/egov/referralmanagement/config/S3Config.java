@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
@@ -13,7 +14,15 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
 
+/**
+ * S3 client + presigner beans. Only registered when
+ * {@code egov.downsync.storage.backend=s3} (the default when the property is
+ * absent, for backward compatibility). When backend=azure, these beans are
+ * NOT created and no AWS credential validation is triggered on startup —
+ * lets the pod run without egov-s3 secret being present.
+ */
 @Configuration
+@ConditionalOnProperty(name = "egov.downsync.storage.backend", havingValue = "s3", matchIfMissing = true)
 public class S3Config {
 
     @Bean

@@ -2,6 +2,16 @@
 
 All notable changes to this module will be documented in this file.
 
+# 1.3.0 - 2026-07-12
+
+* Added Azure Blob Storage as a supported backend for downsync file uploads and presigned URL generation, alongside the existing AWS S3 support.
+* Introduced pluggable storage-backend abstraction (`DownsyncStorageBackend`) with AWS S3 and Azure Blob implementations. Backend is selected via the `egov.downsync.storage.backend` property (`s3` | `azure`, default `s3`).
+* Added `StorageBackendValidator` — a `@PostConstruct` startup check that fails the pod boot if credentials for the selected backend are missing or blank (no silent fallback, no partially-working pods).
+* Preserved backward compatibility: `DownsyncS3Service` remains as a thin facade over the new backend interface — existing callers (`DownsyncFileGenService`, `DownsyncPregenService`) are unchanged, and S3-only deployments run unaffected with default configuration.
+* Added `com.azure:azure-storage-blob:12.24.0` dependency. Runtime paths are gated by `@ConditionalOnProperty`, so no Azure code executes for S3-only deployments.
+* New required Spring properties for `backend=azure`: `azure.blob.account.name`, `azure.blob.account.key`, `azure.blob.container.name`. Optional: `azure.blob.endpoint` (defaults to `https://<account>.blob.core.windows.net`).
+* Added JUnit coverage for backend startup validation, facade delegation, and end-to-end integration tests against MinIO (S3-compatible) and Azurite (Azure Blob emulator), gated by `-Dminio.integration=true` / `-Dazurite.integration=true` respectively.
+
 # 1.2.2 - 2026-02-11
 
 * Added projectId column to REFERRAL table via migration V20260211164600

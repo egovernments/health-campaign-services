@@ -6,7 +6,7 @@
 	<artifactId>referralmanagement</artifactId>
 	<packaging>jar</packaging>
 	<name>referralmanagement</name>
-	<version>1.2.2</version>
+	<version>1.3.0</version>
 	<properties>
 		<java.version>17</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
@@ -112,6 +112,14 @@
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
 			<version>2.25.11</version>
+		</dependency>
+		<!-- Azure Blob Storage — used when egov.downsync.storage.backend=azure.
+		     Only pulled in at classpath level; runtime paths gated by
+		     @ConditionalOnProperty so the AWS-only deployments are unaffected. -->
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-storage-blob</artifactId>
+			<version>12.24.0</version>
 		</dependency>
 	</dependencies>
 

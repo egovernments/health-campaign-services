@@ -148,23 +148,54 @@ public class ReferralManagementConfiguration {
     @Value("${egov.enable.matview.search}")
     private boolean enableMatviewSearch;
 
-    @Value("${egov.s3.bucket}")
+    // ── Storage backend selection ─────────────────────────────────────────────
+    // Which object-storage backend downsync uses for uploads + presigned URLs.
+    //   "s3"    — AWS S3 (or any S3-compatible endpoint like MinIO). Requires
+    //             the six egov.s3.* properties below.
+    //   "azure" — Azure Blob Storage. Requires the azure.blob.* properties.
+    // Startup validation in StorageBackendValidator enforces that the required
+    // set for the chosen backend is present and non-blank, failing fast otherwise.
+    @Value("${egov.downsync.storage.backend:s3}")
+    private String storageBackend;
+
+    // ── AWS S3 (backend=s3) ───────────────────────────────────────────────────
+    // Empty defaults so the bean container can start when backend=azure — the
+    // validator refuses to boot the app if a value here is missing WHILE
+    // backend=s3, so an accidental empty won't silently ship broken.
+    @Value("${egov.s3.bucket:}")
     private String s3Bucket;
 
-    @Value("${egov.s3.region}")
+    @Value("${egov.s3.region:}")
     private String s3Region;
 
-    @Value("${egov.s3.endpoint}")
+    @Value("${egov.s3.endpoint:}")
     private String s3Endpoint;
 
-    @Value("${egov.s3.access-key}")
+    @Value("${egov.s3.access-key:}")
     private String s3AccessKey;
 
-    @Value("${egov.s3.secret-key}")
+    @Value("${egov.s3.secret-key:}")
     private String s3SecretKey;
 
     @Value("${egov.s3.presign.endpoint:}")
     private String s3PresignEndpoint;
+
+    // ── Azure Blob Storage (backend=azure) ────────────────────────────────────
+    // Azure storage account credentials + container name. Endpoint defaults to
+    // the standard blob URL derived from the account name; override for
+    // sovereign clouds (e.g. Azure Gov, China) or Azurite dev.
+    @Value("${azure.blob.account.name:}")
+    private String azureAccountName;
+
+    @Value("${azure.blob.account.key:}")
+    private String azureAccountKey;
+
+    @Value("${azure.blob.container.name:}")
+    private String azureContainerName;
+
+    /** Optional. If blank, resolved as {@code https://<accountName>.blob.core.windows.net}. */
+    @Value("${azure.blob.endpoint:}")
+    private String azureBlobEndpoint;
 
     @Value("${egov.wardfilegen.ward.pool.size:8}")
     private int wardPoolSize;
