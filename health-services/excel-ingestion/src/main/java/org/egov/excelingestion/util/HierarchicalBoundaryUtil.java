@@ -219,14 +219,23 @@ public class HierarchicalBoundaryUtil {
                     mappingResult.displayNameMappingStartRow, mappingResult.displayNameMappingEndRow, codeToUniqueName);
         }
 
-        // Create remaining empty rows with dropdowns and formulas
+        // The empty paste area of the VISIBLE dropdown columns used to be MATERIALIZED here as one
+        // unlocked-styled cell per column per row up to excelRowLimit. Apply the unlock intent ONCE
+        // per column via the sheet's DEFAULT COLUMN STYLE instead (same pattern as
+        // CellProtectionManager): empty cells inherit the column default, so the paste area stays
+        // editable under sheet protection without materializing a single dropdown cell.
+        for (int colIdx : visibleColIndices) {
+            sheet.setDefaultColumnStyle(colIdx, unlocked);
+        }
+
+        // The hidden boundary-code column MUST keep a real per-row formula: each row computes its own
+        // code via VLOOKUP over that row's dropdown selections, and rows the user fills later depend
+        // on the formula already existing in that row. POI/XLSX has no portable columnar alternative
+        // (shared/CSE array formulas do not auto-fill per row across MS Excel and LibreOffice), so
+        // these rows stay materialized — correctness over size.
         for (int r = 2 + dataRowsPopulated; r <= config.getExcelRowLimit(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) row = sheet.createRow(r);
-            for (int colIdx : visibleColIndices) {
-                Cell cell = row.getCell(colIdx, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-                cell.setCellStyle(unlocked);
-            }
             Cell boundaryCodeCell = row.getCell(boundaryCodeColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
             boundaryCodeCell.setCellStyle(formulaStyle);
             String boundaryCodeFormula = createBoundaryCodeFormula(r + 1, visibleColIndices,

@@ -167,21 +167,15 @@ public class BoundaryColumnUtil {
         sheet.setColumnWidth(lastSchemaCol + 2, 25 * 256); // Boundary code column (narrower)
         sheet.createFreezePane(0, 2); // Freeze after row 2 since schema creator uses row 1 for technical names
 
-        // Unlock cells for user input - level and boundary columns only (boundary code is auto-populated)
+        // Unlock cells for user input - level and boundary columns only (boundary code is auto-populated).
+        // Applied ONCE per column via the sheet's DEFAULT COLUMN STYLE (same pattern as
+        // CellProtectionManager) instead of materializing an unlocked-styled cell per row up to
+        // excelRowLimit: empty cells inherit the column default, so the paste area stays editable
+        // under sheet protection with zero pre-created cells.
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
-        for (int r = 2; r <= config.getExcelRowLimit(); r++) { // Start from row 2 to skip hidden technical row
-            Row row = sheet.getRow(r);
-            if (row == null)
-                row = sheet.createRow(r);
-            // Only unlock level and boundary name columns (not boundary code)
-            for (int c = lastSchemaCol; c < lastSchemaCol + 2; c++) {
-                Cell cell = row.getCell(c);
-                if (cell == null)
-                    cell = row.createCell(c);
-                cell.setCellStyle(unlocked);
-            }
-        }
+        sheet.setDefaultColumnStyle(lastSchemaCol, unlocked);
+        sheet.setDefaultColumnStyle(lastSchemaCol + 1, unlocked);
 
         // Hide the boundary code column
         sheet.setColumnHidden(lastSchemaCol + 2, true);

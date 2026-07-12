@@ -1,10 +1,12 @@
 package org.egov.excelingestion.util;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.ConditionalRequired;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -487,6 +489,71 @@ class ExcelDataPopulatorTest {
         Sheet sheet = workbook.getSheetAt(0);
         assertNotNull(sheet.getDataValidations(), "Sheet should have data validations");
         
+        workbook.close();
+    }
+
+    @Test
+    void testApplyValidations_RangesCoverExactlyExcelRowLimitDataRows() throws IOException {
+        // Given - one column per validation flavour: enum dropdown (data validation),
+        // requiredIf (custom-formula data validation + conditional formatting, and the
+        // bank-account payee conditional formatting rules), string maxLength (pure visual
+        // conditional formatting)
+        int excelRowLimit = 100;
+        when(config.getExcelRowLimit()).thenReturn(excelRowLimit);
+        List<ColumnDef> columns = Arrays.asList(
+            ColumnDef.builder()
+                .name(ProcessingConstants.PAYMENT_PROVIDER_COL)
+                .type("enum")
+                .enumValues(Arrays.asList("BANK", "MTN"))
+                .build(),
+            ColumnDef.builder()
+                .name(ProcessingConstants.BANK_ACCOUNT_COL)
+                .type("string")
+                .requiredIf(ConditionalRequired.builder()
+                        .column(ProcessingConstants.PAYMENT_PROVIDER_COL)
+                        .values(Arrays.asList("BANK"))
+                        .build())
+                .build(),
+            ColumnDef.builder()
+                .name("name")
+                .type("string")
+                .maxLength(35)
+                .build()
+        );
+
+        // When - generate an empty template (no pre-filled data rows)
+        Workbook workbook = excelDataPopulator.populateSheetWithData("TestSheet", columns, new ArrayList<>(), localizationMap);
+        Sheet sheet = workbook.getSheetAt(0);
+
+        // Then - every validation/formatting range must cover EXACTLY the first excelRowLimit
+        // data rows: 0-based rows 2 .. 2 + excelRowLimit - 1 (data starts at Excel row 3 and
+        // POI range bounds are inclusive), so a paste of exactly excelRowLimit rows is covered
+        int dataStartRow = 2;
+        int expectedLastRow = dataStartRow + excelRowLimit - 1;
+
+        List<? extends DataValidation> validations = sheet.getDataValidations();
+        assertEquals(2, validations.size(), "Should have dropdown + requiredIf data validations");
+        for (DataValidation validation : validations) {
+            for (CellRangeAddress region : validation.getRegions().getCellRangeAddresses()) {
+                assertEquals(dataStartRow, region.getFirstRow(),
+                    "Data validation should start at first data row: " + region.formatAsString());
+                assertEquals(expectedLastRow, region.getLastRow(),
+                    "Data validation should cover exactly excelRowLimit data rows: " + region.formatAsString());
+            }
+        }
+
+        SheetConditionalFormatting conditionalFormatting = sheet.getSheetConditionalFormatting();
+        assertTrue(conditionalFormatting.getNumConditionalFormattings() >= 4,
+            "Should have requiredIf, pure visual and payee conditional formatting rules");
+        for (int i = 0; i < conditionalFormatting.getNumConditionalFormattings(); i++) {
+            for (CellRangeAddress region : conditionalFormatting.getConditionalFormattingAt(i).getFormattingRanges()) {
+                assertEquals(dataStartRow, region.getFirstRow(),
+                    "Conditional formatting should start at first data row: " + region.formatAsString());
+                assertEquals(expectedLastRow, region.getLastRow(),
+                    "Conditional formatting should cover exactly excelRowLimit data rows: " + region.formatAsString());
+            }
+        }
+
         workbook.close();
     }
 

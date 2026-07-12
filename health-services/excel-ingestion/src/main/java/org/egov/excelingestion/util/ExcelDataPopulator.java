@@ -464,11 +464,8 @@ public class ExcelDataPopulator {
                 } else {
                     constraint = dvHelper.createExplicitListConstraint(column.getEnumValues().toArray(new String[0]));
                 }
-                // Use actual data row count or config limit, whichever is larger to cover all rows
-                // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
-                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-                CellRangeAddressList addressList = new CellRangeAddressList(2, maxRow, colIndex, colIndex);
+                int lastRow = getValidationLastRowIndex(sheet);
+                CellRangeAddressList addressList = new CellRangeAddressList(2, lastRow, colIndex, colIndex);
                 DataValidation validation = dvHelper.createValidation(constraint, addressList);
                 validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                 validation.setShowErrorBox(true);
@@ -497,9 +494,8 @@ public class ExcelDataPopulator {
                             .collect(Collectors.joining(","));
                     String formula = "=OR(AND(" + notTriggerPart + "),LEN(TRIM($" + thisLetter + "3))>0)";
 
-                    int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                    int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-                    CellRangeAddressList range = new CellRangeAddressList(2, maxRow, colIndex, colIndex);
+                    int lastRow = getValidationLastRowIndex(sheet);
+                    CellRangeAddressList range = new CellRangeAddressList(2, lastRow, colIndex, colIndex);
                     DataValidationConstraint constraint = dvHelper.createCustomConstraint(formula);
                     DataValidation dv = dvHelper.createValidation(constraint, range);
                     dv.setErrorStyle(DataValidation.ErrorStyle.STOP);
@@ -534,9 +530,17 @@ public class ExcelDataPopulator {
         }
 
         // Apply payee-field-specific conditional formatting rules (payment provider conditions)
-        int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-        int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-        applyPayeeFieldConditionalFormatting(sheet, headerNameToColIndex, maxRow);
+        applyPayeeFieldConditionalFormatting(sheet, headerNameToColIndex, getValidationLastRowIndex(sheet));
+    }
+
+    /**
+     * Last 0-based row index (inclusive) that data-row validations and conditional formatting
+     * must cover. Data rows start at 0-based row 2 (Excel row 3) and POI range bounds are
+     * inclusive, so covering excelRowLimit pasted rows needs lastRow = 2 + excelRowLimit - 1.
+     * When pre-filled data already extends beyond that, cover up to its actual last data row.
+     */
+    private int getValidationLastRowIndex(Sheet sheet) {
+        return Math.max(ExcelUtil.findActualLastRowWithData(sheet), 2 + config.getExcelRowLimit() - 1);
     }
 
     /**
@@ -828,11 +832,9 @@ public class ExcelDataPopulator {
                 // 1. Apply conditional formatting for error color
                 XSSFSheetConditionalFormatting conditionalFormatting = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
                 
-                // Define cell range for the column (data rows only, starting from row 3)
-                // Use actual data row count or config limit, whichever is larger to cover all rows
-                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-                CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
+                // Define cell range for the column (data rows only, starting from Excel row 3)
+                int lastRow = getValidationLastRowIndex(sheet);
+                CellRangeAddress[] regions = {new CellRangeAddress(2, lastRow, colIndex, colIndex)};
                 
                 // Create conditional formatting rule
                 XSSFConditionalFormattingRule rule = conditionalFormatting.createConditionalFormattingRule(formula);
@@ -875,9 +877,8 @@ public class ExcelDataPopulator {
             String triggerCondition = triggerValues.size() == 1 ? triggerMatch : "OR(" + triggerMatch + ")";
 
             XSSFSheetConditionalFormatting cf = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
-            int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-            int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-            CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
+            int lastRow = getValidationLastRowIndex(sheet);
+            CellRangeAddress[] regions = {new CellRangeAddress(2, lastRow, colIndex, colIndex)};
 
             // Rule 1: required-but-empty — highlight when trigger is met and cell is empty
             String requiredEmptyFormula = "AND(" + triggerCondition + ",LEN(TRIM(" + colLetter + "3))=0)";

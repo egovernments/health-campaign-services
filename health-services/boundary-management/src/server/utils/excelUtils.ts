@@ -30,26 +30,34 @@ const getNewExcelWorkbook = () => {
   const workbook = new ExcelJS.Workbook();
   return workbook;
 };
+// Per-request parse-once cache. Held OFF the request object in a module-level WeakMap keyed by the
+// request (auto-GCs with the request), so the parsed Workbook is NEVER a property of request/request.body.
+// This is critical: request.body is spread into downstream boundary-service /_search payloads, and an
+// ExcelJS Workbook has a circular structure (_worksheets <-> _workbook) that throws
+// "Converting circular structure to JSON" when axios stringifies the request body.
+const workbookCacheByRequest = new WeakMap<object, Record<string, any>>();
+
 // Function to retrieve workbook from Excel file URL and sheet name.
 // Optional `request` enables a per-request parse-once cache: the same uploaded file was previously
 // downloaded + DOM-parsed once per phase (validation headers, validation data, auto-generate) — 3
 // full parses of the same immutable file in a single request execution. When `request` is supplied
-// the workbook is memoised on it (keyed by fileUrl) so the download + xlsx.load happens ONCE; later
-// callers reuse the already-parsed read-only workbook. Callers that do not pass `request` keep the
-// original download-every-time behaviour, so this is opt-in and cannot regress other paths.
+// the workbook is memoised in the WeakMap above (keyed by fileUrl) so the download + xlsx.load
+// happens ONCE; later callers reuse the already-parsed read-only workbook. Callers that do not pass
+// `request` keep the original download-every-time behaviour, so this is opt-in and cannot regress
+// other paths.
 const getExcelWorkbookFromFileURL = async (
   fileUrl: string,
   sheetName?: string,
   request?: any
 ) => {
   let workbook: any;
-  const cacheStore = request?.body;
+  const cacheStore = request && typeof request === "object" ? request : undefined;
   // Key on the path only, dropping the query string: filestore returns pre-signed URLs whose
   // signature/expiry query params can differ between the validation and processing resolutions of
   // the SAME fileStoreId, which would otherwise defeat the cache. Within one request there is exactly
   // one uploaded file, so the path uniquely identifies it.
   const cacheKey = typeof fileUrl === "string" ? fileUrl.split("?")[0] : fileUrl;
-  const cached = cacheStore?.__workbookCache?.[cacheKey];
+  const cached = cacheStore ? workbookCacheByRequest.get(cacheStore)?.[cacheKey] : undefined;
   if (cached) {
     logger.info("reusing already-parsed workbook for fileurl (parse-once)");
     workbook = cached;
@@ -77,8 +85,12 @@ const getExcelWorkbookFromFileURL = async (
     logger.info("workbook created based on the fileresponse");
 
     if (cacheStore) {
-      if (!cacheStore.__workbookCache) cacheStore.__workbookCache = {};
-      cacheStore.__workbookCache[cacheKey] = workbook;
+      let perRequest = workbookCacheByRequest.get(cacheStore);
+      if (!perRequest) {
+        perRequest = {};
+        workbookCacheByRequest.set(cacheStore, perRequest);
+      }
+      perRequest[cacheKey] = workbook;
     }
   }
 
