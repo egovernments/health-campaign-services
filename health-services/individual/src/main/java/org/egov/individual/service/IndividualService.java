@@ -359,6 +359,16 @@ public class IndividualService {
                                              RequestInfo requestInfo) {
         SearchResponse<Individual> searchResponse = null;
 
+        // Log the caller's msgId so we can attribute individual search traffic to its source.
+        // HRMS employee create-validation stamps msgId="username-hrms"; any other value (or null)
+        // means the search did NOT originate from the HRMS create flow.
+        String callerMsgId = (requestInfo != null) ? requestInfo.getMsgId() : null;
+        log.info("INDIVIDUAL_SEARCH received | msgId={} | fromHrmsCreate={} | searchBy={}",
+                callerMsgId, "username-hrms".equals(callerMsgId),
+                (individualSearch != null && individualSearch.getMobileNumber() != null && !individualSearch.getMobileNumber().isEmpty())
+                        ? "mobileNumber"
+                        : (individualSearch != null && individualSearch.getUsername() != null && !individualSearch.getUsername().isEmpty()) ? "username" : "other");
+
         String idFieldName = getIdFieldName(individualSearch);
         List<Individual> encryptedIndividualList = null;
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
