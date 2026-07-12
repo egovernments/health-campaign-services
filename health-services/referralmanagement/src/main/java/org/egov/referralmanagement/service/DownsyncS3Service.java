@@ -1,182 +1,64 @@
 package org.egov.referralmanagement.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.service.storage.DownsyncStorageBackend;
+import org.egov.referralmanagement.service.storage.DownsyncStorageBackend.StreamResult;
+import org.egov.referralmanagement.service.storage.DownsyncStorageBackend.StreamWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.zip.GZIPOutputStream;
 
 /**
- * Central S3 facade for downsync file generation.
- * Owns multipart upload, file-size lookup, and presigned URL generation.
- * Nothing else should import S3Client or S3Presigner directly.
+ * Public facade for downsync uploads + presigned URLs. Delegates to whichever
+ * {@link DownsyncStorageBackend} was picked at startup via
+ * {@code egov.downsync.storage.backend}. The class is kept under its
+ * historical name (DownsyncS3Service) so existing callers don't need to move,
+ * but internally it's storage-backend-agnostic — the concrete SDK (AWS S3
+ * or Azure Blob) is chosen at bean-wire time.
+ *
+ * <p>Nothing else in the codebase should import S3Client, S3Presigner,
+ * BlobServiceClient, or any other backend-specific type. Route all IO
+ * through this class.
  */
 @Service
 @Slf4j
 public class DownsyncS3Service {
 
-    private static final int PART_SIZE_BYTES = 5 * 1024 * 1024;
-
-    @Autowired private S3Client s3Client;
-    @Autowired private S3Presigner s3Presigner;
-    @Autowired private ReferralManagementConfiguration config;
-
-    // ── Types ─────────────────────────────────────────────────────────────────
-
-    @FunctionalInterface
-    public interface StreamWriter {
-        long write(GZIPOutputStream gzip) throws IOException;
-    }
-
-    public record S3Result(long rowCount, Long fileSize) {}
-
-    // ── Upload ────────────────────────────────────────────────────────────────
+    @Autowired private DownsyncStorageBackend backend;
 
     /**
-     * Streams data produced by {@code writer} into a multipart upload at {@code s3Key}.
-     * If the writer produces 0 rows, aborts the upload, deletes any stale object, and
-     * returns S3Result(0, null). Otherwise returns the row count and compressed file size.
+     * Compat alias for callers that hold a reference to this class's original
+     * result record. Keeps the return type stable across the refactor.
      */
-    public S3Result streamToS3(String s3Key, StreamWriter writer) {
-        abortOrphanedUploads(s3Key);
-        String uploadId = null;
-        try {
-            uploadId = s3Client.createMultipartUpload(
-                    CreateMultipartUploadRequest.builder()
-                            .bucket(config.getS3Bucket()).key(s3Key)
-                            .contentEncoding("gzip").contentType("application/x-ndjson")
-                            .build()
-            ).uploadId();
+    public record S3Result(long rowCount, Long fileSize) {}
 
-            List<CompletedPart> parts = new ArrayList<>();
-            S3PartOutputStream partOut = new S3PartOutputStream(
-                    s3Client, config.getS3Bucket(), s3Key, uploadId, parts);
+    /** Compat alias — {@link DownsyncStorageBackend.StreamWriter} is the source of truth. */
+    @FunctionalInterface
+    public interface Writer extends StreamWriter {}
 
-            GZIPOutputStream gzip = new GZIPOutputStream(partOut);
-            long rowCount = writer.write(gzip);
-            gzip.finish();
-
-            if (rowCount == 0) {
-                s3Client.abortMultipartUpload(AbortMultipartUploadRequest.builder()
-                        .bucket(config.getS3Bucket()).key(s3Key).uploadId(uploadId).build());
-                s3Client.deleteObject(DeleteObjectRequest.builder()
-                        .bucket(config.getS3Bucket()).key(s3Key).build());
-                log.debug("No data for {}, aborted upload", s3Key);
-                return new S3Result(0, null);
-            }
-
-            partOut.uploadFinalPart();
-            s3Client.completeMultipartUpload(
-                    CompleteMultipartUploadRequest.builder()
-                            .bucket(config.getS3Bucket()).key(s3Key).uploadId(uploadId)
-                            .multipartUpload(CompletedMultipartUpload.builder().parts(parts).build())
-                            .build());
-
-            Long fileSize = headObjectSize(s3Key);
-            log.debug("S3 upload complete: {} ({} rows, {} bytes)", s3Key, rowCount, fileSize);
-            return new S3Result(rowCount, fileSize);
-
-        } catch (Exception e) {
-            if (uploadId != null) {
-                try {
-                    s3Client.abortMultipartUpload(AbortMultipartUploadRequest.builder()
-                            .bucket(config.getS3Bucket()).key(s3Key).uploadId(uploadId).build());
-                } catch (Exception ignored) {}
-            }
-            String cause = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
-            throw new RuntimeException("S3 upload failed: " + s3Key + ". Cause: " + cause, e);
-        }
+    /**
+     * Streams gzipped NDJSON to the configured backend at {@code key}. Empty
+     * writes (rowCount == 0) leave no artefact behind on the backend and
+     * return S3Result(0, null). See {@link DownsyncStorageBackend#stream}.
+     *
+     * <p>Named {@code streamToS3} for backward compatibility with existing
+     * call sites; despite the name, the actual target may be Azure Blob.
+     */
+    public S3Result streamToS3(String key, StreamWriter writer) {
+        StreamResult r = backend.stream(key, writer);
+        return new S3Result(r.rowCount(), r.fileSize());
     }
 
-    // ── Presigned URL ─────────────────────────────────────────────────────────
-
-    public String presign(String s3Key) {
-        try {
-            PresignedGetObjectRequest req = s3Presigner.presignGetObject(p -> p
-                    .signatureDuration(Duration.ofSeconds(config.getPresignedUrlExpirySecs()))
-                    .getObjectRequest(r -> r.bucket(config.getS3Bucket()).key(s3Key)));
-            return req.url().toString();
-        } catch (Exception e) {
-            log.error("Failed to presign URL for key {}: {}", s3Key, e.getMessage());
-            return null;
-        }
+    /**
+     * Generates a temporary URL a mobile client can GET the object with,
+     * expiring per {@code egov.downsync.presigned.url.expiry.secs}. Returns
+     * null on failure (callers already handle null).
+     */
+    public String presign(String key) {
+        return backend.presign(key);
     }
 
-    // ── Private ───────────────────────────────────────────────────────────────
-
-    private void abortOrphanedUploads(String s3Key) {
-        try {
-            ListMultipartUploadsResponse list = s3Client.listMultipartUploads(
-                    ListMultipartUploadsRequest.builder()
-                            .bucket(config.getS3Bucket()).prefix(s3Key).build());
-            for (MultipartUpload u : list.uploads()) {
-                if (!u.key().equals(s3Key)) continue;
-                s3Client.abortMultipartUpload(AbortMultipartUploadRequest.builder()
-                        .bucket(config.getS3Bucket()).key(s3Key).uploadId(u.uploadId()).build());
-                log.info("Aborted orphaned multipart upload — key={} uploadId={}", s3Key, u.uploadId());
-            }
-        } catch (Exception e) {
-            log.warn("Could not list/abort orphaned uploads for key={}: {}", s3Key, e.getMessage());
-        }
-    }
-
-    private Long headObjectSize(String s3Key) {
-        try {
-            return s3Client.headObject(HeadObjectRequest.builder()
-                    .bucket(config.getS3Bucket()).key(s3Key).build()).contentLength();
-        } catch (Exception e) {
-            log.warn("Could not fetch file size for {}: {}", s3Key, e.getMessage());
-            return null;
-        }
-    }
-
-    // ── S3PartOutputStream ────────────────────────────────────────────────────
-
-    private static class S3PartOutputStream extends OutputStream {
-
-        private final S3Client s3;
-        private final String bucket;
-        private final String key;
-        private final String uploadId;
-        private final List<CompletedPart> parts;
-        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream(PART_SIZE_BYTES + 65536);
-        private int partNum = 1;
-
-        S3PartOutputStream(S3Client s3, String bucket, String key,
-                           String uploadId, List<CompletedPart> parts) {
-            this.s3 = s3; this.bucket = bucket; this.key = key;
-            this.uploadId = uploadId; this.parts = parts;
-        }
-
-        @Override public void write(int b)                      { buffer.write(b);         flushIfFull(); }
-        @Override public void write(byte[] b, int off, int len) { buffer.write(b, off, len); flushIfFull(); }
-
-        private void flushIfFull() { if (buffer.size() >= PART_SIZE_BYTES) flushPart(); }
-
-        void uploadFinalPart() { if (buffer.size() > 0) flushPart(); }
-
-        private void flushPart() {
-            byte[] data = buffer.toByteArray();
-            UploadPartResponse resp = s3.uploadPart(
-                    UploadPartRequest.builder()
-                            .bucket(bucket).key(key).uploadId(uploadId).partNumber(partNum).build(),
-                    RequestBody.fromBytes(data));
-            parts.add(CompletedPart.builder().partNumber(partNum++).eTag(resp.eTag()).build());
-            buffer.reset();
-        }
-
-        @Override public void close() {}
+    /** Backend identifier ({@code s3} or {@code azure}) — for logging/metrics. */
+    public String backendName() {
+        return backend.backendName();
     }
 }

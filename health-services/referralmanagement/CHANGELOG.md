@@ -2,27 +2,15 @@
 
 All notable changes to this module will be documented in this file.
 
-## 1.2.5 - 2026-07-20
+# 1.3.0 - 2026-07-12
 
-- Validator unbundle: added config flag `referralmanagement.relationship.validation` (default `false`, read live) that gates cross-entity **existence** checks (project, project-beneficiary, project-task, referrer, recipient staff/facility, side-effect) on the referral & side-effect create/update chains, so a record is not rejected while a referenced parent is still on the persister queue (offline-first). The `recipientType` enum check and all structural/uniqueness checks remain on. Set `true` to enforce.
-- Added always-on structural validators `RmRequiredLinkValidator` / `SeRequiredLinkValidator` (error code `REQUIRED_LINK_MISSING`): a referral must carry a `clientReferenceId` and a beneficiary link, and a side-effect a `clientReferenceId` and a task link, regardless of the flag.
-- At-least-once / partial-batch resilience: a within-batch duplicate `clientReferenceId` no longer throws and drops the entire bulk batch — the first occurrence is kept and each later duplicate is flagged as a per-record uniqueness error while the good records still persist (in `RmExistentEntityValidator`, `HfrExistentEntityValidator`, `SeExistentEntityValidator`).
-- Upgraded `health-services-common` dependency to 1.1.6-SNAPSHOT (`health-services-models` unchanged at 1.0.35-SNAPSHOT).
-
-## 1.2.4 - 2026-06-24
-
-- Added `includeOnlyUpdatedByOthers` filter to referral search; combined with a changed-since time it excludes records last modified by the calling user (#1991).
-- Reworked beneficiary downsync with background pre-generation of per-locality / per-project files to S3, serving fresh bundles and falling back to pre-generated file links for cold/stale syncs.
-- Added a master switch `egov.downsync.pregen.enabled` (default `false`) to turn the gzip pre-generated downsync flow on or off; when off, downsync falls back to the original live DB-scan path.
-- Made downsync jobs resumable and safe to retry (per-tenant and per-project single-flight locks, interrupted-job cleanup, multi-threaded resume).
-- Disabled central instance by default for referral management.
-- Upgraded health-services-models dependency.
-
-## 1.2.3 - 2026-03-04
-
-- Upgraded tracer to 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.
-- Removed direct tracer dependency; tracer is now inherited transitively via `health-services-common` 1.1.3.
-- Added OpenTelemetry BOM and Instrumentation BOM dependency management and OTEL exporter configuration.
+* Added Azure Blob Storage as a supported backend for downsync file uploads and presigned URL generation, alongside the existing AWS S3 support.
+* Introduced pluggable storage-backend abstraction (`DownsyncStorageBackend`) with AWS S3 and Azure Blob implementations. Backend is selected via the `egov.downsync.storage.backend` property (`s3` | `azure`, default `s3`).
+* Added `StorageBackendValidator` — a `@PostConstruct` startup check that fails the pod boot if credentials for the selected backend are missing or blank (no silent fallback, no partially-working pods).
+* Preserved backward compatibility: `DownsyncS3Service` remains as a thin facade over the new backend interface — existing callers (`DownsyncFileGenService`, `DownsyncPregenService`) are unchanged, and S3-only deployments run unaffected with default configuration.
+* Added `com.azure:azure-storage-blob:12.24.0` dependency. Runtime paths are gated by `@ConditionalOnProperty`, so no Azure code executes for S3-only deployments.
+* New required Spring properties for `backend=azure`: `azure.blob.account.name`, `azure.blob.account.key`, `azure.blob.container.name`. Optional: `azure.blob.endpoint` (defaults to `https://<account>.blob.core.windows.net`).
+* Added JUnit coverage for backend startup validation, facade delegation, and end-to-end integration tests against MinIO (S3-compatible) and Azurite (Azure Blob emulator), gated by `-Dminio.integration=true` / `-Dazurite.integration=true` respectively.
 
 # 1.2.2 - 2026-02-11
 
