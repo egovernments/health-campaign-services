@@ -556,9 +556,11 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         individual.put("mobileNumber", mobileNumbers);
         searchBody.put("Individual", individual);
 
-        // No limit: results are naturally bounded by the input batch. A single mobile number can
-        // map to multiple individuals, so matches are collected into a Set to dedupe.
+        // The individual search API mandates limit (1<=limit<=1000). Use the max (1000) so a batch
+        // of up to 1000 values never truncates matches (a mobile number can map to multiple
+        // individuals); the matches are still deduped into a Set below.
         Map<String, String> params = new HashMap<>();
+        params.put("limit", "1000");
         params.put("offset", "0");
         params.put("tenantId", tenantId);
         params.put("includeDeleted", "true");
@@ -605,8 +607,10 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         individual.put("username", usernames);
         searchBody.put("Individual", individual);
 
-        // No limit: usernames are unique, so a batch of N usernames returns at most N records.
+        // The individual search API mandates limit (1<=limit<=1000). Usernames are unique so a batch
+        // of N returns at most N records; use the max (1000) to never truncate within the API ceiling.
         Map<String, String> params = new HashMap<>();
+        params.put("limit", "1000");
         params.put("tenantId", tenantId);
         params.put("offset", "0");
 
