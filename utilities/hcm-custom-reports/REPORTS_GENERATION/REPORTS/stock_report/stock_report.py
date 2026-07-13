@@ -39,7 +39,7 @@ from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_o
 ES_STOCK_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/stock-index-v1/_search"
 ES_SCROLL_API = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll"
 
-ELASTIC_AUTH = "Basic ZWxhc3RpYzptR21telVPRUJZQWNKTzZEYmtFZm11dkU="
+ELASTIC_AUTH = "Basic ZWxhc3RpYzo4ZndiRDZIYkpoNkhVMG9kZHNIbThURUk="
 
 SCROLL_TIME = "2m"
 BATCH_SIZE = 1000
