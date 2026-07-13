@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.service;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.io.SerializedString;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -677,13 +678,18 @@ public class DownsyncFileGenService {
                         try {
                             JsonGenerator gen = objectMapper.getFactory().createGenerator(gzip);
                             gen.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+                            // NDJSON: tell Jackson to use "\n" as the separator between root
+                            // values so its internal write-context stays consistent across
+                            // multiple writeStartObject/writeEndObject cycles. Without this,
+                            // certain multi-root sequences trip "Trying to output second root"
+                            // when a raw JSON value (writeRawValue) has just been embedded.
+                            gen.setRootValueSeparator(new SerializedString("\n"));
                             try {
                                 while (rs.next()) {
                                     gen.writeStartObject();
                                     gen.writeStringField("_t", typeTag);
                                     writeTypedRow(gen, rs, typeTag);
                                     gen.writeEndObject();
-                                    gen.writeRaw('\n');
                                     count[0]++;
                                 }
                             } finally {
@@ -945,6 +951,10 @@ public class DownsyncFileGenService {
                     try {
                         JsonGenerator gen = objectMapper.getFactory().createGenerator(gzip);
                         gen.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+                        // See note in streamQuery(): explicit "\n" root separator prevents
+                        // the "Trying to output second root, <ArrayNode>" write-context
+                        // assertion that fires under some raw-value + multi-batch flows.
+                        gen.setRootValueSeparator(new SerializedString("\n"));
                         try {
                             List<Map<String, Object>> buffer = new ArrayList<>(CURSOR_FETCH_SIZE);
                             while (rs.next()) {
@@ -1123,12 +1133,15 @@ public class DownsyncFileGenService {
 
     private void writeIndividualBuffer(JsonGenerator gen, List<Map<String, Object>> buffer)
             throws IOException {
+        // No manual \n here — the generator's rootValueSeparator (set at creation)
+        // handles the newline between successive root objects. Emitting it manually
+        // via writeRaw('\n') bypasses Jackson's write-context and can leave the
+        // internal state inconsistent with the actual bytes on the wire.
         for (Map<String, Object> row : buffer) {
             gen.writeStartObject();
             gen.writeStringField("_t", "INDIVIDUAL");
             writeIndividualFromMap(gen, row);
             gen.writeEndObject();
-            gen.writeRaw('\n');
         }
     }
 
