@@ -1,3 +1,0 @@
-# Spring AOT Runtime Hints Registration
-org.springframework.aot.hint.RuntimeHintsRegistrar=\
-org.egov.household.config.nativesupport.EgovTracerRuntimeHints
