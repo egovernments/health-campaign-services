@@ -634,29 +634,52 @@ public class DownsyncGenerationJobRepository {
                 .addValue("endTime", endTime));
     }
 
+    /**
+     * Schema-scanning lookup. Only for callers that genuinely have no
+     * tenant context — the resume-runner and conflict-response paths. Every
+     * caller with a tenantId in hand should use
+     * {@link #findJobById(String, String)}, which is a single-query O(1)
+     * lookup against the resolved schema.
+     */
     public DownsyncGenerationJob findJobById(String jobId) {
         for (String schema : auditTableSchemas()) {
             String sql = qualifySql(FIND_JOB_BY_ID, schema);
             List<DownsyncGenerationJob> rows = jdbcTemplate.query(sql,
-                    new MapSqlParameterSource("id", jobId), (rs, i) ->
-                            DownsyncGenerationJob.builder()
-                                    .id(rs.getString("id"))
-                                    .tenantId(rs.getString("tenantId"))
-                                    .projectId(rs.getString("projectId"))
-                                    .totalRequested(rs.getInt("totalRequested"))
-                                    .totalSucceeded(rs.getInt("totalSucceeded"))
-                                    .totalFailed(rs.getInt("totalFailed"))
-                                    .status(rs.getString("status"))
-                                    .createdBy(rs.getString("createdBy"))
-                                    .createdTime(rs.getLong("createdTime"))
-                                    .lastModifiedBy(rs.getString("lastModifiedBy"))
-                                    .lastModifiedTime(rs.getLong("lastModifiedTime"))
-                                    .rowVersion(rs.getLong("rowVersion"))
-                                    .build());
+                    new MapSqlParameterSource("id", jobId), JOB_ROW_MAPPER);
             if (!rows.isEmpty()) return rows.get(0);
         }
         return null;
     }
+
+    /**
+     * Tenant-scoped lookup. Resolves the schema from the tenantId directly
+     * (no {@code SCHEMA_NAME} env var, no cross-schema scan). Also acts as
+     * an implicit authorisation gate: a caller who guesses another tenant's
+     * jobId still gets a null result because the query hits the wrong
+     * schema and finds nothing.
+     */
+    public DownsyncGenerationJob findJobById(String jobId, String tenantId) {
+        List<DownsyncGenerationJob> rows = jdbcTemplate.query(
+                resolveSql(FIND_JOB_BY_ID, tenantId),
+                new MapSqlParameterSource("id", jobId), JOB_ROW_MAPPER);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private static final org.springframework.jdbc.core.RowMapper<DownsyncGenerationJob> JOB_ROW_MAPPER =
+            (rs, i) -> DownsyncGenerationJob.builder()
+                    .id(rs.getString("id"))
+                    .tenantId(rs.getString("tenantId"))
+                    .projectId(rs.getString("projectId"))
+                    .totalRequested(rs.getInt("totalRequested"))
+                    .totalSucceeded(rs.getInt("totalSucceeded"))
+                    .totalFailed(rs.getInt("totalFailed"))
+                    .status(rs.getString("status"))
+                    .createdBy(rs.getString("createdBy"))
+                    .createdTime(rs.getLong("createdTime"))
+                    .lastModifiedBy(rs.getString("lastModifiedBy"))
+                    .lastModifiedTime(rs.getLong("lastModifiedTime"))
+                    .rowVersion(rs.getLong("rowVersion"))
+                    .build();
 
     public DownsyncGenerationJob findInProgressJobByTenant(String tenantId) {
         List<DownsyncGenerationJob> rows = jdbcTemplate.query(
@@ -680,11 +703,25 @@ public class DownsyncGenerationJobRepository {
         return count != null ? count : 0;
     }
 
+    /**
+     * Tenant-scoped detail lookup — call this from the search endpoint.
+     * Uses the resolved schema directly, one query, no scan.
+     */
+    public DownsyncJobDetail findJobDetail(String jobId, String tenantId) {
+        DownsyncGenerationJob job = findJobById(jobId, tenantId);
+        if (job == null) return null;
+        return assembleDetail(job);
+    }
+
     /** Fetches job + all localities + all files in 3 queries and assembles the nested detail. */
     public DownsyncJobDetail findJobDetail(String jobId) {
         DownsyncGenerationJob job = findJobById(jobId);
         if (job == null) return null;
+        return assembleDetail(job);
+    }
 
+    private DownsyncJobDetail assembleDetail(DownsyncGenerationJob job) {
+        String jobId = job.getId();
         String tenantId = job.getTenantId();
         List<DownsyncLocalityFile> allFiles = findAllFilesByJob(tenantId, jobId);
         Map<String, List<DownsyncLocalityFile>> filesByLocality = allFiles.stream()
