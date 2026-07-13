@@ -13,7 +13,9 @@ COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src ./src
 
 # Build the native image with Spring AOT processing
-RUN mvn clean compile spring-boot:process-aot package -Pnative native:compile -DskipTests
+# The process-aot goal generates hints from our RuntimeHintsRegistrar
+RUN mvn clean compile spring-boot:process-aot package -Pnative native:compile -DskipTests \
+    -Dspring.aot.enabled=true
 
 # Lightweight runtime image
 FROM oraclelinux:9-slim
