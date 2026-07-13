@@ -30,6 +30,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClientException;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
@@ -1042,7 +1045,16 @@ public class DownsyncFileGenService {
         String decryptUrl = config.getEncHost() + config.getEncDecryptEndpoint();
         JsonNode decrypted;
         try {
-            decrypted = restTemplate.postForObject(decryptUrl, payload, JsonNode.class);
+            // Explicit Content-Type: application/json — otherwise Spring can pick the
+            // Jackson XML message converter (pulled in transitively by azure-storage-blob
+            // via jackson-dataformat-xml) and try to serialise our ArrayNode payload as
+            // XML. StAX then throws "Trying to output second root, <ArrayNode>" because
+            // XML has no notion of an array root. Wrapping the body in an HttpEntity with
+            // MediaType.APPLICATION_JSON forces content-negotiation onto the JSON path.
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<ArrayNode> request = new HttpEntity<>(payload, headers);
+            decrypted = restTemplate.postForObject(decryptUrl, request, JsonNode.class);
         } catch (RestClientException e) {
             throw new CustomException("ENC_SERVICE_DECRYPT_FAILED",
                     "HTTP call to enc-service decrypt endpoint '" + decryptUrl + "' failed for a batch of "
