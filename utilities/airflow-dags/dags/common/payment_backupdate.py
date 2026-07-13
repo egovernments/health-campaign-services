@@ -54,7 +54,7 @@ import logging
 from decimal import Decimal
 from typing import Dict, Set, Tuple
 
-from airflow.utils.timezone import utcnow, make_aware
+from airflow.utils.timezone import utcnow
 
 from common.ch_utils import (
     get_client, InsertBuffer, safe_dec, get_window, fetch_raw_events, CH_FETCH_SIZE, EPOCH,
@@ -69,8 +69,10 @@ PAYMENT_RAW_TABLE = 'payment_events_raw'
 # Valid PaymentStatusEnum: NEW, DEPOSITED, RECONCILED, CANCELLED, DISHONOURED.
 COLLECTING_STATUSES = {'NEW', 'DEPOSITED', 'RECONCILED'}
 
-# Read-side batch size for the demand_id IN (...) lookup.
-DEMAND_LOOKUP_CHUNK = 5000
+# Read-side batch size for the demand_id IN (...) lookup. Kept modest so the
+# inlined IN list stays well under ClickHouse's max_query_size (~256 KiB):
+# 1000 UUIDs ≈ 40 KiB of SQL.
+DEMAND_LOOKUP_CHUNK = 1000
 
 
 def _collection_col(tax_head_code: str) -> str:
@@ -212,9 +214,13 @@ def _write_new_versions(client, affected: Set[Tuple[str, str]],
     columns = None
     for i in range(0, len(demand_ids), DEMAND_LOOKUP_CHUNK):
         batch = demand_ids[i:i + DEMAND_LOOKUP_CHUNK]
+        # Inline the IDs into the SQL body (not a bound parameter): a large bound
+        # array is sent by clickhouse-connect as an HTTP query-string field and
+        # ClickHouse rejects it ("Field value too long"). demand_ids are our own
+        # UUIDs; single-quotes are escaped defensively.
+        in_list = ",".join("'" + d.replace("'", "''") + "'" for d in batch)
         res = client.query(
-            f"SELECT * FROM {DEMAND_TABLE} FINAL WHERE demand_id IN {{ids:Array(String)}}",
-            parameters={'ids': batch},
+            f"SELECT * FROM {DEMAND_TABLE} FINAL WHERE demand_id IN ({in_list})"
         )
         columns = res.column_names
         for row in res.result_rows:
@@ -226,7 +232,7 @@ def _write_new_versions(client, affected: Set[Tuple[str, str]],
         return {'demands_recomputed': 0, 'demands_not_found': len(affected)}
 
     collection_cols = [c for c in columns if c.endswith('_collection')]
-    now = make_aware(utcnow())
+    now = utcnow()  # airflow.utils.timezone.utcnow() is already tz-aware
 
     out_buf = InsertBuffer(client, DEMAND_TABLE)
     updated = 0
