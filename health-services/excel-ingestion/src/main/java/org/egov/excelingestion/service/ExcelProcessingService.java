@@ -133,8 +133,10 @@ public class ExcelProcessingService {
 
                     sheetNameToSchema.put(sheetName, schema != null ? schema : new HashMap<>());
                 }
+                List<ValidationError> immutableJoinWarnings = new ArrayList<>();
                 Map<String, Set<String>> immutableColumnsBySheet =
-                        immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema);
+                        immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema,
+                                immutableJoinWarnings, mergedLocalizationMap);
                 if (immutableColumnsBySheet == null) {
                     immutableColumnsBySheet = Collections.emptyMap();
                 }
@@ -144,6 +146,12 @@ public class ExcelProcessingService {
                 // an already-valid generated template, so re-validating them is wasted work.
                 List<ValidationError> validationErrors = validateExcelData(workbook, resource,
                         request.getRequestInfo(), mergedLocalizationMap, preValidatedSchemas, immutableColumnsBySheet);
+
+                // Surface server-managed-cell revert warnings (non-failing; status=valid) alongside errors,
+                // so a user who edited a locked cell sees "your edit was reverted" without failing the row.
+                if (!immutableJoinWarnings.isEmpty()) {
+                    validationErrors.addAll(immutableJoinWarnings);
+                }
 
                 // Process each sheet: only add validation columns to sheets with errors
                 Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();

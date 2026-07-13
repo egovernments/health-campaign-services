@@ -383,16 +383,24 @@ public class ExcelDataPopulator {
      * Apply protection using existing CellProtectionManager
      */
     private void applyProtection(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties, boolean unprotectedJoinMode) {
-        // Use existing cell protection manager (sets locked/unlocked cell STYLES; this is harmless
-        // and acts as a light visual cue even when the sheet itself is left unprotected).
+        // Use existing cell protection manager (sets locked/unlocked cell STYLES).
         cellProtectionManager.applyCellProtection(workbook, sheet, columnProperties);
 
-        // Protect sheet with password if configured AND not in unprotected join mode.
-        // In join mode the sheet is left fully editable so copy/paste works; pre-filled immutability
-        // is enforced server-side at upload instead of by Excel protection.
-        if (!unprotectedJoinMode
-                && config.getExcelSheetPassword() != null && !config.getExcelSheetPassword().isEmpty()) {
-            sheet.protectSheet(config.getExcelSheetPassword());
+        // Protect the sheet with a password when configured. Historically join-mode templates were left
+        // fully unprotected so copy/paste works, relying only on the server-side immutable-join to revert
+        // edits to locked cells. We now ALSO protect join-mode sheets (config-gated, default on) so Excel
+        // itself keeps the locked columns (boundary hierarchy / code / row-id) read-only while unlocked
+        // target/entry cells stay editable and paste-able. POI's protectSheet leaves the permissive defaults
+        // (select + edit unlocked cells allowed), so paste into the target area is unaffected.
+        boolean protect = !unprotectedJoinMode || config.isJoinModeSheetProtectionEnabled();
+        String pwd = config.getExcelSheetPassword();
+        if (protect && pwd != null && !pwd.isEmpty()) {
+            sheet.protectSheet(pwd);
+            log.info("Sheet protection applied to '{}' (unprotectedJoinMode={}, joinModeSheetProtectionEnabled={})",
+                    sheet.getSheetName(), unprotectedJoinMode, config.isJoinModeSheetProtectionEnabled());
+        } else {
+            log.info("Sheet protection SKIPPED for '{}' (unprotectedJoinMode={}, passwordConfigured={})",
+                    sheet.getSheetName(), unprotectedJoinMode, pwd != null && !pwd.isEmpty());
         }
     }
 

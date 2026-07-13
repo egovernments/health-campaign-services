@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -10,16 +11,20 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
+import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,6 +94,17 @@ public class ImmutableJoinService {
      */
     public Map<String, Set<String>> applyImmutableBaseline(Workbook uploadedWorkbook, ProcessResource resource,
                                        Map<String, Map<String, Object>> sheetNameToSchema) {
+        return applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, new ArrayList<>(), null);
+    }
+
+    /**
+     * As {@link #applyImmutableBaseline(Workbook, ProcessResource, Map)} but also appends a non-failing
+     * WARNING to {@code warningsOut} for every locked cell whose uploaded value differed from the baseline
+     * (a user edit to a server-managed cell that was reverted), localized via {@code localizationMap}.
+     */
+    public Map<String, Set<String>> applyImmutableBaseline(Workbook uploadedWorkbook, ProcessResource resource,
+                                       Map<String, Map<String, Object>> sheetNameToSchema,
+                                       List<ValidationError> warningsOut, Map<String, String> localizationMap) {
         // Scope: only the join-mode template families (unified-console, attendanceRegister,
         // attendanceRegisterAttendee) use join-mode. Any other type is processed as before, with no
         // baseline reconstruction.
@@ -141,7 +157,7 @@ public class ImmutableJoinService {
 
             for (Map.Entry<String, Map<String, Object>> entry : sheetNameToSchema.entrySet()) {
                 Set<String> restored = joinSheet(entry.getKey(), entry.getValue(), uploadedWorkbook, baselineWorkbook,
-                        baselineGen.getFileStoreId(), resource);
+                        baselineGen.getFileStoreId(), resource, warningsOut, localizationMap);
                 if (!restored.isEmpty()) {
                     immutableColumnsBySheet.put(entry.getKey(), restored);
                 }
@@ -164,7 +180,8 @@ public class ImmutableJoinService {
      */
     private Set<String> joinSheet(String sheetName, Map<String, Object> schemaMap,
                            Workbook uploadedWorkbook, Workbook baselineWorkbook,
-                           String baselineFileStoreId, ProcessResource resource) {
+                           String baselineFileStoreId, ProcessResource resource,
+                           List<ValidationError> warningsOut, Map<String, String> localizationMap) {
         Sheet uploadedSheet = uploadedWorkbook.getSheet(sheetName);
         Sheet baselineSheet = baselineWorkbook.getSheet(sheetName);
         if (uploadedSheet == null || baselineSheet == null) {
@@ -204,6 +221,13 @@ public class ImmutableJoinService {
         // reconstructed here and must still be validated.
         Set<String> reconstructedColumns = new HashSet<>();
 
+        // Header name -> physical column index, so reconstructed values are also written back onto the
+        // workbook cells (not just the parsed row-map), keeping the processed output file consistent with
+        // the server-authoritative data. Without this, a tampered locked cell stays visible and unflagged
+        // in the processed file even though validation/persistence used the correct baseline value.
+        Map<String, Integer> uploadedColIndex = headerIndex(uploadedSheet);
+        SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut, localizationMap);
+
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
             String rid = trimToNull(ExcelUtil.getValueAsString(upRow.get(ProcessingConstants.ROW_ID_COLUMN_NAME)));
@@ -229,6 +253,7 @@ public class ImmutableJoinService {
             // selection columns, evaluated at parse time from the UPLOADED selections. We capture their
             // authoritative baseline values and restore them after the loop, but only if the user did not
             // deepen the boundary path (see below) - otherwise we'd clobber a legitimate deeper selection.
+            int poiRowIdx = rowIndexOf(upRow);
             Object baselineBoundaryCode = null;
             Object baselineRegisterId = null;
             boolean userDeepenedBoundary = false;
@@ -249,18 +274,18 @@ public class ImmutableJoinService {
                 }
                 boolean baseFilled = trimToNull(ExcelUtil.getValueAsString(baseEntry.getValue())) != null;
                 if (immutable.alwaysRestore.contains(parent)) {
-                    upRow.put(col, baseEntry.getValue());
+                    writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue());
                     reconstructedColumns.add(parent);
                 } else if (immutable.restoreIfBaselineFilled.contains(parent) && baseFilled) {
                     // freezeColumnIfFilled: immutable only where the baseline actually had a value.
-                    upRow.put(col, baseEntry.getValue());
+                    writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue());
                 } else if (hierarchyPrefix != null
                         && parent.toUpperCase().startsWith(hierarchyPrefix)
                         && !isExcluded(parent)) {
                     // Dynamic boundary/hierarchy column. Lock the prefilled level (freezeColumnIfFilled);
                     // an empty baseline level the user filled means the user picked a deeper boundary.
                     if (baseFilled) {
-                        upRow.put(col, baseEntry.getValue());
+                        writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue());
                     } else if (trimToNull(ExcelUtil.getValueAsString(upRow.get(col))) != null) {
                         userDeepenedBoundary = true;
                     }
@@ -273,10 +298,12 @@ public class ImmutableJoinService {
             // If the user legitimately deepened an empty level, keep the formula-computed code instead.
             if (!userDeepenedBoundary) {
                 if (trimToNull(ExcelUtil.getValueAsString(baselineBoundaryCode)) != null) {
-                    upRow.put(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, baselineBoundaryCode);
+                    writeBack(sj, upRow, poiRowIdx,
+                            ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, baselineBoundaryCode);
                 }
                 if (trimToNull(ExcelUtil.getValueAsString(baselineRegisterId)) != null) {
-                    upRow.put(ProcessingConstants.REGISTER_ID_COLUMN_KEY, baselineRegisterId);
+                    writeBack(sj, upRow, poiRowIdx,
+                            ProcessingConstants.REGISTER_ID_COLUMN_KEY, baselineRegisterId);
                 }
             }
         }
@@ -337,6 +364,114 @@ public class ImmutableJoinService {
     private static String parentColumnOf(String col) {
         int idx = col.indexOf(MULTISELECT_MARKER);
         return idx > 0 ? col.substring(0, idx) : col;
+    }
+
+    /** Header (row 0) name -> physical column index, for writing reconstructed values back to cells. */
+    private static Map<String, Integer> headerIndex(Sheet sheet) {
+        Map<String, Integer> idx = new HashMap<>();
+        Row header = sheet.getRow(0);
+        if (header == null) {
+            return idx;
+        }
+        for (int c = 0; c < header.getLastCellNum(); c++) {
+            Cell cell = header.getCell(c);
+            String name = cell == null ? null : ExcelUtil.getCellValueAsString(cell);
+            if (name != null && !name.isEmpty()) {
+                idx.putIfAbsent(name, c);
+            }
+        }
+        return idx;
+    }
+
+    /** The uploaded row's own POI row index, recovered from the parser-stamped 1-based row number. */
+    private static int rowIndexOf(Map<String, Object> row) {
+        Object n = row.get(ProcessingConstants.ACTUAL_ROW_NUMBER_KEY);
+        return (n instanceof Number) ? ((Number) n).intValue() - 1 : -1;
+    }
+
+    /**
+     * Grafts an authoritative baseline value onto BOTH the parsed row-map (used by validation/persistence)
+     * AND the underlying workbook cell (so the processed output file shows the server value, not the user's
+     * edited one). Writing only the map would leave a tampered locked value visible and unflagged in the
+     * processed file. Map-only fallback when the column has no physical cell (synthetic/multi-select key)
+     * or the row index is unknown.
+     */
+    private void writeBack(SheetJoin sj, Map<String, Object> upRow, int poiRowIdx, String col, Object value) {
+        Object oldVal = upRow.get(col);
+        upRow.put(col, value);
+
+        // If the user's uploaded value differed from the authoritative baseline, this locked (server-managed)
+        // cell was just reverted -> surface a NON-FAILING warning (status=valid) so the user knows their edit
+        // did not take. Editable columns are never reconstructed, so they never reach here.
+        if (sj.warnings != null && poiRowIdx >= 0 && !sameTrimmed(oldVal, value)) {
+            String msg = ValidationConstants.DEFAULT_IMMUTABLE_CELL_REVERTED;
+            if (sj.localizationMap != null) {
+                msg = LocalizationUtil.getLocalizedMessage(sj.localizationMap,
+                        ValidationConstants.HCM_IMMUTABLE_CELL_REVERTED, msg);
+            }
+            sj.warnings.add(ValidationError.builder()
+                    .rowNumber(poiRowIdx + 1)
+                    .sheetName(sj.sheetName)
+                    .status(ValidationConstants.STATUS_VALID)
+                    .errorDetails(msg)
+                    .columnName(col)
+                    .build());
+            log.info("Immutable-join reverted a user edit on sheet '{}' row {} column '{}' (server-managed)",
+                    sj.sheetName, poiRowIdx + 1, col);
+        }
+
+        Integer ci = sj.colIndex.get(col);
+        if (ci == null || poiRowIdx < 0) {
+            return;
+        }
+        Row row = sj.sheet.getRow(poiRowIdx);
+        if (row == null) {
+            return;
+        }
+        Cell cell = row.getCell(ci, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        if (cell.getCellType() == CellType.FORMULA) {
+            cell.setBlank(); // drop the now-stale VLOOKUP formula; the authoritative literal replaces it
+        }
+        if (value == null || value.toString().isEmpty()) {
+            cell.setBlank();
+        } else if (value instanceof Number) {
+            cell.setCellValue(((Number) value).doubleValue());
+        } else if (value instanceof Boolean) {
+            cell.setCellValue((Boolean) value);
+        } else {
+            cell.setCellValue(value.toString());
+        }
+    }
+
+    /** True when two cell values are equal as trimmed strings (null/empty treated as equal). */
+    private static boolean sameTrimmed(Object a, Object b) {
+        return norm(a).equals(norm(b));
+    }
+
+    private static String norm(Object o) {
+        if (o == null) {
+            return "";
+        }
+        String s = ExcelUtil.getValueAsString(o);
+        return s == null ? "" : s.trim();
+    }
+
+    /** Per-sheet context: where to graft baseline values back + where to collect revert warnings. */
+    private static final class SheetJoin {
+        final Sheet sheet;
+        final Map<String, Integer> colIndex;
+        final String sheetName;
+        final List<ValidationError> warnings;
+        final Map<String, String> localizationMap;
+
+        SheetJoin(Sheet sheet, Map<String, Integer> colIndex, String sheetName,
+                  List<ValidationError> warnings, Map<String, String> localizationMap) {
+            this.sheet = sheet;
+            this.colIndex = colIndex;
+            this.sheetName = sheetName;
+            this.warnings = warnings;
+            this.localizationMap = localizationMap;
+        }
     }
 
     private String readGenerationId(Workbook workbook) {

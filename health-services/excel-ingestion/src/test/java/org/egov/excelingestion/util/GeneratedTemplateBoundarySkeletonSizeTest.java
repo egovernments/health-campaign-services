@@ -186,13 +186,18 @@ class GeneratedTemplateBoundarySkeletonSizeTest {
                         "Visible dropdown column " + visibleCol + " default style must be UNLOCKED");
             }
 
-            // Dropdown validations still span the full paste cap on every visible boundary column.
+            // Dropdown validations must cover the FULL paste cap on every visible boundary column.
+            // Data starts at row index 2, so covering excelRowLimit rows requires lastRow >= 2 + excelRowLimit - 1
+            // (= excelRowLimit + 1). The old code used lastRow = excelRowLimit, leaving the final row of a
+            // maximum-size paste unvalidated (off-by-one); this asserts that coverage extends to the last row.
+            int requiredLastRow = 2 + EXCEL_ROW_LIMIT - 1;
             for (int visibleCol : VISIBLE_BOUNDARY_COLS) {
                 CellRangeAddress range = findValidationRangeForColumn(boundary, visibleCol);
                 assertNotNull(range, "Boundary dropdown validation must exist on col " + visibleCol);
-                assertTrue(range.getFirstRow() <= 2 && range.getLastRow() >= EXCEL_ROW_LIMIT,
-                        "Boundary validation on col " + visibleCol + " must span rows 2.."
-                                + EXCEL_ROW_LIMIT + ", got " + range.getFirstRow() + ".." + range.getLastRow());
+                assertTrue(range.getFirstRow() <= 2 && range.getLastRow() >= requiredLastRow,
+                        "Boundary validation on col " + visibleCol + " must cover all " + EXCEL_ROW_LIMIT
+                                + " paste rows (rows 2.." + requiredLastRow + "), got "
+                                + range.getFirstRow() + ".." + range.getLastRow());
             }
 
             // --- Measure: reproduce the OLD materialize-every-visible-cell behavior for BEFORE ---

@@ -601,7 +601,8 @@ public class HierarchicalBoundaryUtil {
             }
 
             // Apply data validation to the visible column
-            CellRangeAddressList validationRange = new CellRangeAddressList(2, config.getExcelRowLimit(), currentVisibleColIdx, currentVisibleColIdx);
+            // last row = excelRowLimit + 1 (data starts at row index 2) so all excelRowLimit paste rows are covered
+            CellRangeAddressList validationRange = new CellRangeAddressList(2, config.getExcelRowLimit() + 1, currentVisibleColIdx, currentVisibleColIdx);
             DataValidationConstraint dvConstraint = dvHelper.createFormulaListConstraint(validationFormula);
             DataValidation validation = dvHelper.createValidation(dvConstraint, validationRange);
             validation.setShowErrorBox(false);
@@ -635,7 +636,7 @@ public class HierarchicalBoundaryUtil {
                 // Use explicit list for small lists
                 String[] level1Array = level1Boundaries.toArray(new String[0]);
                 int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit() + 1);
                 CellRangeAddressList level1Range = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
                 DataValidationConstraint level1Constraint = dvHelper.createExplicitListConstraint(level1Array);
                 DataValidation level1Validation = dvHelper.createValidation(level1Constraint, level1Range);
@@ -691,7 +692,7 @@ public class HierarchicalBoundaryUtil {
             log.info("Created named range '{}' for {} level1 boundaries", rangeName, level1Boundaries.size());
 
             int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-            int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+            int maxRow = Math.max(actualDataRows, config.getExcelRowLimit() + 1);
             CellRangeAddressList validationRange = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
             DataValidationConstraint rangeConstraint = dvHelper.createFormulaListConstraint(rangeName);
             DataValidation rangeValidation = dvHelper.createValidation(rangeConstraint, validationRange);
@@ -706,7 +707,7 @@ public class HierarchicalBoundaryUtil {
             try {
                 String directFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level1Boundaries.size());
                 int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit() + 1);
                 CellRangeAddressList validationRange = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
                 DataValidationConstraint formulaConstraint = dvHelper.createFormulaListConstraint(directFormula);
                 DataValidation formulaValidation = dvHelper.createValidation(formulaConstraint, validationRange);

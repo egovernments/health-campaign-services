@@ -204,11 +204,18 @@ public class CellProtectionManager {
      * @return The protected workbook
      */
     public Workbook applySheetProtection(Workbook workbook, Sheet sheet, String password) {
-        log.info("Applying sheet protection to: {}", sheet.getSheetName());
-        
-        // Protect sheet with password - allows users to edit unlocked cells
+        String name = sheet.getSheetName();
+        // Never protect hidden helper sheets (_h_...._h_): they carry lookup/meta data the pipeline reads
+        // and must stay freely writable.
+        if (name != null && name.startsWith("_h_") && name.endsWith("_h_")) {
+            return workbook;
+        }
+        log.info("Applying sheet protection to: {}", name);
+
+        // Protect sheet with password - POI leaves permissive defaults so users can still edit/paste
+        // into UNLOCKED cells while locked cells stay read-only.
         sheet.protectSheet(password);
-        
+
         return workbook;
     }
 

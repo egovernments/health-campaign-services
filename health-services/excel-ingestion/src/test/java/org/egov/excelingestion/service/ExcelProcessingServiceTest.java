@@ -342,7 +342,7 @@ class ExcelProcessingServiceTest {
         // getSchemaForSheet("TestSheet") -> mdmsConfigService not stubbed -> null -> sheet has NO schema.
         // Capture the sheet map handed to the join, then stop processing right after.
         ArgumentCaptor<Map<String, Map<String, Object>>> captor = ArgumentCaptor.forClass(Map.class);
-        when(immutableJoinService.applyImmutableBaseline(any(), any(), captor.capture()))
+        when(immutableJoinService.applyImmutableBaseline(any(), any(), captor.capture(), any(), any()))
                 .thenThrow(new RuntimeException("stop after join"));
 
         assertThrows(RuntimeException.class, () -> excelProcessingService.processExcelFile(request));

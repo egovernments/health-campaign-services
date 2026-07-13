@@ -352,7 +352,8 @@ public class BoundaryColumnUtil {
 
         // Level dropdown validation for entire column (uses "Levels" named range)
         DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
-        CellRangeAddressList levelAddr = new CellRangeAddressList(2, config.getExcelRowLimit(), lastSchemaCol, lastSchemaCol);
+        // last row = excelRowLimit + 1 (data starts at row index 2), so all excelRowLimit paste rows are covered
+        CellRangeAddressList levelAddr = new CellRangeAddressList(2, config.getExcelRowLimit() + 1, lastSchemaCol, lastSchemaCol);
         DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
         levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
         levelValidation.setShowErrorBox(true);
@@ -370,7 +371,7 @@ public class BoundaryColumnUtil {
         String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + "3";
         String boundaryFormula = "IF(" + levelCellRef + "=\"\", \"\", INDIRECT(\"Level_\"&MATCH(" + levelCellRef + ", Levels, 0)))";
         DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
-        CellRangeAddressList boundaryAddr = new CellRangeAddressList(2, config.getExcelRowLimit(), lastSchemaCol + 1, lastSchemaCol + 1);
+        CellRangeAddressList boundaryAddr = new CellRangeAddressList(2, config.getExcelRowLimit() + 1, lastSchemaCol + 1, lastSchemaCol + 1);
         DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
         boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
         boundaryValidation.setShowErrorBox(true);

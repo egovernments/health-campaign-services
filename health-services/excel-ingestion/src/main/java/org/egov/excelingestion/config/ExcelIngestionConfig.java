@@ -62,6 +62,12 @@ public class ExcelIngestionConfig {
     @Value("${egov.excel.sheet.zoom:60}")
     private int excelSheetZoom;
 
+    // When true, join-mode templates (unified-console / attendanceRegister) are ALSO sheet-protected at
+    // generation so only unlocked (target/entry) cells are editable in Excel; the server-side immutable-join
+    // remains the backstop. Default true. Set false to restore the fully-unprotected join-mode template.
+    @Value("${egov.excel.join-mode-sheet-protection-enabled:true}")
+    private boolean joinModeSheetProtectionEnabled;
+
     @Value("${egov.excel.validation.error.color:#ff0000}")
     private String validationErrorColor;
 

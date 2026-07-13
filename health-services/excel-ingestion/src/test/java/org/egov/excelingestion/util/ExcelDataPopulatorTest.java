@@ -416,7 +416,25 @@ class ExcelDataPopulatorTest {
         
         Sheet sheet = workbook.getSheetAt(0);
         assertTrue(sheet.getProtect(), "Sheet should be protected");
-        
+
+        workbook.close();
+    }
+
+    // #1: with the join-mode-sheet-protection flag ON, a join-mode template IS sheet-protected (so only
+    // unlocked target/entry cells are editable in Excel), while server-side immutable-join stays the backstop.
+    @Test
+    void testPopulateSheetWithData_JoinMode_ProtectedWhenFlagEnabled() throws IOException {
+        when(config.getExcelSheetPassword()).thenReturn("test123");
+        when(config.isJoinModeSheetProtectionEnabled()).thenReturn(true);
+        List<ColumnDef> columns = createBasicColumnDefs();
+        List<Map<String, Object>> data = createBasicDataRows();
+
+        Workbook workbook = excelDataPopulator.populateSheetWithData(
+                new XSSFWorkbook(), "JoinSheet", columns, data, localizationMap, true);
+
+        Sheet sheet = workbook.getSheet("JoinSheet");
+        assertTrue(sheet.getProtect(),
+                "Join-mode sheet must be PROTECTED when joinModeSheetProtectionEnabled=true");
         workbook.close();
     }
 

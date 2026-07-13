@@ -19,7 +19,12 @@ public class ValidationConstants {
     
     // Error message constants
     public static final String HCM_VALIDATION_FAILED_NO_DETAILS = "HCM_VALIDATION_FAILED_NO_DETAILS";
-    
+
+    // Warning surfaced when the server-authoritative immutable-join reverts a user's edit to a locked cell.
+    public static final String HCM_IMMUTABLE_CELL_REVERTED = "HCM_IMMUTABLE_CELL_REVERTED";
+    public static final String DEFAULT_IMMUTABLE_CELL_REVERTED =
+            "This column is server-managed; your edit was reverted to the generated value.";
+
     // Search validation constants
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
     public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";

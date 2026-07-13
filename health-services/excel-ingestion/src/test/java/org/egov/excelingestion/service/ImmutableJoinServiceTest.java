@@ -8,6 +8,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
@@ -19,6 +20,7 @@ import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
+import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
@@ -155,6 +157,72 @@ class ImmutableJoinServiceTest {
             assertEquals("ADMIN", up.get("roles_MULTISELECT_1"), "multi-select child restored from baseline");
             assertEquals("user note", up.get("comment"), "editable column kept from file");
             assertEquals(3, up.get(ROW_NUM), "uploaded row number is preserved");
+        }
+
+        // Regression: reconstruction must also correct the WORKBOOK CELLS, not just the parsed row-map.
+        // Before this fix, a tampered locked cell (boundary code / hierarchy name) stayed visible and
+        // unflagged in the processed output file even though validation used the correct baseline value.
+        @Test
+        void cellWriteback_overwritesTamperedCellsInWorkbookNotJustTheMap() {
+            final String CODE = ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY;
+            // Real cells on the uploaded sheet: header row 0 (names must match the map keys), a localized
+            // label row 1, and the tampered data row at index 2 (=> ACTUAL_ROW_NUMBER_KEY 3).
+            Sheet up = uploadedWorkbook.getSheet(SHEET);
+            String[] headers = {"name", "village", CODE, ROW_ID};
+            Row h = up.createRow(0);
+            for (int c = 0; c < headers.length; c++) {
+                h.createCell(c).setCellValue(headers[c]);
+            }
+            up.createRow(1);
+            Row data = up.createRow(2);
+            data.createCell(0).setCellValue("ok");
+            data.createCell(1).setCellValue("TAMPERED_VILLAGE");
+            data.createCell(2).setCellValue("FAKE_CODE");
+            data.createCell(3).setCellValue("r1");
+
+            Map<String, Object> upMap = row(ROW_ID, "r1", "name", "ok",
+                    "village", "TAMPERED_VILLAGE", CODE, "FAKE_CODE", ROW_NUM, 3);
+            Map<String, Object> baseMap = row(ROW_ID, "r1", "name", "ok",
+                    "village", "RealVillage", CODE, "REAL_CODE", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(upMap)), new ArrayList<>(List.of(baseMap)));
+
+            run();
+
+            // map corrected (pre-existing behavior)
+            assertEquals("RealVillage", upMap.get("village"), "map: freezeTillData village reconstructed");
+            assertEquals("REAL_CODE", upMap.get(CODE), "map: boundary code reconstructed");
+            // NEW: the workbook cell is corrected too -> processed output file no longer shows the tamper
+            assertEquals("RealVillage", up.getRow(2).getCell(1).getStringCellValue(),
+                    "cell: tampered village overwritten with baseline value in the workbook");
+            assertEquals("REAL_CODE", up.getRow(2).getCell(2).getStringCellValue(),
+                    "cell: tampered boundary code overwritten with baseline value in the workbook");
+        }
+
+        // #2: a reverted locked cell must emit a NON-FAILING warning (status=valid) naming the column/row,
+        // and editable columns (unchanged) must NOT warn.
+        @Test
+        void revertedLockedCell_producesNonFailingWarning() {
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "TAMPERED", "village", "TAMPERED_V",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "RealV",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            List<ValidationError> warnings = new ArrayList<>();
+            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, warnings, null);
+
+            assertEquals("RealName", up.get("name"), "tampered freezeColumn reverted");
+            assertEquals("RealV", up.get("village"), "tampered freezeTillData reverted");
+            assertEquals("kept", up.get("comment"), "editable column NOT touched");
+            assertFalse(warnings.isEmpty(), "a revert warning is collected");
+            assertTrue(warnings.stream().allMatch(w -> ValidationConstants.STATUS_VALID.equals(w.getStatus())),
+                    "warnings are non-failing (status=valid) so the row still passes");
+            assertTrue(warnings.stream().allMatch(w -> Integer.valueOf(3).equals(w.getRowNumber())),
+                    "warning points at the tampered row (1-based)");
+            Set<String> cols = new HashSet<>();
+            warnings.forEach(w -> cols.add(w.getColumnName()));
+            assertTrue(cols.contains("name") && cols.contains("village"), "both reverted columns warned");
+            assertFalse(cols.contains("comment"), "editable column produced NO warning");
         }
 
         @Test
