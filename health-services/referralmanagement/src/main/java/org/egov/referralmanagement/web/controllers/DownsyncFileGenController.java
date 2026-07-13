@@ -260,11 +260,18 @@ public class DownsyncFileGenController {
 
     @PostMapping("/v1/jobs/_search")
     public ResponseEntity<?> searchJob(@Valid @RequestBody DownsyncJobSearchRequest request) {
-        DownsyncJobDetail detail = jobRepository.findJobDetail(request.getJobId());
+        // Both jobId and tenantId are @NotBlank on the request DTO, so we
+        // never reach this point without them. Repository is scoped to the
+        // tenantId's schema — a jobId that exists under a different tenant
+        // silently returns null (SQL against the wrong schema finds nothing),
+        // which we surface as 404. That's the correct posture: don't tell
+        // the caller whether the id exists elsewhere.
+        DownsyncJobDetail detail = jobRepository.findJobDetail(request.getJobId(), request.getTenantId());
         if (detail == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("code", "JOB_NOT_FOUND",
-                            "message", "No job found with id: " + request.getJobId()));
+                            "message", "No job found with id: " + request.getJobId()
+                                    + " for tenantId: " + request.getTenantId()));
         }
         return ResponseEntity.ok(DownsyncJobSearchResponse.builder()
                 .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
