@@ -160,8 +160,8 @@ export async function handleProcessingResult(messageObject: any) {
                         offset: 0,
                         tenantId: messageObject.tenantId,
                     };
-                    // RequestInfo is now expected to be available in the processing message.
-                    // Use it directly for Individual Search instead of reconstructing user context.
+                    // The processing message carries the RequestInfo; use it when it has a userInfo,
+                    // otherwise fall back to one built from the campaign creator uuid.
                     const searchBody = {
                         RequestInfo: messageObject?.requestInfo?.userInfo
                             ? messageObject.requestInfo
@@ -364,8 +364,8 @@ export async function handleProcessingResult(messageObject: any) {
 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                // Pass the original RequestInfo to the background resource creation flow.
-                // Downstream services use this request context directly.
+                // Resolve the RequestInfo for the background creation flow: keep the message's userInfo
+                // when present, else stamp the campaign creator so user-creation batches have a valid user.
                 const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
                 await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
