@@ -1,4 +1,4 @@
-import { RequestInfo } from "../config/models/requestInfoSchema";
+import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
@@ -83,6 +83,17 @@ async function fetchLocalizationData(tenantId: string, campaignId: string, local
     }
 }
 
+// Resolve the RequestInfo for background resource creation: keep a real userInfo, else stamp the campaign creator, else leave it for the downstream userInfo guard.
+export function resolveCreationRequestInfo(requestInfo: RequestInfo | undefined, campaignCreatedBy: string | undefined, tenantId: string): RequestInfo {
+    if (requestInfo?.userInfo?.uuid) {
+        return requestInfo;
+    }
+    if (campaignCreatedBy) {
+        return withUserInfo(requestInfo ?? ({} as RequestInfo), { uuid: campaignCreatedBy, tenantId });
+    }
+    return requestInfo ?? ({} as RequestInfo);
+}
+
 /**
  * Handler for HCM processing result messages from excel-ingestion service
  * This handler receives the ProcessResource object after Excel processing is complete
@@ -149,8 +160,12 @@ export async function handleProcessingResult(messageObject: any) {
                         offset: 0,
                         tenantId: messageObject.tenantId,
                     };
+                    // The processing message carries the RequestInfo; use it when it has a userInfo,
+                    // otherwise fall back to one built from the campaign creator uuid.
                     const searchBody = {
-                        RequestInfo: messageObject?.requestInfo,
+                        RequestInfo: messageObject?.requestInfo?.userInfo
+                            ? messageObject.requestInfo
+                            : { ...(messageObject?.requestInfo ?? {}), userInfo: { uuid: campaignCreatedBy } },
                         Individual: {
                             type: "EMPLOYEE",
                             userUuid: [campaignCreatedBy],
@@ -349,7 +364,10 @@ export async function handleProcessingResult(messageObject: any) {
 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, messageObject?.requestInfo, expectedUserCount, expectedBoundaryCount);
+                // Resolve the RequestInfo for the background creation flow: keep the message's userInfo
+                // when present, else stamp the campaign creator so user-creation batches have a valid user.
+                const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }

@@ -14,6 +14,7 @@ import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.util.RequestInfoUtil;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.BoundaryService;
@@ -511,6 +512,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                                                                      RequestInfo requestInfo) throws Exception {
         String url = config.getHealthIndividualHost() + config.getHealthIndividualSearchPath();
         
+        requestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
         Map<String, Object> searchBody = new HashMap<>();
         searchBody.put("RequestInfo", requestInfo);
         
@@ -553,9 +555,10 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                                                                 RequestInfo requestInfo) throws Exception {
         String url = config.getHealthIndividualHost() + config.getHealthIndividualSearchPath();
         
+        requestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
         Map<String, Object> searchBody = new HashMap<>();
         searchBody.put("RequestInfo", requestInfo);
-        
+
         Map<String, Object> individual = new HashMap<>();
         individual.put("username", usernames);
         searchBody.put("Individual", individual);
