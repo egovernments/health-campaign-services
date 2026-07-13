@@ -374,7 +374,8 @@ function checkForMixedBoundaryFlowInArrays(
 async function modifyBoundaryData(
   boundaryData: any[],
   localizationMap?: any,
-  request?: any
+  request?: any,
+  hierarchy?: string[]
 ): Promise<[{ key: string; value: string }[][], { key: string; value: string }[][], { key: string; value: string }[][]]> {
   // Initialize arrays to store data
   const withBoundaryCode: { key: string, value: string }[][] = [];
@@ -403,6 +404,22 @@ async function modifyBoundaryData(
           return { key, value: value.toString().replace(/_/g, ' ').trim() };
         }
       });
+
+    // PATH-AWARE identity (ported from validator-unbundle): stamp a stable ancestor-path on
+    // every hierarchy-level element so boundaryKeyOf can tell apart two same-level/same-name
+    // boundaries that sit under different parents, and treat the SAME boundary restated on
+    // multiple rows as identical. Built from post-normalization values in hierarchy order;
+    // the separators cannot occur in boundary level names or values.
+    if (hierarchy && hierarchy.length) {
+      const chain: string[] = [];
+      hierarchy.forEach((level: string) => {
+        const el = row.find((o: any) => o.key === level);
+        if (el && el.value !== '' && el.value != null) {
+          chain.push(`${level}\\u0000${el.value}`);
+          el.__path = chain.join('\\u0001');
+        }
+      });
+    }
 
     // Determine whether the object has a boundary code property WITH A NON-EMPTY VALUE
     // Check both: (1) property exists, (2) value is not empty/null/undefined
@@ -463,10 +480,20 @@ async function modifyBoundaryData(
   return [withBoundaryCode, withoutBoundaryCode, manualBoundaryCode];
 }
 
+// PATH-AWARE identity (ported from validator-unbundle): two boundaries with the same
+// level+name but different ancestors (duplicate names are allowed under different parents)
+// must be distinct, and the SAME boundary restated on multiple rows must collapse.
+// modifyBoundaryData stamps __path (the full ancestor chain) on every hierarchy element;
+// fall back to level+name for objects that carry no path.
+function boundaryKeyOf(element: any): string {
+  return element?.__path ?? `${element?.key}\\u0000${element?.value}`;
+}
+
 function findMapValue(map: Map<any, any>, key: any): any | null {
   let foundValue = null;
+  const target = boundaryKeyOf(key);
   map.forEach((value, mapKey) => {
-    if (mapKey.key === key.key && mapKey.value === key.value) {
+    if (boundaryKeyOf(mapKey) === target) {
       foundValue = value;
     }
   });
@@ -871,6 +898,6 @@ async function searchGeneratedBoundaryResources(searchQuery : any, locale : any)
 export {  appCache,errorLogger,invalidPathHandler
   ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
   ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
-  ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap
+  ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,boundaryKeyOf,extractFrenchOrPortugeseLocalizationMap
   ,processGenerate ,getDataSheetReady , replicateRequest ,searchGeneratedBoundaryResources , checkForMixedBoundaryFlowInArrays
 };

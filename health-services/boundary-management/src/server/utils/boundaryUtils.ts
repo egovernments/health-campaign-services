@@ -3,7 +3,7 @@ import config from "../config";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
 import { throwError,getLocalizedHeaders,createHeaderToHierarchyMap,
-  modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap,replicateRequest,callGenerate , checkForMixedBoundaryFlowInArrays}
+  modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,boundaryKeyOf,extractFrenchOrPortugeseLocalizationMap,replicateRequest,callGenerate , checkForMixedBoundaryFlowInArrays}
  from "../utils/genericUtils";
 import { searchBoundaryRelationshipDefinition  } from "../api/coreApis";
 import { BoundaryModels } from "../models";
@@ -373,7 +373,8 @@ const autoGenerateBoundaryCodes = async (
   const [withBoundaryCode, withoutBoundaryCode, manualBoundaryCode] = await modifyBoundaryData(
     modifiedBoundaryData,
     localizationMap,
-    request
+    request,
+    hierarchy
   );
   logger.info(`Boundary data segregation complete - Processed: ${withBoundaryCode.length}, Auto-generate: ${withoutBoundaryCode.length}, Manual: ${manualBoundaryCode.length}`);
   manualServiceFlow = manualBoundaryCode.length > 0 ? true : false;
@@ -806,11 +807,11 @@ function getChildParentMap(modifiedBoundaryData: any) {
     for (let j = row.length - 1; j >= 0; j--) {
       const child = row[j];
       const parent = j - 1 >= 0 ? row[j - 1] : null;
-      const childIdentifier = { key: child.key, value: child.value };
-      const parentIdentifier = parent ? { key: parent.key, value: parent.value } : null;
-      const lookupKey = parentIdentifier
-        ? `${child.key}|${child.value}__${parent.key}|${parent.value}`
-        : `${child.key}|${child.value}__null`;
+      // Carry __path so these fresh identifier objects keep their path-aware identity
+      // (boundaryKeyOf); without it, same-name boundaries under different parents would collapse.
+      const childIdentifier = { key: child.key, value: child.value, __path: child.__path };
+      const parentIdentifier = parent ? { key: parent.key, value: parent.value, __path: parent.__path } : null;
+      const lookupKey = `${boundaryKeyOf(childIdentifier)}__${parentIdentifier ? boundaryKeyOf(parentIdentifier) : 'null'}`;
       if (!stringifiedMap.has(lookupKey)) {
         childParentMap.set(childIdentifier, parentIdentifier);
         stringifiedMap.add(lookupKey);
