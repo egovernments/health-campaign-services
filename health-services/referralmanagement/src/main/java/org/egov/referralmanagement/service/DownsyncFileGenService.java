@@ -612,9 +612,11 @@ public class DownsyncFileGenService {
                     s3.rowCount() > 0 ? key : null, s3.rowCount(), s3.fileSize(), null, System.currentTimeMillis());
             return new FileResult("INDIVIDUALS", true, s3.rowCount() > 0 ? key : null, s3.rowCount(), null);
         } catch (Exception e) {
+            log.error("INDIVIDUALS file failed for key={}", key, e);
+            String diag = diagnosticMessage(e);
             jobRepository.updateFileCompleted(tid, fileRowId, "FAILED",
-                    null, null, null, truncate(e.getMessage()), System.currentTimeMillis());
-            return new FileResult("INDIVIDUALS", false, null, 0, e.getMessage());
+                    null, null, null, truncate(diag), System.currentTimeMillis());
+            return new FileResult("INDIVIDUALS", false, null, 0, diag);
         }
     }
 
@@ -1365,6 +1367,34 @@ public class DownsyncFileGenService {
     private String truncate(String msg) {
         if (msg == null) return "unknown";
         return msg.length() > 2000 ? msg.substring(0, 2000) : msg;
+    }
+
+    /**
+     * Diagnostic string built from an exception chain: top-level message +
+     * cause chain messages + the first 6 stack frames of the deepest cause.
+     * Stored in the failureReason column so post-mortem doesn't require pod
+     * logs. Capped by {@link #truncate} at the call site.
+     */
+    private String diagnosticMessage(Throwable e) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(e.getClass().getSimpleName()).append(": ").append(e.getMessage());
+        Throwable t = e.getCause(); int depth = 1;
+        while (t != null && depth <= 4) {
+            sb.append(" | cause[").append(depth).append("] ").append(t.getClass().getSimpleName())
+              .append(": ").append(t.getMessage());
+            t = t.getCause(); depth++;
+        }
+        // Walk to the deepest cause for the stack frames
+        Throwable deepest = e;
+        while (deepest.getCause() != null) deepest = deepest.getCause();
+        StackTraceElement[] st = deepest.getStackTrace();
+        int n = Math.min(6, st.length);
+        for (int i = 0; i < n; i++) {
+            sb.append(" @ ").append(st[i].getClassName())
+              .append(".").append(st[i].getMethodName())
+              .append(":").append(st[i].getLineNumber());
+        }
+        return sb.toString();
     }
 
     private record FileResult(String fileType, boolean success, String s3Key,
