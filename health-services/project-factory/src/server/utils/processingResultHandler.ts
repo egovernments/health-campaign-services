@@ -160,7 +160,8 @@ export async function handleProcessingResult(messageObject: any) {
                         offset: 0,
                         tenantId: messageObject.tenantId,
                     };
-                    // ensure a userInfo (creator uuid) — individual search rejects a null userInfo
+                    // RequestInfo is now expected to be available in the processing message.
+                    // Use it directly for Individual Search instead of reconstructing user context.
                     const searchBody = {
                         RequestInfo: messageObject?.requestInfo?.userInfo
                             ? messageObject.requestInfo
@@ -363,7 +364,8 @@ export async function handleProcessingResult(messageObject: any) {
 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                // ensure userInfo (creator uuid) for user-creation batches; skip when no creator uuid
+                // Pass the original RequestInfo to the background resource creation flow.
+                // Downstream services use this request context directly.
                 const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
                 await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
