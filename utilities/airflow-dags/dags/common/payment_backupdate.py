@@ -1,293 +1,122 @@
-"""Payment → Demand collection back-update (ClickHouse analytics mirror of
-billing-service's payment back-update).
+"""Payment → Demand collection back-update — ClickHouse-native (set-based).
 
-APPROACH A — recompute-by-final-status (no ledger, no new tables)
+Rewritten to run as a single INSERT ... SELECT inside ClickHouse so nothing large
+is held in the Airflow worker. (The earlier Python version materialised ~1.3M
+demands + ~1M payment apportionments in RAM and was OOM-killed at 1M scale.)
 
-WHY
-    In billing-service, a payment adds to (payment-create) or reverses from
-    (payment-cancel) each demand detail's collectionAmount. That post-payment demand
-    state is not re-emitted to demand_events_raw, so demand_with_details_entity would
-    otherwise never reflect what was actually collected. This task reconstructs the
-    collected amounts from the payments themselves and writes corrected demand rows.
+Logic (idempotent, recompute-by-final-status; uses ONLY silver tables):
+  * For every demand that has a payment, collected = Σ of the demand's paid share
+    (bill_detail_entity.amount_paid) over payments whose FINAL status is collecting
+    (NEW / DEPOSITED / RECONCILED). Cancelled/dishonoured contribute 0 — so a demand
+    whose payment is later cancelled is reversed to 0.
+  * total_collection_amount / outstanding_amount / is_paid are EXACT (from amount_paid).
+  * Per-tax-head *_collection columns are the demand's tax split scaled by
+    collected / total_tax (proportional). Exact for proportional apportionment
+    (matches the generators and full payments); an approximation only if the source
+    ever apportions non-proportionally.
+  * A new ReplacingMergeTree version is written with last_modified_time = now64(3),
+    so it wins over the demand event; FINAL/merge keeps it.
 
-INPUT ARCHITECTURE
-    payment_events_raw is fed by ONE Kafka table subscribing to BOTH
-    egov.collection.payment-create AND egov.collection.payment-cancel. It is
-    append-only, so every event of a payment persists (create as NEW/DEPOSITED, then
-    cancel as CANCELLED, etc.). There is NO topic column, so direction (add vs
-    reverse) is not known per row — we derive it from each payment's FINAL status.
-
-HOW (idempotent, ClickHouse has no cheap in-place UPDATE)
-    demand_with_details_entity is ReplacingMergeTree(last_modified_time) keyed on
-    (tenant_id, demand_id). Each run:
-      1. Affected demands: demands referenced by payment events IN THE WINDOW.
-      2. Recompute (full history up to window end): for every payment touching an
-         affected demand, keep its LATEST event (by lastModifiedTime) → that gives the
-         payment's final status and its apportioned amounts
-         (Payment.paymentDetails[].bill.billDetails[].billAccountDetails[].adjustedAmount).
-         Count a payment ONLY if its final status is collecting (NEW/DEPOSITED/
-         RECONCILED); cancelled/dishonoured contribute nothing.
-      3. SET each affected demand's *_collection columns to the recomputed sums,
-         recompute total_collection_amount / outstanding_amount / is_paid, bump
-         last_modified_time, and INSERT a new RMT version.
-
-    Because step 3 SETs (not adds), the task is idempotent: reruns, overlapping
-    windows, and cancellations all converge to the correct value. A cancelled payment
-    drops out (final status CANCELLED); a remitted payment (NEW→DEPOSITED) is counted
-    once (final status DEPOSITED) — no double-count, no false reverse.
-
-CAVEATS
-  * "Final status" is derived from raw itself (latest event per payment_id), not from
-    payment_with_details_entity, because that silver table only stores the first
-    paymentDetail's billid and would miss multi-bill payments.
-  * COST: to recompute an affected demand correctly, this scans payment_events_raw
-    over full history (up to window end) — memory is bounded to affected demands'
-    payments, but reads grow with payment history. If that becomes expensive, flatten
-    the apportionment into a table or add a _topic column + incremental+ledger.
-  * A newer demand event (from the demand pipeline) can overwrite this correction if
-    it lands with a larger last_modified_time — expected RMT behaviour.
+No raw-JSON parsing, no Python memory — scales to millions. The payment's final
+status is resolved by reading payment_with_details_entity FINAL (RMT dedup), so a
+create(NEW)+cancel(CANCELLED) pair for one payment collapses to CANCELLED.
 """
 
-import gc
-import json
 import logging
-from decimal import Decimal
-from typing import Dict, Set, Tuple
 
-from airflow.utils.timezone import utcnow
-
-from common.ch_utils import (
-    get_client, InsertBuffer, safe_dec, get_window, fetch_raw_events, CH_FETCH_SIZE, EPOCH,
-)
+from common.ch_utils import get_client, CLICKHOUSE_DB
 
 logger = logging.getLogger(__name__)
 
 DEMAND_TABLE = 'demand_with_details_entity'
-PAYMENT_RAW_TABLE = 'payment_events_raw'
 
-# A payment counts as collected money only if its FINAL status is one of these.
-# Valid PaymentStatusEnum: NEW, DEPOSITED, RECONCILED, CANCELLED, DISHONOURED.
-COLLECTING_STATUSES = {'NEW', 'DEPOSITED', 'RECONCILED'}
+# Demand attribute columns copied through unchanged (in table order), split around
+# the amount/collection columns we recompute.
+_ATTR_HEAD = [
+    '_ingested_at', 'tenant_id', 'demand_id', 'consumer_code', 'consumer_type',
+    'business_service', 'payer', 'tax_period_from', 'tax_period_to', 'demand_status',
+    'financial_year', 'minimum_amount_payable', 'bill_expiry_time', 'fixed_bill_expiry_date',
+]
+_TAX_COLS = [
+    'pt_tax', 'pt_cancer_cess', 'pt_fire_cess', 'pt_roundoff', 'pt_owner_exemption',
+    'pt_unit_usage_exemption', 'pt_advance_carryforward', 'pt_decimal_ceiling_debit',
+    'pt_time_rebate', 'pt_decimal_ceiling_credit', 'pt_time_penalty', 'pt_adhoc_penalty',
+    'pt_adhoc_rebate', 'pt_time_interest',
+]
+_ATTR_TAIL = ['created_by', 'created_time', 'last_modified_by']
 
-# Read-side batch size for the demand_id IN (...) lookup. Kept modest so the
-# inlined IN list stays well under ClickHouse's max_query_size (~256 KiB):
-# 1000 UUIDs ≈ 40 KiB of SQL.
-DEMAND_LOOKUP_CHUNK = 1000
+# Statuses that count as money collected (final status).
+COLLECTING = "('NEW','DEPOSITED','RECONCILED')"
 
 
-def _collection_col(tax_head_code: str) -> str:
-    """Map a tax-head code to its collection column, e.g. PT_TAX -> pt_tax_collection.
+def _collected_subquery(db: str) -> str:
+    """Per (tenant_id, demand_id): collected = Σ paid share over collecting payments.
 
-    Matches the naming used by extract_demand() in the raw-to-silver DAG.
+    bill_detail rows are deduped per (tenant, demand, bill) first (a create+cancel
+    pair for one payment yields two identical detail rows with the same amount_paid),
+    then joined to the payment's FINAL status.
     """
-    return tax_head_code.lower() + '_collection'
+    return f"""
+(
+    SELECT b.tenant_id AS tenant_id, b.demand_id AS demand_id,
+           sumIf(b.amount_paid, upper(p.payment_status) IN {COLLECTING}) AS collected
+    FROM
+    (
+        SELECT tenant_id, demand_id, bill_id, any(amount_paid) AS amount_paid
+        FROM {db}.bill_detail_entity FINAL
+        GROUP BY tenant_id, demand_id, bill_id
+    ) AS b
+    INNER JOIN {db}.payment_with_details_entity AS p FINAL ON p.billid = b.bill_id
+    GROUP BY b.tenant_id, b.demand_id
+)
+"""
 
 
-def _heads_for_affected(payment: dict, affected: Set[Tuple[str, str]]) -> Dict[Tuple[str, str], Dict[str, Decimal]]:
-    """Per-(tenant_id, demand_id) apportioned collection carried by this payment,
-    restricted to demands in `affected`. Uses adjustedAmount (what billing-service
-    applies to collectionAmount), falling back to amount.
-    """
-    heads: Dict[Tuple[str, str], Dict[str, Decimal]] = {}
-    for pd in (payment.get('paymentDetails', []) or []):
-        bill = pd.get('bill', {}) or {}
-        tenant = bill.get('tenantId') or payment.get('tenantId', '')
-        for bd in (bill.get('billDetails', []) or []):
-            demand_id = bd.get('demandId', '')
-            key = (tenant, demand_id)
-            if key not in affected:
-                continue
-            dst = heads.setdefault(key, {})
-            for bad in (bd.get('billAccountDetails', []) or []):
-                code = bad.get('taxHeadCode', '')
-                if not code:
-                    continue
-                amt = bad.get('adjustedAmount')
-                if amt is None:
-                    amt = bad.get('amount')
-                col = _collection_col(code)
-                dst[col] = dst.get(col, Decimal('0')) + safe_dec(amt, 4)
-    return heads
+def _build_insert_sql(db: str) -> str:
+    t = f"{db}.{DEMAND_TABLE}"
+    # Ratio math in Float64 to avoid Decimal overflow; the INSERT casts the Float64
+    # results back to the Decimal(18,4) collection columns.
+    ratio = "if(d.total_tax_amount != 0, toFloat64(pd.collected) / toFloat64(d.total_tax_amount), 0)"
 
+    select_cols = []
+    select_cols += [f"d.{c}" for c in _ATTR_HEAD]
+    select_cols.append("d.total_tax_amount")
+    select_cols.append("round(pd.collected, 2) AS total_collection_amount")
+    select_cols += [f"d.{c}" for c in _TAX_COLS]
+    select_cols += [f"round(toFloat64(d.{c}) * {ratio}, 4) AS {c}_collection" for c in _TAX_COLS]
+    select_cols.append("round(d.total_tax_amount - pd.collected, 4) AS outstanding_amount")
+    select_cols.append("if(d.total_tax_amount - pd.collected <= 0, 1, 0) AS is_paid")
+    select_cols += [f"d.{c}" for c in _ATTR_TAIL]
+    select_cols.append("now64(3) AS last_modified_time")
 
-def _affected_demands_in_window(client, ws, we) -> Set[Tuple[str, str]]:
-    """Demands referenced by payment events in [ws, we)."""
-    affected: Set[Tuple[str, str]] = set()
-    last_ms = None
-    last_id = None
+    insert_cols = (
+        _ATTR_HEAD + ['total_tax_amount', 'total_collection_amount']
+        + _TAX_COLS + [f"{c}_collection" for c in _TAX_COLS]
+        + ['outstanding_amount', 'is_paid'] + _ATTR_TAIL + ['last_modified_time']
+    )
 
-    while True:
-        rows = fetch_raw_events(client, PAYMENT_RAW_TABLE, ws, we,
-                                limit=CH_FETCH_SIZE, last_ms=last_ms, last_id=last_id)
-        if not rows:
-            break
-        for raw_json, _et, _id, _ms in rows:
-            try:
-                payment = (json.loads(raw_json).get('Payment') or {})
-            except json.JSONDecodeError:
-                continue
-            for pd in (payment.get('paymentDetails', []) or []):
-                bill = pd.get('bill', {}) or {}
-                tenant = bill.get('tenantId') or payment.get('tenantId', '')
-                for bd in (bill.get('billDetails', []) or []):
-                    demand_id = bd.get('demandId', '')
-                    if demand_id:
-                        affected.add((tenant, demand_id))
-        chunk_len = len(rows)
-        last_ms, last_id = rows[-1][3], rows[-1][2]
-        del rows
-        gc.collect()
-        if chunk_len < CH_FETCH_SIZE:
-            break
-
-    return affected
-
-
-def _recompute_collection(client, we, affected: Set[Tuple[str, str]]) -> Dict[Tuple[str, str], Dict[str, Decimal]]:
-    """Recompute collection per affected demand from full payment history up to `we`.
-
-    Keeps the LATEST event per payment_id (final status + apportionment); counts a
-    payment only if its final status is collecting.
-    """
-    # payment_id -> {'lmt': int, 'status': str, 'heads': {(tenant, demand): {col: Decimal}}}
-    latest: Dict[str, dict] = {}
-    last_ms = None
-    last_id = None
-
-    while True:
-        rows = fetch_raw_events(client, PAYMENT_RAW_TABLE, EPOCH, we,
-                                limit=CH_FETCH_SIZE, last_ms=last_ms, last_id=last_id)
-        if not rows:
-            break
-        for raw_json, _et, _id, _ms in rows:
-            try:
-                payment = (json.loads(raw_json).get('Payment') or {})
-            except json.JSONDecodeError:
-                continue
-            pid = payment.get('id', '')
-            if not pid:
-                continue
-            heads = _heads_for_affected(payment, affected)
-            if not heads:
-                continue  # this payment doesn't touch any affected demand
-
-            audit = payment.get('auditDetails', {}) or {}
-            try:
-                lmt = int(audit.get('lastModifiedTime'))
-            except (TypeError, ValueError):
-                lmt = int(_ms)
-
-            prev = latest.get(pid)
-            if prev is None or lmt >= prev['lmt']:
-                latest[pid] = {
-                    'lmt': lmt,
-                    'status': str(payment.get('paymentStatus', '')).upper(),
-                    'heads': heads,
-                }
-        chunk_len = len(rows)
-        last_ms, last_id = rows[-1][3], rows[-1][2]
-        del rows
-        gc.collect()
-        if chunk_len < CH_FETCH_SIZE:
-            break
-
-    # Aggregate: count only payments whose final status is collecting.
-    sums: Dict[Tuple[str, str], Dict[str, Decimal]] = {}
-    for info in latest.values():
-        if info['status'] not in COLLECTING_STATUSES:
-            continue
-        for key, cols in info['heads'].items():
-            dst = sums.setdefault(key, {})
-            for col, amt in cols.items():
-                dst[col] = dst.get(col, Decimal('0')) + amt
-    return sums
-
-
-def _write_new_versions(client, affected: Set[Tuple[str, str]],
-                        sums: Dict[Tuple[str, str], Dict[str, Decimal]]) -> dict:
-    """Read affected demands (FINAL), SET their collection to the recomputed sums,
-    recompute derived fields, and insert new RMT versions.
-    """
-    demand_ids = sorted({demand_id for (_tenant, demand_id) in affected})
-
-    current = {}
-    columns = None
-    for i in range(0, len(demand_ids), DEMAND_LOOKUP_CHUNK):
-        batch = demand_ids[i:i + DEMAND_LOOKUP_CHUNK]
-        # Inline the IDs into the SQL body (not a bound parameter): a large bound
-        # array is sent by clickhouse-connect as an HTTP query-string field and
-        # ClickHouse rejects it ("Field value too long"). demand_ids are our own
-        # UUIDs; single-quotes are escaped defensively.
-        in_list = ",".join("'" + d.replace("'", "''") + "'" for d in batch)
-        res = client.query(
-            f"SELECT * FROM {DEMAND_TABLE} FINAL WHERE demand_id IN ({in_list})"
-        )
-        columns = res.column_names
-        for row in res.result_rows:
-            d = dict(zip(columns, row))
-            current[(d.get('tenant_id'), d.get('demand_id'))] = d
-
-    if not columns:
-        logger.warning("No matching demands found in silver — nothing to write")
-        return {'demands_recomputed': 0, 'demands_not_found': len(affected)}
-
-    collection_cols = [c for c in columns if c.endswith('_collection')]
-    now = utcnow()  # airflow.utils.timezone.utcnow() is already tz-aware
-
-    out_buf = InsertBuffer(client, DEMAND_TABLE)
-    updated = 0
-    not_found = 0
-
-    for key in affected:
-        row = current.get(key)
-        if row is None:
-            not_found += 1
-            continue
-
-        heads = sums.get(key, {})          # empty → all collection reset to 0
-        new_row = dict(row)
-
-        # SET each known per-tax-head collection column from the recompute.
-        for col in collection_cols:
-            new_row[col] = safe_dec(heads.get(col, Decimal('0')), 4)
-
-        # Total from ALL collected heads (covers any tax head without a column).
-        total_collection = round(sum((safe_dec(v, 4) for v in heads.values()), Decimal('0')), 2)
-        total_tax = safe_dec(new_row.get('total_tax_amount'), 2)
-        outstanding = round(total_tax - total_collection, 2)
-
-        new_row['total_collection_amount'] = total_collection
-        new_row['outstanding_amount'] = outstanding
-        new_row['is_paid'] = 1 if outstanding <= 0 else 0
-        new_row['last_modified_time'] = now   # bump version so RMT keeps this row
-
-        out_buf.add([{c: new_row.get(c) for c in columns}])
-        updated += 1
-
-    out_buf.flush()
-    return {'demands_recomputed': updated, 'demands_not_found': not_found}
+    return (
+        f"INSERT INTO {t} ({', '.join(insert_cols)})\n"
+        f"SELECT {', '.join(select_cols)}\n"
+        f"FROM {t} AS d FINAL\n"
+        f"INNER JOIN {_collected_subquery(db)} AS pd\n"
+        f"ON d.tenant_id = pd.tenant_id AND d.demand_id = pd.demand_id"
+    )
 
 
 def back_update_demand_collection(**context):
-    """Airflow entrypoint: recompute affected demands' collection from payments
-    (Approach A) and write corrected demand versions.
+    """Airflow entrypoint: recompute demand collection from payments entirely in
+    ClickHouse (set-based INSERT ... SELECT). Idempotent; safe to re-run.
     """
-    ws, we = get_window(context)
-    logger.info(f"Back-update window: [{ws}, {we})")
-
     client = get_client()
     try:
-        affected = _affected_demands_in_window(client, ws, we)
-        if not affected:
-            logger.info("No demands touched by payments in window — nothing to back-update")
-            return {'demands_recomputed': 0, 'demands_not_found': 0}
-        logger.info(f"{len(affected)} demand(s) affected by payments in window")
+        db = CLICKHOUSE_DB
+        logger.info("Running ClickHouse-native demand back-update (set-based INSERT..SELECT)")
+        client.command(_build_insert_sql(db))
 
-        sums = _recompute_collection(client, we, affected)
-        logger.info(f"Recomputed collection for {len(sums)} demand(s) with collecting payments")
-
-        result = _write_new_versions(client, affected, sums)
-        logger.info(f"Back-update complete: {result}")
-        return result
+        res = client.query(f"SELECT count() FROM {_collected_subquery(db)} AS pd")
+        n = res.result_rows[0][0] if res.result_rows else 0
+        logger.info(f"Back-update complete: {n} demand(s) recomputed")
+        return {'demands_recomputed': n}
     finally:
         client.close()
