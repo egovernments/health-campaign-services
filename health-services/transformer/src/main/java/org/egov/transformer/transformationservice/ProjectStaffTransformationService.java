@@ -96,6 +96,7 @@ public class ProjectStaffTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyResult.getBoundaryHierarchyCode())
                 .localityCode(localityCode)
                 .isDeleted(projectStaff.getIsDeleted())
+                .additionalFields(projectStaff.getAdditionalFields())
                 .build();
         projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
         projectStaffIndexV1.setCampaignNumber(project.getReferenceID());
