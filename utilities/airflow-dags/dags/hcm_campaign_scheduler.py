@@ -49,6 +49,10 @@ PROCESSOR_DAG_ID = os.getenv("PROCESSOR_DAG_ID", "hcm_dynamic_campaigns")
 # Window grace minutes: window = (now - 1 hour + WINDOW_GRACE_MINUTES, now]
 WINDOW_GRACE_MINUTES = int(os.getenv("WINDOW_GRACE_MINUTES", "1"))
 
+# Safety cap on MDMS pagination pages (guards against a runaway loop if MDMS
+# always returns a full page). Default: 100 pages * MDMS_LIMIT (500) = 50,000 campaigns.
+MDMS_MAX_PAGES = int(os.getenv("MDMS_MAX_PAGES", "100"))
+
 # Timezone: UTC
 UTC = timezone.utc
 
@@ -119,22 +123,22 @@ def call_api(url, method="POST", json_body=None, headers=None, timeout=30):
         logger.exception("API call failed: %s", exc)
         return {"error": str(exc)}
 
-def fetch_campaigns_from_mdms():
-    """Fetch campaigns from MDMS. Returns list of campaign dicts."""
+def fetch_campaigns_from_mdms(offset, limit):
+    """Fetch one page of campaigns from MDMS at the given offset/limit. Returns list of campaign dicts."""
     if not MDMS_URL:
         raise ValueError("MDMS_URL environment variable is required")
 
     # Construct full MDMS API URL
     full_mdms_url = f"{MDMS_URL}{MDMS_SEARCH_ENDPOINT}"
-    logger.info("Fetching campaigns from MDMS: %s", full_mdms_url)
+    logger.info("Fetching campaigns from MDMS: %s (offset=%d, limit=%d)", full_mdms_url, offset, limit)
 
     body = {
         "RequestInfo": {"authToken": ""},
         "MdmsCriteria": {
             "tenantId": TENANT_ID,
             "schemaCode": f"{MDMS_MODULE_NAME}.{MDMS_MASTER_NAME}",
-            "limit": MDMS_LIMIT,
-            "offset": 0,
+            "limit": limit,
+            "offset": offset,
             "isActive": True,
         }
     }
@@ -347,69 +351,91 @@ with DAG(
                    window_start.strftime("%Y-%m-%d %H:%M:%S"),
                    window_end.strftime("%Y-%m-%d %H:%M:%S"))
 
-        campaigns = fetch_campaigns_from_mdms()
         matched = []
+        offset = 0
+        page_num = 0
+        total_evaluated = 0
 
-        for c in campaigns:
-            try:
-                # Get campaign identifier (can be campaignNumber or projectTypeId)
-                identifier, identifier_type = get_campaign_identifier(c)
+        while True:
+            page_num += 1
+            if page_num > MDMS_MAX_PAGES:
+                logger.warning(
+                    "Reached MDMS pagination safety cap (%d pages, offset=%d) - stopping. "
+                    "MDMS may hold more campaigns than fetched; investigate if unexpected.",
+                    MDMS_MAX_PAGES, offset,
+                )
+                break
 
-                # Check if active (support both isActive and active)
-                is_active = c.get("isActive", c.get("active", False))
-                if not is_active:
-                    logger.debug("Campaign %s: Inactive - SKIP", identifier)
+            page = fetch_campaigns_from_mdms(offset, MDMS_LIMIT)
+            logger.info("Page %d returned %d campaign(s)", page_num, len(page))
+            total_evaluated += len(page)
+
+            for c in page:
+                try:
+                    # Get campaign identifier (can be campaignNumber or projectTypeId)
+                    identifier, identifier_type = get_campaign_identifier(c)
+
+                    # Check if active (support both isActive and active)
+                    is_active = c.get("isActive", c.get("active", False))
+                    if not is_active:
+                        logger.debug("Campaign %s: Inactive - SKIP", identifier)
+                        continue
+
+                    # Check if campaign is within active date range (startDate <= today <= endDate)
+                    campaign_active, active_reason = is_campaign_active(c, now)
+                    if not campaign_active:
+                        logger.info("Campaign %s: %s - SKIP", identifier, active_reason)
+                        continue
+
+                    # Get trigger time
+                    trig = c.get("triggerTime")
+                    if not trig:
+                        logger.warning("Campaign %s: Missing triggerTime - SKIP", identifier)
+                        continue
+
+                    # Parse trigger time for today
+                    trig_dt = parse_trigger_time_today(trig, now)
+
+                    # Check if in window
+                    in_window = window_start <= trig_dt <= window_end
+
+                    logger.info("Campaign %s (%s):", identifier, identifier_type)
+                    logger.info("  Trigger time: %s → %s", trig, trig_dt.strftime("%H:%M:%S"))
+                    logger.info("  In window: %s", in_window)
+
+                    # Scheduler only checks window timing; processor DAG handles all report logic
+                    # (frequency, first day, final report, date ranges)
+                    if in_window:
+                        logger.info("  ✓ MATCH - Adding to processing list")
+                        matched.append({
+                            # New unified identifier fields
+                            "campaignIdentifier": identifier,
+                            "identifierType": identifier_type,
+                            # Keep campaignNumber for backward compatibility
+                            "campaignNumber": identifier if identifier_type == "campaignNumber" else None,
+                            "projectTypeId": identifier if identifier_type == "projectTypeId" else None,
+                            "reportName": c.get("reportName"),
+                            "triggerFrequency": c.get("triggerFrequency"),
+                            "triggerTime": c.get("triggerTime"),
+                            "startDate": c.get("campaignStartDate"),
+                            "endDate": c.get("campaignEndDate"),
+                            # Report time bounds for data collection window
+                            "reportStartTime": c.get("reportStartTime", "00:00:00"),
+                            "reportEndTime": c.get("reportEndTime", "23:59:59")
+                        })
+                    else:
+                        logger.info("  ✗ SKIP")
+
+                except Exception:
+                    logger.exception("Error while evaluating campaign %s", c.get("campaignIdentifier", "UNKNOWN"))
                     continue
 
-                # Check if campaign is within active date range (startDate <= today <= endDate)
-                campaign_active, active_reason = is_campaign_active(c, now)
-                if not campaign_active:
-                    logger.info("Campaign %s: %s - SKIP", identifier, active_reason)
-                    continue
+            if len(page) < MDMS_LIMIT:
+                logger.info("Page %d is the last page (%d < limit %d)", page_num, len(page), MDMS_LIMIT)
+                break
+            offset += MDMS_LIMIT
 
-                # Get trigger time
-                trig = c.get("triggerTime")
-                if not trig:
-                    logger.warning("Campaign %s: Missing triggerTime - SKIP", identifier)
-                    continue
-
-                # Parse trigger time for today
-                trig_dt = parse_trigger_time_today(trig, now)
-
-                # Check if in window
-                in_window = window_start <= trig_dt <= window_end
-
-                logger.info("Campaign %s (%s):", identifier, identifier_type)
-                logger.info("  Trigger time: %s → %s", trig, trig_dt.strftime("%H:%M:%S"))
-                logger.info("  In window: %s", in_window)
-
-                # Scheduler only checks window timing; processor DAG handles all report logic
-                # (frequency, first day, final report, date ranges)
-                if in_window:
-                    logger.info("  ✓ MATCH - Adding to processing list")
-                    matched.append({
-                        # New unified identifier fields
-                        "campaignIdentifier": identifier,
-                        "identifierType": identifier_type,
-                        # Keep campaignNumber for backward compatibility
-                        "campaignNumber": identifier if identifier_type == "campaignNumber" else None,
-                        "projectTypeId": identifier if identifier_type == "projectTypeId" else None,
-                        "reportName": c.get("reportName"),
-                        "triggerFrequency": c.get("triggerFrequency"),
-                        "triggerTime": c.get("triggerTime"),
-                        "startDate": c.get("campaignStartDate"),
-                        "endDate": c.get("campaignEndDate"),
-                        # Report time bounds for data collection window
-                        "reportStartTime": c.get("reportStartTime", "00:00:00"),
-                        "reportEndTime": c.get("reportEndTime", "23:59:59")
-                    })
-                else:
-                    logger.info("  ✗ SKIP")
-
-            except Exception:
-                logger.exception("Error while evaluating campaign %s", c.get("campaignIdentifier", "UNKNOWN"))
-                continue
-
+        logger.info("Pagination complete: %d page(s) fetched, %d campaign(s) evaluated", page_num, total_evaluated)
         logger.info("=" * 80)
         logger.info("RESULT: %d campaign(s) matched", len(matched))
         if matched:
