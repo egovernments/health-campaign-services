@@ -537,12 +537,21 @@ def pod_failure_callback(context):
             "tenantId": env_dict.get("TENANT_ID"),
         }
 
+        # env_dict values are all strings (coerced for the K8s API) - parse the ms back to int.
+        triggered_ms_raw = env_dict.get("REPORT_TRIGGERED_TIME_MS")
+        try:
+            triggered_ms = int(triggered_ms_raw) if triggered_ms_raw else None
+        except (TypeError, ValueError):
+            triggered_ms = None
+
         push_status_event(
             "POD_INFRA_FAILED",
             campaign_like,
             dag_id=env_dict.get("DAG_ID") or "hcm_dynamic_campaigns",
             dag_run_id=env_dict.get("DAG_RUN_ID"),
             error_message=str(context.get("exception")) if context.get("exception") else "Pod execution failed",
+            report_triggered_time_ms=triggered_ms,
+            report_triggered_time=env_dict.get("REPORT_TRIGGERED_TIME") or None,
         )
     except Exception:
         logger.exception("pod_failure_callback itself failed")
@@ -638,10 +647,23 @@ with DAG(
         env_list = []
         now = datetime.now(UTC)
 
+        # Fallback "actual triggered time" for runs that bypass the scheduler (e.g. a
+        # direct/custom trigger) and therefore never set reportTriggeredTimeMs/
+        # reportTriggeredTime on the incoming campaign dicts. context["dag_run"].start_date
+        # is Airflow's own record of when this run actually started - unlike logical_date,
+        # it can't be set to an arbitrary value by whoever triggered the DAG.
+        fallback_triggered_dt = context["dag_run"].start_date or now
+        fallback_triggered_time_ms = int(fallback_triggered_dt.timestamp() * 1000)
+        fallback_triggered_time_iso = fallback_triggered_dt.isoformat()
+
         for idx, c in enumerate(matches, 1):
             # Required fields - already validated by scheduler DAG
             campaign_identifier = c.get("campaignIdentifier")
             identifier_type = c.get("identifierType")
+            # Prefer the scheduler's stamped value (identical across every row for a
+            # scheduler-initiated run) - fall back to this run's own start_date otherwise.
+            report_triggered_time_ms = c.get("reportTriggeredTimeMs", fallback_triggered_time_ms)
+            report_triggered_time_iso = c.get("reportTriggeredTime", fallback_triggered_time_iso)
             report_name = c.get("reportName")
             frequency = c.get("triggerFrequency", "Daily")
             report_start_time = c.get("reportStartTime", "00:00:00")
@@ -665,7 +687,10 @@ with DAG(
             if not is_final_report and not frequency_due(c, now):
                 reason = f"Frequency not due ({frequency})"
                 logger.info("  ⏭️ SKIP: %s", reason)
-                push_status_event("SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason)
+                push_status_event(
+                    "SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason,
+                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso
+                )
                 continue
 
             # Check if first day AND report would cover yesterday's data
@@ -674,7 +699,10 @@ with DAG(
             if is_first_day(c, now) and not should_report_today(c, now):
                 reason = "First day and report would cover yesterday (no data exists)"
                 logger.info("  ⏭️ SKIP: %s", reason)
-                push_status_event("SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason)
+                push_status_event(
+                    "SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason,
+                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso
+                )
                 continue
 
             # Calculate report date range based on frequency
@@ -741,6 +769,12 @@ with DAG(
                 "DAG_RUN_ID" : dag_run_id,
                 "DAG_ID" : dag_id,
 
+                # Actual moment this run was triggered (distinct from TRIGGER_TIME, which is
+                # just the configured time-of-day) - same value across every status row for
+                # this run, whether pushed from the DAGs or from inside the pod.
+                "REPORT_TRIGGERED_TIME_MS" : report_triggered_time_ms,
+                "REPORT_TRIGGERED_TIME" : report_triggered_time_iso,
+
                 #Kafka configurations
                 "CUSTOM_REPORTS_AUTOMATION_TOPIC" : os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC"),
                 "KAFKA_BROKER" : os.getenv("KAFKA_BROKER"),
@@ -757,7 +791,10 @@ with DAG(
             env_dict = {k: ("" if v is None else str(v)) for k, v in env_dict.items()}
 
             env_list.append(env_dict)
-            push_status_event("TRIGGERED", c, dag_id=dag_id, dag_run_id=dag_run_id)
+            push_status_event(
+                "TRIGGERED", c, dag_id=dag_id, dag_run_id=dag_run_id,
+                report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso
+            )
 
         logger.info("=" * 80)
         logger.info("PAYLOAD BUILT: %d environment configurations", len(env_list))

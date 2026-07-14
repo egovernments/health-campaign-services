@@ -6,15 +6,16 @@ from the Airflow DAGs (hcm_campaign_scheduler, hcm_dynamic_campaigns).
 
 Uses the same event schema and tenant-topic-prefixing convention as
 hcm-custom-reports/main.py's push_report_status, so all lifecycle events for
-a given campaign/report/frequency land on one topic regardless of which
-component (scheduler DAG, processor DAG, or the report pod) produced them.
+a given campaign/report/frequency land on one topic (CUSTOM_REPORTS_AUTOMATION_TOPIC,
+i.e. save-hcm-report-metadata -> REPORTS_METADATA) regardless of which component
+(scheduler DAG, processor DAG, or the report pod) produced them.
 
 Required env vars:
     KAFKA_BROKER          - Kafka bootstrap servers
 Optional:
-    REPORT_STATUS_TOPIC          (default: "hcm-report-status")
-    TENANT_ID                    (default: "dev")
-    IS_CENTRAL_INSTANCE_ENABLED  (default: "false")
+    CUSTOM_REPORTS_AUTOMATION_TOPIC (default: "save-hcm-report-metadata")
+    TENANT_ID                       (default: "dev")
+    IS_CENTRAL_INSTANCE_ENABLED     (default: "false")
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ import uuid
 
 logger = logging.getLogger("airflow.task")
 
-REPORT_STATUS_TOPIC = os.getenv("REPORT_STATUS_TOPIC", "hcm-report-status")
+CUSTOM_REPORTS_AUTOMATION_TOPIC = os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC", "save-hcm-report-metadata")
 KAFKA_BROKER = os.getenv("KAFKA_BROKER")
 TENANT_ID_DEFAULT = os.getenv("TENANT_ID", "dev")
 IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
@@ -76,7 +77,8 @@ def _topic_for(base_topic, tenant_id):
     return f"{tenant_id}-{base_topic}" if IS_CENTRAL_INSTANCE_ENABLED and tenant_id else base_topic
 
 
-def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None):
+def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
+                       report_triggered_time_ms=None, report_triggered_time=None):
     """
     Push one lifecycle status event for a campaign+report+frequency combination.
 
@@ -88,6 +90,11 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None):
         dag_id (str): DAG producing this event (e.g. "hcm_campaign_scheduler").
         dag_run_id (str): the DAG run id this event belongs to.
         error_message (str, optional): human-readable reason, used for SKIPPED/FAILED statuses.
+        report_triggered_time_ms / report_triggered_time (optional): the actual wall-clock
+            moment this specific run was triggered (distinct from campaign["triggerTime"],
+            which is just the MDMS-configured time-of-day, or whatever the requester sent
+            for a CUSTOM report). Callers should pass the same value for every event
+            belonging to one run so it reads consistently across all its status rows.
 
     Never raises - a Kafka hiccup must not fail a DAG task.
     """
@@ -106,6 +113,8 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None):
         "report_name": campaign.get("reportName"),
         "trigger_frequency": campaign.get("triggerFrequency"),
         "trigger_time": campaign.get("triggerTime"),
+        "report_triggered_time_ms": report_triggered_time_ms,
+        "report_triggered_time": report_triggered_time,
         "dag_run_id": dag_run_id,
         "dag_name": dag_id,
         "status": status,
@@ -123,7 +132,7 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None):
         "timestamp": now_dt.isoformat(),
     }
 
-    topic = _topic_for(REPORT_STATUS_TOPIC, tenant_id)
+    topic = _topic_for(CUSTOM_REPORTS_AUTOMATION_TOPIC, tenant_id)
     try:
         producer.send(topic, value=event)
         producer.flush(timeout=10)

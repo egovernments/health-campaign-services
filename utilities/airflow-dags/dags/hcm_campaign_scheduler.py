@@ -513,7 +513,19 @@ with DAG(
             return "no_triggers"
 
 
-        run_id = f"auto_trigger__{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+        now = datetime.now(UTC)
+        run_id = f"auto_trigger__{now.strftime('%Y%m%d_%H%M%S')}"
+
+        # The actual moment this batch got triggered - distinct from each campaign's
+        # configured triggerTime (MDMS time-of-day). Stamped once here and carried through
+        # conf so every later status event for these runs (TRIGGERED, POD_STARTED, ...,
+        # terminal) reports the identical value instead of each DAG/pod computing its own.
+        report_triggered_time_ms = int(now.timestamp() * 1000)
+        report_triggered_time_iso = now.isoformat()
+        for c in final:
+            c["reportTriggeredTimeMs"] = report_triggered_time_ms
+            c["reportTriggeredTime"] = report_triggered_time_iso
+
         conf = {"matched_campaigns": final}
 
 
@@ -525,7 +537,10 @@ with DAG(
 
         for c in final:
             try:
-                push_status_event("SCHEDULED", c, dag_id="hcm_campaign_scheduler", dag_run_id=run_id)
+                push_status_event(
+                    "SCHEDULED", c, dag_id="hcm_campaign_scheduler", dag_run_id=run_id,
+                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso
+                )
             except Exception:
                 logger.exception("Failed to push SCHEDULED status event for %s", c.get("campaignIdentifier"))
 
