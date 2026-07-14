@@ -575,11 +575,15 @@ function modifyChildParentMap(
 ): Map<string, string | null> {
   const modifiedMap: Map<string, string | null> = new Map();
 
+  // String-keyed index of boundaryMap for O(1) lookups (was findMapValue -> O(n) per entry => O(n^2))
+  const codeIndex = new Map<string, any>();
+  boundaryMap.forEach((value, key) => codeIndex.set(boundaryKeyOf(key), value));
+
   // Iterate over each entry in childParentMap
   childParentMap.forEach((value, key) => {
     // Get the modified key and value from boundaryMap
-    const modifiedKey = findMapValue(boundaryMap, key) || null;
-    const modifiedValue = value ? findMapValue(boundaryMap, value) : null;
+    const modifiedKey = codeIndex.get(boundaryKeyOf(key)) || null;
+    const modifiedValue = value ? (codeIndex.get(boundaryKeyOf(value)) ?? null) : null;
 
     // Set the modified key-value pair in modifiedMap
     modifiedMap.set(modifiedKey, modifiedValue);
@@ -772,9 +776,13 @@ function addBoundaryCodeToData(
   //   });
   // });
 
+  // String-keyed index of boundaryMap for O(1) lookups (was findMapValue -> O(n) per row => O(n^2))
+  const boundaryCodeIndex = new Map<string, any>();
+  boundaryMap.forEach((value, key) => boundaryCodeIndex.set(boundaryKeyOf(key), value));
+
   // Part 2: for rows without boundary code
   const boundaryDataForWithoutBoundaryCode = withoutBoundaryCode.map((row: any[]) => {
-    let boundaryName: string | undefined;
+    let boundaryName: any;
 
     for (let level of hierarchy) {
       const match = row.find(obj => obj.key === level && obj.value);
@@ -783,7 +791,7 @@ function addBoundaryCodeToData(
       }
     }
 
-    const boundaryCode = findMapValue(boundaryMap, boundaryName);
+    const boundaryCode = boundaryName ? (boundaryCodeIndex.get(boundaryKeyOf(boundaryName)) ?? null) : null;
     const boundaryCodeObj = { key: boundaryKey, value: boundaryCode };
     return [...row, boundaryCodeObj]; // just append the boundary code at the end
   });
