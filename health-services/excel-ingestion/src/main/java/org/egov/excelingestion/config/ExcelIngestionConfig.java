@@ -65,7 +65,7 @@ public class ExcelIngestionConfig {
     // When true, join-mode templates (unified-console / attendanceRegister) are ALSO sheet-protected at
     // generation so only unlocked (target/entry) cells are editable in Excel; the server-side immutable-join
     // remains the backstop. Default true. Set false to restore the fully-unprotected join-mode template.
-    @Value("${egov.excel.join-mode-sheet-protection-enabled:true}")
+    @Value("${egov.excel.join-mode-sheet-protection-enabled:false}")
     private boolean joinModeSheetProtectionEnabled;
 
     @Value("${egov.excel.validation.error.color:#ff0000}")
