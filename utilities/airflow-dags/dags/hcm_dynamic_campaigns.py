@@ -537,12 +537,21 @@ def pod_failure_callback(context):
             "tenantId": env_dict.get("TENANT_ID"),
         }
 
-        # env_dict values are all strings (coerced for the K8s API) - parse the ms back to int.
-        triggered_ms_raw = env_dict.get("REPORT_TRIGGERED_TIME_MS")
-        try:
-            triggered_ms = int(triggered_ms_raw) if triggered_ms_raw else None
-        except (TypeError, ValueError):
-            triggered_ms = None
+        # env_dict values are all strings (coerced for the K8s API) - parse back to
+        # their real types, defaulting to None on anything empty/unparseable.
+        def _parse_int(raw):
+            try:
+                return int(raw) if raw else None
+            except (TypeError, ValueError):
+                return None
+
+        def _parse_float(raw):
+            try:
+                return float(raw) if raw else None
+            except (TypeError, ValueError):
+                return None
+
+        triggered_ms = _parse_int(env_dict.get("REPORT_TRIGGERED_TIME_MS"))
 
         push_status_event(
             "POD_INFRA_FAILED",
@@ -552,6 +561,8 @@ def pod_failure_callback(context):
             error_message=str(context.get("exception")) if context.get("exception") else "Pod execution failed",
             report_triggered_time_ms=triggered_ms,
             report_triggered_time=env_dict.get("REPORT_TRIGGERED_TIME") or None,
+            expected_rows=_parse_int(env_dict.get("EXPECTED_ROWS")),
+            expected_generation_time_seconds=_parse_float(env_dict.get("EXPECTED_GENERATION_TIME_SECONDS")),
         )
     except Exception:
         logger.exception("pod_failure_callback itself failed")
@@ -664,6 +675,12 @@ with DAG(
             # scheduler-initiated run) - fall back to this run's own start_date otherwise.
             report_triggered_time_ms = c.get("reportTriggeredTimeMs", fallback_triggered_time_ms)
             report_triggered_time_iso = c.get("reportTriggeredTime", fallback_triggered_time_iso)
+            # Estimates computed once by airflow-trigger-service's trigger_dag (only ever
+            # set for UI-originated CUSTOM runs) - threaded through unchanged, same
+            # "stamp once, carry through" pattern as report_triggered_time_ms, so every
+            # event for this run (including this SKIPPED/TRIGGERED one) carries them.
+            expected_rows = c.get("expectedRows")
+            expected_generation_time_seconds = c.get("expectedGenerationTimeSeconds")
             report_name = c.get("reportName")
             frequency = c.get("triggerFrequency", "Daily")
             report_start_time = c.get("reportStartTime", "00:00:00")
@@ -689,7 +706,8 @@ with DAG(
                 logger.info("  ⏭️ SKIP: %s", reason)
                 push_status_event(
                     "SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason,
-                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso
+                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
+                    expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
                 )
                 continue
 
@@ -701,7 +719,8 @@ with DAG(
                 logger.info("  ⏭️ SKIP: %s", reason)
                 push_status_event(
                     "SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason,
-                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso
+                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
+                    expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
                 )
                 continue
 
@@ -775,6 +794,11 @@ with DAG(
                 "REPORT_TRIGGERED_TIME_MS" : report_triggered_time_ms,
                 "REPORT_TRIGGERED_TIME" : report_triggered_time_iso,
 
+                # Estimates from airflow-trigger-service's trigger_dag (UI-originated CUSTOM
+                # runs only) - threaded through so the pod's own status pushes carry them too.
+                "EXPECTED_ROWS" : expected_rows,
+                "EXPECTED_GENERATION_TIME_SECONDS" : expected_generation_time_seconds,
+
                 #Kafka configurations
                 "CUSTOM_REPORTS_AUTOMATION_TOPIC" : os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC"),
                 "KAFKA_BROKER" : os.getenv("KAFKA_BROKER"),
@@ -793,7 +817,8 @@ with DAG(
             env_list.append(env_dict)
             push_status_event(
                 "TRIGGERED", c, dag_id=dag_id, dag_run_id=dag_run_id,
-                report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso
+                report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
+                expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
             )
 
         logger.info("=" * 80)

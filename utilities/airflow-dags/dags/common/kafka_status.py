@@ -78,7 +78,8 @@ def _topic_for(base_topic, tenant_id):
 
 
 def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
-                       report_triggered_time_ms=None, report_triggered_time=None):
+                       report_triggered_time_ms=None, report_triggered_time=None,
+                       expected_rows=None, expected_generation_time_seconds=None):
     """
     Push one lifecycle status event for a campaign+report+frequency combination.
 
@@ -95,6 +96,11 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
             which is just the MDMS-configured time-of-day, or whatever the requester sent
             for a CUSTOM report). Callers should pass the same value for every event
             belonging to one run so it reads consistently across all its status rows.
+        expected_rows / expected_generation_time_seconds (optional): estimates computed
+            once at trigger time (airflow-trigger-service's trigger_dag) and threaded
+            through conf/env vars unchanged, same "stamp once, carry through" pattern as
+            report_triggered_time_ms - lets the UI show an estimate for the whole lifecycle
+            of a run, not just its first event.
 
     Never raises - a Kafka hiccup must not fail a DAG task.
     """
@@ -105,6 +111,13 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
 
     tenant_id = campaign.get("tenantId", TENANT_ID_DEFAULT)
     now_dt = datetime.datetime.now(datetime.timezone.utc)
+    timestamp_ms = int(now_dt.timestamp() * 1000)
+    # How long after trigger this specific event happened - gives a per-stage timeline
+    # (e.g. TRIGGERED at +5s, POD_STARTED at +52s) for every row, not just completed runs.
+    seconds_since_triggered = (
+        round((timestamp_ms - report_triggered_time_ms) / 1000, 2)
+        if report_triggered_time_ms is not None else None
+    )
     event = {
         "event_id": str(uuid.uuid4()),
         "tenant_id": tenant_id,
@@ -115,6 +128,9 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
         "trigger_time": campaign.get("triggerTime"),
         "report_triggered_time_ms": report_triggered_time_ms,
         "report_triggered_time": report_triggered_time,
+        "expected_rows": expected_rows,
+        "expected_generation_time_seconds": expected_generation_time_seconds,
+        "seconds_since_triggered": seconds_since_triggered,
         "dag_run_id": dag_run_id,
         "dag_name": dag_id,
         "status": status,
@@ -128,7 +144,7 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
         "report_generation_time_seconds": None,
         # Epoch millis is what's actually bound into the DB (plain number -> BIGINT,
         # no JDBC string-to-timestamp cast risk); ISO string kept for readability only.
-        "timestamp_ms": int(now_dt.timestamp() * 1000),
+        "timestamp_ms": timestamp_ms,
         "timestamp": now_dt.isoformat(),
     }
 
