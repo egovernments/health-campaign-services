@@ -75,7 +75,10 @@ def _collected_subquery(db: str, affected: str) -> str:
            sumIf(b.amount_paid, upper(p.payment_status) IN {COLLECTING}) AS collected
     FROM
     (
-        SELECT tenant_id, demand_id, bill_id, any(amount_paid) AS amount_paid
+        -- One row per (tenant, demand, bill); take the LATEST version's amount_paid
+        -- (argMax on last_modified_time) — deterministic, unlike any().
+        SELECT tenant_id, demand_id, bill_id,
+               argMax(amount_paid, last_modified_time) AS amount_paid
         FROM {db}.bill_detail_entity FINAL
         WHERE {affected}
         GROUP BY tenant_id, demand_id, bill_id
