@@ -696,6 +696,11 @@ with DAG(
             logger.info("  Frequency: %s", frequency)
             logger.info("  Report time window: %s to %s", report_start_time, report_end_time)
             logger.info("  Trigger time: %s", trigger_time)
+            logger.info(
+                "  expectedRows=%s expectedGenerationTimeSeconds=%s (from conf.matched_campaigns - "
+                "null here means trigger_dag either didn't set it or this run predates that stamping)",
+                expected_rows, expected_generation_time_seconds,
+            )
             if is_final_report:
                 logger.info("  ⚡ FINAL REPORT: Covering %d remaining days", remaining_days)
 
