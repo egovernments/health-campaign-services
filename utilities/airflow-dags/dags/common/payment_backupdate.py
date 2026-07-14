@@ -1,37 +1,37 @@
-"""Payment → Demand collection back-update — ClickHouse-native (set-based).
+"""Payment → Demand collection back-update — ClickHouse-native, window-scoped.
 
-Rewritten to run as a single INSERT ... SELECT inside ClickHouse so nothing large
-is held in the Airflow worker. (The earlier Python version materialised ~1.3M
-demands + ~1M payment apportionments in RAM and was OOM-killed at 1M scale.)
+Runs as a single INSERT ... SELECT inside ClickHouse (nothing large held in the
+Airflow worker; the Python version OOM-killed at 1M). Each run recomputes ONLY the
+demands whose payments landed in the current execution window — not the whole table.
 
-Logic (idempotent, recompute-by-final-status; uses ONLY silver tables):
-  * For every demand that has a payment, collected = Σ of the demand's paid share
-    (bill_detail_entity.amount_paid) over payments whose FINAL status is collecting
-    (NEW / DEPOSITED / RECONCILED). Cancelled/dishonoured contribute 0 — so a demand
-    whose payment is later cancelled is reversed to 0.
+Flow (idempotent, recompute-by-final-status; silver tables only):
+  1. affected demands = demands referenced by payments whose raw event_time is in
+     [window_start, window_end). Resolved cheaply: shallow-parse Payment.id from
+     payment_events_raw in the window → payment silver (billid) → bill_detail (demand).
+  2. For each affected demand, collected = Σ of its paid share
+     (bill_detail_entity.amount_paid) over payments whose FINAL status is collecting
+     (NEW/DEPOSITED/RECONCILED). Cancelled/dishonoured contribute 0 → reversal.
+  3. Write a new ReplacingMergeTree version (last_modified_time = now64(3)) for the
+     affected demands only.
+
+Notes:
   * total_collection_amount / outstanding_amount / is_paid are EXACT (from amount_paid).
-  * Per-tax-head *_collection columns are the demand's tax split scaled by
-    collected / total_tax (proportional). Exact for proportional apportionment
-    (matches the generators and full payments); an approximation only if the source
-    ever apportions non-proportionally.
-  * A new ReplacingMergeTree version is written with last_modified_time = now64(3),
-    so it wins over the demand event; FINAL/merge keeps it.
-
-No raw-JSON parsing, no Python memory — scales to millions. The payment's final
-status is resolved by reading payment_with_details_entity FINAL (RMT dedup), so a
-create(NEW)+cancel(CANCELLED) pair for one payment collapses to CANCELLED.
+  * Per-tax-head *_collection is the demand's tax split scaled by collected/total_tax
+    (proportional — exact for proportional/full payments; matches the generators).
+  * Ratio math is done in Float64 to avoid Decimal overflow; the INSERT casts back.
+  * On a fresh full load (all payments in one window) "affected" = all demands, so it
+    is a full recompute; the window scoping pays off on incremental/scheduled runs.
 """
 
 import logging
+from datetime import timezone
 
-from common.ch_utils import get_client, CLICKHOUSE_DB
+from common.ch_utils import get_client, get_window, CLICKHOUSE_DB
 
 logger = logging.getLogger(__name__)
 
 DEMAND_TABLE = 'demand_with_details_entity'
 
-# Demand attribute columns copied through unchanged (in table order), split around
-# the amount/collection columns we recompute.
 _ATTR_HEAD = [
     '_ingested_at', 'tenant_id', 'demand_id', 'consumer_code', 'consumer_type',
     'business_service', 'payer', 'tax_period_from', 'tax_period_to', 'demand_status',
@@ -45,16 +45,29 @@ _TAX_COLS = [
 ]
 _ATTR_TAIL = ['created_by', 'created_time', 'last_modified_by']
 
-# Statuses that count as money collected (final status).
 COLLECTING = "('NEW','DEPOSITED','RECONCILED')"
 
 
-def _collected_subquery(db: str) -> str:
-    """Per (tenant_id, demand_id): collected = Σ paid share over collecting payments.
+def _affected_in_clause(db: str, ws: str, we: str) -> str:
+    """`(tenant_id, demand_id) IN (...)` — demands referenced by payments whose raw
+    event landed in [ws, we). Uses a shallow Payment.id parse + silver joins (no deep
+    JSON parsing).
+    """
+    return (
+        "(tenant_id, demand_id) IN ("
+        f"SELECT tenant_id, demand_id FROM {db}.bill_detail_entity FINAL "
+        "WHERE bill_id IN ("
+        f"SELECT billid FROM {db}.payment_with_details_entity FINAL "
+        "WHERE payment_id IN ("
+        f"SELECT JSONExtractString(raw, 'Payment', 'id') FROM {db}.payment_events_raw "
+        f"WHERE event_time >= toDateTime64('{ws}', 3) AND event_time < toDateTime64('{we}', 3)"
+        ")))"
+    )
 
-    bill_detail rows are deduped per (tenant, demand, bill) first (a create+cancel
-    pair for one payment yields two identical detail rows with the same amount_paid),
-    then joined to the payment's FINAL status.
+
+def _collected_subquery(db: str, affected: str) -> str:
+    """Per affected (tenant_id, demand_id): collected = Σ paid share over collecting
+    payments. bill_detail rows are deduped per (tenant, demand, bill) first.
     """
     return f"""
 (
@@ -64,6 +77,7 @@ def _collected_subquery(db: str) -> str:
     (
         SELECT tenant_id, demand_id, bill_id, any(amount_paid) AS amount_paid
         FROM {db}.bill_detail_entity FINAL
+        WHERE {affected}
         GROUP BY tenant_id, demand_id, bill_id
     ) AS b
     INNER JOIN {db}.payment_with_details_entity AS p FINAL ON p.billid = b.bill_id
@@ -72,10 +86,9 @@ def _collected_subquery(db: str) -> str:
 """
 
 
-def _build_insert_sql(db: str) -> str:
+def _build_insert_sql(db: str, affected: str) -> str:
     t = f"{db}.{DEMAND_TABLE}"
-    # Ratio math in Float64 to avoid Decimal overflow; the INSERT casts the Float64
-    # results back to the Decimal(18,4) collection columns.
+    # Ratio math in Float64 to avoid Decimal overflow; the INSERT casts back to Decimal.
     ratio = "if(d.total_tax_amount != 0, toFloat64(pd.collected) / toFloat64(d.total_tax_amount), 0)"
 
     select_cols = []
@@ -99,24 +112,34 @@ def _build_insert_sql(db: str) -> str:
         f"INSERT INTO {t} ({', '.join(insert_cols)})\n"
         f"SELECT {', '.join(select_cols)}\n"
         f"FROM {t} AS d FINAL\n"
-        f"INNER JOIN {_collected_subquery(db)} AS pd\n"
+        f"INNER JOIN {_collected_subquery(db, affected)} AS pd\n"
         f"ON d.tenant_id = pd.tenant_id AND d.demand_id = pd.demand_id"
     )
 
 
+def _fmt(dt) -> str:
+    """Format a (tz-aware) datetime as a UTC 'YYYY-MM-DD HH:MM:SS.mmm' literal."""
+    return dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+
+
 def back_update_demand_collection(**context):
-    """Airflow entrypoint: recompute demand collection from payments entirely in
-    ClickHouse (set-based INSERT ... SELECT). Idempotent; safe to re-run.
+    """Airflow entrypoint: recompute collection for demands affected in the current
+    window, entirely in ClickHouse (set-based). Idempotent; safe to re-run.
     """
+    ws, we = get_window(context)
+    ws_s, we_s = _fmt(ws), _fmt(we)
+
     client = get_client()
     try:
         db = CLICKHOUSE_DB
-        logger.info("Running ClickHouse-native demand back-update (set-based INSERT..SELECT)")
-        client.command(_build_insert_sql(db))
+        affected = _affected_in_clause(db, ws_s, we_s)
+        logger.info(f"Back-update window [{ws_s}, {we_s}) — recomputing affected demands only")
 
-        res = client.query(f"SELECT count() FROM {_collected_subquery(db)} AS pd")
+        client.command(_build_insert_sql(db, affected))
+
+        res = client.query(f"SELECT count() FROM {_collected_subquery(db, affected)} AS pd")
         n = res.result_rows[0][0] if res.result_rows else 0
-        logger.info(f"Back-update complete: {n} demand(s) recomputed")
+        logger.info(f"Back-update complete: {n} affected demand(s) recomputed")
         return {'demands_recomputed': n}
     finally:
         client.close()
