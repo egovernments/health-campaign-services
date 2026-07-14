@@ -123,11 +123,16 @@ function validateForDuplicateRows(boundaryData: any[]) {
 //   space, apostrophe family ' ’ ‘ ʼ ʻ ʿ ʾ `  (N'Djamena, Murang'a, King's Town),
 //   ampersand &, hyphen/dash family - ‐ – —  (Tharaka-Nithi, Haut-Ogooué), slash /  (Chuka/Igambang'ombe),
 //   period . parentheses ( ) underscore _  (present in this deployment's real boundary names)
+//   comma , colon : semicolon ; at @ plus + exclamation ! question ?  (allowed 2026-07-14: real
+//          admin names / free-text descriptors use these, e.g. "X, Y", "Oseni: Ibrahim"; harmless to
+//          codes since code-gen already sanitizes /[^\w]/g -> _)
 //
-// REJECTED: { } [ ] < > | \ @ # $ % * = + ~ ^ ! ? : ; " ,  and all control / zero-width / bidi characters.
+// REJECTED: { } [ ] < > | \ # $ % * = ~ ^ "  and all control / zero-width / bidi characters.
 //   '#' is rejected deliberately: it corrupts excel-ingestion's parent#child cascading-dropdown lookup keys.
+//   '< >' stay rejected (XSS-risk in the console UI + almost always data-entry errors); '"' \ | { } [ ]
+//   stay rejected as quote/escape/delimiter hazards for CSV/JSON/lookup-key round-trips.
 const ALLOWED_BOUNDARY_NAME_CHARS = new RegExp(
-    "^[\\p{L}\\p{M}\\p{N} '’‘ʼʻʿʾ`&/._()‐–—\\-]+$",
+    "^[\\p{L}\\p{M}\\p{N} '’‘ʼʻʿʾ`&,:;@+!?/._()‐–—\\-]+$",
     "u"
 );
 
@@ -161,7 +166,7 @@ function validateBoundaryNameCharacters(boundaryData: any[], localizedHierarchy:
         throwError(
             "COMMON", 400, "VALIDATION_ERROR",
             `Boundary names contain characters that are not allowed. ` +
-            `Allowed: letters (any language), numbers, spaces and ' & - / . ( ) _ . ` +
+            `Allowed: letters (any language), numbers, spaces and ' & - / . ( ) _ , : ; @ + ! ? . ` +
             `Problems: ${shown.join("; ")}${extra}`
         );
     }
