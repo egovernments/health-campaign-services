@@ -168,10 +168,13 @@ public class ConfigBasedGenerationService {
             // Generate sheet data
             SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
 
-            // Use ExcelDataPopulator to create the sheet
+            // Use ExcelDataPopulator to create the sheet. Schema-based sheets are never free-entry
+            // console sheets (User/Facility), so userEntrySheet stays false and they keep today's
+            // protection behavior.
             excelDataPopulator.populateSheetWithData(workbook, sheetName,
                                                     result.getColumnDefs(), result.getData(), localizationMap,
-                                                    generateResource.isUnprotectedJoinMode());
+                                                    generateResource.isUnprotectedJoinMode(),
+                                                    ProcessingConstants.isUserEntrySheet(config.getGenerationClass()));
 
         } catch (Exception e) {
             log.error("Error in automatic schema-based sheet generation for {}: {}", sheetName, e.getMessage(), e);
@@ -191,10 +194,14 @@ public class ConfigBasedGenerationService {
             // Generate sheet data
             SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
 
-            // Use ExcelDataPopulator to create the sheet
+            // Use ExcelDataPopulator to create the sheet. A free-entry console sheet (User/Facility List)
+            // is left UNPROTECTED in join mode; every other ExcelPopulator sheet (e.g. Boundary List)
+            // stays protected. Decided from the configured generationClass so the config remains the
+            // single source of truth.
             excelDataPopulator.populateSheetWithData(workbook, sheetName,
                                                     result.getColumnDefs(), result.getData(), localizationMap,
-                                                    generateResource.isUnprotectedJoinMode());
+                                                    generateResource.isUnprotectedJoinMode(),
+                                                    ProcessingConstants.isUserEntrySheet(config.getGenerationClass()));
 
         } catch (Exception e) {
             log.error("Error in ExcelPopulator sheet generation for {}: {}", sheetName, e.getMessage(), e);

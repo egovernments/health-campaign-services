@@ -95,8 +95,28 @@ public class ExcelDataPopulator {
     public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties,
                                         List<Map<String, Object>> dataRows, Map<String, String> localizationMap,
                                         boolean unprotectedJoinMode) {
-        log.info("Adding sheet: {} with {} data rows to workbook (unprotectedJoinMode={})", sheetName,
-                dataRows != null ? dataRows.size() : 0, unprotectedJoinMode);
+        // Default userEntrySheet=false: only the explicitly free-entry console sheets (User/Facility)
+        // opt out of protection via the 7-arg overload; every other sheet keeps today's behavior.
+        return populateSheetWithData(workbook, sheetName, columnProperties, dataRows, localizationMap,
+                unprotectedJoinMode, false);
+    }
+
+    /**
+     * Adds a sheet populated with data to an existing workbook.
+     *
+     * @param unprotectedJoinMode see the 6-arg overload; still gates hidden row-id stamping and other
+     *                            join-mode behavior on EVERY join-mode sheet (do not vary it per sheet).
+     * @param userEntrySheet      when true, this is a free-entry (user-typed) console sheet — the User
+     *                            List or Facilities List — that must stay fully UNPROTECTED in join mode
+     *                            so operators can edit/paste freely. The server-side immutable-join is the
+     *                            safety backstop. Pre-filled/non-user-entry sheets (e.g. Boundary List)
+     *                            pass false and stay protected. Ignored outside join mode.
+     */
+    public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties,
+                                        List<Map<String, Object>> dataRows, Map<String, String> localizationMap,
+                                        boolean unprotectedJoinMode, boolean userEntrySheet) {
+        log.info("Adding sheet: {} with {} data rows to workbook (unprotectedJoinMode={}, userEntrySheet={})", sheetName,
+                dataRows != null ? dataRows.size() : 0, unprotectedJoinMode, userEntrySheet);
 
         // 2. Get or Create Sheet - Use existing sheet if present, otherwise create new
         Sheet sheet = workbook.getSheet(sheetName);
@@ -119,7 +139,7 @@ public class ExcelDataPopulator {
         applyFormatting(workbook, sheet, expandedColumns);
 
         // 7. Apply Protection - reuse existing protection logic (skipped in unprotected join mode)
-        applyProtection(workbook, sheet, expandedColumns, unprotectedJoinMode);
+        applyProtection(workbook, sheet, expandedColumns, unprotectedJoinMode, userEntrySheet);
 
         // 8. Apply Validation - reuse existing dropdown creation logic
         applyValidations(workbook, sheet, expandedColumns, localizationMap);
@@ -382,25 +402,33 @@ public class ExcelDataPopulator {
     /**
      * Apply protection using existing CellProtectionManager
      */
-    private void applyProtection(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties, boolean unprotectedJoinMode) {
+    private void applyProtection(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties,
+                                 boolean unprotectedJoinMode, boolean userEntrySheet) {
         // Use existing cell protection manager (sets locked/unlocked cell STYLES).
         cellProtectionManager.applyCellProtection(workbook, sheet, columnProperties);
 
         // Protect the sheet with a password when configured. Historically join-mode templates were left
         // fully unprotected so copy/paste works, relying only on the server-side immutable-join to revert
-        // edits to locked cells. We now ALSO protect join-mode sheets (config-gated, default on) so Excel
-        // itself keeps the locked columns (boundary hierarchy / code / row-id) read-only while unlocked
-        // target/entry cells stay editable and paste-able. POI's protectSheet leaves the permissive defaults
-        // (select + edit unlocked cells allowed), so paste into the target area is unaffected.
-        boolean protect = !unprotectedJoinMode || config.isJoinModeSheetProtectionEnabled();
+        // edits to locked cells. We now protect the pre-filled join-mode sheets (e.g. Boundary List) so
+        // Excel itself keeps the locked columns (boundary hierarchy / code / row-id) read-only while
+        // unlocked target/entry cells stay editable and paste-able. POI's protectSheet leaves the
+        // permissive defaults (select + edit unlocked cells allowed), so paste into the target area is
+        // unaffected.
+        //
+        // Decision:
+        //   non-join-mode                       -> protected (unchanged)
+        //   join-mode, user-entry sheet         -> UNPROTECTED (User/Facility List: fully editable)
+        //   join-mode, non-user-entry sheet     -> protected (Boundary List and any other pre-filled sheet)
+        //   joinModeSheetProtectionEnabled=true -> protect-all override (backward compatible; default false)
+        boolean protect = !unprotectedJoinMode || !userEntrySheet || config.isJoinModeSheetProtectionEnabled();
         String pwd = config.getExcelSheetPassword();
         if (protect && pwd != null && !pwd.isEmpty()) {
             sheet.protectSheet(pwd);
-            log.info("Sheet protection applied to '{}' (unprotectedJoinMode={}, joinModeSheetProtectionEnabled={})",
-                    sheet.getSheetName(), unprotectedJoinMode, config.isJoinModeSheetProtectionEnabled());
+            log.info("Sheet protection applied to '{}' (unprotectedJoinMode={}, userEntrySheet={}, joinModeSheetProtectionEnabled={})",
+                    sheet.getSheetName(), unprotectedJoinMode, userEntrySheet, config.isJoinModeSheetProtectionEnabled());
         } else {
-            log.info("Sheet protection SKIPPED for '{}' (unprotectedJoinMode={}, passwordConfigured={})",
-                    sheet.getSheetName(), unprotectedJoinMode, pwd != null && !pwd.isEmpty());
+            log.info("Sheet protection SKIPPED for '{}' (unprotectedJoinMode={}, userEntrySheet={}, passwordConfigured={})",
+                    sheet.getSheetName(), unprotectedJoinMode, userEntrySheet, pwd != null && !pwd.isEmpty());
         }
     }
 

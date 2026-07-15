@@ -117,8 +117,14 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     }
                 }
                 
-                // Then add schema columns and data using ExcelDataPopulator
-                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap, generateResource.isUnprotectedJoinMode());
+                // Then add schema columns and data using ExcelDataPopulator. The Facilities List is a
+                // free-entry console sheet: in join mode it is left fully UNPROTECTED (editable/paste-able);
+                // the server-side immutable-join is the safety backstop. Classified via the shared
+                // ProcessingConstants rule (single source of truth) using this generator's constant name;
+                // a literal avoids any Spring-proxy surprises from getClass().
+                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap,
+                        generateResource.isUnprotectedJoinMode(),
+                        ProcessingConstants.isUserEntrySheet(ProcessingConstants.FACILITY_SHEET_GENERATOR_CLASS));
                 
                 // Re-apply cell protection for freezeColumnIfFilled after all data is populated
                 // This ensures that facility columns with existing data are properly frozen

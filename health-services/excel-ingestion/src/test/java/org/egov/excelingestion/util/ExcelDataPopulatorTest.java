@@ -475,6 +475,97 @@ class ExcelDataPopulatorTest {
         workbook.close();
     }
 
+    // Console join-mode protection matrix (flag OFF, password configured):
+    //   User List / Facilities List (userEntrySheet=true)  -> UNPROTECTED (fully editable)
+    //   Boundary List (userEntrySheet=false)               -> PROTECTED
+    // Row-id stamping must still occur on ALL of them so the server-side immutable-join stays intact.
+    @Test
+    void testJoinMode_UserAndFacilitySheetsUnprotected_BoundaryProtected_RowIdsIntact() throws IOException {
+        // Password IS configured; join-mode-sheet-protection flag stays OFF (default).
+        when(config.getExcelSheetPassword()).thenReturn("test123");
+        // isJoinModeSheetProtectionEnabled defaults to false (unstubbed mock returns false).
+
+        List<ColumnDef> columns = createBasicColumnDefs();
+        List<Map<String, Object>> data = createBasicDataRows(); // 2 pre-filled rows
+        XSSFWorkbook workbook = new XSSFWorkbook();
+
+        // User List (userEntrySheet=true) - unprotectedJoinMode=true, userEntrySheet=true
+        excelDataPopulator.populateSheetWithData(workbook, "User List", columns, data, localizationMap, true, true);
+        // Facilities List (userEntrySheet=true)
+        excelDataPopulator.populateSheetWithData(workbook, "Facilities List", columns, data, localizationMap, true, true);
+        // Boundary List (userEntrySheet=false)
+        excelDataPopulator.populateSheetWithData(workbook, "Boundary List", columns, data, localizationMap, true, false);
+
+        assertFalse(workbook.getSheet("User List").getProtect(),
+                "User List must be UNPROTECTED (free-entry console sheet)");
+        assertFalse(workbook.getSheet("Facilities List").getProtect(),
+                "Facilities List must be UNPROTECTED (free-entry console sheet)");
+        assertTrue(workbook.getSheet("Boundary List").getProtect(),
+                "Boundary List must be PROTECTED (pre-filled, non-user-entry sheet)");
+
+        // Row-id stamping must be intact on every join-mode sheet (immutable-join backstop)
+        assertHasHiddenRowIds(workbook.getSheet("User List"));
+        assertHasHiddenRowIds(workbook.getSheet("Facilities List"));
+        assertHasHiddenRowIds(workbook.getSheet("Boundary List"));
+
+        workbook.close();
+    }
+
+    // The generationClass -> user-entry classification rule (single source of truth in ProcessingConstants).
+    @Test
+    void testIsUserEntrySheet_MatchesUserAndFacilityByFqnAndSimpleName() {
+        assertTrue(ProcessingConstants.isUserEntrySheet(
+                "org.egov.excelingestion.generator.UserSheetGenerator"), "FQN UserSheetGenerator is user-entry");
+        assertTrue(ProcessingConstants.isUserEntrySheet(
+                "org.egov.excelingestion.generator.FacilitySheetGenerator"), "FQN FacilitySheetGenerator is user-entry");
+        assertTrue(ProcessingConstants.isUserEntrySheet(
+                ProcessingConstants.USER_SHEET_GENERATOR_CLASS), "bare UserSheetGenerator is user-entry");
+        assertTrue(ProcessingConstants.isUserEntrySheet(
+                ProcessingConstants.FACILITY_SHEET_GENERATOR_CLASS), "bare FacilitySheetGenerator is user-entry");
+
+        assertFalse(ProcessingConstants.isUserEntrySheet(
+                "org.egov.excelingestion.generator.BoundaryHierarchySheetGenerator"), "Boundary is NOT user-entry");
+        assertFalse(ProcessingConstants.isUserEntrySheet(null), "null is NOT user-entry");
+        assertFalse(ProcessingConstants.isUserEntrySheet(""), "empty is NOT user-entry");
+    }
+
+    // With the protect-all override ON, even the free-entry sheets stay protected (backward compatible).
+    @Test
+    void testJoinMode_UserEntrySheetStillProtected_WhenFlagEnabled() throws IOException {
+        when(config.getExcelSheetPassword()).thenReturn("test123");
+        when(config.isJoinModeSheetProtectionEnabled()).thenReturn(true);
+
+        List<ColumnDef> columns = createBasicColumnDefs();
+        List<Map<String, Object>> data = createBasicDataRows();
+
+        Workbook workbook = excelDataPopulator.populateSheetWithData(
+                new XSSFWorkbook(), "User List", columns, data, localizationMap, true, true);
+
+        assertTrue(workbook.getSheet("User List").getProtect(),
+                "protect-all override must re-protect even a user-entry sheet");
+        workbook.close();
+    }
+
+    // Finds the hidden row-id column and asserts each pre-filled data row carries a distinct, non-empty id.
+    private void assertHasHiddenRowIds(Sheet sheet) {
+        Row header = sheet.getRow(0);
+        int idCol = -1;
+        for (int c = 0; c < header.getLastCellNum(); c++) {
+            Cell cell = header.getCell(c);
+            if (cell != null && ProcessingConstants.ROW_ID_COLUMN_NAME.equals(cell.getStringCellValue())) {
+                idCol = c;
+                break;
+            }
+        }
+        assertTrue(idCol >= 0, "Hidden row-id column should be present on join-mode sheet: " + sheet.getSheetName());
+        assertTrue(sheet.isColumnHidden(idCol), "Row-id column should be hidden: " + sheet.getSheetName());
+        String id0 = sheet.getRow(2).getCell(idCol).getStringCellValue();
+        String id1 = sheet.getRow(3).getCell(idCol).getStringCellValue();
+        assertNotNull(id0);
+        assertFalse(id0.isEmpty(), "Pre-filled row should carry a row-id: " + sheet.getSheetName());
+        assertNotEquals(id0, id1, "Each pre-filled row should get a distinct row-id: " + sheet.getSheetName());
+    }
+
     @Test
     void testPopulateSheetWithData_ProtectedMode_NoRowIdColumn() throws IOException {
         // Default (protected) generation must NOT add a row-id column - backward compatibility

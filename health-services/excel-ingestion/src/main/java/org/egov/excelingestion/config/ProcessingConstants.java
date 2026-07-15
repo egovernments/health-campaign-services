@@ -46,6 +46,28 @@ public class ProcessingConstants {
         return false;
     }
 
+    // Simple class names of the generators that produce free-entry (user-typed) console sheets:
+    // the User List and Facilities List. These sheets must stay fully UNPROTECTED in join mode so
+    // operators can freely edit/paste; the server-side immutable-join reverts any tampering with
+    // boundary/code/row-id on upload, so leaving them unprotected is safe. All other join-mode sheets
+    // (e.g. the pre-filled Boundary List) stay protected. Matched on class-name suffix so a fully
+    // qualified generationClass (e.g. "org.egov.excelingestion.generator.UserSheetGenerator") still hits.
+    public static final String USER_SHEET_GENERATOR_CLASS = "UserSheetGenerator";
+    public static final String FACILITY_SHEET_GENERATOR_CLASS = "FacilitySheetGenerator";
+
+    /**
+     * Whether the given generation class produces a free-entry (user-typed) console sheet — currently
+     * the User List and Facilities List. Matched by simple-name suffix so it works whether the config
+     * carries a fully qualified name or a bare class name. Null-safe (returns false).
+     */
+    public static boolean isUserEntrySheet(String generationClass) {
+        if (generationClass == null) {
+            return false;
+        }
+        return generationClass.endsWith(USER_SHEET_GENERATOR_CLASS)
+                || generationClass.endsWith(FACILITY_SHEET_GENERATOR_CLASS);
+    }
+
     // Hidden, server-stamped per-row identifier used to join an uploaded row to its generated
     // baseline row (unprotected join mode). Robust to row insertion/reordering/deletion.
     public static final String ROW_ID_COLUMN_NAME = "HCM_ADMIN_CONSOLE____ROW_ID";

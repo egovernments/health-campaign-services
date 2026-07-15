@@ -574,8 +574,10 @@ class ImmutableJoinServiceTest {
                 String phone = (i == 1) ? null : ("100" + i);       // row index 1 has empty phone
                 data.add(rowOf("Name" + i, "V" + i, phone, "c" + i, "Active"));
             }
-            // 6-arg with joinMode=true: generation join-mode is opt-in (the 5-arg defaults to protected).
-            Workbook wb = populator.populateSheetWithData(new XSSFWorkbook(), SHEET, columns, data, new HashMap<>(), true);
+            // 7-arg with joinMode=true, userEntrySheet=true: this baseline models the "Users" (User List)
+            // sheet, a free-entry console sheet that must stay UNPROTECTED so copy-paste works; immutability
+            // is enforced by the server-side join, verified below. (The 5-arg overload defaults to protected.)
+            Workbook wb = populator.populateSheetWithData(new XSSFWorkbook(), SHEET, columns, data, new HashMap<>(), true, true);
             // Mirror ConfigBasedGenerationService: embed the generationId in the hidden meta sheet.
             wb.createSheet(GenerationConstants.META_SHEET_NAME).createRow(0).createCell(0).setCellValue(GEN_ID);
             return toBytes(wb);
