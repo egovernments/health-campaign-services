@@ -79,7 +79,8 @@ def _topic_for(base_topic, tenant_id):
 
 def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
                        report_triggered_time_ms=None, report_triggered_time=None,
-                       expected_rows=None, expected_generation_time_seconds=None):
+                       expected_rows=None, expected_generation_time_seconds=None,
+                       report_dates=None):
     """
     Push one lifecycle status event for a campaign+report+frequency combination.
 
@@ -101,6 +102,10 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
             through conf/env vars unchanged, same "stamp once, carry through" pattern as
             report_triggered_time_ms - lets the UI show an estimate for the whole lifecycle
             of a run, not just its first event.
+        report_dates (optional): "<start> to <end>" range string, same format main.py uses
+            (f"{START_DATE}_{END_DATE}"). Only known once compute_range() has run - build_payload
+            has it by the time it pushes TRIGGERED; earlier statuses (SCHEDULED, SKIPPED) don't
+            and should leave this as None.
 
     Never raises - a Kafka hiccup must not fail a DAG task.
     """
@@ -140,7 +145,7 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
         "file_store_id": None,
         "file_size_bytes": None,
         "row_count": None,
-        "report_dates": None,
+        "report_dates": report_dates,
         "report_generation_time_seconds": None,
         # Epoch millis is what's actually bound into the DB (plain number -> BIGINT,
         # no JDBC string-to-timestamp cast risk); ISO string kept for readability only.

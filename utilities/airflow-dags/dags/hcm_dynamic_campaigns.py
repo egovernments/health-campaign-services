@@ -737,6 +737,13 @@ with DAG(
                     start_dt.strftime("%Y-%m-%d %H:%M:%S"),
                     end_dt.strftime("%Y-%m-%d %H:%M:%S"))
 
+            # Same string, byte-for-byte, that main.py builds later for this run's own
+            # events (main.py: f"{START_DATE}_{END_DATE}") - computed once here from the
+            # same start_dt/end_dt so the TRIGGERED row's reportRange already matches what
+            # POD_STARTED/REPORT_COMPLETED will show for this same run, instead of being
+            # empty until the pod's own events arrive.
+            report_dates_str = f"{start_dt.strftime('%Y-%m-%d %H:%M:%S%z')}_{end_dt.strftime('%Y-%m-%d %H:%M:%S%z')}"
+
             # Build folder structure for temporary storage
             # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign_identifier>/<report>/<frequency>/
             # Example: /app/REPORTS_GENERATION/FINAL_REPORTS/CMP-001/hhr_registered_report/Daily/
@@ -824,6 +831,7 @@ with DAG(
                 "TRIGGERED", c, dag_id=dag_id, dag_run_id=dag_run_id,
                 report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
                 expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
+                report_dates=report_dates_str,
             )
 
         logger.info("=" * 80)
