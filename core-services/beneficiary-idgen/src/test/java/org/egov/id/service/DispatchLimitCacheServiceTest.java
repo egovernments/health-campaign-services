@@ -16,8 +16,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -142,29 +140,52 @@ class DispatchLimitCacheServiceTest {
         dispatchLimitCacheService.getEffectiveLimitConfig(TENANT_ID, new RequestInfo());
         advanceBeyondTtl();
 
-        assertThrows(RuntimeException.class,
-                () -> dispatchLimitCacheService.getEffectiveLimitConfig(TENANT_ID, new RequestInfo()));
+        DispatchLimitConfig result = dispatchLimitCacheService.getEffectiveLimitConfig(TENANT_ID, new RequestInfo());
+
+        assertEquals(TENANT_CONFIG, result);
         verify(mdmsService, times(2)).getDispatchLimitConfig(any(), eq(TENANT_ID));
     }
 
     @Test
     void usesDefaultWhenMdmsFailsAndNoStaleConfigExists() {
+        when(propertiesManager.getDefaultDispatchLimitConfig()).thenReturn(DEFAULT_CONFIG);
         when(mdmsService.getDispatchLimitConfig(any(), eq(TENANT_ID)))
                 .thenThrow(new RuntimeException("MDMS unavailable"));
 
-        assertThrows(RuntimeException.class,
-                () -> dispatchLimitCacheService.getEffectiveLimitConfig(TENANT_ID, new RequestInfo()));
+        DispatchLimitConfig result = dispatchLimitCacheService.getEffectiveLimitConfig(TENANT_ID, new RequestInfo());
+
+        assertEquals(DEFAULT_CONFIG, result);
     }
 
     @Test
-    void normalizesTenantIdToLowercase() {
-        when(mdmsService.getDispatchLimitConfig(any(), any())).thenReturn(Optional.of(TENANT_CONFIG));
+    void retriesMdmsOnNextRequestWhenColdLoadFailsInsteadOfCachingFallback() {
+        when(propertiesManager.getDefaultDispatchLimitConfig()).thenReturn(DEFAULT_CONFIG);
+        when(mdmsService.getDispatchLimitConfig(any(), eq(TENANT_ID)))
+                .thenThrow(new RuntimeException("MDMS unavailable"))
+                .thenReturn(Optional.of(TENANT_CONFIG));
 
-        DispatchLimitConfig result = dispatchLimitCacheService.getEffectiveLimitConfig("PB.Amritsar", new RequestInfo());
+        // Cold failure with no prior config: the default is served but must NOT be pinned in the cache.
+        assertEquals(DEFAULT_CONFIG, dispatchLimitCacheService.getEffectiveLimitConfig(TENANT_ID, new RequestInfo()));
+
+        // Still within the TTL window: because the failure was not cached, the next request retries
+        // MDMS (now recovered) and serves the real tenant config.
+        assertEquals(TENANT_CONFIG, dispatchLimitCacheService.getEffectiveLimitConfig(TENANT_ID, new RequestInfo()));
+
+        // The recovered config is now cached, so a third request within the TTL does not hit MDMS again.
+        assertEquals(TENANT_CONFIG, dispatchLimitCacheService.getEffectiveLimitConfig(TENANT_ID, new RequestInfo()));
+        verify(mdmsService, times(2)).getDispatchLimitConfig(any(), eq(TENANT_ID));
+    }
+
+    @Test
+    void usesRawTenantIdAsKeyWithoutNormalization() {
+        String tenantId = "PB.Amritsar";
+        when(mdmsService.getDispatchLimitConfig(any(), eq(tenantId))).thenReturn(Optional.of(TENANT_CONFIG));
+
+        DispatchLimitConfig result = dispatchLimitCacheService.getEffectiveLimitConfig(tenantId, new RequestInfo());
 
         assertEquals(TENANT_CONFIG, result);
-        assertTrue(result.isPerDayEnabled());
-        assertEquals(50, result.getPerDayLimit());
+        // The tenantId is used verbatim as the MDMS lookup key and cache key; no case normalization is applied.
+        verify(mdmsService).getDispatchLimitConfig(any(), eq(tenantId));
     }
 
     private void advanceBeyondTtl() {

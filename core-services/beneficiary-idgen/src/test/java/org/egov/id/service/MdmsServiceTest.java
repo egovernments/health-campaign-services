@@ -275,5 +275,59 @@ class MdmsServiceTest {
 
         assertTrue(result.isEmpty());
     }
+
+    @Test
+    void testGetIdPoolConfigPropagatesExceptionWhenMdmsThrows() {
+        when(propertiesManager.getMdmsIdPoolModule()).thenReturn("beneficiary-idgen");
+        when(propertiesManager.getMdmsIdPoolMaster()).thenReturn("IdPoolConfig");
+        when(this.mdmsClientService.getMaster(any(), any(), any()))
+                .thenThrow(new RuntimeException("MDMS service unavailable"));
+
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> this.mdmsService.getIdPoolConfig(new RequestInfo(), "ch"));
+
+        assertEquals("MDMS service unavailable", thrown.getMessage());
+        verify(this.mdmsClientService).getMaster(any(), any(), any());
+    }
+
+    @Test
+    void testGetIdPoolConfigThrowsCustomExceptionWhenMdmsThrowsCustomException() {
+        when(propertiesManager.getMdmsIdPoolModule()).thenReturn("beneficiary-idgen");
+        when(propertiesManager.getMdmsIdPoolMaster()).thenReturn("IdPoolConfig");
+        when(this.mdmsClientService.getMaster(any(), any(), any()))
+                .thenThrow(new CustomException("MDMS_ERROR", "Connection refused"));
+
+        CustomException thrown = assertThrows(CustomException.class,
+                () -> this.mdmsService.getIdPoolConfig(new RequestInfo(), "ch"));
+
+        assertEquals("MDMS_ERROR", thrown.getCode());
+    }
+
+    @Test
+    void testGetIdPoolConfigThrowsWhenTenantIdIsNull() {
+        CustomException thrown = assertThrows(CustomException.class,
+                () -> this.mdmsService.getIdPoolConfig(new RequestInfo(), null));
+
+        assertEquals("INVALID_TENANT_ID", thrown.getCode());
+        verifyNoInteractions(this.mdmsClientService);
+    }
+
+    @Test
+    void testGetIdPoolConfigThrowsWhenTenantIdIsBlank() {
+        CustomException thrown = assertThrows(CustomException.class,
+                () -> this.mdmsService.getIdPoolConfig(new RequestInfo(), "   "));
+
+        assertEquals("INVALID_TENANT_ID", thrown.getCode());
+        verifyNoInteractions(this.mdmsClientService);
+    }
+
+    @Test
+    void testGetIdPoolConfigThrowsWhenTenantIdContainsUnsafeCharacters() {
+        CustomException thrown = assertThrows(CustomException.class,
+                () -> this.mdmsService.getIdPoolConfig(new RequestInfo(), "ch' || true || '"));
+
+        assertEquals("INVALID_TENANT_ID", thrown.getCode());
+        verifyNoInteractions(this.mdmsClientService);
+    }
 }
 
