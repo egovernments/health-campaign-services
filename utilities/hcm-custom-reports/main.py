@@ -33,9 +33,8 @@ MODULE_NAME = os.getenv("FILE_STORE_MODULE_NAME", "custom-reports")
 DAG_RUN_ID = os.getenv("DAG_RUN_ID")
 DAG_ID = os.getenv("DAG_ID")
 
-# Hardcoded for demo (central instance): persister listens on demo- prefixed topic; broker svc is release-name-kafka-controller-headless
-CUSTOM_REPORTS_AUTOMATION_TOPIC = "demo-save-hcm-report-metadata"
-KAFKA_BROKER = "release-name-kafka-controller-headless.kafka-kraft:9092"
+CUSTOM_REPORTS_AUTOMATION_TOPIC = os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC", "save-hcm-report-metadata")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER")
 
 PRODUCER_CONFIG = {
     "bootstrap.servers": KAFKA_BROKER,
