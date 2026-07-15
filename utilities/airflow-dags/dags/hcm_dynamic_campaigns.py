@@ -24,7 +24,6 @@ No PVC is required as files don't need to persist after upload.
 """
 
 import os
-import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -34,7 +33,6 @@ from airflow.models import Variable
 
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s_models
-
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
 
@@ -61,28 +59,23 @@ K8S_NAMESPACE = os.getenv("K8S_NAMESPACE", "airflow")
 #File store env variables
 FILE_STORE_URL = os.getenv("FILE_STORE_URL") 
 FILE_STORE_UPLOAD_FILE_ENDPOINT = os.getenv("FILE_STORE_UPLOAD_FILE_ENDPOINT", "filestore/v1/files")
-TENANT_ID = os.getenv("TENANT_ID", "dev")
+TENANT_ID = os.getenv("TENANT_ID", "bi")
 MODULE_NAME = os.getenv("FILE_STORE_MODULE_NAME", "custom-reports")
+IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "true")
 
 # Container resource constraints
 # Requests: Minimum guaranteed resources
 # Limits: Maximum allowed resources
 CONTAINER_RESOURCES = k8s_models.V1ResourceRequirements(
     requests={
-        "memory": "128Mi",   # Start with minimal memory
+        "memory": "512Mi",   # Enough headroom for large datasets
         "cpu": "100m"        # 0.1 CPU cores
     },
     limits={
-        "memory": "2Gi",     # Max 2GB memory
+        "memory": "6Gi",     # 6GB to handle 6.5 lakh record datasets
         "cpu": "1000m"       # Max 1 CPU core
     }
 )
-
-#Kafka config
-KAFKA_BROKER = os.getenv("KAFKA_BROKER")
-
-if not KAFKA_BROKER:
-    raise ValueError("Missing required field: KAFKA_BROKER")
 
 # -------------------------------------------------
 # HELPER FUNCTIONS
@@ -414,7 +407,7 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     trigger_h, trigger_m, trigger_s, trigger_tz_offset = parse_time_with_timezone(trigger_time_str)
 
     # ================================================================
-    # CUSTOM FREQUENCY — use customReportStartTime and customReportEndTime directly
+    # CUSTOM FREQUENCY — use reportStartDate and reportEndDate directly
     # ================================================================
     if freq == "custom":
         report_start_date_str = campaign.get("customReportStartTime", "")
@@ -428,7 +421,7 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
             logger.info("CUSTOM report range: %s to %s", start, end)
             return (start, end)
         except (ValueError, TypeError) as e:
-            logger.warning("Failed to parse customReportStartTime/customReportEndTime for CUSTOM frequency: %s", e)
+            logger.warning("Failed to parse reportStartDate/reportEndDate for CUSTOM frequency: %s", e)
 
     # ================================================================
     # FINAL PARTIAL REPORT (for WEEKLY/MONTHLY campaigns ending mid-cycle)
@@ -665,6 +658,11 @@ with DAG(
                 "CAMPAIGN_IDENTIFIER": campaign_identifier,
                 "IDENTIFIER_TYPE": identifier_type,
 
+                "ELASTIC_PASSWORD": os.getenv("ELASTIC_PASSWORD", ""),
+                "ELASTIC_USERNAME": os.getenv("ELASTIC_USERNAME", "elastic"),
+                # ES host must reach the worker pod (build_payload injects it; common_utils reads ES_HOST)
+                "ES_HOST": os.getenv("ES_HOST", "http://elasticsearch-master.es-cluster.svc.cluster.local:9200"),
+
                 "REPORT_NAME": report_name,
                 "TRIGGER_FREQUENCY": frequency,
                 "TRIGGER_TIME" : c.get("triggerTime", 0),
@@ -689,7 +687,7 @@ with DAG(
                 #File store configurations
                 "FILE_STORE_URL" : FILE_STORE_URL,
                 "FILE_STORE_UPLOAD_FILE_ENDPOINT" : FILE_STORE_UPLOAD_FILE_ENDPOINT,
-                "TENANT_ID" : TENANT_ID,
+                "TENANT_ID" : c.get("tenantId", TENANT_ID),
                 "FILE_STORE_MODULE_NAME" : MODULE_NAME,
 
                 #Dag information
@@ -698,7 +696,10 @@ with DAG(
 
                 #Kafka configurations
                 "CUSTOM_REPORTS_AUTOMATION_TOPIC" : os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC"),
-                "KAFKA_BROKER" : KAFKA_BROKER
+                "KAFKA_BROKER" : os.getenv("KAFKA_BROKER"),
+                "IS_CENTRAL_INSTANCE_ENABLED" : IS_CENTRAL_INSTANCE_ENABLED,
+                "CREATED_BY" : c.get("createdBy", ""),
+                "CREATED_TIME" : c.get("createdTime", "")
             }
 
             env_list.append(env_dict)
@@ -734,6 +735,7 @@ with DAG(
         # Kubernetes configuration
         namespace=K8S_NAMESPACE,
         image=REPORT_IMAGE,
+        node_selector={"kubernetes.io/arch": "amd64"},
 
         # No cmds/arguments needed - Dockerfile ENTRYPOINT handles execution
         # Dockerfile should contain: ENTRYPOINT ["python3", "/app/main.py"]
@@ -750,7 +752,8 @@ with DAG(
 
         # Pod behavior
         get_logs=True,                    # Stream pod logs to Airflow task logs
-        is_delete_operator_pod=True,      # Delete pod after completion (cleanup)
+        is_delete_operator_pod=False,     # Keep pod after failure so logs/events can be inspected
+        log_events_on_failure=True,       # Dump K8s pod events to Airflow logs on failure
         in_cluster=True,                  # Running inside Kubernetes cluster
         startup_timeout_seconds=600,      # Wait up to 10 minutes for pod to start
 
@@ -773,7 +776,8 @@ with DAG(
         labels={
             "app": "hcm-reports",
             "managed-by": "airflow"
-        }
+        },
+
     ).expand(
         # ✅ CRITICAL: .expand() creates dynamic tasks
         # Each env dict becomes a separate pod with those environment variables

@@ -35,6 +35,7 @@ DAG_ID = os.getenv("DAG_ID")
 
 CUSTOM_REPORTS_AUTOMATION_TOPIC = os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC", "save-hcm-report-metadata")
 KAFKA_BROKER = os.getenv("KAFKA_BROKER")
+IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
 
 PRODUCER_CONFIG = {
     "bootstrap.servers": KAFKA_BROKER,
@@ -48,6 +49,7 @@ if not REPORT_NAME or not CAMPAIGN_IDENTIFIER:
     sys.exit(1)
 
 producer = Producer(PRODUCER_CONFIG)
+report_duration_seconds = None
 
 def send_to_kafka(producer, topic, message, flush_timeout=10):
     print(f"[KAFKA] Broker config: {PRODUCER_CONFIG}")
@@ -87,7 +89,7 @@ def send_to_kafka(producer, topic, message, flush_timeout=10):
     except Exception as e:
         print(f"[KAFKA] ❌ Unexpected error while pushing to topic {topic}: {e}")
 
-def get_data_to_be_pushed(file_store_id):
+def get_data_to_be_pushed(file_store_id, report_duration_seconds=None, status="SUCCESS", error=None):
     data = {
         "dag_run_id" : DAG_RUN_ID,
         "dag_name" : DAG_ID,
@@ -97,10 +99,23 @@ def get_data_to_be_pushed(file_store_id):
         "file_store_id" : file_store_id,
         "trigger_time" : normalize_timestamp_to_utc(TRIGGER_TIME),
         "tenant_id" : TENANT_ID,
-        "report_dates" : f"{START_DATE}_{END_DATE}"
+        "report_dates" : str(START_DATE) + "_" + str(END_DATE),
+        "report_generation_time_seconds" : report_duration_seconds,
+        "status" : status,
     }
-
+    if error:
+        data["error"] = error
     return data
+
+def push_report_status(status, file_store_id="", message=None, exc=None):
+    error = None
+    if message or exc:
+        error = {"message": message or str(exc)}
+        if exc:
+            error["type"] = type(exc).__name__
+    kafka_topic = f"{TENANT_ID}-{CUSTOM_REPORTS_AUTOMATION_TOPIC}" if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID else CUSTOM_REPORTS_AUTOMATION_TOPIC
+    data = get_data_to_be_pushed(file_store_id, report_duration_seconds, status=status, error=error)
+    send_to_kafka(producer=producer, topic=kafka_topic, message=json.dumps(data))
 
 def get_custom_dates_of_reports():
 
@@ -126,27 +141,34 @@ def create_zip_of_reports(folder_path, zip_name):
     Creates a ZIP file containing all files inside folder_path.
     Returns full path of created zip.
     """
+    print(f"[DEBUG] Starting Zip: Folder Path - {folder_path}, Zip Name - {zip_name}")
 
     zip_path = os.path.join(folder_path, zip_name)
-
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(folder_path):
-            for f in files:
-                file_path = os.path.join(root, f)
-                arcname = os.path.relpath(file_path, folder_path)
-                zipf.write(file_path, arcname)
-
+    print(f"[DEBUG] Zip Path: {zip_path}")
+    try:
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zipf:
+            for root, _, files in os.walk(folder_path):
+                for f in files:
+                    if f.endswith(".zip"):
+                        continue
+                    file_path = os.path.join(root, f)
+                    arcname = os.path.relpath(file_path, folder_path)
+                    zipf.write(file_path, arcname)
+    except Exception as e:
+        print(f"❌ Error creating ZIP file: {e}")
+        sys.exit(3)
     print(f"📦 Created ZIP: {zip_path}")
     return zip_path
 
 
-def upload_to_filestore(file_path):
+def upload_to_filestore(file_path, mime_type="application/zip"):
     """
     Uploads the given file to FileStore service using multipart/form-data.
+    mime_type defaults to application/zip; pass the xlsx MIME type for direct xlsx upload.
     """
     if not FILE_STORE_URL:
         raise RuntimeError("FILE_STORE_URL is not set")
-    
+
     url = FILE_STORE_URL + FILE_STORE_UPLOAD_FILE_ENDPOINT
 
     headers = {
@@ -158,13 +180,12 @@ def upload_to_filestore(file_path):
         "module": MODULE_NAME,
     }
 
-    print(f"📤 Uploading ZIP to FileStore: {url}")
+    print(f"📤 Uploading to FileStore: {url} [{mime_type}]")
     print(f"[DEBUG] tenantId={TENANT_ID}, module={MODULE_NAME}")
 
-    # Use context manager to ensure file handle closes
     with open(file_path, "rb") as f:
         files = {
-            "file": (os.path.basename(file_path), f, "application/zip")
+            "file": (os.path.basename(file_path), f, mime_type)
         }
 
         try:
@@ -292,28 +313,35 @@ try:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.chdir(OUTPUT_DIR)
 
+    report_start_time = datetime.datetime.now(datetime.timezone.utc)
     subprocess.run(cmd, check=True)
+    report_end_time = datetime.datetime.now(datetime.timezone.utc)
+    report_duration_seconds = round((report_end_time - report_start_time).total_seconds(), 2)
 
-    print(f"Executed {REPORT_NAME}")
+    print(f"Executed {REPORT_NAME} in {report_duration_seconds}s")
 
 except Exception as e:
     print(f"Error: {e}")
+    push_report_status("FAILED", exc=e)
     sys.exit(1)
 finally:
     file_name_substring = REPORT_FILE_NAME
     move_file = True
+    saved_files = []
     if move_file:
         matching_files = glob.glob(f"*{file_name_substring}*")  # Case-sensitive
         
         if matching_files:
             for file_name in matching_files:
                 if os.path.exists(file_name):
-                    save_file_to_folder(file_name)
+                    saved_path = save_file_to_folder(file_name)
+                    saved_files.append(saved_path)
                     print(f"Moved file: {file_name}")
                 else:
                     print(f"⚠ File not found, skipping: {file_name}")
         else:
             print(f"⚠ No files found containing substring: {file_name_substring}")
+            push_report_status("FAILED", message=f"No output files found for report: {file_name_substring}")
             sys.exit(2)
 
 
@@ -324,11 +352,18 @@ finally:
         TRIGGER_FREQUENCY
     )
 
+    print(f"[DEBUG] Preparing to zip folder: {reports_folder}")
+    print(f"[DEBUG] Folder exists: {os.path.exists(reports_folder)}")
+    
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_IDENTIFIER}_{timestamp}.zip"
+# ===========================
+    print(f"[DEBUG] Zip Name: {zip_name}")
 
     zip_path = create_zip_of_reports(reports_folder, zip_name)
-
+    
+    print(f"[DEBUG] Zip Path: {zip_path}")
+# ============================
     # --------------------------------
     #  UPLOAD ZIP TO FILESTORE SERVICE
     # --------------------------------
@@ -342,16 +377,12 @@ finally:
             res = upload_response.get("files", [])
             if len(res) > 0:
                 file_store_id = res[0].get("fileStoreId")
-                data = get_data_to_be_pushed(file_store_id)
-
-                data_object = json.dumps(data)
-                send_to_kafka(producer=producer, topic=CUSTOM_REPORTS_AUTOMATION_TOPIC, message=data_object)
+                push_report_status("SUCCESS", file_store_id=file_store_id)
         else:
-            print(f"Error response : {upload_response}")
-
-
+            push_report_status("FAILED", message=f"FileStore upload failed: {upload_response}")
 
     except Exception as e:
         print(f"❌ Exception while uploading to FileStore: {e}")
+        push_report_status("FAILED", message="FileStore upload exception", exc=e)
 
     

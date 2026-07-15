@@ -24,7 +24,7 @@ FILE_NAME = args.file_name
 file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(file_path)
 
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
@@ -32,8 +32,8 @@ warnings.filterwarnings("ignore", message="Unverified HTTPS request is being mad
 workbook = Workbook()
 sheet = workbook.active
 
-ES_SERVICE_TASK_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/service-task-v1/_search?scroll=10m"
-ES_SCROLL_URL = 'http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll'
+ES_SERVICE_TASK_SEARCH = es_index_url("service-task-v1", "/_search?scroll=10m")
+ES_SCROLL_URL = es_scroll_url()
 
 # ES_SERVICE_TASK_SEARCH = "https://localhost:9200/service-task-v1/_search?scroll=10m"
 # ES_SCROLL_URL = 'https://localhost:9200/_search/scroll'

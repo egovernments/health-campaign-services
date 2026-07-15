@@ -30,12 +30,12 @@ sys.path.append(file_path)
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 # ===== Elasticsearch Endpoints =====
-ES_PROJECT_TASK_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-task-index-v1/_search"
-ES_HOUSEHOLD_MEMBER_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-member-index-v1/_search"
-ES_INDIVIDUAL_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
+ES_PROJECT_TASK_SEARCH = es_index_url("project-task-index-v1")
+ES_HOUSEHOLD_MEMBER_SEARCH = es_index_url("household-member-index-v1")
+ES_INDIVIDUAL_SEARCH = es_index_url("individual-index-v1")
 EGOV_DECRYPT_URL = "http://egov-enc-service.egov:8080/egov-enc-service/crypto/v1/_decrypt"
 
 # ===== Get date range for report and folder naming =====
@@ -154,7 +154,7 @@ def fetch_project_tasks():
             }
 
         scroll_resp = get_resp(
-            "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll",
+            es_scroll_url(),
             {"scroll": "2m", "scroll_id": scroll_id},
             es=True
         )
