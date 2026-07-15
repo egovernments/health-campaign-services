@@ -24,7 +24,7 @@ END_DATE = args.end_date
 FILE_NAME = args.file_name
 
 
-ES_PROJECT_TASK_SEARCH = "http://elasticsearch-master.es-cluster.svc.cluster.local:9200/project-task-index-v1/_search"
+ES_PROJECT_TASK_SEARCH = "http://elasticsearch-master.es-cluster.svc.cluster.local:9200/demo-project-task-index-v1/_search"
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # es = Elasticsearch(["https://localhost:9200"], http_auth=('elastic', ELASTIC_CLIENT_PASSWORD), verify_certs=False)
