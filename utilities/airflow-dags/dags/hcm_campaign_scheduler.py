@@ -43,7 +43,7 @@ MDMS_URL = os.getenv("MDMS_URL")
 MDMS_SEARCH_ENDPOINT = os.getenv("MDMS_SEARCH_ENDPOINT", "/mdms-v2/v2/_search")
 MDMS_MODULE_NAME = os.getenv("MDMS_MODULE_NAME", "airflow-configs")
 MDMS_MASTER_NAME = os.getenv("MDMS_MASTER_NAME", "campaign-report-config")
-TENANT_ID = os.getenv("TENANT_ID", "ba")
+TENANT_ID = os.getenv("TENANT_ID", "dev")
 MDMS_LIMIT = int(os.getenv("MDMS_LIMIT", "500"))
 PROCESSOR_DAG_ID = os.getenv("PROCESSOR_DAG_ID", "hcm_dynamic_campaigns")
 IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
