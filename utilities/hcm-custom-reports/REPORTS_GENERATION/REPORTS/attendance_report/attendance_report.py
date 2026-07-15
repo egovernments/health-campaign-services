@@ -35,9 +35,9 @@ from COMMON_UTILS.common_utils import get_resp
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
-ES_TRANSFORMED_ATTENDANCE_REGISTER_INDEX = 'http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/transformed-attendance-register-index-v1/_search'
-ES_ATTENDANCE_LOG_INDEX = 'http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/attendance-log-index-v1/_search'
-ES_PROJECT_STAFF_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-staff-index-v1/_search"
+ES_TRANSFORMED_ATTENDANCE_REGISTER_INDEX = 'http://elasticsearch-master.es-cluster.svc.cluster.local:9200/transformed-attendance-register-index-v1/_search'
+ES_ATTENDANCE_LOG_INDEX = 'http://elasticsearch-master.es-cluster.svc.cluster.local:9200/attendance-log-index-v1/_search'
+ES_PROJECT_STAFF_INDEX = "http://elasticsearch-master.es-cluster.svc.cluster.local:9200/project-staff-index-v1/_search"
 
 # ES_ATTENDANCE_LOG_INDEX = "https://localhost:9200/attendance-log-index-v1/_search"
 # ES_TRANSFORMED_ATTENDANCE_REGISTER_INDEX = "https://localhost:9200/transformed-attendance-register-index-v1/_search"
