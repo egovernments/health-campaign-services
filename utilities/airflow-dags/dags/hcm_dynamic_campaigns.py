@@ -59,7 +59,7 @@ K8S_NAMESPACE = os.getenv("K8S_NAMESPACE", "airflow")
 #File store env variables
 FILE_STORE_URL = os.getenv("FILE_STORE_URL") 
 FILE_STORE_UPLOAD_FILE_ENDPOINT = os.getenv("FILE_STORE_UPLOAD_FILE_ENDPOINT", "filestore/v1/files")
-TENANT_ID = os.getenv("TENANT_ID", "bi")
+TENANT_ID = os.getenv("TENANT_ID", "dev")
 MODULE_NAME = os.getenv("FILE_STORE_MODULE_NAME", "custom-reports")
 IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "true")
 
