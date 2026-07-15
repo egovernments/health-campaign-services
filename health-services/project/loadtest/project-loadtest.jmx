@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Project Service Load Test" enabled="true">
+      <stringProp name="TestPlan.comments">Per-API latency + concurrency ramp + read/write split + persistence lag for the DIGIT health Project service.</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+
+      <!-- ==================== HTTP defaults (host/port/protocol from properties) ==================== -->
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+          <collectionProp name="Arguments.arguments"/>
+        </elementProp>
+        <stringProp name="HTTPSampler.domain">${__P(host_domain,localhost)}</stringProp>
+        <stringProp name="HTTPSampler.protocol">${__P(protocol,https)}</stringProp>
+        <stringProp name="HTTPSampler.port">${__P(port,443)}</stringProp>
+        <stringProp name="HTTPSampler.connect_timeout">10000</stringProp>
+        <stringProp name="HTTPSampler.response_timeout">60000</stringProp>
+      </ConfigTestElement>
+      <hashTree/>
+
+      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+        <collectionProp name="HeaderManager.headers">
+          <elementProp name="Content-Type" elementType="Header">
+            <stringProp name="Header.name">Content-Type</stringProp>
+            <stringProp name="Header.value">application/json</stringProp>
+          </elementProp>
+        </collectionProp>
+      </HeaderManager>
+      <hashTree/>
+
+      <!-- ==================== User Defined Variables from properties ==================== -->
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="Config Vars" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="authToken" elementType="Argument"><stringProp name="Argument.name">authToken</stringProp><stringProp name="Argument.value">${__P(authToken,)}</stringProp></elementProp>
+          <elementProp name="tenantId" elementType="Argument"><stringProp name="Argument.name">tenantId</stringProp><stringProp name="Argument.value">${__P(tenantId,)}</stringProp></elementProp>
+          <elementProp name="projectType" elementType="Argument"><stringProp name="Argument.name">projectType</stringProp><stringProp name="Argument.value">${__P(projectType,)}</stringProp></elementProp>
+          <elementProp name="department" elementType="Argument"><stringProp name="Argument.name">department</stringProp><stringProp name="Argument.value">${__P(department,)}</stringProp></elementProp>
+          <elementProp name="natureOfWork" elementType="Argument"><stringProp name="Argument.name">natureOfWork</stringProp><stringProp name="Argument.value">${__P(natureOfWork,)}</stringProp></elementProp>
+          <elementProp name="boundaryType" elementType="Argument"><stringProp name="Argument.name">boundaryType</stringProp><stringProp name="Argument.value">${__P(boundaryType,)}</stringProp></elementProp>
+          <elementProp name="boundary" elementType="Argument"><stringProp name="Argument.name">boundary</stringProp><stringProp name="Argument.value">${__P(boundary,)}</stringProp></elementProp>
+          <elementProp name="userId" elementType="Argument"><stringProp name="Argument.name">userId</stringProp><stringProp name="Argument.value">${__P(userId,)}</stringProp></elementProp>
+          <elementProp name="facilityId" elementType="Argument"><stringProp name="Argument.name">facilityId</stringProp><stringProp name="Argument.value">${__P(facilityId,)}</stringProp></elementProp>
+          <elementProp name="beneficiaryId" elementType="Argument"><stringProp name="Argument.name">beneficiaryId</stringProp><stringProp name="Argument.value">${__P(beneficiaryId,)}</stringProp></elementProp>
+          <elementProp name="peakUsers" elementType="Argument"><stringProp name="Argument.name">peakUsers</stringProp><stringProp name="Argument.value">${__P(peakUsers,50)}</stringProp></elementProp>
+          <elementProp name="rampSeconds" elementType="Argument"><stringProp name="Argument.name">rampSeconds</stringProp><stringProp name="Argument.value">${__P(rampSeconds,120)}</stringProp></elementProp>
+          <elementProp name="holdSeconds" elementType="Argument"><stringProp name="Argument.name">holdSeconds</stringProp><stringProp name="Argument.value">${__P(holdSeconds,120)}</stringProp></elementProp>
+          <elementProp name="persistencePollTries" elementType="Argument"><stringProp name="Argument.name">persistencePollTries</stringProp><stringProp name="Argument.value">${__P(persistencePollTries,20)}</stringProp></elementProp>
+          <elementProp name="persistencePollGapMs" elementType="Argument"><stringProp name="Argument.name">persistencePollGapMs</stringProp><stringProp name="Argument.value">${__P(persistencePollGapMs,500)}</stringProp></elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
+
+      <!-- ============================================================ -->
+      <!-- SETUP THREAD GROUP: create project once, extract id, measure persistence lag -->
+      <!-- ============================================================ -->
+      <SetupThreadGroup guiclass="SetupThreadGroupGui" testclass="SetupThreadGroup" testname="0 - SETUP (create project, seed id)" enabled="true">
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">startnextloop</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <stringProp name="LoopController.loops">1</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </SetupThreadGroup>
+      <hashTree>
+
+        <!-- Project CREATE -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Project _create (setup)" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{
+  "RequestInfo": { "apiId": "loadtest", "msgId": "loadtest|create", "authToken": "${authToken}" },
+  "Project": [
+    {
+      "tenantId": "${tenantId}",
+      "name": "loadtest-${__time(YMDHMS)}-${__threadNum}",
+      "projectType": "${projectType}",
+      "department": "${department}",
+      "description": "load test project",
+      "referenceID": "lt-${__UUID}",
+      "startDate": ${__time()},
+      "endDate": ${__groovy(System.currentTimeMillis() + 2592000000L)},
+      "natureOfWork": "${natureOfWork}",
+      "isTaskEnabled": true,
+      "address": { "tenantId": "${tenantId}", "boundaryType": "${boundaryType}", "boundary": "${boundary}" },
+      "targets": [ { "beneficiaryType": "INDIVIDUAL", "totalNo": 100, "targetNo": 100 } ],
+      "additionalDetails": {},
+      "rowVersion": 0
+    }
+  ]
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/project/v1/_create</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract projectId" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">projectId</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.Project[0].id</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">PROJECT_CREATE_FAILED</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Assert 2xx" enabled="true">
+            <collectionProp name="Asserion.test_strings"><stringProp name="49586">2</stringProp></collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+
+        <!-- Persistence lag probe: poll _search until the created id appears -->
+        <LoopController guiclass="LoopControlPanel" testclass="LoopController" testname="Persistence poll loop" enabled="true">
+          <stringProp name="LoopController.loops">${persistencePollTries}</stringProp>
+        </LoopController>
+        <hashTree>
+          <IfController guiclass="IfControllerPanel" testclass="IfController" testname="If not yet persisted" enabled="true">
+            <stringProp name="IfController.condition">${__groovy(vars.get("persisted") != "true")}</stringProp>
+            <boolProp name="IfController.evaluateAll">false</boolProp>
+          </IfController>
+          <hashTree>
+            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Project _search (persistence probe)" enabled="true">
+              <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+              <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+                <collectionProp name="Arguments.arguments">
+                  <elementProp name="" elementType="HTTPArgument">
+                    <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                    <stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "Projects": [ { "id": "${projectId}", "tenantId": "${tenantId}" } ] }</stringProp>
+                    <stringProp name="Argument.metadata">=</stringProp>
+                  </elementProp>
+                </collectionProp>
+              </elementProp>
+              <stringProp name="HTTPSampler.path">/project/v1/_search?limit=1&amp;offset=0&amp;tenantId=${tenantId}</stringProp>
+              <stringProp name="HTTPSampler.method">POST</stringProp>
+            </HTTPSamplerProxy>
+            <hashTree>
+              <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Mark persisted + record lag" enabled="true">
+                <stringProp name="scriptLanguage">groovy</stringProp>
+                <stringProp name="script">def body = prev.getResponseDataAsString()
+if (body.contains(vars.get("projectId"))) {
+    vars.put("persisted", "true")
+    def created = Long.parseLong(vars.get("createTs") ?: "0")
+    if (created > 0) log.info("PERSISTENCE_LAG_MS=" + (System.currentTimeMillis() - created))
+}</stringProp>
+              </JSR223PostProcessor>
+              <hashTree/>
+              <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="poll gap" enabled="true">
+                <stringProp name="ConstantTimer.delay">${persistencePollGapMs}</stringProp>
+              </ConstantTimer>
+              <hashTree/>
+            </hashTree>
+          </hashTree>
+        </hashTree>
+
+        <!-- Persist projectId to a file so the ramped thread group (separate JVM run scope) can read it -->
+        <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Save projectId to props" enabled="true">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="script">props.put("seededProjectId", vars.get("projectId"))
+log.info("SEEDED_PROJECT_ID=" + vars.get("projectId"))</stringProp>
+        </JSR223PostProcessor>
+        <hashTree/>
+      </hashTree>
+
+      <!-- ============================================================ -->
+      <!-- MAIN THREAD GROUP: smooth ramp 0 -> peakUsers, all APIs -->
+      <!-- ============================================================ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="1 - LOAD (ramp 0 to peak, all APIs)" enabled="true">
+        <stringProp name="ThreadGroup.num_threads">${peakUsers}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${rampSeconds}</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">${__groovy(${rampSeconds} + ${holdSeconds})}</stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">true</boolProp>
+          <stringProp name="LoopController.loops">-1</stringProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <!-- pull seeded projectId at thread start -->
+        <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Load seeded projectId" enabled="true">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="script">vars.put("projectId", props.get("seededProjectId") ?: "MISSING")</stringProp>
+        </JSR223PreProcessor>
+        <hashTree/>
+
+        <!-- ===== READ: Project v1 search ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="READ project /v1/_search" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "Projects": [ { "tenantId": "${tenantId}" } ] }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/v1/_search?limit=10&amp;offset=0&amp;tenantId=${tenantId}</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== READ: Project v2 search ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="READ project /v2/_search" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "Projects": [ { "tenantId": "${tenantId}" } ] }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/v2/_search?limit=10&amp;offset=0&amp;tenantId=${tenantId}</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== READ: task search ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="READ task /task/v1/_search" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "Task": { "projectId": ["${projectId}"] } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/task/v1/_search?limit=10&amp;offset=0&amp;tenantId=${tenantId}</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== READ: beneficiary search ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="READ beneficiary /beneficiary/v1/_search" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "ProjectBeneficiary": { "projectId": ["${projectId}"] } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/beneficiary/v1/_search?limit=10&amp;offset=0&amp;tenantId=${tenantId}</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== READ: staff search ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="READ staff /staff/v1/_search" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "ProjectStaff": { "projectId": ["${projectId}"] } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/staff/v1/_search?limit=10&amp;offset=0&amp;tenantId=${tenantId}</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== READ: facility search ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="READ facility /facility/v1/_search" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "ProjectFacility": { "projectId": ["${projectId}"] } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/facility/v1/_search?limit=10&amp;offset=0&amp;tenantId=${tenantId}</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== READ: resource search ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="READ resource /resource/v1/_search" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "ProjectResource": { "projectId": ["${projectId}"] } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/resource/v1/_search?limit=10&amp;offset=0&amp;tenantId=${tenantId}</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== WRITE: staff create (maps your userId) ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="WRITE staff /staff/v1/_create" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "ProjectStaff": { "tenantId": "${tenantId}", "projectId": "${projectId}", "userId": "${userId}", "startDate": ${__time()}, "channel": "loadtest" } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/staff/v1/_create</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== WRITE: facility create (maps your facilityId) ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="WRITE facility /facility/v1/_create" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "ProjectFacility": { "tenantId": "${tenantId}", "projectId": "${projectId}", "facilityId": "${facilityId}" } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/facility/v1/_create</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== WRITE: task bulk create (highest-volume path) ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="WRITE task /task/v1/_create" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" }, "Task": { "tenantId": "${tenantId}", "projectId": "${projectId}", "clientReferenceId": "${__UUID}", "plannedStartDate": ${__time()}, "plannedEndDate": ${__time()}, "status": "ADMINISTRATION_SUCCESS", "resources": [], "additionalFields": null } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/task/v1/_create</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- ===== connectivity check (mobile app path) ===== -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="READ /check/bandwidth" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{ "RequestInfo": { "apiId": "loadtest", "authToken": "${authToken}" } }</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <stringProp name="HTTPSampler.path">/project/check/bandwidth?tenantId=${tenantId}</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+
+      <!-- ==================== Results listeners ==================== -->
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp><name>saveConfig</name><value class="SampleSaveConfiguration">
+          <time>true</time><latency>true</latency><timestamp>true</timestamp><success>true</success>
+          <label>true</label><code>true</code><threadCounts>true</threadCounts><bytes>true</bytes>
+        </value></objProp>
+        <stringProp name="filename">results/results.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

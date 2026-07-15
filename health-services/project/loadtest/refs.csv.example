@@ -1,0 +1,2 @@
+// projectId is auto-seeded by the SETUP thread; this CSV is for OPTIONAL extra refs
+beneficiaryId,productId
