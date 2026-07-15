@@ -1,16 +1,20 @@
 package org.egov.id.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.id.model.DispatchLimitConfig;
 import org.egov.id.model.IdPoolConfig;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 
 /**
- * 
+ *
  * @author Yosadhara
  *
  */
 @Configuration
+@Slf4j
 public class PropertiesManager {
 
 	private final Environment environment;
@@ -143,10 +147,32 @@ public class PropertiesManager {
 				.build();
 	}
 
+	/**
+	 * Surfaces a missing service-level 'id.pool.seq.code' at startup as a loud, operator-visible warning.
+	 *
+	 * This is intentionally a warning and not a hard boot failure: a deployment may legitimately supply
+	 * seqCode per-tenant via MDMS IdPoolConfig and omit the service-level default, in which case a hard
+	 * fail would be wrong. But when neither is present, ID pool generation aborts per request (see
+	 * {@code IdGenerationService.fetchIdFormat}), and that failure is otherwise only visible in a per-message
+	 * error log. Emitting it at startup makes the misconfiguration visible where operators actually look.
+	 */
+	@EventListener(ApplicationReadyEvent.class)
+	public void warnIfSeqCodeMissing() {
+		String seqCode = environment.getProperty("id.pool.seq.code");
+		if (seqCode == null || seqCode.isBlank()) {
+			log.warn("Configuration 'id.pool.seq.code' is not set. ID pool generation will fail for any tenant "
+					+ "that does not provide its own 'seqCode' via MDMS IdPoolConfig. Set 'id.pool.seq.code' at the "
+					+ "service level unless every tenant defines seqCode in MDMS.");
+		}
+	}
+
 	public IdPoolConfig getDefaultIdPoolConfig() {
+		// seqCode has no code-level fallback on purpose: a genuinely unset 'id.pool.seq.code' must
+		// surface as a loud configuration error (see IdGenerationService.fetchIdFormat) rather than
+		// silently generating IDs from an unintended default sequence.
 		return IdPoolConfig.builder()
-				.seqCode(environment.getProperty("id.pool.seq.code", "id.pool.number"))
-				.paddingLength(Integer.parseInt(environment.getProperty("id.pool.padding.length", "11")))
+				.seqCode(environment.getProperty("id.pool.seq.code"))
+				.paddingLength(Integer.parseInt(environment.getProperty("id.pool.padding.length", "12")))
 				.build();
 	}
 }
