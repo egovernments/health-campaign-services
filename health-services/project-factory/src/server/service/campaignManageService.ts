@@ -107,8 +107,14 @@ async function updateProjectTypeCampaignService(request: express.Request) {
                     }, useruuid);
                     logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
                 }
-            } catch (err) {
-                logger.warn(`Failed to upsert resource type=${res.type} for campaign ${campaignId}: ${err}`);
+            } catch (err: any) {
+                // Surface the real cause instead of collapsing to `${err}` (which hides
+                // the downstream code/status/stack behind a generic "Unknown Error. Check Logs").
+                logger.error(
+                    `Failed to upsert resource type=${res.type} for campaign ${campaignId}: ` +
+                    `code=${err?.code ?? "n/a"} status=${err?.status ?? "n/a"} message=${err?.message ?? String(err)}`
+                );
+                logger.error(`:: UPSERT ERROR STACK :: ${err?.stack ?? err}`);
             }
         }
         // Re-fetch campaign so response includes full resources from table

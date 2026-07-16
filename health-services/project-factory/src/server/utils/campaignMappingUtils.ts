@@ -1,5 +1,5 @@
 import config from "../config";
-import { throwError } from "./genericUtils";
+import { getCurrentProcesses, throwError } from "./genericUtils";
 import { logger } from "./logger";
 import { httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -135,6 +135,19 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
         const processName = task?.processName;
         const useruuid = requestInfo?.userInfo?.uuid;
         logger.info(`Mapping for campaign ${CampaignDetails?.id} : ${processName} started..`);
+
+        // Idempotency guard for at-least-once delivery: this legacy create path has no
+        // adopt-existing pre-pass, so a crash-redelivered mapping task could create duplicate
+        // project staff/facility/resource records. Re-read live status and skip if completed.
+        const campaignNumber = task?.campaignNumber || CampaignDetails?.campaignNumber;
+        if (campaignNumber && processName) {
+            const alreadyCompleted = await getCurrentProcesses(campaignNumber, CampaignDetails?.tenantId, processName, processStatuses.completed);
+            if (alreadyCompleted.length > 0) {
+                logger.info(`Mapping SKIP campaign=${CampaignDetails?.id} process=${processName} — already completed (redelivery-safe)`);
+                return;
+            }
+        }
+
         if(processName == allProcesses.resourceMapping) {
             await startResourceMapping(CampaignDetails, useruuid, requestInfo);
         }
