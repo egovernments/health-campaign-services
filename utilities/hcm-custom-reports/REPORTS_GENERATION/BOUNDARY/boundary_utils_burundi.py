@@ -13,7 +13,8 @@ file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.append(file_path)
 
 print("file_path",file_path)
-ES_PROJECT_SEARCH="http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-index-v1/_search"
+from REPORTS_GENERATION.COMMON_UTILS.common_utils import es_index_url
+ES_PROJECT_SEARCH = es_index_url("project-index-v1")
 LOCALIZATION_URL = "https://burundi-uat.digit.org/localization/messages/v1/_search?locale=fr_BI&tenantId=bi&module=rainmaker-boundary-admin"
 HEADERS_JSON = {"Content-Type": "application/json"}
 HEADERS_ES = {

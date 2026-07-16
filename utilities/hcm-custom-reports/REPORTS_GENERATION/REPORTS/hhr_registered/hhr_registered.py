@@ -31,11 +31,12 @@ FILE_NAME = args.file_name
 file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(file_path)
 from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
+from REPORTS_GENERATION.COMMON_UTILS.common_utils import es_index_url
 
-ES_HOUSEHOLD_SEARCH="http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-index-v1/_search"
-ES_HOUSEHOLD_MEMBER_SEARCH="http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-member-index-v1/_search"
-ES_INDIVIDUAL_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
-ES_BENEFICIARY_SEARCH="http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-beneficiary-index-v1/_search"
+ES_HOUSEHOLD_SEARCH = es_index_url("household-index-v1")
+ES_HOUSEHOLD_MEMBER_SEARCH = es_index_url("household-member-index-v1")
+ES_INDIVIDUAL_SEARCH = es_index_url("individual-index-v1")
+ES_BENEFICIARY_SEARCH = es_index_url("project-beneficiary-index-v1")
 
 max_retries = 60
 retry_delay = 5
