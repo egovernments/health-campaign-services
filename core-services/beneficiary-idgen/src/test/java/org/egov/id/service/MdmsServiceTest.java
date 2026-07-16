@@ -200,21 +200,18 @@ class MdmsServiceTest {
     void testGetDispatchLimitConfigParsesDataAndAppliesDefaults() {
         when(propertiesManager.getMdmsDispatchLimitModule()).thenReturn("beneficiary-idgen");
         when(propertiesManager.getMdmsDispatchLimitMaster()).thenReturn("IdDispatchConfig");
-        when(propertiesManager.isDispatchLimitUserDevicePerDayEnabled()).thenReturn(true);
+        // Defaults from PropertiesManager for the fields deliberately OMITTED from the MDMS record below.
         when(propertiesManager.getDispatchLimitUserDeviceTotal()).thenReturn(10000);
-        when(propertiesManager.getDispatchLimitUserDevicePerDay()).thenReturn(100);
-        when(propertiesManager.getDispatchUsageUserDevicePerDayExpireDays()).thenReturn(30);
-        when(propertiesManager.getDispatchUsageUserDeviceTotalExpireDays()).thenReturn(30);
+        when(propertiesManager.isDispatchLimitUserDevicePerDayEnabled()).thenReturn(true);
         when(propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled()).thenReturn(true);
 
+        // MDMS record supplies only a subset of fields; totalLimit, perDayEnabled and restrictToTodayEnabled
+        // are omitted so the parser must fall back to the PropertiesManager defaults for those.
         Map<String, Object> config = new HashMap<>();
         config.put("tenantId", "ch");
-        config.put("totalLimit", 500);
-        config.put("perDayEnabled", false);
         config.put("perDayLimit", 50);
         config.put("perDayExpireDays", 20);
         config.put("totalExpireDays", 40);
-        config.put("restrictToTodayEnabled", false);
 
         JSONArray masterList = new JSONArray();
         masterList.add(config);
@@ -229,12 +226,14 @@ class MdmsServiceTest {
         Optional<org.egov.id.model.DispatchLimitConfig> result = this.mdmsService.getDispatchLimitConfig(new RequestInfo(), "ch");
 
         assertTrue(result.isPresent());
-        assertEquals(500, result.get().getTotalLimit());
-        assertFalse(result.get().isPerDayEnabled());
+        // Explicitly supplied values are parsed as-is.
         assertEquals(50, result.get().getPerDayLimit());
         assertEquals(20, result.get().getPerDayExpireDays());
         assertEquals(40, result.get().getTotalExpireDays());
-        assertFalse(result.get().isRestrictToTodayEnabled());
+        // Omitted fields fall back to the PropertiesManager defaults.
+        assertEquals(10000, result.get().getTotalLimit());
+        assertTrue(result.get().isPerDayEnabled());
+        assertTrue(result.get().isRestrictToTodayEnabled());
     }
 
     @Test

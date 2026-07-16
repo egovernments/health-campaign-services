@@ -161,6 +161,46 @@ class IdGenerationServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void asyncPoolFallsBackToDefaultConfigWhenMdmsHasNoPoolConfig() {
+        // When MDMS returns no IdPoolConfig for the tenant, handleAsyncIdPoolRequest must fall back to
+        // propertiesManager.getDefaultIdPoolConfig() (see the orElseGet in the production path) and generate
+        // using that configuration. Set the singleton default to a DIFFERENT width (12) so observing width 8
+        // in the output proves the fallback IdPoolConfig's own width was threaded through.
+        ReflectionTestUtils.setField(idGenerationService, "defaultPaddingLength", 12);
+        ReflectionTestUtils.setField(idGenerationService, "MAX_RECORDS_PER_PERSIST_BATCH", 1000);
+        ReflectionTestUtils.setField(idGenerationService, "idFormatFromMDMS", false);
+
+        String tenantId = "ch";
+        when(mdmsService.getIdPoolConfig(any(), eq(tenantId))).thenReturn(Optional.empty());
+        IdPoolConfig fallbackConfig = IdPoolConfig.builder().seqCode("SEQ_DEFAULT").paddingLength(8).build();
+        when(propertiesManager.getDefaultIdPoolConfig()).thenReturn(fallbackConfig);
+        // idFormatFromMDMS=false, so the format is resolved from the DB using the fallback seqCode.
+        when(jdbcTemplate.queryForObject(anyString(), eq(String.class), any(), any())).thenReturn("[SEQ_DEFAULT]");
+        // NEXTVAL block the [SEQ_DEFAULT] token resolves to.
+        when(jdbcTemplate.queryForList(anyString(), any(Object[].class), eq(String.class)))
+                .thenReturn(Collections.singletonList("7"));
+        when(propertiesManager.getSaveIdPoolTopic()).thenReturn("save-in-id-pool");
+
+        IDPoolGenerationKafkaRequest request = IDPoolGenerationKafkaRequest.builder()
+                .tenantId(tenantId)
+                .chunkSize(1)
+                .requestInfo(requestInfoWithUser())
+                .build();
+
+        idGenerationService.handleAsyncIdPoolRequest(request);
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(idGenProducer).push(eq("save-in-id-pool"), payloadCaptor.capture());
+
+        Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
+        List<IdRecord> records = (List<IdRecord>) payload.get("idPool");
+        assertEquals(1, records.size());
+        // Width 8 (from the fallback default IdPoolConfig), NOT 12 (the singleton default padding).
+        assertEquals("00000007", records.get(0).getId());
+    }
+
+    @Test
     void asyncPoolAbortsWithoutPublishingWhenSeqCodeMissing() {
         // Issue #5: a blank seqCode must be detected as a configuration error and abort generation, rather
         // than silently producing IDs from an unintended sequence. fetchIdFormat throws CONFIGURATION_ERROR;
