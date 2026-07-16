@@ -15,8 +15,8 @@ ENV BRANCH_NAME=$BRANCH_NAME
 ENV ACTION_NUMBER=$ACTION_NUMBER
 ENV COMMIT_ID=$COMMIT_ID
 
-# Node heap cap. Raised 1024 -> 3072
-ENV NODE_OPTIONS="--max-old-space-size=3072"
+# Remove heap limit: let Node.js use all available memory -- for now it is 1GB
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 
 # Copy package.json and yarn.lock (if exists). Build context is the repo root and the
 # service dir is passed via WORK_DIR (matches build/maven/Dockerfile + the generic build.yaml).
