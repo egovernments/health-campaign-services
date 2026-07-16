@@ -59,16 +59,19 @@ async function validateFile(request: any) {
  */
 async function validateBoundarySheetData(request: any, fileUrl: any, localizationMap?: any) {
     const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
-    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap);
+    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap, request);
     const hierarchy = await getHierarchy(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
     const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase())
     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
     await validateHeaders(localizedHierarchy, headersOfBoundarySheet, request, localizationMap)
-    const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap);
+    const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap, request);
     //validate for whether root boundary level column should not be empty
     validateForRootElementExists(boundaryData, localizedHierarchy, localizedBoundaryTab);
     // validate for duplicate rows(array of objects)
     validateForDuplicateRows(boundaryData);
+    // validate boundary names contain only allowed characters (reject [] {} <> etc.; allow letters of any
+    // language plus the punctuation that occurs in real place names)
+    validateBoundaryNameCharacters(boundaryData, localizedHierarchy);
 }
 
 function validateForRootElementExists(boundaryData: any[], hierachy: any[], sheetName: string) {
@@ -104,6 +107,68 @@ function validateForDuplicateRows(boundaryData: any[]) {
     if (duplicateRowNumbers.length > 0) {
         const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
         throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersSeparatedWithCommas}`);
+    }
+}
+
+// Boundary names may contain letters of ANY script, combining marks, digits, spaces and a small set of
+// punctuation that legitimately occurs in official African place / admin-division names. Everything else
+// (structural / impossible / ingestion-hazardous characters) is rejected. Policy derived from a continent-
+// wide study of African administrative-division names.
+//
+// ALLOWED:
+//   \p{L}  letters of every script  - Latin + diacritics, Arabic, Ge'ez/Amharic, Tifinagh, N'Ko, Vai,
+//          Adlam/Osmanya, AND the Khoekhoe click letters ǀ ǁ ǂ ǃ (Unicode classifies these as letters)
+//   \p{M}  combining marks          - Yoruba tone marks, romanized Arabic z̧/e̱, Malagasy n̈ (no precomposed form)
+//   \p{N}  digits                   - "6th of October", "Region 1"
+//   space, apostrophe family ' ’ ‘ ʼ ʻ ʿ ʾ `  (N'Djamena, Murang'a, King's Town),
+//   ampersand &, hyphen/dash family - ‐ – —  (Tharaka-Nithi, Haut-Ogooué), slash /  (Chuka/Igambang'ombe),
+//   period . parentheses ( ) underscore _  (present in this deployment's real boundary names)
+//   comma , colon : semicolon ; at @ plus + exclamation ! question ?  (allowed 2026-07-14: real
+//          admin names / free-text descriptors use these, e.g. "X, Y", "Oseni: Ibrahim"; harmless to
+//          codes since code-gen already sanitizes /[^\w]/g -> _)
+//
+// REJECTED: { } [ ] < > | \ # $ % * = ~ ^ "  and all control / zero-width / bidi characters.
+//   '#' is rejected deliberately: it corrupts excel-ingestion's parent#child cascading-dropdown lookup keys.
+//   '< >' stay rejected (XSS-risk in the console UI + almost always data-entry errors); '"' \ | { } [ ]
+//   stay rejected as quote/escape/delimiter hazards for CSV/JSON/lookup-key round-trips.
+const ALLOWED_BOUNDARY_NAME_CHARS = new RegExp(
+    "^[\\p{L}\\p{M}\\p{N} '’‘ʼʻʿʾ`&,:;@+!?/._()‐–—\\-]+$",
+    "u"
+);
+
+// Cap how many offending cells we list in one error so a badly-formed 50k-row sheet cannot produce a
+// multi-megabyte message; the count of the remainder is still reported.
+const MAX_REPORTED_NAME_PROBLEMS = 20;
+
+function validateBoundaryNameCharacters(boundaryData: any[], localizedHierarchy: any[]) {
+    const problems: string[] = [];
+    for (const row of boundaryData) {
+        const rowNumber = row?.["!row#number!"];
+        for (const header of localizedHierarchy) {
+            const raw = row?.[header];
+            if (raw === undefined || raw === null) continue;
+            const value = String(raw).trim();
+            if (value === "") continue; // empty hierarchy levels are normal (ragged hierarchy) - skip
+            if (!ALLOWED_BOUNDARY_NAME_CHARS.test(value)) {
+                const badChars = Array.from(
+                    new Set(Array.from(value).filter(ch => !ALLOWED_BOUNDARY_NAME_CHARS.test(ch)))
+                ).join(" ");
+                problems.push(`row ${rowNumber}, column "${header}", value "${value}" (not allowed: ${badChars})`);
+            }
+        }
+    }
+    if (problems.length > 0) {
+        const shown = problems.slice(0, MAX_REPORTED_NAME_PROBLEMS);
+        const extra = problems.length > MAX_REPORTED_NAME_PROBLEMS
+            ? ` ... and ${problems.length - MAX_REPORTED_NAME_PROBLEMS} more` : "";
+        // Use the registered VALIDATION_ERROR code (like the duplicate-row / root checks) so this surfaces
+        // as a clean HTTP 400; a new unregistered code resolves to UNKNOWN_ERROR -> 500 in throwError.
+        throwError(
+            "COMMON", 400, "VALIDATION_ERROR",
+            `Boundary names contain characters that are not allowed. ` +
+            `Allowed: letters (any language), numbers, spaces and ' & - / . ( ) _ , : ; @ + ! ? . ` +
+            `Problems: ${shown.join("; ")}${extra}`
+        );
     }
 }
 

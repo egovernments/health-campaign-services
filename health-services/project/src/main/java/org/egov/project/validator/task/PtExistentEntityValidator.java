@@ -75,9 +75,21 @@ public class PtExistentEntityValidator implements Validator<TaskBulkRequest, Tas
                 .collect(Collectors.toList()); // Collect the IDs into a list.
 
         // Create a map for quick lookup of Task entities by client reference ID.
-        Map<String, Task> map = entities.stream()
-                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty.
-                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map.
+        Map<String, Task> map = new HashMap<>();
+        // Within-batch duplicate clientReferenceId must NOT crash Collectors.toMap (that
+        // IllegalStateException previously propagated to the consumer and dropped the ENTIRE bulk
+        // batch, losing unrelated valid records). Keep the first occurrence and isolate each
+        // subsequent duplicate as a per-record uniqueness error so the good records still persist.
+        for (Task entity : entities) {
+            if (!StringUtils.hasText(entity.getClientReferenceId())) {
+                continue;
+            }
+            if (map.containsKey(entity.getClientReferenceId())) {
+                populateErrorDetails(entity, getErrorForUniqueEntity(), errorDetailsMap);
+            } else {
+                map.put(entity.getClientReferenceId(), entity);
+            }
+        }
 
         // Create a search object to query for existing entities based on client reference IDs.
         TaskSearch taskSearch = TaskSearch.builder()

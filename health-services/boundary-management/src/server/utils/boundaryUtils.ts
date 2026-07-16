@@ -3,7 +3,7 @@ import config from "../config";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
 import { throwError,getLocalizedHeaders,createHeaderToHierarchyMap,
-  modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap,replicateRequest,callGenerate , checkForMixedBoundaryFlowInArrays}
+  modifyBoundaryDataHeadersWithMap,modifyBoundaryData,boundaryKeyOf,extractFrenchOrPortugeseLocalizationMap,replicateRequest,callGenerate , checkForMixedBoundaryFlowInArrays}
  from "../utils/genericUtils";
 import { searchBoundaryRelationshipDefinition  } from "../api/coreApis";
 import { BoundaryModels } from "../models";
@@ -18,7 +18,6 @@ import {resourceDataStatuses} from "../config/constants";
 import {produceModifiedMessages} from "../kafka/Producer";
 import {deleteRedisCacheKeysWithPrefix} from "./redisUtils";
 import {getTableName,executeQuery} from "../utils/db";
-const _ = require("lodash");
 
 
 
@@ -59,7 +58,8 @@ const getHeadersOfBoundarySheet = async (
   fileUrl: string,
   sheetName: string,
   getRow = false,
-  localizationMap?: any
+  localizationMap?: any,
+  request?: any
 ) => {
   const localizedBoundarySheetName = getLocalizedName(
     sheetName,
@@ -67,7 +67,8 @@ const getHeadersOfBoundarySheet = async (
   );
   const workbook: any = await getExcelWorkbookFromFileURL(
     fileUrl,
-    localizedBoundarySheetName
+    localizedBoundarySheetName,
+    request
   );
 
   const worksheet = workbook.getWorksheet(localizedBoundarySheetName);
@@ -189,9 +190,11 @@ async function getManualBoundaryCodesHandler(
     const boundaryMap = new Map<{ key: string; value: string }, string>();
     const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
 
-    // Track all boundaries at each hierarchy level that need codes
-    const boundariesNeedingCodes = new Map<string, Set<string>>(); // level -> Set of boundary names
-    const boundariesWithCodes = new Map<string, Map<string, string>>(); // level -> (boundary name -> code)
+    // Track all boundaries at each hierarchy level that need codes. Keyed by PATH (boundaryKeyOf)
+    // rather than bare name so the same name under different parents is tracked separately
+    // (duplicate names under different parents are valid).
+    const boundariesNeedingCodes = new Map<string, Map<string, string>>(); // level -> (pathKey -> display name)
+    const boundariesWithCodes = new Map<string, Set<string>>(); // level -> Set of pathKeys that have a code
 
     // First, extract existing boundaries and their codes from withBoundaryCode (already processed boundaries)
     withBoundaryCode.forEach((row: any[]) => {
@@ -212,15 +215,16 @@ async function getManualBoundaryCodesHandler(
         }
       }
 
-      // Store the code for the boundary at the last level
+      // Store the code-presence (by path) for the boundary at the last level
       if (lastPresentHierarchyIndex >= 0) {
         const level = hierarchy[lastPresentHierarchyIndex];
-        const boundaryName = rowMap.get(level)?.toString().trim();
+        const boundaryObj = row.find((obj: any) => obj.key === level);
+        const boundaryName = boundaryObj?.value?.toString().trim();
         if (boundaryName) {
           if (!boundariesWithCodes.has(level)) {
-            boundariesWithCodes.set(level, new Map<string, string>());
+            boundariesWithCodes.set(level, new Set<string>());
           }
-          boundariesWithCodes.get(level)?.set(boundaryName, boundaryCodeValue.toString().trim());
+          boundariesWithCodes.get(level)?.add(boundaryKeyOf(boundaryObj));
         }
       }
     });
@@ -228,10 +232,10 @@ async function getManualBoundaryCodesHandler(
     // Initialize tracking maps for each hierarchy level (if not already initialized from withBoundaryCode)
     hierarchy.forEach((level: string) => {
       if (!boundariesNeedingCodes.has(level)) {
-        boundariesNeedingCodes.set(level, new Set<string>());
+        boundariesNeedingCodes.set(level, new Map<string, string>());
       }
       if (!boundariesWithCodes.has(level)) {
-        boundariesWithCodes.set(level, new Map<string, string>());
+        boundariesWithCodes.set(level, new Set<string>());
       }
     });
 
@@ -272,12 +276,12 @@ async function getManualBoundaryCodesHandler(
         if (boundaryObj && boundaryObj.value && boundaryObj.value.toString().trim()) {
           const boundaryName = boundaryObj.value.toString().trim();
 
-          // Add to tracking: this boundary needs a code
-          boundariesNeedingCodes.get(level)?.add(boundaryName);
+          // Add to tracking (keyed by path): this boundary needs a code
+          boundariesNeedingCodes.get(level)?.set(boundaryKeyOf(boundaryObj), boundaryName);
 
           // If this is the last level in this row, it has the code
           if (i === lastPresentHierarchyIndex) {
-            boundariesWithCodes.get(level)?.set(boundaryName, boundaryCode);
+            boundariesWithCodes.get(level)?.add(boundaryKeyOf(boundaryObj));
             // Add to final boundary map
             boundaryMap.set(boundaryObj, boundaryCode);
           }
@@ -291,8 +295,8 @@ async function getManualBoundaryCodesHandler(
       const neededBoundaries = boundariesNeedingCodes.get(level);
       const boundariesWithCodesAtLevel = boundariesWithCodes.get(level);
 
-      neededBoundaries?.forEach((boundaryName: string) => {
-        if (!boundariesWithCodesAtLevel?.has(boundaryName)) {
+      neededBoundaries?.forEach((boundaryName: string, pathKey: string) => {
+        if (!boundariesWithCodesAtLevel?.has(pathKey)) {
           missingCodes.push(`${level}: "${boundaryName}"`);
         }
       });
@@ -350,7 +354,8 @@ const autoGenerateBoundaryCodes = async (
     localizedBoundaryTab,
     false,
     undefined,
-    localizationMap
+    localizationMap,
+    request
   );
   var latLongData: any;
   if (type === "boundaryManagement") {
@@ -373,7 +378,8 @@ const autoGenerateBoundaryCodes = async (
   const [withBoundaryCode, withoutBoundaryCode, manualBoundaryCode] = await modifyBoundaryData(
     modifiedBoundaryData,
     localizationMap,
-    request
+    request,
+    hierarchy
   );
   logger.info(`Boundary data segregation complete - Processed: ${withBoundaryCode.length}, Auto-generate: ${withoutBoundaryCode.length}, Manual: ${manualBoundaryCode.length}`);
   manualServiceFlow = manualBoundaryCode.length > 0 ? true : false;
@@ -393,6 +399,9 @@ const autoGenerateBoundaryCodes = async (
   }
 
   let boundaryMap: Map<{ key: string; value: string }, string>;
+  // boundaryKeyOf paths of boundaries that already existed before this upload -> used to localise
+  // ONLY the newly-created ones (updates must not re-localise the whole hierarchy). Empty on first create.
+  const existingKeySet = new Set<string>();
 
   if (manualServiceFlow) {
     // Manual flow: Use user-provided boundary codes
@@ -408,6 +417,9 @@ const autoGenerateBoundaryCodes = async (
     // This is crucial for parent-child relationship mapping when new boundaries
     // reference already processed parent boundaries
     const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
+    // String-keyed index of boundaryMap for O(1) structural-equality lookups
+    const existingCodeIndex = new Map<string, string>();
+    boundaryMap.forEach((value, key) => existingCodeIndex.set(boundaryKeyOf(key), value));
     withBoundaryCode.forEach((row: any[]) => {
       // Find the last hierarchy level in this row (the boundary that has the code)
       let lastBoundaryObj = null;
@@ -425,9 +437,10 @@ const autoGenerateBoundaryCodes = async (
       if (lastBoundaryObj && boundaryCodeObj && boundaryCodeObj.value) {
         const boundaryCode = boundaryCodeObj.value.toString().trim();
         // Add to boundaryMap if not already present
-        const existingCode = findMapValue(boundaryMap, lastBoundaryObj);
+        const existingCode = existingCodeIndex.get(boundaryKeyOf(lastBoundaryObj));
         if (!existingCode) {
           boundaryMap.set(lastBoundaryObj, boundaryCode);
+          existingCodeIndex.set(boundaryKeyOf(lastBoundaryObj), boundaryCode);
         }
       }
     });
@@ -436,8 +449,79 @@ const autoGenerateBoundaryCodes = async (
   } else {
     // Auto-generation flow: Generate boundary codes
     logger.info("Using auto-generation boundary code flow");
-    const { mappingMap, countMap } =
+    let { mappingMap, countMap } =
       getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode, localizationMap);
+    // DELTA / no-codes update safety: the sheet carried no existing (with-code) rows. If the hierarchy
+    // already has boundaries, rehydrate them from the DB so the codegen CONTINUES the per-parent
+    // sequence and reuses existing boundaries by name-path (instead of minting a same-named sibling
+    // with a fresh code).
+    if (withBoundaryCode.length === 0) {
+      const seed = await buildExistingSeedFromDb(request);
+      if (seed.mappingMap.size > 0) {
+        mappingMap = seed.mappingMap;
+        countMap = seed.countMap;
+        // Names of DB-seeded boundaries provably exist in localisation (that is where the seed read them
+        // from), so they are safe to skip localising below. Sheet-carried existing (with-code) rows are
+        // deliberately NOT added here: the delta-upsert in transformAndCreateLocalisation already skips
+        // unchanged names AND re-creates any that are missing, so we must not bypass that self-heal.
+        seed.mappingMap.forEach((_v: any, k: any) => existingKeySet.add(boundaryKeyOf(k)));
+      }
+    } else {
+      // FULL-SHEET update safety: the sheet DOES carry the existing (with-code) rows, but the
+      // sheet-derived countMap above only registers a parent when that parent itself appeared earlier
+      // as the deepest element of a coded row (getCodeMappingsOfExistingBoundaryCodes only counts when
+      // mappingIndex already has the parent key). A parent that exists only as an ancestor column of
+      // deeper rows (e.g. a locality that appears solely on its villages' rows) is never counted, so
+      // its per-parent sequence RESTARTS: a new uncoded sibling is minted as _01_, positionally
+      // colliding with the existing _01_ child — uniqueness today survives only because the child's
+      // name is glued onto the code. Seed from the DB here too and MERGE (never replace) the
+      // sheet-derived maps, so counters continue from MAX(db-count, sheet-count) and existing
+      // boundaries stay reusable by name-path. buildExistingSeedFromDb already warns and returns empty
+      // maps on failure, so the merge degrades to a no-op (sheet-only context — today's behavior).
+      const seed = await buildExistingSeedFromDb(request);
+      if (seed.mappingMap.size > 0) {
+        // mappingMap merge — sheet wins, keyed by boundaryKeyOf (logical name-path identity), NEVER
+        // object identity. The codegen collapses duplicate structural keys last-wins into its own
+        // string index, but the object-keyed map itself flows on into modifyElementCodesMap, which
+        // de-duplicates VALUES by appending _N — a logical duplicate carrying the same code would get
+        // one copy mangled into a phantom code and then entity-created. So exactly ONE logical entry
+        // per boundary may survive. A seed entry is also skipped when its code is already carried by
+        // some sheet row (a renamed row keeps the code but changes the name-path): that boundary is
+        // sheet-managed, and adding its DB twin would duplicate the code.
+        const sheetKeySet = new Set<string>();
+        const sheetCodeSet = new Set<string>();
+        mappingMap.forEach((code: any, elem: any) => {
+          sheetKeySet.add(boundaryKeyOf(elem));
+          if (code !== undefined && code !== null) sheetCodeSet.add(code.toString().trim());
+        });
+        seed.mappingMap.forEach((code: string, elem: any) => {
+          const seedKey = boundaryKeyOf(elem);
+          if (sheetKeySet.has(seedKey) || sheetCodeSet.has(code?.toString()?.trim())) return;
+          mappingMap.set(elem, code);
+          // Seed-ONLY boundaries (in the DB but absent from the sheet) provably have their names in
+          // localisation (that is where the seed read them from), so skip re-localising them below —
+          // a full sheet must not re-localise hierarchy parts it does not even carry. Sheet-carried
+          // rows are deliberately NOT added: transformAndCreateLocalisation's upsert skips unchanged
+          // names AND re-creates missing ones, and we must not bypass that self-heal.
+          existingKeySet.add(seedKey);
+        });
+        // countMap merge — the per-parent counter continues from MAX(db-count, sheet-count), with
+        // exactly ONE canonical entry per logical parent. The codegen folds countMap into a
+        // boundaryKeyOf-keyed index last-wins, so leaving two structural duplicates in the map would
+        // silently keep whichever was inserted later, NOT the max — resolve the max here instead.
+        const mergedCounts = new Map<string, { elem: any; count: number }>();
+        const absorbCounts = (m: Map<any, number>) => m.forEach((count: number, elem: any) => {
+          const countKey = boundaryKeyOf(elem);
+          const prev = mergedCounts.get(countKey);
+          if (!prev) mergedCounts.set(countKey, { elem, count });
+          else if (count > prev.count) prev.count = count;
+        });
+        absorbCounts(countMap);
+        absorbCounts(seed.countMap);
+        countMap = new Map<{ key: string; value: string }, number>();
+        mergedCounts.forEach(({ elem, count }) => countMap.set(elem, count));
+      }
+    }
     const childParentMap = getChildParentMap([
       ...withBoundaryCode,
       ...withoutBoundaryCode,
@@ -516,7 +600,16 @@ const autoGenerateBoundaryCodes = async (
   const portugeseLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, false, true, localizationMap);
   await transformAndCreateLocalisation(frenchLocalizationMap, request, true, false);
   await transformAndCreateLocalisation(portugeseLocalizationMap, request, false, true);
-  await transformAndCreateLocalisation(boundaryMap, request, false, false);
+  // Localise only the NEWLY-created boundaries: existing ones keep their localisation from when they
+  // were first created, so re-localising the whole hierarchy is wasteful (and would dominate a 50k
+  // delta). existingKeySet is empty on first creation, so everything is localised then.
+  let codesToLocalise = boundaryMap;
+  if (existingKeySet.size > 0) {
+    codesToLocalise = new Map<{ key: string; value: string }, string>();
+    boundaryMap.forEach((v: any, k: any) => { if (!existingKeySet.has(boundaryKeyOf(k))) codesToLocalise.set(k, v); });
+    logger.info(`Localising ${codesToLocalise.size} new boundaries (of ${boundaryMap.size} total)`);
+  }
+  await transformAndCreateLocalisation(codesToLocalise, request, false, false);
   const modifiedHierarchy = hierarchy.map((ele) =>
     `${hierarchyType}_${ele}`.toUpperCase()
   );
@@ -541,8 +634,15 @@ const autoGenerateBoundaryCodes = async (
       }
     });
   }
+  const seenSheetRows = new Set<string>();
+  const dedupedData = data.filter((row: any[]) => {
+    const sig = JSON.stringify(row.map((cell: any) => (typeof cell === "string" ? cell.trim() : cell)));
+    if (seenSheetRows.has(sig)) return false;
+    seenSheetRows.add(sig);
+    return true;
+  });
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
-  const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
+  const boundarySheetData: any = await createExcelSheet(dedupedData, localizedHeaders);
   const workbook = getNewExcelWorkbook();
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
   addDataToSheet(request, boundarySheet, boundarySheetData, "93C47D", 40, true);
@@ -557,11 +657,15 @@ function modifyChildParentMap(
 ): Map<string, string | null> {
   const modifiedMap: Map<string, string | null> = new Map();
 
+  // String-keyed index of boundaryMap for O(1) structural-equality lookups
+  const codeIndex: Map<string, string> = new Map();
+  boundaryMap.forEach((value, key) => codeIndex.set(boundaryKeyOf(key), value));
+
   // Iterate over each entry in childParentMap
   childParentMap.forEach((value, key) => {
     // Get the modified key and value from boundaryMap
-    const modifiedKey = findMapValue(boundaryMap, key) || null;
-    const modifiedValue = value ? findMapValue(boundaryMap, value) : null;
+    const modifiedKey: any = codeIndex.get(boundaryKeyOf(key)) || null;
+    const modifiedValue = value ? (codeIndex.get(boundaryKeyOf(value)) ?? null) : null;
 
     // Set the modified key-value pair in modifiedMap
     modifiedMap.set(modifiedKey, modifiedValue);
@@ -583,6 +687,52 @@ function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
   }
   return codes;
 }
+
+// Persistence-drain gate: boundary-service's persister commits relationships asynchronously, so at
+// bulk scale (50k) the DB catches up minutes AFTER every create was accepted. Marking the run
+// completed before that makes an immediate follow-up upload fail MIXED_BOUNDARY_FLOW, because the
+// codes from this run's processed sheet are not searchable yet. Poll the relationship tree until it
+// reaches the count this run intended (stashed by createBoundaryRelationship), bounded by a timeout;
+// on timeout warn loudly and proceed — the run itself succeeded, the DB is only late.
+async function waitForRelationshipPersistenceDrain(request: any) {
+  const expected = request?.body?.expectedFinalRelationshipCount;
+  if (!expected || !(expected > 0)) return;
+  const timeoutMs = parseInt(config.values.persistenceDrainTimeoutMs) || 600000;
+  const pollMs = parseInt(config.values.persistenceDrainPollIntervalMs) || 5000;
+  const deadline = Date.now() + timeoutMs;
+  // Same proven full-tree search shape as createBoundaryRelationship's seed read; counting the tree's
+  // codes is the only relationship count boundary-service exposes (there is no count-only search).
+  const params = {
+    type: "boundaryManagement",
+    tenantId: request?.body?.ResourceDetails?.tenantId,
+    boundaryType: null,
+    codes: null,
+    includeChildren: true,
+    hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+  };
+  logger.info(`Persistence drain: waiting for ${expected} relationships to become searchable (timeout ${timeoutMs} ms)`);
+  let lastCount = -1;
+  while (Date.now() < deadline) {
+    try {
+      // No cachekey header: the drain must observe the live DB, not a cached tree.
+      const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params);
+      lastCount = extractCodesFromBoundaryRelationshipResponse(response?.TenantBoundary?.[0]?.boundary || []).size;
+      if (lastCount >= expected) {
+        logger.info(`Persistence drain complete: ${lastCount}/${expected} relationships searchable`);
+        return;
+      }
+      logger.info(`Persistence drain: ${lastCount}/${expected} relationships searchable, waiting ${pollMs} ms`);
+    } catch (e: any) {
+      // A failed count probe must not fail an already-successful run — keep polling until deadline.
+      logger.warn(`Persistence drain count probe failed (${e?.message || e}); retrying`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+  logger.warn(`PERSISTENCE DRAIN TIMEOUT after ${timeoutMs} ms: only ${lastCount}/${expected} relationships searchable — marking completed anyway; an immediate follow-up upload may not yet see all codes`);
+}
+
+
+
 async function generateProcessedFileAndPersist(
   request: any,
   localizationMap?: { [key: string]: string }
@@ -609,6 +759,11 @@ async function generateProcessedFileAndPersist(
   if (
     request?.body?.ResourceDetails?.status === resourceDataStatuses.completed 
   ) {
+    // Gate "completed" on the DB actually having drained this run's relationships (bounded; on
+    // timeout it warns and proceeds). Must run before the completed status is produced below and
+    // before the regenerate scheduled further down reads the tree.
+    await waitForRelationshipPersistenceDrain(request);
+
     // delete redis cache key with prefix boundaryRelatiionshipSearch
     await deleteRedisCacheKeysWithPrefix("boundaryRelationShipSearch");
 
@@ -754,6 +909,10 @@ function addBoundaryCodeToData(
   //   });
   // });
 
+  // String-keyed index of boundaryMap for O(1) structural-equality lookups
+  const codeIndex: Map<string, string> = new Map();
+  boundaryMap.forEach((value, key) => codeIndex.set(boundaryKeyOf(key), value));
+
   // Part 2: for rows without boundary code
   const boundaryDataForWithoutBoundaryCode = withoutBoundaryCode.map((row: any[]) => {
     let boundaryName: string | undefined;
@@ -765,7 +924,7 @@ function addBoundaryCodeToData(
       }
     }
 
-    const boundaryCode = findMapValue(boundaryMap, boundaryName);
+    const boundaryCode = boundaryName ? (codeIndex.get(boundaryKeyOf(boundaryName)) ?? null) : null;
     const boundaryCodeObj = { key: boundaryKey, value: boundaryCode };
     return [...row, boundaryCodeObj]; // just append the boundary code at the end
   });
@@ -787,13 +946,13 @@ function getChildParentMap(modifiedBoundaryData: any) {
   const stringifiedMap = new Set<string>(); // To avoid deep _.isEqual() lookup
   modifiedBoundaryData.forEach((row: any[]) => {
     for (let j = row.length - 1; j >= 0; j--) {
-      const child = row[j];
-      const parent = j - 1 >= 0 ? row[j - 1] : null;
-      const childIdentifier = { key: child.key, value: child.value };
-      const parentIdentifier = parent ? { key: parent.key, value: parent.value } : null;
-      const lookupKey = parentIdentifier
-        ? `${child.key}|${child.value}__${parent.key}|${parent.value}`
-        : `${child.key}|${child.value}__null`;
+      const child: any = row[j];
+      const parent: any = j - 1 >= 0 ? row[j - 1] : null;
+      // Carry __path so these fresh identifier objects keep their path-aware identity
+      // (boundaryKeyOf); without it, same-name boundaries under different parents would collapse.
+      const childIdentifier = { key: child.key, value: child.value, __path: child.__path };
+      const parentIdentifier = parent ? { key: parent.key, value: parent.value, __path: parent.__path } : null;
+      const lookupKey = `${boundaryKeyOf(childIdentifier)}__${parentIdentifier ? boundaryKeyOf(parentIdentifier) : 'null'}`;
       if (!stringifiedMap.has(lookupKey)) {
         childParentMap.set(childIdentifier, parentIdentifier);
         stringifiedMap.add(lookupKey);
@@ -803,10 +962,63 @@ function getChildParentMap(modifiedBoundaryData: any) {
   return childParentMap;
 }
 
+// Rehydrate the already-persisted hierarchy as codegen seed maps, for DELTA / no-codes auto updates
+// (the uploaded sheet does NOT carry the existing boundaries). Output shapes match
+// getCodeMappingsOfExistingBoundaryCodes so the codegen continues per-parent sequences and reuses
+// existing boundaries by name-path. Codes+structure come from the relationship tree; names from the
+// hierarchy's localisation module (a single search, not one entity call per boundary). __path is built
+// identically to modifyBoundaryData so boundaryKeyOf matches the uploaded rows.
+async function buildExistingSeedFromDb(request: any): Promise<{ mappingMap: Map<any, string>, countMap: Map<any, number> }> {
+  const tenantId = request?.body?.ResourceDetails?.tenantId;
+  const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
+  const mappingMap = new Map<any, string>();
+  const countMap = new Map<any, number>();
+  try {
+    const relResp: any = await httpRequest(
+      config.host.boundaryHost + config.paths.boundaryRelationship,
+      request.body,
+      // params mirror the proven relationship-search shape used in createBoundaryRelationship
+      { type: "boundaryManagement", tenantId, boundaryType: null, codes: null, includeChildren: true, hierarchyType }
+    );
+    const tree = relResp?.TenantBoundary?.[0]?.boundary || [];
+    if (!Array.isArray(tree) || tree.length === 0) return { mappingMap, countMap };
+    const locale = (request?.body?.RequestInfo?.msgId?.split("|")?.[1]) || config?.localisation?.defaultLocale;
+    const moduleName = `${config.localisation.boundaryPrefix}-${hierarchyType}`.toLowerCase();
+    const codeToName = new Map<string, string>();
+    try {
+      const locResp: any = await httpRequest(config.host.localizationHost + config.paths.localizationSearch, request.body, { tenantId, locale, module: moduleName });
+      (locResp?.messages || []).forEach((m: any) => { if (m?.code) codeToName.set(m.code, (m.message ?? m.code).toString()); });
+    } catch (le: any) {
+      logger.warn(`Seed: localisation lookup failed (${le?.message}); names fall back to codes`);
+    }
+    const walk = (nodes: any[], parentPath: string, parentElem: any) => {
+      (nodes || []).forEach((b: any) => {
+        if (!b?.code) return;
+        const name = codeToName.get(b.code) ?? b.code;
+        const lvl = b.boundaryType;
+        const path = parentPath ? `${parentPath}\u0001${lvl}\u0000${name}` : `${lvl}\u0000${name}`;
+        const elem = { key: lvl, value: name, __path: path };
+        mappingMap.set(elem, b.code);
+        if (parentElem) countMap.set(parentElem, (countMap.get(parentElem) || 0) + 1);
+        walk(b.children, path, elem);
+      });
+    };
+    walk(tree, "", null);
+    logger.info(`Delta-update seed from DB: ${mappingMap.size} existing boundaries; ${countMap.size} parents tracked`);
+  } catch (e: any) {
+    logger.warn(`buildExistingSeedFromDb failed (${e?.message || e}); proceeding with sheet-only context`);
+  }
+  return { mappingMap, countMap };
+}
+
 function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localizationMap: any) {
   const countMap = new Map<{ key: string; value: string }, number>();
   const mappingMap = new Map<{ key: string; value: string }, string>();
 
+  // String-keyed indexes for O(1) structural-equality lookups.
+  // countKeyIndex tracks the canonical object key so countMap keeps one entry per boundary.
+  const mappingIndex = new Map<string, string>();
+  const countKeyIndex = new Map<string, { key: string; value: string }>();
 
   withBoundaryCode.forEach((row: any[]) => {
     const effectiveRow = [];
@@ -820,68 +1032,38 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localiz
     }
     const len = effectiveRow.length;
     if (len >= 3) {
-      let grandParentFound = false;
       const grandParent = effectiveRow[len - 3];
-      if (findMapValue(mappingMap, grandParent)) {
-        const countMapArray = Array.from(countMap.entries());
-        for (const [key, value] of countMapArray) {
-          if (_.isEqual(key, grandParent)) {
-            countMap.set(key, value + 1);
-            grandParentFound = true;
-            break;
-          }
-        }
-        if (grandParentFound == false) {
+      if (mappingIndex.get(boundaryKeyOf(grandParent))) {
+        const canonicalGrandParent = countKeyIndex.get(boundaryKeyOf(grandParent));
+        if (canonicalGrandParent) {
+          countMap.set(canonicalGrandParent, (countMap.get(canonicalGrandParent) || 0) + 1);
+        } else {
           countMap.set(grandParent, 1);
+          countKeyIndex.set(boundaryKeyOf(grandParent), grandParent);
         }
       }
     }
     mappingMap.set(effectiveRow[len - 2], effectiveRow[len - 1].value);
+    mappingIndex.set(boundaryKeyOf(effectiveRow[len - 2]), effectiveRow[len - 1].value);
   });
   return { mappingMap, countMap };
 }
 
 function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
-  const map: Map<string, string> = new Map();
-  const count: Map<string, number> = new Map();
-  boundaryData = boundaryData.map(row =>
+  // Trim string cells only. The previous logic also DISAMBIGUATED duplicate boundary names that
+  // sat under different parents by rewriting the name (appending a "_<lvl>_NN" suffix). That was
+  // a workaround for a parent-agnostic identity and it CORRUPTED the user's data (req: names must
+  // be preserved; duplicate names under different parents are valid). Identity is now path-aware
+  // (boundaryKeyOf uses the ancestor chain stamped in modifyBoundaryData) and codes already encode
+  // the full parent path, so the rename is unnecessary and has been removed. The hierarchy param
+  // is retained for caller/signature compatibility.
+  return boundaryData.map(row =>
     Object.fromEntries(
       Object.entries(row).map(([key, value]) =>
         [key, typeof value === "string" ? value.trim() : value]
       )
     )
   );
-
-  boundaryData.forEach((row) => {
-    const keys = Object.keys(row).filter((key) => hierarchy.includes(key));
-    keys.forEach((key, index) => {
-      if (index > 0) {
-        const element = row[key];
-        const previousKey = keys[index - 1];
-        const previousElement = row[keys[index - 1]];
-        const previousElementKey = `${previousKey}:${previousElement}`;
-        const elementKey = `${key}:${element}`;
-
-        if (!map.has(elementKey)) {
-          map.set(elementKey, previousElementKey);
-          count.set(elementKey, 1);
-        } else {
-          const currentCount = count.get(elementKey)!;
-          if (map.get(elementKey) !== previousElementKey) {
-            map.set(elementKey, previousElementKey);
-            count.set(elementKey, currentCount + 1);
-          }
-          const uniqueCount = count.get(elementKey)!;
-          const uniqueElement =
-            uniqueCount > 1
-              ? `${element}_${key.length > 3 ? key.slice(0, 3).toLowerCase() : key.toLowerCase()}_${(uniqueCount - 1).toString().padStart(2, "0")}`
-              : `${element}`;
-          row[key] = uniqueElement;
-        }
-      }
-    });
-  });
-  return boundaryData;
 }
 
 function getLocalizedNameOnlyIfMessagePresent(
@@ -1079,6 +1261,11 @@ function validateHierarchyCurrentFlow(
     return;
   }
 
+  if (withoutBoundaryCode.length === 0 && manualBoundaryCode.length === 0) {
+    logger.info(`All ${withBoundaryCode.length} rows already processed (0 auto, 0 manual) - allowing idempotent re-upload under existing '${currentFlow}' flow`);
+    return;
+  }
+
   // Case 2: Current flow is auto AND new upload has auto boundaries
   if (currentFlow === "auto" && withoutBoundaryCode.length > 0) {
     logger.info("Auto flow validated - allowing auto-generation boundaries");
@@ -1107,5 +1294,6 @@ function validateHierarchyCurrentFlow(
 
 export {getHeadersOfBoundarySheet ,getLocalizedName,getHierarchy,validateHeaders,boundaryBulkUpload
   ,extractCodesFromBoundaryRelationshipResponse ,getLocalizedNameOnlyIfMessagePresent ,buildGenerateRequest,processDataSearchRequest
+  ,validateHierarchyCurrentFlow
 };
 ;

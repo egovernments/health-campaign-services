@@ -4,8 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -94,8 +96,40 @@ public class MDMSService {
     }
 
     /**
+     * Fetches a schema definition's "properties" from MDMS (HCM-ADMIN-CONSOLE.schemas) by title, cached
+     * by tenantId + schemaName. Schemas are stable config that was previously re-fetched over HTTP on
+     * every upload (once per distinct schema); caching collapses that to one call per (tenant, schema)
+     * within the TTL. Null (schema-not-found) results are not cached so a later fix is picked up.
+     *
+     * @return the schema's {@code properties} map, or null if not found
+     */
+    @SuppressWarnings("unchecked")
+    @Cacheable(value = "mdmsSchemas", key = "#tenantId + '_' + #schemaName", unless = "#result == null")
+    public Map<String, Object> getSchemaProperties(RequestInfo requestInfo, String tenantId, String schemaName) {
+        Map<String, Object> filters = new HashMap<>();
+        filters.put("title", schemaName);
+
+        List<Map<String, Object>> mdmsList = searchMDMS(
+                requestInfo, tenantId, ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
+
+        if (!mdmsList.isEmpty()) {
+            Map<String, Object> data = (Map<String, Object>) mdmsList.get(0).get("data");
+            if (data != null) {
+                Map<String, Object> properties = (Map<String, Object>) data.get("properties");
+                if (properties != null) {
+                    log.info("Successfully fetched MDMS schema for: {}", schemaName);
+                    return properties;
+                }
+            }
+        }
+
+        log.warn("No MDMS data found for schema: {}", schemaName);
+        return null;
+    }
+
+    /**
      * Generic MDMS search method with MdmsCriteria
-     * 
+     *
      * @param requestInfo Request info object
      * @param mdmsCriteria MDMS search criteria
      * @return List of MDMS data maps

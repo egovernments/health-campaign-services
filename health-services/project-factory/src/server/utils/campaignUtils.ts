@@ -3891,7 +3891,9 @@ function getLocalizedName(
     return expectedName;
   }
   const localizedName = localizationMap[expectedName];
-  return localizedName;
+  // Fall back to the code when the localized value is missing or blank, so a
+  // not-yet-localized (e.g. non-ASCII) name never renders as an empty cell.
+  return localizedName && localizedName.trim() !== "" ? localizedName : expectedName;
 }
 
 

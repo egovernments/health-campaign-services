@@ -16,6 +16,7 @@ import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.models.household.Relationship;
 import org.egov.common.validator.Validator;
+import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,14 +46,19 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
 
     private final HouseholdMemberRepository householdMemberRepository;
 
+    private final HouseholdMemberConfiguration householdMemberConfiguration;
+
     /**
      * Constructor to initialize the HouseholdMemberRepository dependency.
      *
      * @param householdMemberRepository The repository for household members.
+     * @param householdMemberConfiguration The household member configuration (feature flags).
      */
     @Autowired
-    public HmRelativeExistentValidator(HouseholdMemberRepository householdMemberRepository) {
+    public HmRelativeExistentValidator(HouseholdMemberRepository householdMemberRepository,
+                                       HouseholdMemberConfiguration householdMemberConfiguration) {
         this.householdMemberRepository = householdMemberRepository;
+        this.householdMemberConfiguration = householdMemberConfiguration;
     }
 
 
@@ -143,7 +149,9 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                         Error error = getErrorForInvalidRelatedEntityID();
                         populateErrorDetails(householdMember, error, errorDetailsMap);
                         log.error("Invalid self or relatives {}", householdMember);
-                    } else {
+                    } else if (householdMemberConfiguration.isHouseholdMemberRelationshipValidation()) {
+                        // Existence emission gated behind the flag; the relativeId back-fill (above) and the
+                        // isInvalidRelativeAndSelf self-consistency check (INVALID_RELATED_ENTITY_ID) always run.
                         List<String> nonExistingRelatives = householdMember.getMemberRelationships().stream()
                                 .filter(relationship -> !(
                                         (!ObjectUtils.isEmpty(relationship.getRelativeId()) && existingRelativesIds.containsKey(relationship.getRelativeId()))

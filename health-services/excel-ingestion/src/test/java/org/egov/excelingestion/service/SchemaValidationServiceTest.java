@@ -1,5 +1,6 @@
 package org.egov.excelingestion.service;
 
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,6 +73,83 @@ class SchemaValidationServiceTest {
 
         // Then
         assertTrue(errors.isEmpty(), "Empty data should not produce validation errors");
+    }
+
+    // ========== IMMUTABLE-CELL SKIP TESTS (validate only manually-entered cells) ==========
+
+    @Test
+    void immutableSkip_existingRow_invalidImmutableValue_isSkipped() {
+        // Existing row (has the hidden row-id); 'name' is immutable and reconstructed from the baseline.
+        // Even though "X" is shorter than the schema minLength, it must NOT be flagged - we don't re-validate it.
+        List<Map<String, Object>> data = Arrays.asList(
+            createRowData(ProcessingConstants.ROW_ID_COLUMN_NAME, "r1", "name", "X", "age", 25));
+
+        List<ValidationError> errors = schemaValidationService.validateDataWithPreFetchedSchema(
+            data, "TestSheet", testSchema, localizationMap, Set.of("name"));
+
+        assertNull(findErrorByColumn(errors, "name"),
+            "Immutable column on an existing row must not be re-validated");
+    }
+
+    @Test
+    void immutableSkip_newRow_invalidValue_isStillValidated() {
+        // New row (NO row-id) -> fully user-entered -> 'name' must still be validated even if listed immutable.
+        List<Map<String, Object>> data = Arrays.asList(
+            createRowData("name", "X", "age", 25));
+
+        List<ValidationError> errors = schemaValidationService.validateDataWithPreFetchedSchema(
+            data, "TestSheet", testSchema, localizationMap, Set.of("name"));
+
+        assertNotNull(findErrorByColumn(errors, "name"),
+            "A new row (no row-id) must be fully validated regardless of the immutable set");
+    }
+
+    @Test
+    void immutableSkip_existingRow_editableColumnStillValidated() {
+        // Existing row, but 'age' is NOT in the immutable set -> an out-of-range value must still be flagged.
+        List<Map<String, Object>> data = Arrays.asList(
+            createRowData(ProcessingConstants.ROW_ID_COLUMN_NAME, "r1", "name", "Valid Name", "age", 999));
+
+        List<ValidationError> errors = schemaValidationService.validateDataWithPreFetchedSchema(
+            data, "TestSheet", testSchema, localizationMap, Set.of("name"));
+
+        assertNotNull(findErrorByColumn(errors, "age"),
+            "Editable (non-immutable) columns on existing rows must still be validated");
+    }
+
+    @Test
+    void immutableSkip_emptySet_validatesEverything_existingRow() {
+        // Default path (4-arg / empty skip set): even an existing row is fully validated.
+        List<Map<String, Object>> data = Arrays.asList(
+            createRowData(ProcessingConstants.ROW_ID_COLUMN_NAME, "r1", "name", "X", "age", 25));
+
+        List<ValidationError> errors = schemaValidationService.validateDataWithPreFetchedSchema(
+            data, "TestSheet", testSchema, localizationMap);
+
+        assertNotNull(findErrorByColumn(errors, "name"),
+            "With no immutable set, an existing row's short name must still be flagged");
+    }
+
+    @Test
+    void immutableSkip_uniquenessStillEnforcedAcrossImmutableAndNewRows() {
+        // 'name' is unique. An existing (immutable) row and a NEW row share the same value -> the
+        // uniqueness pass must still catch the collision even though the immutable cell's own validation is skipped.
+        Map<String, Object> uniqueNameProp = new HashMap<>();
+        uniqueNameProp.put("name", "name");
+        uniqueNameProp.put("isRequired", false);
+        uniqueNameProp.put("isUnique", true);
+        Map<String, Object> uniqueSchema = new HashMap<>();
+        uniqueSchema.put("stringProperties", Arrays.asList(uniqueNameProp));
+
+        List<Map<String, Object>> data = Arrays.asList(
+            createRowData(ProcessingConstants.ROW_ID_COLUMN_NAME, "r1", "name", "DUP"),  // existing (immutable)
+            createRowData("name", "DUP"));                                              // new row colliding
+
+        List<ValidationError> errors = schemaValidationService.validateDataWithPreFetchedSchema(
+            data, "TestSheet", uniqueSchema, localizationMap, Set.of("name"));
+
+        assertFalse(errors.isEmpty(),
+            "Uniqueness must still flag a new row colliding with an immutable value");
     }
 
     // ==================== REQUIRED FIELD VALIDATION TESTS ====================

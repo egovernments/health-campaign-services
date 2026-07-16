@@ -1,13 +1,12 @@
 import{getLocalizedName,extractCodesFromBoundaryRelationshipResponse,getHierarchy} from "../utils/boundaryUtils"
 import {getExcelWorkbookFromFileURL,enrichTemplateMetaData} from "../utils/excelUtils";
 import { logger,getFormattedStringForDebug } from  "../utils/logger";
-import {findMapValue,getLocalizedHeaders,throwError,getDataSheetReady} from "../utils/genericUtils";
+import {boundaryKeyOf,getLocalizedHeaders,throwError,getDataSheetReady,getExistingHierarchyCodes} from "../utils/genericUtils";
 import config from "../config/index";
 import { httpRequest,defaultheader } from "../utils/request";
 import {getLocaleFromRequestInfo} from "../utils/localisationUtils";
 import {searchBoundaryRelationshipData,defaultRequestInfo} from "./coreApis";
 import FormData from "form-data"; 
-const _ = require('lodash'); // Import lodash library
 
 
 // Function to retrieve data from a specific sheet in an Excel file
@@ -16,11 +15,12 @@ const getSheetData = async (
   sheetName: string,
   getRow = false,
   createAndSearchConfig?: any,
-  localizationMap?: { [key: string]: string }
+  localizationMap?: { [key: string]: string },
+  request?: any
 ) => {
   // Retrieve workbook using the getExcelWorkbookFromFileURL function
   const localizedSheetName = getLocalizedName(sheetName, localizationMap);
-  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
+  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName, request);
 
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
 
@@ -64,38 +64,156 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
     const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
     const allCodes = extractCodesFromBoundaryRelationshipResponse(boundaryData);
 
-    let flag = 1;
+    // Parents already present in the existing tree need no re-confirmation.
+    const confirmedParents = new Set<string>(allCodes);
+    // Codes that already exist or have had their create issued in this run.
+    const created = new Set<string>(allCodes);
 
-    for (const { key: boundaryCode, value: boundaryType } of updatedBoundaryMap) {
-      if (!allCodes.has(boundaryCode)) {
-        const boundary = {
-          tenantId: request?.body?.ResourceDetails?.tenantId,
-          boundaryType: boundaryType,
-          code: boundaryCode,
-          hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
-          parent: modifiedChildParentMap.get(boundaryCode) || null
-        };
+    const toCreate = updatedBoundaryMap
+      .filter(({ key: boundaryCode }) => !allCodes.has(boundaryCode))
+      .map(({ key: boundaryCode, value: boundaryType }) => ({
+        boundaryCode,
+        boundaryType,
+        parentCode: modifiedChildParentMap.get(boundaryCode) || null,
+      }));
 
-        flag = 0;
-        requestBody.BoundaryRelationship = boundary;
-        await confirmBoundaryParentCreation(request, modifiedChildParentMap.get(boundaryCode) || null);
-        try {
-          const response = await httpRequest(`${config.host.boundaryHost}${config.paths.boundaryRelationshipCreate}`, requestBody, {}, 'POST', undefined, undefined, true);
+    if (toCreate.length === 0) {
+      // Every boundary in the sheet already exists in the tree. A re-upload with no new rows is an
+      // idempotent no-op, NOT a failure: returning here lets the process be marked completed instead
+      // of failing the whole batch. (Incremental uploads with some new rows fall through and create
+      // only the new ones — existing codes are already filtered out of toCreate above.)
+      logger.info("All boundary relationships already present — idempotent no-op, nothing to create.");
+      request.body = {
+        ...request.body,
+        Activities: activityMessage
+      };
+      return;
+    }
 
+    // Total relationships the hierarchy must show once the asynchronous persister drains: everything
+    // already in the tree plus everything this run creates. generateProcessedFileAndPersist gates
+    // "completed" on the relationship search reaching this count, so an immediate follow-up upload
+    // sees all of this run's codes instead of failing MIXED_BOUNDARY_FLOW.
+    request.body.expectedFinalRelationshipCount = allCodes.size + toCreate.length;
+
+    const concurrency = parseInt(config.values.relationshipCreateConcurrency) || 10;
+    const BULK = parseInt(config.values.bulkRelationshipChunkSize) || 100;
+    // The last two (high-cardinality) levels of the hierarchy are created in bulk via Kafka batch
+    // jobs consumed by boundary-service; every level above them is created one-by-one via the
+    // existing single create API.
+    const hierarchyOrder: string[] = (await getHierarchy(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType)) || [];
+    const bulkLevels = new Set<string>(hierarchyOrder.slice(-2));
+    logger.info(`Relationship create :: hierarchy=[${hierarchyOrder.join(" > ")}] :: bulkLevels(last 2, via Kafka)=[${Array.from(bulkLevels).join(", ")}]`);
+    let remaining = toCreate;
+
+    // Create level-by-level in dependency waves: each wave is the set of boundaries whose parent
+    // already exists (root, pre-existing, or created in a previous wave). Siblings within a wave
+    // are independent, so they are created with bounded parallelism. Between waves, each distinct
+    // parent is confirmed persisted once, preserving the parent-before-child invariant that the
+    // previous strictly-sequential loop guaranteed (same relationships, same parentage — only the
+    // order and concurrency change).
+    while (remaining.length > 0) {
+      const ready = remaining.filter((it) => !it.parentCode || created.has(it.parentCode));
+      const notReady = remaining.filter((it) => it.parentCode && !created.has(it.parentCode));
+
+      if (ready.length === 0) {
+        throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR", "Could not resolve parent ordering for boundary relationships (missing parent codes)");
+      }
+
+      // Barrier: confirm each distinct, not-yet-confirmed parent of this wave is persisted — but ONLY
+      // when the parent was created via the synchronous single-create path (an upper level). Parents at
+      // a bulk level are created asynchronously by boundary-service's Kafka consumer; blocking on them
+      // here would race a short (~7s) search budget against unbounded consumer throughput and fail the
+      // upload under load. For bulk-level parents we rely on the consumer's idempotent redelivery
+      // instead: a child whose parent is not yet persisted comes back as PARENT_NOT_FOUND and is
+      // retried by the consumer until the parent exists. This also keeps the (sequential) barrier to
+      // the low-cardinality upper levels only.
+      // Decide PER ITEM (not once per wave): a wave can be heterogeneous (contain items from more than
+      // one level) on partial / incremental re-uploads, so a single representative item is unsafe.
+      // Confirm a parent only when that parent's level is NOT a bulk level — bulk-level parents are
+      // created asynchronously by boundary-service's consumer, which tolerates parent lag via idempotent
+      // redelivery, so blocking on them here would race a short confirm budget against the consumer.
+      const seenParent = new Set<string>();
+      const parentsToConfirm: string[] = [];
+      ready.forEach((it) => {
+        if (!it.parentCode || confirmedParents.has(it.parentCode) || seenParent.has(it.parentCode)) return;
+        const levelIdx = hierarchyOrder.indexOf(it.boundaryType);
+        const parentLevelIsBulk = levelIdx > 0 && bulkLevels.has(hierarchyOrder[levelIdx - 1]);
+        if (parentLevelIsBulk) return; // bulk-level parent -> rely on bulk-create's transient retry, do not block
+        seenParent.add(it.parentCode);
+        parentsToConfirm.push(it.parentCode);
+      });
+      for (const parentCode of parentsToConfirm) {
+        await confirmBoundaryParentCreation(request, parentCode);
+        confirmedParents.add(parentCode);
+      }
+
+      // Split this wave by level: upper levels (everything above the last two) are created one-by-one
+      // via the single create API with bounded parallelism; the last two (high-cardinality) levels are
+      // published to Kafka as batch jobs of <= BULK records, grouped by parent and keyed by the parent
+      // code so a parent's children land on the same partition (kept together + ordered). boundary-
+      // service's horizontally-scaled consumer performs the bulk create for those jobs.
+      const singleItems = ready.filter((it) => !bulkLevels.has(it.boundaryType));
+      const bulkItems = ready.filter((it) => bulkLevels.has(it.boundaryType));
+
+      for (let i = 0; i < singleItems.length; i += concurrency) {
+        const batch = singleItems.slice(i, i + concurrency);
+        await Promise.all(batch.map(async (it) => {
+          const body = {
+            ...requestBody,
+            BoundaryRelationship: {
+              tenantId: request?.body?.ResourceDetails?.tenantId,
+              boundaryType: it.boundaryType,
+              code: it.boundaryCode,
+              hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+              parent: it.parentCode,
+            },
+          };
+          const response = await httpRequest(`${config.host.boundaryHost}${config.paths.boundaryRelationshipCreate}`, body, {}, 'POST', undefined, undefined, true);
           if (!response.TenantBoundary || !Array.isArray(response.TenantBoundary) || response.TenantBoundary.length === 0) {
             throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR");
           }
-          logger.info(`Boundary relationship created for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} `);
-        } catch (error) {
-          // Log the error and rethrow to be caught by the outer try...catch block
-          logger.error(`Error creating boundary relationship for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} :: `, error);
-          throw error;
-        }
+          logger.info(`Boundary relationship created (single) :: ${it.boundaryType} :: ${it.boundaryCode}`);
+        }));
       }
-    };
 
-    if (flag === 1) {
-      throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary already present in the system");
+      if (bulkItems.length > 0) {
+        const tenantId = request?.body?.ResourceDetails?.tenantId;
+        const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
+        const byParent = new Map<string, any[]>();
+        bulkItems.forEach((it) => {
+          const k = it.parentCode || "__root__";
+          if (!byParent.has(k)) byParent.set(k, []);
+          byParent.get(k)!.push(it);
+        });
+        const chunks: any[][] = [];
+        // NOTE: tsconfig targets es5 without downlevelIteration, so for-of over a Map iterator does
+        // not work — iterate over an array of keys instead.
+        for (const parentCode of Array.from(byParent.keys())) {
+          const items = byParent.get(parentCode) || [];
+          for (let i = 0; i < items.length; i += BULK) {
+            chunks.push(items.slice(i, i + BULK).map((it) => ({
+              tenantId,
+              boundaryType: it.boundaryType,
+              code: it.boundaryCode,
+              hierarchyType,
+              parent: it.parentCode,
+            })));
+          }
+        }
+        // Create the chunks via boundary-service's synchronous /bulk/_create with the same bounded
+        // parallelism as the single creates. The endpoint validates + enriches every record
+        // in-request and only then publishes it to the persister.
+        for (let i = 0; i < chunks.length; i += concurrency) {
+          const batch = chunks.slice(i, i + concurrency);
+          await Promise.all(batch.map((records) => createBulkBoundaryRelationships(request, records)));
+        }
+        logger.info(`Created ${chunks.length} bulk relationship chunk(s) via /bulk/_create for level(s) [${Array.from(new Set(bulkItems.map((it) => it.boundaryType))).join(", ")}]`);
+      }
+
+      ready.forEach((it) => created.add(it.boundaryCode));
+
+      remaining = notReady;
     }
 
     request.body = {
@@ -107,6 +225,76 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
     const errorMessage = error.description || "Error while boundary relationship create";
     logger.error(`Error in createBoundaryRelationship: ${errorMessage}`, error);
     throwError("COMMON", 500, errorCode, errorMessage);
+  }
+}
+
+// Per-record outcomes from /bulk/_create: a duplicate means the record already exists — an idempotent
+// success; a parent/entity not yet committed (the persister writes asynchronously) is transient and is
+// retried; anything else is a permanent data error that fails the campaign.
+const BULK_IDEMPOTENT_CODES = new Set<string>(["DUPLICATE_RECORD"]);
+const BULK_RETRYABLE_CODES = new Set<string>([
+  "PARENT_NOT_FOUND",
+  "BOUNDARY_ENTITY_DOES_NOT_EXIST",
+  "BULK_RELATIONSHIP_PERSIST_TRANSIENT",
+]);
+// Envelope-level (non-2xx) error codes from /bulk/_create that are genuine bad-request faults: retrying
+// cannot help, so fail the campaign fast preserving the real code. Any OTHER envelope error is treated
+// as transient (service restart, gateway blip) and the whole chunk is retried.
+const BULK_PERMANENT_ENVELOPE_CODES = new Set<string>([
+  "BULK_REQUEST_SIZE_EXCEEDED",
+  "BULK_REQUEST_EMPTY",
+  "BULK_REQUEST_INFO_MISSING",
+  "INVALID_BOUNDARY_CODE",
+]);
+
+/**
+ * Creates a chunk of boundary relationships via boundary-service's synchronous /bulk/_create. The endpoint
+ * validates + enriches every record and returns a per-record outcome (HTTP 200). Here we:
+ *  - retry only the records whose failure is transient (parent/entity not yet persisted by the
+ *    asynchronous persister), with a bounded attempt budget,
+ *  - treat duplicates as idempotent successes (safe on redelivery / re-upload),
+ *  - fail fast on permanent per-record or envelope errors, preserving the real error code.
+ */
+async function createBulkBoundaryRelationships(request: any, records: any[]) {
+  if (!records || records.length === 0) return;
+  const url = `${config.host.boundaryHost}${config.paths.boundaryRelationshipBulkCreate}`;
+  const maxAttempts = parseInt(config.values.bulkRelationshipRetryAttempts) || 30;
+  const delayMs = parseInt(config.values.bulkRelationshipRetryDelayMs) || 2000;
+
+  let pending = records;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const body = { RequestInfo: request.body.RequestInfo, BoundaryRelationships: pending };
+    const response = await httpRequest(url, body, {}, 'POST', undefined, undefined, true, false, true);
+
+    const hasRecordShape = response && (Array.isArray(response.failedBoundaryRelationships) || Array.isArray(response.successfulBoundaryRelationships));
+    if (!hasRecordShape) {
+      const envCode = response?.Errors?.[0]?.code;
+      const envMsg = response?.Errors?.[0]?.message || response?.Errors?.[0]?.description;
+      if (envCode && BULK_PERMANENT_ENVELOPE_CODES.has(envCode)) {
+        throwError("BOUNDARY", 400, envCode, `Bulk relationship create rejected: ${envMsg || envCode}`);
+      }
+      if (attempt >= maxAttempts) {
+        throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_BULK_CREATE_ERROR", `Bulk relationship create failed with transient upstream error after ${maxAttempts} attempts: ${envCode || envMsg || 'unknown'}`);
+      }
+      logger.warn(`Bulk relationship create :: transient envelope error (${envCode || 'unknown'}) from /bulk/_create, retrying chunk (attempt ${attempt}/${maxAttempts})`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      continue;
+    }
+
+    const failed = response.failedBoundaryRelationships || [];
+    const permanent = failed.filter((f: any) => !BULK_RETRYABLE_CODES.has(f.errorCode) && !BULK_IDEMPOTENT_CODES.has(f.errorCode));
+    if (permanent.length > 0) {
+      const sample = permanent.slice(0, 3).map((f: any) => `${f?.boundaryRelationship?.code}:${f.errorCode}`).join(", ");
+      throwError("BOUNDARY", 400, "BOUNDARY_RELATIONSHIP_BULK_CREATE_ERROR", `Bulk relationship create failed permanently for ${permanent.length} record(s): ${sample}`);
+    }
+    const retryRecords = failed.filter((f: any) => BULK_RETRYABLE_CODES.has(f.errorCode)).map((f: any) => f.boundaryRelationship);
+    if (retryRecords.length === 0) return; // all accepted for persistence (or idempotent duplicates)
+    if (attempt >= maxAttempts) {
+      throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_BULK_CREATE_ERROR", `Bulk relationship create exhausted ${maxAttempts} retries with ${retryRecords.length} record(s) still awaiting parent/entity persistence`);
+    }
+    logger.info(`Bulk relationship create :: ${retryRecords.length}/${pending.length} awaiting parent/entity persistence, retrying (attempt ${attempt}/${maxAttempts})`);
+    pending = retryRecords;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 }
 
@@ -128,7 +316,7 @@ async function confirmBoundaryParentCreation(request: any, code: any) {
     }
     while (!boundaryFound && retry >= 0) {
       const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params, undefined, undefined, header);
-      if (response?.TenantBoundary?.[0].boundary?.[0]) {
+      if (response?.TenantBoundary?.[0]?.boundary?.[0]) {
         boundaryFound = true;
       }
       else {
@@ -229,7 +417,12 @@ async function getBoundarySheetData(
     `processing boundary data generation for hierarchyType : ${hierarchyType}`
   );
   // const boundaryData = await getBoundaryRelationshipData(request, params);
-  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true,useCache);
+  // includeParents=false: we only need the children tree to flatten into sheet rows. Requesting
+  // parents too makes the relationship search return each node once per ancestor path, duplicating
+  // every node exponentially by depth (Country x2, Province x4, ... Village x32) and inflating the
+  // generated sheet (and, at hierarchy scale, the response itself). getDataSheetReady also dedups
+  // the flattened rows as a safety net.
+  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, false, useCache);
   const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
@@ -454,7 +647,7 @@ function enrichSchema(data: any, properties: any, required: any, columns: any, u
 
 
 // Function to handle getting boundary codes
-async function getAutoGeneratedBoundaryCodesHandler(boundaryList: any, childParentMap: Map<{ key: string; value: string; }, { key: string; value: string; } | null>, elementCodesMap: any, countMap: any, request: any,hierarchy?:any) {
+async function getAutoGeneratedBoundaryCodesHandler(boundaryList: any, childParentMap: Map<{ key: string; value: string; }, { key: string; value: string; } | null>, elementCodesMap: any, countMap: any, request: any,hierarchy:any) {
   try {
     // Get updated element codes map
     logger.info("Auto Generation of Boundary code begins for the user uploaded sheet")
@@ -476,9 +669,10 @@ async function getAutoGeneratedBoundaryCodesHandler(boundaryList: any, childPare
  * @param request HTTP request object
  * @returns Updated element codes map
  */
-async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: any, elementCodesMap: any, countMap: any, request: any,hierarchy?:any) {
+async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: any, elementCodesMap: any, countMap: any, request: any,hierarchy:any) {
   // Initialize an array to store column data
   const columnsData: { key: string, value: string }[][] = [];
+  const seenInColumn: Set<string>[] = []; // O(1) per-column structural dedup
   // Extract unique elements from each column
   for (const row of boundaryList) {
     const rowMap = new Map<string, any>();
@@ -498,24 +692,37 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
 
     if (!columnsData[i]) {
       columnsData[i] = [];
+      seenInColumn[i] = new Set<string>();
     }
-    const existingElement = columnsData[i].find((existing: any) => _.isEqual(existing, element));
-    if (!existingElement) {
+    const elementKey = boundaryKeyOf(element);
+    if (!seenInColumn[i].has(elementKey)) {
+      seenInColumn[i].add(elementKey);
       columnsData[i].push(element);
     }
     };
   }
 
+  // String-keyed indexes of the object-keyed maps so each lookup below is O(1).
+  // Insertion order preserves last-match-wins semantics for duplicate structural keys.
+  const childParentIndex = new Map<string, any>();
+  childParentMap.forEach((value: any, key: any) => childParentIndex.set(boundaryKeyOf(key), value));
+  const elementCodesIndex = new Map<string, string>();
+  elementCodesMap.forEach((value: any, key: any) => elementCodesIndex.set(boundaryKeyOf(key), value));
+  const countIndex = new Map<string, number>();
+  countMap.forEach((value: any, key: any) => countIndex.set(boundaryKeyOf(key), value));
+
   // Iterate over columns to generate boundary codes
   for (let i = 0; i < columnsData.length; i++) {
     const column = columnsData[i] || [];
     for (const element of column) {
-      if (!findMapValue(elementCodesMap, element) && element.value !== '') {
-        const parentElement = findMapValue(childParentMap, element);
+      if (!elementCodesIndex.get(boundaryKeyOf(element)) && element.value !== '') {
+        const parentElement = childParentIndex.get(boundaryKeyOf(element));
         if (parentElement !== undefined && parentElement !== null) {
-          const parentBoundaryCode = findMapValue(elementCodesMap, parentElement);
-          const currentCount = (findMapValue(countMap, parentElement) || 0) + 1;
+          const parentKey = boundaryKeyOf(parentElement);
+          const parentBoundaryCode = elementCodesIndex.get(parentKey);
+          const currentCount = (countIndex.get(parentKey) || 0) + 1;
           countMap.set(parentElement, currentCount);
+          countIndex.set(parentKey, currentCount);
 
           const code = generateElementCode(
             currentCount,
@@ -523,11 +730,12 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
             parentBoundaryCode,
             element.value,
             config.excludeBoundaryNameAtLastFromBoundaryCodes,
-            childParentMap,
+            childParentIndex,
             elementCodesMap
           );
 
           elementCodesMap.set(element, code); // Store the code of the element in the map
+          elementCodesIndex.set(boundaryKeyOf(element), code);
         } else {
           // Generate default code if parent code is not found
           const prefix = config?.excludeHierarchyTypeFromBoundaryCodes
@@ -535,6 +743,7 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
             : `${(request?.body?.ResourceDetails?.hierarchyType + "_").toUpperCase()}${element.value.toString().substring(0, 2).toUpperCase()}`;
 
           elementCodesMap.set(element, prefix);
+          elementCodesIndex.set(boundaryKeyOf(element), prefix);
         }
       }
     }
@@ -561,10 +770,18 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<any, any>) 
     });
     const boundaryEntitiesCreated: any[] = [];
     const boundaryEntityCreateChunkSize = 200;
-    const chunkSize = 20;
+
+    // Codes already present in this hierarchy necessarily have entities — skip them.
+    // Only the delta (codes not yet in the hierarchy) is entity-searched, so this phase
+    // scales with new rows rather than the whole hierarchy (Issue 5). The per-code entity
+    // search still catches the rare entity-without-relationship (partial-run) case.
+    const hierarchyCodes = await getExistingHierarchyCodes(request);
+    const deltaCodes = boundaryCodes.filter((code) => !hierarchyCodes.has(code?.toString()));
+
+    const chunkSize = 50;
     const boundaryCodeChunks = [];
-    for (let i = 0; i < boundaryCodes.length; i += chunkSize) {
-      boundaryCodeChunks.push(boundaryCodes.slice(i, i + chunkSize));
+    for (let i = 0; i < deltaCodes.length; i += chunkSize) {
+      boundaryCodeChunks.push(deltaCodes.slice(i, i + chunkSize));
     }
 
     for (const chunk of boundaryCodeChunks) {
@@ -574,7 +791,8 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<any, any>) 
       codesFromResponse.push(...boundaryCodesFromResponse);
     }
 
-    const codeSet = new Set(codesFromResponse);// Creating a set and filling it with the codes from the response
+    // Existing = already-in-hierarchy ∪ found-by-entity-search (delta partials)
+    const codeSet = new Set<string>(Array.from(hierarchyCodes).concat(codesFromResponse.map((c: any) => c?.toString())));
     for (const { key: boundaryName, value: boundaryCode } of updatedBoundaryMap) {
       if (!codeSet.has(boundaryCode.toString())) {
         const boundary = {
@@ -601,8 +819,18 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<any, any>) 
       // throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
       logger.info("Boundary Entities are already in the system")
     }
-  } catch (error) {
-    throwError("COMMMON", 500, "INTERNAL_SERVER_ERROR", "Error while Boundary Entity Creation")
+  } catch (error: any) {
+    // Surface the real underlying error instead of masking every failure as a generic
+    // message — the RCA showed a transport "write EPIPE" was hidden behind this mask,
+    // leaving the persisted failure record undiagnosable.
+    const underlying =
+      error?.description ||
+      error?.message ||
+      error?.response?.data?.Errors?.[0]?.code ||
+      (error?.Errors?.[0] ? JSON.stringify(error.Errors[0]) : undefined) ||
+      String(error);
+    logger.error("Error while Boundary Entity Creation :: " + (error?.stack || error));
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Error while Boundary Entity Creation: ${underlying}`);
   }
 }
 
@@ -644,7 +872,7 @@ function modifyElementCodesMap(elementCodesMap: any) {
  * @param elementCodesMap Map of elements to their codes
  * @returns Generated element code
  */
-function generateElementCode(sequence: any, parentElement: any, parentBoundaryCode: any, element: any, excludeBoundaryNameAtLastFromBoundaryCodes?: any, childParentMap?: any, elementCodesMap?: any) {
+function generateElementCode(sequence: any, parentElement: any, parentBoundaryCode: any, element: any, excludeBoundaryNameAtLastFromBoundaryCodes?: any, childParentIndex?: Map<string, any>, elementCodesMap?: any) {
   // Pad single-digit numbers with leading zero
   const paddedSequence = sequence.toString().padStart(2, "0");
   let code;
@@ -652,10 +880,30 @@ function generateElementCode(sequence: any, parentElement: any, parentBoundaryCo
   if (excludeBoundaryNameAtLastFromBoundaryCodes) {
     code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}`;
   } else {
-    const grandParentElement = findMapValue(childParentMap, parentElement);
+    const grandParentElement = childParentIndex?.get(boundaryKeyOf(parentElement));
     if (grandParentElement != null && grandParentElement != undefined) {
-      const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
-      const parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+      // Strip the parent's OWN name from the end of the parent code, leaving the numeric path
+      // prefix (hierarchyType_country_seq_seq_...). The parent code may arrive in two shapes:
+      //   - first creation: built in-memory this run, name still has spaces  -> "..._02_LOCALITY 2"
+      //   - subsequent updates: read back from the DB already sanitized      -> "..._02_LOCALITY_2"
+      // The old logic just dropped the substring after the LAST '_', which only removes the name
+      // correctly in the spaces shape; on updates it left the parent name embedded in the child
+      // code (e.g. "..._02_LOCALITY_03_VILLAGE_3"), so create and update produced DIFFERENT codes
+      // for the same position. We normalize BOTH the parent code and the parent name to the same
+      // sanitized shape and remove exactly the trailing name, so update yields the SAME clean
+      // numeric code as creation (a deterministic function of position). Falls back to the old
+      // last-'_' trim when the parent code doesn't end with the parent's name (e.g. user-supplied
+      // manual codes that don't encode the name).
+      const sanitize = (s: any) => (s === null || s === undefined ? "" : s.toString().toUpperCase().replace(/[^\w]/g, "_"));
+      const sanitizedParentCode = sanitize(parentBoundaryCode);
+      const nameSuffix = "_" + sanitize(parentElement?.value);
+      let parentBoundaryCodeTrimmed: string;
+      if (parentElement?.value && nameSuffix.length > 1 && sanitizedParentCode.endsWith(nameSuffix)) {
+        parentBoundaryCodeTrimmed = sanitizedParentCode.slice(0, sanitizedParentCode.length - nameSuffix.length);
+      } else {
+        const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
+        parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+      }
       code = `${parentBoundaryCodeTrimmed.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
     } else {
       code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
@@ -747,4 +995,5 @@ async function createAndUploadFile(
 
 export{getSheetData,getAutoGeneratedBoundaryCodesHandler,createBoundaryEntities,createBoundaryRelationship
     ,createExcelSheet , createAndUploadFile ,getBoundarySheetData ,getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement
+    ,createBulkBoundaryRelationships
 };
