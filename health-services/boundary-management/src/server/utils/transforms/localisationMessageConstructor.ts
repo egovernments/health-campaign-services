@@ -89,8 +89,13 @@ export const transformAndCreateLocalisation = async (
 }
 
 // Verify that every intended boundary name is present in localisation after the upsert phase.
-// Records an incompleteness flag on the resource (rather than failing the whole run, since the
-// boundaries themselves were created) so a partial localisation is surfaced, not silent.
+// This is a retry-GATE, not just a check: on a miss it re-bursts the localization cache and polls
+// the read-back until every name is visible or the bounded window elapses. Upserts are synchronous
+// (a 200 means committed), so the first read normally already sees everything and the gate costs
+// one search (~1s) — this is what replaced the blind post-upsert settle as the consistency
+// guarantee. Only if the window elapses is the incompleteness flag recorded on the resource
+// (rather than failing the whole run, since the boundaries themselves were created), so a partial
+// localisation is surfaced, not silent.
 const verifyLocalisationCompleteness = async (
   localisation: any,
   module: string,
@@ -99,29 +104,48 @@ const verifyLocalisationCompleteness = async (
   expectedMessages: any[],
   request: any
 ) => {
-  try {
-    const afterMap = (await localisation.getLocalisedData(module, locale, tenantId, true)) || {};
-    const missing = expectedMessages.filter(
-      (m: any) => afterMap[m.code] === undefined || afterMap[m.code] === null
-    );
-    if (missing.length > 0) {
-      const sample = missing.slice(0, 10).map((m: any) => m.code).join(", ");
-      logger.error(
-        `Localisation INCOMPLETE for ${module}/${locale}: ${missing.length} of ${expectedMessages.length} names missing after upsert (e.g. ${sample})`
+  const pollMs = config.localisation.localisationVerifyPollIntervalMs;
+  const timeoutMs = config.localisation.localisationVerifyTimeoutMs;
+  const deadline = Date.now() + timeoutMs;
+  let missing: any[] = expectedMessages;
+  let attempt = 0;
+  while (true) {
+    attempt++;
+    try {
+      const afterMap = (await localisation.getLocalisedData(module, locale, tenantId, true)) || {};
+      missing = expectedMessages.filter(
+        (m: any) => afterMap[m.code] === undefined || afterMap[m.code] === null
       );
-      if (request?.body?.ResourceDetails) {
-        const additionalDetails = request.body.ResourceDetails.additionalDetails || {};
-        request.body.ResourceDetails.additionalDetails = {
-          ...additionalDetails,
-          localisationIncomplete: true,
-          localisationMissingCount: (additionalDetails.localisationMissingCount || 0) + missing.length,
-        };
+      if (missing.length === 0) {
+        logger.info(`Localisation complete for ${module}/${locale}: all ${expectedMessages.length} names present (verify attempt ${attempt})`);
+        return;
       }
-    } else {
-      logger.info(`Localisation complete for ${module}/${locale}: all ${expectedMessages.length} names present`);
+    } catch (e: any) {
+      // A failed read-back must not fail an already-successful run — keep polling until deadline.
+      logger.warn(`Localisation verify read-back failed for ${module}/${locale} (attempt ${attempt}): ${e?.message}`);
     }
-  } catch (e: any) {
-    logger.warn(`Could not verify localisation completeness for ${module}/${locale}: ${e?.message}`);
+    if (Date.now() >= deadline) break;
+    logger.info(
+      `Localisation verify: ${missing.length}/${expectedMessages.length} names not yet visible for ${module}/${locale}; re-bursting cache and retrying in ${pollMs} ms`
+    );
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+    try {
+      await localisation.cacheBurst();
+    } catch (e: any) {
+      logger.warn(`cacheBurst during localisation verify retry failed: ${e?.message}`);
+    }
+  }
+  const sample = missing.slice(0, 10).map((m: any) => m.code).join(", ");
+  logger.error(
+    `Localisation INCOMPLETE for ${module}/${locale}: ${missing.length} of ${expectedMessages.length} names missing after ${timeoutMs} ms verify window (e.g. ${sample})`
+  );
+  if (request?.body?.ResourceDetails) {
+    const additionalDetails = request.body.ResourceDetails.additionalDetails || {};
+    request.body.ResourceDetails.additionalDetails = {
+      ...additionalDetails,
+      localisationIncomplete: true,
+      localisationMissingCount: (additionalDetails.localisationMissingCount || 0) + missing.length,
+    };
   }
 }
 
@@ -225,10 +249,11 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
     }
   };
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
-  // Single settle + cache-burst AFTER all chunks (replaces the former per-chunk 30s wait). One
-  // settle preserves the "localisation is fresh before it is read back" guarantee (the generate
-  // step reads it later, after its own delay) while removing the wait that was multiplied by the
-  // number of chunks. Tunable via LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION (set 0 to skip).
+  // Optional blind settle AFTER all chunks, default 0 (skipped). The "localisation is fresh before
+  // it is read back" guarantee now comes from the verify retry-gate that runs after this function
+  // (cache-burst, then poll the read-back until every name is visible) — upserts are synchronous,
+  // so sleeping here buys nothing the gate does not already prove. Escape hatch:
+  // LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION > 0 re-enables the sleep.
   const settleTime = config.localisation.localizationWaitTimeInBoundaryCreation;
   if (settleTime > 0) {
     logger.info(`Waiting ${settleTime / 1000}s once after all ${Math.ceil(messages.length / chunkSize)} localisation chunks, then cache-burst`);

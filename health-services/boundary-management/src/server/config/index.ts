@@ -69,9 +69,17 @@ const config = {
     defaultLocale: process.env.LOCALE || "en_MZ",
     boundaryPrefix: "hcm-boundary",
     localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
-    localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "30000"),
+    // Optional blind settle after the upsert chunks, retained only as an escape hatch. The
+    // consistency guarantee is the verify-gate below (read-back poll until every name is visible),
+    // not this sleep — upserts are synchronous, so the first read normally already sees everything.
+    localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "0"),
     localizationChunkSizeForBoundaryCreation: parseInt(process.env.LOCALIZATION_CHUNK_SIZE_FOR_BOUNDARY_CREATION || "2000"),
     localizationUpsertConcurrency: parseInt(process.env.LOCALIZATION_UPSERT_CONCURRENCY || "5"),
+    // Verify-gate: after cache-burst, poll the read-back until all intended names are present,
+    // bounded by the timeout. On timeout the run still completes with the localisationIncomplete
+    // flag (unchanged semantics) — the gate only defers, it never fails the run.
+    localisationVerifyPollIntervalMs: parseInt(process.env.LOCALISATION_VERIFY_POLL_INTERVAL_MS || "3000"),
+    localisationVerifyTimeoutMs: parseInt(process.env.LOCALISATION_VERIFY_TIMEOUT_MS || "30000"),
   },
   // targetColumnsForSpecificCampaigns: {
   //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],
@@ -130,6 +138,10 @@ const config = {
     // timeout the run still completes (the gate only defers "completed", it never fails the run).
     persistenceDrainTimeoutMs: process.env.PERSISTENCE_DRAIN_TIMEOUT_MS || "600000",
     persistenceDrainPollIntervalMs: process.env.PERSISTENCE_DRAIN_POLL_INTERVAL_MS || "5000",
+    // Delay before the post-upload template regeneration is triggered. The persistence-drain gate
+    // has already proven every relationship searchable by the time this is scheduled, so this only
+    // buffers the redis prefix-delete / status-flip ordering — it is not a consistency wait.
+    generateTriggerDelayMs: process.env.GENERATE_TRIGGER_DELAY_MS || "5000",
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   },
 };

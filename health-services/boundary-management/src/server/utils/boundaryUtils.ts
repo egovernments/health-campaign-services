@@ -792,14 +792,17 @@ async function generateProcessedFileAndPersist(
       newRequestBody,
       params
     );
+    // The drain gate above has already proven every relationship searchable, so the regenerate
+    // needs no consistency wait — this short delay only buffers the redis prefix-delete and the
+    // completed-status persist ordering.
+    const generateDelayMs = parseInt(config.values.generateTriggerDelayMs) || 5000;
     setTimeout(async () => {
-      // Code to be executed after 10 seconds
-      logger.info("Timeout of 30 sec after boundary data creation");
+      logger.info(`Triggering generate ${generateDelayMs} ms after boundary data creation (drain gate already satisfied)`);
       await callGenerate(
         newRequestBoundary,
         "boundaryManagement",
       );
-    }, 30000);
+    }, generateDelayMs);
   }
   request.body.ResourceDetails.processedFileStoreId = request?.body?.ResourceDetails?.processedFileStoreId || null;
   request.body.ResourceDetails.referenceId = request?.body?.ResourceDetails?.referenceId || null;
