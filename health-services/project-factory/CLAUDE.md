@@ -230,7 +230,8 @@ for (let i = 0; i < items.length; i += config.batchSize)
   await Promise.all(items.slice(i, i + config.batchSize).map(fn));
 ```
 - **Never hardcode a batch/chunk size.** Every batch/chunk/parallel-window size is env-configurable in `config/index.ts` (one key per operation, e.g. `config.project.creationBatchSize`, `config.facility.kafkaCreateBatchSize`, `config.user.individualSearchBatchSize`). New batching code must read from a config key and add the env var there (pattern `process.env.X ? parseInt(process.env.X, 10) : <default>`) — never a numeric literal in the loop. Defaults stay equal to the previous literal so behavior is unchanged until tuned.
-- Kafka concurrency capped at `MAX_CONCURRENT=10` (semaphore in `Listener.ts`). Do not raise without OOM analysis.
+- **Producer pacing**: high-fan-out Kafka producers (e.g. user-create batches at `createUsersFromUserData`) pause `config.user.kafkaProduceWindowDelayMs` after every `config.user.kafkaProduceWindowSize` messages so a small batch size doesn't flood the topic instantly. Delay defaults to `0` (no pacing). Pacing the producer only throttles end-to-end downstream load if the pace is slower than the consumers drain the topic — the primary levers for downstream pressure remain batch size (`kafkaCreateBatchSize`) and consumer concurrency (`KAFKA_CONSUMER_MAX_CONCURRENT`).
+- Kafka consumer concurrency is bounded by `partitionsConsumedConcurrently = config.user.KAFKA_CONSUMER_MAX_CONCURRENT` (default 5) in `Listener.ts`. Do not raise without OOM analysis. Never reintroduce a fire-and-forget `eachMessage` (see delivery contract below).
 - Release workbook / large object references after use — process memory limit is 3072 MB.
 
 ---
@@ -251,6 +252,8 @@ Never `res.json()` or `res.status().send()` directly.
 **Redis**: check `config.cacheValues.cacheEnabled` first; TTL = `config.cacheTime`; fall through on miss; never throw on cache miss.
 
 **Kafka**: topic names from `config.kafka.*` only; produce/subscribe via `kafkaTopicUtils.ts`; GZIP compression default-on; schema changes additive only — never rename or remove message fields; wrap every handler in `runWithRequestContext`.
+
+**Kafka delivery contract — at-least-once**: `Listener.ts` `eachMessage` **awaits** `processMessageKJS`, so the offset commits only after the handler completes — a crash mid-processing redelivers the message (never silently drops it). `processMessageKJS` swallows handler errors by design (app-layer status rows own failure handling), so a *handled* failure still commits and is not redelivered (no poison-message loop); only a *crash* triggers redelivery. **Every handler must therefore be idempotent under redelivery** — search/adopt-before-create, re-read live status and short-circuit if already done, or upsert-by-key. Never create an external entity (facility/project/staff/user) without a pre-existence check. Idempotency status of the 7 handlers: user/mapping-batch/campaign-failure are self-correcting; facility-batch (DB-status re-read), task + legacy mapping-task (process-status short-circuit), and project creation in `createSingleProject` (search-before-create by boundary+campaignNumber) were guarded for this. `handleProcessingResult`'s heavy create flow is intentionally detached via `setImmediate` and is **not** offset-protected — it relies on handler idempotency + the reconciler/poller for convergence; do not convert it to a blocking await (a multi-minute `eachMessage` risks session-timeout rebalance → duplicate concurrent flows).
 
 **Polling**: use `pollForTemplateGeneration` / `createAndPollForCompletion` from `utils/pollUtils.ts`. Never remove post-produce waits — intentional eventual-consistency with egov-persister.
 

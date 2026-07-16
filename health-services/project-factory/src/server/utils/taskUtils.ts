@@ -1,7 +1,7 @@
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { CampaignResource } from "../config/models/resourceTypes";
 import { logger } from "./logger";
-import { getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
+import { getCurrentProcesses, getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
 import { enrichAndPersistCampaignWithErrorProcessingTask, updateResourceDetails } from "./campaignUtils";
 import { searchResourceDetailsFromDB } from "./resourceDetailsUtils";
 import { processStatuses } from "../config/constants";
@@ -21,6 +21,19 @@ export async function handleTaskForCampaign(messageObject: any) {
         const { CampaignDetails, task } = messageObject;
         const processName = task?.processName
         logger.info(`Task START campaign=${CampaignDetails?.id} process=${processName}`);
+
+        // Idempotency guard for at-least-once delivery: a crash-redelivered task carries its
+        // dispatch-time status, so without this check processRequest would re-run in full.
+        // Re-read the live process status and skip if this process already completed.
+        const campaignNumber = task?.campaignNumber || CampaignDetails?.campaignNumber;
+        if (campaignNumber && processName) {
+            const alreadyCompleted = await getCurrentProcesses(campaignNumber, CampaignDetails?.tenantId, processName, processStatuses.completed);
+            if (alreadyCompleted.length > 0) {
+                logger.info(`Task SKIP campaign=${CampaignDetails?.id} process=${processName} — already completed (redelivery-safe)`);
+                return;
+            }
+        }
+
         const resourceType : string = getResourceType(processName);
         if(!resourceType) {
             logger.error(`Resource type not found for process ${processName}`);
