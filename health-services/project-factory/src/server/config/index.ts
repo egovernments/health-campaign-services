@@ -67,13 +67,33 @@ const config = {
     creationBatchSize: process.env.USER_CREATION_BATCH_SIZE ? parseInt(process.env.USER_CREATION_BATCH_SIZE, 10) : 100,
     // Batch size for user-create batches dispatched to Kafka.
     kafkaCreateBatchSize: process.env.USER_KAFKA_CREATE_BATCH_SIZE ? parseInt(process.env.USER_KAFKA_CREATE_BATCH_SIZE, 10) : 20,
+    // Producer pacing for user-create batches: pause kafkaProduceWindowDelayMs after every
+    // kafkaProduceWindowSize batches so the topic fills gradually instead of dumping every
+    // batch at once. Delay defaults to 0 (no pacing) — behavior unchanged until tuned.
+    kafkaProduceWindowSize: process.env.USER_KAFKA_PRODUCE_WINDOW_SIZE ? parseInt(process.env.USER_KAFKA_PRODUCE_WINDOW_SIZE, 10) : 100,
+    kafkaProduceWindowDelayMs: process.env.USER_KAFKA_PRODUCE_WINDOW_DELAY_MS ? parseInt(process.env.USER_KAFKA_PRODUCE_WINDOW_DELAY_MS, 10) : 0,
+    // Max concurrent per-user HRMS creates in the bulk-create fallback path.
+    // Bounded to avoid a thundering herd that exhausts the downstream DB pool.
+    hrmsFallbackConcurrency: process.env.USER_HRMS_FALLBACK_CONCURRENCY ? parseInt(process.env.USER_HRMS_FALLBACK_CONCURRENCY, 10) : 5,
+    // Retries + exponential backoff base (ms) for transient per-user HRMS create failures.
+    hrmsFallbackMaxRetries: process.env.USER_HRMS_FALLBACK_MAX_RETRIES ? parseInt(process.env.USER_HRMS_FALLBACK_MAX_RETRIES, 10) : 2,
+    hrmsFallbackBackoffMs: process.env.USER_HRMS_FALLBACK_BACKOFF_MS ? parseInt(process.env.USER_HRMS_FALLBACK_BACKOFF_MS, 10) : 500,
+    // Throttle pause (ms) between per-user fallback concurrency windows.
+    hrmsFallbackWindowDelayMs: process.env.USER_HRMS_FALLBACK_WINDOW_DELAY_MS ? parseInt(process.env.USER_HRMS_FALLBACK_WINDOW_DELAY_MS, 10) : 200,
     KAFKA_CONSUMER_MAX_CONCURRENT: process.env.KAFKA_CONSUMER_MAX_CONCURRENT ? parseInt(process.env.KAFKA_CONSUMER_MAX_CONCURRENT, 10) : 5,
     // Chunk size for user search-by-mobile-number calls.
     searchBatchSize: process.env.USER_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_SEARCH_BATCH_SIZE, 10) : 50,
+    // Max number of user search-by-mobile-number batch requests fired concurrently.
+    searchConcurrency: process.env.USER_SEARCH_CONCURRENCY ? parseInt(process.env.USER_SEARCH_CONCURRENCY, 10) : 10,
     // Chunk size for individual-id lookups during user validation.
     validationSearchBatchSize: process.env.USER_VALIDATION_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_VALIDATION_SEARCH_BATCH_SIZE, 10) : 50,
     // Chunk size for individual-service search-by-phone-number calls during validation/retry.
     individualSearchBatchSize: process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE, 10) : 50,
+    // Read-after-write consistency wait before worker-registry create: poll interval (ms) and
+    // max attempts to confirm just-created individuals are searchable, avoiding the
+    // INDIVIDUAL_NOT_FOUND race from worker/v1/bulk/_create (HRMS create → worker bulk create).
+    individualConsistencyPollIntervalMs: process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS, 10) : 2000,
+    individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 5,
   },
   workerRegistry: {
     // Chunk size for worker-id lookups during user validation.

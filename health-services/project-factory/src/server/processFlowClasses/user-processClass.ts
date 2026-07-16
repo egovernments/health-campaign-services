@@ -14,7 +14,7 @@ import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, searchWorkersByIds } from "../utils/workerRegistryUtils";
 import { validatePaymentFields } from "../utils/paymentValidationUtils";
-import { fetchExistingUsersByPhone, normalizeNameForCompare, type CampaignRecord } from "../utils/userBatchHandler";
+import { fetchExistingUsersByPhone, normalizeNameForCompare, waitForIndividualsSearchable, type CampaignRecord } from "../utils/userBatchHandler";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -535,6 +535,10 @@ export class TemplateClass {
             u.data = {
                 ...u.data,
                 [userCredentialFields.userServiceUuids]: existing.serviceUuid,
+                // Terminal sheet status so adopted rows converge (pendingRows → 0), symmetric with the created path.
+                [campaignDataRowFields.status]: sheetDataRowStatuses.EXISTING,
+                // Authoritative existing login id for the credential sheet (adopted users get no new creds).
+                ...(existing.userName ? { [userCredentialFields.userName]: existing.userName } : {}),
             };
             u.uniqueIdAfterProcess = existing.serviceUuid;
 
@@ -640,6 +644,7 @@ export class TemplateClass {
 
                     try {
                         const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
+                        await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
                         const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
                         logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 

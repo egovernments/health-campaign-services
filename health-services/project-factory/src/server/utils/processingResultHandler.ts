@@ -18,6 +18,7 @@ import config from '../config';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { triggerUserCredentialEmailFlow } from './mailUtils';
 import { runMappingReconciler } from './mappingReconciler';
+import { fetchExistingUsersByPhone, selectReconcilableUserRows } from './userBatchHandler';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -900,6 +901,35 @@ async function markCreationProcessesAsCompleted(
 }
 
 /**
+ * Reconcile user rows stuck 'pending' whose user already exists in HRMS/individual — mark them
+ * completed so a partially-created campaign converges (pendingRows → 0) instead of timing out.
+ * Idempotent and mapping-independent: it writes the terminal status directly rather than relying
+ * on the persister deriving it. Returns the number of rows reconciled.
+ */
+export async function reconcilePendingUserRows(
+    campaignNumber: string,
+    tenantId: string,
+    requestInfo: RequestInfo
+): Promise<number> {
+    const pendingRows = await getRelatedDataWithCampaign('user', campaignNumber, tenantId, dataRowStatuses.pending);
+    if (!pendingRows || pendingRows.length === 0) return 0;
+
+    const phones = pendingRows
+        .map((r: any) => String(r?.uniqueIdentifier ?? ''))
+        .filter((p: string) => p && p !== 'undefined');
+    if (phones.length === 0) return 0;
+
+    const existingByPhone = await fetchExistingUsersByPhone(phones, tenantId, requestInfo);
+    const reconciled = selectReconcilableUserRows(pendingRows as any[], existingByPhone);
+
+    if (reconciled.length > 0) {
+        await persistDataInBatches(reconciled, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+        logger.info(`Reconciler: marked ${reconciled.length}/${pendingRows.length} pending user row(s) as completed for campaign ${campaignNumber} (user already present in HRMS)`);
+    }
+    return reconciled.length;
+}
+
+/**
  * Monitor campaign data completion status with polling
  */
 async function monitorCampaignDataCompletion(
@@ -907,7 +937,8 @@ async function monitorCampaignDataCompletion(
     tenantId: string,
     campaignId: string,
     campaignAlreadyFailed: { value: boolean },
-    userUuid: string
+    userUuid: string,
+    requestInfo: RequestInfo | undefined
 ): Promise<void> {
     try {
         logger.info(`Starting data completion monitoring for campaign: ${campaignNumber}`);
@@ -932,7 +963,18 @@ async function monitorCampaignDataCompletion(
             } catch (campaignCheckError) {
                 logger.warn(`Could not check campaign status, continuing with data monitoring: ${campaignCheckError}`);
             }
-            
+
+            // Converge partially-created campaigns: adopt any 'pending' user row whose user already
+            // exists in HRMS so pendingRows can reach 0 (otherwise a retry plateaus below the total
+            // and this poller times out). Non-fatal — a failed pass just retries next attempt.
+            if (requestInfo) {
+                try {
+                    await reconcilePendingUserRows(campaignNumber, tenantId, requestInfo);
+                } catch (reconcileError) {
+                    logger.warn(`User reconciliation pass failed (non-fatal), continuing: ${reconcileError}`);
+                }
+            }
+
             // Check boundary and facility status (hard-blocking failures)
             const boundaryStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'boundary');
             const facilityStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'facility');
@@ -1597,25 +1639,36 @@ export async function handleUserBoundaryMappings(
 ): Promise<void> {
     // Get existing mappings for this campaign
     const existingMappings = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId);
-    const existingMappingSet = new Set(
-        existingMappings.map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`)
+    const existingMappingByKey = new Map<string, any>(
+        existingMappings.map((m: any) => [`${m.uniqueIdentifierForData}#${m.boundaryCode}`, m])
     );
 
-    // Prepare new mappings to be created
+    // Prepare new mappings to be created, and skipped rows to revive
     const mappingsToCreate: any[] = [];
+    // A prior run marks a staff row `skipped` when its user had no HRMS id yet.
+    // `skipped` is terminal and the reconciler never revives it, so on retry —
+    // once the user is created — the existing row must be flipped back to
+    // toBeMapped or the user is never assigned to the project.
+    const mappingsToRevive: any[] = [];
     const newMappingSet = new Set();
 
     newMappings.forEach(mapping => {
         const key = `${mapping.phoneNumber}#${mapping.boundaryCode}`;
         newMappingSet.add(key);
 
-        if (!existingMappingSet.has(key)) {
+        const existing = existingMappingByKey.get(key);
+        if (!existing) {
             mappingsToCreate.push({
                 campaignNumber,
                 type: 'user',
                 uniqueIdentifierForData: mapping.phoneNumber,
                 boundaryCode: mapping.boundaryCode,
                 mappingId: null,
+                status: mappingStatuses.toBeMapped
+            });
+        } else if (existing.status === mappingStatuses.skipped) {
+            mappingsToRevive.push({
+                ...existing,
                 status: mappingStatuses.toBeMapped
             });
         }
@@ -1642,7 +1695,12 @@ export async function handleUserBoundaryMappings(
         logger.info(`Creating ${mappingsToCreate.length} new user-boundary mappings`);
         await persistDataInBatches(mappingsToCreate, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, tenantId);
     }
-    
+
+    if (mappingsToRevive.length > 0) {
+        logger.info(`Reviving ${mappingsToRevive.length} skipped user-boundary mappings for retry`);
+        await persistDataInBatches(mappingsToRevive, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+    }
+
     if (mappingsToDemap.length > 0) {
         logger.info(`Demapping ${mappingsToDemap.length} user-boundary mappings`);
         await persistDataInBatches(mappingsToDemap, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
@@ -1691,7 +1749,7 @@ async function triggerBackgroundResourceCreationFlow(
                     createProjectsFromBoundaryData(campaignDetails, tenantId, requestInfo, expectedBoundaryCount),
                     createFacilitiesFromFacilityData(campaignDetails, tenantId, requestInfo),
                     createUsersFromUserData(campaignDetails, tenantId, requestInfo, expectedUserCount),
-                    monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
+                    monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid, requestInfo)
                 ]);
                 
                 // Check if campaign failed during data creation
@@ -2154,8 +2212,25 @@ async function createSingleProject(
 ): Promise<void> {
     const data = boundaryData?.data;
     const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
-    
+
     try {
+        // Idempotency guard: health-project mints a fresh id per _create with no natural key,
+        // so any re-drive (at-least-once redelivery, or the create→async-persist window where
+        // the row is still `pending` in DB) would double-create the project for this boundary.
+        // Adopt an existing project for boundary+campaignNumber instead of creating a duplicate.
+        const existingProjects = await fetchProjectsWithBoundaryCodeAndReferenceId(
+            boundaryCode, tenantId, campaignNumber, requestInfo || {}
+        );
+        const existingProjectId = existingProjects?.Project?.[0]?.id;
+        if (existingProjectId) {
+            logger.info(`Project already exists for boundary ${boundaryCode} (${existingProjectId}) — adopting instead of creating (redelivery-safe)`);
+            boundaryMap[boundaryCode].projectId = existingProjectId;
+            boundaryData.uniqueIdAfterProcess = existingProjectId;
+            boundaryData.status = dataRowStatuses.completed;
+            await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+            return;
+        }
+
         // Clone project template for this boundary
         const projectTemplate = JSON.parse(JSON.stringify(Projects[0]));
         
@@ -2406,7 +2481,7 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
 /**
  * Create users via Kafka batch processing
  */
-async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedUserCount?: number): Promise<void> {
+export async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedUserCount?: number): Promise<void> {
     try {
         if (!requestInfo?.userInfo) {
             throw new Error('RequestInfo with userInfo is required for user creation batches');
@@ -2455,7 +2530,13 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
         // Send user batches to Kafka topic for processing
         const BATCH_SIZE = config.user.kafkaCreateBatchSize;
         const totalBatches = Math.ceil(usersToCreate.length / BATCH_SIZE);
-        
+
+        // Producer pacing: with small batch sizes a large campaign emits thousands of batch
+        // messages; producing them all back-to-back floods the topic instantly. Pause after
+        // every windowSize batches so the topic fills gradually (delay 0 = no pacing).
+        const produceWindowSize = config.user.kafkaProduceWindowSize > 0 ? config.user.kafkaProduceWindowSize : 100;
+        const produceWindowDelayMs = config.user.kafkaProduceWindowDelayMs > 0 ? config.user.kafkaProduceWindowDelayMs : 0;
+
         for (let i = 0; i < usersToCreate.length; i += BATCH_SIZE) {
             const batch = usersToCreate.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
@@ -2486,13 +2567,20 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
             const partitionKey = uuidv4();
             
             await produceModifiedMessages(
-                batchMessage, 
-                config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC, 
+                batchMessage,
+                config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC,
                 tenantId,
                 partitionKey
             );
+
+            // Pace the producer: pause between windows so batches don't all land at once.
+            const isLastBatch = i + BATCH_SIZE >= usersToCreate.length;
+            if (produceWindowDelayMs > 0 && !isLastBatch && batchNumber % produceWindowSize === 0) {
+                logger.info(`Producer pacing: sent ${batchNumber}/${totalBatches} user batches, pausing ${produceWindowDelayMs}ms`);
+                await new Promise(resolve => setTimeout(resolve, produceWindowDelayMs));
+            }
         }
-        
+
         logger.info(`All ${totalBatches} user batches sent to Kafka for processing`);
         
     } catch (error) {

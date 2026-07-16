@@ -67,6 +67,9 @@ jest.mock('../config', () => {
         KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES: 4194304,
         KAFKA_CONSUMER_RETRIES: 10,
       },
+      user: {
+        KAFKA_CONSUMER_MAX_CONCURRENT: 5,
+      },
     },
     __esModule: true,
   };
@@ -618,6 +621,56 @@ describe('Kafka Listener', () => {
 
       await flushPromises();
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Unhandled topic'));
+    });
+  });
+
+  // ── OFFSET COMMIT SEMANTICS (at-least-once) ────────────────────────────────
+  // These guard the fix for the previous fire-and-forget consumer, which committed
+  // offsets before processing finished (at-most-once) and silently dropped in-flight
+  // messages on pod restart/crash/rebalance.
+
+  describe('Offset Commit Semantics', () => {
+    it('Scenario 18: bounded concurrency is delegated to KafkaJS via partitionsConsumedConcurrently', async () => {
+      (config as any).kafkaConsumerTopicPrefix = '';
+      await listener();
+
+      const runCall = mockRun.mock.calls[0][0];
+      expect(runCall.partitionsConsumedConcurrently).toBe(5);
+    });
+
+    it('Scenario 19: eachMessage does not resolve until the handler completes (offset held until processed)', async () => {
+      (config as any).kafkaConsumerTopicPrefix = '';
+      let releaseHandler: (() => void) | undefined;
+      mockHandleUserBatch.mockImplementationOnce(
+        () => new Promise<void>(resolve => { releaseHandler = resolve; })
+      );
+      await listener();
+
+      const eachMessage = getEachMessageCallback();
+      const inFlight = eachMessage(createMessage('hcm-user-create-batch', { batchNumber: 1 }, '7'));
+
+      let resolved = false;
+      void inFlight.then(() => { resolved = true; });
+      await flushPromises();
+      // Handler still pending → eachMessage must not have resolved → offset not committed
+      expect(resolved).toBe(false);
+
+      releaseHandler!();
+      await inFlight;
+      expect(resolved).toBe(true);
+      expect(mockHandleUserBatch).toHaveBeenCalledWith({ batchNumber: 1 });
+    });
+
+    it('Scenario 20: handler that throws is swallowed and eachMessage resolves (commit, no poison-message redelivery loop)', async () => {
+      (config as any).kafkaConsumerTopicPrefix = '';
+      mockHandleMappingBatch.mockRejectedValueOnce(new Error('downstream down'));
+      await listener();
+
+      const eachMessage = getEachMessageCallback();
+      await expect(
+        eachMessage(createMessage('hcm-mapping-batch', { batchNumber: 2 }, '9'))
+      ).resolves.toBeUndefined();
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error processing message'));
     });
   });
 });

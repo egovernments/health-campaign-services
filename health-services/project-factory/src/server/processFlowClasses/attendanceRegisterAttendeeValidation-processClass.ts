@@ -112,13 +112,7 @@ export class TemplateClass {
         }
 
         // Resolve HRMS usernames → individualIds
-        const usernames: string[] = [];
-        for (const { row } of allRows) {
-            const username = this.getCellAsString(row[attendanceColumnKeys.USERNAME]);
-            if (username && !usernames.includes(username)) {
-                usernames.push(username);
-            }
-        }
+        const usernames = this.collectUniqueUsernames(allRows);
         const { usernameToIndividualId, usernameToRoles } = await this.resolveIndividualIds(usernames, tenantId, resourceDetails?.requestInfo);
         const allIndividualIds = [...new Set(usernameToIndividualId.values())];
 
@@ -402,6 +396,20 @@ export class TemplateClass {
         return String(value).trim();
     }
 
+    /** Collect unique, non-empty usernames preserving first-seen order — O(n) via a Set (no O(n^2) includes). */
+    private static collectUniqueUsernames(allRows: { row: any }[]): string[] {
+        const usernames: string[] = [];
+        const seenUsernames = new Set<string>();
+        for (const { row } of allRows) {
+            const username = this.getCellAsString(row[attendanceColumnKeys.USERNAME]);
+            if (username && !seenUsernames.has(username)) {
+                seenUsernames.add(username);
+                usernames.push(username);
+            }
+        }
+        return usernames;
+    }
+
     private static async fetchRegister(registerId: string, tenantId: string, requestInfo?: RequestInfo): Promise<any> {
         try {
             const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
@@ -522,7 +530,11 @@ export class TemplateClass {
     private static midnightEpochInTz(year: number, month: number, day: number): number {
         const utcGuess = Date.UTC(year, month, day);
         const parts = this.getTzFormatter().formatToParts(new Date(utcGuess));
-        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        const get = (type: string) => {
+            const part = parts.find(p => p.type === type);
+            if (!part) throw new Error(`Intl.DateTimeFormat did not return a '${type}' part for timezone ${config.appTimezone}`);
+            return parseInt(part.value, 10);
+        };
         const localHour = get('hour') === 24 ? 0 : get('hour');
         const localMinute = get('minute');
         const localSecond = get('second');
@@ -539,7 +551,11 @@ export class TemplateClass {
      */
     private static epochToDatePartsInTz(epochMs: number): { year: number; month: number; day: number } {
         const parts = this.getTzFormatter().formatToParts(new Date(epochMs));
-        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        const get = (type: string) => {
+            const part = parts.find(p => p.type === type);
+            if (!part) throw new Error(`Intl.DateTimeFormat did not return a '${type}' part for timezone ${config.appTimezone}`);
+            return parseInt(part.value, 10);
+        };
         return { year: get('year'), month: get('month'), day: get('day') };
     }
 

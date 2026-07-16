@@ -381,7 +381,7 @@ const searchBatchRequest = async (
     },
   };
   const params = {
-    limit: 55,
+    limit: config.user.searchBatchSize + 5,
     offset: 0,
     tenantId: request?.body?.ResourceDetails?.tenantId,
     includeDeleted: true,
@@ -416,32 +416,35 @@ const searchBatchRequest = async (
   return [];
 };
 
-async function getUserWithMobileNumbers(
+export async function getUserWithMobileNumbers(
   request: any,
   mobileNumbers: any[],
   mobileNumberRowNumberMapping: any
-) {
+): Promise<Set<any>> {
   logger.debug(
     "mobileNumbers to search: " + getFormattedStringForDebug(mobileNumbers)
   );
   const BATCH_SIZE = config.user.searchBatchSize;
   let allResults: any[] = [];
 
-  // Create an array of batch promises
-  const batchPromises = [];
+  // Build the per-batch requests, then run them in bounded concurrency windows
+  // instead of firing every batch at once — a 50k-row upload would otherwise
+  // open ~1000 simultaneous health-individual calls.
+  const batchPromiseFns: (() => Promise<any[]>)[] = [];
   for (let i = 0; i < mobileNumbers.length; i += BATCH_SIZE) {
     const batch = mobileNumbers.slice(i, i + BATCH_SIZE);
-    batchPromises.push(
+    batchPromiseFns.push(() =>
       searchBatchRequest(request, batch, mobileNumberRowNumberMapping)
     );
   }
 
-  // Wait for all batch requests to complete
-  const batchResults = await Promise.all(batchPromises);
-
-  // Aggregate all results
-  for (const result of batchResults) {
-    allResults = allResults.concat(result);
+  const CONCURRENCY = config.user.searchConcurrency;
+  for (let i = 0; i < batchPromiseFns.length; i += CONCURRENCY) {
+    const window = batchPromiseFns.slice(i, i + CONCURRENCY);
+    const windowResults = await Promise.all(window.map((fn) => fn()));
+    for (const result of windowResults) {
+      allResults = allResults.concat(result);
+    }
   }
   // Convert the results array to a Set to eliminate duplicates
   const resultSet = new Set(allResults);

@@ -48,6 +48,11 @@ export class TemplateClass {
     private static applyErrors(sheetData: any[], errors: any[], resourceDetails: ResourceDetails) {
         for (const error of errors) {
             const row = error.row - 3;
+            // Guard against an out-of-range row index (every error is still captured in
+            // additionalDetails.sheetErrors below) so a stray error.row can never crash on sheetData[row].
+            if (row < 0 || row >= sheetData.length || !sheetData[row]) {
+                continue;
+            }
             const existing = sheetData?.[row]?.["#errorDetails#"];
             if (existing) {
                 const trimmed = existing.trim();
