@@ -26,6 +26,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 
 from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
+from COMMON_UTILS.localization_utils import localize_df_columns
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
@@ -786,5 +787,6 @@ else:
 file_name = f"{FILE_NAME}.xlsx"
 output_path = os.path.join(os.getcwd(), file_name)
 
+localize_df_columns("hhr_registered_report", df_final)
 df_final.to_excel(output_path, index=False)
 print(f"✅ Detailed registration report generated: {output_path} (Rows: {len(df_final)})")

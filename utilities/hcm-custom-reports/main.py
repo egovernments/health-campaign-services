@@ -8,6 +8,8 @@ import shutil
 import glob
 import requests
 import zipfile
+import uuid
+import openpyxl
 from confluent_kafka import Producer, KafkaException
 
 
@@ -23,15 +25,39 @@ END_DATE = os.getenv('END_DATE')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', '/tmp/reports')
 TRIGGER_FREQUENCY = os.getenv('TRIGGER_FREQUENCY', 'DAILY')
 TRIGGER_TIME = os.getenv("TRIGGER_TIME")
-REPORT_FILE_NAME = REPORT_NAME.upper()
 
-FILE_STORE_URL = os.getenv("FILE_STORE_URL") 
+FILE_STORE_URL = os.getenv("FILE_STORE_URL")
 FILE_STORE_UPLOAD_FILE_ENDPOINT = os.getenv("FILE_STORE_UPLOAD_FILE_ENDPOINT", "filestore/v1/files")
 TENANT_ID = os.getenv("TENANT_ID", "dev")
 MODULE_NAME = os.getenv("FILE_STORE_MODULE_NAME", "custom-reports")
 
 DAG_RUN_ID = os.getenv("DAG_RUN_ID")
 DAG_ID = os.getenv("DAG_ID")
+
+# Actual moment this run was triggered (distinct from TRIGGER_TIME, which is just the
+# configured time-of-day) - stamped once upstream (scheduler, or build_payload's own
+# dag_run.start_date for direct/custom triggers) and passed through unchanged so it reads
+# identically across every status row for this run.
+REPORT_TRIGGERED_TIME_MS = os.getenv("REPORT_TRIGGERED_TIME_MS")
+REPORT_TRIGGERED_TIME = os.getenv("REPORT_TRIGGERED_TIME")
+try:
+    REPORT_TRIGGERED_TIME_MS = int(REPORT_TRIGGERED_TIME_MS) if REPORT_TRIGGERED_TIME_MS else None
+except ValueError:
+    REPORT_TRIGGERED_TIME_MS = None
+
+# Estimates computed once by airflow-trigger-service's trigger_dag (UI-originated CUSTOM
+# runs only) - threaded through env vars unchanged, same pattern as REPORT_TRIGGERED_TIME_MS.
+EXPECTED_ROWS = os.getenv("EXPECTED_ROWS")
+try:
+    EXPECTED_ROWS = int(EXPECTED_ROWS) if EXPECTED_ROWS else None
+except ValueError:
+    EXPECTED_ROWS = None
+
+EXPECTED_GENERATION_TIME_SECONDS = os.getenv("EXPECTED_GENERATION_TIME_SECONDS")
+try:
+    EXPECTED_GENERATION_TIME_SECONDS = float(EXPECTED_GENERATION_TIME_SECONDS) if EXPECTED_GENERATION_TIME_SECONDS else None
+except ValueError:
+    EXPECTED_GENERATION_TIME_SECONDS = None
 
 CUSTOM_REPORTS_AUTOMATION_TOPIC = os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC", "save-hcm-report-metadata")
 KAFKA_BROKER = os.getenv("KAFKA_BROKER")
@@ -43,11 +69,27 @@ PRODUCER_CONFIG = {
     "debug": "broker,topic,msg",
 }
 
+# Pipeline position per status - lets a status consumer compute "current state" correctly
+# even if events are consumed out of order (a later/more-terminal status always wins).
+STATUS_ORDER = {
+    "SCHEDULED": 10,
+    "TRIGGERED": 20,
+    "SKIPPED": 20,
+    "POD_STARTED": 30,
+    "REPORT_GENERATION_STARTED": 31,
+    "ZIP_STARTED": 32,
+    "FILESTORE_UPLOAD_STARTED": 33,
+    "POD_INFRA_FAILED": 40,
+    "ENV_VALIDATION_FAILED": 40,
+    "REPORT_GENERATION_FAILED": 40,
+    "OUTPUT_NOT_FOUND_FAILED": 40,
+    "ZIP_FAILED": 40,
+    "FILESTORE_UPLOAD_FAILED": 40,
+    "REPORT_COMPLETED": 40,
+}
 
-if not REPORT_NAME or not CAMPAIGN_IDENTIFIER:
-    print('REPORT_NAME and CAMPAIGN_IDENTIFIER are required environment variables')
-    sys.exit(1)
-
+# Producer is built unconditionally (needs only KAFKA_BROKER) so that even a missing
+# required-env-var failure below can be reported via push_report_status.
 producer = Producer(PRODUCER_CONFIG)
 report_duration_seconds = None
 
@@ -89,33 +131,84 @@ def send_to_kafka(producer, topic, message, flush_timeout=10):
     except Exception as e:
         print(f"[KAFKA] ❌ Unexpected error while pushing to topic {topic}: {e}")
 
-def get_data_to_be_pushed(file_store_id, report_duration_seconds=None, status="SUCCESS", error=None):
-    data = {
-        "dag_run_id" : DAG_RUN_ID,
-        "dag_name" : DAG_ID,
-        "campaign_identifier" : CAMPAIGN_IDENTIFIER,
-        "report_name" : REPORT_NAME,
-        "trigger_frequency" : TRIGGER_FREQUENCY,
-        "file_store_id" : file_store_id,
-        "trigger_time" : normalize_timestamp_to_utc(TRIGGER_TIME),
-        "tenant_id" : TENANT_ID,
-        "report_dates" : str(START_DATE) + "_" + str(END_DATE),
-        "report_generation_time_seconds" : report_duration_seconds,
-        "status" : status,
-    }
-    if error:
-        data["error"] = error
-    return data
+def _topic_for(base_topic):
+    """Apply the same tenant-prefixing convention used for every Kafka topic here."""
+    return f"{TENANT_ID}-{base_topic}" if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID else base_topic
 
-def push_report_status(status, file_store_id="", message=None, exc=None):
+def count_xlsx_rows(file_path):
+    """
+    Best-effort data-row count (excludes the header row) of an xlsx file's active
+    worksheet. Report scripts vary (different report types, occasionally multiple
+    sheets) so this is a rough figure, not an exact cross-report guarantee.
+    Never raises - returns None on any failure so it can never block status reporting.
+    """
+    try:
+        wb = openpyxl.load_workbook(file_path, read_only=True)
+        ws = wb.active
+        count = max(0, (ws.max_row or 1) - 1)
+        wb.close()
+        return count
+    except Exception as e:
+        print(f"[WARN] Failed to count rows in {file_path}: {e}")
+        return None
+
+def build_status_event(status, file_store_id=None, file_size_bytes=None, row_count=None, error=None):
+    """The one payload shape, sent to CUSTOM_REPORTS_AUTOMATION_TOPIC for every status -
+    REPORTS_METADATA is now append-only (one row per status event, not just terminal ones)."""
+    now_dt = datetime.datetime.now(datetime.timezone.utc)
+    timestamp_ms = int(now_dt.timestamp() * 1000)
+    # How long after trigger this specific event happened - gives a per-stage timeline
+    # (e.g. POD_STARTED at +52s, REPORT_COMPLETED at +230s) for every row, not just
+    # completed runs. Mirrors kafka_status.py's push_status_event exactly.
+    seconds_since_triggered = (
+        round((timestamp_ms - REPORT_TRIGGERED_TIME_MS) / 1000, 2)
+        if REPORT_TRIGGERED_TIME_MS is not None else None
+    )
+    return {
+        "event_id": str(uuid.uuid4()),
+        "tenant_id": TENANT_ID,
+        "campaign_identifier": CAMPAIGN_IDENTIFIER,
+        "identifier_type": IDENTIFIER_TYPE,
+        "report_name": REPORT_NAME,
+        "trigger_frequency": TRIGGER_FREQUENCY,
+        # Raw passthrough - matches kafka_status.py's DAG-side events, so this field reads
+        # identically across every status row for the same report run regardless of which
+        # producer sent it.
+        "trigger_time": TRIGGER_TIME,
+        "report_triggered_time_ms": REPORT_TRIGGERED_TIME_MS,
+        "report_triggered_time": REPORT_TRIGGERED_TIME,
+        "expected_rows": EXPECTED_ROWS,
+        "expected_generation_time_seconds": EXPECTED_GENERATION_TIME_SECONDS,
+        "seconds_since_triggered": seconds_since_triggered,
+        "dag_run_id": DAG_RUN_ID,
+        "dag_name": DAG_ID,
+        "status": status,
+        "status_order": STATUS_ORDER.get(status, 0),
+        "error_message": (error or {}).get("message"),
+        "error_type": (error or {}).get("type"),
+        "file_store_id": file_store_id,
+        "file_size_bytes": file_size_bytes,
+        "row_count": row_count,
+        "report_dates": f"{START_DATE}_{END_DATE}",
+        "report_generation_time_seconds": report_duration_seconds,
+        # Epoch millis is the value actually bound into the DB (plain number -> BIGINT,
+        # no JDBC string-to-timestamp cast risk); the ISO string is kept alongside it
+        # purely for human-readable display/debugging.
+        "timestamp_ms": timestamp_ms,
+        "timestamp": now_dt.isoformat(),
+    }
+
+def push_report_status(status, file_store_id="", message=None, exc=None, file_size_bytes=None, row_count=None):
     error = None
     if message or exc:
         error = {"message": message or str(exc)}
         if exc:
             error["type"] = type(exc).__name__
-    kafka_topic = f"{TENANT_ID}-{CUSTOM_REPORTS_AUTOMATION_TOPIC}" if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID else CUSTOM_REPORTS_AUTOMATION_TOPIC
-    data = get_data_to_be_pushed(file_store_id, report_duration_seconds, status=status, error=error)
-    send_to_kafka(producer=producer, topic=kafka_topic, message=json.dumps(data))
+
+    status_event = build_status_event(
+        status, file_store_id=file_store_id or None, file_size_bytes=file_size_bytes, row_count=row_count, error=error
+    )
+    send_to_kafka(producer=producer, topic=_topic_for(CUSTOM_REPORTS_AUTOMATION_TOPIC), message=json.dumps(status_event))
 
 def get_custom_dates_of_reports():
 
@@ -133,8 +226,6 @@ def get_custom_dates_of_reports():
     print("Reports end date:", end_date)
 
     return printable_start, printable_end
-
-start_date_str, end_date_str = get_custom_dates_of_reports()
 
 def create_zip_of_reports(folder_path, zip_name):
     """
@@ -156,6 +247,7 @@ def create_zip_of_reports(folder_path, zip_name):
                     zipf.write(file_path, arcname)
     except Exception as e:
         print(f"❌ Error creating ZIP file: {e}")
+        push_report_status("ZIP_FAILED", exc=e)
         sys.exit(3)
     print(f"📦 Created ZIP: {zip_path}")
     return zip_path
@@ -207,51 +299,6 @@ def upload_to_filestore(file_path, mime_type="application/zip"):
 
     return resp_json
 
-def normalize_timestamp_to_utc(ts: str) -> str:
-    """
-    Normalize a timestamp string to UTC in the format:
-        DD:MM:YYYY HH:MM:SS+0000
-
-    Accepted input formats:
-    - "DD:MM:YYYY HH:MM:SS+ZZZZ"  (any numeric UTC offset)
-    - "HH:MM:SS+ZZZZ"             (date will be filled with today's UTC date)
-
-    The function:
-    - Parses the input with its given offset
-    - Converts it to UTC
-    - Returns as "DD:MM:YYYY HH:MM:SS+0000"
-    """
-    ts = ts.strip()
-
-    # Try full format: DD:MM:YYYY HH:MM:SS+ZZZZ
-    try:
-        dt = datetime.datetime.strptime(ts, "%d:%m:%Y %H:%M:%S%z")
-    except ValueError:
-        # If that fails, try time-only: HH:MM:SS+ZZZZ
-        try:
-            # Validate and parse time+offset
-            time_only_dt = datetime.datetime.strptime(ts, "%H:%M:%S%z")
-        except ValueError:
-            raise ValueError("Input does not match expected timestamp formats.")
-
-        # Use today's UTC date, combined with the parsed time and original offset
-        today_utc = datetime.datetime.now(datetime.timezone.utc).date()
-        dt = datetime.datetime(
-            year=today_utc.year,
-            month=today_utc.month,
-            day=today_utc.day,
-            hour=time_only_dt.hour,
-            minute=time_only_dt.minute,
-            second=time_only_dt.second,
-            tzinfo=time_only_dt.tzinfo,
-        )
-
-    # Convert to UTC
-    dt_utc = dt.astimezone(datetime.timezone.utc)
-
-    # Format as DD:MM:YYYY HH:MM:SS+0000
-    return dt_utc.strftime("%Y-%m-%d %H:%M:%S")
-
 def save_file_to_folder(file):
     _, extension = os.path.splitext(file)
 
@@ -279,11 +326,28 @@ def save_file_to_folder(file):
     print(f"✅ File saved to: {destination}")
     return destination
 
+# Required-env-var validation happens here (after push_report_status is defined) so a
+# failure can be reported via Kafka instead of crashing unreported.
+if not REPORT_NAME or not CAMPAIGN_IDENTIFIER:
+    print('REPORT_NAME and CAMPAIGN_IDENTIFIER are required environment variables')
+    push_report_status("ENV_VALIDATION_FAILED", message="REPORT_NAME and CAMPAIGN_IDENTIFIER are required environment variables")
+    sys.exit(1)
+
+REPORT_FILE_NAME = REPORT_NAME.upper()
+push_report_status("POD_STARTED")
+
+try:
+    start_date_str, end_date_str = get_custom_dates_of_reports()
+except Exception as e:
+    print(f"Error parsing START_DATE/END_DATE: {e}")
+    push_report_status("ENV_VALIDATION_FAILED", exc=e)
+    sys.exit(1)
+
 original_dir = os.getcwd()
 # input_folder = reports_config["input"]
 # scripts = reports_config["scripts"]
 
-
+report_generation_failed = False
 try:
     print("\n")
     print(f"===== Generating report : {REPORT_NAME}")
@@ -313,6 +377,7 @@ try:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.chdir(OUTPUT_DIR)
 
+    push_report_status("REPORT_GENERATION_STARTED")
     report_start_time = datetime.datetime.now(datetime.timezone.utc)
     subprocess.run(cmd, check=True)
     report_end_time = datetime.datetime.now(datetime.timezone.utc)
@@ -322,67 +387,75 @@ try:
 
 except Exception as e:
     print(f"Error: {e}")
-    push_report_status("FAILED", exc=e)
-    sys.exit(1)
+    push_report_status("REPORT_GENERATION_FAILED", exc=e)
+    report_generation_failed = True
 finally:
-    file_name_substring = REPORT_FILE_NAME
-    move_file = True
-    saved_files = []
-    if move_file:
-        matching_files = glob.glob(f"*{file_name_substring}*")  # Case-sensitive
-        
-        if matching_files:
-            for file_name in matching_files:
-                if os.path.exists(file_name):
-                    saved_path = save_file_to_folder(file_name)
-                    saved_files.append(saved_path)
-                    print(f"Moved file: {file_name}")
+    # Only attempt to move/zip/upload output if the report script actually ran -
+    # otherwise there's nothing valid to package, and doing so risked masking the
+    # real REPORT_GENERATION_FAILED with a later OUTPUT_NOT_FOUND_FAILED/REPORT_COMPLETED.
+    if not report_generation_failed:
+        file_name_substring = REPORT_FILE_NAME
+        move_file = True
+        saved_files = []
+        if move_file:
+            matching_files = glob.glob(f"*{file_name_substring}*")  # Case-sensitive
+
+            if matching_files:
+                for file_name in matching_files:
+                    if os.path.exists(file_name):
+                        saved_path = save_file_to_folder(file_name)
+                        saved_files.append(saved_path)
+                        print(f"Moved file: {file_name}")
+                    else:
+                        print(f"⚠ File not found, skipping: {file_name}")
+            else:
+                print(f"⚠ No files found containing substring: {file_name_substring}")
+                push_report_status("OUTPUT_NOT_FOUND_FAILED", message=f"No output files found for report: {file_name_substring}")
+                report_generation_failed = True
+
+        if not report_generation_failed:
+            reports_folder = os.path.join(
+                OUTPUT_DIR,
+                CAMPAIGN_IDENTIFIER,
+                REPORT_NAME,
+                TRIGGER_FREQUENCY
+            )
+
+            print(f"[DEBUG] Preparing to zip folder: {reports_folder}")
+            print(f"[DEBUG] Folder exists: {os.path.exists(reports_folder)}")
+
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_IDENTIFIER}_{timestamp}.zip"
+            print(f"[DEBUG] Zip Name: {zip_name}")
+
+            push_report_status("ZIP_STARTED")
+            zip_path = create_zip_of_reports(reports_folder, zip_name)
+
+            print(f"[DEBUG] Zip Path: {zip_path}")
+            # --------------------------------
+            #  UPLOAD ZIP TO FILESTORE SERVICE
+            # --------------------------------
+            try:
+                push_report_status("FILESTORE_UPLOAD_STARTED")
+                upload_response = upload_to_filestore(zip_path)
+                print(f"[DEBUG] FileStore response: {upload_response}")
+
+                if "files" in upload_response and upload_response.get("files"):
+                    file_store_id = upload_response["files"][0].get("fileStoreId")
+                    file_size_bytes = os.path.getsize(zip_path)
+                    xlsx_files = [f for f in saved_files if f.lower().endswith(".xlsx")]
+                    row_count = sum((count_xlsx_rows(f) or 0) for f in xlsx_files) if xlsx_files else None
+                    push_report_status(
+                        "REPORT_COMPLETED", file_store_id=file_store_id,
+                        file_size_bytes=file_size_bytes, row_count=row_count
+                    )
                 else:
-                    print(f"⚠ File not found, skipping: {file_name}")
-        else:
-            print(f"⚠ No files found containing substring: {file_name_substring}")
-            push_report_status("FAILED", message=f"No output files found for report: {file_name_substring}")
-            sys.exit(2)
+                    push_report_status("FILESTORE_UPLOAD_FAILED", message=f"FileStore upload failed: {upload_response}")
 
+            except Exception as e:
+                print(f"❌ Exception while uploading to FileStore: {e}")
+                push_report_status("FILESTORE_UPLOAD_FAILED", message="FileStore upload exception", exc=e)
 
-    reports_folder = os.path.join(
-        OUTPUT_DIR,
-        CAMPAIGN_IDENTIFIER,
-        REPORT_NAME,
-        TRIGGER_FREQUENCY
-    )
+if report_generation_failed:
+    sys.exit(1)
 
-    print(f"[DEBUG] Preparing to zip folder: {reports_folder}")
-    print(f"[DEBUG] Folder exists: {os.path.exists(reports_folder)}")
-    
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_IDENTIFIER}_{timestamp}.zip"
-# ===========================
-    print(f"[DEBUG] Zip Name: {zip_name}")
-
-    zip_path = create_zip_of_reports(reports_folder, zip_name)
-    
-    print(f"[DEBUG] Zip Path: {zip_path}")
-# ============================
-    # --------------------------------
-    #  UPLOAD ZIP TO FILESTORE SERVICE
-    # --------------------------------
-    try:
-        upload_response = upload_to_filestore(zip_path)
-        print(f"[DEBUG] FileStore response: {upload_response}")
-
-        file_store_id = ""
-
-        if "files" in upload_response:
-            res = upload_response.get("files", [])
-            if len(res) > 0:
-                file_store_id = res[0].get("fileStoreId")
-                push_report_status("SUCCESS", file_store_id=file_store_id)
-        else:
-            push_report_status("FAILED", message=f"FileStore upload failed: {upload_response}")
-
-    except Exception as e:
-        print(f"❌ Exception while uploading to FileStore: {e}")
-        push_report_status("FAILED", message="FileStore upload exception", exc=e)
-
-    

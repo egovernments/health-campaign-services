@@ -33,6 +33,9 @@ from airflow.models import Variable
 
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s_models
+
+from common.kafka_status import push_status_event
+
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
 
@@ -59,7 +62,7 @@ K8S_NAMESPACE = os.getenv("K8S_NAMESPACE", "airflow")
 #File store env variables
 FILE_STORE_URL = os.getenv("FILE_STORE_URL") 
 FILE_STORE_UPLOAD_FILE_ENDPOINT = os.getenv("FILE_STORE_UPLOAD_FILE_ENDPOINT", "filestore/v1/files")
-TENANT_ID = os.getenv("TENANT_ID", "dev")
+TENANT_ID = os.getenv("TENANT_ID", "bi")
 MODULE_NAME = os.getenv("FILE_STORE_MODULE_NAME", "custom-reports")
 IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "true")
 
@@ -415,9 +418,9 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
         try:
             start = datetime.strptime(report_start_date_str, "%d-%m-%Y %H:%M:%S%z")
             end = datetime.strptime(report_end_date_str, "%d-%m-%Y %H:%M:%S%z")
-            # Convert to UTC (keep tzinfo so strftime %z produces +0000)
-            start = start.astimezone(timezone.utc)
-            end = end.astimezone(timezone.utc)
+            # Keep the selected local timezone so the displayed range matches what the
+            # user picked (11-15 IST, not 10-14 UTC). ES query is instant-based
+            # (get_custom_dates_of_reports uses .timestamp()), so the window is unchanged.
             logger.info("CUSTOM report range: %s to %s", start, end)
             return (start, end)
         except (ValueError, TypeError) as e:
@@ -501,6 +504,68 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     start = to_utc(base_date, start_h, start_m, start_s, start_tz_offset)
     end = to_utc(base_date, end_h, end_m, end_s, end_tz_offset)
     return (start, end)
+
+
+def pod_failure_callback(context):
+    """
+    on_failure_callback for the campaign_pods mapped task.
+
+    Catches Kubernetes-level failures (image pull errors, OOM kill, startup
+    timeout, node eviction) that happen before main.py's own error handling
+    inside the pod ever gets a chance to run, and reports them via the same
+    status pipeline as everything else.
+    """
+    try:
+        ti = context["ti"]
+        map_index = ti.map_index
+        env_list = ti.xcom_pull(task_ids="build_payload") or []
+
+        if map_index is None or map_index < 0 or map_index >= len(env_list):
+            logger.warning(
+                "pod_failure_callback: cannot resolve map_index=%s against %d build_payload entries",
+                map_index, len(env_list)
+            )
+            return
+
+        env_dict = env_list[map_index]
+        campaign_like = {
+            "campaignIdentifier": env_dict.get("CAMPAIGN_IDENTIFIER"),
+            "identifierType": env_dict.get("IDENTIFIER_TYPE"),
+            "reportName": env_dict.get("REPORT_NAME"),
+            "triggerFrequency": env_dict.get("TRIGGER_FREQUENCY"),
+            "triggerTime": env_dict.get("TRIGGER_TIME"),
+            "tenantId": env_dict.get("TENANT_ID"),
+        }
+
+        # env_dict values are all strings (coerced for the K8s API) - parse back to
+        # their real types, defaulting to None on anything empty/unparseable.
+        def _parse_int(raw):
+            try:
+                return int(raw) if raw else None
+            except (TypeError, ValueError):
+                return None
+
+        def _parse_float(raw):
+            try:
+                return float(raw) if raw else None
+            except (TypeError, ValueError):
+                return None
+
+        triggered_ms = _parse_int(env_dict.get("REPORT_TRIGGERED_TIME_MS"))
+
+        push_status_event(
+            "POD_INFRA_FAILED",
+            campaign_like,
+            dag_id=env_dict.get("DAG_ID") or "hcm_dynamic_campaigns",
+            dag_run_id=env_dict.get("DAG_RUN_ID"),
+            error_message=str(context.get("exception")) if context.get("exception") else "Pod execution failed",
+            report_triggered_time_ms=triggered_ms,
+            report_triggered_time=env_dict.get("REPORT_TRIGGERED_TIME") or None,
+            expected_rows=_parse_int(env_dict.get("EXPECTED_ROWS")),
+            expected_generation_time_seconds=_parse_float(env_dict.get("EXPECTED_GENERATION_TIME_SECONDS")),
+        )
+    except Exception:
+        logger.exception("pod_failure_callback itself failed")
 
 
 # ============================
@@ -593,10 +658,29 @@ with DAG(
         env_list = []
         now = datetime.now(UTC)
 
+        # Fallback "actual triggered time" for runs that bypass the scheduler (e.g. a
+        # direct/custom trigger) and therefore never set reportTriggeredTimeMs/
+        # reportTriggeredTime on the incoming campaign dicts. context["dag_run"].start_date
+        # is Airflow's own record of when this run actually started - unlike logical_date,
+        # it can't be set to an arbitrary value by whoever triggered the DAG.
+        fallback_triggered_dt = context["dag_run"].start_date or now
+        fallback_triggered_time_ms = int(fallback_triggered_dt.timestamp() * 1000)
+        fallback_triggered_time_iso = fallback_triggered_dt.isoformat()
+
         for idx, c in enumerate(matches, 1):
             # Required fields - already validated by scheduler DAG
             campaign_identifier = c.get("campaignIdentifier")
             identifier_type = c.get("identifierType")
+            # Prefer the scheduler's stamped value (identical across every row for a
+            # scheduler-initiated run) - fall back to this run's own start_date otherwise.
+            report_triggered_time_ms = c.get("reportTriggeredTimeMs", fallback_triggered_time_ms)
+            report_triggered_time_iso = c.get("reportTriggeredTime", fallback_triggered_time_iso)
+            # Estimates computed once by airflow-trigger-service's trigger_dag (only ever
+            # set for UI-originated CUSTOM runs) - threaded through unchanged, same
+            # "stamp once, carry through" pattern as report_triggered_time_ms, so every
+            # event for this run (including this SKIPPED/TRIGGERED one) carries them.
+            expected_rows = c.get("expectedRows")
+            expected_generation_time_seconds = c.get("expectedGenerationTimeSeconds")
             report_name = c.get("reportName")
             frequency = c.get("triggerFrequency", "Daily")
             report_start_time = c.get("reportStartTime", "00:00:00")
@@ -612,20 +696,37 @@ with DAG(
             logger.info("  Frequency: %s", frequency)
             logger.info("  Report time window: %s to %s", report_start_time, report_end_time)
             logger.info("  Trigger time: %s", trigger_time)
+            logger.info(
+                "  expectedRows=%s expectedGenerationTimeSeconds=%s (from conf.matched_campaigns - "
+                "null here means trigger_dag either didn't set it or this run predates that stamping)",
+                expected_rows, expected_generation_time_seconds,
+            )
             if is_final_report:
                 logger.info("  ⚡ FINAL REPORT: Covering %d remaining days", remaining_days)
 
             # Check if frequency is due (DAILY/WEEKLY/MONTHLY)
             # Final reports bypass frequency check (campaign ending mid-cycle)
             if not is_final_report and not frequency_due(c, now):
-                logger.info("  ⏭️ SKIP: Frequency not due (%s)", frequency)
+                reason = f"Frequency not due ({frequency})"
+                logger.info("  ⏭️ SKIP: %s", reason)
+                push_status_event(
+                    "SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason,
+                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
+                    expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
+                )
                 continue
 
             # Check if first day AND report would cover yesterday's data
             # On first day, only allow if reportEndTime < triggerTime (report covers today)
             # Skip if reportEndTime >= triggerTime (would try to report yesterday before campaign existed)
             if is_first_day(c, now) and not should_report_today(c, now):
-                logger.info("  ⏭️ SKIP: First day and report would cover yesterday (no data exists)")
+                reason = "First day and report would cover yesterday (no data exists)"
+                logger.info("  ⏭️ SKIP: %s", reason)
+                push_status_event(
+                    "SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason,
+                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
+                    expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
+                )
                 continue
 
             # Calculate report date range based on frequency
@@ -635,6 +736,13 @@ with DAG(
             logger.info("  Date range: %s to %s",
                     start_dt.strftime("%Y-%m-%d %H:%M:%S"),
                     end_dt.strftime("%Y-%m-%d %H:%M:%S"))
+
+            # Same string, byte-for-byte, that main.py builds later for this run's own
+            # events (main.py: f"{START_DATE}_{END_DATE}") - computed once here from the
+            # same start_dt/end_dt so the TRIGGERED row's reportRange already matches what
+            # POD_STARTED/REPORT_COMPLETED will show for this same run, instead of being
+            # empty until the pod's own events arrive.
+            report_dates_str = f"{start_dt.strftime('%Y-%m-%d %H:%M:%S%z')}_{end_dt.strftime('%Y-%m-%d %H:%M:%S%z')}"
 
             # Build folder structure for temporary storage
             # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign_identifier>/<report>/<frequency>/
@@ -660,8 +768,6 @@ with DAG(
 
                 "ELASTIC_PASSWORD": os.getenv("ELASTIC_PASSWORD", ""),
                 "ELASTIC_USERNAME": os.getenv("ELASTIC_USERNAME", "elastic"),
-                # ES host must reach the worker pod (build_payload injects it; common_utils reads ES_HOST)
-                "ES_HOST": os.getenv("ES_HOST", "http://elasticsearch-master.es-cluster.svc.cluster.local:9200"),
 
                 "REPORT_NAME": report_name,
                 "TRIGGER_FREQUENCY": frequency,
@@ -694,6 +800,17 @@ with DAG(
                 "DAG_RUN_ID" : dag_run_id,
                 "DAG_ID" : dag_id,
 
+                # Actual moment this run was triggered (distinct from TRIGGER_TIME, which is
+                # just the configured time-of-day) - same value across every status row for
+                # this run, whether pushed from the DAGs or from inside the pod.
+                "REPORT_TRIGGERED_TIME_MS" : report_triggered_time_ms,
+                "REPORT_TRIGGERED_TIME" : report_triggered_time_iso,
+
+                # Estimates from airflow-trigger-service's trigger_dag (UI-originated CUSTOM
+                # runs only) - threaded through so the pod's own status pushes carry them too.
+                "EXPECTED_ROWS" : expected_rows,
+                "EXPECTED_GENERATION_TIME_SECONDS" : expected_generation_time_seconds,
+
                 #Kafka configurations
                 "CUSTOM_REPORTS_AUTOMATION_TOPIC" : os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC"),
                 "KAFKA_BROKER" : os.getenv("KAFKA_BROKER"),
@@ -702,7 +819,20 @@ with DAG(
                 "CREATED_TIME" : c.get("createdTime", "")
             }
 
+            # Kubernetes' EnvVar.value is strictly a string - the K8s API rejects the
+            # entire pod creation (400 Bad Request) if any value is a raw JSON number/bool/null,
+            # which can happen since env_dict pulls some values straight from the DAG run's
+            # conf (untyped, whatever the trigger caller sent). Coerce defensively so a bad
+            # value in one field can never block pod creation for the whole batch.
+            env_dict = {k: ("" if v is None else str(v)) for k, v in env_dict.items()}
+
             env_list.append(env_dict)
+            push_status_event(
+                "TRIGGERED", c, dag_id=dag_id, dag_run_id=dag_run_id,
+                report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
+                expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
+                report_dates=report_dates_str,
+            )
 
         logger.info("=" * 80)
         logger.info("PAYLOAD BUILT: %d environment configurations", len(env_list))
@@ -777,6 +907,11 @@ with DAG(
             "app": "hcm-reports",
             "managed-by": "airflow"
         },
+
+        # Reports a POD_INFRA_FAILED status event for K8s-level failures (image pull,
+        # OOM kill, startup timeout, node eviction) that never reach main.py's own
+        # error handling inside the pod.
+        on_failure_callback=pod_failure_callback,
 
     ).expand(
         # ✅ CRITICAL: .expand() creates dynamic tasks

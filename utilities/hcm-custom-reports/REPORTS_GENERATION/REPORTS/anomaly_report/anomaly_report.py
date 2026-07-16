@@ -34,6 +34,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url
+from COMMON_UTILS.localization_utils import localize_df_columns
 
 ES_PROJECT_TASK_SEARCH = es_index_url("project-task-index-v1")
 
@@ -324,6 +325,7 @@ print(df.size)
 
 df_sorted = df.sort_values(by=EXPECTED_COLUMNS, ascending=[True, True, True])
 
+localize_df_columns("anomaly_report", df_sorted)
 df_sorted.to_excel(f"{FILE_NAME}.xlsx", index=False)
 
 e_time = time.time()

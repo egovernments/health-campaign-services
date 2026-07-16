@@ -32,6 +32,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 sys.path.append(file_path)
 
 from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
+from REPORTS_GENERATION.COMMON_UTILS.localization_utils import localize_headers
 from REPORTS_GENERATION.COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 # ===========================
@@ -145,7 +146,7 @@ def generate_stock_xlsx():
         "balesQuantity",
         "waybill_quantity"
     ]
-    sheet.append(header)
+    sheet.append(localize_headers("stock_report", header))
 
     local_tz = datetime.now().astimezone().tzinfo
 
