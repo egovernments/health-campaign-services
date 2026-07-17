@@ -774,6 +774,11 @@ with DAG(
                 "ELASTIC_PASSWORD": os.getenv("ELASTIC_PASSWORD", ""),
                 "ELASTIC_USERNAME": os.getenv("ELASTIC_USERNAME", "elastic"),
 
+                # Locale = the user's selected app locale carried on the trigger, NOT a static
+                # config: per-campaign locale -> run-level conf.locale -> env default. Threaded
+                # to the worker so report headers localize in the language the user is using.
+                "LOCALE": c.get("locale") or context["dag_run"].conf.get("locale") or os.getenv("LOCALE", "en_IN"),
+
                 "REPORT_NAME": report_name,
                 "TRIGGER_FREQUENCY": frequency,
                 "TRIGGER_TIME" : c.get("triggerTime", 0),
