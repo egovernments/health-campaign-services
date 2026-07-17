@@ -418,13 +418,14 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
         try:
             start = datetime.strptime(report_start_date_str, "%d-%m-%Y %H:%M:%S%z")
             end = datetime.strptime(report_end_date_str, "%d-%m-%Y %H:%M:%S%z")
-            # Do NOT convert to UTC here -- it's redundant. The ES filter matches on the
-            # epoch (get_custom_dates_of_reports uses .timestamp()), and the epoch is the
-            # same whether the time is written as +0530 or +0000, so the data returned is
-            # identical either way. The ONLY thing UTC conversion changes is the date we
-            # SHOW: midnight IST becomes the previous evening in UTC (11 Jul 00:00 IST ->
-            # 10 Jul 18:30 UTC), so the user would see the report dated one day before what
-            # they picked. Keeping the selected local time shows the exact dates chosen.
+            # Keep the user-selected timezone instead of converting to UTC.
+            #
+            # Elasticsearch queries are performed using epoch timestamps, so converting
+            # to UTC before calling `.timestamp()` does not change the data returned.
+            # However, converting to UTC changes the displayed date/time (e.g. midnight
+            # IST becomes the previous evening in UTC), which can make report names appear
+            # different from the dates the user selected. Preserving the original timezone
+            # avoids that confusion while producing the same query.
             logger.info("CUSTOM report range: %s to %s", start, end)
             return (start, end)
         except (ValueError, TypeError) as e:
