@@ -418,9 +418,13 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
         try:
             start = datetime.strptime(report_start_date_str, "%d-%m-%Y %H:%M:%S%z")
             end = datetime.strptime(report_end_date_str, "%d-%m-%Y %H:%M:%S%z")
-            # Keep the selected local timezone so the displayed range matches what the
-            # user picked (11-15 IST, not 10-14 UTC). ES query is instant-based
-            # (get_custom_dates_of_reports uses .timestamp()), so the window is unchanged.
+            # Do NOT convert to UTC here -- it's redundant. The ES filter matches on the
+            # epoch (get_custom_dates_of_reports uses .timestamp()), and the epoch is the
+            # same whether the time is written as +0530 or +0000, so the data returned is
+            # identical either way. The ONLY thing UTC conversion changes is the date we
+            # SHOW: midnight IST becomes the previous evening in UTC (11 Jul 00:00 IST ->
+            # 10 Jul 18:30 UTC), so the user would see the report dated one day before what
+            # they picked. Keeping the selected local time shows the exact dates chosen.
             logger.info("CUSTOM report range: %s to %s", start, end)
             return (start, end)
         except (ValueError, TypeError) as e:
