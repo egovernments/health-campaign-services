@@ -460,11 +460,17 @@ const autoGenerateBoundaryCodes = async (
       if (seed.mappingMap.size > 0) {
         mappingMap = seed.mappingMap;
         countMap = seed.countMap;
-        // Names of DB-seeded boundaries provably exist in localisation (that is where the seed read them
-        // from), so they are safe to skip localising below. Sheet-carried existing (with-code) rows are
-        // deliberately NOT added here: the delta-upsert in transformAndCreateLocalisation already skips
-        // unchanged names AND re-creates any that are missing, so we must not bypass that self-heal.
-        seed.mappingMap.forEach((_v: any, k: any) => existingKeySet.add(boundaryKeyOf(k)));
+        // Names of localisation-backed DB-seeded boundaries provably exist in localisation (that is
+        // where the seed read them from), so they are safe to skip localising below. Seed names that
+        // were gap-filled from boundary entities (entityNamedKeySet) are NOT in localisation — leave
+        // them out of existingKeySet so the delta-upsert re-creates (self-heals) their missing
+        // entries. Sheet-carried existing (with-code) rows are deliberately NOT added here: the
+        // delta-upsert in transformAndCreateLocalisation already skips unchanged names AND re-creates
+        // any that are missing, so we must not bypass that self-heal.
+        seed.mappingMap.forEach((_v: any, k: any) => {
+          const seedKey = boundaryKeyOf(k);
+          if (!seed.entityNamedKeySet.has(seedKey)) existingKeySet.add(seedKey);
+        });
       }
     } else {
       // FULL-SHEET update safety: the sheet DOES carry the existing (with-code) rows, but the
@@ -498,12 +504,14 @@ const autoGenerateBoundaryCodes = async (
           const seedKey = boundaryKeyOf(elem);
           if (sheetKeySet.has(seedKey) || sheetCodeSet.has(code?.toString()?.trim())) return;
           mappingMap.set(elem, code);
-          // Seed-ONLY boundaries (in the DB but absent from the sheet) provably have their names in
-          // localisation (that is where the seed read them from), so skip re-localising them below —
-          // a full sheet must not re-localise hierarchy parts it does not even carry. Sheet-carried
-          // rows are deliberately NOT added: transformAndCreateLocalisation's upsert skips unchanged
-          // names AND re-creates missing ones, and we must not bypass that self-heal.
-          existingKeySet.add(seedKey);
+          // Seed-ONLY boundaries (in the DB but absent from the sheet) with localisation-backed names
+          // provably have their names in localisation (that is where the seed read them from), so skip
+          // re-localising them below — a full sheet must not re-localise hierarchy parts it does not
+          // even carry. Names gap-filled from boundary entities (entityNamedKeySet) are NOT in
+          // localisation, so leave those re-localisable (self-heal). Sheet-carried rows are
+          // deliberately NOT added: transformAndCreateLocalisation's upsert skips unchanged names AND
+          // re-creates missing ones, and we must not bypass that self-heal.
+          if (!seed.entityNamedKeySet.has(seedKey)) existingKeySet.add(seedKey);
         });
         // countMap merge — the per-parent counter continues from MAX(db-count, sheet-count), with
         // exactly ONE canonical entry per logical parent. The codegen folds countMap into a
@@ -971,11 +979,12 @@ function getChildParentMap(modifiedBoundaryData: any) {
 // existing boundaries by name-path. Codes+structure come from the relationship tree; names from the
 // hierarchy's localisation module (a single search, not one entity call per boundary). __path is built
 // identically to modifyBoundaryData so boundaryKeyOf matches the uploaded rows.
-async function buildExistingSeedFromDb(request: any): Promise<{ mappingMap: Map<any, string>, countMap: Map<any, number> }> {
+async function buildExistingSeedFromDb(request: any): Promise<{ mappingMap: Map<any, string>, countMap: Map<any, number>, entityNamedKeySet: Set<string> }> {
   const tenantId = request?.body?.ResourceDetails?.tenantId;
   const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
   const mappingMap = new Map<any, string>();
   const countMap = new Map<any, number>();
+  const entityNamedKeySet = new Set<string>();
   try {
     const relResp: any = await httpRequest(
       config.host.boundaryHost + config.paths.boundaryRelationship,
@@ -984,7 +993,7 @@ async function buildExistingSeedFromDb(request: any): Promise<{ mappingMap: Map<
       { type: "boundaryManagement", tenantId, boundaryType: null, codes: null, includeChildren: true, hierarchyType }
     );
     const tree = relResp?.TenantBoundary?.[0]?.boundary || [];
-    if (!Array.isArray(tree) || tree.length === 0) return { mappingMap, countMap };
+    if (!Array.isArray(tree) || tree.length === 0) return { mappingMap, countMap, entityNamedKeySet };
     const locale = (request?.body?.RequestInfo?.msgId?.split("|")?.[1]) || config?.localisation?.defaultLocale;
     const moduleName = `${config.localisation.boundaryPrefix}-${hierarchyType}`.toLowerCase();
     const codeToName = new Map<string, string>();
@@ -994,6 +1003,54 @@ async function buildExistingSeedFromDb(request: any): Promise<{ mappingMap: Map<
     } catch (le: any) {
       logger.warn(`Seed: localisation lookup failed (${le?.message}); names fall back to codes`);
     }
+    // Names recovered from the boundary entity (additionalDetails.name) rather than from localisation.
+    // Only THESE are self-healed into localisation below — they are real, locale-free names that are
+    // simply absent from the localisation store. A code that stays a raw-code fallback (no localisation
+    // AND no entity name) is NOT added here, so it keeps pre-fix handling (skipped from re-localisation)
+    // and a code is NEVER written as its own localisation message (which would poison future seeds).
+    const entityResolvedCodes = new Set<string>();
+    // Gap-fill names missing from localisation. Without this, a pre-existing set whose localisation
+    // was never written (e.g. a prior run died before localising) or was written under another locale
+    // makes every seed name fall back to the raw CODE: no sheet row can then match any seed node, the
+    // whole tree is re-minted, and modifyElementCodesMap suffixes each re-minted internal code with
+    // _1 against its own DB twin — a parallel duplicate tree (observed on LNPERF1). The entity name
+    // is stamped by createBoundaryEntities (additionalDetails.name) at creation from the same
+    // normalized sheet value that localisation stores, and is locale-free. Localisation remains the
+    // primary source (a downloaded template carries localised names, so round-trip re-uploads must
+    // match those first); when localisation is complete this block costs zero extra calls.
+    const allCodes: string[] = [];
+    // Mirror walk()'s pruning: a node without a code is skipped along with its subtree, so allCodes
+    // stays exactly the set of codes walk seeds (no wasted entity lookups for un-seeded subtrees).
+    const collectCodes = (nodes: any[]) => {
+      (nodes || []).forEach((b: any) => { if (!b?.code) return; allCodes.push(b.code); collectCodes(b.children); });
+    };
+    collectCodes(tree);
+    const missingCodes = allCodes.filter((c) => !codeToName.has(c));
+    if (missingCodes.length > 0) {
+      logger.warn(`Seed: ${missingCodes.length} of ${allCodes.length} existing boundaries have no localisation under ${moduleName}/${locale}; falling back to entity names`);
+      const entityChunkSize = 50;
+      for (let i = 0; i < missingCodes.length; i += entityChunkSize) {
+        const chunk = missingCodes.slice(i, i + entityChunkSize);
+        // Per-chunk isolation: a transient failure on one chunk must not abandon name recovery for the
+        // remaining chunks (each unrecovered code otherwise silently reverts to a raw-code seed name).
+        try {
+          const entResp: any = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId, codes: chunk.join(', ') });
+          (entResp?.Boundary || []).forEach((b: any) => {
+            const entityName = b?.additionalDetails?.name;
+            if (b?.code && entityName !== undefined && entityName !== null && entityName.toString() !== '') {
+              codeToName.set(b.code, entityName.toString());
+              entityResolvedCodes.add(b.code);
+            }
+          });
+        } catch (ee: any) {
+          logger.warn(`Seed: boundary entity name lookup failed for a chunk of ${chunk.length} (${ee?.message}); those names fall back to codes`);
+        }
+      }
+      const stillUnresolved = missingCodes.filter((c) => !codeToName.has(c)).length;
+      if (stillUnresolved > 0) {
+        logger.warn(`Seed: ${stillUnresolved} existing boundaries have no resolvable name (no localisation, no entity name); they keep pre-fix handling (not re-localised), and a re-upload may re-mint them with suffixed duplicate codes`);
+      }
+    }
     const walk = (nodes: any[], parentPath: string, parentElem: any) => {
       (nodes || []).forEach((b: any) => {
         if (!b?.code) return;
@@ -1001,17 +1058,20 @@ async function buildExistingSeedFromDb(request: any): Promise<{ mappingMap: Map<
         const lvl = b.boundaryType;
         const path = parentPath ? `${parentPath}\u0001${lvl}\u0000${name}` : `${lvl}\u0000${name}`;
         const elem = { key: lvl, value: name, __path: path };
+        // Only entity-recovered names (real names absent from localisation) are queued for self-heal.
+        // Localisation-backed names are already stored; raw-code fallbacks have no real name to write.
+        if (entityResolvedCodes.has(b.code)) entityNamedKeySet.add(path);
         mappingMap.set(elem, b.code);
         if (parentElem) countMap.set(parentElem, (countMap.get(parentElem) || 0) + 1);
         walk(b.children, path, elem);
       });
     };
     walk(tree, "", null);
-    logger.info(`Delta-update seed from DB: ${mappingMap.size} existing boundaries; ${countMap.size} parents tracked`);
+    logger.info(`Delta-update seed from DB: ${mappingMap.size} existing boundaries; ${countMap.size} parents tracked; ${entityNamedKeySet.size} named from entities (queued for localisation self-heal)`);
   } catch (e: any) {
     logger.warn(`buildExistingSeedFromDb failed (${e?.message || e}); proceeding with sheet-only context`);
   }
-  return { mappingMap, countMap };
+  return { mappingMap, countMap, entityNamedKeySet };
 }
 
 function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localizationMap: any) {

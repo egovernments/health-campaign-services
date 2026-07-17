@@ -134,8 +134,8 @@ public class ExcelIngestionApplication {
     @Bean(name = "taskExecutor")
     public java.util.concurrent.Executor taskExecutor() {
         org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor executor = new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);      // at most 2 concurrent heavy Excel tasks
-        executor.setMaxPoolSize(2);       // never grow beyond that under backlog
+        executor.setCorePoolSize(1);      // serialize heavy Excel tasks: one at a time
+        executor.setMaxPoolSize(1);       // never run two concurrently -> bounds peak heap (avoids 2x workbook DOM OOM)
         executor.setQueueCapacity(100);   // queued tasks are cheap (no workbook loaded yet)
         executor.setThreadNamePrefix("excel-async-");
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
