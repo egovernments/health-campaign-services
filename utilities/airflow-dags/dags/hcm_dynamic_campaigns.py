@@ -918,10 +918,11 @@ with DAG(
             "managed-by": "airflow"
         },
 
-        # Reports a POD_INFRA_FAILED status event for K8s-level failures (image pull,
-        # OOM kill, startup timeout, node eviction) that never reach main.py's own
-        # error handling inside the pod.
-        on_failure_callback=pod_failure_callback,
+        # TODO: re-add POD_INFRA_FAILED status reporting callback-free (e.g. a downstream
+        # task with trigger_rule=one_failed, or emit from the pod). Task-level
+        # on_failure_callback is disabled because Airflow 3.0.2 can't execute task
+        # callbacks (apache/airflow#44354) and the raised NotImplementedError aborts DAG
+        # parsing, which silently drops this DAG from the UI whenever a task fails.
 
     ).expand(
         # ✅ CRITICAL: .expand() creates dynamic tasks
