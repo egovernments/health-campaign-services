@@ -10,8 +10,9 @@ import os
 import re
 import requests
 
-# Fixed module for HCM report-column localizations.
-MODULE = "hcm-dss"
+# Localization module — env-driven like the rest of the config here
+# (ES_HOST/KAFKA_BROKER/LOCALE/TENANT_ID). Defaults to hcm-dss.
+MODULE = os.getenv("LOCALIZATION_MODULE", "hcm-dss")
 
 LOCALIZATION_HOST = os.getenv("LOCALIZATION_HOST", "http://egov-localization.egov.svc.cluster.local:8080")
 LOCALIZATION_SEARCH_ENDPOINT = os.getenv("LOCALIZATION_SEARCH_ENDPOINT", "/localization/messages/v1/_search")
