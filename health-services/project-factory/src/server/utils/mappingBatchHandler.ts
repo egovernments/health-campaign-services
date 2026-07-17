@@ -253,6 +253,7 @@ async function processToBeMappedGroup(
     // Resolve create candidates. Rows whose projectId/entityId cannot be resolved fail
     // immediately with a descriptive error (same as the legacy per-row worker did).
     const creatable: { mapping: any; projectId: string; entityId: string }[] = [];
+    const seenKeys = new Set<string>();
     for (const mapping of mappings) {
         const projectId = boundaryToProjectId[mapping.boundaryCode];
         let entityId: string | undefined;
@@ -275,7 +276,15 @@ async function processToBeMappedGroup(
             mapping.status = mappingStatuses.failed;
             updateBatch.push(mapping);
             failures.push({ mapping, errorMessage: entityError ?? `Missing entity id for ${adapter.type} mapping ${mapping.uniqueIdentifierForData}` });
+        } else if (seenKeys.has(`${entityId}|${projectId}`)) {
+            // Two rows target the same project mapping (entityId|projectId) in one batch. The
+            // per-row path relied on the server's unique validator to reject the duplicate; do it
+            // here so the confirm-by-search key can't collapse and silently drop a sibling row.
+            mapping.status = mappingStatuses.failed;
+            updateBatch.push(mapping);
+            failures.push({ mapping, errorMessage: `Duplicate ${adapter.type} mapping in batch — another row already targets project mapping ${entityId}|${projectId}` });
         } else {
+            seenKeys.add(`${entityId}|${projectId}`);
             creatable.push({ mapping, projectId, entityId });
         }
     }
@@ -285,7 +294,7 @@ async function processToBeMappedGroup(
     }
 
     if (config.mapping.bulkCreateChunkSize > 0) {
-        await bulkCreateAndConfirm(creatable, tenantId, requestInfo, adapter, updateBatch);
+        await bulkCreateAndConfirm(creatable, tenantId, requestInfo, adapter, updateBatch, failures);
     } else {
         // Legacy per-row create path (synchronous id, marks mapped/failed inline).
         await runBoundedCreates(creatable, async ({ mapping, projectId, entityId }) => {
@@ -320,7 +329,8 @@ async function bulkCreateAndConfirm(
     tenantId: string,
     requestInfo: RequestInfo,
     adapter: MappingCreateAdapter,
-    updateBatch: any[]
+    updateBatch: any[],
+    failures: { mapping: any; errorMessage: string }[]
 ): Promise<void> {
     if (creatable.length === 0) return;
 
@@ -329,20 +339,49 @@ async function bulkCreateAndConfirm(
     for (let i = 0; i < creatable.length; i += CHUNK) {
         chunks.push(creatable.slice(i, i + CHUNK));
     }
+
+    // A chunk whose bulk POST throws (5xx / network) marks its own rows failed with the reason
+    // instead of aborting the whole batch — so other chunks, the confirm pass, and already-adopted
+    // rows still get processed and persisted, and the failure reason is captured in lastError.
+    const failedKeys = new Set<string>();
     await runBoundedCreates(chunks, async (chunk: { mapping: any; projectId: string; entityId: string }[]) => {
         const entities = chunk.map(c => adapter.buildBulkEntity(c.projectId, c.entityId, tenantId));
-        await adapter.bulkCreate(entities, requestInfo);
+        try {
+            await adapter.bulkCreate(entities, requestInfo);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(`Bulk ${adapter.type} create failed for a chunk of ${chunk.length}: ${errorMessage}`);
+            for (const c of chunk) {
+                c.mapping.status = mappingStatuses.failed;
+                updateBatch.push(c.mapping);
+                failures.push({ mapping: c.mapping, errorMessage });
+                failedKeys.add(`${c.entityId}|${c.projectId}`);
+            }
+        }
     });
 
+    // Confirm-by-search only the rows whose bulk POST was accepted.
     const pending = new Map<string, { mapping: any; projectId: string; entityId: string }>();
-    for (const c of creatable) pending.set(`${c.entityId}|${c.projectId}`, c);
-    const projectIds = creatable.map(c => c.projectId);
-    const entityIds = creatable.map(c => c.entityId);
+    for (const c of creatable) {
+        const key = `${c.entityId}|${c.projectId}`;
+        if (!failedKeys.has(key)) pending.set(key, c);
+    }
+    if (pending.size === 0) return;
+    const projectIds = [...pending.values()].map(c => c.projectId);
+    const entityIds = [...pending.values()].map(c => c.entityId);
 
-    const maxAttempts = config.mapping.bulkConfirmMaxAttempts;
+    const maxAttempts = Math.max(1, config.mapping.bulkConfirmMaxAttempts);
     const interval = config.mapping.bulkConfirmPollIntervalMs;
     for (let attempt = 1; attempt <= maxAttempts && pending.size > 0; attempt++) {
-        const found = await adapter.searchExisting(projectIds, entityIds, tenantId, requestInfo);
+        let found: Map<string, string>;
+        try {
+            found = await adapter.searchExisting(projectIds, entityIds, tenantId, requestInfo);
+        } catch (error) {
+            // A transient search failure must not abort the batch — log and retry next attempt.
+            logger.warn(`Bulk ${adapter.type} confirm search attempt ${attempt}/${maxAttempts} failed: ${error instanceof Error ? error.message : String(error)}`);
+            if (attempt < maxAttempts) await new Promise(res => setTimeout(res, interval));
+            continue;
+        }
         for (const [key, mappingId] of found) {
             const c = pending.get(key);
             if (c) {

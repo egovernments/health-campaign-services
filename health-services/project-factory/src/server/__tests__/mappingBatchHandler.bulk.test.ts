@@ -68,7 +68,10 @@ import {
     searchProjectStaffByProjects, searchProjectFacilitiesByProjects, searchProjectResourcesByProjects,
 } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
+import { executeQuery } from '../utils/db';
+import config from '../config';
 
+const executeQueryMock = executeQuery as jest.MockedFunction<typeof executeQuery>;
 const getRelatedDataWithCampaignMock = getRelatedDataWithCampaign as jest.MockedFunction<typeof getRelatedDataWithCampaign>;
 const createStaffMock = createStaff as jest.MockedFunction<typeof createStaff>;
 const createStaffBulkMock = createStaffBulk as jest.MockedFunction<typeof createStaffBulk>;
@@ -265,5 +268,151 @@ describe('mappingBatchHandler — bulk facility & resource mapping', () => {
         expect(entities[0]).toMatchObject({ projectId: 'project-1', resource: { productVariantId: 'PVAR-1', type: 'DRUG' } });
         const row = persistedRows().find(r => r.type === 'resource');
         expect(row.mappingId).toBe('pr-1');
+    });
+});
+
+describe('mappingBatchHandler — bulk mapping edge cases', () => {
+    // two phones resolving to the SAME userId => same entityId|projectId key
+    beforeEach(() => {
+        getRelatedDataWithCampaignMock.mockImplementation((type: string) => {
+            if (type === 'boundary') return Promise.resolve([{ uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' }] as any);
+            if (type === 'user') return Promise.resolve([
+                { uniqueIdentifier: '+91-1', uniqueIdAfterProcess: 'usr-svc-1' },
+                { uniqueIdentifier: '+91-2', uniqueIdAfterProcess: 'usr-svc-1' },
+            ] as any);
+            return Promise.resolve([] as any);
+        });
+    });
+
+    const dupMappings = () => [
+        { type: 'user', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: '+91-1' },
+        { type: 'user', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: '+91-2' },
+    ];
+
+    it('#1 dedupes rows with the same entityId|projectId — one created, the sibling failed (not silently dropped)', async () => {
+        let n = 0;
+        searchProjectStaffByProjectsMock.mockImplementation(async () => {
+            n++;
+            return n === 1 ? new Map() : new Map([['usr-svc-1|project-1', 'staff-1']]);
+        });
+
+        await handleMappingBatch({ ...baseMessage, mappings: dupMappings() });
+
+        // only one distinct entity is bulk-created
+        expect(createStaffBulkMock).toHaveBeenCalledTimes(1);
+        expect(createStaffBulkMock.mock.calls[0][0]).toHaveLength(1);
+
+        const rows = persistedRows().filter(r => r.type === 'user');
+        const mapped = rows.filter(r => r.status === mappingStatuses.mapped);
+        const failed = rows.filter(r => r.status === mappingStatuses.failed);
+        expect(mapped.map(r => r.uniqueIdentifierForData)).toEqual(['+91-1']);
+        expect(failed.map(r => r.uniqueIdentifierForData)).toEqual(['+91-2']);
+        // duplicate failure reason is captured in lastError (executeQuery UPDATE)
+        expect(executeQueryMock).toHaveBeenCalled();
+    });
+
+    it('#2 floors bulkConfirmMaxAttempts to 1 so a created row still confirms when configured to 0', async () => {
+        const original = config.mapping.bulkConfirmMaxAttempts;
+        (config.mapping as any).bulkConfirmMaxAttempts = 0;
+        try {
+            getRelatedDataWithCampaignMock.mockImplementation((type: string) => {
+                if (type === 'boundary') return Promise.resolve([{ uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' }] as any);
+                if (type === 'user') return Promise.resolve([{ uniqueIdentifier: '+91-1', uniqueIdAfterProcess: 'usr-svc-1' }] as any);
+                return Promise.resolve([] as any);
+            });
+            let n = 0;
+            searchProjectStaffByProjectsMock.mockImplementation(async () => {
+                n++;
+                return n === 1 ? new Map() : new Map([['usr-svc-1|project-1', 'staff-1']]);
+            });
+
+            await handleMappingBatch({
+                ...baseMessage,
+                mappings: [{ type: 'user', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: '+91-1' }],
+            });
+
+            const row = persistedRows().find(r => r.type === 'user');
+            expect(row.status).toBe(mappingStatuses.mapped);
+            expect(row.mappingId).toBe('staff-1');
+        } finally {
+            (config.mapping as any).bulkConfirmMaxAttempts = original;
+        }
+    });
+
+    it('#3 a chunk whose bulk POST throws marks its rows failed and does not abort the batch', async () => {
+        getRelatedDataWithCampaignMock.mockImplementation((type: string) => {
+            if (type === 'boundary') return Promise.resolve([{ uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' }] as any);
+            if (type === 'user') return Promise.resolve([
+                { uniqueIdentifier: '+91-1', uniqueIdAfterProcess: 'usr-svc-1' },
+                { uniqueIdentifier: '+91-2', uniqueIdAfterProcess: 'usr-svc-2' },
+            ] as any);
+            return Promise.resolve([] as any);
+        });
+        createStaffBulkMock.mockRejectedValue(new Error('503 upstream'));
+
+        // must resolve (not throw)
+        await expect(handleMappingBatch({
+            ...baseMessage,
+            mappings: [
+                { type: 'user', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: '+91-1' },
+                { type: 'user', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: '+91-2' },
+            ],
+        })).resolves.toBeUndefined();
+
+        const rows = persistedRows().filter(r => r.type === 'user');
+        expect(rows).toHaveLength(2);
+        expect(rows.every(r => r.status === mappingStatuses.failed)).toBe(true);
+        // no confirm search fired for a chunk that never posted (pre-pass only)
+        expect(searchProjectStaffByProjectsMock).toHaveBeenCalledTimes(1);
+        expect(executeQueryMock).toHaveBeenCalled(); // lastError persisted
+    });
+
+    it('#4 a confirm-search that throws does not abort the batch — it retries and leaves the row toBeMapped', async () => {
+        getRelatedDataWithCampaignMock.mockImplementation((type: string) => {
+            if (type === 'boundary') return Promise.resolve([{ uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' }] as any);
+            if (type === 'user') return Promise.resolve([{ uniqueIdentifier: '+91-1', uniqueIdAfterProcess: 'usr-svc-1' }] as any);
+            return Promise.resolve([] as any);
+        });
+        let n = 0;
+        searchProjectStaffByProjectsMock.mockImplementation(async () => {
+            n++;
+            if (n === 1) return new Map();          // pre-pass ok
+            throw new Error('search timeout');       // every confirm attempt throws
+        });
+
+        await expect(handleMappingBatch({
+            ...baseMessage,
+            mappings: [{ type: 'user', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: '+91-1' }],
+        })).resolves.toBeUndefined();
+
+        // bulk was created but never confirmed -> row not marked mapped/failed
+        expect(createStaffBulkMock).toHaveBeenCalledTimes(1);
+        expect(persistedRows().filter(r => r.type === 'user' && r.status === mappingStatuses.mapped)).toHaveLength(0);
+        // pre-pass (1) + all confirm attempts (bulkConfirmMaxAttempts = 3) = 4 calls
+        expect(searchProjectStaffByProjectsMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('#4b a confirm-search that throws once then succeeds still maps the row', async () => {
+        getRelatedDataWithCampaignMock.mockImplementation((type: string) => {
+            if (type === 'boundary') return Promise.resolve([{ uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' }] as any);
+            if (type === 'user') return Promise.resolve([{ uniqueIdentifier: '+91-1', uniqueIdAfterProcess: 'usr-svc-1' }] as any);
+            return Promise.resolve([] as any);
+        });
+        let n = 0;
+        searchProjectStaffByProjectsMock.mockImplementation(async () => {
+            n++;
+            if (n === 1) return new Map();                 // pre-pass
+            if (n === 2) throw new Error('transient');     // first confirm throws
+            return new Map([['usr-svc-1|project-1', 'staff-1']]); // next confirm succeeds
+        });
+
+        await handleMappingBatch({
+            ...baseMessage,
+            mappings: [{ type: 'user', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: '+91-1' }],
+        });
+
+        const row = persistedRows().find(r => r.type === 'user');
+        expect(row.status).toBe(mappingStatuses.mapped);
+        expect(row.mappingId).toBe('staff-1');
     });
 });
