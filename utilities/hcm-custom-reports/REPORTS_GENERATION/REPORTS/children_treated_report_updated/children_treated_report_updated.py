@@ -30,6 +30,7 @@ warnings.filterwarnings("ignore", message="Unverified HTTPS request is being mad
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
+from COMMON_UTILS.localization_utils import localize_headers
 
 # === CONSTANTS ===
 ES_PROJECT_TASK_INDEX = es_index_url("project-task-index-v1")
@@ -323,7 +324,7 @@ def pass2_stream_to_excel(dup_keys, ind_id_to_name, ind_id_to_head_name, output_
 
     wb = Workbook(write_only=True)
     ws = wb.create_sheet("Sheet1")
-    ws.append(EXPORT_COLUMNS)
+    ws.append(localize_headers("children_treated_report_updated", EXPORT_COLUMNS))
 
     scroll_url  = f"{ES_PROJECT_TASK_INDEX}?scroll=10m"
     scroll_id   = None
@@ -415,7 +416,7 @@ if pass1_total == 0:
     from openpyxl import Workbook
     wb = Workbook(write_only=True)
     ws = wb.create_sheet("Sheet1")
-    ws.append(EXPORT_COLUMNS)
+    ws.append(localize_headers("children_treated_report_updated", EXPORT_COLUMNS))
     output_path = os.path.join(os.getcwd(), f"{FILE_NAME}.xlsx")
     wb.save(output_path)
     print(f"Empty report saved to: {output_path}")

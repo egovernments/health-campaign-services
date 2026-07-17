@@ -32,6 +32,7 @@ sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url
+from COMMON_UTILS.localization_utils import localize_df_columns
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -273,6 +274,7 @@ for attendee_id, record in attendance_date_map.items():
 
 result = pd.concat(dfs, ignore_index=True)
 
+localize_df_columns("attendance_report", result)
 result.to_excel(f"{FILE_NAME}.xlsx", index=False)
 
 print("Excel file created successfully.")

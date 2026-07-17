@@ -28,6 +28,7 @@ sys.path.append(file_path)
 # Import custom utility functions
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url
+from COMMON_UTILS.localization_utils import localize_df_columns
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -162,6 +163,7 @@ def generate_report():
 
     # Save to Excel
     output_file = f"{FILE_NAME}.xlsx"
+    localize_df_columns("adverse_reactions_report", df)
     df.to_excel(output_file, index=False)
     print(f"Excel file created: {output_file}")
 

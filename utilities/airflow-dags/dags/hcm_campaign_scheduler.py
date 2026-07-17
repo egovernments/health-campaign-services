@@ -33,6 +33,8 @@ from airflow.utils.types import DagRunType
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.models import Variable
 
+from common.kafka_status import push_status_event
+
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
 
@@ -43,7 +45,7 @@ MDMS_URL = os.getenv("MDMS_URL")
 MDMS_SEARCH_ENDPOINT = os.getenv("MDMS_SEARCH_ENDPOINT", "/mdms-v2/v2/_search")
 MDMS_MODULE_NAME = os.getenv("MDMS_MODULE_NAME", "airflow-configs")
 MDMS_MASTER_NAME = os.getenv("MDMS_MASTER_NAME", "campaign-report-config")
-TENANT_ID = os.getenv("TENANT_ID", "dev")
+TENANT_ID = os.getenv("TENANT_ID", "ba")
 MDMS_LIMIT = int(os.getenv("MDMS_LIMIT", "500"))
 PROCESSOR_DAG_ID = os.getenv("PROCESSOR_DAG_ID", "hcm_dynamic_campaigns")
 IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
@@ -511,7 +513,19 @@ with DAG(
             return "no_triggers"
 
 
-        run_id = f"auto_trigger__{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+        now = datetime.now(UTC)
+        run_id = f"auto_trigger__{now.strftime('%Y%m%d_%H%M%S')}"
+
+        # The actual moment this batch got triggered - distinct from each campaign's
+        # configured triggerTime (MDMS time-of-day). Stamped once here and carried through
+        # conf so every later status event for these runs (TRIGGERED, POD_STARTED, ...,
+        # terminal) reports the identical value instead of each DAG/pod computing its own.
+        report_triggered_time_ms = int(now.timestamp() * 1000)
+        report_triggered_time_iso = now.isoformat()
+        for c in final:
+            c["reportTriggeredTimeMs"] = report_triggered_time_ms
+            c["reportTriggeredTime"] = report_triggered_time_iso
+
         conf = {"matched_campaigns": final}
 
 
@@ -521,6 +535,14 @@ with DAG(
         run_id,
         )
 
+        for c in final:
+            try:
+                push_status_event(
+                    "SCHEDULED", c, dag_id="hcm_campaign_scheduler", dag_run_id=run_id,
+                    report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso
+                )
+            except Exception:
+                logger.exception("Failed to push SCHEDULED status event for %s", c.get("campaignIdentifier"))
 
         # TriggerDagRunOperator dynamically created and executed inside Python callable
         trigger_op = TriggerDagRunOperator(
