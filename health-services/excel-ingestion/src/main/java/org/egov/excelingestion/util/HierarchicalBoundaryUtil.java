@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.BoundaryService;
@@ -240,10 +241,24 @@ public class HierarchicalBoundaryUtil {
             boundaryCodeCell.setCellStyle(formulaStyle);
             String boundaryCodeFormula = createBoundaryCodeFormula(r + 1, visibleColIndices,
                     mappingResult.displayNameMappingStartRow, mappingResult.displayNameMappingEndRow);
-            boundaryCodeCell.setCellFormula(boundaryCodeFormula);
+            setFormulaVerbatim(boundaryCodeCell, boundaryCodeFormula);
         }
 
         log.info("Added {} cascading boundary dropdown columns with helper columns.", levelTypes.size());
+    }
+
+    private static void setFormulaVerbatim(Cell cell, String formula) {
+
+        if (!(cell instanceof XSSFCell)) {
+            cell.setCellFormula(formula);
+            return;
+        }
+        org.openxmlformats.schemas.spreadsheetml.x2006.main.CTCell ct = ((XSSFCell) cell).getCTCell();
+        org.openxmlformats.schemas.spreadsheetml.x2006.main.CTCellFormula f =
+                ct.isSetF() ? ct.getF() : ct.addNewF();
+        f.setStringValue(formula);
+        if (ct.isSetV()) ct.unsetV();   // drop any stale cached value (Excel/POI recompute)
+        if (ct.isSetT()) ct.unsetT();   // default cell type; formula presence marks it as a formula cell
     }
 
     /**
@@ -597,7 +612,7 @@ public class HierarchicalBoundaryUtil {
 
                 String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
                                                      lookupRangeHashes, keyBuilder.toString(), lookupRangeDisplayKeys);
-                helperCell.setCellFormula(helperFormula);
+                setFormulaVerbatim(helperCell, helperFormula);
             }
 
             // Apply data validation to the visible column
@@ -785,7 +800,7 @@ public class HierarchicalBoundaryUtil {
             boundaryCodeCell.setCellStyle(formulaStyle);
             String boundaryCodeFormula = createBoundaryCodeFormula(excelRowIndex + 1, visibleColIndices,
                     displayNameMappingStartRow, displayNameMappingEndRow);
-            boundaryCodeCell.setCellFormula(boundaryCodeFormula);
+            setFormulaVerbatim(boundaryCodeCell, boundaryCodeFormula);
 
             rowsPopulated++;
         }
