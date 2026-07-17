@@ -3023,7 +3023,7 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
 
 async function tryTriggerGenerateIfBoundariesSynced(request: any, expectedBoundaries: any[]) {
   const maxRetries = 4;
-  const retryDelayMs = 4000;
+  const retryDelayMs = config.boundary.syncRetryDelayMs;
   const campaignId = request?.body?.CampaignDetails?.id;
   const tenantId = request?.body?.CampaignDetails?.tenantId;
 

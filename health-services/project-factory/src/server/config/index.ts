@@ -36,6 +36,8 @@ const config = {
     mappingPersistBatchSize: process.env.BOUNDARY_MAPPING_PERSIST_BATCH_SIZE ? parseInt(process.env.BOUNDARY_MAPPING_PERSIST_BATCH_SIZE, 10) : 100,
     // Batch size for the generic boundary-data persistInBatches helper.
     persistBatchSize: process.env.BOUNDARY_PERSIST_BATCH_SIZE ? parseInt(process.env.BOUNDARY_PERSIST_BATCH_SIZE, 10) : 100,
+    // Delay (ms) between attempts in tryTriggerGenerateIfBoundariesSynced when polling the DB to confirm the persister committed the campaign boundaries.
+    syncRetryDelayMs: process.env.BOUNDARY_SYNC_RETRY_DELAY_MS ? parseInt(process.env.BOUNDARY_SYNC_RETRY_DELAY_MS, 10) : 4000,
   },
   project: {
     // Number of projects created in parallel per hierarchy-level batch.
