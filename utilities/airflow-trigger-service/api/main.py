@@ -237,6 +237,8 @@ class TriggerRequest(BaseModel):
     conf: dict[str, Any] | None = None
     logical_date: str | None = None
     note: str | None = None
+    locale: str | None = None
+    RequestInfo: Optional[RequestInfoModel] = None
 
 
 # --------------- Report status enrichment ---------------
@@ -641,6 +643,16 @@ async def trigger_dag(req: TriggerRequest):
 
     body: dict[str, Any] = {}
     if req.conf:
+        # Locale = the user's selected app locale, resolved exactly like excel-ingestion:
+        # explicit body `locale` first, else RequestInfo.msgId ("<ts>|<locale>"), else the
+        # DAG/worker env default downstream. Stamped onto conf so it threads through
+        # Airflow conf -> build_payload -> worker env LOCALE -> localization (falls back to
+        # env for no-msgId / scheduler-triggered runs).
+        _locale = req.locale
+        if not _locale and req.RequestInfo and req.RequestInfo.msgId and "|" in req.RequestInfo.msgId:
+            _locale = req.RequestInfo.msgId.split("|", 1)[1].strip() or None
+        if _locale:
+            req.conf.setdefault("locale", _locale)
         matched_campaigns = req.conf.get("matched_campaigns")
         if isinstance(matched_campaigns, list):
             # build_payload already prefers a pre-set reportTriggeredTimeMs/Time over
