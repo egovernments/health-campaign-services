@@ -36,6 +36,17 @@ from COMMON_UTILS.localization_utils import localize_df_columns
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
+# Column -> localization code (looked up verbatim; dynamic 'Day N - <date>' columns
+# have no code and keep their raw name).
+LOCALIZATION_CODES = {
+    'Province': "HCM_ATTENDANCE_REPORT_PROVINCE",
+    'District': "HCM_ATTENDANCE_REPORT_DISTRICT",
+    'Administrative Province': "HCM_ATTENDANCE_REPORT_ADMINISTRATIVEPROVINCE",
+    'Name': "HCM_ATTENDANCE_REPORT_NAME",
+    'Username': "HCM_ATTENDANCE_REPORT_USERNAME",
+    'Cumulative': "HCM_ATTENDANCE_REPORT_CUMULATIVE",
+}
+
 ES_TRANSFORMED_ATTENDANCE_REGISTER_INDEX = es_index_url("transformed-attendance-register-index-v1")
 ES_ATTENDANCE_LOG_INDEX = es_index_url("attendance-log-index-v1")
 ES_PROJECT_STAFF_INDEX = es_index_url("project-staff-index-v1")
@@ -274,7 +285,7 @@ for attendee_id, record in attendance_date_map.items():
 
 result = pd.concat(dfs, ignore_index=True)
 
-localize_df_columns("attendance_report", result)
+localize_df_columns(result, LOCALIZATION_CODES)
 result.to_excel(f"{FILE_NAME}.xlsx", index=False)
 
 print("Excel file created successfully.")

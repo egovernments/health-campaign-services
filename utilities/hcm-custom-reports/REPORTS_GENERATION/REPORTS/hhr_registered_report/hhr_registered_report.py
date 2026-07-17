@@ -29,6 +29,31 @@ from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 from COMMON_UTILS.localization_utils import localize_df_columns
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 
+# Column -> localization code (looked up verbatim; empty-case fallback columns like
+# 'Beneficiary Name' have no code and keep their raw name).
+LOCALIZATION_CODES = {
+    'Province': "HCM_HHR_REGISTERED_REPORT_PROVINCE",
+    'District': "HCM_HHR_REGISTERED_REPORT_DISTRICT",
+    'Administrative Province': "HCM_HHR_REGISTERED_REPORT_ADMINISTRATIVEPROVINCE",
+    'Locality': "HCM_HHR_REGISTERED_REPORT_LOCALITY",
+    'Village': "HCM_HHR_REGISTERED_REPORT_VILLAGE",
+    'User id': "HCM_HHR_REGISTERED_REPORT_USERID",
+    'Phone number': "HCM_HHR_REGISTERED_REPORT_PHONENUMBER",
+    'Registrar Name': "HCM_HHR_REGISTERED_REPORT_REGISTRARNAME",
+    'UserName': "HCM_HHR_REGISTERED_REPORT_USERNAME",
+    'Household Head Name': "HCM_HHR_REGISTERED_REPORT_HOUSEHOLDHEADNAME",
+    'Age (Household Head)': "HCM_HHR_REGISTERED_REPORT_AGEHOUSEHOLDHEAD",
+    'Gender (Household Head)': "HCM_HHR_REGISTERED_REPORT_GENDERHOUSEHOLDHEAD",
+    'Mobile Number': "HCM_HHR_REGISTERED_REPORT_MOBILENUMBER",
+    'Number of People Living in HH': "HCM_HHR_REGISTERED_REPORT_NUMBEROFPEOPLELIVINGINHH",
+    'Serial Number of Voucher': "HCM_HHR_REGISTERED_REPORT_SERIALNUMBEROFVOUCHER",
+    'Latitude': "HCM_HHR_REGISTERED_REPORT_LATITUDE",
+    'Longitude': "HCM_HHR_REGISTERED_REPORT_LONGITUDE",
+    'Location Accuracy': "HCM_HHR_REGISTERED_REPORT_LOCATIONACCURACY",
+    'Created Time': "HCM_HHR_REGISTERED_REPORT_CREATEDTIME",
+    'Synced Time': "HCM_HHR_REGISTERED_REPORT_SYNCEDTIME",
+}
+
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
 # === CONSTANTS ===
@@ -787,6 +812,6 @@ else:
 file_name = f"{FILE_NAME}.xlsx"
 output_path = os.path.join(os.getcwd(), file_name)
 
-localize_df_columns("hhr_registered_report", df_final)
+localize_df_columns(df_final, LOCALIZATION_CODES)
 df_final.to_excel(output_path, index=False)
 print(f"✅ Detailed registration report generated: {output_path} (Rows: {len(df_final)})")

@@ -2,12 +2,12 @@
 localization_utils.py
 
 Resolve report column headers to localized text via the egov-localization service.
-Keys follow HCM_<REPORT_DIR>_<COLUMN> under the fixed module 'hcm-dss'. Any failure
-(service unreachable, missing key) falls back to the original English header, so a
-report is never blocked by localization.
+Each report holds an explicit {column -> localization code} map and we look the code
+up verbatim (same mechanism as excel-ingestion), so nothing is derived at runtime.
+Any failure (service unreachable, missing/unmapped key) falls back to the raw column,
+so a report is never blocked by localization.
 """
 import os
-import re
 import requests
 
 # Localization module — env-driven like the rest of the config here
@@ -43,26 +43,24 @@ def _load_messages():
     return _messages
 
 
-def _code_for(report_dir, column):
-    # Must match the key generation: HCM_<REPORT_DIR_UPPER>_<COLUMN alnum-only upper>
-    return f"HCM_{report_dir.upper()}_{re.sub(r'[^A-Za-z0-9]', '', column).upper()}"
-
-
 def localize(code, default=None):
-    """Localized message for a code; falls back to default (or the code itself)."""
-    msg = _load_messages().get(code)
-    return msg if msg else (default if default is not None else code)
+    """Localized message for a code; falls back to default when the code is unmapped
+    or the service has no message for it."""
+    if code:
+        msg = _load_messages().get(code)
+        if msg:
+            return msg
+    return default if default is not None else (code or "")
 
 
-def localize_headers(report_dir, columns):
-    """Map English column headers to localized headers via HCM_<dir>_<col> keys;
-    falls back to the English header when a key is missing."""
-    return [localize(_code_for(report_dir, c), c) for c in columns]
+def localize_headers(columns, code_map):
+    """Map ordered column headers to localized text. code_map: {column -> code}.
+    Falls back to the raw column when unmapped or the message is missing."""
+    return [localize(code_map.get(c), c) for c in columns]
 
 
-def localize_df_columns(report_dir, df):
-    """Rename a DataFrame's columns to localized headers (in place) via
-    HCM_<dir>_<col> keys. Unmapped columns (e.g. dynamic date/question columns)
-    keep their original name via fallback."""
-    df.rename(columns={c: localize(_code_for(report_dir, c), c) for c in df.columns}, inplace=True)
+def localize_df_columns(df, code_map):
+    """Rename a DataFrame's columns (in place) via code_map: {column -> code}.
+    Unmapped columns (e.g. dynamic date/question columns) keep their raw name."""
+    df.rename(columns={c: localize(code_map[c], c) for c in df.columns if c in code_map}, inplace=True)
     return df

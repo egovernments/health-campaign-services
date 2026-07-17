@@ -66,6 +66,32 @@ EXPORT_COLUMNS = [
     "Quantity Administered", "Redose Quantity Administered",
 ]
 
+# Column -> localization code (looked up verbatim; falls back to the raw column).
+LOCALIZATION_CODES = {
+    'Individual ID': "HCM_CHILDREN_TREATED_REPORT_UPDATED_INDIVIDUALID",
+    'Country': "HCM_CHILDREN_TREATED_REPORT_UPDATED_COUNTRY",
+    'State': "HCM_CHILDREN_TREATED_REPORT_UPDATED_STATE",
+    'LGA': "HCM_CHILDREN_TREATED_REPORT_UPDATED_LGA",
+    'Ward': "HCM_CHILDREN_TREATED_REPORT_UPDATED_WARD",
+    'Health Facility': "HCM_CHILDREN_TREATED_REPORT_UPDATED_HEALTHFACILITY",
+    'Username': "HCM_CHILDREN_TREATED_REPORT_UPDATED_USERNAME",
+    'Child Name': "HCM_CHILDREN_TREATED_REPORT_UPDATED_CHILDNAME",
+    'Age': "HCM_CHILDREN_TREATED_REPORT_UPDATED_AGE",
+    'Gender': "HCM_CHILDREN_TREATED_REPORT_UPDATED_GENDER",
+    'Child Beneficiary ID': "HCM_CHILDREN_TREATED_REPORT_UPDATED_CHILDBENEFICIARYID",
+    'Household Head Name': "HCM_CHILDREN_TREATED_REPORT_UPDATED_HOUSEHOLDHEADNAME",
+    'Latitude': "HCM_CHILDREN_TREATED_REPORT_UPDATED_LATITUDE",
+    'Longitude': "HCM_CHILDREN_TREATED_REPORT_UPDATED_LONGITUDE",
+    'Product Name': "HCM_CHILDREN_TREATED_REPORT_UPDATED_PRODUCTNAME",
+    'Date of Administration': "HCM_CHILDREN_TREATED_REPORT_UPDATED_DATEOFADMINISTRATION",
+    'Cycle Index': "HCM_CHILDREN_TREATED_REPORT_UPDATED_CYCLEINDEX",
+    'Administration Status': "HCM_CHILDREN_TREATED_REPORT_UPDATED_ADMINISTRATIONSTATUS",
+    'Timestamp': "HCM_CHILDREN_TREATED_REPORT_UPDATED_TIMESTAMP",
+    'Record Type': "HCM_CHILDREN_TREATED_REPORT_UPDATED_RECORDTYPE",
+    'Quantity Administered': "HCM_CHILDREN_TREATED_REPORT_UPDATED_QUANTITYADMINISTERED",
+    'Redose Quantity Administered': "HCM_CHILDREN_TREATED_REPORT_UPDATED_REDOSEQUANTITYADMINISTERED",
+}
+
 # === DATE RANGE ===
 lteTime, gteTime, start_date_str, end_date_str = get_custom_dates_of_reports(START_DATE, END_DATE)
 
@@ -324,7 +350,7 @@ def pass2_stream_to_excel(dup_keys, ind_id_to_name, ind_id_to_head_name, output_
 
     wb = Workbook(write_only=True)
     ws = wb.create_sheet("Sheet1")
-    ws.append(localize_headers("children_treated_report_updated", EXPORT_COLUMNS))
+    ws.append(localize_headers(EXPORT_COLUMNS, LOCALIZATION_CODES))
 
     scroll_url  = f"{ES_PROJECT_TASK_INDEX}?scroll=10m"
     scroll_id   = None
@@ -416,7 +442,7 @@ if pass1_total == 0:
     from openpyxl import Workbook
     wb = Workbook(write_only=True)
     ws = wb.create_sheet("Sheet1")
-    ws.append(localize_headers("children_treated_report_updated", EXPORT_COLUMNS))
+    ws.append(localize_headers(EXPORT_COLUMNS, LOCALIZATION_CODES))
     output_path = os.path.join(os.getcwd(), f"{FILE_NAME}.xlsx")
     wb.save(output_path)
     print(f"Empty report saved to: {output_path}")

@@ -89,6 +89,21 @@ QUERY = {
     }
 }
 
+# Column -> localization code (looked up verbatim; falls back to the raw column).
+LOCALIZATION_CODES = {
+    'userName': "HCM_STOCK_REPORT_USERNAME",
+    'createdTime': "HCM_STOCK_REPORT_CREATEDTIME",
+    'eventType': "HCM_STOCK_REPORT_EVENTTYPE",
+    'Reason': "HCM_STOCK_REPORT_REASON",
+    'transactingFacilityType': "HCM_STOCK_REPORT_TRANSACTINGFACILITYTYPE",
+    'transactingFacilityName': "HCM_STOCK_REPORT_TRANSACTINGFACILITYNAME",
+    'RecevingFacilityType': "HCM_STOCK_REPORT_RECEVINGFACILITYTYPE",
+    'facilityName': "HCM_STOCK_REPORT_FACILITYNAME",
+    'physicalCount': "HCM_STOCK_REPORT_PHYSICALCOUNT",
+    'balesQuantity': "HCM_STOCK_REPORT_BALESQUANTITY",
+    'waybill_quantity': "HCM_STOCK_REPORT_WAYBILLQUANTITY",
+}
+
 # ===========================
 # GENERATE XLSX REPORT
 # ===========================
@@ -146,7 +161,7 @@ def generate_stock_xlsx():
         "balesQuantity",
         "waybill_quantity"
     ]
-    sheet.append(localize_headers("stock_report", header))
+    sheet.append(localize_headers(header, LOCALIZATION_CODES))
 
     local_tz = datetime.now().astimezone().tzinfo
 
