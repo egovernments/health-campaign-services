@@ -30,6 +30,20 @@ from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url
 from COMMON_UTILS.localization_utils import localize_df_columns
 
+# Column -> localization code (looked up verbatim; falls back to the raw column).
+LOCALIZATION_CODES = {
+    'Province': "HCM_ADVERSE_REACTIONS_REPORT_PROVINCE",
+    'District': "HCM_ADVERSE_REACTIONS_REPORT_DISTRICT",
+    'Administrative Province': "HCM_ADVERSE_REACTIONS_REPORT_ADMINISTRATIVEPROVINCE",
+    'CDD Username': "HCM_ADVERSE_REACTIONS_REPORT_CDDUSERNAME",
+    'Number of children referred for ADVERSE DRUG REACTIONS to SPAQ (3 - 11 months)': "HCM_ADVERSE_REACTIONS_REPORT_NUMBEROFCHILDRENREFERREDFORADVERSEDRUGREACTIONSTOSPAQ311MONTHS",
+    'Number of children referred for ADVERSE DRUG REACTIONS to SPAQ (12 - 59 months)': "HCM_ADVERSE_REACTIONS_REPORT_NUMBEROFCHILDRENREFERREDFORADVERSEDRUGREACTIONSTOSPAQ1259MONTHS",
+    'SICK': "HCM_ADVERSE_REACTIONS_REPORT_SICK",
+    'MALARIA_CHECK': "HCM_ADVERSE_REACTIONS_REPORT_MALARIACHECK",
+    'BENEFICIARY_REFERRED': "HCM_ADVERSE_REACTIONS_REPORT_BENEFICIARYREFERRED",
+    'MALARIA_DOSE_CHECK': "HCM_ADVERSE_REACTIONS_REPORT_MALARIADOSECHECK",
+}
+
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
 # Elasticsearch index
@@ -163,7 +177,7 @@ def generate_report():
 
     # Save to Excel
     output_file = f"{FILE_NAME}.xlsx"
-    localize_df_columns("adverse_reactions_report", df)
+    localize_df_columns(df, LOCALIZATION_CODES)
     df.to_excel(output_file, index=False)
     print(f"Excel file created: {output_file}")
 

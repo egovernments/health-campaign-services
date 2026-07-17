@@ -36,6 +36,21 @@ from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url
 from COMMON_UTILS.localization_utils import localize_df_columns
 
+# Column -> localization code (looked up verbatim; falls back to the raw column).
+LOCALIZATION_CODES = {
+    'Province': "HCM_ANOMALY_REPORT_PROVINCE",
+    'District': "HCM_ANOMALY_REPORT_DISTRICT",
+    'userName': "HCM_ANOMALY_REPORT_USERNAME",
+    'total administrations by user': "HCM_ANOMALY_REPORT_TOTALADMINISTRATIONSBYUSER",
+    'max administrations in 1 min': "HCM_ANOMALY_REPORT_MAXADMINISTRATIONSIN1MIN",
+    'no. of times user administered >= 3 individuals in 1 min': "HCM_ANOMALY_REPORT_NOOFTIMESUSERADMINISTERED3INDIVIDUALSIN1MIN",
+    'time of user administered >=3 individuals in 1 min': "HCM_ANOMALY_REPORT_TIMEOFUSERADMINISTERED3INDIVIDUALSIN1MIN",
+    'total administrations by user with coordinates': "HCM_ANOMALY_REPORT_TOTALADMINISTRATIONSBYUSERWITHCOORDINATES",
+    'Max points within radius 5m': "HCM_ANOMALY_REPORT_MAXPOINTSWITHINRADIUS5M",
+    'percentage of records falls within radius': "HCM_ANOMALY_REPORT_PERCENTAGEOFRECORDSFALLSWITHINRADIUS",
+    'coordinates list': "HCM_ANOMALY_REPORT_COORDINATESLIST",
+}
+
 ES_PROJECT_TASK_SEARCH = es_index_url("project-task-index-v1")
 
 DISTANCE = 5
@@ -325,7 +340,7 @@ print(df.size)
 
 df_sorted = df.sort_values(by=EXPECTED_COLUMNS, ascending=[True, True, True])
 
-localize_df_columns("anomaly_report", df_sorted)
+localize_df_columns(df_sorted, LOCALIZATION_CODES)
 df_sorted.to_excel(f"{FILE_NAME}.xlsx", index=False)
 
 e_time = time.time()
