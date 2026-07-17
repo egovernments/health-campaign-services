@@ -68,6 +68,24 @@ public class ExcelIngestionConfig {
     @Value("${egov.excel.join-mode-sheet-protection-enabled:false}")
     private boolean joinModeSheetProtectionEnabled;
 
+    // When true, editing a pre-filled (server-managed/immutable) cell in an unprotected join-mode template
+    // makes the upload FAIL, instead of silently reverting the cell to the generated baseline value.
+    // Default true. Set false to restore the legacy silent-revert-with-warning behaviour.
+    @Value("${egov.excel.immutable-reject-on-change:true}")
+    private boolean immutableRejectOnChange;
+
+    // When true, the sole editable active/inactive (usage) column is validated server-side against the
+    // allowed values {Active, Inactive}. Excel list-validation is bypassed on paste/drag-fill, so this is
+    // the real gate against an out-of-list value. Default true.
+    @Value("${egov.excel.usage-value-validation-enabled:true}")
+    private boolean usageValueValidationEnabled;
+
+    // When true, a row whose boundary selection did not resolve to a boundary code (an out-of-list name
+    // entered via paste/drag-fill leaves the VLOOKUP code formula blank) fails validation instead of being
+    // silently skipped. Default true.
+    @Value("${egov.excel.boundary-selection-validation-enabled:true}")
+    private boolean boundarySelectionValidationEnabled;
+
     @Value("${egov.excel.validation.error.color:#ff0000}")
     private String validationErrorColor;
 

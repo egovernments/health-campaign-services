@@ -6,6 +6,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
@@ -223,6 +224,71 @@ class ImmutableJoinServiceTest {
             warnings.forEach(w -> cols.add(w.getColumnName()));
             assertTrue(cols.contains("name") && cols.contains("village"), "both reverted columns warned");
             assertFalse(cols.contains("comment"), "editable column produced NO warning");
+        }
+
+        // reject-on-change (egov.excel.immutable-reject-on-change=true): editing a pre-filled immutable DATA
+        // cell FAILS the whole upload instead of silently reverting it.
+        @Test
+        void rejectOnChange_tamperedImmutableCell_throws() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode(),
+                    "a changed pre-filled cell is rejected, not reverted");
+        }
+
+        // reject-on-change: an unchanged pre-filled row with only the EDITABLE column edited passes (no throw).
+        @Test
+        void rejectOnChange_onlyEditableChanged_passes() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "user changed this", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            assertDoesNotThrow(this::run, "editing only the editable column must not be rejected");
+            assertEquals("user changed this", up.get("comment"), "editable column change is kept");
+        }
+
+        // reject-on-change: a multi-select CHILD cell difference is NOT rejected (restored silently) to avoid
+        // false rejects from harmless per-child ordering.
+        @Test
+        void rejectOnChange_multiSelectChildDiff_restoredNotRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "roles_MULTISELECT_1", "SOMETHING_ELSE", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "roles_MULTISELECT_1", "ADMIN", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            assertDoesNotThrow(this::run, "multi-select child diff is restored, not rejected");
+            assertEquals("ADMIN", up.get("roles_MULTISELECT_1"), "multi-select child restored from baseline");
+        }
+
+        // must-fix: the facility active/inactive (usage) column is intentionally editable even when the schema
+        // marks it freezeColumn -> toggling it must NOT be rejected under reject-on-change.
+        @Test
+        void rejectOnChange_facilityUsageColumn_isEditable_notRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name("name").freezeColumn(true).build(),
+                    ColumnDef.builder().name(ProcessingConstants.FACILITY_USAGE_COLUMN_KEY)
+                            .freezeColumn(true).build()));
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "RealName",
+                    ProcessingConstants.FACILITY_USAGE_COLUMN_KEY, "Inactive", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName",
+                    ProcessingConstants.FACILITY_USAGE_COLUMN_KEY, "Active", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            assertDoesNotThrow(this::run, "facility usage is editable; toggling Active->Inactive is allowed");
+            assertEquals("Inactive", up.get(ProcessingConstants.FACILITY_USAGE_COLUMN_KEY),
+                    "facility usage kept from the uploaded file (not reverted)");
         }
 
         @Test

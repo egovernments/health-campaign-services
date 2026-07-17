@@ -15,6 +15,9 @@ public class ProcessingConstants {
     // User active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String USER_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_USAGE";
 
+    // Facility active/inactive column - user-editable, excluded from the immutable-baseline join
+    public static final String FACILITY_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_USAGE";
+
     // Template type families the unprotected join-mode immutability feature applies to.
     // Generation types are e.g. "unified-console" / "attendanceRegister" / "attendanceRegisterAttendee";
     // the matching processing types append a suffix ("-validation"/"-parse"), so the scope gate matches

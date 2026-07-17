@@ -61,10 +61,11 @@ public class ImmutableJoinService {
 
     /** Columns never restored from the baseline even if the schema marks them immutable. */
     private static final Set<String> ALWAYS_EXCLUDED = Set.of(
-            ProcessingConstants.USER_USAGE_COLUMN_KEY,   // user active/inactive - intentionally editable
-            ProcessingConstants.ROW_ID_COLUMN_NAME,      // the join key itself
-            ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY,// computed VLOOKUP formula, not data
-            ProcessingConstants.REGISTER_ID_COLUMN_KEY); // computed formula, not data
+            ProcessingConstants.USER_USAGE_COLUMN_KEY,     // user active/inactive - intentionally editable
+            ProcessingConstants.FACILITY_USAGE_COLUMN_KEY, // facility active/inactive - intentionally editable
+            ProcessingConstants.ROW_ID_COLUMN_NAME,        // the join key itself
+            ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY,  // computed VLOOKUP formula, not data
+            ProcessingConstants.REGISTER_ID_COLUMN_KEY);   // computed formula, not data
 
     public ImmutableJoinService(GeneratedFileRepository generatedFileRepository,
                                 FileStoreService fileStoreService,
@@ -274,18 +275,18 @@ public class ImmutableJoinService {
                 }
                 boolean baseFilled = trimToNull(ExcelUtil.getValueAsString(baseEntry.getValue())) != null;
                 if (immutable.alwaysRestore.contains(parent)) {
-                    writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue());
+                    writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue(), true);
                     reconstructedColumns.add(parent);
                 } else if (immutable.restoreIfBaselineFilled.contains(parent) && baseFilled) {
                     // freezeColumnIfFilled: immutable only where the baseline actually had a value.
-                    writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue());
+                    writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue(), true);
                 } else if (hierarchyPrefix != null
                         && parent.toUpperCase().startsWith(hierarchyPrefix)
                         && !isExcluded(parent)) {
                     // Dynamic boundary/hierarchy column. Lock the prefilled level (freezeColumnIfFilled);
                     // an empty baseline level the user filled means the user picked a deeper boundary.
                     if (baseFilled) {
-                        writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue());
+                        writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue(), true);
                     } else if (trimToNull(ExcelUtil.getValueAsString(upRow.get(col))) != null) {
                         userDeepenedBoundary = true;
                     }
@@ -299,11 +300,11 @@ public class ImmutableJoinService {
             if (!userDeepenedBoundary) {
                 if (trimToNull(ExcelUtil.getValueAsString(baselineBoundaryCode)) != null) {
                     writeBack(sj, upRow, poiRowIdx,
-                            ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, baselineBoundaryCode);
+                            ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, baselineBoundaryCode, false);
                 }
                 if (trimToNull(ExcelUtil.getValueAsString(baselineRegisterId)) != null) {
                     writeBack(sj, upRow, poiRowIdx,
-                            ProcessingConstants.REGISTER_ID_COLUMN_KEY, baselineRegisterId);
+                            ProcessingConstants.REGISTER_ID_COLUMN_KEY, baselineRegisterId, false);
                 }
             }
         }
@@ -396,13 +397,34 @@ public class ImmutableJoinService {
      * processed file. Map-only fallback when the column has no physical cell (synthetic/multi-select key)
      * or the row index is unknown.
      */
-    private void writeBack(SheetJoin sj, Map<String, Object> upRow, int poiRowIdx, String col, Object value) {
+    private void writeBack(SheetJoin sj, Map<String, Object> upRow, int poiRowIdx, String col, Object value,
+                           boolean immutableData) {
         Object oldVal = upRow.get(col);
+
+        // Fail-closed (reject-on-change): a pre-filled server-managed DATA cell was changed. Reject the whole
+        // upload instead of silently reverting it - even if the user shifted the cell, the join matches on the
+        // row-id so a moved-but-changed value is still caught. Derived formula cells (boundary code / register
+        // id) pass immutableData=false and are still restored silently. Multi-select child cells are excluded
+        // from the reject (their per-child order can differ harmlessly) and are restored silently instead.
+        // Toggle: egov.excel.immutable-reject-on-change.
+        boolean multiSelectChild = col.contains(MULTISELECT_MARKER);
+        if (immutableData && !multiSelectChild && config.isImmutableRejectOnChange()
+                && poiRowIdx >= 0 && !sameTrimmed(oldVal, value)) {
+            log.info("Immutable-join REJECTED upload: sheet '{}' row {} column '{}' changed from baseline",
+                    sj.sheetName, poiRowIdx + 1, col);
+            exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                    ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE
+                            .replace("{0}", sj.sheetName)
+                            .replace("{1}", String.valueOf(poiRowIdx + 1))
+                            .replace("{2}", col));
+        }
+
         upRow.put(col, value);
 
-        // If the user's uploaded value differed from the authoritative baseline, this locked (server-managed)
-        // cell was just reverted -> surface a NON-FAILING warning (status=valid) so the user knows their edit
-        // did not take. Editable columns are never reconstructed, so they never reach here.
+        // Legacy behaviour (reject disabled, or a derived formula cell): if the user's uploaded value differed
+        // from the authoritative baseline, this locked (server-managed) cell was just reverted -> surface a
+        // NON-FAILING warning (status=valid) so the user knows their edit did not take. Editable columns are
+        // never reconstructed, so they never reach here.
         if (sj.warnings != null && poiRowIdx >= 0 && !sameTrimmed(oldVal, value)) {
             String msg = ValidationConstants.DEFAULT_IMMUTABLE_CELL_REVERTED;
             if (sj.localizationMap != null) {
