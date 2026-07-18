@@ -875,7 +875,9 @@ with DAG(
         # Kubernetes configuration
         namespace=K8S_NAMESPACE,
         image=REPORT_IMAGE,
-        node_selector={"kubernetes.io/arch": "amd64"},
+        # No arch node_selector: the report image is multi-arch (amd64+arm64 manifest),
+        # so let the pod schedule on whatever nodes the cluster has (UAT is arm64/Graviton;
+        # pinning amd64 left pods Pending forever).
 
         # No cmds/arguments needed - Dockerfile ENTRYPOINT handles execution
         # Dockerfile should contain: ENTRYPOINT ["python3", "/app/main.py"]
