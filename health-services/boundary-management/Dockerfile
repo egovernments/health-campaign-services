@@ -15,11 +15,8 @@ ENV BRANCH_NAME=$BRANCH_NAME
 ENV ACTION_NUMBER=$ACTION_NUMBER
 ENV COMMIT_ID=$COMMIT_ID
 
-# JS old-space ceiling sized to 75% of the 2Gi pod memory_limits (DIGIT-DevOps chart) so RSS
-# (heap + V8 external/Buffers + native + baseline) stays under the container limit — a ceiling
-# equal to the limit gets kernel-OOMKilled (exit 137) before V8's own GC pressure kicks in.
-# Keep in sync with package.json "serve" (which re-sets NODE_OPTIONS inline and wins at runtime).
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+# Remove heap limit: let Node.js use all available memory -- for now it is 1GB
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Copy package.json and yarn.lock (if exists). Build context is the repo root and the
 # service dir is passed via WORK_DIR (matches build/maven/Dockerfile + the generic build.yaml).
