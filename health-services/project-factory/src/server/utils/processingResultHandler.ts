@@ -2058,9 +2058,16 @@ async function processProjectCreationInOrder(
     
     // Group boundaries by hierarchy level
     const boundariesByLevel = groupBoundariesByLevel(sortedBoundaryData, boundaryMap);
-    
+
     logger.info(`Grouped boundaries into ${boundariesByLevel.length} levels`);
-    
+
+    // Bulk path: one adopt search + array-payload creates per level (parents still created
+    // before children). Opt-in via config; the legacy per-boundary loop stays the default.
+    if (config.project.bulkCreateChunkSize > 0) {
+        await processProjectCreationInOrderBulk(boundariesByLevel, tenantId, campaignNumber, targetConfig, projectCreateBody, Projects, boundaryMap, useruuid, requestInfo);
+        return;
+    }
+
     // Process each level sequentially, but within each level process in batches with Promise.all
     for (let levelIndex = 0; levelIndex < boundariesByLevel.length; levelIndex++) {
         const levelBoundaries = boundariesByLevel[levelIndex];
@@ -2084,6 +2091,193 @@ async function processProjectCreationInOrder(
     }
     
     logger.info("All levels project creation completed");
+}
+
+const PROJECT_BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
+
+/** Run a worker over items in bounded-concurrency windows (order not preserved). */
+async function runBoundedProject<T>(items: T[], concurrency: number, worker: (item: T) => Promise<void>): Promise<void> {
+    const size = concurrency > 0 ? concurrency : 1;
+    for (let i = 0; i < items.length; i += size) {
+        await Promise.all(items.slice(i, i + size).map(worker));
+    }
+}
+
+/**
+ * One paginated search for every project already created under this campaign (referenceID),
+ * returning boundaryCode -> projectId. Replaces the per-boundary adopt search so a re-drive
+ * (redelivery / retry) is idempotent with a handful of calls instead of one per boundary.
+ */
+export async function fetchAllProjectsByReferenceId(campaignNumber: string, tenantId: string, requestInfo: any): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
+    const pageSize = config.project.searchPageSize;
+    let offset = 0;
+    while (true) {
+        const body = { RequestInfo: requestInfo, Projects: [{ referenceID: campaignNumber, tenantId }] };
+        const params = { tenantId, offset, limit: pageSize };
+        const resp = await httpRequest(config.host.projectHost + config.paths.projectSearch, body, params);
+        const items: any[] = resp?.Project ?? resp?.Projects ?? [];
+        for (const p of items) {
+            const boundary = p?.address?.boundary;
+            if (boundary && p?.id) map.set(boundary, p.id);
+        }
+        if (items.length < pageSize) break;
+        offset += pageSize;
+    }
+    return map;
+}
+
+/** Build the Project create payload for one boundary (address, parent id, targets, referenceID). */
+function buildProjectTemplateForBoundary(boundaryData: any, boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>, targetConfig: any, Projects: any, campaignNumber: string, tenantId: string): any {
+    const data = boundaryData?.data;
+    const boundaryCode = data?.[PROJECT_BOUNDARY_CODE];
+    const projectTemplate = JSON.parse(JSON.stringify(Projects[0]));
+    projectTemplate.address = { tenantId, boundary: boundaryCode, boundaryType: boundaryMap[boundaryCode]?.type };
+    const parent = boundaryMap?.[boundaryCode]?.parent;
+    projectTemplate.parent = parent ? (boundaryMap?.[parent]?.projectId ?? null) : null;
+    projectTemplate.referenceID = campaignNumber;
+    const targetMap: Record<string, number> = {};
+    for (const beneficiary of targetConfig.beneficiaries) {
+        for (const col of beneficiary.columns) {
+            const value = data[col];
+            if (value == 0 || value) {
+                targetMap[beneficiary.beneficiaryType] = (targetMap[beneficiary.beneficiaryType] || 0) + value;
+            } else {
+                logger.warn(`Target missing for beneficiary ${beneficiary.beneficiaryType}, column ${col}, boundary ${boundaryCode}`);
+            }
+        }
+    }
+    projectTemplate.targets = Object.entries(targetMap).map(([key, val]) => ({ beneficiaryType: key, targetNo: val }));
+    return projectTemplate;
+}
+
+/**
+ * Bulk create every project in one hierarchy level: confirm the (few, distinct) parent projects
+ * are persisted, adopt any that already exist, then create the rest via chunked array-payload
+ * /project/v1/_create calls (ids returned synchronously, mapped back to boundaries by
+ * address.boundary). Row status + sheet updates are preserved; a failed chunk fails only its rows.
+ */
+export async function createLevelBulk(
+    levelBoundaries: any[],
+    tenantId: string,
+    campaignNumber: string,
+    targetConfig: any,
+    projectCreateBody: any,
+    Projects: any,
+    boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
+    useruuid: string,
+    existingByBoundary: Map<string, string>,
+    requestInfo?: RequestInfo
+): Promise<void> {
+    // 1. Confirm the distinct parent projects (created in the previous level) are persisted —
+    //    once per parent, not once per child, so leaf-heavy levels pay almost nothing.
+    if (!config.values.skipParentProjectConfirmation) {
+        const parentIds = new Set<string>();
+        for (const bd of levelBoundaries) {
+            const code = bd?.data?.[PROJECT_BOUNDARY_CODE];
+            const parent = boundaryMap?.[code]?.parent;
+            const pid = parent ? boundaryMap?.[parent]?.projectId : undefined;
+            if (pid) parentIds.add(pid);
+        }
+        await runBoundedProject([...parentIds], config.project.bulkCreateConcurrency, (pid) =>
+            confirmProjectParentCreation(tenantId, useruuid, pid, requestInfo));
+    }
+
+    // 2. Partition: adopt existing, fail rows whose parent has no project id, queue the rest.
+    const sheetRows: any[] = [];
+    const toCreate: { boundaryData: any; code: string; template: any }[] = [];
+    for (const boundaryData of levelBoundaries) {
+        const code = boundaryData?.data?.[PROJECT_BOUNDARY_CODE];
+        const adoptedId = existingByBoundary.get(code) ?? boundaryMap?.[code]?.projectId;
+        if (adoptedId) {
+            if (boundaryMap[code]) boundaryMap[code].projectId = adoptedId;
+            boundaryData.uniqueIdAfterProcess = adoptedId;
+            boundaryData.status = dataRowStatuses.completed;
+            sheetRows.push(boundaryData);
+            continue;
+        }
+        const parent = boundaryMap?.[code]?.parent;
+        if (parent && !boundaryMap?.[parent]?.projectId) {
+            logger.error(`Parent ${parent} of boundary ${code} has no project id — cannot create child project`);
+            boundaryData.status = dataRowStatuses.failed;
+            sheetRows.push(boundaryData);
+            continue;
+        }
+        toCreate.push({ boundaryData, code, template: buildProjectTemplateForBoundary(boundaryData, boundaryMap, targetConfig, Projects, campaignNumber, tenantId) });
+    }
+
+    // 3. Chunked array-payload creates. The response carries each created project with its id and
+    //    address.boundary, so ids are mapped back by boundary code (no ordering assumption).
+    const CHUNK = config.project.bulkCreateChunkSize;
+    const chunks: { boundaryData: any; code: string; template: any }[][] = [];
+    for (let i = 0; i < toCreate.length; i += CHUNK) chunks.push(toCreate.slice(i, i + CHUNK));
+    await runBoundedProject(chunks, config.project.bulkCreateConcurrency, async (chunk) => {
+        const requestBody = JSON.parse(JSON.stringify(projectCreateBody));
+        requestBody.Projects = chunk.map(c => c.template);
+        try {
+            const resp = await httpRequest(config.host.projectHost + config.paths.projectCreate, requestBody, undefined, undefined, undefined, undefined, undefined, true);
+            const created: any[] = resp?.Project ?? resp?.Projects ?? [];
+            const byBoundary = new Map<string, string>();
+            for (const p of created) {
+                const boundary = p?.address?.boundary;
+                if (boundary && p?.id) byBoundary.set(boundary, p.id);
+            }
+            for (const c of chunk) {
+                const id = byBoundary.get(c.code);
+                if (id) {
+                    if (boundaryMap[c.code]) boundaryMap[c.code].projectId = id;
+                    c.boundaryData.uniqueIdAfterProcess = id;
+                    c.boundaryData.status = dataRowStatuses.completed;
+                } else {
+                    logger.error(`Bulk project create: no id returned for boundary ${c.code}`);
+                    c.boundaryData.status = dataRowStatuses.failed;
+                }
+                sheetRows.push(c.boundaryData);
+            }
+        } catch (error) {
+            logger.error(`Bulk project create failed for a chunk of ${chunk.length}: ${error instanceof Error ? error.message : String(error)}`);
+            for (const c of chunk) {
+                c.boundaryData.status = dataRowStatuses.failed;
+                sheetRows.push(c.boundaryData);
+            }
+        }
+    });
+
+    // 4. Persist sheet-row status updates in batches.
+    const persistSize = config.project.searchPageSize;
+    for (let i = 0; i < sheetRows.length; i += persistSize) {
+        await produceModifiedMessages({ datas: sheetRows.slice(i, i + persistSize) }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+    }
+}
+
+/**
+ * Level-by-level bulk project creation. One adopt search up front, then each level's projects
+ * are created before the next (children still reference their parent's returned id).
+ */
+async function processProjectCreationInOrderBulk(
+    boundariesByLevel: any[][],
+    tenantId: string,
+    campaignNumber: string,
+    targetConfig: any,
+    projectCreateBody: any,
+    Projects: any,
+    boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
+    useruuid: string,
+    requestInfo?: RequestInfo
+): Promise<void> {
+    logger.info(`Bulk project creation across ${boundariesByLevel.length} level(s)`);
+    const existingByBoundary = await fetchAllProjectsByReferenceId(campaignNumber, tenantId, requestInfo || {});
+    for (const [code, id] of existingByBoundary) {
+        if (boundaryMap[code]) boundaryMap[code].projectId = id;
+    }
+    logger.info(`Project adopt pre-pass: ${existingByBoundary.size} existing project(s) for ${campaignNumber}`);
+    for (let levelIndex = 0; levelIndex < boundariesByLevel.length; levelIndex++) {
+        const level = boundariesByLevel[levelIndex];
+        logger.info(`Bulk project level ${levelIndex + 1}/${boundariesByLevel.length}: ${level.length} boundaries`);
+        await createLevelBulk(level, tenantId, campaignNumber, targetConfig, projectCreateBody, Projects, boundaryMap, useruuid, existingByBoundary, requestInfo);
+        logger.info(`✅ Bulk project level ${levelIndex + 1} completed`);
+    }
+    logger.info("All levels bulk project creation completed");
 }
 
 /**

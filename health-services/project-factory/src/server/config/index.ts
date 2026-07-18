@@ -38,8 +38,15 @@ const config = {
     persistBatchSize: process.env.BOUNDARY_PERSIST_BATCH_SIZE ? parseInt(process.env.BOUNDARY_PERSIST_BATCH_SIZE, 10) : 100,
   },
   project: {
-    // Number of projects created in parallel per hierarchy-level batch.
+    // Number of projects created in parallel per hierarchy-level batch (legacy per-boundary path).
     creationBatchSize: process.env.PROJECT_CREATION_BATCH_SIZE ? parseInt(process.env.PROJECT_CREATION_BATCH_SIZE, 10) : 100,
+    // Projects per /project/v1/_create call (the endpoint takes a Projects[] array and returns
+    // them with ids synchronously). 0 disables bulk and keeps the legacy per-boundary create path.
+    bulkCreateChunkSize: process.env.PROJECT_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.PROJECT_BULK_CREATE_CHUNK_SIZE, 10) : 0,
+    // Parallel bulk-create calls within a single hierarchy level.
+    bulkCreateConcurrency: process.env.PROJECT_BULK_CREATE_CONCURRENCY ? parseInt(process.env.PROJECT_BULK_CREATE_CONCURRENCY, 10) : 5,
+    // Page size for the one-shot adopt search (existing projects by campaignNumber/referenceID).
+    searchPageSize: process.env.PROJECT_SEARCH_PAGE_SIZE ? parseInt(process.env.PROJECT_SEARCH_PAGE_SIZE, 10) : 100,
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
