@@ -1,0 +1,55 @@
+package org.egov.product.summaryreport.web.models;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * One day's activity summary for a single employee (createdBy).
+ * The API returns an array of these, one entry per day in the requested range that
+ * has at least one record.
+ */
+@Validated
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class DailyReportSummary {
+
+    /** Calendar day in campaign timezone, formatted yyyy-MM-dd. */
+    @JsonProperty("date")
+    private String date;
+
+    /** Employee uuid (RequestInfo.userInfo.uuid). */
+    @JsonProperty("createdBy")
+    private String createdBy;
+
+    @JsonProperty("householdsRegistered")
+    @Builder.Default
+    private Long householdsRegistered = 0L;
+
+    @JsonProperty("childrenRegistered")
+    @Builder.Default
+    private Long childrenRegistered = 0L;
+
+    @JsonProperty("beneficiariesRegistered")
+    @Builder.Default
+    private Long beneficiariesRegistered = 0L;
+
+    @JsonProperty("childrenTreated")
+    @Builder.Default
+    private Long childrenTreated = 0L;
+
+    /** productVariantId -> quantity consumed (delivered) that day. */
+    @JsonProperty("stockConsumedMap")
+    @Builder.Default
+    private Map<String, Long> stockConsumedMap = new HashMap<>();
+}
