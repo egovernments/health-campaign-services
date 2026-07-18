@@ -110,8 +110,8 @@ public class SummaryReportRepository {
         return countByDay("household", createdBy, tenantId, startDate, endDate);
     }
 
-    public Map<String, Long> childrenRegisteredByDay(String createdBy, String tenantId,
-                                                     Long startDate, Long endDate) {
+    public Map<String, Long> individualRegisteredByDay(String createdBy, String tenantId,
+                                                       Long startDate, Long endDate) {
         return countByDay("individual", createdBy, tenantId, startDate, endDate);
     }
 

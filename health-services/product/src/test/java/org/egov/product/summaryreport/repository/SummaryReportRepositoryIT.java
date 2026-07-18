@@ -116,7 +116,7 @@ class SummaryReportRepositoryIT {
         List<DailyReportSummary> report = service.getDailySummary(req(tenant, createdBy));
 
         long households = report.stream().mapToLong(DailyReportSummary::getHouseholdsRegistered).sum();
-        long children = report.stream().mapToLong(DailyReportSummary::getChildrenRegistered).sum();
+        long children = report.stream().mapToLong(DailyReportSummary::getIndividualRegistered).sum();
         long beneficiaries = report.stream().mapToLong(DailyReportSummary::getBeneficiariesRegistered).sum();
         long treated = report.stream().mapToLong(DailyReportSummary::getChildrenTreated).sum();
         long stock = report.stream()

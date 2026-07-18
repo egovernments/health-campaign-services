@@ -49,8 +49,8 @@ public class SummaryReportService {
                 repository.householdsRegisteredByDay(createdBy, tenantId, startDate, endDate),
                 DailyReportSummary::setHouseholdsRegistered);
         mergeCounts(byDay, createdBy,
-                repository.childrenRegisteredByDay(createdBy, tenantId, startDate, endDate),
-                DailyReportSummary::setChildrenRegistered);
+                repository.individualRegisteredByDay(createdBy, tenantId, startDate, endDate),
+                DailyReportSummary::setIndividualRegistered);
         mergeCounts(byDay, createdBy,
                 repository.beneficiariesRegisteredByDay(createdBy, tenantId, startDate, endDate),
                 DailyReportSummary::setBeneficiariesRegistered);
