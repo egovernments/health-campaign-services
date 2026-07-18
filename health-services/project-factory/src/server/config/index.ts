@@ -122,6 +122,10 @@ const config = {
     // Number of mappings sent per bulk project-staff/facility/resource create call.
     // 0 disables bulk and falls back to the per-row create path (behavior unchanged).
     bulkCreateChunkSize: process.env.MAPPING_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.MAPPING_BULK_CREATE_CHUNK_SIZE, 10) : 100,
+    // Per-type gate for STAFF (user) mapping bulk create. Even when bulkCreateChunkSize > 0,
+    // staff stays on the synchronous per-row path unless STAFF_MAPPING_BULK=1 — the async staff
+    // bulk create is unreliable in some project-service builds, while facility/resource bulk are fine.
+    staffBulkEnabled: process.env.STAFF_MAPPING_BULK === "1" || process.env.STAFF_MAPPING_BULK === "true",
     // Confirm-by-search after async bulk create: poll interval (ms) and max attempts to
     // find the just-created project mappings (server generates ids async, so PF must search
     // to record the real mappingId). Unconfirmed rows stay toBeMapped for the reconciler to retry.

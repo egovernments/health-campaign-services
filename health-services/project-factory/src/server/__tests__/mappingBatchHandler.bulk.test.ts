@@ -55,6 +55,7 @@ jest.mock('../config', () => ({
             createConcurrency: 2,
             maxRetries: 3,
             bulkCreateChunkSize: 2,
+            staffBulkEnabled: true,
             bulkConfirmPollIntervalMs: 1,
             bulkConfirmMaxAttempts: 3,
         },
@@ -414,5 +415,48 @@ describe('mappingBatchHandler — bulk mapping edge cases', () => {
         const row = persistedRows().find(r => r.type === 'user');
         expect(row.status).toBe(mappingStatuses.mapped);
         expect(row.mappingId).toBe('staff-1');
+    });
+});
+
+describe('mappingBatchHandler — STAFF_MAPPING_BULK gate', () => {
+    afterEach(() => { (config.mapping as any).staffBulkEnabled = true; });
+
+    it('staff uses the synchronous per-row create (not bulk) when staffBulkEnabled is false, even with chunk size > 0', async () => {
+        (config.mapping as any).staffBulkEnabled = false;
+        getRelatedDataWithCampaignMock.mockImplementation((type: string) => {
+            if (type === 'boundary') return Promise.resolve([{ uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' }] as any);
+            if (type === 'user') return Promise.resolve([{ uniqueIdentifier: '+91-1', uniqueIdAfterProcess: 'usr-svc-1' }] as any);
+            return Promise.resolve([] as any);
+        });
+        createStaffMock.mockResolvedValue({ ProjectStaff: { id: 'staff-sync-1' } } as any);
+
+        await handleMappingBatch({
+            ...baseMessage,
+            mappings: [{ type: 'user', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: '+91-1' }],
+        });
+
+        expect(createStaffMock).toHaveBeenCalledTimes(1);   // per-row sync
+        expect(createStaffBulkMock).not.toHaveBeenCalled();  // never bulk
+        const row = persistedRows().find(r => r.type === 'user');
+        expect(row.status).toBe(mappingStatuses.mapped);
+        expect(row.mappingId).toBe('staff-sync-1');
+    });
+
+    it('facility still uses bulk when staffBulkEnabled is false (gate is staff-only)', async () => {
+        (config.mapping as any).staffBulkEnabled = false;
+        getRelatedDataWithCampaignMock.mockImplementation((type: string) => {
+            if (type === 'boundary') return Promise.resolve([{ uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' }] as any);
+            if (type === 'facility') return Promise.resolve([{ uniqueIdentifier: 'FN-1', uniqueIdAfterProcess: 'fac-1', data: { HCM_ADMIN_CONSOLE_FACILITY_CODE: 'fac-1' } }] as any);
+            return Promise.resolve([] as any);
+        });
+        let n = 0;
+        searchProjectFacilitiesByProjectsMock.mockImplementation(async () => { n++; return n === 1 ? new Map() : new Map([['fac-1|project-1', 'pf-1']]); });
+
+        await handleMappingBatch({
+            ...baseMessage,
+            mappings: [{ type: 'facility', status: mappingStatuses.toBeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: 'FN-1' }],
+        });
+
+        expect(createProjectFacilityBulkMock).toHaveBeenCalledTimes(1); // facility still bulk
     });
 });

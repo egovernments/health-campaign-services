@@ -293,7 +293,13 @@ async function processToBeMappedGroup(
         logger.info(`Adopted ${adoptedCount} already-existing project ${adapter.type} mappings`);
     }
 
-    if (config.mapping.bulkCreateChunkSize > 0) {
+    // Staff (user) mapping is gated separately: async staff bulk create is unreliable on some
+    // project-service builds, so it stays synchronous unless STAFF_MAPPING_BULK is set — even when
+    // bulk is enabled for facility/resource. Facility/resource bulk create work and stay on bulk.
+    const useBulk = config.mapping.bulkCreateChunkSize > 0
+        && (adapter.type !== 'user' || config.mapping.staffBulkEnabled);
+
+    if (useBulk) {
         await bulkCreateAndConfirm(creatable, tenantId, requestInfo, adapter, updateBatch, failures);
     } else {
         // Legacy per-row create path (synchronous id, marks mapped/failed inline).
