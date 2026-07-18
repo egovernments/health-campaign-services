@@ -78,11 +78,10 @@ class GeneratedTemplateBoundarySkeletonSizeTest {
     private static final int LEVELS = 3;
     private static final String PLAIN_SHEET = "PlainSheet";
     private static final String BOUNDARY_SHEET = "BoundarySheet";
-    // Boundary block layout on a fresh sheet: L1 visible(0), L2 helper(1)+visible(2),
-    // L3 helper(3)+visible(4), hidden boundary code(5). Schema columns follow from 6.
-    private static final List<Integer> VISIBLE_BOUNDARY_COLS = Arrays.asList(0, 2, 4);
-    private static final List<Integer> HELPER_COLS = Arrays.asList(1, 3);
-    private static final int BOUNDARY_CODE_COL = 5;
+    // Boundary block layout on a fresh sheet (scaffold-less design, no helper columns):
+    // L1 visible(0), L2 visible(1), L3 visible(2), hidden boundary code(3). Schema columns follow.
+    private static final List<Integer> VISIBLE_BOUNDARY_COLS = Arrays.asList(0, 1, 2);
+    private static final int BOUNDARY_CODE_COL = 3;
 
     @Mock
     private ApplicationContext applicationContext;
@@ -150,33 +149,34 @@ class GeneratedTemplateBoundarySkeletonSizeTest {
             assertTrue(plainEnumRange.getLastRow() >= EXCEL_ROW_LIMIT,
                     "Plain sheet dropdown must span the paste cap, got " + plainEnumRange.getLastRow());
 
-            // --- Boundary sheet: skeleton rows keep ONLY the load-bearing formula cells ---
+            // --- Boundary sheet: NO skeleton rows at all (scaffold-less design) ---
             Sheet boundary = wb.getSheet(BOUNDARY_SHEET);
             assertNotNull(boundary, "Boundary data sheet must exist");
+            // No helper columns in the technical header row
+            Row techHeader = boundary.getRow(0);
+            for (int c = 0; c < techHeader.getLastCellNum(); c++) {
+                Cell hc = techHeader.getCell(c);
+                if (hc != null && hc.getCellType() == CellType.STRING) {
+                    assertTrue(!hc.getStringCellValue().endsWith("_HELPER"),
+                            "No helper columns must exist, found: " + hc.getStringCellValue());
+                }
+            }
             int[] sampleRows = {2 + DATA_ROWS, EXCEL_ROW_LIMIT / 2, EXCEL_ROW_LIMIT};
             for (int r : sampleRows) {
-                Row row = boundary.getRow(r);
-                assertNotNull(row, "Skeleton row " + r + " must exist (kept per-row formulas)");
-                assertEquals(HELPER_COLS.size() + 1, row.getPhysicalNumberOfCells(),
-                        "Skeleton row " + r + " must carry only helper + boundary-code formula cells");
-                for (int visibleCol : VISIBLE_BOUNDARY_COLS) {
-                    assertNull(row.getCell(visibleCol),
-                            "Visible dropdown cell must NOT be materialized at row " + r + " col " + visibleCol);
-                }
-                for (int helperCol : HELPER_COLS) {
-                    Cell helper = row.getCell(helperCol);
-                    assertNotNull(helper, "Helper formula cell must be kept at row " + r);
-                    assertEquals(CellType.FORMULA, helper.getCellType());
-                    String f = helper.getCellFormula();
-                    assertTrue(f.contains("INDEX(") && f.contains("MATCH("),
-                            "Helper formula must be the unchanged INDEX/MATCH lookup, got: " + f);
-                }
-                Cell code = row.getCell(BOUNDARY_CODE_COL);
-                assertNotNull(code, "Boundary-code formula cell must be kept at row " + r);
-                assertEquals(CellType.FORMULA, code.getCellType());
-                assertTrue(code.getCellFormula().contains("VLOOKUP("),
-                        "Boundary-code formula must be the unchanged VLOOKUP, got: " + code.getCellFormula());
+                assertNull(boundary.getRow(r),
+                        "Row " + r + " must NOT be materialized (no per-row formula scaffold)");
             }
+            // The cascade rides on ONE data-validation formula per level (evaluated on dropdown open)
+            for (int level = 1; level < LEVELS; level++) {
+                CellRangeAddress range = findValidationRangeForColumn(boundary, VISIBLE_BOUNDARY_COLS.get(level));
+                assertNotNull(range, "Cascade validation must exist on level " + (level + 1));
+            }
+            String level2Formula = findValidationFormulaForColumn(boundary, VISIBLE_BOUNDARY_COLS.get(1));
+            assertNotNull(level2Formula, "Level-2 cascade validation formula must exist");
+            assertTrue(level2Formula.contains("INDIRECT(") && level2Formula.contains("MATCH(")
+                            && level2Formula.contains("\"_hL\"") && level2Formula.contains("A3"),
+                    "Cascade formula must MATCH the parent path and INDIRECT the positional child list, got: "
+                            + level2Formula);
 
             // Editability of the de-materialized paste area now rides on unlocked column defaults.
             for (int visibleCol : VISIBLE_BOUNDARY_COLS) {
@@ -214,8 +214,7 @@ class GeneratedTemplateBoundarySkeletonSizeTest {
                     + ", bytes=" + bytesBefore + " (" + (bytesBefore / 1024) + " KB)");
             System.out.println("AFTER  (unlocked column defaults):            cells=" + cellsAfter
                     + ", bytes=" + bytesAfter + " (" + (bytesAfter / 1024) + " KB)");
-            System.out.println("Kept per-row formula cells (helpers + boundary code): "
-                    + ((long) (HELPER_COLS.size() + 1) * (EXCEL_ROW_LIMIT - 1)));
+            System.out.println("Kept per-row formula cells: 0 (scaffold-less cascade design)");
             System.out.println("==================================================");
 
             // Every skeleton row sheds its visible dropdown cells (LEVELS per row).
@@ -340,6 +339,17 @@ class GeneratedTemplateBoundarySkeletonSizeTest {
             for (CellRangeAddress addr : dv.getRegions().getCellRangeAddresses()) {
                 if (addr.getFirstColumn() <= colIndex && colIndex <= addr.getLastColumn()) {
                     return addr;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String findValidationFormulaForColumn(Sheet sheet, int colIndex) {
+        for (DataValidation dv : sheet.getDataValidations()) {
+            for (CellRangeAddress addr : dv.getRegions().getCellRangeAddresses()) {
+                if (addr.getFirstColumn() <= colIndex && colIndex <= addr.getLastColumn()) {
+                    return dv.getValidationConstraint().getFormula1();
                 }
             }
         }

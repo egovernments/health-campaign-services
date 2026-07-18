@@ -84,7 +84,7 @@ class ExcelProcessingServiceTest {
             validationService, schemaValidationService, configBasedProcessingService,
             fileStoreService, localizationService, requestInfoConverter,
             restTemplate, exceptionHandler, config, enrichmentUtil, mdmsConfigService, excelUtil,
-            immutableJoinService
+            immutableJoinService, new org.egov.excelingestion.util.BoundaryCodeResolver(excelUtil)
         );
 
         requestInfo = RequestInfo.builder().build();

@@ -11,6 +11,7 @@ import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
 import org.egov.excelingestion.web.models.mdms.ProcessSheetData;
 import org.egov.excelingestion.web.models.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.util.BoundaryCodeResolver;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
@@ -47,6 +48,7 @@ public class ExcelProcessingService {
     private final MDMSConfigService mdmsConfigService;
     private final ExcelUtil excelUtil;
     private final ImmutableJoinService immutableJoinService;
+    private final BoundaryCodeResolver boundaryCodeResolver;
 
     public ExcelProcessingService(ValidationService validationService,
                                   SchemaValidationService schemaValidationService,
@@ -60,7 +62,8 @@ public class ExcelProcessingService {
                                   EnrichmentUtil enrichmentUtil,
                                   MDMSConfigService mdmsConfigService,
                                   ExcelUtil excelUtil,
-                                  ImmutableJoinService immutableJoinService) {
+                                  ImmutableJoinService immutableJoinService,
+                                  BoundaryCodeResolver boundaryCodeResolver) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -74,6 +77,7 @@ public class ExcelProcessingService {
         this.mdmsConfigService = mdmsConfigService;
         this.excelUtil = excelUtil;
         this.immutableJoinService = immutableJoinService;
+        this.boundaryCodeResolver = boundaryCodeResolver;
     }
 
     /**
@@ -140,6 +144,12 @@ public class ExcelProcessingService {
                 if (immutableColumnsBySheet == null) {
                     immutableColumnsBySheet = Collections.emptyMap();
                 }
+
+                // Resolve boundary codes for user-entered rows from the workbook's own lookup mapping.
+                // Scaffold-less templates carry no per-row VLOOKUP formulas, so blank code cells are
+                // filled here (after the join restored authoritative prefilled values, before
+                // validation). Legacy files' formula-evaluated codes are non-blank and left untouched.
+                boundaryCodeResolver.resolveBlankBoundaryCodes(workbook, resource);
 
                 // Validate data and collect errors with localization. Cells reconstructed from the trusted
                 // baseline (always-immutable columns on existing rows) are skipped - they came verbatim from
