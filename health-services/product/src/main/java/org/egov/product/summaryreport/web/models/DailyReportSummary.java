@@ -36,9 +36,9 @@ public class DailyReportSummary {
     @Builder.Default
     private Long householdsRegistered = 0L;
 
-    @JsonProperty("childrenRegistered")
+    @JsonProperty("individualRegistered")
     @Builder.Default
-    private Long childrenRegistered = 0L;
+    private Long individualRegistered = 0L;
 
     @JsonProperty("beneficiariesRegistered")
     @Builder.Default

@@ -48,7 +48,7 @@ class SummaryReportServiceTest {
         // Default all repo calls to empty; individual tests override what they need.
         lenient().when(repository.householdsRegisteredByDay(anyString(), anyString(), anyLong(), anyLong()))
                 .thenReturn(new HashMap<>());
-        lenient().when(repository.childrenRegisteredByDay(anyString(), anyString(), anyLong(), anyLong()))
+        lenient().when(repository.individualRegisteredByDay(anyString(), anyString(), anyLong(), anyLong()))
                 .thenReturn(new HashMap<>());
         lenient().when(repository.beneficiariesRegisteredByDay(anyString(), anyString(), anyLong(), anyLong()))
                 .thenReturn(new HashMap<>());
@@ -101,7 +101,7 @@ class SummaryReportServiceTest {
         assertEquals(UUID, d17.getCreatedBy());
         assertEquals(5L, d17.getHouseholdsRegistered());
         assertEquals(0L, d17.getChildrenTreated());
-        assertEquals(0L, d17.getChildrenRegistered());
+        assertEquals(0L, d17.getIndividualRegistered());
         assertEquals(2, d17.getStockConsumedMap().size());
         assertEquals(10L, d17.getStockConsumedMap().get("pv-1"));
 
