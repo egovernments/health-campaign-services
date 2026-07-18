@@ -700,6 +700,16 @@ public class DownsyncFileGenService {
                             } finally {
                                 gen.flush();
                                 gen.close();
+                                // A generator's rootValueSeparator only fires BETWEEN roots emitted
+                                // by that same generator. If another streamQuery / writer follows on
+                                // the same gzip stream (e.g. streamHhMembersFile chains HOUSEHOLD +
+                                // HOUSEHOLD_MEMBER, streamBeneAeRefFile chains 4 entity types), its
+                                // first root would concatenate onto our last root as one physical
+                                // NDJSON line — a bug that broke every HH_MEMBERS file until this fix.
+                                // Emit an explicit '\n' at the seam so downstream writers, or an
+                                // empty follow-up, always start on a fresh line. Trailing blank
+                                // lines are ignored by every NDJSON consumer.
+                                gzip.write('\n');
                             }
                         } catch (IOException | SQLException e) {
                             throw new CustomException(typeTag + "_STREAM_ERROR",
@@ -979,6 +989,10 @@ public class DownsyncFileGenService {
                         } finally {
                             gen.flush();
                             gen.close();
+                            // See streamQuery for the seam rationale — INDIVIDUALS is currently the
+                            // only writer on its stream, but emitting a trailing '\n' keeps the
+                            // invariant "any streamXxx call leaves the stream ready for concatenation".
+                            gzip.write('\n');
                         }
                     } catch (IOException | SQLException e) {
                         throw new CustomException("INDIVIDUAL_STREAM_ERROR",
