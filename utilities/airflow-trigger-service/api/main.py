@@ -873,13 +873,16 @@ async def search_report_status(req: ReportStatusRequest):
         logger.exception("search_report_status query failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    data = []
     for row in rows:
         row.pop("rn", None)
-    logger.info("search_report_status returning %d rows", len(rows))
+        data.append(_enrich_status_row(row, now_ms))
+    logger.info("search_report_status returning %d rows", len(data))
 
     return {
         "ResponseInfo": req.RequestInfo,
-        "data": rows
+        "data": data
     }
 
 
