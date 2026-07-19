@@ -47,6 +47,17 @@ const config = {
     bulkCreateConcurrency: process.env.PROJECT_BULK_CREATE_CONCURRENCY ? parseInt(process.env.PROJECT_BULK_CREATE_CONCURRENCY, 10) : 5,
     // Page size for the one-shot adopt search (existing projects by campaignNumber/referenceID).
     searchPageSize: process.env.PROJECT_SEARCH_PAGE_SIZE ? parseInt(process.env.PROJECT_SEARCH_PAGE_SIZE, 10) : 100,
+    // Read-after-write confirm of a just-created parent project before its children are created:
+    // poll attempts and interval (ms). A project/_create returns the id from enrichment but the row
+    // is persisted asynchronously (persister → DB); under a large project-create burst that write can
+    // lag, so the window must tolerate it or the parent confirm throws PROJECT_CONFIRMATION_FAILED and
+    // hard-fails the campaign even though the project persisted moments later.
+    confirmRetries: process.env.PROJECT_CONFIRM_RETRIES ? parseInt(process.env.PROJECT_CONFIRM_RETRIES, 10) : 15,
+    confirmPollIntervalMs: process.env.PROJECT_CONFIRM_POLL_INTERVAL_MS ? parseInt(process.env.PROJECT_CONFIRM_POLL_INTERVAL_MS, 10) : 2000,
+    // Throttle the bulk project-create burst: pause this many ms after each concurrency wave of chunk
+    // creates so the async persister/DB write queue can drain instead of being flooded (which is what
+    // makes the parent confirm lag in the first place). 0 = no pacing (unchanged); tune up under load.
+    createPaceDelayMs: process.env.PROJECT_CREATE_PACE_DELAY_MS ? parseInt(process.env.PROJECT_CREATE_PACE_DELAY_MS, 10) : 0,
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",

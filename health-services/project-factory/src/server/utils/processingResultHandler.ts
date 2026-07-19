@@ -2096,10 +2096,14 @@ async function processProjectCreationInOrder(
 const PROJECT_BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
 
 /** Run a worker over items in bounded-concurrency windows (order not preserved). */
-async function runBoundedProject<T>(items: T[], concurrency: number, worker: (item: T) => Promise<void>): Promise<void> {
+export async function runBoundedProject<T>(items: T[], concurrency: number, worker: (item: T) => Promise<void>, paceDelayMs: number = 0): Promise<void> {
     const size = concurrency > 0 ? concurrency : 1;
     for (let i = 0; i < items.length; i += size) {
         await Promise.all(items.slice(i, i + size).map(worker));
+        // Throttle between waves so the async persister/DB write queue drains instead of being flooded.
+        if (paceDelayMs > 0 && i + size < items.length) {
+            await new Promise(resolve => setTimeout(resolve, paceDelayMs));
+        }
     }
 }
 
@@ -2241,7 +2245,7 @@ export async function createLevelBulk(
                 sheetRows.push(c.boundaryData);
             }
         }
-    });
+    }, config.project.createPaceDelayMs);
 
     // 4. Persist sheet-row status updates in batches.
     const persistSize = config.project.searchPageSize;

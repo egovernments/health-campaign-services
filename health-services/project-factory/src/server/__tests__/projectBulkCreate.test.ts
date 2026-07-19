@@ -102,7 +102,7 @@ jest.mock('../config', () => ({
         // Page size 1 → small fixtures span multiple pages.
         excelIngestion: { sheetFetchPageSize: 1, persistenceStallTimeoutMs: 120000, persistencePollIntervalMs: 10000 },
         batchSize: 100,
-        project: { creationBatchSize: 20, bulkCreateChunkSize: 2, bulkCreateConcurrency: 5, searchPageSize: 2 },
+        project: { creationBatchSize: 20, bulkCreateChunkSize: 2, bulkCreateConcurrency: 5, searchPageSize: 2, createPaceDelayMs: 0 },
         boundary: { mappingPersistBatchSize: 100, persistBatchSize: 100 },
         facility: { persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50 },
         user: { mappingPersistBatchSize: 100, persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50, validationSearchBatchSize: 50, individualSearchBatchSize: 50 },
@@ -115,7 +115,7 @@ jest.mock('../config', () => ({
     },
 }));
 
-import { createLevelBulk, fetchAllProjectsByReferenceId } from '../utils/processingResultHandler';
+import { createLevelBulk, fetchAllProjectsByReferenceId, runBoundedProject } from '../utils/processingResultHandler';
 import { httpRequest } from '../utils/request';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { confirmProjectParentCreation } from '../api/campaignApis';
@@ -241,5 +241,46 @@ describe('fetchAllProjectsByReferenceId', () => {
         expect(map.get('B')).toBe('p2');
         expect(map.get('C')).toBe('p3');
         expect(httpRequestMock).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('runBoundedProject', () => {
+    it('processes every item exactly once', async () => {
+        const seen: number[] = [];
+        await runBoundedProject([1, 2, 3, 4, 5], 2, async (n) => { seen.push(n); });
+        expect(seen.sort()).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('runs items in waves bounded by the concurrency', async () => {
+        let inFlight = 0, maxInFlight = 0;
+        await runBoundedProject([1, 2, 3, 4, 5], 2, async () => {
+            inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+            await Promise.resolve();
+            inFlight--;
+        });
+        expect(maxInFlight).toBeLessThanOrEqual(2);
+    });
+
+    it('does not pace between waves when paceDelayMs is 0', async () => {
+        const spy = jest.spyOn(global, 'setTimeout');
+        await runBoundedProject([1, 2, 3, 4], 1, async () => { /* 4 waves */ }, 0);
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
+    });
+
+    it('paces between waves but not after the last wave when paceDelayMs > 0', async () => {
+        const spy = jest.spyOn(global, 'setTimeout');
+        // concurrency 1 → 3 items = 3 waves → 2 inter-wave pauses (never after the final wave)
+        await runBoundedProject([1, 2, 3], 1, async () => { /* noop */ }, 5);
+        const pacingCalls = spy.mock.calls.filter(c => c[1] === 5);
+        expect(pacingCalls.length).toBe(2);
+        spy.mockRestore();
+    });
+
+    it('does not pace a single wave', async () => {
+        const spy = jest.spyOn(global, 'setTimeout');
+        await runBoundedProject([1, 2], 5, async () => { /* one wave */ }, 5);
+        expect(spy.mock.calls.filter(c => c[1] === 5).length).toBe(0);
+        spy.mockRestore();
     });
 });
