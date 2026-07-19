@@ -49,22 +49,22 @@ public class SummaryReportRepository {
     }
 
     /**
-     * Timezone comes from trusted config, but it is inlined into the SQL (AT TIME ZONE
-     * needs a literal-friendly expression), so guard against anything that is not a
-     * plain IANA zone id to keep the query injection-safe.
+     * Resolves the timezone for the given tenant (per-tenant override, else app default).
+     * The value is already validated as a plain IANA zone id by the config, keeping the
+     * inlined SQL injection-safe; we re-guard here defensively.
      */
-    private String safeTimezone() {
-        String tz = config.getReportTimezone();
+    private String safeTimezone(String tenantId) {
+        String tz = config.getTimezoneForTenant(tenantId);
         if (tz == null || !tz.matches("[A-Za-z0-9_/+\\-]{1,64}")) {
             throw new CustomException("INVALID_TIMEZONE",
-                    "Configured summary.report.timezone is not a valid zone id: " + tz);
+                    "Resolved timezone is not a valid zone id for tenant " + tenantId + ": " + tz);
         }
         return tz;
     }
 
-    /** SELECT fragment that buckets epoch-millis createdtime into a yyyy-MM-dd day. */
-    private String dayExpr() {
-        return "to_char(to_timestamp(createdtime / 1000) AT TIME ZONE '" + safeTimezone()
+    /** SELECT fragment that buckets epoch-millis createdtime into a yyyy-MM-dd day (tenant-local). */
+    private String dayExpr(String tenantId) {
+        return "to_char(to_timestamp(createdtime / 1000) AT TIME ZONE '" + safeTimezone(tenantId)
                 + "', 'YYYY-MM-DD')";
     }
 
@@ -91,7 +91,7 @@ public class SummaryReportRepository {
     /** COUNT(*) grouped by day for a simple audited table. Returns day -> count. */
     private Map<String, Long> countByDay(String table, String createdBy, String tenantId,
                                          Long startDate, Long endDate) {
-        String sql = "SELECT " + dayExpr() + " AS day, COUNT(*) AS cnt "
+        String sql = "SELECT " + dayExpr(tenantId) + " AS day, COUNT(*) AS cnt "
                 + "FROM " + SCHEMA_REPLACE_STRING + "." + table + " "
                 + "WHERE createdby = :createdBy "
                 + "AND tenantid = :tenantId "
@@ -128,7 +128,7 @@ public class SummaryReportRepository {
     public Map<String, Long> childrenTreatedByDay(String createdBy, String tenantId,
                                                   Long startDate, Long endDate) {
         List<String> statuses = config.getTreatedStatuses();
-        String sql = "SELECT " + dayExpr() + " AS day, COUNT(*) AS cnt "
+        String sql = "SELECT " + dayExpr(tenantId) + " AS day, COUNT(*) AS cnt "
                 + "FROM " + SCHEMA_REPLACE_STRING + ".project_task "
                 + "WHERE createdby = :createdBy "
                 + "AND tenantid = :tenantId "
@@ -151,7 +151,7 @@ public class SummaryReportRepository {
      */
     public Map<String, Map<String, Long>> stockConsumedByDay(String createdBy, String tenantId,
                                                              Long startDate, Long endDate) {
-        String sql = "SELECT " + dayExpr() + " AS day, productvariantid AS pv, "
+        String sql = "SELECT " + dayExpr(tenantId) + " AS day, productvariantid AS pv, "
                 + "COALESCE(SUM(quantity), 0) AS qty "
                 + "FROM " + SCHEMA_REPLACE_STRING + ".task_resource "
                 + "WHERE createdby = :createdBy "

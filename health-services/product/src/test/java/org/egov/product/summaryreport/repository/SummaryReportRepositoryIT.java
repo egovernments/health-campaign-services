@@ -72,7 +72,7 @@ class SummaryReportRepositoryIT {
         MultiStateInstanceUtil util = new MultiStateInstanceUtil(1, Boolean.TRUE, 0);
 
         SummaryReportRepository repository = new SummaryReportRepository(jdbc, config, util);
-        service = new SummaryReportService(repository);
+        service = new SummaryReportService(repository, config);
     }
 
     private static String envOr(String key, String fallback) {
