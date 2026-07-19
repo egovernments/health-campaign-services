@@ -242,6 +242,8 @@ for (let i = 0; i < items.length; i += config.batchSize)
 
 **HTTP**: `httpRequest(...)` via `utils/request.ts` only. Never raw axios. `defaultheader(request)` for DIGIT standard headers.
 
+**Individual → worker read-after-write**: worker-registry `worker/v1/bulk/_create` validates each `individualId` against health-individual (ES-backed, async-indexed) and returns terminal `NON_RECOVERABLE INDIVIDUAL_NOT_FOUND` if the just-created individual isn't searchable yet. Two-layer guard: (1) **latency hiding** — worker creation lags individual creation by `config.user.workerCreateBatchLag` batches in the in-process create loop (`user-processClass.ts` buffers batches, finalizes N−lag; a lone/trailing batch is drained by the post-loop flush); (2) **correctness gate** — `waitForIndividualsSearchable` + `partitionWorkersByIndividualSearchability` (`userBatchHandler.ts`) split payloads so still-unsearchable individuals are **deferred** (marked retryable-`failed`, never sent to the create) instead of hard-failing. Both call sites (`userBatchHandler.handleUserBatch`, `user-processClass.finalizeUserBatchWorkers`) use the gate; only the in-process loop uses the lag (the Kafka-driven handler has one batch per message).
+
 **Controller**:
 ```typescript
 try { sendResponse(res, { Data: await service(req) }, req); }

@@ -101,6 +101,11 @@ const config = {
     // INDIVIDUAL_NOT_FOUND race from worker/v1/bulk/_create (HRMS create → worker bulk create).
     individualConsistencyPollIntervalMs: process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS, 10) : 2000,
     individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 5,
+    // Worker-registry creation lags individual creation by this many batches in the in-process
+    // create loop: worker create for batch N runs only after batch N+lag's individuals are created,
+    // hiding individual persist/index latency behind subsequent batches so the consistency gate
+    // (waitForIndividualsSearchable) rarely has to wait or defer. 0 = create workers inline (no lag).
+    workerCreateBatchLag: process.env.USER_WORKER_CREATE_BATCH_LAG ? parseInt(process.env.USER_WORKER_CREATE_BATCH_LAG, 10) : 2,
   },
   workerRegistry: {
     // Chunk size for worker-id lookups during user validation.
