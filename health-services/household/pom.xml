@@ -62,6 +62,7 @@
                             <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                             <buildArg>-H:+AddAllCharsets</buildArg>
                             <buildArg>--trace-class-initialization=true</buildArg>
+                            <buildArg>--verbose</buildArg>
                         </buildArgs>
                     </configuration>
                 </plugin>

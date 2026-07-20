@@ -1,0 +1,1 @@
+[2026-07-15T06:31:20.223Z] fatal during startup: No model provider API key configured. Set one of OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY or run the server in a terminal to save one to /Users/nikhil/Desktop/egov/health-campaign-services/.supermemory/env.enc.
