@@ -1,7 +1,6 @@
 import os
 import sys
 import warnings
-import requests
 import pandas as pd
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -38,11 +37,8 @@ ES_PROJECT_TASK_INDEX = es_index_url("project-task-index-v1")
 ES_HF_REFERRAL_INDEX  = es_index_url("hf-referral-index-v1")
 ES_HHM_V1             = es_index_url("household-member-index-v1")
 ES_STAFF_INDEX        = es_index_url("project-staff-index-v1")
+ES_INDIVIDUAL_INDEX   = es_index_url("individual-index-v1")
 ES_SCROLL_API         = es_scroll_url()
-INDIVIDUAL_HOST       = os.getenv('INDIVIDUAL_HOST', 'http://individual.egov:8080')
-AUTH_TOKEN            = os.getenv('AUTH_TOKEN', '')
-TENANT_ID             = os.getenv('TENANT_ID', '')
-SYSTEM_USER_UUID      = os.getenv('SYSTEM_USER_UUID', '')
 THREAD_POOL_SIZE = 5
 USER_BUCKET_SIZE = 100
 
@@ -103,41 +99,33 @@ def fetch_staff_userid_by_usernames(usernames):
 
 def fetch_individual_team_mappings(user_uuids):
     """
-    Call Individual API for given userUuids (recorder/CDD UUIDs).
+    Look up team_mapping additionalFields for given userUuids (recorder/CDD UUIDs)
+    directly from individual-index-v1 via a terms query, instead of calling the
+    Individual service API - same ES-terms-query pattern already used for the staff
+    index lookups in this file (fetch_staff_userid_by_usernames/
+    fetch_staff_username_by_userids), just against the individual index.
     Returns {userUuid: [(dispenser_uuid, date_str_yyyy_MM_dd), ...]}
     """
     if not user_uuids:
         return {}
     result = {}
     user_uuids = [u for u in user_uuids if u]
-    for i in range(0, len(user_uuids), 200):
-        batch = user_uuids[i:i + 200]
-        url = (f"{INDIVIDUAL_HOST}/individual/v1/_search"
-               f"?limit=1000&offset=0&tenantId={TENANT_ID}&includeDeleted=false")
-        payload = {
-            "RequestInfo": {
-                "authToken": AUTH_TOKEN,
-                "userInfo": {"uuid": SYSTEM_USER_UUID},
-            },
-            "Individual": {"userUuid": batch},
+    for i in range(0, len(user_uuids), 1000):
+        batch = user_uuids[i:i + 1000]
+        query = {
+            "size": len(batch) * 3,
+            "_source": ["userUuid", "additionalFields"],
+            "query": {"bool": {"must": [{"terms": {"userUuid.keyword": batch}}]}},
         }
         try:
-            resp = requests.post(
-                url,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                verify=False,
-                timeout=30,
-            )
-            if resp.status_code != 200:
-                print(f"Individual API HTTP {resp.status_code} for batch {i}")
-                continue
-            for individual in resp.json().get("Individual", []):
-                uuid = individual.get("userUuid", "")
+            resp = get_resp(ES_INDIVIDUAL_INDEX, query, True).json()
+            for doc in resp.get("hits", {}).get("hits", []):
+                source = doc["_source"]
+                uuid = source.get("userUuid", "")
                 if not uuid:
                     continue
                 pairs = []
-                fields = (individual.get("additionalFields") or {}).get("fields", []) or []
+                fields = (source.get("additionalFields") or {}).get("fields", []) or []
                 for f in fields:
                     if not str(f.get("key", "")).startswith("team_mapping"):
                         continue
@@ -150,7 +138,7 @@ def fetch_individual_team_mappings(user_uuids):
                         pairs.append((dispenser_uuid.strip(), date_str))
                 result[uuid] = pairs
         except Exception as e:
-            print(f"Individual API error (batch {i}): {e}")
+            print(f"Individual index lookup error (batch {i}): {e}")
     return result
 
 
