@@ -112,6 +112,21 @@ class SummaryReportRepositoryIT {
         return c == null ? 0L : c;
     }
 
+    /** Expected stock: delivered task_resource whose parent task is in a treated status. */
+    private long directStock(String schema, String createdBy) {
+        String sql = "SELECT COALESCE(SUM(tr.quantity),0) FROM " + schema + ".task_resource tr "
+                + " JOIN " + schema + ".project_task pt ON pt.id = tr.taskid AND pt.tenantid = tr.tenantid "
+                + " WHERE tr.createdby = :cb AND tr.tenantid = :t "
+                + " AND (tr.isdeleted = false OR tr.isdeleted IS NULL) AND tr.isdelivered = true "
+                + " AND (pt.isdeleted = false OR pt.isdeleted IS NULL) "
+                + " AND pt.status IN ('ADMINISTRATION_SUCCESS','VISITED') "
+                + " AND tr.createdtime >= :s AND tr.createdtime <= :e";
+        Long c = jdbc.queryForObject(sql, new MapSqlParameterSource()
+                .addValue("cb", createdBy).addValue("t", schema)
+                .addValue("s", START).addValue("e", END), Long.class);
+        return c == null ? 0L : c;
+    }
+
     private void assertMatchesSchema(String tenant, String createdBy) {
         List<DailyReportSummary> report = service.getDailySummary(req(tenant, createdBy));
 
@@ -131,8 +146,7 @@ class SummaryReportRepositoryIT {
         assertEquals(directCount(tenant, "project_beneficiary", createdBy, ""), beneficiaries, "beneficiaries");
         assertEquals(directCount(tenant, "project_task", createdBy,
                 " AND status IN ('ADMINISTRATION_SUCCESS','VISITED') "), treated, "treated");
-        assertEquals(directSum(tenant, "task_resource", "quantity", createdBy,
-                " AND isdelivered = true "), stock, "stockQty");
+        assertEquals(directStock(tenant, createdBy), stock, "stockQty");
     }
 
     @Test
