@@ -12,8 +12,8 @@ COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src ./src
 
-# Build the native image
-RUN mvn -Pnative clean native:compile -DskipTests
+# Build the native image using Spring Boot's inherited native profile.
+RUN mvn -B -ntp -f /app/pom.xml -Pnative -DskipTests package
 
 # Lightweight runtime image
 FROM oraclelinux:9-slim

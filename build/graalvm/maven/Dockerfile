@@ -12,10 +12,10 @@ COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src ./src
 
-# Build the native image with Spring AOT processing
-# The process-aot goal generates hints from our RuntimeHintsRegistrar
-RUN mvn clean compile spring-boot:process-aot package -Pnative native:compile -DskipTests \
-    -Dspring.aot.enabled=true
+# Build the native image using Spring Boot's inherited native profile.
+# That profile wires AOT processing, reachability metadata, and compile-no-fork
+# for the native-maven-plugin in a single Maven invocation.
+RUN mvn -B -ntp -f /app/pom.xml -Pnative -DskipTests package
 
 # Lightweight runtime image
 FROM oraclelinux:9-slim
