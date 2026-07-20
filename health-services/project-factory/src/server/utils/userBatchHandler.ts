@@ -304,16 +304,40 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 }
             }
 
+            // Consistency gate runs outside the try: waitForIndividualsSearchable is fail-open (never throws),
+            // so creatable/deferred are in scope for the catch below — deferred rows are already demoted and
+            // must not be double-counted if the create throws.
+            const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
+            const { missing } = await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
+            const { creatable, deferred } = partitionWorkersByIndividualSearchability(workerDataList, missing);
+
+            // Defer workers whose individual is not yet searchable — never send them to worker-registry
+            // (worker/v1/bulk/_create returns terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND); mark them
+            // retryable so a later upload/retry re-attempts them once individual indexing catches up.
+            if (deferred.length > 0) {
+                const deferMsg = `Individual not searchable after ${config.user.individualConsistencyMaxPollAttempts} consistency poll attempt(s); worker creation deferred for retry`;
+                const deferredIds = new Set<string>();
+                for (const w of deferred) {
+                    if (deferredIds.has(w.individualId)) continue;
+                    deferredIds.add(w.individualId);
+                    const records = individualIdToRecords.get(w.individualId) || [];
+                    const demoted = markWorkerRecordsFailed(records, deferMsg);
+                    successCount -= demoted;
+                    failureCount += demoted;
+                }
+                logger.warn(`Deferred ${deferredIds.size} worker(s) for retry — individual(s) not yet searchable`);
+            }
+
             try {
-                const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
-                await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
-                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
-                logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
+                const { individualIdToWorkerIdMap, errors } = creatable.length > 0
+                    ? await createOrUpdateWorkers(creatable, workerRequestInfo)
+                    : { individualIdToWorkerIdMap: new Map<string, string>(), errors: [] as string[] };
+                logger.info(`Worker registry integration completed for ${creatable.length} worker(s) (${deferred.length} deferred)`);
 
                 // Store only worker IDs back in campaign data — payee fields are fetched fresh
                 // from worker registry at credential sheet generation time to avoid storing
                 // potentially encrypted values that would corrupt subsequent updates.
-                for (const workerData of workerDataList) {
+                for (const workerData of creatable) {
                     const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
                     if (workerId) {
                         const records = individualIdToRecords.get(workerData.individualId) || [];
@@ -328,7 +352,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     const errMsg = errors.join("; ");
                     logger.error("Worker registry integration had errors:", errMsg);
                     const processedIds = new Set<string>();
-                    for (const w of workerDataList) {
+                    for (const w of creatable) {
                         if (processedIds.has(w.individualId)) continue;
                         processedIds.add(w.individualId);
                         if (!individualIdToWorkerIdMap.has(w.individualId)) {
@@ -343,7 +367,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
                 logger.error("Worker registry integration failed:", errMsg);
                 const processedIds = new Set<string>();
-                for (const w of workerDataList) {
+                // Only the creatable set was sent to worker-registry; deferred rows are already demoted above.
+                for (const w of creatable) {
                     if (processedIds.has(w.individualId)) continue;
                     processedIds.add(w.individualId);
                     const records = individualIdToRecords.get(w.individualId) || [];
@@ -808,6 +833,26 @@ export async function waitForIndividualsSearchable(
     }
 
     const missing = uniqueIds.filter(id => !found.has(id));
-    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${maxAttempts} attempt(s); proceeding — worker-registry will gate the rest`);
+    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${maxAttempts} attempt(s); their workers will be deferred for retry (not sent to worker-registry, which would return NON_RECOVERABLE INDIVIDUAL_NOT_FOUND)`);
     return { found, missing };
+}
+
+/**
+ * Split worker payloads by whether their individual is confirmed searchable: `creatable` are safe to send to
+ * worker-registry now, `deferred` reference individuals that lost the read-after-write race and must NOT be
+ * sent (worker/v1/bulk/_create would return a terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND) — the caller
+ * marks them retryable so a later pass re-attempts them once indexing catches up.
+ */
+export function partitionWorkersByIndividualSearchability(
+    workerDataList: WorkerData[],
+    missingIndividualIds: string[]
+): { creatable: WorkerData[]; deferred: WorkerData[] } {
+    if (missingIndividualIds.length === 0) return { creatable: workerDataList, deferred: [] };
+    const missingSet = new Set(missingIndividualIds);
+    const creatable: WorkerData[] = [];
+    const deferred: WorkerData[] = [];
+    for (const worker of workerDataList) {
+        (missingSet.has(worker.individualId) ? deferred : creatable).push(worker);
+    }
+    return { creatable, deferred };
 }

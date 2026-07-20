@@ -700,6 +700,30 @@ export async function createProjectFacility(resouceBody: any) {
   // validateProjectFacilityResponse(projectFacilityResponse);
 }
 
+/**
+ * Bulk project-staff/facility/resource create. These endpoints are async: the server
+ * responds 202 without ids and generates ids in a downstream consumer, so callers must
+ * confirm-by-search afterwards to record the real mappingId — never trust a client-side id.
+ */
+async function bulkCreateProjectMappings(path: string, bodyKey: string, entities: any[], requestInfo: RequestInfo): Promise<void> {
+  if (entities.length === 0) return;
+  const url = `${config.host.projectHost}${path}`;
+  logger.info(`Project mapping bulk create : API : ${path} :: ${entities.length} entities`);
+  await httpRequest(url, { RequestInfo: requestInfo, [bodyKey]: entities }, undefined, "post", undefined, undefined, undefined, false);
+}
+
+export async function createStaffBulk(entities: any[], requestInfo: RequestInfo): Promise<void> {
+  return bulkCreateProjectMappings(config.paths.staffBulkCreate, "ProjectStaff", entities, requestInfo);
+}
+
+export async function createProjectFacilityBulk(entities: any[], requestInfo: RequestInfo): Promise<void> {
+  return bulkCreateProjectMappings(config.paths.projectFacilityBulkCreate, "ProjectFacilities", entities, requestInfo);
+}
+
+export async function createProjectResourceBulk(entities: any[], requestInfo: RequestInfo): Promise<void> {
+  return bulkCreateProjectMappings(config.paths.projectResourceBulkCreate, "ProjectResources", entities, requestInfo);
+}
+
 async function searchProjectMappingsByProjects(
   path: string,
   bodyKey: string,

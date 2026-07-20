@@ -1775,7 +1775,7 @@ async function createProjectCampaignResourcData(request: any) {
   }
 }
 
-async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any, requestInfo?: RequestInfo) {
+async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any, requestInfo?: RequestInfo): Promise<void> {
   const searchBody = {
     RequestInfo: requestInfo,
     Projects: [
@@ -1790,9 +1790,14 @@ async function confirmProjectParentCreation(tenantId: string, uuid: string, proj
     offset: 0,
     limit: 5,
   };
-  var projectFound = false;
-  var retry = 6;
-  while (!projectFound && retry >= 0) {
+  // A project/_create returns the id from enrichment, but the row is persisted asynchronously; under a
+  // large project-create burst that write can lag, so the confirm window is config-driven and wide enough
+  // to tolerate it (never a hardcoded wait) — otherwise a persisted project is falsely reported missing and
+  // PROJECT_CONFIRMATION_FAILED hard-fails the campaign.
+  const maxRetries = Math.max(1, config.project.confirmRetries);
+  const pollIntervalMs = config.project.confirmPollIntervalMs;
+  let projectFound = false;
+  for (let attempt = 1; attempt <= maxRetries && !projectFound; attempt++) {
     const response = await httpRequest(
       config.host.projectHost + config.paths.projectSearch,
       searchBody,
@@ -1800,11 +1805,11 @@ async function confirmProjectParentCreation(tenantId: string, uuid: string, proj
     );
     if (response?.Project?.[0]) {
       projectFound = true;
-    } else {
-      logger.info("Project not found. Waiting for 1 seconds");
-      retry = retry - 1;
-      logger.info(`Waiting for ${retry} for 1 more second`);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      break;
+    }
+    logger.info(`Project ${projectId} not yet searchable (attempt ${attempt}/${maxRetries}); waiting ${pollIntervalMs}ms`);
+    if (attempt < maxRetries) {
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }
   }
   if (!projectFound) {

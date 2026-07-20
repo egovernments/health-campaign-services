@@ -14,7 +14,14 @@ import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, searchWorkersByIds } from "../utils/workerRegistryUtils";
 import { validatePaymentFields } from "../utils/paymentValidationUtils";
-import { fetchExistingUsersByPhone, normalizeNameForCompare, waitForIndividualsSearchable, type CampaignRecord } from "../utils/userBatchHandler";
+import { fetchExistingUsersByPhone, normalizeNameForCompare, waitForIndividualsSearchable, partitionWorkersByIndividualSearchability, type CampaignRecord } from "../utils/userBatchHandler";
+
+/** One user-creation batch buffered for lagged worker finalization (worker create + persist run `workerCreateBatchLag` batches later). */
+interface BufferedWorkerBatch {
+    successfulUsers: any[];
+    workerDataList: WorkerData[];
+    individualIdToRecords: Map<string, CampaignRecord[]>;
+}
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -580,12 +587,19 @@ export class TemplateClass {
 
         const mobileToCampaignMap = this.buildMobileNumberToCampaignUserMap(allCurrentUsers);
         const BATCH_SIZE = config.user.creationBatchSize;
+        // Worker creation lags individual creation by `workerBatchLag` batches: buffer each batch's worker
+        // payloads and finalize (worker create + persist) only after `lag` later batches have created their
+        // individuals — hiding individual persist/index latency so the consistency gate rarely waits/defers.
+        // A trailing batch with no successors (e.g. a single user) is finalized by the flush loop below, where
+        // the searchable-check gate provides the safety net instead of the lag.
+        const workerBatchLag = Math.max(0, config.user.workerCreateBatchLag);
+        const pendingWorkerBatches: BufferedWorkerBatch[] = [];
         for (let i = 0; i < transformedUsers.length; i += BATCH_SIZE) {
             const batch = transformedUsers.slice(i, i + BATCH_SIZE);
             try {
                 const { mobileToServiceMap, mobileToIndividualIdMap } = await this.createEmployeesAndGetServiceUuid(batch, userUuid, resourceDetails);
 
-                const successfulUsers = [];
+                const successfulUsers: any[] = [];
                 const workerDataList: WorkerData[] = [];
 
                 for (const user of batch) {
@@ -629,74 +643,21 @@ export class TemplateClass {
                     }
                 });
 
-                // Create/update workers in worker registry BEFORE persist to capture worker IDs
-                if (workerDataList.length > 0) {
-                    // Build individualId → campaignRecords map (multiple phones can map to same individualId)
-                    const individualIdToRecords = new Map<string, CampaignRecord[]>();
-                    for (const [phone, indId] of Object.entries(mobileToIndividualIdMap)) {
-                        const record = mobileToCampaignMap[phone] as CampaignRecord | undefined;
-                        if (record) {
-                            const list = individualIdToRecords.get(indId) || [];
-                            list.push(record);
-                            individualIdToRecords.set(indId, list);
-                        }
-                    }
-
-                    try {
-                        const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
-                        await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
-                        const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
-                        logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
-
-                        // Store only worker IDs back in campaign data — payee fields are fetched fresh
-                        // from worker registry at credential sheet generation time to avoid storing
-                        // potentially encrypted values that would corrupt subsequent updates.
-                        for (const workerData of workerDataList) {
-                            const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
-                            if (workerId) {
-                                const records = individualIdToRecords.get(workerData.individualId) || [];
-                                for (const record of records) {
-                                    record.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
-                                }
-                            }
-                        }
-
-                        // Mark rows as failed for workers that didn't get an ID back (partial failure)
-                        if (errors.length > 0) {
-                            const errMsg = errors.join("; ");
-                            logger.error("Worker registry integration had errors:", errMsg);
-                            const processedIds = new Set<string>();
-                            for (const w of workerDataList) {
-                                if (processedIds.has(w.individualId)) continue;
-                                processedIds.add(w.individualId);
-                                if (!individualIdToWorkerIdMap.has(w.individualId)) {
-                                    const records = individualIdToRecords.get(w.individualId) || [];
-                                    for (const record of records) {
-                                        record.status = dataRowStatuses.failed;
-                                        record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                                        record.data[campaignDataRowFields.errorDetails] = errMsg;
-                                    }
-                                }
-                            }
-                        }
-                    } catch (workerError: unknown) {
-                        const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
-                        logger.error("Worker registry integration failed:", errMsg);
-                        const processedIds = new Set<string>();
-                        for (const w of workerDataList) {
-                            if (processedIds.has(w.individualId)) continue;
-                            processedIds.add(w.individualId);
-                            const records = individualIdToRecords.get(w.individualId) || [];
-                            for (const record of records) {
-                                record.status = dataRowStatuses.failed;
-                                record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                                record.data[campaignDataRowFields.errorDetails] = errMsg;
-                            }
-                        }
+                // Build individualId → campaignRecords map (multiple phones can map to same individualId).
+                // Records are shared object refs with successfulUsers, so worker IDs written at finalize time
+                // are reflected in the persisted rows.
+                const individualIdToRecords = new Map<string, CampaignRecord[]>();
+                for (const [phone, indId] of Object.entries(mobileToIndividualIdMap)) {
+                    const record = mobileToCampaignMap[phone] as CampaignRecord | undefined;
+                    if (record) {
+                        const list = individualIdToRecords.get(indId) || [];
+                        list.push(record);
+                        individualIdToRecords.set(indId, list);
                     }
                 }
 
-                await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
+                // Buffer this batch; workers are created (and users persisted) `workerBatchLag` batches later.
+                pendingWorkerBatches.push({ successfulUsers, workerDataList, individualIdToRecords });
             } catch (err) {
                 // Non-blocking: a partial HRMS batch failure must not abort the rest of the create loop
                 // and must not propagate up to fail the campaign. Mark this batch's rows failed (with
@@ -704,11 +665,119 @@ export class TemplateClass {
                 const errMsg = err instanceof Error ? err.message : String(err);
                 logger.error(`User batch creation failed (non-blocking): ${errMsg}`);
                 await this.handleBatchFailure(batch, stillNeedCreate, resourceDetails.tenantId, errMsg);
+                continue;
+            }
+
+            // Finalize the oldest buffered batch once we are `lag` batches ahead — by now its individuals
+            // have had `lag` batches' wall-clock to persist and become searchable.
+            if (pendingWorkerBatches.length > workerBatchLag) {
+                await this.finalizeUserBatchWorkers(pendingWorkerBatches.shift()!, resourceDetails);
             }
         }
+
+        // Flush the trailing buffered batches (the last `lag`, plus any lone batch with no successors).
+        for (const buffered of pendingWorkerBatches) {
+            await this.finalizeUserBatchWorkers(buffered, resourceDetails);
+        }
+
         const waitTime = Math.max(5000, transformedUsers.length * 8);
         logger.info(`Waiting for ${waitTime} ms for persistence of created users...`);
         await new Promise((res) => setTimeout(res, waitTime));
+    }
+
+    /**
+     * Finalize one buffered user batch: create its workers (gated by the individual-searchability check so
+     * still-unindexed individuals are deferred, never sent to a create that returns NON_RECOVERABLE), write
+     * worker IDs back onto the shared records, then persist the batch. Runs `workerCreateBatchLag` batches
+     * after the batch's individuals were created. Non-blocking — errors mark rows retryable, never throw.
+     */
+    private static async finalizeUserBatchWorkers(
+        buffered: BufferedWorkerBatch,
+        resourceDetails: any
+    ): Promise<void> {
+        const { successfulUsers, workerDataList, individualIdToRecords } = buffered;
+        const tenantId = resourceDetails?.tenantId;
+
+        if (workerDataList.length > 0) {
+            // Mark every campaign record for an individualId as retryable-failed with a reason.
+            const markFailedById = (individualId: string, msg: string): void => {
+                for (const record of individualIdToRecords.get(individualId) || []) {
+                    record.status = dataRowStatuses.failed;
+                    record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
+                    record.data[campaignDataRowFields.errorDetails] = msg;
+                }
+            };
+
+            // Consistency gate runs outside the try (waitForIndividualsSearchable is fail-open, never throws),
+            // so creatable/deferred are in scope for the catch below.
+            const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
+            const { missing } = await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
+            const { creatable, deferred } = partitionWorkersByIndividualSearchability(workerDataList, missing);
+
+            // Defer workers whose individual is not yet searchable — never send them to worker-registry
+            // (worker/v1/bulk/_create returns terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND); mark them
+            // retryable so a later upload/retry re-attempts them once individual indexing catches up.
+            if (deferred.length > 0) {
+                const deferMsg = `Individual not searchable after ${config.user.individualConsistencyMaxPollAttempts} consistency poll attempt(s); worker creation deferred for retry`;
+                const deferredIds = new Set<string>();
+                for (const w of deferred) {
+                    if (deferredIds.has(w.individualId)) continue;
+                    deferredIds.add(w.individualId);
+                    markFailedById(w.individualId, deferMsg);
+                }
+                logger.warn(`Deferred ${deferredIds.size} worker(s) for retry — individual(s) not yet searchable`);
+            }
+
+            try {
+                const { individualIdToWorkerIdMap, errors } = creatable.length > 0
+                    ? await createOrUpdateWorkers(creatable, workerRequestInfo)
+                    : { individualIdToWorkerIdMap: new Map<string, string>(), errors: [] as string[] };
+                logger.info(`Worker registry integration completed for ${creatable.length} worker(s) (${deferred.length} deferred)`);
+
+                // Store only worker IDs back in campaign data — payee fields are fetched fresh from worker
+                // registry at credential sheet generation time to avoid storing potentially encrypted values.
+                for (const workerData of creatable) {
+                    const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
+                    if (workerId) {
+                        for (const record of individualIdToRecords.get(workerData.individualId) || []) {
+                            record.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
+                        }
+                    }
+                }
+
+                // Mark rows as failed for workers that didn't get an ID back (partial failure)
+                if (errors.length > 0) {
+                    const errMsg = errors.join("; ");
+                    logger.error("Worker registry integration had errors:", errMsg);
+                    const processedIds = new Set<string>();
+                    for (const w of creatable) {
+                        if (processedIds.has(w.individualId)) continue;
+                        processedIds.add(w.individualId);
+                        if (!individualIdToWorkerIdMap.has(w.individualId)) {
+                            markFailedById(w.individualId, errMsg);
+                        }
+                    }
+                }
+            } catch (workerError: unknown) {
+                const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
+                logger.error("Worker registry integration failed:", errMsg);
+                const processedIds = new Set<string>();
+                // Only the creatable set was sent to worker-registry; deferred rows are already marked above.
+                for (const w of creatable) {
+                    if (processedIds.has(w.individualId)) continue;
+                    processedIds.add(w.individualId);
+                    markFailedById(w.individualId, errMsg);
+                }
+            }
+        }
+
+        try {
+            await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+        } catch (persistErr: unknown) {
+            // Non-blocking: HRMS users are already created; a persist failure here leaves sheet status stale,
+            // but the HRMS pre-check absorbs them as completed on the next upload/retry.
+            logger.error(`Failed to persist user batch results (non-blocking): ${persistErr instanceof Error ? persistErr.message : String(persistErr)}`);
+        }
     }
 
     private static buildMobileNumberToCampaignUserMap(users: any[]) {
