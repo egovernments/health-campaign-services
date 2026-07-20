@@ -771,6 +771,13 @@ with DAG(
                 "CAMPAIGN_IDENTIFIER": campaign_identifier,
                 "IDENTIFIER_TYPE": identifier_type,
 
+                # ES + localization endpoints must be forwarded to the pod (common_utils /
+                # localization_utils fall back to baked default hosts otherwise). Env-driven
+                # so each environment sets its own; empties are dropped below.
+                "ES_HOST": os.getenv("ES_HOST", ""),
+                "LOCALIZATION_HOST": os.getenv("LOCALIZATION_HOST", ""),
+                "LOCALIZATION_MODULE": os.getenv("LOCALIZATION_MODULE", ""),
+                "LOCALIZATION_SEARCH_ENDPOINT": os.getenv("LOCALIZATION_SEARCH_ENDPOINT", ""),
                 "ELASTIC_PASSWORD": os.getenv("ELASTIC_PASSWORD", ""),
                 "ELASTIC_USERNAME": os.getenv("ELASTIC_USERNAME", "elastic"),
 
@@ -835,6 +842,12 @@ with DAG(
             # conf (untyped, whatever the trigger caller sent). Coerce defensively so a bad
             # value in one field can never block pod creation for the whole batch.
             env_dict = {k: ("" if v is None else str(v)) for k, v in env_dict.items()}
+
+            # Only forward these host/config vars when set; an empty value would override
+            # (not fall back to) the pod's own common_utils / localization_utils defaults.
+            for _k in ("ES_HOST", "LOCALIZATION_HOST", "LOCALIZATION_MODULE", "LOCALIZATION_SEARCH_ENDPOINT"):
+                if not env_dict.get(_k):
+                    env_dict.pop(_k, None)
 
             env_list.append(env_dict)
             push_status_event(
