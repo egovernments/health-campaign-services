@@ -4,8 +4,29 @@
       {"pattern": "application.properties"},
       {"pattern": "application.yml"},
       {"pattern": "application-*.yml"},
+      {"pattern": "application-*.properties"},
+      {"pattern": "bootstrap.yml"},
+      {"pattern": "bootstrap.properties"},
       {"pattern": "logback-spring.xml"},
-      {"pattern": "db/migration/.*\\.sql"}
+      {"pattern": "logback.xml"},
+      {"pattern": "log4j2.xml"},
+      {"pattern": "db/migration/.*\\.sql"},
+      {"pattern": "META-INF/spring.factories"},
+      {"pattern": "META-INF/spring/.*"},
+      {"pattern": "META-INF/services/.*"},
+      {"pattern": "org/springframework/.*"},
+      {"pattern": "org/apache/kafka/.*"},
+      {"pattern": "org/postgresql/.*"},
+      {"pattern": "tracer.properties"},
+      {"pattern": "messages.properties"},
+      {"pattern": "messages_*.properties"},
+      {"pattern": "ValidationMessages.properties"},
+      {"pattern": ".*\\.json"},
+      {"pattern": ".*\\.xml"},
+      {"pattern": ".*\\.properties"},
+      {"pattern": ".*\\.yml"},
+      {"pattern": ".*\\.yaml"}
     ]
-  }
+  },
+  "bundles": []
 }
