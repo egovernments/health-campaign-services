@@ -40,8 +40,26 @@ const config = {
     syncRetryDelayMs: process.env.BOUNDARY_SYNC_RETRY_DELAY_MS ? parseInt(process.env.BOUNDARY_SYNC_RETRY_DELAY_MS, 10) : 4000,
   },
   project: {
-    // Number of projects created in parallel per hierarchy-level batch.
+    // Number of projects created in parallel per hierarchy-level batch (legacy per-boundary path).
     creationBatchSize: process.env.PROJECT_CREATION_BATCH_SIZE ? parseInt(process.env.PROJECT_CREATION_BATCH_SIZE, 10) : 100,
+    // Projects per /project/v1/_create call (the endpoint takes a Projects[] array and returns
+    // them with ids synchronously). 0 disables bulk and keeps the legacy per-boundary create path.
+    bulkCreateChunkSize: process.env.PROJECT_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.PROJECT_BULK_CREATE_CHUNK_SIZE, 10) : 0,
+    // Parallel bulk-create calls within a single hierarchy level.
+    bulkCreateConcurrency: process.env.PROJECT_BULK_CREATE_CONCURRENCY ? parseInt(process.env.PROJECT_BULK_CREATE_CONCURRENCY, 10) : 5,
+    // Page size for the one-shot adopt search (existing projects by campaignNumber/referenceID).
+    searchPageSize: process.env.PROJECT_SEARCH_PAGE_SIZE ? parseInt(process.env.PROJECT_SEARCH_PAGE_SIZE, 10) : 100,
+    // Read-after-write confirm of a just-created parent project before its children are created:
+    // poll attempts and interval (ms). A project/_create returns the id from enrichment but the row
+    // is persisted asynchronously (persister → DB); under a large project-create burst that write can
+    // lag, so the window must tolerate it or the parent confirm throws PROJECT_CONFIRMATION_FAILED and
+    // hard-fails the campaign even though the project persisted moments later.
+    confirmRetries: process.env.PROJECT_CONFIRM_RETRIES ? parseInt(process.env.PROJECT_CONFIRM_RETRIES, 10) : 15,
+    confirmPollIntervalMs: process.env.PROJECT_CONFIRM_POLL_INTERVAL_MS ? parseInt(process.env.PROJECT_CONFIRM_POLL_INTERVAL_MS, 10) : 2000,
+    // Throttle the bulk project-create burst: pause this many ms after each concurrency wave of chunk
+    // creates so the async persister/DB write queue can drain instead of being flooded (which is what
+    // makes the parent confirm lag in the first place). 0 = no pacing (unchanged); tune up under load.
+    createPaceDelayMs: process.env.PROJECT_CREATE_PACE_DELAY_MS ? parseInt(process.env.PROJECT_CREATE_PACE_DELAY_MS, 10) : 0,
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
@@ -96,6 +114,11 @@ const config = {
     // INDIVIDUAL_NOT_FOUND race from worker/v1/bulk/_create (HRMS create → worker bulk create).
     individualConsistencyPollIntervalMs: process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS, 10) : 2000,
     individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 5,
+    // Worker-registry creation lags individual creation by this many batches in the in-process
+    // create loop: worker create for batch N runs only after batch N+lag's individuals are created,
+    // hiding individual persist/index latency behind subsequent batches so the consistency gate
+    // (waitForIndividualsSearchable) rarely has to wait or defer. 0 = create workers inline (no lag).
+    workerCreateBatchLag: process.env.USER_WORKER_CREATE_BATCH_LAG ? parseInt(process.env.USER_WORKER_CREATE_BATCH_LAG, 10) : 2,
   },
   workerRegistry: {
     // Chunk size for worker-id lookups during user validation.
@@ -114,6 +137,18 @@ const config = {
     searchPageSize: process.env.MAPPING_SEARCH_PAGE_SIZE ? parseInt(process.env.MAPPING_SEARCH_PAGE_SIZE, 10) : 100,
     // Parallel create-call window inside a mapping batch.
     createConcurrency: process.env.MAPPING_CREATE_CONCURRENCY ? parseInt(process.env.MAPPING_CREATE_CONCURRENCY, 10) : 10,
+    // Number of mappings sent per bulk project-staff/facility/resource create call.
+    // 0 disables bulk and falls back to the per-row create path (behavior unchanged).
+    bulkCreateChunkSize: process.env.MAPPING_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.MAPPING_BULK_CREATE_CHUNK_SIZE, 10) : 100,
+    // Per-type gate for STAFF (user) mapping bulk create. Even when bulkCreateChunkSize > 0,
+    // staff stays on the synchronous per-row path unless STAFF_MAPPING_BULK=1 — the async staff
+    // bulk create is unreliable in some project-service builds, while facility/resource bulk are fine.
+    staffBulkEnabled: process.env.STAFF_MAPPING_BULK === "1" || process.env.STAFF_MAPPING_BULK === "true",
+    // Confirm-by-search after async bulk create: poll interval (ms) and max attempts to
+    // find the just-created project mappings (server generates ids async, so PF must search
+    // to record the real mappingId). Unconfirmed rows stay toBeMapped for the reconciler to retry.
+    bulkConfirmPollIntervalMs: process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS ? parseInt(process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS, 10) : 2000,
+    bulkConfirmMaxAttempts: process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS ? parseInt(process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS, 10) : 5,
     // Retry budget per mapping row before it is terminally failed.
     maxRetries: process.env.MAPPING_MAX_RETRY_COUNT ? parseInt(process.env.MAPPING_MAX_RETRY_COUNT, 10) : 3,
     // Max reconcile cycles before the campaign is failed with precise counts.
@@ -280,6 +315,9 @@ const config = {
     staffCreate: process.env.EGOV_PROJECT_STAFF_CREATE_PATH || "health-project/staff/v1/_create",
     projectResourceCreate: process.env.EGOV_PROJECT_RESOURCE_CREATE_PATH || "health-project/resource/v1/_create",
     projectFacilityCreate: process.env.EGOV_PROJECT_RESOURCE_FACILITY_PATH || "health-project/facility/v1/_create",
+    staffBulkCreate: process.env.EGOV_PROJECT_STAFF_BULK_CREATE_PATH || "health-project/staff/v1/bulk/_create",
+    projectResourceBulkCreate: process.env.EGOV_PROJECT_RESOURCE_BULK_CREATE_PATH || "health-project/resource/v1/bulk/_create",
+    projectFacilityBulkCreate: process.env.EGOV_PROJECT_FACILITY_BULK_CREATE_PATH || "health-project/facility/v1/bulk/_create",
     userSearch: process.env.EGOV_USER_SEARCH_PATH || "user/_search",
     facilitySearch: process.env.EGOV_FACILITY_SEARCH_PATH || "facility/v1/_search",
     productVariantSearch: process.env.EGOV_PRODUCT_VARIANT_SEARCH_PATH || "product/variant/v1/_search",
