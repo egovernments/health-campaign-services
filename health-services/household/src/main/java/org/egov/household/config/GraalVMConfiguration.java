@@ -1,7 +1,7 @@
 package org.egov.household.config;
 
 import org.egov.tracer.kafka.deserializer.HashMapDeserializer;
-import org.egov.tracer.kafka.deserializer.ErrorHashMapDeserializer;
+import org.egov.tracer.kafka.deserializer.ISTTimeZoneHashMapDeserializer;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -21,7 +21,7 @@ public class GraalVMConfiguration {
             hints.reflection()
                 .registerType(TypeReference.of(HashMapDeserializer.class),
                     MemberCategory.values())
-                .registerType(TypeReference.of(ErrorHashMapDeserializer.class),
+                .registerType(TypeReference.of(ISTTimeZoneHashMapDeserializer.class),
                     MemberCategory.values())
                 .registerType(TypeReference.of("org.egov.tracer.kafka.KafkaTemplateLoggingInterceptors"),
                     MemberCategory.values())

@@ -72,7 +72,7 @@
     "allDeclaredFields": true
   },
   {
-    "name": "org.egov.tracer.kafka.deserializer.ErrorHashMapDeserializer",
+    "name": "org.egov.tracer.kafka.deserializer.ISTTimeZoneHashMapDeserializer",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
