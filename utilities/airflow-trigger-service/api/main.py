@@ -379,10 +379,15 @@ def _get_retry_cooldown_seconds(report_name: str) -> int | None:
 
 def _parse_custom_range(start_str: str, end_str: str) -> tuple[datetime, datetime]:
     """Mirrors hcm_dynamic_campaigns.py's compute_range() CUSTOM branch exactly, so the
-    range used here matches whatever the DAG/pod eventually use for generation."""
+    range used here matches whatever the DAG/pod eventually use for generation.
+
+    Keep the user-selected timezone (do NOT convert to UTC): the epoch is identical
+    either way, but converting shifts the *displayed* date (e.g. midnight 13th IST
+    becomes 12th 18:30 UTC), so the reportRange would show the wrong day vs what the
+    user picked. The DAG's CUSTOM branch was fixed the same way."""
     try:
-        start = datetime.strptime(start_str, "%d-%m-%Y %H:%M:%S%z").astimezone(timezone.utc)
-        end = datetime.strptime(end_str, "%d-%m-%Y %H:%M:%S%z").astimezone(timezone.utc)
+        start = datetime.strptime(start_str, "%d-%m-%Y %H:%M:%S%z")
+        end = datetime.strptime(end_str, "%d-%m-%Y %H:%M:%S%z")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
     return start, end
