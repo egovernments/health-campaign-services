@@ -174,6 +174,13 @@ def generate_report():
             "MALARIA_DOSE_CHECK": data['MALARIA_DOSE_CHECK']
         }
         for username, data in data_map.items()
+    ], columns=[
+        # Explicit columns so an empty data_map still yields a header row (not a
+        # column-less, single-cell sheet).
+        "Province", "District", "Administrative Province", "CDD Username",
+        "Number of children referred for ADVERSE DRUG REACTIONS to SPAQ (3 - 11 months)",
+        "Number of children referred for ADVERSE DRUG REACTIONS to SPAQ (12 - 59 months)",
+        "SICK", "MALARIA_CHECK", "BENEFICIARY_REFERRED", "MALARIA_DOSE_CHECK",
     ])
 
     # Save to Excel

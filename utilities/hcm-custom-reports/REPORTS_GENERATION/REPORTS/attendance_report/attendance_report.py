@@ -284,7 +284,12 @@ for attendee_id, record in attendance_date_map.items():
         df.rename(columns={col: f"Day {i} - {col}"}, inplace=True)
     dfs.append(df)
 
-result = pd.concat(dfs, ignore_index=True)
+if dfs:
+    result = pd.concat(dfs, ignore_index=True)
+else:
+    # No attendees matched (empty data) - emit a valid header-only sheet instead of
+    # crashing on pd.concat([]) ("No objects to concatenate").
+    result = pd.DataFrame(columns=['Province', 'District', 'Administrative Province', 'Name', 'Username', 'Cumulative'])
 
 localize_df_columns(result, LOCALIZATION_CODES)
 result.to_excel(f"{FILE_NAME}.xlsx", index=False)

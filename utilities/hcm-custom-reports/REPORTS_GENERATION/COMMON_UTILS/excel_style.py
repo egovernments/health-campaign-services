@@ -16,8 +16,8 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-HEADER_FILL_COLOR = "305496"   # deep blue
-HEADER_FONT_COLOR = "FFFFFF"   # white
+HEADER_FILL_COLOR = "93C47D"   # DIGIT light green (matches excel-ingestion default header)
+HEADER_FONT_COLOR = "000000"   # black — readable on the light-green fill
 HEADER_FONT_SIZE = 12
 HEADER_ROW_HEIGHT = 28
 MIN_WIDTH = 12
@@ -78,10 +78,15 @@ def _style_sheet(ws):
     password = os.getenv("REPORT_SHEET_PASSWORD")
     if password:
         ws.protection.password = password
+    # Allow every view/format convenience (True=blocked, False=allowed in OOXML). Only
+    # editing cell *content* (locked cells) and inserting/deleting rows/columns stay
+    # blocked, so the data can't be tampered with but the sheet is fully usable. These
+    # take effect with or without a password (password only gates unprotecting).
     ws.protection.selectLockedCells = False
     ws.protection.selectUnlockedCells = False
     ws.protection.sort = False
     ws.protection.autoFilter = False
+    ws.protection.formatCells = False
     ws.protection.formatColumns = False
     ws.protection.formatRows = False
 
