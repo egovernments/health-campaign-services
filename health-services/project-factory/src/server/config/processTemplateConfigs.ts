@@ -3,7 +3,6 @@ export const processTemplateConfigs: any = {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
-                // schemaName: "user-readme",
                 lockWholeSheet : true
             },
             {
@@ -13,7 +12,6 @@ export const processTemplateConfigs: any = {
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-                // schemaName: "boundary-data",
                 lockWholeSheet : true
             }
         ]
@@ -22,7 +20,6 @@ export const processTemplateConfigs: any = {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
-                // schemaName: "user-readme",
                 lockWholeSheet : true
             },
             {
@@ -32,7 +29,6 @@ export const processTemplateConfigs: any = {
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-                // schemaName: "boundary-data",
                 lockWholeSheet : true
             }
         ]
@@ -41,7 +37,6 @@ export const processTemplateConfigs: any = {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
-                // schemaName: "user-readme",
                 lockWholeSheet : true
             }
         ],
@@ -51,7 +46,6 @@ export const processTemplateConfigs: any = {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
-                // schemaName: "user-readme",
                 lockWholeSheet: true
             },
             {
@@ -62,7 +56,6 @@ export const processTemplateConfigs: any = {
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-                // schemaName: "boundary-data",
                 lockWholeSheet: true
             }
         ],
@@ -72,7 +65,6 @@ export const processTemplateConfigs: any = {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
-                // schemaName: "user-readme",
                 lockWholeSheet: true
             },
             {
@@ -83,7 +75,6 @@ export const processTemplateConfigs: any = {
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-                // schemaName: "boundary-data",
                 lockWholeSheet: true
             }
         ],
@@ -93,7 +84,6 @@ export const processTemplateConfigs: any = {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
-                // schemaName: "user-readme",
                 lockWholeSheet: true
             }
         ],

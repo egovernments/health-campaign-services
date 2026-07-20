@@ -23,10 +23,8 @@ interface CampaignMappingRow {
     status: string;
 }
 
-// const STATUS_TO_BE_MAPPED = "TO_BE_MAPPED";
-// const STATUS_DEMAPPED = "TO_BE_DEMAPPED";
-
 export class TemplateClass {
+    /** Ingests the facility sheet: persists new rows, creates facilities in the facility service, syncs boundary mappings. */
     static async process(
         resourceDetails: any,
         wholeSheetData: any,
@@ -89,7 +87,7 @@ export class TemplateClass {
             sheetData
                 .filter((row: any) => {
                     const code = row?.["HCM_ADMIN_CONSOLE_FACILITY_CODE"];
-                    return !code; // Only for new entries
+                    return !code;
                 })
                 .map((row: any) => [row?.uniqueFacilityKey, row])
                 .filter(([key]) => !!key)
@@ -99,7 +97,7 @@ export class TemplateClass {
             sheetData
                 .filter((row: any) => {
                     const code = row?.["HCM_ADMIN_CONSOLE_FACILITY_CODE"];
-                    return !!code; // Only those with Facility Code
+                    return !!code;
                 })
                 .map((row: any) => [row?.uniqueFacilityKey, row])
                 .filter(([key]) => !!key)
@@ -116,7 +114,6 @@ export class TemplateClass {
         const existingMap = new Map<string, any>(existingMapEntries);
 
         const newEntries = [];
-        // For already existing facility rows with Facility Code
         for (const [uniqueKey, row] of Object.entries(alreadyCompletedFacilityMap) as any) {
             if (existingMap.has(uniqueKey)) continue;
             delete row?.uniqueFacilityKey;
@@ -126,7 +123,7 @@ export class TemplateClass {
                 type: resourceDetails?.type,
                 uniqueIdentifier: uniqueKey,
                 uniqueIdAfterProcess: row?.["HCM_ADMIN_CONSOLE_FACILITY_CODE"],
-                status: dataRowStatuses.completed, // Mark as already completed
+                status: dataRowStatuses.completed,
             });
         }
 
@@ -154,6 +151,7 @@ export class TemplateClass {
         }
     }
 
+    /** Creates pending/failed facility rows in the facility service and writes back the assigned facility code + completed status. */
     static async createFacilityFromTableData(resourceDetails: any, userUuid: string, requestInfo: RequestInfo): Promise<any> {
         const response = await searchProjectTypeCampaignService({
             tenantId: resourceDetails.tenantId,
@@ -163,12 +161,9 @@ export class TemplateClass {
         if (!campaign) throw new Error("Campaign not found");
 
         const campaignNumber = campaign?.campaignNumber;
-        // const userUuid = campaign?.auditDetails?.createdBy;
 
-        // Get all existing facilities for this campaign
         const allCurrentFacilities = await getRelatedDataWithCampaign("facility", campaignNumber, resourceDetails?.tenantId);
 
-        // Map facility unique identifiers (Facility Name + campaign) to existing data
         const uniqueKeyAndFacilityMap: Record<string, any> = {};
         for (const facility of allCurrentFacilities) {
             const uniqueKey = facility?.uniqueIdentifier;
@@ -176,7 +171,6 @@ export class TemplateClass {
                 uniqueKeyAndFacilityMap[uniqueKey] = facility;
             }
         }
-        // Filter pending or failed facilities
         const facilitiesToCreate = allCurrentFacilities.filter(
             (f: any) => f?.status === dataRowStatuses.pending || f?.status === dataRowStatuses.failed
         );
@@ -185,7 +179,6 @@ export class TemplateClass {
 
         const facilityRowDatas = facilitiesToCreate.map((facility: any) => facility?.data);
 
-        // Dummy transformer config (replace later with actual one)
         const transformConfig = transformConfigs?.["Facility"];
         transformConfig.metadata.tenantId = resourceDetails.tenantId;
         transformConfig.metadata.hierarchy = resourceDetails.hierarchyType;
@@ -243,7 +236,7 @@ export class TemplateClass {
     }
 
     static async createFacilitiesOneByOne(facility: any, userUuid: string, requestInfo: RequestInfo) {
-        const url = config.host.facilityHost + config.paths.facilityCreate; // Update accordingly
+        const url = config.host.facilityHost + config.paths.facilityCreate;
 
         const requestBody = {
             RequestInfo: requestInfo,
@@ -261,6 +254,7 @@ export class TemplateClass {
     }
 
 
+    /** Reconciles sheet facility→boundary assignments against the mapping table, inserting new mappings and demapping stale ones. */
     static async syncFacilityBoundaryMapping(
         campaignNumber: string,
         sheetData: any[],
@@ -287,13 +281,12 @@ export class TemplateClass {
 
 
     static async syncFacilitySheetData(sheetData: any[], campaignNumber: string, tenantId: string) {
-        const dbRows = await getRelatedDataWithCampaign("facility", campaignNumber, tenantId); // status optional
+        const dbRows = await getRelatedDataWithCampaign("facility", campaignNumber, tenantId);
 
-        // Create map of uniqueIdentifier -> full DB row
         const dbMap = new Map<string, any>();
         for (const row of dbRows) {
             if (row?.uniqueIdentifier) {
-                dbMap.set(row.uniqueIdentifier, row); // full row (with status, etc.)
+                dbMap.set(row.uniqueIdentifier, row);
             }
         }
 
@@ -326,8 +319,8 @@ export class TemplateClass {
                 }
 
                 modifiedRowsToUpdate.push({
-                    ...dbRow, // keep existing fields like status, campaignNumber, etc.
-                    data: newData, // only data is updated
+                    ...dbRow,
+                    data: newData,
                 });
             }
         }
@@ -349,7 +342,7 @@ export class TemplateClass {
         const map: Record<string, Set<string>> = {};
         for (const row of sheetData) {
             const name = row?.[facilityNameKey];
-            const bcRaw = row?.[boundaryCodeKey]; // comma-separated boundary codes
+            const bcRaw = row?.[boundaryCodeKey];
             const active = row?.[activeKey];
             if (!name || !bcRaw || active !== "Active") continue;
             const codes = bcRaw.split(",").map((c: string) => c.trim());
@@ -357,7 +350,6 @@ export class TemplateClass {
             codes.forEach((c: any) => map[name].add(c));
         }
 
-        // Convert Set → Array for uniformity
         return Object.fromEntries(Object.entries(map).map(([k, v]) => [k, Array.from(v)]));
     }
 

@@ -4,6 +4,7 @@ import config from "../config";
 import { throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 
+/** Fetches product variants by id from the product service, chunked to stay within the search batch size. */
 export async function fetchProductVariants(pvarIds: string[], tenantId?: string, requestInfo?: RequestInfo) {
     const CHUNK_SIZE = config.productVariant.searchBatchSize;
     const allProductVariants: any[] = [];
@@ -24,5 +25,5 @@ export async function fetchProductVariants(pvarIds: string[], tenantId?: string,
         }
     }
 
-    return allProductVariants;  // Return the fetched product variants
+    return allProductVariants;
 }

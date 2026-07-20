@@ -29,7 +29,6 @@ const createKafkaClientAndProducer = async () => {
             if (log.namespace === 'kafka.network' && log.log.message && log.log.message.includes('retry')) {
                 logger.info(`[KafkaJS Retry] ${log.log.message}`);
             }
-            // Optionally, log all KafkaJS logs at INFO or higher
             if (level >= logLevel.INFO && log.log.message) {
                 logger.info(`[KafkaJS] ${log.log.message}`);
             }
@@ -45,7 +44,6 @@ const createKafkaClientAndProducer = async () => {
         logger.error('Producer connection error:', err);
         shutdownGracefully();
     }
-    // Listen for disconnects/errors
     producer.on('producer.disconnect', () => {
         logger.error('Producer disconnected');
         isProducerReady = false;
@@ -57,7 +55,6 @@ const createKafkaClientAndProducer = async () => {
     });
 };
 
-// Function to check broker availability by listing all brokers
 const checkBrokerAvailability = async () => {
     try {
         const admin = kafka.admin();
@@ -80,11 +77,9 @@ const checkBrokerAvailability = async () => {
     }
 };
 
-// Initialize producer on module load
 createKafkaClientAndProducer();
 
 const sendWithReconnect = async (payloads: any[]): Promise<void> => {
-    // payloads: [{ topic, messages, key }]
     if (!isProducerReady) {
         logger.error('Producer is not ready. Attempting to reconnect...');
         await createKafkaClientAndProducer();
@@ -102,7 +97,6 @@ const sendWithReconnect = async (payloads: any[]): Promise<void> => {
     } catch (err) {
         logger.error('Error sending message:', err);
         logger.debug(`Was trying to send: ${getFormattedStringForDebug(payloads)}`);
-        // Attempt to reconnect and retry
         logger.error('Reconnecting producer and retrying...');
         try {
             await producer.disconnect();
@@ -127,6 +121,7 @@ const sendWithReconnect = async (payloads: any[]): Promise<void> => {
 };
 
 
+/** Produce a message to the tenant-resolved topic, reconnecting the producer once on send failure. */
 async function produceModifiedMessages(modifiedMessages: any, topic: any, tenantId: string , key?: string
 ): Promise<void> {
     try {
@@ -144,7 +139,7 @@ async function produceModifiedMessages(modifiedMessages: any, topic: any, tenant
         await sendWithReconnect(payloads);
     } catch (error) {
         logger.error(`KAFKA :: PRODUCER :: Exception caught: ${JSON.stringify(error)}`);
-        throwError("COMMON", 400, "KAFKA_ERROR", "Some error occurred in Kafka"); // Re-throw the error after logging it
+        throwError("COMMON", 400, "KAFKA_ERROR", "Some error occurred in Kafka");
     }
 }
 

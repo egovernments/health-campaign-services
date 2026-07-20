@@ -1,14 +1,10 @@
-// Configuration object for defining sheet templates for different modules (like user, boundary)
 import { errorWorksheetName } from "./constants";
 
 export const generationtTemplateConfigs : any = {
-    // Configuration for the 'user' module
     user: {
         sheets: [
             {
-                // Sheet name to be used in the Excel file
                 sheetName: "HCM_README_SHEETNAME",
-                // Refers to the schema used to generate columns for this sheet
                 schemaName: "user-readme",
                 lockWholeSheet: true
             },
@@ -57,7 +53,6 @@ export const generationtTemplateConfigs : any = {
         ],
     },
 
-    // Configuration for the 'boundary' module
     boundary: {
         sheets: [
             {
@@ -68,7 +63,6 @@ export const generationtTemplateConfigs : any = {
         ]
     },
 
-    // Configuration for 'attendanceRegister' module
     attendanceRegister: {
         sheets: [
             {
@@ -88,7 +82,6 @@ export const generationtTemplateConfigs : any = {
         ]
     },
 
-    // Configuration for 'attendanceRegisterAttendee' module
     attendanceRegisterAttendee: {
         sheets: [
             {

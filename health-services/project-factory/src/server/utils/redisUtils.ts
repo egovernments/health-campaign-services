@@ -41,7 +41,7 @@ async function reconnectRedis(): Promise<void> {
         }
         redis = createRedisInstance();
 
-        // Wait a bit before pinging to give Redis time to come up
+        // Give the new connection a moment to come up before the health ping.
         await new Promise((resolve) => setTimeout(resolve, 1000));
         await redis.ping();
 
@@ -65,7 +65,6 @@ async function checkRedisConnection(): Promise<boolean> {
 }
 
 
-// Start
 redis = createRedisInstance();
 
 export {

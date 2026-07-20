@@ -76,7 +76,8 @@ export function selectReconcilableUserRows(
 }
 
 /**
- * Handle user batch creation from Kafka message
+ * Kafka handler for one user batch: idempotently creates HRMS users (adopting existing ones), then gates and
+ * creates worker-registry records, marking per-row status. Failures here are non-blocking for the campaign.
  */
 export async function handleUserBatch(messageObject: UserBatchMessage): Promise<void> {
     try {
@@ -94,14 +95,13 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             throw new Error(`User batch ${batchNumber}/${totalBatches} missing requestInfo.userInfo — cannot generate usernames via IDGen`);
         }
 
-        // Get unique identifiers from user data keys (phone numbers)
+        // userData is keyed by phone number
         const uniqueIdentifiers = Object.keys(userData);
 
         logger.info(`=== USER BATCH PROCESSING STARTED ===`);
         logger.info(`Processing user batch ${batchNumber}/${totalBatches}: ${uniqueIdentifiers.length} users`);
         logger.info(`Campaign: ${campaignNumber}, Tenant: ${tenantId}`);
-        
-        // Get campaign details for transformation
+
         const campaignResponse = await searchProjectTypeCampaignService({
             tenantId,
             ids: [campaignId]
@@ -170,7 +170,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             }
         });
 
-        // Transform user data from campaign records — only for users needing creation
+        // Transform only the rows that need creation (existing users already handled above)
         const userRowDatas = phoneNumbersNeedingCreation.map(uniqueIdentifier => {
             const campaignRecord = userData[uniqueIdentifier];
             return campaignRecord?.data;
@@ -188,10 +188,9 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 
         logger.info(`Transformed ${transformedUsers.length} users (${uniqueIdentifiers.length - phoneNumbersNeedingCreation.length} already existed)`);
 
-        // Create only new users via HRMS API
         const createResult = await createUsersViaHrmsApi(transformedUsers, useruuid, messageObject.requestInfo);
 
-        // Check for per-user failures from HRMS fallback
+        // Per-user failures from the HRMS per-user fallback are handed back via a global (see createUsersViaHrmsApi)
         const failedHrmsUsers: Record<string, string> = (global as any).__hrmsFailedUsers || {};
         delete (global as any).__hrmsFailedUsers;
 
@@ -211,10 +210,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             phoneToTransformedUser.set(phone, transformedUsers[i]);
         });
 
-        // Build worker data for worker registry integration
         const workerDataList: WorkerData[] = [];
 
-        // Process results and update campaign data
         let successCount = 0;
         let failureCount = 0;
         const updatedUsers: CampaignRecord[] = [];
@@ -230,7 +227,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             const wasRetry = campaignRecord.status === dataRowStatuses.failed;
 
             if (hrmsError) {
-                // Failure - mark row as failed with HRMS error
                 campaignRecord.status = dataRowStatuses.failed;
                 campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
                 campaignRecord.data[campaignDataRowFields.errorDetails] = hrmsError;
@@ -238,7 +234,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 failureCount++;
                 logger.warn(`HRMS create failed for phone ${phoneNumber}${wasRetry ? ' (retry=true)' : ''}: ${hrmsError}`);
             } else if (serviceUuid) {
-                // Success - user created
                 campaignRecord.status = dataRowStatuses.completed;
                 const userName = transformedUser?.user?.userName;
                 const password = transformedUser?.user?.password;
@@ -259,7 +254,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     logger.info(`HRMS create succeeded on retry for phone ${phoneNumber}: serviceUuid ${serviceUuid}`);
                 }
 
-                // Collect worker data from campaign record
                 if (individualId) {
                     const recordData = campaignRecord.data;
                     workerDataList.push({
@@ -291,7 +285,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             }
         });
 
-        // Create/update workers in worker registry and capture worker IDs
         if (workerDataList.length > 0) {
             // Build individualId → campaignRecords map (multiple phones can map to same individualId)
             const individualIdToRecords = new Map<string, CampaignRecord[]>();
@@ -304,16 +297,40 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 }
             }
 
+            // Consistency gate runs outside the try: waitForIndividualsSearchable is fail-open (never throws),
+            // so creatable/deferred are in scope for the catch below — deferred rows are already demoted and
+            // must not be double-counted if the create throws.
+            const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
+            const { missing } = await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
+            const { creatable, deferred } = partitionWorkersByIndividualSearchability(workerDataList, missing);
+
+            // Defer workers whose individual is not yet searchable — never send them to worker-registry
+            // (worker/v1/bulk/_create returns terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND); mark them
+            // retryable so a later upload/retry re-attempts them once individual indexing catches up.
+            if (deferred.length > 0) {
+                const deferMsg = `Individual not searchable after ${config.user.individualConsistencyMaxPollAttempts} consistency poll attempt(s); worker creation deferred for retry`;
+                const deferredIds = new Set<string>();
+                for (const w of deferred) {
+                    if (deferredIds.has(w.individualId)) continue;
+                    deferredIds.add(w.individualId);
+                    const records = individualIdToRecords.get(w.individualId) || [];
+                    const demoted = markWorkerRecordsFailed(records, deferMsg);
+                    successCount -= demoted;
+                    failureCount += demoted;
+                }
+                logger.warn(`Deferred ${deferredIds.size} worker(s) for retry — individual(s) not yet searchable`);
+            }
+
             try {
-                const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
-                await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
-                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
-                logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
+                const { individualIdToWorkerIdMap, errors } = creatable.length > 0
+                    ? await createOrUpdateWorkers(creatable, workerRequestInfo)
+                    : { individualIdToWorkerIdMap: new Map<string, string>(), errors: [] as string[] };
+                logger.info(`Worker registry integration completed for ${creatable.length} worker(s) (${deferred.length} deferred)`);
 
                 // Store only worker IDs back in campaign data — payee fields are fetched fresh
                 // from worker registry at credential sheet generation time to avoid storing
                 // potentially encrypted values that would corrupt subsequent updates.
-                for (const workerData of workerDataList) {
+                for (const workerData of creatable) {
                     const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
                     if (workerId) {
                         const records = individualIdToRecords.get(workerData.individualId) || [];
@@ -328,7 +345,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     const errMsg = errors.join("; ");
                     logger.error("Worker registry integration had errors:", errMsg);
                     const processedIds = new Set<string>();
-                    for (const w of workerDataList) {
+                    for (const w of creatable) {
                         if (processedIds.has(w.individualId)) continue;
                         processedIds.add(w.individualId);
                         if (!individualIdToWorkerIdMap.has(w.individualId)) {
@@ -343,7 +360,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
                 logger.error("Worker registry integration failed:", errMsg);
                 const processedIds = new Set<string>();
-                for (const w of workerDataList) {
+                // Only the creatable set was sent to worker-registry; deferred rows are already demoted above.
+                for (const w of creatable) {
                     if (processedIds.has(w.individualId)) continue;
                     processedIds.add(w.individualId);
                     const records = individualIdToRecords.get(w.individualId) || [];
@@ -366,7 +384,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 );
                 logger.info(`Updated ${updatedUsers.length} users in campaign data via persister`);
             } catch (kafkaError) {
-                // System error: Kafka publish failed
                 logger.error(`Kafka publish failed while updating user batch results. Sending campaign failure message.`);
                 const systemError = new Error(`Failed to persist user batch results: ${kafkaError instanceof Error ? kafkaError.message : String(kafkaError)}`);
                 await sendCampaignFailureMessage(campaignId, tenantId, systemError);
@@ -808,6 +825,26 @@ export async function waitForIndividualsSearchable(
     }
 
     const missing = uniqueIds.filter(id => !found.has(id));
-    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${maxAttempts} attempt(s); proceeding — worker-registry will gate the rest`);
+    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${maxAttempts} attempt(s); their workers will be deferred for retry (not sent to worker-registry, which would return NON_RECOVERABLE INDIVIDUAL_NOT_FOUND)`);
     return { found, missing };
+}
+
+/**
+ * Split worker payloads by whether their individual is confirmed searchable: `creatable` are safe to send to
+ * worker-registry now, `deferred` reference individuals that lost the read-after-write race and must NOT be
+ * sent (worker/v1/bulk/_create would return a terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND) — the caller
+ * marks them retryable so a later pass re-attempts them once indexing catches up.
+ */
+export function partitionWorkersByIndividualSearchability(
+    workerDataList: WorkerData[],
+    missingIndividualIds: string[]
+): { creatable: WorkerData[]; deferred: WorkerData[] } {
+    if (missingIndividualIds.length === 0) return { creatable: workerDataList, deferred: [] };
+    const missingSet = new Set(missingIndividualIds);
+    const creatable: WorkerData[] = [];
+    const deferred: WorkerData[] = [];
+    for (const worker of workerDataList) {
+        (missingSet.has(worker.individualId) ? deferred : creatable).push(worker);
+    }
+    return { creatable, deferred };
 }

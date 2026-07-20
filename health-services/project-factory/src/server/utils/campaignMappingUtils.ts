@@ -10,25 +10,26 @@ import { startResourceMapping } from "./resourceMappingUtils";
 import { startUserMappingAndDemapping } from "./userMappingUtils";
 import { startFacilityMappingAndDemapping } from "./facilityMappingUtils";
 
+/** Collect the distinct product-variant IDs referenced across a campaign's delivery rules. */
 export function getPvarIds(messageObject: any) {
-    //update to set now
     logger.info("campaign product resource mapping started");
     const deliveryRules = messageObject?.CampaignDetails?.deliveryRules;
-    const uniquePvarIds = new Set(); // Create a Set to store unique pvar IDs
+    const uniquePvarIds = new Set();
     if (deliveryRules) {
         for (const deliveryRule of deliveryRules) {
             const products = deliveryRule?.resources;
             if (products) {
                 for (const product of products) {
-                    uniquePvarIds.add(product?.productVariantId); // Add pvar ID to the Set
+                    uniquePvarIds.add(product?.productVariantId);
                 }
             }
         }
     }
     logger.info(`campaign product resource found items : ${JSON.stringify(uniquePvarIds)}`);
-    return Array.from(uniquePvarIds); // Convert Set to array before returning
+    return Array.from(uniquePvarIds);
 }
 
+/** Confirm a campaign exists for the given id before mapping proceeds, else throw. */
 export async function validateMappingId(messageObject: any, id: string) {
     const searchBody = {
         RequestInfo: messageObject?.RequestInfo,
@@ -44,6 +45,7 @@ export async function validateMappingId(messageObject: any, id: string) {
     return response?.CampaignDetails?.[0];
 }
 
+/** Create project-staff mappings in batches; on failure persist campaign error and rethrow. */
 export async function handleStaffMapping(mappingArray: any[], campaignId: string, messageObject: any, type: string) {
     try {
         logger.debug(`staff mapping count: ${mappingArray.length}`);
@@ -58,9 +60,8 @@ export async function handleStaffMapping(mappingArray: any[], campaignId: string
 async function processResourceOrFacilityOrUserMappingsInBatches(type: string, mappingArray: any, batchSize: number) {
     logger.info("Processing resource mappings in batches...");
     let promises: Promise<void>[] = [];
-    let totalCreated = 0; // To keep track of the total number of created resources
-    let batchCount = 0;   // To log batch-wise progress
-    // Determine the helper function to use based on the type
+    let totalCreated = 0;
+    let batchCount = 0;
     let createHelperFn: any;
     if (type === 'resource') {
         createHelperFn = createProjectResourceHelper;
@@ -70,7 +71,7 @@ async function processResourceOrFacilityOrUserMappingsInBatches(type: string, ma
         createHelperFn = createProjectFacilityHelper;
     } else {
         logger.error(`Unsupported type: ${type}`);
-        return;  // Exit the function if the type is unsupported
+        return;
     }
 
     for (const mapping of mappingArray) {
@@ -87,16 +88,15 @@ async function processResourceOrFacilityOrUserMappingsInBatches(type: string, ma
                 batchCount++;
                 logger.info(`Processing batch ${batchCount} with ${promises.length} promises.`);
                 try {
-                    await Promise.all(promises); // Wait for all promises in the current batch
+                    await Promise.all(promises);
                 } catch (error) {
                     logger.error(`Batch ${batchCount} failed:`, error);
-                    throw error; // Ensure any error in the batch is propagated
-                } promises = []; // Reset the array for the next batch
+                    throw error;
+                } promises = [];
             }
         }
     }
 
-    // Process any remaining promises
     if (promises.length > 0) {
         batchCount++;
         logger.info(`Processing final batch ${batchCount} with ${promises.length} promises.`);
@@ -107,6 +107,7 @@ async function processResourceOrFacilityOrUserMappingsInBatches(type: string, ma
 }
 
 
+/** Create project-resource mappings in batches; on failure persist campaign error and rethrow. */
 export async function handleResourceMapping(mappingArray: any[], campaignId: any, messageObject: any, type: string) {
     try {
         logger.debug(`Resource mapping count: ${mappingArray.length}`);
@@ -118,6 +119,7 @@ export async function handleResourceMapping(mappingArray: any[], campaignId: any
     }
 }
 
+/** Create project-facility mappings in batches; on failure persist campaign error and rethrow. */
 export async function handleFacilityMapping(mappingArray: any, campaignId: any, messageObject: any, type: string) {
     try {
         logger.debug(`facility mapping count: ${mappingArray.length}`);
@@ -129,6 +131,7 @@ export async function handleFacilityMapping(mappingArray: any, campaignId: any, 
     }
 }
 
+/** Legacy Kafka mapping-task handler: runs the per-process mapping and records task status. */
 export async function handleMappingTaskForCampaign(messageObject: any) {
     try {
         const { CampaignDetails, task, requestInfo } = messageObject;
@@ -158,7 +161,6 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
             await startUserMappingAndDemapping(CampaignDetails, useruuid, requestInfo);
         }
         task.status = processStatuses.completed;
-        // Add audit details for update
         const currentTime = Date.now();
         task.auditDetails = {
             createdBy: task.auditDetails?.createdBy || useruuid,
@@ -170,7 +172,6 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
     } catch (error) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
-        // Add audit details for failed status update
         const currentTime = Date.now();
         task.auditDetails = {
             createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,

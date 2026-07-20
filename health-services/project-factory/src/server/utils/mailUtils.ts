@@ -10,6 +10,7 @@ import { logger } from "./logger";
 import { generateCampaignEmailTemplate } from "../templates/campaignEmailTemplate";
 import {callExcelIngestionGenerateSearch} from "./generateUtils";
 
+/** Builds the localized MDMS-templated campaign email and produces it to the notification Kafka topic. */
 export async function sendNotificationEmail(
     fileStoreIdMap: Record<string, string>, requestBody: any , createdByEmail?: string
 ): Promise<void> {
@@ -55,7 +56,6 @@ export async function sendNotificationEmail(
         logger.info("Step 5: Fetched email template from MDMS");
 
 
-        // Step 4.1: Fetch appLink from MDMS
         const AppLinkCriteria: MDMSModels.MDMSv2RequestCriteria = {
             MdmsCriteria: {
                 tenantId: tenantId,
@@ -70,11 +70,10 @@ export async function sendNotificationEmail(
 
 
 
-        // Step 3: Prepare replacements
         const campaignName = requestBody?.CampaignDetails?.campaignName || "";
         const campaignManagerName = requestInfo?.userInfo?.userName || "Campaign Manager";
 
-        // Extracting download link (use only the first file ID)
+        // Only the first file id is surfaced as the download link.
         const [firstFileId] = Object.keys(fileStoreIdMap || {});
         const downloadLink = firstFileId ? await getFileUrl(firstFileId, tenantId) : "#";
 
@@ -138,7 +137,6 @@ export async function sendNotificationEmail(
 
         logger.info("Step 6: Constructed localized subject and all email fields");
 
-        // Generate the complete HTML email template
         const fullBody = generateCampaignEmailTemplate({
             logoLabel,
             headerContent,
@@ -163,16 +161,6 @@ export async function sendNotificationEmail(
             egovLogoLink: config.values.egovLogoLink
         });
 
-        // const fileUrls = await Promise.all(
-        //     Object.entries(fileStoreIdMap).map(async ([fileId, fileName]) => {
-        //         const url = await getFileUrl(fileId, tenantId);
-        //         logger.info(`Step 7: Fetched file URL for fileStoreId: ${fileId}`);
-        //         return `<a href="${url}">${fileName}</a>`;
-        //     })
-        // );
-
-        // const allFileUrls = fileUrls.join("<br/>");
-        // const fullBody = `${bodyLines.join("<br/>")}<br/><br/>${allFileUrls}`;
         logger.info("Step 8: Constructed full email body");
 
         const message = {
@@ -203,6 +191,7 @@ function replacePlaceholders(template: string, replacements: Record<string, stri
   return template.replace(/\{(.*?)\}/g, (_, key) => replacements[key.trim()] ?? '');
 }
 
+/** Downloads the generated user-credential template and maps its fileStoreId to a display filename for email attachment. */
 export async function getUserCredentialFileMap(requestBody: any): Promise<Record<string, string>> {
   try {
     const campaignId = requestBody?.CampaignDetails?.id;
@@ -233,9 +222,10 @@ export async function getUserCredentialFileMap(requestBody: any): Promise<Record
   }
 }
 
+/** Fire-and-forget credential email: failures are logged and swallowed so the main campaign flow is never blocked. */
 export async function triggerUserCredentialEmailFlow(requestBody: any , createdByEmail?: string): Promise<void> {
   logger.info("triggerUserCredentialEmailFlow: Email flow started...");
-  // waiting for 3 seconds to ensure that user credentials are ready
+  // Brief wait so the credential file is ready (persister eventual-consistency) before download.
   logger.info("triggerUserCredentialEmailFlow: Waiting for 3 seconds before proceeding with email flow...");
   await new Promise(resolve => setTimeout(resolve, 3000));
   try {
