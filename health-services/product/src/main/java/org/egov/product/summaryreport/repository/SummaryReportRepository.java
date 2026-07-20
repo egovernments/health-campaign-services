@@ -64,7 +64,12 @@ public class SummaryReportRepository {
 
     /** SELECT fragment that buckets epoch-millis createdtime into a yyyy-MM-dd day (tenant-local). */
     private String dayExpr(String tenantId) {
-        return "to_char(to_timestamp(createdtime / 1000) AT TIME ZONE '" + safeTimezone(tenantId)
+        return dayExpr(tenantId, "createdtime");
+    }
+
+    /** Same as {@link #dayExpr(String)} but for a specific (possibly table-qualified) column. */
+    private String dayExpr(String tenantId, String column) {
+        return "to_char(to_timestamp(" + column + " / 1000) AT TIME ZONE '" + safeTimezone(tenantId)
                 + "', 'YYYY-MM-DD')";
     }
 
@@ -147,22 +152,31 @@ public class SummaryReportRepository {
 
     /**
      * SUM(quantity) of delivered task resources per day, broken down by productVariantId.
-     * Returns day -> (productVariantId -> quantity).
+     * Only resources whose parent PROJECT_TASK is in a configured "treated" status
+     * ({@code summary.report.treated.statuses}, default ADMINISTRATION_SUCCESS, VISITED)
+     * are counted. Returns day -> (productVariantId -> quantity).
      */
     public Map<String, Map<String, Long>> stockConsumedByDay(String createdBy, String tenantId,
                                                              Long startDate, Long endDate) {
-        String sql = "SELECT " + dayExpr(tenantId) + " AS day, productvariantid AS pv, "
-                + "COALESCE(SUM(quantity), 0) AS qty "
-                + "FROM " + SCHEMA_REPLACE_STRING + ".task_resource "
-                + "WHERE createdby = :createdBy "
-                + "AND tenantid = :tenantId "
-                + "AND (isdeleted = false OR isdeleted IS NULL) "
-                + "AND isdelivered = true "
-                + "AND createdtime >= :startDate AND createdtime <= :endDate "
-                + "GROUP BY day, productvariantid";
+        List<String> statuses = config.getTreatedStatuses();
+        String sql = "SELECT " + dayExpr(tenantId, "tr.createdtime") + " AS day, tr.productvariantid AS pv, "
+                + "COALESCE(SUM(tr.quantity), 0) AS qty "
+                + "FROM " + SCHEMA_REPLACE_STRING + ".task_resource tr "
+                + "JOIN " + SCHEMA_REPLACE_STRING + ".project_task pt "
+                + "  ON pt.id = tr.taskid AND pt.tenantid = tr.tenantid "
+                + "WHERE tr.createdby = :createdBy "
+                + "AND tr.tenantid = :tenantId "
+                + "AND (tr.isdeleted = false OR tr.isdeleted IS NULL) "
+                + "AND tr.isdelivered = true "
+                + "AND (pt.isdeleted = false OR pt.isdeleted IS NULL) "
+                + "AND pt.status IN (:statuses) "
+                + "AND tr.createdtime >= :startDate AND tr.createdtime <= :endDate "
+                + "GROUP BY day, tr.productvariantid";
         sql = resolveSchema(sql, tenantId);
+        MapSqlParameterSource params = baseParams(createdBy, tenantId, startDate, endDate);
+        params.addValue("statuses", statuses);
         Map<String, Map<String, Long>> result = new HashMap<>();
-        jdbcTemplate.query(sql, baseParams(createdBy, tenantId, startDate, endDate), (RowCallbackHandler) rs -> {
+        jdbcTemplate.query(sql, params, (RowCallbackHandler) rs -> {
             String day = rs.getString("day");
             String productVariantId = rs.getString("pv");
             long qty = rs.getLong("qty");
