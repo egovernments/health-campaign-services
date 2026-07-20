@@ -102,12 +102,9 @@ export const headingMapping: any = {
 const unknownError = "Unknown Error. Check Logs";
 
 
-//  Retrieves the error message associated with the given error key.
 const getMessage = (key: any) => {
-    // Retrieve the error codes from the CONSTANTS object
     const errors = CONSTANTS.ERROR_CODES;
 
-    // Iterate over each module and error key to find the matching error message
     for (const moduleKey in errors) {
         for (const errorKey in errors[moduleKey]) {
             if (key === errorKey) {
@@ -116,7 +113,6 @@ const getMessage = (key: any) => {
         }
     }
 
-    // Return 'unknownError' if the error key is not found
     return unknownError;
 }
 
@@ -369,15 +365,12 @@ export const errorCodes = {
 // Error worksheet name in credential xlsx
 export const errorWorksheetName = "HCM_ADMIN_CONSOLE_USER_ERRORS";
 
-// Retrieves the error object containing the error code, message, and notFound flag.
+/** Resolves a module/key pair to a structured Error, falling back to UNKNOWN_ERROR when unmapped. */
 export const getErrorCodes = (module: string, key: string): Error => {
-    // Retrieve the error message from the CONSTANTS object
     const message = CONSTANTS.ERROR_CODES?.[module]?.[key] || getMessage(key)
 
-    // Determine the error code based on whether the message is 'unknownError' or not
     const code = message == unknownError ? "UNKNOWN_ERROR" : key
 
-    // Return the error object
     return {
         code: code,
         notFound: true,

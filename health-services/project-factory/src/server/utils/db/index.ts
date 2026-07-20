@@ -31,6 +31,7 @@ export const executeQuery = async (
   }
 };
 
+/** Qualify a table with the tenant's schema so queries route to the correct central-instance/shared schema. */
 export const getTableName = (tableName: string, tenantId: string): string => {
   if (config.isEnvironmentCentralInstance) {
     // If tenantId has no ".", default to tenantId itself
@@ -45,6 +46,5 @@ export const getTableName = (tableName: string, tenantId: string): string => {
 
 
 const getDBSchemaName = (dbSchema = "") => {
-  // return "health";
   return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
 }

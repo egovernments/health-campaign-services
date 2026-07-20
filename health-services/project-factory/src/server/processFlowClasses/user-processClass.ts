@@ -23,9 +23,8 @@ interface BufferedWorkerBatch {
     individualIdToRecords: Map<string, CampaignRecord[]>;
 }
 
-// This will be a dynamic template class for different types
 export class TemplateClass {
-    // Static generate function
+    /** Ingests the user sheet: persists new rows, reconciles boundary mappings, creates HRMS users + workers, returns processed sheet. */
     static async process(
         resourceDetails: any,
         wholeSheetData: any,
@@ -166,7 +165,7 @@ export class TemplateClass {
 
                     existingData[usageKey] = usageColumnStatus.active;
                     existingData[boundaryKey] = sheetBoundaries.join(",");
-                    usersToBeUpdated.push(existingEntry); // ✅ Push full entry
+                    usersToBeUpdated.push(existingEntry);
                 } else {
                     // Case 2: Already active, update boundary diffs
                     for (const boundary of sheetBoundaries) {
@@ -202,7 +201,7 @@ export class TemplateClass {
                     if (sortedSheet !== sortedExisting) {
                         existingData[boundaryKey] = sortedSheet;
                         existingData[usageKey] = usageColumnStatus.active;
-                        usersToBeUpdated.push(existingEntry); // ✅ Push full entry
+                        usersToBeUpdated.push(existingEntry);
                     }
                 }
             }
@@ -274,13 +273,11 @@ export class TemplateClass {
                 }
             }
 
-            // Update to inactive
             existingData[usageKey] = usageColumnStatus.inactive;
             existingData[boundaryKey] = data?.[boundaryKey];
-            usersToBeUpdated.push(existingEntry); // ✅ Push full entry
+            usersToBeUpdated.push(existingEntry);
         }
 
-        // Send updates in batches
         const batchSize = config.user.mappingPersistBatchSize;
 
         for (let i = 0; i < boundariesToBeDemappedRow.length; i += batchSize) {
@@ -484,6 +481,7 @@ export class TemplateClass {
     }
     
 
+    /** Creates pending/failed users in HRMS (idempotent via phone pre-check) and their worker-registry records, lagging worker create behind individual create. */
     static async createUserFromTableData(resourceDetails: any): Promise<any> {
         logger.info("Fetching campaign details...");
         const tenantId = resourceDetails.tenantId;
@@ -805,6 +803,7 @@ export class TemplateClass {
 
 
 
+    /** Calls HRMS bulk employee create, returning phone→serviceUuid and phone→individualId maps for downstream worker creation. */
     static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string, resourceDetails?: any): Promise<{ mobileToServiceMap: Record<string, string>; mobileToIndividualIdMap: Record<string, string> }> {
         const url = config.host.hrmsHost + config.paths.hrmsEmployeeCreate;
         const RequestInfo = resourceDetails?.requestInfo;

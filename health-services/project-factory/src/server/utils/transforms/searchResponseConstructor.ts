@@ -69,7 +69,6 @@ export const campaignDetailsTransformer = (dbRows: any[] = []) => {
  */
 export const generatedResourceTransformer = (dbRows: any[] = []) => {
   return dbRows.map((item: any) => {
-    // Extract and structure audit details
     item.auditDetails = {
       lastModifiedTime: item.lastmodifiedtime,
       createdTime: item.createdtime,
@@ -77,14 +76,13 @@ export const generatedResourceTransformer = (dbRows: any[] = []) => {
       createdBy: item.createdby,
     };
 
-    // Rename and restructure properties
     item.tenantId = item.tenantid;
     item.additionalDetails = item.additionaldetails ? item.additionaldetails : {};
     item.additionalDetails.Filters = item?.additionaldetails?.filters ? {} : item?.additionaldetails?.filters;
     item.fileStoreid = item.filestoreid;
     item.locale = item.locale;
 
-    // Remove unnecessary properties
+    // Drop the lowercase DB column aliases now that camelCase fields are set
     delete item.additionaldetails;
     delete item.lastmodifiedtime;
     delete item.createdtime;
@@ -93,6 +91,6 @@ export const generatedResourceTransformer = (dbRows: any[] = []) => {
     delete item.filestoreid;
     delete item.tenantid;
 
-    return { ...item }; // Return the transformed object
+    return { ...item };
   });
 };

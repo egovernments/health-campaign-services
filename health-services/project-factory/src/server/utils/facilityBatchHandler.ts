@@ -10,9 +10,6 @@ import { DataTransformer } from './transFormUtil';
 import { transformConfigs } from '../config/transformConfigs';
 import config from '../config';
 
-/**
- * Interface for facility batch message
- */
 interface FacilityBatchMessage {
     tenantId: string;
     campaignNumber: string;
@@ -25,29 +22,25 @@ interface FacilityBatchMessage {
     requestInfo: RequestInfo;
 }
 
-/**
- * Handle facility batch creation from Kafka message
- */
+/** Kafka handler that creates one batch of facilities, idempotently under at-least-once redelivery, and writes back per-row status. */
 export async function handleFacilityBatch(messageObject: FacilityBatchMessage): Promise<void> {
     try {
-        const { 
-            tenantId, 
-            campaignNumber, 
+        const {
+            tenantId,
+            campaignNumber,
             campaignId,
-            useruuid, 
+            useruuid,
             facilityData,
-            batchNumber, 
-            totalBatches 
+            batchNumber,
+            totalBatches
         } = messageObject;
-        
-        // Get unique identifiers from facility data keys
+
         const uniqueIdentifiers = Object.keys(facilityData);
         
         logger.info(`=== FACILITY BATCH PROCESSING STARTED ===`);
         logger.info(`Processing facility batch ${batchNumber}/${totalBatches}: ${uniqueIdentifiers.length} facilities`);
         logger.info(`Campaign: ${campaignNumber}, Tenant: ${tenantId}`);
-        
-        // Get campaign details for transformation
+
         const campaignResponse = await searchProjectTypeCampaignService({
             tenantId,
             ids: [campaignId]
@@ -81,7 +74,6 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
             return;
         }
 
-        // Transform facility data from campaign records
         const facilityRowDatas = identifiersToCreate.map(uniqueIdentifier => {
             const campaignRecord = facilityData[uniqueIdentifier];
             return campaignRecord?.data;
@@ -98,16 +90,14 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
         const transformedFacilities = await transformer.transform(facilityRowDatas, messageObject.requestInfo);
         
         logger.info(`Transformed ${transformedFacilities.length} facilities`);
-        
-        // Create facilities in parallel using Promise.allSettled
+
         const facilityPromises = transformedFacilities.map((transformedItem : any) => {
             const facilityBody = transformedItem?.Facility;
             return createSingleFacilityFromBatch(facilityBody, useruuid, messageObject.requestInfo);
         });
-        
+
         const batchResults = await Promise.allSettled(facilityPromises);
-        
-        // Process results and update campaign data
+
         let successCount = 0;
         let failureCount = 0;
         const updatedFacilities: any[] = [];
@@ -117,7 +107,6 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
             const campaignRecord = facilityData[uniqueIdentifier];
             
             if (result.status === 'fulfilled' && result.value) {
-                // Success - facility created
                 campaignRecord.status = dataRowStatuses.completed;
                 campaignRecord.data = {
                     ...campaignRecord.data,
@@ -129,7 +118,6 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
                 
                 logger.info(`✅ Facility created: ${result.value.name} with ID: ${result.value.id}`);
             } else {
-                // Failure - mark facility as failed
                 campaignRecord.status = dataRowStatuses.failed;
                 updatedFacilities.push(campaignRecord);
                 failureCount++;
@@ -141,18 +129,16 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
         });
         
         logger.info(`Facility batch ${batchNumber}/${totalBatches} completed: ${successCount} success, ${failureCount} failed`);
-        
-        // Update all facilities in campaign data table via persister
+
         if (updatedFacilities.length > 0) {
             await produceModifiedMessages(
-                { datas: updatedFacilities }, 
-                config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, 
+                { datas: updatedFacilities },
+                config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC,
                 tenantId
             );
             logger.info(`Updated ${updatedFacilities.length} facilities in campaign data via persister`);
         }
-        
-        // If any facilities failed, send campaign failure message
+
         if (failureCount > 0) {
             logger.error(`Facility batch processing had ${failureCount} failures. Sending campaign failure message.`);
             const batchError = new Error(`Facility creation failed: ${failureCount} out of ${uniqueIdentifiers.length} facilities failed to create in batch ${batchNumber}/${totalBatches}`);
@@ -194,9 +180,6 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
     }
 }
 
-/**
- * Create a single facility from batch processing
- */
 async function createSingleFacilityFromBatch(
     facilityBody: any,
     userUuid: string,
@@ -209,7 +192,6 @@ async function createSingleFacilityFromBatch(
             throw new Error('No facility name found in facility body');
         }
 
-        // Create facility via API
         const response = await createFacilityOneByOne(facilityBody, userUuid, requestInfo);
         const createdFacility = response?.Facility;
         
@@ -225,9 +207,6 @@ async function createSingleFacilityFromBatch(
     }
 }
 
-/**
- * Create facility via API call
- */
 async function createFacilityOneByOne(facility: any, userUuid: string, requestInfo: RequestInfo): Promise<any> {
     const url = config.host.facilityHost + config.paths.facilityCreate;
 

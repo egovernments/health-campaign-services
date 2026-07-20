@@ -11,15 +11,11 @@ import { searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis"
 import { getCampaignSearchResponse } from "../api/campaignApis";
 
 
+/** Drops rows that carry only status/errorDetails/row-number metadata and no actual user-entered data. */
 export const filterData = (data: any) => {
   return data.filter((item: any) => {
-    // Create a shallow copy of the object without `#status#` and `#errorDetails#`
     const { '#status#': status, '#errorDetails#': errorDetails, ...rest } = item;
-
-    // Check if only `!row#number!` remains after removing status and errorDetails
     const remainingKeys = Object.keys(rest).filter(key => key !== '!row#number!');
-
-    // Include the item if any other properties exist besides `!row#number!`
     return remainingKeys.length > 0;
   });
 };
@@ -28,6 +24,7 @@ export const filterData = (data: any) => {
 
 
 
+/** Reads every role sheet, groups users by phone number, and builds the create payload for microplan-sourced users. */
 export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
   const fileResponse = await httpRequest(`${config.host.filestore}${config.paths.filestore}/url`, {}, { tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
@@ -59,6 +56,7 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
   return allUserData;
 }
 
+/** Validates consistency/national duplicacy of the grouped users and stages one create row per phone number. */
 export function getAllUserData(request: any, userMapping: any, localizationMap: any) {
   const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL_MICROPLAN", localizationMap);
   const nameKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME_MICROPLAN", localizationMap);
@@ -83,7 +81,7 @@ export function getAllUserData(request: any, userMapping: any, localizationMap: 
 }
 
 function validateInConsistency(request: any, userMapping: any, emailKey: any, nameKey: any) {
-  const overallInconsistencies: string[] = []; // Collect all inconsistencies here
+  const overallInconsistencies: string[] = [];
 
   enrichInconsistencies(overallInconsistencies, userMapping, nameKey, emailKey);
   if (overallInconsistencies.length > 0) {
@@ -103,10 +101,9 @@ function validateNationalDuplicacy(request: any, userMapping: any, localizationM
     for (const user of users) {
       const userRole = user?.role;
       if (userRole?.startsWith("ROOT_")) {
-        // Trim the role
+        // A ROOT_ role and its base role can't coexist for one phone across different sheets.
         const trimmedRole = userRole.replace("ROOT_", "");
 
-        // Check for duplicates in the roleMap
         if (roleMap[trimmedRole] && roleMap[trimmedRole]["!sheet#name!"] != user["!sheet#name!"]) {
           const errorMessage: any = `An user with ${getLocalizedName(trimmedRole, localizationMap)} role can’t be assigned to ${getLocalizedName(userRole, localizationMap)} role`;
           duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
@@ -147,7 +144,6 @@ function convertDataSheetWise(userMapping: any) {
 }
 
 function getInconsistencyErrorMessage(phoneNumber: any, userRecords: any) {
-  // Create the error message mentioning all the records for this phone number
   const errors: any = []
   const errorMessage = `User details for the same contact number don't match. Please check the user's name or email ID`;
   for (const record of userRecords) {
@@ -163,7 +159,6 @@ function enrichInconsistencies(overallInconsistencies: any, userMapping: any, na
       const users = userMapping[phoneNumber];
       const userRecords: any[] = [];
 
-      // Collect all user data for this phone number
       for (const user of users) {
         userRecords.push({
           row: user["!row#number!"],
@@ -175,13 +170,13 @@ function enrichInconsistencies(overallInconsistencies: any, userMapping: any, na
 
       const errorMessage = getInconsistencyErrorMessage(phoneNumber, userRecords);
 
-      // Check for any inconsistencies by comparing all records with each other
-      const firstRecord = userRecords[0]; // Take the first record as baseline
+      // Every row for a phone must share the first row's name/email, else all its rows are flagged.
+      const firstRecord = userRecords[0];
       const inconsistentRecords = userRecords.filter(record =>
         record.name !== firstRecord.name || record.email !== firstRecord.email
       );
       if (inconsistentRecords.length > 0) {
-        overallInconsistencies.push(...errorMessage);  // Collect all inconsistencies
+        overallInconsistencies.push(...errorMessage);
       }
     }
   }
@@ -189,27 +184,25 @@ function enrichInconsistencies(overallInconsistencies: any, userMapping: any, na
 
 function lockTillStatus(workbook: any) {
   workbook.worksheets.forEach((sheet: any) => {
-    const statusCell = findStatusColumn(sheet); // Find the status column
+    const statusCell = findStatusColumn(sheet);
 
     if (!statusCell) {
-      // Lock the entire sheet if no "#status#" found
+      // No status column: lock the whole sheet.
       sheet.protect('passwordhere', {
         selectLockedCells: true,
         selectUnlockedCells: false
       });
     } else {
-      // Lock the entire sheet but allow selecting unlocked cells
       sheet.protect('passwordhere', {
         selectLockedCells: true,
-        selectUnlockedCells: true // Allow selecting unlocked cells
+        selectUnlockedCells: true
       });
 
-      // Lock the first row
       sheet.getRow(1).eachCell({ includeEmpty: true }, (cell: any) => {
         cell.protection = { locked: true };
       });
 
-      // Lock every column starting from the "#status#" column
+      // Header row and everything from the status column onward is read-only; editable data sits to its left.
       const statusColIndex = statusCell.col;
       for (let col = statusColIndex; col <= sheet.columnCount; col++) {
         sheet.getColumn(col).eachCell({ includeEmpty: true }, (cell: any) => {
@@ -217,11 +210,10 @@ function lockTillStatus(workbook: any) {
         });
       }
 
-      // Unlock the rest of the sheet (if needed)
       sheet.eachRow((row: any, rowIndex: any) => {
-        if (rowIndex > 1) {  // Skip first row
+        if (rowIndex > 1) {
           row.eachCell({ includeEmpty: true }, (cell: any) => {
-            if (cell.col < statusColIndex) {  // Unlock cells before the status column
+            if (cell.col < statusColIndex) {
               cell.protection = { locked: false };
             }
           });
@@ -231,6 +223,7 @@ function lockTillStatus(workbook: any) {
   });
 }
 
+/** Unlocks only the empty cells within the configured row/column window, then protects the sheet. */
 export function lockWithConfig(sheet: any) {
   for (let row = 1; row <= Number.parseInt(config.values.unfrozeTillRow); row++) {
     for (let col = 1; col <= Number.parseInt(config.values.unfrozeTillColumn); col++) {
@@ -250,6 +243,7 @@ function lockAll(workbook: any) {
 }
 
 
+/** Create-type sheets lock everything; other types lock only from the status column onward. */
 export function lockSheet(request: any, workbook: any) {
   if (request?.body?.ResourceDetails?.type == 'create') {
     lockAll(workbook);
@@ -259,30 +253,25 @@ export function lockSheet(request: any, workbook: any) {
   }
 }
 
-// Helper function to find the column containing "#status#"
 function findStatusColumn(sheet: any) {
   let statusCell: any = null;
 
-  // Loop through each row
   sheet.eachRow((row: any, rowIndex: any): any => {
-    // Loop through each cell in the row
     row.eachCell((cell: any, colIndex: any) => {
-      // If "#status#" is found, capture the row and column
       if (cell.value === "#status#") {
         statusCell = { row: rowIndex, col: colIndex };
       }
     });
 
-    // If the status cell is found, stop further iteration
     if (statusCell) {
-      return false; // This will only break the row loop, not the function
+      return false; // Breaks the row loop only.
     }
   });
 
-  // Return the found statusCell, or null if not found
   return statusCell;
 }
 
+/** For microplan facility rows, derives storage capacity/lat-long and stages active facilities for plan-facility creation. */
 export function changeCreateDataForMicroplan(request: any, element: any, rowData: any, latLongColumnsList: string[], localizationMap?: any) {
   const type = request?.body?.ResourceDetails?.type;
   const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
@@ -351,6 +340,7 @@ function getLongitudeFromData(rowData: any, latLongColumnsList: string[], locali
 
 
 
+/** Produces a PlanFacility record to plan-service for each active microplan facility staged on the request. */
 export async function createPlanFacilityForMicroplan(request: any, localizationMap?: any) {
   if (request?.body?.ResourceDetails?.type == 'facility' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') {
     const allFacilityDatas = request?.body?.facilityDataForMicroplan;
@@ -443,6 +433,7 @@ export async function planConfigSearch(request: any) {
   return searchResponse;
 }
 
+/** Fetches active microplan roles from MDMS; returns localized names, or `{role, code}` pairs when fetchWithRoleCodes. */
 export async function getRolesForMicroplan(tenantId: string, localizationMap: any, fetchWithRoleCodes: boolean = false) {
   const MdmsCriteria: any = {
     tenantId: tenantId,
@@ -451,14 +442,13 @@ export async function getRolesForMicroplan(tenantId: string, localizationMap: an
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
   if (mdmsResponse?.mdms?.length > 0) {
     if (fetchWithRoleCodes) {
-      // return array { role : "role", code : "roleCode" }
       return mdmsResponse?.mdms?.filter((role: any) => role?.isActive)
         ?.map((role: any) => ({ role: getLocalizedName(role?.data?.roleCode, localizationMap), code: role?.data?.roleCode }));
     }
     else {
       return mdmsResponse?.mdms
-        ?.filter((role: any) => role?.isActive) // Filter roles with isActive true
-        ?.map((role: any) => getLocalizedName(role?.data?.roleCode, localizationMap)); // Map to extract the role
+        ?.filter((role: any) => role?.isActive)
+        ?.map((role: any) => getLocalizedName(role?.data?.roleCode, localizationMap));
     }
   }
   else {
@@ -467,6 +457,7 @@ export async function getRolesForMicroplan(tenantId: string, localizationMap: an
   }
 }
 
+/** True when the request targets a microplan-sourced campaign (short-circuits on the literal "microplan" id). */
 export async function isMicroplanRequest(request: any): Promise<boolean> {
   const campaignId = request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId;
   if (campaignId == "microplan") {
@@ -477,9 +468,10 @@ export async function isMicroplanRequest(request: any): Promise<boolean> {
   return checkIfSourceIsMicroplan(campaignObject);
 }
 
+/** Returns the readme-config MDMS entry matching the request's `{type}_MICROPLAN`, throwing if none is found. */
 export async function getReadMeConfigForMicroplan(request: any) {
   const MdmsCriteria = {
-    MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
+    MdmsCriteria: {
       tenantId: request?.query?.tenantId,
       moduleDetails: [
         {
@@ -489,7 +481,6 @@ export async function getReadMeConfigForMicroplan(request: any) {
       ],
     },
   };
-  // const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
   const mdmsResponse = await searchMDMSDataViaV1Api(MdmsCriteria);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig

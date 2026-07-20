@@ -48,10 +48,9 @@ export async function handleCampaignFailure(messageObject: any) {
         logger.info('=== PROCESSING CAMPAIGN FAILURE MESSAGE ===');
         
         const { campaignId, tenantId, error } = messageObject;
-        
+
         logger.info(`Marking campaign as failed: ${campaignId}`);
-        
-        // Search for campaign details
+
         logger.info(`Searching for campaign details: ${campaignId}`);
         const campaignSearchCriteria = {
             tenantId: tenantId,
@@ -67,7 +66,6 @@ export async function handleCampaignFailure(messageObject: any) {
         
         logger.info(`Found campaign: ${campaignDetails.campaignName}`);
         
-        // Create mock request body with campaign details
         const mockRequestBody = {
             CampaignDetails: campaignDetails,
             RequestInfo: { 
@@ -75,7 +73,6 @@ export async function handleCampaignFailure(messageObject: any) {
             }
         };
         
-        // Use the existing error handling function to mark campaign as failed
         const campaignError: any = new Error(`${error}`);
         campaignError.code = messageObject.errorCode;
         campaignError.description = messageObject.errorDescription;

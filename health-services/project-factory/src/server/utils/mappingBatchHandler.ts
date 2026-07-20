@@ -10,9 +10,7 @@ import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { getCurrentMappingGeneration } from './mappingGenerationUtils';
 import { executeQuery, getTableName } from './db';
 
-/**
- * Handle mapping batch from Kafka - processes mappings based on type and status
- */
+/** Kafka mapping-batch handler; must stay idempotent under redelivery (adopt-before-create + stale-generation drop). */
 export async function handleMappingBatch(messageObject: any) {
     const { campaignId, tenantId } = messageObject;
     try {
@@ -35,23 +33,18 @@ export async function handleMappingBatch(messageObject: any) {
             }
         }
 
-        // Get required data mappings for all types
         const boundaryData = await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
         const facilityData = await getRelatedDataWithCampaign('facility', campaignNumber, tenantId);
         const userData = await getRelatedDataWithCampaign('user', campaignNumber, tenantId);
-        
-        // Create lookup maps
+
         const boundaryToProjectId = createLookupMap(boundaryData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
         const facilityMap = createLookupMap(facilityData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
         const userMap = createLookupMap(userData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
-        
-        // Group mappings by type and status for batch processing
+
         const mappingGroups = groupMappings(mappings);
-        
-        // Process each group with Promise.all
+
         const promises: Promise<void>[] = [];
-        
-        // Process toBeMapped
+
         if (mappingGroups.resourceToBeMapped.length > 0) {
             promises.push(processResourceMappings(mappingGroups.resourceToBeMapped, boundaryToProjectId, tenantId, useruuid, requestInfo));
         }
@@ -61,8 +54,7 @@ export async function handleMappingBatch(messageObject: any) {
         if (mappingGroups.userToBeMapped.length > 0) {
             promises.push(processUserMappings(mappingGroups.userToBeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
         }
-        
-        // Process toBeDeMapped
+
         if (mappingGroups.resourceToBeDeMapped.length > 0) {
             promises.push(processResourceDemappings(mappingGroups.resourceToBeDeMapped, tenantId, useruuid));
         }
@@ -72,16 +64,14 @@ export async function handleMappingBatch(messageObject: any) {
         if (mappingGroups.userToBeDeMapped.length > 0) {
             promises.push(processUserDemappings(mappingGroups.userToBeDeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
         }
-        
-        // Execute all mappings in parallel
+
         await Promise.all(promises);
-        
+
         logger.info(`Mapping batch ${batchNumber}/${totalBatches} completed successfully`);
-        
+
     } catch (error) {
         logger.error('Error processing mapping batch:', error);
-        
-        // Send campaign failure message due to mapping batch processing error
+
         const batchError = new Error(`Mapping batch processing error: ${error instanceof Error ? error.message : String(error)}`);
         await sendCampaignFailureMessage(
             campaignId,
@@ -91,9 +81,6 @@ export async function handleMappingBatch(messageObject: any) {
     }
 }
 
-/**
- * Create lookup map from array
- */
 function createLookupMap(data: any[], keyField: string, valueField: string): Record<string, string> {
     const map: Record<string, string> = {};
     data.forEach(item => {
@@ -104,9 +91,6 @@ function createLookupMap(data: any[], keyField: string, valueField: string): Rec
     return map;
 }
 
-/**
- * Group mappings by type and status
- */
 function groupMappings(mappings: any[]) {
     const groups = {
         resourceToBeMapped: [] as any[],
@@ -406,9 +390,6 @@ async function bulkCreateAndConfirm(
     }
 }
 
-/**
- * Process resource mappings
- */
 async function processResourceMappings(
     mappings: any[],
     boundaryToProjectId: Record<string, string>,
@@ -562,7 +543,7 @@ async function processUserMappings(
 }
 
 /**
- * Process resource demappings (just delete from DB since resources can't be demapped)
+ * Resource mappings have no server-side demap — the local mapping row is simply deleted.
  */
 async function processResourceDemappings(
     mappings: any[],
@@ -571,31 +552,26 @@ async function processResourceDemappings(
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} resource demappings (direct deletion)`);
 
-    const deleteBatch: any[] = []; // Collect successful deletions
-    const failedBatch: any[] = []; // Collect failed ones
+    const deleteBatch: any[] = [];
+    const failedBatch: any[] = [];
 
-    // For resources, just delete the mapping entries as they can't be actually demapped
     const promises = mappings.map(async (mapping) => {
         try {
-            deleteBatch.push(mapping); // Collect for batch deletion
+            deleteBatch.push(mapping);
         } catch (error) {
             logger.error(`Failed to delete resource mapping for ${mapping.uniqueIdentifierForData}:`, error);
 
             mapping.status = mappingStatuses.deMapFailed;
-            failedBatch.push(mapping); // Collect failed ones
+            failedBatch.push(mapping);
         }
     });
 
     await Promise.all(promises);
 
-    // Send deletions and failures in batches with chunking
     await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
     await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
-/**
- * Process facility demappings
- */
 async function processFacilityDemappings(
     mappings: any[],
     boundaryToProjectId: Record<string, string>,
@@ -608,8 +584,8 @@ async function processFacilityDemappings(
 
     const RequestInfo = requestInfo;
 
-    const deleteBatch: any[] = []; // Collect successful deletions
-    const failedBatch: any[] = []; // Collect failed ones
+    const deleteBatch: any[] = [];
+    const failedBatch: any[] = [];
 
     const promises = mappings.map(async (mapping) => {
         try {
@@ -617,32 +593,28 @@ async function processFacilityDemappings(
             const facilityId = facilityMap[mapping.uniqueIdentifierForData];
             const mappingId = mapping.mappingId;
 
+            // Nothing to demap server-side for unresolvable rows — drop the local row.
             if (!projectId || !facilityId || !mappingId) {
-                // Direct delete for invalid mappings
-                deleteBatch.push(mapping); // Collect for batch deletion
+                deleteBatch.push(mapping);
                 return;
             }
 
             await fetchAndDeleteProjectFacility(RequestInfo, tenantId, projectId, facilityId);
-            deleteBatch.push(mapping); // Collect for batch deletion
+            deleteBatch.push(mapping);
         } catch (error) {
             logger.error(`Failed to demap facility ${mapping.uniqueIdentifierForData}:`, error);
 
             mapping.status = mappingStatuses.deMapFailed;
-            failedBatch.push(mapping); // Collect failed ones
+            failedBatch.push(mapping);
         }
     });
 
     await Promise.all(promises);
 
-    // Send deletions and failures in batches with chunking
     await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
     await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
-/**
- * Process user demappings
- */
 async function processUserDemappings(
     mappings: any[],
     boundaryToProjectId: Record<string, string>,
@@ -655,8 +627,8 @@ async function processUserDemappings(
 
     const RequestInfo = requestInfo;
 
-    const deleteBatch: any[] = []; // Collect successful deletions
-    const failedBatch: any[] = []; // Collect failed ones
+    const deleteBatch: any[] = [];
+    const failedBatch: any[] = [];
 
     const promises = mappings.map(async (mapping) => {
         try {
@@ -671,32 +643,28 @@ async function processUserDemappings(
                 return;
             }
 
+            // Nothing to demap server-side for unresolvable rows — drop the local row.
             if (!projectId || !mappingId) {
-                // Direct delete for invalid mappings
-                deleteBatch.push(mapping); // Collect for batch deletion
+                deleteBatch.push(mapping);
                 return;
             }
 
             await fetchAndDeleteProjectStaff(RequestInfo, tenantId, projectId, userId);
-            deleteBatch.push(mapping); // Collect for batch deletion
+            deleteBatch.push(mapping);
         } catch (error) {
             logger.error(`Failed to demap user ${mapping.uniqueIdentifierForData}:`, error);
 
             mapping.status = mappingStatuses.deMapFailed;
-            failedBatch.push(mapping); // Collect failed ones
+            failedBatch.push(mapping);
         }
     });
 
     await Promise.all(promises);
 
-    // Send deletions and failures in batches with chunking
     await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
     await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
-/**
- * Fetch and delete project facility mapping
- */
 async function fetchAndDeleteProjectFacility(RequestInfo: any, tenantId: string, projectId: string, facilityId: string) {
     const searchBody = {
         RequestInfo,
@@ -728,9 +696,6 @@ async function fetchAndDeleteProjectFacility(RequestInfo: any, tenantId: string,
     }
 }
 
-/**
- * Fetch and delete project staff mapping
- */
 async function fetchAndDeleteProjectStaff(RequestInfo: any, tenantId: string, projectId: string, userId: string) {
     const searchBody = {
         RequestInfo,
