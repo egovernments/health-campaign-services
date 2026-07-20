@@ -35,6 +35,7 @@ sys.path.append(file_path)
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url
 from COMMON_UTILS.localization_utils import localize_df_columns
+from COMMON_UTILS.excel_style import style_report_workbook
 
 # Column -> localization code (looked up verbatim; falls back to the raw column).
 LOCALIZATION_CODES = {
@@ -342,5 +343,6 @@ df_sorted = df.sort_values(by=EXPECTED_COLUMNS, ascending=[True, True, True])
 
 localize_df_columns(df_sorted, LOCALIZATION_CODES)
 df_sorted.to_excel(f"{FILE_NAME}.xlsx", index=False)
+style_report_workbook(f"{FILE_NAME}.xlsx")
 
 e_time = time.time()

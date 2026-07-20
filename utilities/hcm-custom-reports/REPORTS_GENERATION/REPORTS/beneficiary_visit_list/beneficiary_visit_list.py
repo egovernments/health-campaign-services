@@ -30,6 +30,40 @@ sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
+from COMMON_UTILS.localization_utils import localize_df_columns
+from COMMON_UTILS.excel_style import style_report_workbook
+
+# Column -> localization code (looked up verbatim; falls back to the raw column).
+LOCALIZATION_CODES = {
+    'Country': "HCM_BENEFICIARY_VISIT_LIST_COUNTRY",
+    'State': "HCM_BENEFICIARY_VISIT_LIST_STATE",
+    'LGA': "HCM_BENEFICIARY_VISIT_LIST_LGA",
+    'Health Facility': "HCM_BENEFICIARY_VISIT_LIST_HEALTHFACILITY",
+    'Community': "HCM_BENEFICIARY_VISIT_LIST_COMMUNITY",
+    'Username': "HCM_BENEFICIARY_VISIT_LIST_USERNAME",
+    'Child Name': "HCM_BENEFICIARY_VISIT_LIST_CHILDNAME",
+    'Age': "HCM_BENEFICIARY_VISIT_LIST_AGE",
+    'Gender': "HCM_BENEFICIARY_VISIT_LIST_GENDER",
+    'Age In Months': "HCM_BENEFICIARY_VISIT_LIST_AGEINMONTHS",
+    'Latitude': "HCM_BENEFICIARY_VISIT_LIST_LATITUDE",
+    'Longitude': "HCM_BENEFICIARY_VISIT_LIST_LONGITUDE",
+    'Location Accuracy': "HCM_BENEFICIARY_VISIT_LIST_LOCATIONACCURACY",
+    'Product Name': "HCM_BENEFICIARY_VISIT_LIST_PRODUCTNAME",
+    'Cycle Index': "HCM_BENEFICIARY_VISIT_LIST_CYCLEINDEX",
+    'Member Count': "HCM_BENEFICIARY_VISIT_LIST_MEMBERCOUNT",
+    'Beneficiary ID (Child)': "HCM_BENEFICIARY_VISIT_LIST_BENEFICIARYIDCHILD",
+    'Household Client Reference ID': "HCM_BENEFICIARY_VISIT_LIST_HOUSEHOLDCLIENTREFERENCEID",
+    'Household Head Name': "HCM_BENEFICIARY_VISIT_LIST_HOUSEHOLDHEADNAME",
+    'Quantity Administered': "HCM_BENEFICIARY_VISIT_LIST_QUANTITYADMINISTERED",
+    'Redose Quantity Administered': "HCM_BENEFICIARY_VISIT_LIST_REDOSEQUANTITYADMINISTERED",
+    'INELIGIBLE': "HCM_BENEFICIARY_VISIT_LIST_INELIGIBLE",
+    'BENEFICIARY_REFERRED': "HCM_BENEFICIARY_VISIT_LIST_BENEFICIARYREFERRED",
+    'BENEFICIARY_REFUSED': "HCM_BENEFICIARY_VISIT_LIST_BENEFICIARYREFUSED",
+    'BENEFICIARY_ABSENT': "HCM_BENEFICIARY_VISIT_LIST_BENEFICIARYABSENT",
+    'BENEFICIARY_DIED': "HCM_BENEFICIARY_VISIT_LIST_BENEFICIARYDIED",
+    'Date of Administration': "HCM_BENEFICIARY_VISIT_LIST_DATEOFADMINISTRATION",
+    'Dispenser': "HCM_BENEFICIARY_VISIT_LIST_DISPENSER",
+}
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -460,8 +494,11 @@ df = pd.DataFrame(list(ind_id_vs_info.values()), columns=[
     "Date of Administration", "Dispenser",
 ])
 
+localize_df_columns(df, LOCALIZATION_CODES)
+
 output_file = f"{FILE_NAME}.xlsx"
 output_path = os.path.join(os.getcwd(), output_file)
 df.to_excel(output_path, index=False)
+style_report_workbook(output_path)
 
 print(f"Report saved to: {output_path} ({len(df)} rows)")

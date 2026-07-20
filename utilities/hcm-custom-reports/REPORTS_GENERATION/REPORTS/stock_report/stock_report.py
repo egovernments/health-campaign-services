@@ -33,6 +33,7 @@ sys.path.append(file_path)
 
 from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from REPORTS_GENERATION.COMMON_UTILS.localization_utils import localize_headers
+from REPORTS_GENERATION.COMMON_UTILS.excel_style import style_report_workbook
 from REPORTS_GENERATION.COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 # ===========================
@@ -189,6 +190,7 @@ def generate_stock_xlsx():
         ])
 
     wb.save(output_path)
+    style_report_workbook(output_path)
     print(f"Report saved to: {output_path}")
 
 # ===========================

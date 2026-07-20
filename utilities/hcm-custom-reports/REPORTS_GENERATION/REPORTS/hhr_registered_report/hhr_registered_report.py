@@ -27,6 +27,7 @@ sys.path.append(file_path)
 
 from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 from COMMON_UTILS.localization_utils import localize_df_columns
+from COMMON_UTILS.excel_style import style_report_workbook
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 
 # Column -> localization code (looked up verbatim; empty-case fallback columns like
@@ -814,4 +815,5 @@ output_path = os.path.join(os.getcwd(), file_name)
 
 localize_df_columns(df_final, LOCALIZATION_CODES)
 df_final.to_excel(output_path, index=False)
+style_report_workbook(output_path)
 print(f"✅ Detailed registration report generated: {output_path} (Rows: {len(df_final)})")

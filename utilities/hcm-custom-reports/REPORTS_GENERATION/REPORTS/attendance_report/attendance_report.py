@@ -33,6 +33,7 @@ sys.path.append(file_path)
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url
 from COMMON_UTILS.localization_utils import localize_df_columns
+from COMMON_UTILS.excel_style import style_report_workbook
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -287,5 +288,6 @@ result = pd.concat(dfs, ignore_index=True)
 
 localize_df_columns(result, LOCALIZATION_CODES)
 result.to_excel(f"{FILE_NAME}.xlsx", index=False)
+style_report_workbook(f"{FILE_NAME}.xlsx")
 
 print("Excel file created successfully.")

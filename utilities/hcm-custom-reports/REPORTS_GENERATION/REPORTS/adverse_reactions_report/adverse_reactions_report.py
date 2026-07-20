@@ -29,6 +29,7 @@ sys.path.append(file_path)
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp, es_index_url
 from COMMON_UTILS.localization_utils import localize_df_columns
+from COMMON_UTILS.excel_style import style_report_workbook
 
 # Column -> localization code (looked up verbatim; falls back to the raw column).
 LOCALIZATION_CODES = {
@@ -179,6 +180,7 @@ def generate_report():
     output_file = f"{FILE_NAME}.xlsx"
     localize_df_columns(df, LOCALIZATION_CODES)
     df.to_excel(output_file, index=False)
+    style_report_workbook(output_file)
     print(f"Excel file created: {output_file}")
 
 
