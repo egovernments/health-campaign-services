@@ -12,8 +12,10 @@ COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src ./src
 
-# Build the native image using Spring Boot's inherited native profile.
-RUN mvn -B -ntp -f /app/pom.xml -Pnative -DskipTests package
+# Build the native image. The native profile enables Spring AOT, but this
+# project still needs the native-image goal invoked explicitly to emit the
+# executable under /app/target/household.
+RUN mvn -B -ntp -f /app/pom.xml -Pnative -DskipTests package native:compile
 
 # Lightweight runtime image
 FROM oraclelinux:9-slim
