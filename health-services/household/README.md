@@ -4,8 +4,10 @@
 
 Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
 
-- **No functional change in this service.** No household API, business logic or database schema changed here between v2.0 and v2.1. The household service jumped `1.2.1` → `1.2.2` purely on library/build housekeeping.
-- **Dependency bumps.** Rebuilt against `health-services-models` `1.0.30-SNAPSHOT` (from 1.0.29) and `health-services-common` `1.1.3-SNAPSHOT` (from 1.1.1). The models bump carries shared-model changes made for other services (e.g. a new `projectId` on the Referral model) — household just picks them up.
+- **Offline-first member writes (new `household.member.relationship.validation` flag, default `false`).** Cross-entity **existence** checks (does the referenced household / individual / relative already exist?) are now *unbundled* on member create/update. With the flag off (the default), a member is **accepted** while its parent household/individual is still propagating on the persister queue, instead of being falsely rejected. Set the flag `true` to enforce synchronous parent-existence. See §7 for the QA/ops implications and the config note under §3.
+- **New always-on structural check `HmRequiredLinkValidator` (`REQUIRED_LINK_MISSING`).** Regardless of the flag, a member create is hard-rejected if it is missing its own `clientReferenceId`, a household link (`householdId` or `householdClientReferenceId`), or an individual link (`individualId` or `individualClientReferenceId`). This enforces link **presence** (not existence), so the offline data chain still ties together.
+- **Bulk batches survive within-batch duplicate ids.** A duplicate `clientReferenceId` inside a single bulk create no longer aborts the whole batch. The first occurrence is kept, each later duplicate is returned as a per-record uniqueness error, and the remaining valid records still persist (previously an `IllegalStateException` dropped the entire bulk batch). Applies to both household and member bulk creates.
+- **Dependency bumps.** Rebuilt against `health-services-models` `1.0.35-SNAPSHOT` (from 1.0.30) and `health-services-common` `1.1.6-SNAPSHOT` (from 1.1.3). The service artifact is bumped to `1.2.3`.
 - **Tracer 2.9.2, now transitive.** The direct `tracer` dependency was removed; tracer (2.9.2, with `DataAccessException` handling via its `ExceptionAdvise`) is now inherited through `health-services-common`. OpenTelemetry BOMs were added to pin versions and OTEL exporters are set to `none` by default.
 - **Faster downsync (change lives in referralmanagement, not here).** v2.1 adds a `household_address_mv` **materialized view** (migration `V20260426140000` in *referralmanagement*) that pre-joins this service's `household` and `address` tables, with indexes on `localitycode`, `clientreferenceid` and `id`. It speeds up the bulk downsync of households to devices. Household writes are unaffected, but the view **reads** household-owned data, so ops should be aware the MV must be refreshed to stay current.
 
@@ -55,6 +57,12 @@ Two entities under context path `/household`: the household itself (`/v1`) and i
 | `save-household-member-topic` | out | Persist new household members |
 | `update-household-member-topic` | out | Persist member updates |
 | `delete-household-member-topic` | out | Persist member soft-deletes |
+
+### Configuration
+
+| Key | Default | Effect |
+|---|---|---|
+| `household.member.relationship.validation` | `false` | When `false`, member create/update **skip** the household / individual / relative **existence** checks, so a member is accepted while its parent is still propagating (offline-first). When `true`, existence is enforced (member is rejected if the referenced parent is not yet found). Structural link presence (`HmRequiredLinkValidator` → `REQUIRED_LINK_MISSING`) and the `INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD` uniqueness check run **regardless** of this flag. |
 
 ## 4. Dependencies
 
@@ -114,6 +122,8 @@ sequenceDiagram
 ## 6. Failure / Retry Handling
 
 - **Async, no batch rollback.** A bulk request returns `202` before persistence. If a record fails in the consumer it is logged and the batch continues; failed records do not roll back the rest — check consumer logs and the record's status.
+- **Within-batch duplicate ids no longer sink the whole batch.** A duplicate `clientReferenceId` inside a single bulk create keeps the first occurrence, returns each later duplicate as a per-record uniqueness error, and still persists the remaining valid records (previously an `IllegalStateException` dropped the entire bulk batch — including unrelated valid records). Applies to both household and member bulk creates.
+- **Missing structural links are hard-rejected.** A member create with no `clientReferenceId`, no household link (`householdId`/`householdClientReferenceId`), or no individual link (`individualId`/`individualClientReferenceId`) is rejected per-record with `REQUIRED_LINK_MISSING` (non-recoverable). This is a presence check and runs regardless of `household.member.relationship.validation`.
 - **Single (non-bulk) calls fail fast.** `/v1/_create` etc. validate synchronously and return a `400`/validation error on the spot.
 - **Idempotency** is via `clientReferenceId` — re-submitting the same one should not create a duplicate row (unique constraints include it).
 - **Optimistic locking** via `rowVersion` protects against concurrent edits on update/delete.
@@ -124,6 +134,7 @@ sequenceDiagram
 ## 7. Known Risks / Limitations
 
 - **Member ↔ Individual link is app-validated, not a DB foreign key.** Pointing a member at a non-existent or wrong individual is caught only by the `individual`-service lookup at write time.
+- **With `household.member.relationship.validation=false` (the default), parent-existence is NOT enforced.** A member can be persisted while its referenced household / individual / relative does not yet exist: `INDIVIDUAL_NOT_FOUND` and relative-existence errors are suppressed, and `householdId` may be left unset during enrichment until the parent is resolved. QA must **not** expect a not-found rejection in this mode; ops should set the flag `true` in environments that require synchronous parent-existence. (The individual/household link **presence** check `REQUIRED_LINK_MISSING` and the `INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD` uniqueness check still apply either way.)
 - **The `household_address_mv` is a snapshot.** Because downsync now reads a materialized view (in referralmanagement) rather than the live tables, households created/updated after the last MV refresh won't appear in a downsync until the view is refreshed — a freshness/ops concern, not a household-write bug.
 - **Async persistence hides write failures.** Bulk writes are accepted (`202`) before they hit Postgres; a stale/missing persister config means data is silently not stored. Verify the deployed persister config matches the build.
 - **`householdType` and relationship type are convention-driven.** They are stored as strings/codes validated at the app layer (and via MDMS/role rules for community households), not constrained by the DB.
@@ -135,8 +146,8 @@ sequenceDiagram
 |---|---|
 | Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
-| Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.30-SNAPSHOT, `tracer` 2.9.2 (transitive) |
-| Doc updated | 2026-06-12 |
+| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT, `tracer` 2.9.3 (transitive) |
+| Doc updated | 2026-07-20 |
 | Maintainers | Health Campaign Services team (CODEOWNERS: `@kavi-egov`, `@sathishp-eGov`) |
 
 ## Pre-commit script

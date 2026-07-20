@@ -67,6 +67,71 @@ backfill that moves campaign resources from the `campaigndetails` JSONB into the
 > - DB error responses are masked (`QUERY_EXECUTION_ERROR`) and PII fields are
 >   encrypted — the `SecurityPolicy` master from Step 3 is a hard dependency.
 
+## Post-v2.1 — Performance & reliability hardening (`master-perf`)
+
+The **`master-perf`** branch layers a performance/reliability effort on top of v2.1. It ships
+**no new Flyway migrations and no new services**; the operator-visible deltas are config flags,
+a few default-behaviour changes, and shared-library/tracer bumps. Deploy the health-services
+set together (shared-lib bump below).
+
+### Shared libraries & tracing
+
+- `health-services-common` → **`1.1.6-SNAPSHOT`** (from `1.1.5`); `health-services-models`
+  stays `1.0.35-SNAPSHOT`. Rebuild/redeploy consumers together.
+- **tracer → `2.9.3-SNAPSHOT`** (from `2.9.2`), inherited transitively via
+  `health-services-common`. It now propagates **`correlationId` + `tenantId` across Kafka**
+  (message headers, with a payload fallback), so async flows keep trace/tenant context. This
+  is a *separate* change from the v2.1 VAPT DB-error-masking work.
+
+### Cross-entity validation "unbundled" — default OFF (behaviour change)
+
+Create/update no longer synchronously reject on a **missing parent** by default (offline-first);
+structural/uniqueness/link checks still run. Toggle per service (read **live**, no restart):
+
+- `household.member.relationship.validation=false`
+- `project.relationship.validation=false`
+- `referralmanagement.relationship.validation=false`
+- `individual.beneficiary.id.validation.enabled=false`
+
+> **Action:** if an environment relies on synchronous parent-existence rejection, set the
+> relevant flag(s) to `true`. With the default (OFF), e.g. `INDIVIDUAL_NOT_FOUND` on member
+> create is suppressed.
+
+### excel-ingestion — new server-side gates + OOM/perf fixes
+
+- `egov.excel.immutable-reject-on-change=true` — editing a server-managed / pre-filled template
+  cell now **fails the upload** instead of silently reverting.
+- `egov.excel.usage-value-validation-enabled=true`, `egov.excel.boundary-selection-validation-enabled=true`
+  — stricter Active/Inactive + boundary-code checks.
+- `egov.excel.join-mode-sheet-protection-enabled=false` — User/Facility join-mode sheets ship unprotected.
+- `excel.ingestion.listener.watchdog.interval.ms=60000` — restarts a stopped/zombie generation listener.
+- Async pool serialized + OOM / generation-time fixes for large (~50k-row) sheets.
+
+### boundary throughput (boundary-management + core boundary-service)
+
+- Relationship creation uses a **dedicated bulk Kafka topic** + batch persist. Tunable via
+  `BULK_RELATIONSHIP_CHUNK_SIZE` (`100`), `BULK_RELATIONSHIP_RETRY_ATTEMPTS` (`30`),
+  `BULK_RELATIONSHIP_RETRY_DELAY_MS` (`2000`), `RELATIONSHIP_CREATE_CONCURRENCY`,
+  `PERSISTENCE_DRAIN_TIMEOUT_MS`.
+  > The bulk relationship topic must **not** be tenant-prefixed on a central instance.
+- boundary-management Node heap raised (`--max-old-space-size` `1024` → `2048`).
+
+### project-factory reliability
+
+- `BOUNDARY_SYNC_RETRY_DELAY_MS=4000` (configurable boundary-sync retry delay).
+- HRMS per-user create fallback is bounded + retried with back-off/throttle; a poll-time
+  reconciler converges adopted-user rows on retry and surfaces upsert errors; the credential
+  sheet shows the existing login username for adopted users. Kafka consumption is at-least-once.
+
+### egov-persister (core-services)
+
+- At-least-once delivery (manual ack); SQLSTATE-based failure classification
+  (benign / transient / permanent); **dead-letter + bounded reprocessor + terminal parking
+  topics** (`egov-persister-deadletter`, `egov-persister-deadletter-processed`); DB-health
+  pause/resume; per-record poison isolation for bulk messages; batch-persist row aggregation.
+  > **Ops:** provision & monitor the two new topics; **parking-topic growth is the
+  > terminal-poison signal** to alert on.
+
 ## Related Documents
 
 - v2.1 release notes (detailed change record: `docs/release-notes-v2.1-source.md`)
