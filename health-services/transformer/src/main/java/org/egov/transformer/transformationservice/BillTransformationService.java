@@ -9,6 +9,7 @@ import org.egov.transformer.models.bill.BillDetail;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.BillDetailIndexV1;
 import org.egov.transformer.models.downstream.BillIndexV1;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
@@ -73,8 +74,10 @@ public class BillTransformationService {
     }
     public BillIndexV1 transformBill(Bill bill, Map<String, Object> wfStatusInfo) {
         String localityCode = bill.getLocalityCode();
+        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(bill.getAuditDetails().getCreatedBy(),bill.getTenantId());
+        String hierarchyType = projectInfo.getHierarchyType();
 
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, bill.getTenantId());
+        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, bill.getTenantId(),hierarchyType);
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
         Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
 
@@ -96,8 +99,10 @@ public class BillTransformationService {
     }
 
     public List<BillDetailIndexV1> transformBillDetails(List<BillDetail> billDetails, Map<String, Object> wfStatusInfo, String localityCode) {
+        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(billDetails.get(0).getAuditDetails().getCreatedBy(),billDetails.get(0).getTenantId());
+        String hierarchyType = projectInfo.getHierarchyType();
 
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, billDetails.get(0).getTenantId());
+        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, billDetails.get(0).getTenantId(),hierarchyType);
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
         Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
 
