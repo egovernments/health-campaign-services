@@ -60,9 +60,12 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
         // dispatch-time status, so a crash-redelivered batch would re-create facilities that
         // the first attempt already created (the facility service mints a fresh id per call).
         // Re-read current DB status and create only rows not already completed; adopt the rest.
+        // Scoped to this campaignNumber — uniqueIdentifier is only unique per campaign, so an
+        // unscoped check would wrongly adopt completed rows from an unrelated campaign that
+        // happens to reuse the same facility codes, permanently stranding this campaign's rows.
         const rowType = facilityData[uniqueIdentifiers[0]]?.type;
         const alreadyCompletedRows = await getCampaignDataRowsWithUniqueIdentifiers(
-            rowType, uniqueIdentifiers, tenantId, dataRowStatuses.completed
+            rowType, uniqueIdentifiers, tenantId, dataRowStatuses.completed, campaignNumber
         );
         const alreadyCompletedIds = new Set(alreadyCompletedRows.map((r: any) => r.uniqueIdentifier));
         const identifiersToCreate = uniqueIdentifiers.filter(id => !alreadyCompletedIds.has(id));

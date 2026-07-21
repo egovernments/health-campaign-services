@@ -89,10 +89,19 @@ describe('handleFacilityBatch idempotency (at-least-once)', () => {
         expect(createdNames).toEqual(['Facility b', 'Facility c']);
     });
 
-    it('re-reads live status by the row type and completed status', async () => {
+    it('re-reads live status scoped to the row type, completed status, and this campaignNumber', async () => {
         mockGetRows.mockResolvedValue([]);
         await handleFacilityBatch(buildMessage(['a', 'b']));
-        expect(mockGetRows).toHaveBeenCalledWith('facility', ['a', 'b'], 'mz', 'completed');
+        expect(mockGetRows).toHaveBeenCalledWith('facility', ['a', 'b'], 'mz', 'completed', 'CMP-1');
+    });
+
+    it('does not adopt a row just because another campaign completed the same uniqueIdentifier', async () => {
+        // getCampaignDataRowsWithUniqueIdentifiers is scoped by campaignNumber (see call above),
+        // so a same-named facility completed under a different campaign is never returned here —
+        // this campaign's row is still created rather than being stranded as "already done".
+        mockGetRows.mockResolvedValue([]);
+        await handleFacilityBatch(buildMessage(['shared-facility-code']));
+        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
     });
 
     it('persists created facilities via the sheet-data topic', async () => {
