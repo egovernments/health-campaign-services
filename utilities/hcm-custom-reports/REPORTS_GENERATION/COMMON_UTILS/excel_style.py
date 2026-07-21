@@ -66,26 +66,24 @@ def _style_sheet(ws):
             for col in wide_cols:
                 ws.cell(row=row, column=col).alignment = wrap_align
 
-    # Freeze the header and enable filtering.
+    # Freeze the header row on scroll. (No auto-filter: sort is blocked on the locked
+    # sheet, and the dropdown's sort options would just mislead.)
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = ws.dimensions
 
-    # Protect the sheet: cells become read-only (can't be edited), but keep it
-    # usable for viewers - selecting, sorting, filtering and column/row resizing
-    # stay allowed. Optional password (REPORT_SHEET_PASSWORD) makes unprotecting
-    # deliberate; without it the sheet is still read-only by default in Excel.
+    # Protect the sheet so cell *content* is read-only (cells stay locked=True), while
+    # still allowing formatting (appearance, column width, row height), selecting and
+    # filtering. True=blocked, False=allowed in OOXML.
+    #   - content editing: BLOCKED (locked cells) — the requirement.
+    #   - format cells/columns/rows, select, filter: ALLOWED.
+    #   - sort: inherently blocked — a sort rewrites locked cell values, so it can't be
+    #     allowed without unlocking (which would make content editable). Not a flag we
+    #     can flip; it's a consequence of read-only content.
     ws.protection.sheet = True
     password = os.getenv("REPORT_SHEET_PASSWORD")
     if password:
         ws.protection.password = password
-    # Allow every view/format convenience (True=blocked, False=allowed in OOXML). Only
-    # editing cell *content* (locked cells) and inserting/deleting rows/columns stay
-    # blocked, so the data can't be tampered with but the sheet is fully usable. These
-    # take effect with or without a password (password only gates unprotecting).
     ws.protection.selectLockedCells = False
     ws.protection.selectUnlockedCells = False
-    ws.protection.sort = False
-    ws.protection.autoFilter = False
     ws.protection.formatCells = False
     ws.protection.formatColumns = False
     ws.protection.formatRows = False
