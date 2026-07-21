@@ -20,6 +20,7 @@ Environment variables:
 import json
 import logging
 import os
+import re
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -102,7 +103,7 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
 
 # Resolve unqualified table names against the same schema migrate.py writes to.
-# Mirrors migrate.py's DB_SCHEMAS convention (first schema in the list, default public),
+# Mirrors migrate.py's DB_SCHEMAS convention (first schema in the list, default health),
 # so a single DB_SCHEMAS=health makes both the migration and these reads use health.
 DB_SCHEMA = (os.getenv("DB_SCHEMAS", "").split(",")[0].strip() or "health")
 
@@ -111,6 +112,28 @@ DB_SCHEMA = (os.getenv("DB_SCHEMAS", "").split(",")[0].strip() or "health")
 # same pattern as EGOV_MDMS_HOST. No auth token needed: getChartV2 only requires
 # headers.tenantId, not a valid user session, when called service-to-service.
 DASHBOARD_ANALYTICS_HOST = os.getenv("EGOV_DASHBOARD_ANALYTICS_HOST", "").rstrip("/")
+
+# In central-instance mode the tenantId is used as a schema *identifier* in the table
+# name. Identifiers can't be bound parameters, so a request-supplied tenantId interpolated
+# into SQL is an injection vector. Mirror services-common MultiStateInstanceUtil: each
+# dot-separated segment must be a valid Postgres identifier (start with a letter/underscore,
+# then alphanumeric/underscore, <=63 chars) - no quotes, spaces, semicolons, hyphens or
+# comment markers can pass.
+_TENANT_SEGMENT = r"[A-Za-z_][A-Za-z0-9_]{0,62}"
+_SAFE_TENANT_RE = re.compile(rf"^{_TENANT_SEGMENT}(\.{_TENANT_SEGMENT})*$")
+
+
+def _reports_metadata_table(tenant_id: str) -> str:
+    """Resolve the REPORTS_METADATA table name, guarding the schema identifier.
+
+    Non-central: plain REPORTS_METADATA (search_path=DB_SCHEMA). Central: schema-qualified
+    with the tenantId, which is validated against a strict allowlist first so it can be
+    safely interpolated (identifiers cannot be passed as bound parameters)."""
+    if not IS_CENTRAL_INSTANCE_ENABLED:
+        return "REPORTS_METADATA"
+    if not tenant_id or not _SAFE_TENANT_RE.match(tenant_id):
+        raise HTTPException(status_code=400, detail=f"Invalid tenantId: {tenant_id!r}")
+    return f"{tenant_id}.REPORTS_METADATA"
 
 
 def _get_db_conn():
@@ -478,7 +501,7 @@ def _fetch_expected_generation_time_seconds(
         )
         return None
 
-    table = f"{tenant_id}.REPORTS_METADATA" if IS_CENTRAL_INSTANCE_ENABLED else "REPORTS_METADATA"
+    table = _reports_metadata_table(tenant_id)
     try:
         conn = _get_db_conn()
         cur = conn.cursor()
@@ -570,7 +593,7 @@ async def _insert_triggered_on_ui_rows(conf: dict, dag_id: str, dag_run_id: str,
                     campaign_identifier, dag_run_id,
                 )
 
-        table = f"{tenant_id}.REPORTS_METADATA" if IS_CENTRAL_INSTANCE_ENABLED else "REPORTS_METADATA"
+        table = _reports_metadata_table(tenant_id)
         try:
             conn = _get_db_conn()
             cur = conn.cursor()
@@ -778,10 +801,7 @@ async def search_reports_metadata(req: ReportsMetadataRequest):
     )
     tenant_id = req.tenantId
 
-    if IS_CENTRAL_INSTANCE_ENABLED:
-        table = f"{tenant_id}.REPORTS_METADATA"
-    else:
-        table = "REPORTS_METADATA"
+    table = _reports_metadata_table(tenant_id)
 
     # REPORTS_METADATA is now append-only (one row per status event, not just terminal
     # outcomes) - filtering to REPORT_COMPLETED reproduces the original "one row per
@@ -843,10 +863,7 @@ async def search_report_status(req: ReportStatusRequest):
     )
     tenant_id = req.tenantId
 
-    if IS_CENTRAL_INSTANCE_ENABLED:
-        table = f"{tenant_id}.REPORTS_METADATA"
-    else:
-        table = "REPORTS_METADATA"
+    table = _reports_metadata_table(tenant_id)
 
     filters = ["tenantId = %s"]
     params: list[str] = [tenant_id]
@@ -916,10 +933,7 @@ async def reports_in_progress(req: ReportsInProgressRequest):
     )
     tenant_id = req.tenantId
 
-    if IS_CENTRAL_INSTANCE_ENABLED:
-        table = f"{tenant_id}.REPORTS_METADATA"
-    else:
-        table = "REPORTS_METADATA"
+    table = _reports_metadata_table(tenant_id)
 
     filters = ["tenantId = %s"]
     params: list[str] = [tenant_id]
@@ -998,10 +1012,7 @@ async def check_existing_custom_report(req: CheckExistingCustomReportRequest):
     )
     tenant_id = req.tenantId
 
-    if IS_CENTRAL_INSTANCE_ENABLED:
-        table = f"{tenant_id}.REPORTS_METADATA"
-    else:
-        table = "REPORTS_METADATA"
+    table = _reports_metadata_table(tenant_id)
 
     report_range = _compute_custom_report_range(req.customStartDate, req.customEndDate)
     logger.debug("check_existing_custom_report computed reportRange=%s", report_range)
