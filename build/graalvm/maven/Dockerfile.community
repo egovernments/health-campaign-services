@@ -17,6 +17,10 @@ COPY ${WORK_DIR}/src ./src
 # executable under /app/target/household.
 RUN mvn -B -ntp -f /app/pom.xml -Pnative -DskipTests package native:compile
 
+# Resolve the module artifactId so the runtime stage can copy the right binary.
+RUN ARTIFACT_ID=$(sed -n 's:.*<artifactId>\\(.*\\)</artifactId>.*:\\1:p' /app/pom.xml | head -n 1) && \
+    cp "/app/target/${ARTIFACT_ID}" /app/target/application
+
 # Lightweight runtime image
 FROM oraclelinux:9-slim
 
@@ -27,7 +31,7 @@ RUN microdnf install -y glibc zlib && \
     microdnf clean all
 
 # Copy the native executable
-COPY --from=build /app/target/household /opt/egov/household
+COPY --from=build /app/target/application /opt/egov/application
 
 # Create non-root user
 RUN useradd -r -s /bin/false egov && \
@@ -37,10 +41,10 @@ USER egov
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD ["/opt/egov/household", "--health"] || exit 1
+  CMD ["/opt/egov/application", "--health"] || exit 1
 
 # Expose application port
 EXPOSE 8080
 
 # Run the native image
-ENTRYPOINT ["/opt/egov/household"]
+ENTRYPOINT ["/opt/egov/application"]
