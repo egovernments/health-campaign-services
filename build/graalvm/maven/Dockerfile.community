@@ -17,9 +17,9 @@ COPY ${WORK_DIR}/src ./src
 # executable under /app/target/household.
 RUN mvn -B -ntp -f /app/pom.xml -Pnative -DskipTests package native:compile
 
-# Resolve the module artifactId so the runtime stage can copy the right binary.
-RUN ARTIFACT_ID=$(sed -n 's:.*<artifactId>\\(.*\\)</artifactId>.*:\\1:p' /app/pom.xml | head -n 1) && \
-    cp "/app/target/${ARTIFACT_ID}" /app/target/application
+# Resolve the native executable name from the module directory.
+RUN APP_NAME=$(basename "${WORK_DIR}") && \
+    cp "/app/target/${APP_NAME}" /app/target/application
 
 # Lightweight runtime image
 FROM oraclelinux:9-slim
