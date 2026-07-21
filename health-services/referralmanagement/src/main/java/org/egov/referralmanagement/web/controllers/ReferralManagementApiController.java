@@ -32,8 +32,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @RequestMapping("")
 @Validated
 public class ReferralManagementApiController {
-    private final HttpServletRequest httpServletRequest;
-
     private final ReferralManagementService referralManagementService;
 
     private final Producer producer;
@@ -41,12 +39,10 @@ public class ReferralManagementApiController {
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
     public ReferralManagementApiController(
-            HttpServletRequest httpServletRequest, 
             ReferralManagementService referralManagementService, 
             Producer producer,
             ReferralManagementConfiguration referralManagementConfiguration
     ) {
-        this.httpServletRequest = httpServletRequest;
         this.referralManagementService = referralManagementService;
         this.producer = producer;
         this.referralManagementConfiguration = referralManagementConfiguration;
@@ -77,7 +73,8 @@ public class ReferralManagementApiController {
      * @return
      */
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> referralBulkV1CreatePost(@ApiParam(value = "Capture details of Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
+    public ResponseEntity<ResponseInfo> referralBulkV1CreatePost(@ApiParam(value = "Capture details of Referral", required = true) @Valid @RequestBody ReferralBulkRequest request,
+                                                                 HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         referralManagementService.putInCache(request.getReferrals());
         producer.push(referralManagementConfiguration.getCreateReferralBulkTopic(), request);
@@ -139,7 +136,8 @@ public class ReferralManagementApiController {
      * @return
      */
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> referralV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
+    public ResponseEntity<ResponseInfo> referralV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralBulkRequest request,
+                                                                 HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(referralManagementConfiguration.getUpdateReferralBulkTopic(), request);
 
@@ -162,7 +160,8 @@ public class ReferralManagementApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> referralV1BulkDeletePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
+    public ResponseEntity<ResponseInfo> referralV1BulkDeletePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralBulkRequest request,
+                                                                 HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(referralManagementConfiguration.getDeleteReferralBulkTopic(), request);
 

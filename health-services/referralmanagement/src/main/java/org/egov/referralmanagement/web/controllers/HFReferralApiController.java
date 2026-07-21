@@ -35,7 +35,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @RequestMapping("/hf-referral")
 @Validated
 public class HFReferralApiController {
-    private final HttpServletRequest httpServletRequest;
     private final HFReferralService hfReferralService;
     private final Producer producer;
     private final ReferralManagementConfiguration referralManagementConfiguration;
@@ -49,12 +48,10 @@ public class HFReferralApiController {
      * @param referralManagementConfiguration The configuration for referral management.
      */
     public HFReferralApiController(
-            HttpServletRequest httpServletRequest,
             HFReferralService hfReferralService,
             Producer producer,
             ReferralManagementConfiguration referralManagementConfiguration
     ) {
-        this.httpServletRequest = httpServletRequest;
         this.hfReferralService = hfReferralService;
         this.producer = producer;
         this.referralManagementConfiguration = referralManagementConfiguration;
@@ -86,7 +83,8 @@ public class HFReferralApiController {
      * @return ResponseEntity containing ResponseInfo.
      */
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> referralBulkV1CreatePost(@ApiParam(value = "Capture details of HFReferral", required = true) @Valid @RequestBody HFReferralBulkRequest request) {
+    public ResponseEntity<ResponseInfo> referralBulkV1CreatePost(@ApiParam(value = "Capture details of HFReferral", required = true) @Valid @RequestBody HFReferralBulkRequest request,
+                                                                 HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         hfReferralService.putInCache(request.getHfReferrals());
         producer.push(referralManagementConfiguration.getCreateHFReferralBulkTopic(), request);
@@ -150,7 +148,8 @@ public class HFReferralApiController {
      * @return ResponseEntity containing ResponseInfo.
      */
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> referralV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing HFReferral", required = true) @Valid @RequestBody HFReferralBulkRequest request) {
+    public ResponseEntity<ResponseInfo> referralV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing HFReferral", required = true) @Valid @RequestBody HFReferralBulkRequest request,
+                                                                 HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(referralManagementConfiguration.getUpdateHFReferralBulkTopic(), request);
 
@@ -184,7 +183,8 @@ public class HFReferralApiController {
      * @return ResponseEntity containing ResponseInfo.
      */
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> referralV1BulkDeletePost(@ApiParam(value = "Capture details of Existing HFReferral", required = true) @Valid @RequestBody HFReferralBulkRequest request) {
+    public ResponseEntity<ResponseInfo> referralV1BulkDeletePost(@ApiParam(value = "Capture details of Existing HFReferral", required = true) @Valid @RequestBody HFReferralBulkRequest request,
+                                                                 HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(referralManagementConfiguration.getDeleteHFReferralBulkTopic(), request);
 

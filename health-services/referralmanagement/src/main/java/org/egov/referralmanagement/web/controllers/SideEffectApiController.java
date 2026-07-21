@@ -29,9 +29,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @RequestMapping("/side-effect")
 @Validated
 public class SideEffectApiController {
-
-    private final HttpServletRequest httpServletRequest;
-
     private final SideEffectService sideEffectService;
 
     private final Producer producer;
@@ -39,12 +36,10 @@ public class SideEffectApiController {
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
     public SideEffectApiController(
-            HttpServletRequest httpServletRequest,
             SideEffectService sideEffectService,
             Producer producer,
             ReferralManagementConfiguration referralManagementConfiguration
     ) {
-        this.httpServletRequest = httpServletRequest;
         this.sideEffectService = sideEffectService;
         this.producer = producer;
         this.referralManagementConfiguration = referralManagementConfiguration;
@@ -66,7 +61,8 @@ public class SideEffectApiController {
 
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> sideEffectBulkV1CreatePost(@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody SideEffectBulkRequest request) {
+    public ResponseEntity<ResponseInfo> sideEffectBulkV1CreatePost(@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody SideEffectBulkRequest request,
+                                                                   HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         sideEffectService.putInCache(request.getSideEffects());
         producer.push(referralManagementConfiguration.getCreateSideEffectBulkTopic(), request);
@@ -111,7 +107,8 @@ public class SideEffectApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> sideEffectV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing side effect", required = true) @Valid @RequestBody SideEffectBulkRequest request) {
+    public ResponseEntity<ResponseInfo> sideEffectV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing side effect", required = true) @Valid @RequestBody SideEffectBulkRequest request,
+                                                                   HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(referralManagementConfiguration.getUpdateSideEffectBulkTopic(), request);
 
@@ -134,7 +131,8 @@ public class SideEffectApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> sideEffectV1BulkDeletePost(@ApiParam(value = "Capture details of Existing side effect", required = true) @Valid @RequestBody SideEffectBulkRequest request) {
+    public ResponseEntity<ResponseInfo> sideEffectV1BulkDeletePost(@ApiParam(value = "Capture details of Existing side effect", required = true) @Valid @RequestBody SideEffectBulkRequest request,
+                                                                   HttpServletRequest httpServletRequest) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(referralManagementConfiguration.getDeleteSideEffectBulkTopic(), request);
 
