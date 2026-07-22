@@ -75,7 +75,6 @@ public class ServiceTaskTransformationService {
         Map<String, String> boundaryHierarchy;
         Map<String, String> boundaryHierarchyCode;
         Project project = projectService.getProject(projectId, tenantId);
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
         String projectType = project.getProjectType();
         String projectTypeId = project.getProjectTypeId();
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
@@ -83,7 +82,7 @@ public class ServiceTaskTransformationService {
         String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(serviceAdditionalFields, serviceAdditionalDetails);
         List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalFields(serviceAdditionalFields, serviceAdditionalDetails);
         if (localityCode != null) {
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarchyType);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
@@ -130,7 +129,7 @@ public class ServiceTaskTransformationService {
                 .additionalDetails(additionalDetails)
                 .geoPoint(geoPoint)
                 .build();
-        serviceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName(),hierarchyType);
+        serviceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
         serviceIndexV1.setCampaignNumber(project.getReferenceID());
         serviceIndexV1.setCampaignId(campaignId);
         return serviceIndexV1;
