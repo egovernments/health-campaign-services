@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.project.AdditionalFields;
+
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +22,8 @@ public class ProjectStaffIndexV1 extends ProjectInfo {
     private String id;
     @JsonProperty("userId")
     private String userId;
+    @JsonProperty("additionalFields")
+    private AdditionalFields additionalFields;
     @JsonProperty("userName")
     private String userName;
     @JsonProperty("nameOfUser")

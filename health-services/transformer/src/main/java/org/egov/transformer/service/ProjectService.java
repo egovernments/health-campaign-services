@@ -28,6 +28,7 @@ import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Component;
 import org.egov.transformer.models.boundary.*;
 import org.springframework.util.CollectionUtils;
+import org.egov.transformer.utils.CommonUtils;
 
 import java.io.IOException;
 import java.util.*;
@@ -48,6 +49,7 @@ public class ProjectService {
     private final MdmsService mdmsService;
 
     private final TransformerErrorProducer errorProducer;
+    private final CommonUtils commonUtils;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
     private static List<JsonNode> cachedProjectTypes = new ArrayList<>();
@@ -55,12 +57,13 @@ public class ProjectService {
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer) {
+                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer,,CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.mdmsService = mdmsService;
         this.errorProducer = errorProducer;
+        this.commonUtils = commonUtils;
     }
 
     public Project getProject(String projectId, String tenantId) {
@@ -84,11 +87,12 @@ public class ProjectService {
     public Map<String, String> getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
-        return getBoundaryCodeToNameMap(locationCode, tenantId);
+        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
+        return getBoundaryCodeToNameMap(locationCode, tenantId,hierarchyType);
     }
 
 
-    public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
+    public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId,String hierarchyType) {
         List<EnrichedBoundary> boundaries = new ArrayList<>();
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
@@ -98,7 +102,7 @@ public class ProjectService {
         StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
                 + "?includeParents=true&includeChildren=false&tenantId=" + tenantId
-                + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
+                + "&hierarchyType=" + hierarchyType
 //                + "&boundaryType=" + transformerProperties.getBoundaryType()
                 + "&codes=" + locationCode);
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
@@ -545,11 +549,11 @@ public class ProjectService {
         }
     }
 
-    public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
+    public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId,String hierarchyType) {
         if (localityCode == null) {
             return null;
         }
-        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMap(localityCode, tenantId);
+        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMap(localityCode, tenantId,hierarchyType);
         Map<String, String> boundaryHierarchy = new HashMap<>();
 
         boundaryLabelToNameMap.forEach((label, value) -> {
