@@ -9,6 +9,7 @@ import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.boundary.*;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Component;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.util.CollectionUtils;
@@ -31,16 +32,18 @@ public class BoundaryService {
     private final ServiceRequestClient serviceRequestClient;
     private final MdmsService mdmsService;
     private final ProjectService projectService;
+    private final TransformerErrorProducer errorProducer;
     private final CommonUtils commonUtils;
     private static Map<String, String> boundaryCodeVsLocalizedName = new ConcurrentHashMap<>();
 
     private static List<EnrichedBoundary> cachedEnrichedBoundaries = null;
 
-    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService, CommonUtils commonUtils) {
+    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService, TransformerErrorProducer errorProducer,CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.mdmsService = mdmsService;
         this.projectService = projectService;
+        this.errorProducer = errorProducer;
         this.commonUtils = commonUtils;
     }
 
@@ -181,7 +184,9 @@ public class BoundaryService {
 
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
-            // Throw a custom exception if an error occurs during boundary search
+            // Do not emit an error record here: the exception propagates to the consumer,
+            // which pushes a single error record with the correct source topic and the
+            // original payload. Emitting here would produce a duplicate record with topic=null.
             throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }
 
@@ -240,6 +245,7 @@ public class BoundaryService {
             messages = JsonPath.read(result, Constants.LOCALIZATION_MSGS_JSONPATH);
         } catch (Exception e) {
             log.error("Exception while fetching from localization: {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(requestInfoWrapper, null, e);
         }
         return CollectionUtils.isEmpty(messages) ? null : messages.get(0);
     }

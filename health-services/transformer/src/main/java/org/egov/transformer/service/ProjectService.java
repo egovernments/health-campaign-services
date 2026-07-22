@@ -24,6 +24,7 @@ import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Component;
 import org.egov.transformer.models.boundary.*;
 import org.springframework.util.CollectionUtils;
@@ -47,6 +48,7 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
+    private final TransformerErrorProducer errorProducer;
     private final CommonUtils commonUtils;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
@@ -55,11 +57,12 @@ public class ProjectService {
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, MdmsService mdmsService,CommonUtils commonUtils) {
+                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer,,CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.mdmsService = mdmsService;
+        this.errorProducer = errorProducer;
         this.commonUtils = commonUtils;
     }
 
@@ -122,7 +125,9 @@ public class ProjectService {
 
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
-            // Throw a custom exception if an error occurs during boundary search
+            // Do not emit an error record here: the exception propagates to the consumer,
+            // which pushes a single error record with the correct source topic and the
+            // original payload. Emitting here would produce a duplicate record with topic=null.
             throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }
 
@@ -202,6 +207,9 @@ public class ProjectService {
         try {
             log.info(objectMapper.writeValueAsString(request));
         } catch (JsonProcessingException e) {
+            log.error("error while serializing project request for name: {}, Exception: {}", projectName, ExceptionUtils.getStackTrace(e));
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new RuntimeException(e);
         }
         ProjectResponse response;
@@ -217,6 +225,8 @@ public class ProjectService {
                     ProjectResponse.class);
         } catch (Exception e) {
             log.error("error while fetching project list {}", ExceptionUtils.getStackTrace(e));
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for name: " + projectName);
         }
@@ -247,6 +257,7 @@ public class ProjectService {
                     ProjectResponse.class);
         } catch (Exception e) {
             log.error("error while fetching project list for ID {}, Exception: {}", projectId, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
             return null;
         }
         return response.getProject();
@@ -275,6 +286,7 @@ public class ProjectService {
                     BeneficiaryBulkResponse.class);
         } catch (Exception e) {
             log.error("error while fetching beneficiary for id: {}, Exception: {}", projectBeneficiaryClientRefId, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
             return Collections.emptyList();
         }
         return response.getProjectBeneficiaries();
@@ -319,6 +331,7 @@ public class ProjectService {
             }
         } catch (Exception exception) {
             log.error("error while fetching projectBeneficiaryType from MDMS for projectTypeId: {}. ExceptionDetails {}", projectTypeId, ExceptionUtils.getStackTrace(exception));
+            errorProducer.sendToErrorTopic(projectTypeId, null, exception);
         }
         return null;
     }
@@ -358,6 +371,9 @@ public class ProjectService {
         try {
             return mdmsService.fetchConfig(serviceRegistry, JsonNode.class).get(MDMS_RESPONSE);
         } catch (Exception e) {
+            log.error("Error while fetching mdms config for module: {}, name: {}, Exception: {}", moduleName, name, ExceptionUtils.getStackTrace(e));
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching mdms config");
         }
     }
@@ -374,6 +390,9 @@ public class ProjectService {
             JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
             return requiredProjectType.get(Constants.BOUNDARY_DATA);
         } catch (IOException e) {
+            log.error("Error while fetching boundary data for projectTypeId: {}, Exception: {}", projectTypeId, ExceptionUtils.getStackTrace(e));
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new RuntimeException(e);
         }
 
@@ -396,6 +415,9 @@ public class ProjectService {
             }
             return null;
         } catch (IOException e) {
+            log.error("Error while fetching boundary data for tenantId: {}, Exception: {}", tenantId, ExceptionUtils.getStackTrace(e));
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
             throw new RuntimeException(e);
         }
 
@@ -464,7 +486,8 @@ public class ProjectService {
             result.set(CYCLE_INDEX, cycleIndex);
             return result;
         } catch (Exception e) {
-            log.info("Error while extracting cycle and dose indexes from projectType: {}", ExceptionUtils.getStackTrace(e));
+            log.error("Error while extracting cycle and dose indexes from projectType: {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(projectType, null, e);
             return null;
         }
     }
@@ -521,6 +544,7 @@ public class ProjectService {
             return !response.getProjectStaff().isEmpty() ? response.getProjectStaff() : null;
         } catch (Exception e) {
             log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
             return null;
         }
     }

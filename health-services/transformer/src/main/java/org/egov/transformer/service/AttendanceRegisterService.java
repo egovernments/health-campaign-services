@@ -10,6 +10,7 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.attendance.AttendanceRegister;
 import org.egov.transformer.models.attendance.AttendanceRegisterRequest;
 import org.egov.transformer.models.attendance.AttendanceRegisterResponse;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -29,16 +30,19 @@ public class AttendanceRegisterService {
 
     private final IndividualService individualService;
 
+    private final TransformerErrorProducer errorProducer;
+
 
     private static Map<String, AttendanceRegister> attendanceRegisterMapCache = new ConcurrentHashMap<>();
 
     private static Map<String, String> attendeesIdUserIdCache = new ConcurrentHashMap<>();
 
-    public AttendanceRegisterService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, UserService userService, IndividualService individualService) {
+    public AttendanceRegisterService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, UserService userService, IndividualService individualService, TransformerErrorProducer errorProducer) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
         this.userService = userService;
         this.individualService = individualService;
+        this.errorProducer = errorProducer;
     }
 
 
@@ -70,6 +74,13 @@ public class AttendanceRegisterService {
                 log.info("ATTENDANCE_REGISTER with registerId {} FETCHED_FROM_CACHE.", registerId);
             } else {
                 log.warn("UNABLE_TO_FETCH_ATTENDANCE_REGISTER with registerId {} from both source and cache.", registerId);
+                // NOTE: unlike BoundaryService/ProjectService (which re-throw so the consumer records
+                // the error once), this method deliberately SWALLOWS the exception and returns null/cached
+                // so transformation continues. Because it does not propagate, the consumer never sees it,
+                // so this is the only place the failure can be recorded -> we emit here on purpose.
+                // Do not remove this to "match" the rethrow sites. topic is null on purpose and resolved
+                // from the thread-local source topic set by the consumer.
+                errorProducer.sendToErrorTopic(registerId, null, e);
             }
             return attendanceRegister;
         }

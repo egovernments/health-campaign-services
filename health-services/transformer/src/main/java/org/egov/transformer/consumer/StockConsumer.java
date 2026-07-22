@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.Stock;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.StockTransformationService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,9 +24,14 @@ public class StockConsumer {
 
     private final StockTransformationService stockTransformationService;
 
-    public StockConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, StockTransformationService stockTransformationService) {
+    private final TransformerErrorProducer errorQueueProducer;
+
+    public StockConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                         StockTransformationService stockTransformationService,
+                         TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.stockTransformationService = stockTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.bulk.create.stock.topic}",
@@ -33,12 +39,15 @@ public class StockConsumer {
     public void consumeStock(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<Stock> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Stock[].class));
             stockTransformationService.transform(payloadList, topic);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in stockConsumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }
