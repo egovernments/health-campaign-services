@@ -23,14 +23,11 @@ public class ProjectInfo {
     protected String campaignNumber;
     @JsonProperty("campaignId")
     protected String campaignId;
-    @JsonProperty("hierarchyType")
-    protected String hierarchyType;
 
-    public void setProjectInfo(String projectId, String projectType, String projectTypeId, String projectName, String hierarchyType) {
+    public void setProjectInfo(String projectId, String projectType, String projectTypeId, String projectName) {
         this.projectId = projectId;
         this.projectType = projectType;
         this.projectTypeId = projectTypeId;
         this.projectName = projectName;
-        this.hierarchyType = hierarchyType;
     }
 }

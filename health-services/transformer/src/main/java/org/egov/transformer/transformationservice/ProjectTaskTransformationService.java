@@ -86,11 +86,9 @@ public class ProjectTaskTransformationService {
         Map<String, String> boundaryHierarchyCode;
         String tenantId = task.getTenantId();
         String localityCode;
-        Project project = projectService.getProject(task.getProjectId(), tenantId);
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
         if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             localityCode = task.getAddress().getLocality().getCode();
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId(),hierarchyType);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
@@ -99,6 +97,7 @@ public class ProjectTaskTransformationService {
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
+        Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();
 
         AdditionalFields taskAdditionalFields = task.getAdditionalFields();
@@ -199,7 +198,7 @@ public class ProjectTaskTransformationService {
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .build();
-        projectTaskIndexV1.setProjectInfo(task.getId(), project.getProjectType(), projectTypeId, project.getName(), commonUtils.getHierarchyTypeFromProject(project));
+        projectTaskIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName());
         projectTaskIndexV1.setCampaignNumber(project.getReferenceID());
         projectTaskIndexV1.setCampaignId(campaignId);
 

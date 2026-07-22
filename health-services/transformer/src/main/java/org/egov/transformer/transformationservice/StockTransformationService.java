@@ -92,14 +92,13 @@ public class StockTransformationService {
         String tenantId = stock.getTenantId();
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
         String projectTypeId = project.getProjectTypeId();
 
         if (!STAFF.equalsIgnoreCase(facilityType)) {
             Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
             if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                     && facility.getAddress().getLocality().getCode() != null) {
-                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId,hierarchyType);
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             } else if (ReferenceIdType.PROJECT.equals(stock.getReferenceIdType())) {
@@ -191,7 +190,7 @@ public class StockTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)
                 .build();
-        stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName(),hierarchyType);
+        stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
         stockIndexV1.setCampaignNumber(project.getReferenceID());
         stockIndexV1.setCampaignId(campaignId);
         return stockIndexV1;
@@ -209,14 +208,13 @@ public class StockTransformationService {
         String tenantId = stock.getTenantId();
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
         String projectTypeId = project.getProjectTypeId();
 
         if (!STAFF.equalsIgnoreCase(facilityType)) {
             Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
             if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                     && facility.getAddress().getLocality().getCode() != null) {
-                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId,hierarchyType);
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             } else if (ReferenceIdType.PROJECT.equals(stock.getReferenceIdType())) {
@@ -309,7 +307,7 @@ public class StockTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)
                 .build();
-        stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName(),hierarchyType);
+        stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
         stockIndexV1.setCampaignNumber(project.getReferenceID());
         stockIndexV1.setCampaignId(campaignId);
         return stockIndexV1;
