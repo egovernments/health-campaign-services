@@ -73,7 +73,7 @@ public class DeviceTokenTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(deviceToken.getAuditDetails().getLastModifiedTime()))
                 .build();
         deviceTokenIndexV1.setProjectInfo(projectInfo.getProjectId(), projectInfo.getProjectType(),
-                projectInfo.getProjectTypeId(), projectInfo.getProjectName());
+                projectInfo.getProjectTypeId(), projectInfo.getProjectName(), projectInfo.getHierarchyType());
         deviceTokenIndexV1.setCampaignNumber(projectInfo.getCampaignNumber());
         deviceTokenIndexV1.setCampaignId(projectInfo.getCampaignId());
 

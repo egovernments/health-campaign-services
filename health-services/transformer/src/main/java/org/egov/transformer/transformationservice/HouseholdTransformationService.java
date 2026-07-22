@@ -11,6 +11,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.devicetoken.DeviceToken;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
@@ -72,7 +73,9 @@ public class HouseholdTransformationService {
                 && household.getAddress().getLocality() != null
                 && household.getAddress().getLocality().getCode() != null) {
             localityCode = household.getAddress().getLocality().getCode();
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
+            ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(household.getAuditDetails().getCreatedBy(), household.getTenantId());
+            String hierarchyType = projectInfo.getHierarchyType();
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId(), hierarchyType);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
