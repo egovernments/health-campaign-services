@@ -11,6 +11,7 @@ import {
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
+import { startOrphanReconciler } from "./utils/reconcileOrphanResources";
 import { Server } from "http";
 
 class App {
@@ -106,6 +107,10 @@ class App {
     server.setTimeout(480000); // 480 seconds
     server.keepAliveTimeout = 90000; // 90 seconds
     server.headersTimeout = 120000; // 120 seconds
+
+    // Start the heartbeat-backed orphan reconciler: marks create runs abandoned by a pod restart
+    // (stuck at data-accepted with no heartbeat) as 'failed' so the UI stops polling forever.
+    startOrphanReconciler();
   }
   
 }

@@ -2,6 +2,7 @@ import { getExcelWorkbookFromFileURL,getNewExcelWorkbook ,addDataToSheet} from "
 import config from "../config";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
+import { startResourceHeartbeat, stopResourceHeartbeat } from "./reconcileOrphanResources";
 import { throwError,getLocalizedHeaders,createHeaderToHierarchyMap,
   modifyBoundaryDataHeadersWithMap,modifyBoundaryData,boundaryKeyOf,extractFrenchOrPortugeseLocalizationMap,replicateRequest,callGenerate , checkForMixedBoundaryFlowInArrays}
  from "../utils/genericUtils";
@@ -160,6 +161,10 @@ export const getBoundaryColumnName = () => {
 };
 
 async function boundaryBulkUpload(request: any, localizationMap?: any) {
+  // Liveness heartbeat for the duration of this detached create so the reconciler can tell a live
+  // run (fresh ticks) from a pod-restart-abandoned one (ticks stopped). Metadata only — does not
+  // alter any create behaviour. Stopped in finally so it never outlives the run.
+  const heartbeat = startResourceHeartbeat(request);
   try {
     logger.info("Boundary Relationship Creation Starts");
     await autoGenerateBoundaryCodes(request, localizationMap);
@@ -167,6 +172,8 @@ async function boundaryBulkUpload(request: any, localizationMap?: any) {
   } catch (error: any) {
     console.log(error);
     await handleResouceDetailsError(request, error);
+  } finally {
+    stopResourceHeartbeat(heartbeat);
   }
 }
 
