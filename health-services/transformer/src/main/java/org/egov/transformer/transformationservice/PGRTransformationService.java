@@ -66,6 +66,8 @@ public class PGRTransformationService {
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
         String tenantId = service.getTenantId();
+        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(service.getAuditDetails().getCreatedBy(),service.getTenantId());
+        String hierarchyType = projectInfo.getHierarchyType();
         String localityCode = null;
         Optional<String> localityCodeOptional = Optional.ofNullable(service)
                 .map(Service::getAddress)
@@ -73,7 +75,7 @@ public class PGRTransformationService {
                 .map(Boundary::getCode);
         if (localityCodeOptional.isPresent()) {
             localityCode = localityCodeOptional.get();
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarchyType);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
