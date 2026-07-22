@@ -14,6 +14,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.springframework.util.CollectionUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.tracer.model.CustomException;
+import org.egov.transformer.utils.CommonUtils;
 
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,23 +31,25 @@ public class BoundaryService {
     private final ServiceRequestClient serviceRequestClient;
     private final MdmsService mdmsService;
     private final ProjectService projectService;
+    private final CommonUtils commonUtils;
     private static Map<String, String> boundaryCodeVsLocalizedName = new ConcurrentHashMap<>();
 
     private static List<EnrichedBoundary> cachedEnrichedBoundaries = null;
 
-    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService) {
+    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.mdmsService = mdmsService;
         this.projectService = projectService;
+        this.commonUtils = commonUtils;
     }
 
-    public BoundaryHierarchyResult getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
+    public BoundaryHierarchyResult getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId,String hierarchyType) {
         if (localityCode == null) {
             return null;
         }
         // Fetch both localized and non-localized boundary data
-        BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId);
+        BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId,hierarchyType);
 
         return applyTransformerElasticIndexLabels(boundaryResult, tenantId);
     }
@@ -54,7 +57,8 @@ public class BoundaryService {
     public BoundaryHierarchyResult getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
         Project project = projectService.getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
-        return getBoundaryCodeToNameMap(locationCode, tenantId);
+        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
+        return getBoundaryCodeToNameMap(locationCode, tenantId,hierarchyType);
     }
 
     public BoundaryHierarchyResult getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
@@ -63,13 +67,13 @@ public class BoundaryService {
     }
 
 
-    public BoundaryHierarchyResult getBoundaryCodeToNameMap(String locationCode, String tenantId) {
+    public BoundaryHierarchyResult getBoundaryCodeToNameMap(String locationCode, String tenantId,String hierarchyType) {
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
                 .build();
 
         // Fetch boundaries
-        List<EnrichedBoundary> boundaries = fetchBoundaryData(locationCode, tenantId);
+        List<EnrichedBoundary> boundaries = fetchBoundaryData(locationCode, tenantId,hierarchyType);
 
         // Create and return BoundaryHierarchyResult
         return createBoundaryHierarchyResult(boundaries, tenantId, requestInfo);
@@ -129,7 +133,7 @@ public class BoundaryService {
     }
 
 
-    public List<EnrichedBoundary> fetchBoundaryData(String locationCode, String tenantId) {
+    public List<EnrichedBoundary> fetchBoundaryData(String locationCode, String tenantId,String hierarchyType) {
         List<EnrichedBoundary> finalEnrichedBoundary;
         if (cachedEnrichedBoundaries != null && !cachedEnrichedBoundaries.isEmpty()) {
             log.info("Fetching boundary info from cached boundary for code: {}", locationCode);
@@ -152,7 +156,7 @@ public class BoundaryService {
         StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
                 + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
-                + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
+                + "&hierarchyType=" + hierarchyType
 //                + "&codes=" + locationCode
         );
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);

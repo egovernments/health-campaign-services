@@ -65,6 +65,7 @@ public class ProjectTransformationService {
 
     private List<ProjectIndexV1> transform(Project project) {
         String localityCode;
+        String hierarhyType = commonUtils.getHierarchyTypeFromProject(project);
         if (project.getAddress() != null) {
             localityCode = project.getAddress().getBoundary() != null ?
                     project.getAddress().getBoundary() :
@@ -74,7 +75,7 @@ public class ProjectTransformationService {
         } else {
             localityCode = null;
         }
-        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(localityCode, project.getTenantId());
+        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(localityCode, project.getTenantId(),hierarhyType);
 
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchy() : null;
         Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchyCode() : null;
@@ -157,7 +158,7 @@ public class ProjectTransformationService {
                             .referenceID(project.getReferenceID())
                             .projectNumber(project.getProjectNumber())
                             .build();
-                    projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName());
+                    projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName(),hierarhyType);
                     projectIndexV1.setCampaignNumber(project.getReferenceID());
                     projectIndexV1.setCampaignId(campaignId);
                     return projectIndexV1;
@@ -194,9 +195,9 @@ public class ProjectTransformationService {
         }
     }
 
-    private BoundaryHierarchyResult getBoundaryHierarchyResult(String localityCode, String tenantId) {
+    private BoundaryHierarchyResult getBoundaryHierarchyResult(String localityCode, String tenantId,String hierarhyType) {
         if (localityCode != null) {
-            return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarhyType);
         }
         return null;
     }
