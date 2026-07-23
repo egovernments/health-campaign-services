@@ -85,17 +85,19 @@ public class ReferralTransformationService {
         String projectTypeId = null;
         String projectName = null;
         String referenceId = null;
+        String hierarchyType = "";
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             projectId = projectBeneficiary.getProjectId();
             Project project = projectService.getProject(projectId, tenantId);
+            hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
             projectTypeId = project.getProjectTypeId();
             projectType = project.getProjectType();
             projectName = project.getName();
             referenceId = project.getReferenceID();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
-                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId,hierarchyType);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             } else {
@@ -142,7 +144,7 @@ public class ReferralTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(referral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, projectName);
+        referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, projectName,hierarchyType);
         referralIndexV1.setCampaignNumber(referenceId);
         referralIndexV1.setCampaignId(campaignId);
         return referralIndexV1;

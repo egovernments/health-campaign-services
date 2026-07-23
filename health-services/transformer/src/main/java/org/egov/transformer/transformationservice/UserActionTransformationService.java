@@ -85,9 +85,10 @@ public class UserActionTransformationService {
         String projectId = userAction.getProjectId();
 
         Project project = projectService.getProject(projectId, tenantId);
+        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
 
         ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(userAction.getAuditDetails().getCreatedBy(),tenantId);
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(userAction.getBoundaryCode(), tenantId);
+        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(userAction.getBoundaryCode(), tenantId,hierarchyType);
 
         // Create geoPoint from latitude and longitude
         Double[] geoPoint = null;
@@ -135,7 +136,7 @@ public class UserActionTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(userAction.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(userAction.getAuditDetails().getLastModifiedTime()))
                 .build();
-        userActionIndex.setProjectInfo(projectId, project.getProjectType(), projectInfo.getProjectTypeId(), project.getName());
+        userActionIndex.setProjectInfo(projectId, project.getProjectType(), projectInfo.getProjectTypeId(), project.getName(),hierarchyType);
         userActionIndex.setCampaignNumber(project.getReferenceID());
         userActionIndex.setCampaignId(campaignId);
         log.info("Successfully transformed UserAction with id: {}", userAction.getId());
