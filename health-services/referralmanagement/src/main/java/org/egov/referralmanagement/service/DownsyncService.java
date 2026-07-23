@@ -348,6 +348,8 @@ public class DownsyncService {
                                      List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
+        //temp fix 15 july
+        criteria.setLastSyncedTime(1784073600000L);
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
         List<String> taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
                 criteria.getLastSyncedTime());
