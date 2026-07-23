@@ -7,6 +7,8 @@ import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkReques
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.consumer.CcnReferralConsumer;
+import org.egov.referralmanagement.ccn.repository.CcnReferralLinkRepository;
+import org.egov.referralmanagement.ccn.web.CcnCallbackController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +29,7 @@ class CcnReferralFlowTest {
     private CcnProperties props;
     private CcnOnixClient onix;
     private CcnReferralService service;
+    private CcnReferralLinkRepository linkRepo;
     private ObjectMapper om;
 
     @BeforeEach
@@ -47,8 +50,9 @@ class CcnReferralFlowTest {
         when(onix.send(anyString(), any(JsonNode.class)))
                 .thenReturn(om.createObjectNode().put("status", "ACK"));
 
+        linkRepo = mock(CcnReferralLinkRepository.class);
         HealthReferralMapper mapper = new HealthReferralMapper(props, om);
-        service = new CcnReferralService(props, mapper, onix);
+        service = new CcnReferralService(props, mapper, onix, linkRepo);
     }
 
     private HFReferral sample() {
@@ -144,5 +148,40 @@ class CcnReferralFlowTest {
         assertDoesNotThrow(() ->
                 consumer.onHFReferralCreate("{ not valid json ]", "save-hfreferral-topic"));
         verifyNoInteractions(svc);
+    }
+
+    // ── Acknowledgement / return leg (Option A: correlation table only) ──────────
+
+    @Test
+    void forwardPersistsAndUpdatesTheLink() {
+        service.forward(sample());
+        // link saved up-front (INITIATED) with the originating HFReferral id + beneficiary
+        ArgumentCaptor<org.egov.referralmanagement.ccn.model.CcnReferralLink> saved =
+                ArgumentCaptor.forClass(org.egov.referralmanagement.ccn.model.CcnReferralLink.class);
+        verify(linkRepo).save(saved.capture());
+        assertEquals("hfref-id-1", saved.getValue().getHfReferralId());
+        assertEquals("BEN-123", saved.getValue().getBeneficiaryId());
+        assertEquals("INITIATED", saved.getValue().getLifecycleState());
+        // after a clean send it is marked SENT (real lifecycle arrives async via on_confirm)
+        verify(linkRepo).updateState(eq(saved.getValue().getCoordinationId()), eq("SENT"), eq("confirm"), anyLong());
+    }
+
+    @Test
+    void onConfirmCallbackUpdatesLinkLifecycle() throws Exception {
+        CcnCallbackController cb = new CcnCallbackController(linkRepo, om);
+        when(linkRepo.updateState(anyString(), anyString(), anyString(), anyLong())).thenReturn(1);
+        String body = "{\"context\":{\"action\":\"on_confirm\"},\"message\":{\"contract\":{\"id\":\"coord-9\","
+                + "\"contractAttributes\":{\"coordinationId\":\"coord-9\",\"lifecycleState\":\"ACTIVE\"}}}}";
+        var resp = cb.onConfirm(body);
+        assertEquals("ACK", resp.getBody().at("/message/ack/status").asText());
+        verify(linkRepo).updateState(eq("coord-9"), eq("ACTIVE"), eq("on_confirm"), anyLong());
+    }
+
+    @Test
+    void onConfirmCallbackToleratesUnknownCoordinationId() {
+        CcnCallbackController cb = new CcnCallbackController(linkRepo, om);
+        when(linkRepo.updateState(anyString(), anyString(), anyString(), anyLong())).thenReturn(0);
+        var resp = cb.onStatus("{\"message\":{\"contract\":{\"id\":\"nope\",\"contractAttributes\":{\"lifecycleState\":\"CLOSED\"}}}}");
+        assertEquals("ACK", resp.getBody().at("/message/ack/status").asText()); // still ACKs
     }
 }
