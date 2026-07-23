@@ -6,6 +6,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Component;
 import org.egov.common.models.project.*;
 
@@ -22,10 +23,12 @@ public class SideEffectService {
 
     private final ServiceRequestClient serviceRequestClient;
 
+    private final TransformerErrorProducer errorProducer;
 
-    public SideEffectService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient) {
+    public SideEffectService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, TransformerErrorProducer errorProducer) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
+        this.errorProducer = errorProducer;
     }
 
     public List<Task> getTaskFromTaskClientReferenceId(String taskClientReferenceId, String tenantId) {
@@ -49,6 +52,7 @@ public class SideEffectService {
 
         } catch (Exception e) {
             log.error("error while fetching Task Details for id: {},  Exception: {}", taskClientReferenceId, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(taskSearchRequest, null, e);
             return Collections.emptyList();
         }
 

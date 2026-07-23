@@ -6,6 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.pgr.Service;
 import org.egov.transformer.models.pgr.ServiceRequest;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.transformationservice.PGRTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -26,22 +27,30 @@ public class PGRConsumer {
 
     private final PGRTransformationService pgrTransformationService;
 
+    private final TransformerErrorProducer errorQueueProducer;
+
     @Autowired
-    public PGRConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, PGRTransformationService pgrTransformationService) {
+    public PGRConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                       PGRTransformationService pgrTransformationService,
+                       TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.pgrTransformationService = pgrTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.pgr.topic}", "${transformer.consumer.update.pgr.topic}"})
     public void consumeServiceTask(ConsumerRecord<String, Object> payload,
                                    @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<ServiceRequest> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(), ServiceRequest.class));
             List<Service> collect = payloadList.stream().map(p -> p.getService()).collect(Collectors.toList());
             pgrTransformationService.transform(collect);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in PGR consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 
