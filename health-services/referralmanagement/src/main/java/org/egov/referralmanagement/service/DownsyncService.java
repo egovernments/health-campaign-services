@@ -380,6 +380,11 @@ public class DownsyncService {
             tasks.addAll(tasksSublist);
         }
 
+        tasks.forEach(task -> {
+            if (task.getClientAuditDetails() != null && task.getCreatedBy() == null)
+                task.setCreatedBy(task.getClientAuditDetails().getCreatedBy());
+        });
+
         downsync.setTasks(tasks);
 
         return tasks.stream().map(Task::getClientReferenceId).collect(Collectors.toList());
