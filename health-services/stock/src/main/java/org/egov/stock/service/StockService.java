@@ -186,6 +186,9 @@ public class StockService {
                                         Boolean includeDeleted) throws Exception  {
         log.info("starting search method for stock");
         String idFieldName = getIdFieldName(stockSearchRequest.getStock());
+        //temp fix for togo used july 15
+        if(lastChangedSince == null)
+            lastChangedSince = 1784073600000L;
         if (isSearchByIdOnly(stockSearchRequest.getStock(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(stockSearchRequest.getStock())),
