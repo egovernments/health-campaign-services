@@ -131,6 +131,20 @@ public class ProjectTaskTransformationService {
                     }
                 });
             }
+            if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType) && !beneficiaryInfo.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID)){
+                String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
+                if (beneficiaryInfo.containsKey(AGE_IN_MONTHS) && beneficiaryInfo.containsKey(GENDER)) {
+                    List<ProjectBeneficiary> projectBeneficiaries = projectService
+                            .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
+                    if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
+                        ProjectBeneficiary projectBeneficiary = projectBeneficiaries.get(0);
+                        String beneficiaryClientRefId = projectBeneficiary.getBeneficiaryClientReferenceId();
+                        beneficiaryInfo.put(INDIVIDUAL_CLIENT_REFERENCE_ID, beneficiaryClientRefId);
+                    }
+                } else {
+                    beneficiaryInfo.putAll(getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId));
+                }
+            }
         } else {
             String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
             beneficiaryInfo.putAll(getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId));

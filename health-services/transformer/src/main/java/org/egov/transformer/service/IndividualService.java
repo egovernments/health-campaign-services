@@ -78,9 +78,9 @@ public class IndividualService {
         Map<String, Object> individualDetails = new HashMap<>();
 
         if (individual != null) {
-            individualDetails.put(AGE, individual.getDateOfBirth() != null ? commonUtils.calculateAgeInMonthsFromDOB(individual.getDateOfBirth()) : null);
+            individualDetails.put(AGE_IN_MONTHS, individual.getDateOfBirth() != null ? commonUtils.calculateAgeInMonthsFromDOB(individual.getDateOfBirth()) : null);
             individualDetails.put(GENDER, individual.getGender() != null ? individual.getGender().toString() : null);
-            individualDetails.put(INDIVIDUAL_ID, clientReferenceId);
+            individualDetails.put(INDIVIDUAL_CLIENT_REFERENCE_ID, clientReferenceId);
             individualDetails.put(DATE_OF_BIRTH, individual.getDateOfBirth() != null ? individual.getDateOfBirth().getTime() : null);
 
             if (individual.getAddress() != null && !individual.getAddress().isEmpty()
