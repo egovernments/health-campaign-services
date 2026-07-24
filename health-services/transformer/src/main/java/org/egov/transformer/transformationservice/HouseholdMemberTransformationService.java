@@ -21,6 +21,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -76,23 +77,23 @@ public class HouseholdMemberTransformationService {
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
 
-        List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
+//        List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
         String localityCode = null;
-        if (!CollectionUtils.isEmpty(households) && households.get(0).getAddress() != null
-                && households.get(0).getAddress().getLocality() != null
-                && households.get(0).getAddress().getLocality().getCode() != null) {
-            localityCode = households.get(0).getAddress().getLocality().getCode();
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, householdMember.getTenantId());
-            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
-            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
-            geoPoint = commonUtils.getGeoPoint(households.get(0).getAddress());
-
-            AdditionalFields additionalFields = households.get(0).getAdditionalFields();
-            if (additionalFields != null && additionalFields.getFields() != null
-                    && !CollectionUtils.isEmpty(additionalFields.getFields())) {
-                additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
-            }
-        }
+//        if (!CollectionUtils.isEmpty(households) && households.get(0).getAddress() != null
+//                && households.get(0).getAddress().getLocality() != null
+//                && households.get(0).getAddress().getLocality().getCode() != null) {
+//            localityCode = households.get(0).getAddress().getLocality().getCode();
+//            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, householdMember.getTenantId());
+//            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+//            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+//            geoPoint = commonUtils.getGeoPoint(households.get(0).getAddress());
+//
+//            AdditionalFields additionalFields = households.get(0).getAdditionalFields();
+//            if (additionalFields != null && additionalFields.getFields() != null
+//                    && !CollectionUtils.isEmpty(additionalFields.getFields())) {
+//                additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
+//            }
+//        }
 
         if (householdMember.getAdditionalFields() != null && householdMember.getAdditionalFields().getFields() != null
                 && !CollectionUtils.isEmpty(householdMember.getAdditionalFields().getFields())) {
@@ -104,9 +105,10 @@ public class HouseholdMemberTransformationService {
         Long dateOfBrith;
 
         if (additionalDetails.has(DATE_OF_BIRTH)) {
-            String dob = String.valueOf(additionalDetails.get(Constants.DATE_OF_BIRTH));
+            String dob = additionalDetails.get(Constants.DATE_OF_BIRTH).asText();
 
-            LocalDate localDate = LocalDate.parse(dob);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            LocalDate localDate = LocalDate.parse(dob, formatter);
             Date date = Date.from(
                     localDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
             );
