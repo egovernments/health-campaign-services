@@ -9,6 +9,7 @@ import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.project.Project;
+import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HouseholdMemberIndexV1;
@@ -18,6 +19,10 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -70,7 +75,6 @@ public class HouseholdMemberTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
-        Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
         String localityCode = null;
@@ -95,14 +99,29 @@ public class HouseholdMemberTransformationService {
             List<Field> fields = householdMember.getAdditionalFields().getFields();
             addToAdditionalDetails(fields, additionalDetails);
         }
+        Map<String, Object> individualDetails = new HashMap<>();
+        Integer age;
+        Long dateOfBrith;
+
+        if (additionalDetails.has(DATE_OF_BIRTH)) {
+            String dob = String.valueOf(additionalDetails.get(Constants.DATE_OF_BIRTH));
+
+            LocalDate localDate = LocalDate.parse(dob);
+            Date date = Date.from(
+                    localDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
+            );
+            age = commonUtils.calculateAgeInMonthsFromDOB(date);
+            dateOfBrith = date.getTime();
+        } else {
+            individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
+            age = (Integer) individualDetails.get(AGE_IN_MONTHS);
+            dateOfBrith = (Long) individualDetails.get(DATE_OF_BIRTH);
+
+        }
+
 
         Map<String, String> userInfoMap = userService.
                 getUserInfo(householdMember.getTenantId(), householdMember.getClientAuditDetails().getLastModifiedBy());
-        if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
-            additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
-        }
-
 
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
@@ -112,8 +131,8 @@ public class HouseholdMemberTransformationService {
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
-                .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
-                .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
+                .dateOfBirth(dateOfBrith)
+                .age(age)
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                 .geoPoint(geoPoint)
                 .localityCode(localityCode)
