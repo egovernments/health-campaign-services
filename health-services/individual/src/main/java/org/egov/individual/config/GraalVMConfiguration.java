@@ -20,6 +20,8 @@ public class GraalVMConfiguration {
             hints.reflection()
                     .registerType(TypeReference.of(HashMapDeserializer.class), MemberCategory.values())
                     .registerType(TypeReference.of(ISTTimeZoneHashMapDeserializer.class), MemberCategory.values())
+                    .registerType(TypeReference.of("org.flywaydb.core.internal.publishing.PublishingConfigurationExtension"),
+                            MemberCategory.INVOKE_PUBLIC_METHODS)
                     .registerType(TypeReference.of("org.egov.tracer.kafka.KafkaTemplateLoggingInterceptors"),
                             MemberCategory.values());
         }
