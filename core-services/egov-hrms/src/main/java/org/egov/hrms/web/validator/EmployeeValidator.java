@@ -386,7 +386,8 @@ public class EmployeeValidator {
 	 */
 	private void validateEmployee(Employee employee, Map<String, String> errorMap, Map<String, List<String>> mdmsData) {
 
-		if(employee.getUser().getMobileNumber().length() != 10 && employee.getUser().getMobileNumber().length() != 9) {
+		int mobileNumberLength = employee.getUser().getMobileNumber().length();
+		if(mobileNumberLength < propertiesManager.getMobileNumberMinLength() || mobileNumberLength > propertiesManager.getMobileNumberMaxLength()) {
 			errorMap.put(ErrorConstants.HRMS_INVALID_MOB_NO_CODE, ErrorConstants.HRMS_INVALID_MOB_NO_MSG);
 		}
 		
