@@ -913,7 +913,30 @@ function generateElementCode(sequence: any, parentElement: any, parentBoundaryCo
       const nameSuffix = "_" + sanitize(parentElement?.value);
       let parentBoundaryCodeTrimmed: string;
       if (parentElement?.value && nameSuffix.length > 1 && sanitizedParentCode.endsWith(nameSuffix)) {
+        // Parent code carries the parent's FULL name -> strip it, leaving the numeric-path prefix.
         parentBoundaryCodeTrimmed = sanitizedParentCode.slice(0, sanitizedParentCode.length - nameSuffix.length);
+      } else if (parentElement?.value && nameSuffix.length > 1) {
+        const sanitizedName = sanitize(parentElement.value);
+        const longestNamePrefixTrim = (code: string) => {
+          let matchLen = sanitizedName.length;
+          while (matchLen > 0 && !code.endsWith("_" + sanitizedName.slice(0, matchLen))) {
+            matchLen--;
+          }
+          return matchLen > 0 ? code.slice(0, code.length - (matchLen + 1)) : null;
+        };
+        let trimmed = longestNamePrefixTrim(sanitizedParentCode);
+        if (trimmed === null) {
+          const deSuffixed = sanitizedParentCode.replace(/_\d+$/, "");
+          if (deSuffixed !== sanitizedParentCode) trimmed = longestNamePrefixTrim(deSuffixed);
+        }
+        if (trimmed !== null) {
+          parentBoundaryCodeTrimmed = trimmed;
+        } else {
+          // Parent code genuinely does not encode the name (e.g. user-supplied manual codes): keep the
+          // old last-'_' trim.
+          const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
+          parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+        }
       } else {
         const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
         parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
