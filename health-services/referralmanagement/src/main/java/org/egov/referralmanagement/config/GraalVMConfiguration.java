@@ -19,7 +19,9 @@ public class GraalVMConfiguration {
         public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
             hints.reflection()
                     .registerType(TypeReference.of(HashMapDeserializer.class), MemberCategory.values())
-                    .registerType(TypeReference.of(ISTTimeZoneHashMapDeserializer.class), MemberCategory.values());
+                    .registerType(TypeReference.of(ISTTimeZoneHashMapDeserializer.class), MemberCategory.values())
+                    .registerType(TypeReference.of("org.egov.tracer.kafka.KafkaTemplateLoggingInterceptors"),
+                            MemberCategory.values());
         }
     }
 }
