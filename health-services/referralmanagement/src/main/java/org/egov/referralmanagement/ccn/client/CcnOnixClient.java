@@ -25,11 +25,20 @@ public class CcnOnixClient {
         this.p = p;
     }
 
-    /** POST one Beckn action to ONIX. Returns ONIX's synchronous ACK/NACK body. */
+    /** POST one Beckn action to the ONIX BAP caller (outbound HCM->SPICE). */
     public JsonNode send(String action, JsonNode payload) {
-        String base = p.getOnixCallerUrl();
+        return sendTo(p.getOnixCallerUrl(), action, payload);
+    }
+
+    /** POST an on_* / update callback to the ONIX BPP caller (inbound receive flow). */
+    public JsonNode sendBpp(String action, JsonNode payload) {
+        return sendTo(p.getOnixBppCallerUrl(), action, payload);
+    }
+
+    /** POST one Beckn action to a given ONIX caller base. Returns ONIX's synchronous ACK/NACK body. */
+    public JsonNode sendTo(String base, String action, JsonNode payload) {
         if (base == null || base.isBlank()) {
-            throw new IllegalStateException("referralmanagement.ccn.onix-caller-url is not configured");
+            throw new IllegalStateException("ONIX caller url is not configured");
         }
         String url = base.endsWith("/") ? base + action : base + "/" + action;
         HttpHeaders headers = new HttpHeaders();

@@ -60,6 +60,12 @@ public class CcnReferralService {
                 .beneficiaryId(spicePatientId)                               // the SPICE patientId sent
                 .lifecycleState("INITIATED")
                 .lastAction("forward")
+                .direction(CcnReferralLink.OUTBOUND)
+                .localRole("BAP")
+                .initiatorSubscriberId(p.getBapId())
+                .counterpartySubscriberId(p.getBppId())
+                .contractType("HealthReferral")
+                .serviceCategory("CONSULTATION")
                 .tenantId(referral.getTenantId())
                 .createdTime(now)
                 .lastModifiedTime(now)

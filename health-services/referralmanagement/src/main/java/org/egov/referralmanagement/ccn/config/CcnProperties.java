@@ -43,10 +43,24 @@ public class CcnProperties {
 
     // ---- HealthReferral @context URLs ----
     private String healthReferralCtx = "https://schema.beckn.io/HealthReferral/v2.1/context.jsonld";
+    private String serviceCoordinationCtx = "https://schema.beckn.io/ServiceCoordination/v2.1/context.jsonld";
     private String healthParticipantCtx = "https://schema.beckn.io/HealthParticipant/v2.1/context.jsonld";
     private String codedValueCtx = "https://raw.githubusercontent.com/beckn/DHP-Specs/main/devkit/stub/context.jsonld";
 
     // ---- Coordination "slot" booked against SPICE (from SPICE's catalog) ----
     private String offerId = "offer-comemr-coord";
     private String resourceId = "res-comemr-coord";
+
+    // ── Inbound BPP side (SPICE -> HCM receive flow, UC3) ──
+    /** Master switch for the receive (BPP) flow. Default false — dormant until enabled. */
+    private boolean bppEnabled = false;
+    /** ONIX BPP caller endpoint for dispatching our on_* / update callbacks. */
+    private String onixBppCallerUrl;
+    /** HCM campaign field-capacity offer advertised on on_discover. */
+    private String campaignCatalogId = "catalog-hcm-campaign";
+    private String campaignOfferId = "offer-hcm-campaign-field";
+    private String campaignResourceId = "res-hcm-campaign-field";
+    /** Tenant + project used when creating the inbound Referral in HCM. */
+    private String inboundTenantId;
+    private String inboundProjectId;
 }
