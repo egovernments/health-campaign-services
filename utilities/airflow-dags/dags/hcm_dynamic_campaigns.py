@@ -709,6 +709,14 @@ with DAG(
             if is_final_report:
                 logger.info("  ⚡ FINAL REPORT: Covering %d remaining days", remaining_days)
 
+            # Compute range up front so SKIPPED events can carry report_dates too (keys the
+            # skip onto the same row the UI polls; else it stays stuck on "Queued").
+            start_dt, end_dt = compute_range(c, now, is_final_report, remaining_days)
+            report_dates_str = f"{start_dt.strftime('%Y-%m-%d %H:%M:%S%z')}_{end_dt.strftime('%Y-%m-%d %H:%M:%S%z')}"
+            logger.info("  Date range: %s to %s",
+                    start_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    end_dt.strftime("%Y-%m-%d %H:%M:%S"))
+
             # Check if frequency is due (DAILY/WEEKLY/MONTHLY)
             # Final reports bypass frequency check (campaign ending mid-cycle)
             if not is_final_report and not frequency_due(c, now):
@@ -718,6 +726,7 @@ with DAG(
                     "SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason,
                     report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
                     expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
+                    report_dates=report_dates_str,
                 )
                 continue
 
@@ -731,23 +740,11 @@ with DAG(
                     "SKIPPED", c, dag_id=dag_id, dag_run_id=dag_run_id, error_message=reason,
                     report_triggered_time_ms=report_triggered_time_ms, report_triggered_time=report_triggered_time_iso,
                     expected_rows=expected_rows, expected_generation_time_seconds=expected_generation_time_seconds,
+                    report_dates=report_dates_str,
                 )
                 continue
 
-            # Calculate report date range based on frequency
-            # Uses reportStartTime, reportEndTime, and triggerTime to determine today vs yesterday
-            # Pass is_final_report and remaining_days computed above
-            start_dt, end_dt = compute_range(c, now, is_final_report, remaining_days)
-            logger.info("  Date range: %s to %s",
-                    start_dt.strftime("%Y-%m-%d %H:%M:%S"),
-                    end_dt.strftime("%Y-%m-%d %H:%M:%S"))
-
-            # Same string, byte-for-byte, that main.py builds later for this run's own
-            # events (main.py: f"{START_DATE}_{END_DATE}") - computed once here from the
-            # same start_dt/end_dt so the TRIGGERED row's reportRange already matches what
-            # POD_STARTED/REPORT_COMPLETED will show for this same run, instead of being
-            # empty until the pod's own events arrive.
-            report_dates_str = f"{start_dt.strftime('%Y-%m-%d %H:%M:%S%z')}_{end_dt.strftime('%Y-%m-%d %H:%M:%S%z')}"
+            # range + report_dates_str already computed up front (before skip checks)
 
             # Build folder structure for temporary storage
             # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign_identifier>/<report>/<frequency>/

@@ -36,7 +36,7 @@ IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").
 STATUS_ORDER = {
     "SCHEDULED": 10,
     "TRIGGERED": 20,
-    "SKIPPED": 20,
+    "SKIPPED": 40,  # terminal: skip ends the run, must outrank in-flight so UI stops polling
     "POD_STARTED": 30,
     "REPORT_GENERATION_STARTED": 31,
     "ZIP_STARTED": 32,
@@ -102,10 +102,9 @@ def push_status_event(status, campaign, dag_id, dag_run_id, error_message=None,
             through conf/env vars unchanged, same "stamp once, carry through" pattern as
             report_triggered_time_ms - lets the UI show an estimate for the whole lifecycle
             of a run, not just its first event.
-        report_dates (optional): "<start> to <end>" range string, same format main.py uses
-            (f"{START_DATE}_{END_DATE}"). Only known once compute_range() has run - build_payload
-            has it by the time it pushes TRIGGERED; earlier statuses (SCHEDULED, SKIPPED) don't
-            and should leave this as None.
+        report_dates (optional): "<start>_<end>" range string (f"{START_DATE}_{END_DATE}").
+            Keys a run's rows together, so pass it for every event with a computable range -
+            SKIPPED included. Only SCHEDULED (no range yet) leaves this None.
 
     Never raises - a Kafka hiccup must not fail a DAG task.
     """
