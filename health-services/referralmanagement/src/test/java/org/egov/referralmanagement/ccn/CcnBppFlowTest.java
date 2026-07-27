@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralRequest;
 import org.egov.referralmanagement.ccn.bpp.CcnBppService;
+import org.egov.referralmanagement.ccn.bpp.InboundProjectResolver;
 import org.egov.referralmanagement.ccn.bpp.ServiceCoordinationMapper;
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
@@ -41,8 +42,13 @@ class CcnBppFlowTest {
         referralService = mock(ReferralManagementService.class);
         when(referralService.create(any(ReferralRequest.class)))
                 .thenReturn(Referral.builder().id("created-ref-1").build());
+        // Resolver: SPICE patientId → synced beneficiary's project. Here it resolves to proj-1
+        // and echoes the patientId as the beneficiary client ref (what an unsynced fallback also does).
+        InboundProjectResolver resolver = mock(InboundProjectResolver.class);
+        when(resolver.resolve(any(), any())).thenAnswer(inv ->
+                new InboundProjectResolver.Resolution("proj-1", "pb-1", inv.getArgument(0), true));
         ServiceCoordinationMapper mapper = new ServiceCoordinationMapper(props, om);
-        bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, om);
+        bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, resolver, om);
     }
 
     private JsonNode inbound(String action) throws Exception {
@@ -70,6 +76,9 @@ class CcnBppFlowTest {
         verify(referralService).create(req.capture());
         assertEquals("0690003741962", req.getValue().getReferral().getProjectBeneficiaryClientReferenceId());
         assertEquals("coord-in-1", req.getValue().getReferral().getReferralCode());
+        // project is resolved from the patient's beneficiary, not a hardcoded config value
+        assertEquals("proj-1", req.getValue().getReferral().getProjectId());
+        assertEquals("pb-1", req.getValue().getReferral().getProjectBeneficiaryId());
 
         // stores an INBOUND link linked to the created referral
         ArgumentCaptor<CcnReferralLink> link = ArgumentCaptor.forClass(CcnReferralLink.class);

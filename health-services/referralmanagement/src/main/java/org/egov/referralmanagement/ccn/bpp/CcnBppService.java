@@ -33,16 +33,19 @@ public class CcnBppService {
     private final CcnOnixClient onix;
     private final CcnReferralLinkRepository linkRepository;
     private final ReferralManagementService referralService;
+    private final InboundProjectResolver projectResolver;
     private final ObjectMapper om;
 
     public CcnBppService(CcnProperties p, ServiceCoordinationMapper mapper, CcnOnixClient onix,
                          CcnReferralLinkRepository linkRepository, ReferralManagementService referralService,
+                         InboundProjectResolver projectResolver,
                          @Qualifier("objectMapper") ObjectMapper om) {
         this.p = p;
         this.mapper = mapper;
         this.onix = onix;
         this.linkRepository = linkRepository;
         this.referralService = referralService;
+        this.projectResolver = projectResolver;
         this.om = om;
     }
 
@@ -79,24 +82,29 @@ public class CcnBppService {
         dispatch("on_confirm", mapper.onEcho("on_confirm", body, "ACTIVE", "ACTIVE"));
     }
 
-    /** Create a normal DIGIT Referral for the CHW from the inbound coordination (validated create). */
+    /** Create a normal DIGIT Referral for the CHW from the inbound coordination (validated create).
+     *  Tenant is fixed for this node; the project is resolved per-referral from the SPICE patientId
+     *  (SPICE_PATIENT_ID → synced ProjectBeneficiary → its projectId) rather than a static value. */
     private String createInboundReferral(String coordinationId, JsonNode body) {
         String spicePatientId = patientId(body);
-        Referral referral = Referral.builder()
-                .tenantId(p.getInboundTenantId())
-                .clientReferenceId(UUID.randomUUID().toString())
-                .projectId(p.getInboundProjectId())
-                .projectBeneficiaryClientReferenceId(spicePatientId)  // SPICE patientId on beneficiary id
-                .referrerId(body.at("/context/bapId").asText(null))   // origin system
-                .recipientType("STAFF")
-                .reasons(List.of("INBOUND_" + serviceCategory(body)))
-                .referralCode(coordinationId)                         // cross-ref to the coordination
-                .build();
         RequestInfo ri = RequestInfo.builder()
                 .userInfo(User.builder().uuid("ccn-system").tenantId(p.getInboundTenantId()).type("SYSTEM").build())
                 .build();
+        InboundProjectResolver.Resolution r = projectResolver.resolve(spicePatientId, ri);
+        Referral referral = Referral.builder()
+                .tenantId(p.getInboundTenantId())
+                .clientReferenceId(UUID.randomUUID().toString())
+                .projectId(r.getProjectId())                                         // resolved from the patient's beneficiary
+                .projectBeneficiaryId(r.getProjectBeneficiaryId())                   // real beneficiary link (null if unsynced)
+                .projectBeneficiaryClientReferenceId(r.getProjectBeneficiaryClientReferenceId())
+                .referrerId(body.at("/context/bapId").asText(null))                 // origin system
+                .recipientType("STAFF")
+                .reasons(List.of("INBOUND_" + serviceCategory(body)))
+                .referralCode(coordinationId)                                        // cross-ref to the coordination
+                .build();
         Referral created = referralService.create(ReferralRequest.builder().requestInfo(ri).referral(referral).build());
-        log.info("CCN BPP created inbound Referral id={} for coordinationId={}", created.getId(), coordinationId);
+        log.info("CCN BPP created inbound Referral id={} for coordinationId={} (project={}, resolved={})",
+                created.getId(), coordinationId, r.getProjectId(), r.isResolved());
         return created.getId();
     }
 
@@ -162,10 +170,19 @@ public class CcnBppService {
         String t = b.at("/message/contract/contractAttributes/@type").asText("");
         return t.contains("HealthReferral") ? "HealthReferral" : "ServiceCoordination";
     }
+    /** Extract the SPICE patientId from the PATIENT participant. Prefer the healthId whose
+     *  system is SPICE_PATIENT_ID (the id we share on the network and sync from household/member);
+     *  fall back to the first healthId only if that system isn't present. */
     private String patientId(JsonNode b) {
         for (JsonNode part : b.at("/message/contract/participants")) {
             if ("PATIENT".equals(part.at("/participantAttributes/participantRole").asText())) {
-                return part.at("/participantAttributes/healthIds/0/value").asText(null);
+                JsonNode healthIds = part.at("/participantAttributes/healthIds");
+                for (JsonNode hid : healthIds) {
+                    if ("SPICE_PATIENT_ID".equals(hid.at("/system").asText())) {
+                        return hid.at("/value").asText(null);
+                    }
+                }
+                return healthIds.at("/0/value").asText(null);
             }
         }
         return null;

@@ -60,7 +60,22 @@ public class CcnProperties {
     private String campaignCatalogId = "catalog-hcm-campaign";
     private String campaignOfferId = "offer-hcm-campaign-field";
     private String campaignResourceId = "res-hcm-campaign-field";
-    /** Tenant + project used when creating the inbound Referral in HCM. */
+    /** Tenant the inbound Referral is created under. Fixed per node (this node = Sierra Leone);
+     *  multi-tenant (per-tenant DeDi identity) is future work. */
     private String inboundTenantId;
+    /** FALLBACK project only. The real project is resolved per-referral from the SPICE patientId
+     *  via {@code InboundProjectResolver} (SPICE_PATIENT_ID → synced ProjectBeneficiary → its projectId).
+     *  This default is used only when the patient has not been synced yet — Sierra Leone has many
+     *  projects, so this must NOT be treated as the single project for all inbound referrals. */
     private String inboundProjectId;
+
+    // ── Inbound completion → publish result back to SPICE ──
+    /** Separate consumer group for the update-referral topic — distinct from the create-side group
+     *  and from the persister, so completion detection gets its own pub-sub copy. */
+    private String updateConsumerGroup = "referralmanagement-ccn-referral-completion";
+    /** Sentinel value in Referral.reasons that marks a CHW-completed inbound referral. When an
+     *  update to an INBOUND-linked referral carries this reason, we publish the result to SPICE. */
+    private String completeReason = "TASK_COMPLETE";
+    /** Lifecycle state published back to SPICE on completion. */
+    private String closedState = "CLOSED";
 }
