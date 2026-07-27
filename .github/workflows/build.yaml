@@ -27,6 +27,7 @@ on:
           - referralmanagement-java-17
           - individual
           - individual-java-17
+          - individual-graalvm-native
           - health-individual
           - health-individual-java-17
           - health-attendance

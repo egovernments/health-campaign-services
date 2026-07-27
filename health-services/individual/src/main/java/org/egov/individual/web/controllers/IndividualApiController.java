@@ -41,8 +41,6 @@ public class IndividualApiController {
 
     private final ObjectMapper objectMapper;
 
-    private final HttpServletRequest servletRequest;
-
     private final Producer producer;
 
     private final IndividualProperties individualProperties;
@@ -50,11 +48,10 @@ public class IndividualApiController {
     @Autowired
     public IndividualApiController(IndividualService individualService,
                                    ObjectMapper objectMapper,
-                                   HttpServletRequest servletRequest, Producer producer,
+                                   Producer producer,
                                    IndividualProperties individualProperties) {
         this.individualService = individualService;
         this.objectMapper = objectMapper;
-        this.servletRequest = servletRequest;
         this.producer = producer;
         this.individualProperties = individualProperties;
     }
@@ -74,7 +71,7 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+    public ResponseEntity<ResponseInfo> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource, HttpServletRequest servletRequest) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
         individualService.putInCache(request.getIndividuals());
         producer.push(individualProperties.getBulkSaveIndividualTopic(), request);
@@ -118,7 +115,7 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> individualV1BulkUpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+    public ResponseEntity<ResponseInfo> individualV1BulkUpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource, HttpServletRequest servletRequest) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
         producer.push(individualProperties.getBulkUpdateIndividualTopic(), request);
 
@@ -139,7 +136,7 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> individualV1BulkDeletePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+    public ResponseEntity<ResponseInfo> individualV1BulkDeletePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource, HttpServletRequest servletRequest) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
         producer.push(individualProperties.getBulkDeleteIndividualTopic(), request);
 
