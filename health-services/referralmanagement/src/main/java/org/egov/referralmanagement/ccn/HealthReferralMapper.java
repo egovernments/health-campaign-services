@@ -1,22 +1,25 @@
 package org.egov.referralmanagement.ccn;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
+import org.egov.common.models.referralmanagement.Referral;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * Maps a DIGIT {@link HFReferral} to Beckn {@code HealthReferral} payloads (CCN UC1 shape) for the
- * select / init / confirm actions. The payload is UNSIGNED — ONIX (the BAP node) signs and routes it.
+ * Maps a DIGIT {@link Referral} (the normal referral flow) to Beckn {@code HealthReferral} payloads
+ * (select / init / confirm / status) for the HCM → SPICE (via CC) downward flow.
  *
- * <p>NOTE: HFReferral is a thin model (beneficiaryId, symptom, referralCode, projectFacilityId,
- * nationalLevelId). Fields SPICE needs but HFReferral has no source for (specialty, consent, etc.)
- * are marked TODO and must be agreed with SPICE (Step 8).</p>
+ * <p><b>Non-sensitive by design.</b> Per the network rule, we send only coordination keys — the SPICE
+ * {@code patientId} (carried on the referral's beneficiary/individual id field) and the coded
+ * downward intent. NO names, gender, DOB or free-text clinical notes cross the network. villageId /
+ * lat-long are omitted until SPICE provides a field (see task A).</p>
  */
 @Component
 public class HealthReferralMapper {
@@ -29,117 +32,122 @@ public class HealthReferralMapper {
         this.om = om;
     }
 
+    /** SPICE patientId is carried on the referral's beneficiary/individual id (app sets it for reconciled patients). */
+    public static String spicePatientId(Referral r) {
+        if (r.getProjectBeneficiaryClientReferenceId() != null && !r.getProjectBeneficiaryClientReferenceId().isBlank())
+            return r.getProjectBeneficiaryClientReferenceId();
+        return r.getProjectBeneficiaryId();
+    }
+
     private ObjectNode context(String action, String transactionId) {
         ObjectNode c = om.createObjectNode();
-        c.put("domain", p.getDomain());
         c.put("networkId", p.getNetworkId());
         c.put("action", action);
         c.put("version", p.getVersion());
         c.put("bapId", p.getBapId());
         c.put("bapUri", p.getBapUri());
+        c.put("bppId", p.getBppId());
+        c.put("bppUri", p.getBppUri());
         c.put("transactionId", transactionId);
         c.put("messageId", UUID.randomUUID().toString());
         c.put("timestamp", OffsetDateTime.now().toString());
-        c.put("bppId", p.getBppId());
-        c.put("bppUri", p.getBppUri());
         return c;
     }
 
-    private ObjectNode commitments(String statusCode) {
-        ObjectNode arrHolder = om.createObjectNode();
-        ObjectNode cm = arrHolder.putArray("commitments").addObject();
+    private void addCommitments(ObjectNode contract, String statusCode) {
+        ObjectNode cm = contract.putArray("commitments").addObject();
         cm.put("id", "commitment-001");
         cm.putObject("status").putObject("descriptor").put("code", statusCode);
-        ObjectNode r = cm.putArray("resources").addObject();
-        r.put("id", p.getResourceId());
-        r.putObject("quantity").put("count", 1);
+        ObjectNode res = cm.putArray("resources").addObject();
+        res.put("id", p.getResourceId());
+        res.putObject("quantity").put("count", 1);
         ObjectNode offer = cm.putObject("offer");
         offer.put("id", p.getOfferId());
         offer.putArray("resourceIds").add(p.getResourceId());
-        return arrHolder;
     }
 
-    private void addPatientParticipant(ObjectNode contract, HFReferral r) {
-        ObjectNode part = contract.putArray("participants").addObject();
-        part.put("id", "participant-" + safe(r.getBeneficiaryId()));
-        ObjectNode attrs = part.putObject("participantAttributes");
-        attrs.put("@context", p.getHealthParticipantCtx());
-        attrs.put("@type", "hpa:HealthParticipant");
-        attrs.put("participantRole", "PATIENT");
-        ObjectNode hid = attrs.putArray("healthIds").addObject();
-        hid.put("system", "BENEFICIARY_ID");
-        hid.put("value", safe(r.getBeneficiaryId()));
-        if (r.getNationalLevelId() != null) {
-            ObjectNode nid = attrs.withArray("healthIds").addObject();
-            nid.put("system", "NATIONAL_ID");
-            nid.put("value", r.getNationalLevelId());
+    /** Participants: PATIENT (SPICE patientId only) + referrer CHW (id only). No PII. */
+    private void addParticipants(ObjectNode contract, Referral r, String spicePatientId) {
+        ArrayNode arr = contract.putArray("participants");
+
+        ObjectNode patient = arr.addObject();
+        patient.put("id", "participant-patient");
+        ObjectNode pa = patient.putObject("participantAttributes");
+        pa.put("@context", p.getHealthParticipantCtx());
+        pa.put("@type", "hpa:HealthParticipant");
+        pa.put("participantRole", "PATIENT");
+        ObjectNode hid = pa.putArray("healthIds").addObject();
+        hid.put("system", "SPICE_PATIENT_ID");
+        hid.put("value", spicePatientId);
+
+        if (r.getReferrerId() != null) {
+            ObjectNode chw = arr.addObject();
+            chw.put("id", "participant-referrer");
+            ObjectNode ca = chw.putObject("participantAttributes");
+            ca.put("@context", p.getHealthParticipantCtx());
+            ca.put("@type", "hpa:HealthParticipant");
+            ca.put("participantRole", "CARE_GIVER");   // community health/campaign worker
+            ObjectNode chid = ca.putArray("healthIds").addObject();
+            chid.put("system", "HCM_USER_ID");
+            chid.put("value", r.getReferrerId());
         }
     }
 
-    /** HealthReferral contractAttributes. {@code full} adds the referralNote (confirm). */
-    private ObjectNode contractAttributes(HFReferral r, String coordinationId, String lifecycleState, boolean full) {
+    private ObjectNode contractAttributes(Referral r, String coordinationId, String lifecycleState) {
+        boolean urgent = r.getReasons() != null && !r.getReasons().isEmpty();
         ObjectNode ca = om.createObjectNode();
         ca.put("@context", p.getHealthReferralCtx());
         ca.put("@type", "hrf:HealthReferral");
         ca.put("coordinationId", coordinationId);
         ca.put("lifecycleState", lifecycleState);
-        ca.put("clinicalUrgencyTier", "ROUTINE"); // TODO: no urgency in HFReferral; confirm with SPICE
-        // targetCriteria — carry the symptom as the referral reason.
+        ca.put("clinicalUrgencyTier", urgent ? "URGENT" : "ROUTINE");
+        ca.put("healthServiceType", "PHYSICAL_CONSULTATION");
         ObjectNode tc = ca.putObject("targetCriteria");
+        ObjectNode sc = tc.putObject("serviceCategory");
+        sc.put("@context", p.getCodedValueCtx());
+        sc.put("@type", "ServiceCategory");
+        sc.put("code", "CONSULTATION");
+        sc.put("display", "Consultation");
+        tc.putArray("procedureNeeds").add("HOME_VISIT");   // downward marker → CC forwards to SPICE
         tc.put("consultationModality", "IN_PERSON");
-        if (r.getSymptom() != null) {
-            tc.putObject("reason").put("code", "SYMPTOM").put("display", r.getSymptom());
-        }
-        // referralCode carried as a cross-reference back to the HCM record.
-        if (r.getReferralCode() != null) ca.put("referralCode", r.getReferralCode());
-        if (r.getProjectFacilityId() != null) ca.put("referringFacilityId", r.getProjectFacilityId());
-
-        if (full) {
-            // referralNote is a POINTER only (clinical data stays in the records/HIE layer).
-            ObjectNode note = ca.putObject("referralNote");
-            note.put("artifactRef", "hfreferral-" + safe(r.getReferralCode() != null ? r.getReferralCode() : coordinationId));
-            note.put("revocationStatus", "ACTIVE");
-            if (r.getSymptomSurveyId() != null) note.put("symptomSurveyRef", r.getSymptomSurveyId());
-            // TODO: consent block — UC1 requires consent at confirm; HFReferral has no consent source.
-        }
         return ca;
     }
 
-    private ObjectNode base(String action, String transactionId, String coordinationId, String statusCode) {
+    private ObjectNode base(String action, String txnId, String coordinationId, String statusCode,
+                            Referral r, String spicePatientId, boolean withParticipants) {
         ObjectNode root = om.createObjectNode();
-        root.set("context", context(action, transactionId));
+        root.set("context", context(action, txnId));
         ObjectNode contract = root.putObject("message").putObject("contract");
         if (!"select".equals(action)) contract.put("id", coordinationId);
         contract.putObject("status").put("code", statusCode);
-        contract.setAll(commitments(statusCode));
+        if (r.getReferralCode() != null) {
+            contract.putObject("descriptor").put("name", r.getReferralCode());  // cross-ref only (non-PII)
+        }
+        addCommitments(contract, statusCode);
+        if (withParticipants) addParticipants(contract, r, spicePatientId);
+        contract.set("contractAttributes", contractAttributes(r, coordinationId, statusCode.equals("ACTIVE") ? "ACTIVE" : "DRAFT"));
         return root;
     }
 
-    public ObjectNode select(HFReferral r, String txnId, String coordinationId) {
-        ObjectNode root = base("select", txnId, coordinationId, "DRAFT");
-        ObjectNode contract = (ObjectNode) root.at("/message/contract");
-        addPatientParticipant(contract, r);
-        contract.set("contractAttributes", contractAttributes(r, coordinationId, "DRAFT", false));
-        return root;
+    public ObjectNode select(Referral r, String txnId, String coordinationId, String spicePatientId) {
+        return base("select", txnId, coordinationId, "DRAFT", r, spicePatientId, true);
     }
 
-    public ObjectNode init(HFReferral r, String txnId, String coordinationId) {
-        ObjectNode root = base("init", txnId, coordinationId, "DRAFT");
-        ObjectNode contract = (ObjectNode) root.at("/message/contract");
-        addPatientParticipant(contract, r);
-        contract.set("contractAttributes", contractAttributes(r, coordinationId, "DRAFT", false));
-        return root;
+    public ObjectNode init(Referral r, String txnId, String coordinationId, String spicePatientId) {
+        return base("init", txnId, coordinationId, "DRAFT", r, spicePatientId, true);
     }
 
-    public ObjectNode confirm(HFReferral r, String txnId, String coordinationId) {
-        ObjectNode root = base("confirm", txnId, coordinationId, "ACTIVE");
-        ObjectNode contract = (ObjectNode) root.at("/message/contract");
-        addPatientParticipant(contract, r);
-        contract.set("contractAttributes", contractAttributes(r, coordinationId, "ACTIVE", true));
-        return root;
+    public ObjectNode confirm(Referral r, String txnId, String coordinationId, String spicePatientId) {
+        return base("confirm", txnId, coordinationId, "ACTIVE", r, spicePatientId, true);
     }
 
-    private static String safe(String s) {
-        return s == null ? "" : s;
+    /** status: read-only query — minimal contract by coordinationId. */
+    public ObjectNode status(Referral r, String txnId, String coordinationId, String spicePatientId) {
+        ObjectNode root = om.createObjectNode();
+        root.set("context", context("status", txnId));
+        ObjectNode contract = root.putObject("message").putObject("contract");
+        contract.put("id", coordinationId);
+        contract.putObject("status").put("code", "ACTIVE");
+        return root;
     }
 }
