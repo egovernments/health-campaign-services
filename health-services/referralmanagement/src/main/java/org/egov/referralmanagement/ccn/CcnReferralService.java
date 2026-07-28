@@ -41,6 +41,13 @@ public class CcnReferralService {
             log.debug("CCN forwarding disabled; skipping referral {}", referral.getId());
             return;
         }
+        // Don't re-forward a referral that WE created from an inbound (SPICE→HCM) coordination —
+        // that would bounce it straight back to SPICE. Inbound ones are tagged INBOUND_<category>.
+        if (referral.getReasons() != null
+                && referral.getReasons().stream().anyMatch(r -> r != null && r.startsWith("INBOUND_"))) {
+            log.debug("CCN skip re-forward of inbound-originated referral {}", referral.getId());
+            return;
+        }
         String spicePatientId = HealthReferralMapper.spicePatientId(referral);
         if (spicePatientId == null || spicePatientId.isBlank()) {
             log.warn("CCN skip referral {} — no SPICE patientId on beneficiary id", referral.getId());
