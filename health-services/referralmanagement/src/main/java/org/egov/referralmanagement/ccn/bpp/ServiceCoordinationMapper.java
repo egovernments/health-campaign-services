@@ -26,12 +26,16 @@ public class ServiceCoordinationMapper {
         this.om = om;
     }
 
-    /** Clone the inbound context, flip to the on_/response action, fresh messageId+timestamp. */
+    /** Clone the inbound context, flip to the on_/response action, fresh messageId+timestamp.
+     *  Force domain+version so ONIX's bppTxnCaller can match a routing rule (it routes by
+     *  domain+version; a missing version yields "no routing rules found for domain health"). */
     private ObjectNode responseContext(JsonNode inbound, String action) {
         ObjectNode c = inbound.path("context").deepCopy();
         c.put("action", action);
         c.put("messageId", UUID.randomUUID().toString());
         c.put("timestamp", OffsetDateTime.now().toString());
+        c.put("domain", p.getDomain());
+        c.put("version", p.getVersion());
         return c;
     }
 

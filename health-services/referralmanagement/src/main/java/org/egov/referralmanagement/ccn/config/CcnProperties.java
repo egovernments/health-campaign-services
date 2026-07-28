@@ -68,6 +68,10 @@ public class CcnProperties {
      *  This default is used only when the patient has not been synced yet — Sierra Leone has many
      *  projects, so this must NOT be treated as the single project for all inbound referrals. */
     private String inboundProjectId;
+    /** Staff (project-staff user uuid) the inbound Referral is assigned to as recipient. The referral
+     *  create validates recipientType=STAFF against project staff, so this must be a valid staff on
+     *  the inbound project. */
+    private String inboundRecipientId;
 
     // ── Inbound completion → publish result back to SPICE ──
     /** Separate consumer group for the update-referral topic — distinct from the create-side group

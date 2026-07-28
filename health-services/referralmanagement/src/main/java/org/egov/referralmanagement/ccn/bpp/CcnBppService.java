@@ -99,6 +99,7 @@ public class CcnBppService {
                 .projectBeneficiaryClientReferenceId(r.getProjectBeneficiaryClientReferenceId())
                 .referrerId(body.at("/context/bapId").asText(null))                 // origin system
                 .recipientType("STAFF")
+                .recipientId(p.getInboundRecipientId())                             // CHW/staff to action it (validated as project staff)
                 .reasons(List.of("INBOUND_" + serviceCategory(body)))
                 .referralCode(coordinationId)                                        // cross-ref to the coordination
                 .build();
