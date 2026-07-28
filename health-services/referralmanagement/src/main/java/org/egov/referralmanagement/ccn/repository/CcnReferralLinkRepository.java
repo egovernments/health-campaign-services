@@ -149,4 +149,30 @@ public class CcnReferralLinkRepository {
         if (tenantId != null && !tenantId.isBlank()) return List.of(tenantId);
         return new ArrayList<>(fanoutTenants);
     }
+
+    /**
+     * Status search: any combination of coordinationId / referralId (hf_referral_id) /
+     * referralClientReferenceId / beneficiaryId (SPICE patientId) / direction. tenantId narrows to
+     * one schema; if null, fans out over the configured tenants.
+     */
+    public List<CcnReferralLink> search(String tenantId, String coordinationId, String referralId,
+                                        String referralClientReferenceId, String beneficiaryId, String direction) {
+        StringBuilder where = new StringBuilder(" WHERE 1=1");
+        MapSqlParameterSource p = new MapSqlParameterSource();
+        if (coordinationId != null && !coordinationId.isBlank()) { where.append(" AND coordination_id = :cid"); p.addValue("cid", coordinationId); }
+        if (referralId != null && !referralId.isBlank()) { where.append(" AND hf_referral_id = :rid"); p.addValue("rid", referralId); }
+        if (referralClientReferenceId != null && !referralClientReferenceId.isBlank()) { where.append(" AND hf_referral_client_reference_id = :rcid"); p.addValue("rcid", referralClientReferenceId); }
+        if (beneficiaryId != null && !beneficiaryId.isBlank()) { where.append(" AND beneficiary_id = :bid"); p.addValue("bid", beneficiaryId); }
+        if (direction != null && !direction.isBlank()) { where.append(" AND direction = :dir"); p.addValue("dir", direction); }
+        String tmpl = "SELECT * FROM %s.ccn_referral_link" + where + " ORDER BY last_modified_time DESC";
+        List<CcnReferralLink> out = new ArrayList<>();
+        for (String t : tenantsToTry(tenantId)) {
+            try {
+                out.addAll(jdbc.query(schema(tmpl, t), p, mapper));
+            } catch (Exception e) {
+                log.debug("CCN search fanout tenant {} skipped: {}", t, e.getMessage());
+            }
+        }
+        return out;
+    }
 }
