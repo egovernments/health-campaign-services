@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.core.EgovModel;
 import org.egov.common.models.idgen.IdRecord;
@@ -60,13 +61,22 @@ public class IdPoolValidatorForUpdate implements Validator<IdRecordBulkRequest, 
         String tenantId = idRecords.get(0).getTenantId();
 
         // Fetch existing IdRecords from DB based on IDs and tenantId
-        Map<String, IdRecord> idRecordMap = idRepo.findByIDsAndStatus(
-                idRecords.stream()
-                        .map(IdRecord::getId)
-                        .collect(Collectors.toList()),
-                null,  // Status filter is null, i.e., fetch irrespective of status
-                tenantId
-        ).stream().collect(Collectors.toMap(EgovModel::getId, record -> record));
+        Map<String, IdRecord> idRecordMap;
+        try {
+            idRecordMap = idRepo.findByIDsAndStatus(
+                    idRecords.stream()
+                            .map(IdRecord::getId)
+                            .collect(Collectors.toList()),
+                    null,  // Status filter is null, i.e., fetch irrespective of status
+                    tenantId
+            ).stream().collect(Collectors.toMap(EgovModel::getId, record -> record));
+        } catch (InvalidTenantIdException e) {
+            log.error("Invalid tenantId: {}", tenantId, e);
+            for (IdRecord idRecord : idRecords) {
+                updateError(errorDetailsMap, idRecord, e.getMessage());
+            }
+            return errorDetailsMap;
+        }
 
         // Validate each IdRecord in the request
         if (!idRecords.isEmpty()) {
