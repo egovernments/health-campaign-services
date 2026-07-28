@@ -40,7 +40,7 @@ class CcnCompletionConsumerTest {
 
     @Test
     void completedInboundPublishesClosed() {
-        when(linkRepo.findByCoordinationId("coord-in-1")).thenReturn(
+        when(linkRepo.findByCoordinationId(eq("coord-in-1"), any())).thenReturn(
                 CcnReferralLink.builder().coordinationId("coord-in-1").direction(CcnReferralLink.INBOUND).build());
         consumer.onReferralUpdate(referralArray("coord-in-1", "TASK_COMPLETE"), "update-referral-topic");
         verify(bpp).publishResult("coord-in-1", "CLOSED");
@@ -54,7 +54,7 @@ class CcnCompletionConsumerTest {
 
     @Test
     void outboundReferralIgnored() {
-        when(linkRepo.findByCoordinationId("coord-out-1")).thenReturn(
+        when(linkRepo.findByCoordinationId(eq("coord-out-1"), any())).thenReturn(
                 CcnReferralLink.builder().coordinationId("coord-out-1").direction(CcnReferralLink.OUTBOUND).build());
         consumer.onReferralUpdate(referralArray("coord-out-1", "TASK_COMPLETE"), "update-referral-topic");
         verify(bpp, never()).publishResult(anyString(), anyString());

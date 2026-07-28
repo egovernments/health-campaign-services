@@ -38,8 +38,10 @@ public class CcnReferralConsumer {
         this.objectMapper = objectMapper;
     }
 
+    // topicPattern (not topics): in central-instance mode the persister publishes to tenant-prefixed
+    // topics (e.g. sierraleone-save-referral-topic), so match any *save-referral-topic.
     @KafkaListener(
-            topics = "${referralmanagement.referral.kafka.create.topic}",
+            topicPattern = "${referralmanagement.ccn.create-topic-pattern:.*save-referral-topic}",
             groupId = "${referralmanagement.ccn.consumer-group}",
             containerFactory = "ccnKafkaListenerContainerFactory")
     public void onReferralCreate(String message,

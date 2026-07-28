@@ -48,8 +48,10 @@ public class CcnReferralUpdateConsumer {
         this.objectMapper = objectMapper;
     }
 
+    // topicPattern (not topics): central-instance publishes to tenant-prefixed topics
+    // (e.g. sierraleone-update-referral-topic), so match any *update-referral-topic.
     @KafkaListener(
-            topics = "${referralmanagement.referral.kafka.update.topic}",
+            topicPattern = "${referralmanagement.ccn.update-topic-pattern:.*update-referral-topic}",
             groupId = "${referralmanagement.ccn.update-consumer-group}",
             containerFactory = "ccnKafkaListenerContainerFactory")
     public void onReferralUpdate(String message,
@@ -76,7 +78,7 @@ public class CcnReferralUpdateConsumer {
         if (!isCompleted(referral)) {
             return;
         }
-        CcnReferralLink link = linkRepository.findByCoordinationId(coordinationId);
+        CcnReferralLink link = linkRepository.findByCoordinationId(coordinationId, referral.getTenantId());
         if (link == null || !CcnReferralLink.INBOUND.equals(link.getDirection())) {
             return;   // outbound or unrelated referral — not ours to close on the network
         }

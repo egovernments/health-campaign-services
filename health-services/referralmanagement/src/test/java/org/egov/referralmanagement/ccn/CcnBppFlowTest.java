@@ -100,11 +100,11 @@ class CcnBppFlowTest {
 
     @Test
     void publishResultSendsClosedWhenInbound() {
-        when(linkRepo.findByCoordinationId("coord-in-1")).thenReturn(
+        when(linkRepo.findByCoordinationId(eq("coord-in-1"), any())).thenReturn(
                 CcnReferralLink.builder().coordinationId("coord-in-1").direction(CcnReferralLink.INBOUND)
                         .lastPayload("{\"context\":{\"action\":\"confirm\"}}").build());
         bpp.publishResult("coord-in-1", "CLOSED");
         verify(onix).sendBpp(eq("on_status"), any(JsonNode.class));
-        verify(linkRepo).updateState(eq("coord-in-1"), eq("CLOSED"), eq("publishResult"), anyLong());
+        verify(linkRepo).updateState(eq("coord-in-1"), eq("CLOSED"), eq("publishResult"), anyLong(), any());
     }
 }

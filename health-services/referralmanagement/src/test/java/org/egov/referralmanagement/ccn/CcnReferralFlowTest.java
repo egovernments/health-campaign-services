@@ -86,7 +86,7 @@ class CcnReferralFlowTest {
         assertEquals("ref-id-1", saved.getValue().getHfReferralId());
         assertEquals("0690003741962", saved.getValue().getBeneficiaryId()); // the SPICE patientId sent
         assertEquals("INITIATED", saved.getValue().getLifecycleState());
-        verify(linkRepo).updateState(eq(saved.getValue().getCoordinationId()), eq("SENT"), eq("confirm"), anyLong());
+        verify(linkRepo).updateState(eq(saved.getValue().getCoordinationId()), eq("SENT"), eq("confirm"), anyLong(), any());
     }
 
     @Test
@@ -124,10 +124,10 @@ class CcnReferralFlowTest {
     @Test
     void onConfirmCallbackUpdatesLink() {
         CcnCallbackController cb = new CcnCallbackController(linkRepo, om);
-        when(linkRepo.updateState(anyString(), anyString(), anyString(), anyLong())).thenReturn(1);
+        when(linkRepo.updateState(anyString(), anyString(), anyString(), anyLong(), any())).thenReturn(1);
         String body = "{\"message\":{\"contract\":{\"id\":\"coord-9\",\"contractAttributes\":{\"coordinationId\":\"coord-9\",\"lifecycleState\":\"ACTIVE\"}}}}";
         var resp = cb.onConfirm(body);
         assertEquals("ACK", resp.getBody().at("/message/ack/status").asText());
-        verify(linkRepo).updateState(eq("coord-9"), eq("ACTIVE"), eq("on_confirm"), anyLong());
+        verify(linkRepo).updateState(eq("coord-9"), eq("ACTIVE"), eq("on_confirm"), anyLong(), any());
     }
 }

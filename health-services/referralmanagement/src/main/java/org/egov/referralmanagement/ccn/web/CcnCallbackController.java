@@ -68,7 +68,8 @@ public class CcnCallbackController {
                 return ResponseEntity.ok(ack());
             }
             String state = lifecycleState != null ? lifecycleState : action.toUpperCase();
-            int rows = linkRepository.updateState(coordinationId, state, action, System.currentTimeMillis());
+            // Outbound callback carries no tenant — pass null so the repo fans out over configured tenants.
+            int rows = linkRepository.updateState(coordinationId, state, action, System.currentTimeMillis(), null);
             if (rows == 0) {
                 log.warn("CCN {} for unknown coordinationId={} (no link row updated)", action, coordinationId);
             } else {

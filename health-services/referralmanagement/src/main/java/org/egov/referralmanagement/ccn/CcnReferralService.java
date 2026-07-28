@@ -80,18 +80,18 @@ public class CcnReferralService {
             log.info("CCN select ack: {}", onix.send("select", mapper.select(referral, transactionId, coordinationId, spicePatientId)));
             log.info("CCN init ack: {}", onix.send("init", mapper.init(referral, transactionId, coordinationId, spicePatientId)));
             log.info("CCN confirm ack: {} (coordinationId={})", onix.send("confirm", mapper.confirm(referral, transactionId, coordinationId, spicePatientId)), coordinationId);
-            safeUpdate(coordinationId, "SENT", "confirm");
+            safeUpdate(coordinationId, "SENT", "confirm", referral.getTenantId());
             // query the CC for the T2/SPICE state; the definitive answer arrives async via on_status
             log.info("CCN status ack: {}", onix.send("status", mapper.status(referral, transactionId, coordinationId, spicePatientId)));
         } catch (Exception e) {
             log.error("CCN forwarding failed for Referral id={}: {}", referral.getId(), e.getMessage());
-            safeUpdate(coordinationId, "SEND_FAILED", "forward");
+            safeUpdate(coordinationId, "SEND_FAILED", "forward", referral.getTenantId());
         }
     }
 
-    private void safeUpdate(String coordinationId, String state, String action) {
+    private void safeUpdate(String coordinationId, String state, String action, String tenantId) {
         try {
-            linkRepository.updateState(coordinationId, state, action, System.currentTimeMillis());
+            linkRepository.updateState(coordinationId, state, action, System.currentTimeMillis(), tenantId);
         } catch (Exception e) {
             log.error("CCN could not update referral link {}: {}", coordinationId, e.getMessage());
         }

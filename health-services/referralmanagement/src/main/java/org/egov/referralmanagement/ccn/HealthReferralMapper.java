@@ -141,13 +141,15 @@ public class HealthReferralMapper {
         return base("confirm", txnId, coordinationId, "ACTIVE", r, spicePatientId, true);
     }
 
-    /** status: read-only query — minimal contract by coordinationId. */
+    /** status: query by coordinationId. The Beckn Contract schema requires commitments
+     *  (minItems 1), so include them even on a status query — SPICE NACKs a bare contract. */
     public ObjectNode status(Referral r, String txnId, String coordinationId, String spicePatientId) {
         ObjectNode root = om.createObjectNode();
         root.set("context", context("status", txnId));
         ObjectNode contract = root.putObject("message").putObject("contract");
         contract.put("id", coordinationId);
         contract.putObject("status").put("code", "ACTIVE");
+        addCommitments(contract, "ACTIVE");
         return root;
     }
 }

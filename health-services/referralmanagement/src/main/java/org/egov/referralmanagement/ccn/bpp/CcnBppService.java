@@ -110,14 +110,14 @@ public class CcnBppService {
 
     /** Called by HCM when the CHW completes the field task — publishes the result to SPICE. */
     public void publishResult(String coordinationId, String lifecycleState) {
-        CcnReferralLink link = linkRepository.findByCoordinationId(coordinationId);
+        CcnReferralLink link = linkRepository.findByCoordinationId(coordinationId, p.getInboundTenantId());
         if (link == null || !CcnReferralLink.INBOUND.equals(link.getDirection())) {
             log.warn("CCN BPP publishResult: no inbound coordination {}", coordinationId);
             return;
         }
         JsonNode lastInbound = parse(link.getLastPayload());
         dispatch("on_status", mapper.statusUpdate(lastInbound, coordinationId, lifecycleState));
-        linkRepository.updateState(coordinationId, lifecycleState, "publishResult", System.currentTimeMillis());
+        linkRepository.updateState(coordinationId, lifecycleState, "publishResult", System.currentTimeMillis(), p.getInboundTenantId());
     }
 
     private void dispatch(String onAction, JsonNode payload) {
@@ -131,7 +131,7 @@ public class CcnBppService {
     private void upsertInbound(String coordinationId, String txn, String bapId, String lifecycle,
                                String action, JsonNode body, String createdReferralId) {
         long now = System.currentTimeMillis();
-        CcnReferralLink existing = linkRepository.findByCoordinationId(coordinationId);
+        CcnReferralLink existing = linkRepository.findByCoordinationId(coordinationId, p.getInboundTenantId());
         CcnReferralLink link = CcnReferralLink.builder()
                 .coordinationId(coordinationId)
                 .transactionId(txn)
@@ -188,7 +188,7 @@ public class CcnBppService {
         return null;
     }
     private String currentState(String coordinationId) {
-        CcnReferralLink l = linkRepository.findByCoordinationId(coordinationId);
+        CcnReferralLink l = linkRepository.findByCoordinationId(coordinationId, p.getInboundTenantId());
         return l != null && l.getLifecycleState() != null ? l.getLifecycleState() : "ACTIVE";
     }
     private JsonNode parse(String s) {
