@@ -71,11 +71,14 @@ public class IdRepository {
          * 4. RETURNING clause fetches the complete updated records
          * This approach ensures thread-safe ID allocation without deadlocks
          */
+        /* ANY(ARRAY(...)) forces the locking subquery into an InitPlan evaluated exactly once;
+           a plain IN-subselect with FOR UPDATE SKIP LOCKED may be re-executed as rows lock,
+           cascading past the LIMIT, while staying as fast as the original plan */
         String query = String.format(
                 "UPDATE %s.id_pool p SET status = :updatedStatus, rowVersion = rowVersion + 1, " +
                         "lastModifiedBy = :lastModifiedBy, lastModifiedTime = :lastModifiedTime " +
-                        "WHERE p.id IN (SELECT id FROM %s.id_pool WHERE tenantId = :tenantId AND status = :status  " +
-                        "ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED) AND p.status = :status RETURNING p.*",
+                        "WHERE p.id = ANY(ARRAY(SELECT id FROM %s.id_pool WHERE tenantId = :tenantId AND status = :status " +
+                        "ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED)) AND p.status = :status RETURNING p.*",
                 SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
