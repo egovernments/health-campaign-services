@@ -27,5 +27,16 @@ public class IdGenProducer {
         kafkaTemplate.send(topic, value);
         log.debug("Message successfully sent to topic: {}", topic);
     }
+
+    public void pushWithKey(String topic, String key, Object value) {
+        kafkaTemplate.send(topic, key, value);
+        log.debug("Message successfully sent to topic: {} with key: {}", topic, key);
+    }
+
+    public void pushWithKey(String tenantId, String topic, String key, Object value) {
+        String updatedTopic = multiStateInstanceUtil.getStateSpecificTopicName(tenantId, topic);
+        kafkaTemplate.send(updatedTopic, key, value);
+        log.debug("Message successfully sent to topic: {} with key: {} for tenantId: {}", updatedTopic, key, tenantId);
+    }
 }
 

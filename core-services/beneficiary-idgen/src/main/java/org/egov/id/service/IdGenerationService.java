@@ -163,8 +163,10 @@ public class IdGenerationService {
                         .requestInfo(request.getRequestInfo())
                         .build();
 
-                // Push the chunked request to Kafka
-                idGenProducer.push(propertiesManager.getIdPoolBulkCreateTopic(), kafkaRequest);
+                /* random key per chunk spreads chunks across partitions so multiple
+                   consumer pods share one large request instead of a single sticky partition */
+                idGenProducer.pushWithKey(propertiesManager.getIdPoolBulkCreateTopic(),
+                        UUID.randomUUID().toString(), kafkaRequest);
                 sent += chunkSize;
             }
             // Add a response message for this tenant
@@ -342,7 +344,9 @@ public class IdGenerationService {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("idPool", entries);
-            idGenProducer.push(tenantId, topic, payload);
+            /* random key per batch so persister partitions share insert load;
+               inserts are ON CONFLICT DO NOTHING, ordering across batches is irrelevant */
+            idGenProducer.pushWithKey(tenantId, topic, UUID.randomUUID().toString(), payload);
 
         } catch (Exception e) {
             log.error("Kafka publish failed", e);
