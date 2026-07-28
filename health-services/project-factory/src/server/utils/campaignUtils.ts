@@ -1088,7 +1088,7 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
   try {
     if (!campaignDetails?.parentId) {
       if (campaignDetails?.additionalDetails?.cloneFrom) {
-        await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo, campaignDetails?.projectType, campaignDetails?.campaignName);
+        await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo);
       }
       else {
         await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
@@ -1106,7 +1106,8 @@ async function processClonedChecklist(campaignDetails: any, RequestInfo: any) {
         const clonedChecklists = await fetchCloneChecklist(
           campaignDetails?.projectType,
           campaignDetails?.additionalDetails?.cloneFrom,
-          campaignDetails?.tenantId
+          campaignDetails?.tenantId,
+          RequestInfo
         );
 
         if (clonedChecklists.length) {
@@ -1114,7 +1115,8 @@ async function processClonedChecklist(campaignDetails: any, RequestInfo: any) {
           await createClonedChecklist(
             clonedChecklists,
             campaignDetails?.campaignName,
-            campaignDetails?.tenantId
+            campaignDetails?.tenantId,
+            RequestInfo
           );
 
           // Upsert localisation for cloned checklist
@@ -3209,7 +3211,8 @@ async function upsertChecklistLocalization(
 async function createClonedChecklist(
   clonedServiceDefinitions: any[],
   newCampaignName: string,
-  tenantId: string
+  tenantId: string,
+  RequestInfo: any
 ): Promise<void> {
   if (!clonedServiceDefinitions.length) return;
 
@@ -3220,7 +3223,7 @@ async function createClonedChecklist(
       ? `${newCampaignName}${oldCode.slice(dotIndex)}`
       : oldCode;
     const newDef = { ...def, code: newCode };
-    await createServiceDefinition(tenantId, newDef);
+    await createServiceDefinition(tenantId, newDef, RequestInfo);
     logger.info(`createClonedChecklist: created service definition ${newCode}`);
   }
 }
@@ -3228,7 +3231,8 @@ async function createClonedChecklist(
 async function fetchCloneChecklist(
   projectType: string,
   cloneFromCampaignNumber: string,
-  tenantId: string
+  tenantId: string,
+  RequestInfo: any
 ): Promise<any[]> {
   // Step 1: Fetch checklist templates from MDMS v2 filtered by campaignType
   logger.info(`fetchCloneChecklist: fetching MDMS checklist templates for projectType=${projectType}, tenant=${tenantId}`);
@@ -3239,7 +3243,7 @@ async function fetchCloneChecklist(
       campaignType: projectType,
     },
   };
-  const mdmsResponse: any = await searchMDMSDataViaV2Api({ MdmsCriteria: mdmsCriteria });
+  const mdmsResponse: any = await searchMDMSDataViaV2Api({ MdmsCriteria: mdmsCriteria }, false, RequestInfo);
   const mdmsData = mdmsResponse?.mdms || [];
   if (!mdmsData.length) {
     logger.warn(`fetchCloneChecklist: no MDMS checklist templates found for projectType=${projectType}, skipping further steps`);
@@ -3265,7 +3269,7 @@ async function fetchCloneChecklist(
 
   // Step 4: Search service definitions using the generated checklist keys
   logger.info(`fetchCloneChecklist: searching service definitions for ${checklistKeys.length} keys`);
-  const serviceDefinitions = await searchServiceDefinitions(tenantId, checklistKeys, true);
+  const serviceDefinitions = await searchServiceDefinitions(tenantId, checklistKeys, true, RequestInfo);
 
   // Step 5: Strip top-level id and auditDetails from each service definition
   const sanitized = sanitizeServiceDefinitions(serviceDefinitions);
