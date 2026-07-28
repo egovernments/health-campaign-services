@@ -3,22 +3,24 @@ FROM maven:3.9-eclipse-temurin-8 AS build
 ARG WORK_DIR
 WORKDIR /app
 
-# Copy POM, entrypoint script, and source
-COPY ${WORK_DIR}/pom.xml       ./pom.xml
+COPY build/maven/settings.xml ./settings.xml
+COPY ${WORK_DIR}/pom.xml ./pom.xml
+
+RUN mvn -B -s settings.xml dependency:go-offline
+
 COPY build/maven/start.sh ./start.sh
-COPY ${WORK_DIR}/src           ./src
+COPY ${WORK_DIR}/src ./src
 
-# Build the app (skip tests for speed)
-RUN mvn -B -f pom.xml package
-
+# ARG declared late: earlier placement injects it into the env of the go-offline RUN and busts the dependency layer cache whenever the value changes
+ARG SKIP_TESTS=false
+RUN mvn -B -s settings.xml package -DskipTests=${SKIP_TESTS}
 
 # ─────────────── RUNTIME STAGE ───────────────
 FROM openjdk:8-jdk-alpine AS runtime
 WORKDIR /opt/egov
 
-# Pull in the fat JAR and our startup script
 COPY --from=build /app/target/*.jar ./application.jar
-COPY --from=build /app/start.sh    ./start.sh
+COPY --from=build /app/start.sh ./start.sh
 
 RUN chmod +x ./start.sh
 

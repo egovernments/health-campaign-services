@@ -146,7 +146,8 @@ jobs:
           
           DB_IMAGE_NAME=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["image-name"] // ""' -)
           DB_WORK_DIR=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)
-          DB_DOCKERFILE=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)/Dockerfile
+          # db context is the db work-dir itself, so the dockerfile path must be context-relative
+          DB_DOCKERFILE="Dockerfile"
           
           # Step 8: Set Default Dockerfile if service dockerfile config is missing
           if [ -z "$SERVICE_DOCKERFILE" ]; then
