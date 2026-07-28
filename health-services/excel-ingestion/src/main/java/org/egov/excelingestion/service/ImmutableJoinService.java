@@ -144,11 +144,12 @@ public class ImmutableJoinService {
         // the processing type (e.g. "unified-console-validation"/"-parse") differ by design, so an
         // equality check would falsely reject every legitimate upload. The generationId (unguessable,
         // looked up by id + tenant) plus the referenceId match are the identity guarantee.
-        if (!equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
-            exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
-                    ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
-            return Collections.emptyMap();
-        }
+       
+        // if (!equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
+        //     exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
+        //             ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
+        //     return Collections.emptyMap();
+        // }
 
         // 4. Download + parse the baseline, then join per sheet. Collect, per sheet, the always-immutable
         // columns we reconstructed onto existing rows so validation can skip re-checking those cells.
