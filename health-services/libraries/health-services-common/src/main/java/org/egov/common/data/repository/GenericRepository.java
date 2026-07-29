@@ -293,7 +293,8 @@ public abstract class GenericRepository<T> {
                                            String tenantId,
                                            Long lastChangedSince,
                                            Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
-        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING, paramsMap);
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE");
@@ -305,7 +306,6 @@ public abstract class GenericRepository<T> {
             query += "AND lastModifiedTime>=:lastModifiedTime ";
         }
         query += "ORDER BY id ASC";
-        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
@@ -340,7 +340,8 @@ public abstract class GenericRepository<T> {
                         String tenantId,
                         Long lastChangedSince,
                         Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
-        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING, paramsMap);
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE");
@@ -352,7 +353,6 @@ public abstract class GenericRepository<T> {
             query += "AND lastModifiedTime>=:lastModifiedTime ";
         }
         query += "ORDER BY id ASC LIMIT :limit OFFSET :offset";
-        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);

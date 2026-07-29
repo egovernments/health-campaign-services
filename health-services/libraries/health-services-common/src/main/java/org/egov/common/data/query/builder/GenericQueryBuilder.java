@@ -17,7 +17,16 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 public interface GenericQueryBuilder {
-    String build(String schemaTemplate, Object object) throws QueryBuilderException;
+
+    /**
+     * Builds the query and populates the caller-supplied parameter map.
+     *
+     * @param schemaTemplate the name of the database schema
+     * @param object         an object of the class for which the query needs to be built
+     * @param paramsMap      caller-owned map the named parameters are written into
+     * @return the generated query as a string
+     */
+    String build(String schemaTemplate, Object object, Map<String, Object> paramsMap) throws QueryBuilderException;
 
     static String getTableName(Class reflectClass){
         Table table = (Table) reflectClass.getAnnotation(Table.class);

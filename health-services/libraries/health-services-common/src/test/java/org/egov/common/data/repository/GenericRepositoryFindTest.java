@@ -112,7 +112,7 @@ class GenericRepositoryFindTest {
         List<SomeObject> deleted = result.stream().filter(someObject -> someObject.getIsDeleted() == Boolean.TRUE)
                 .collect(Collectors.toList());
         result.removeAll(deleted);
-        when(selectQueryBuilder.build(any(Object.class), anyString(), eq(SCHEMA_REPLACE_STRING)))
+        when(selectQueryBuilder.build(any(Object.class), anyString(), eq(SCHEMA_REPLACE_STRING), anyMap()))
                 .thenReturn("Select * from {schema}.some_table where id='some-id' and isdeleted=false");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(SomeRowMapper.class)))
                 .thenReturn(result);
@@ -126,7 +126,7 @@ class GenericRepositoryFindTest {
     @Test
     @DisplayName("get products from db which are deleted")
     void shouldReturnObjectsFromDBForSearchRequestWithDeletedIncluded() throws QueryBuilderException, InvalidTenantIdException {
-        when(selectQueryBuilder.build(any(Object.class), anyString(), eq(SCHEMA_REPLACE_STRING)))
+        when(selectQueryBuilder.build(any(Object.class), anyString(), eq(SCHEMA_REPLACE_STRING), anyMap()))
                 .thenReturn("Select * from {schema}.some_table where id='some-id' and otherfield='other-field'");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(SomeRowMapper.class)))
                 .thenReturn(someObjects);
