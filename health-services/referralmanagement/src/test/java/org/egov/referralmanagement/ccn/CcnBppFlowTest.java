@@ -92,6 +92,22 @@ class CcnBppFlowTest {
     }
 
     @Test
+    void initAfterSelectDoesNotNpeWhenExistingCreatedTimeIsNull() throws Exception {
+        // Regression: on init the link already exists (from select). If it's read back with a null
+        // createdTime, the ternary `existing.getCreatedTime() : now` numeric-promotes to long and
+        // unboxes null -> NPE. Guard must fall back to `now`.
+        when(linkRepo.findByCoordinationId(eq("coord-in-1"), any())).thenReturn(
+                CcnReferralLink.builder().coordinationId("coord-in-1")
+                        .direction(CcnReferralLink.INBOUND).createdTime(null).build());
+        assertDoesNotThrow(() -> bpp.handle("init", inbound("init")));
+
+        ArgumentCaptor<CcnReferralLink> link = ArgumentCaptor.forClass(CcnReferralLink.class);
+        verify(linkRepo).save(link.capture());
+        assertNotNull(link.getValue().getCreatedTime(), "createdTime must fall back to now, not stay null");
+        verify(onix).sendBpp(eq("on_init"), any(JsonNode.class));
+    }
+
+    @Test
     void disabledDoesNothing() throws Exception {
         props.setBppEnabled(false);
         bpp.handle("confirm", inbound("confirm"));

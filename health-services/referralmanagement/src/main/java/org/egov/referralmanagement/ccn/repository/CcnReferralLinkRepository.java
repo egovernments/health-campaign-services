@@ -80,6 +80,8 @@ public class CcnReferralLinkRepository {
             .serviceCategory(rs.getString("service_category"))
             .targetBookingRef(rs.getString("target_booking_ref"))
             .tenantId(rs.getString("tenant_id"))
+            .createdTime(rs.getObject("created_time") == null ? null : rs.getLong("created_time"))
+            .lastModifiedTime(rs.getObject("last_modified_time") == null ? null : rs.getLong("last_modified_time"))
             .build();
 
     /** Resolve the tenant schema into the query. */

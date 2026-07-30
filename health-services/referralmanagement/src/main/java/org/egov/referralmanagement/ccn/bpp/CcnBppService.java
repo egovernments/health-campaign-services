@@ -148,7 +148,7 @@ public class CcnBppService {
                 .serviceCategory(serviceCategory(body))
                 .lastPayload(body.toString())
                 .tenantId(p.getInboundTenantId())
-                .createdTime(existing != null ? existing.getCreatedTime() : now)
+                .createdTime(existing != null && existing.getCreatedTime() != null ? existing.getCreatedTime() : now)
                 .lastModifiedTime(now)
                 .build();
         linkRepository.save(link);
