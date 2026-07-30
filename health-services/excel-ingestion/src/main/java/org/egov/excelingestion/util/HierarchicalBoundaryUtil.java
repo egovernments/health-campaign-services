@@ -1,5 +1,6 @@
 package org.egov.excelingestion.util;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddressList;
@@ -32,7 +33,10 @@ import java.util.stream.Collectors;
  *   needed for the lookup itself.
  * - The hidden boundary-code column carries VALUES only for prefilled rows; codes for user-entered
  *   rows are resolved server-side on upload ({@link BoundaryCodeResolver}) from the same lookup
- *   sheet's display-path-to-code mapping, so no per-row VLOOKUP formulas exist either.
+ *   sheet's display-path-to-code mapping, so this util writes no per-row VLOOKUP formulas either.
+ *   (The attendance-register template is the one exception: it needs the code live in the sheet so
+ *   Register ID auto-fills on selection, so its generator adds that lookup itself from the range
+ *   reported in {@link BoundaryColumnLayout} — deliberately not here, to keep other templates flat.)
  * This keeps the generated file size and open/parse cost independent of the row limit (previously
  * ~6 formulas x rowLimit x 2 sheets made 20k-row templates multi-MB, slow to open, and truncated
  * to 1000 scaffold rows by a LibreOffice save).
@@ -104,10 +108,10 @@ public class HierarchicalBoundaryUtil {
      * Adds cascading boundary dropdown columns to an existing sheet
      * Creates multiple columns starting from 1st level with cascading dropdowns
      */
-    public void addHierarchicalBoundaryColumn(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
+    public BoundaryColumnLayout addHierarchicalBoundaryColumn(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
                                               List<Boundary> configuredBoundaries, String hierarchyType,
                                               String tenantId, RequestInfo requestInfo) {
-        addHierarchicalBoundaryColumnWithData(workbook, sheetName, localizationMap, configuredBoundaries,
+        return addHierarchicalBoundaryColumnWithData(workbook, sheetName, localizationMap, configuredBoundaries,
                 hierarchyType, tenantId, requestInfo, null);
     }
 
@@ -116,18 +120,18 @@ public class HierarchicalBoundaryUtil {
      * Creates multiple columns starting from 1st level with cascading dropdowns
      * If existingData is provided, populates the first rows with that data
      */
-    public void addHierarchicalBoundaryColumnWithData(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
+    public BoundaryColumnLayout addHierarchicalBoundaryColumnWithData(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
                                                       List<Boundary> configuredBoundaries, String hierarchyType,
                                                       String tenantId, RequestInfo requestInfo, List<Map<String, Object>> existingData) {
         Sheet sheet = workbook.getSheet(sheetName);
         if (sheet == null) {
             log.warn("Sheet '{}' not found, cannot add hierarchical boundary column", sheetName);
-            return;
+            return null;
         }
 
         if (configuredBoundaries == null || configuredBoundaries.isEmpty()) {
             log.info("No boundaries configured for sheet '{}', skipping boundary column creation", sheetName);
-            return;
+            return null;
         }
 
         // Fetch boundary relationship data
@@ -138,7 +142,7 @@ public class HierarchicalBoundaryUtil {
         BoundaryHierarchyResponse hierarchyData = boundaryService.fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null || hierarchyData.getBoundaryHierarchy().isEmpty()) {
             log.error("Boundary hierarchy data is null or empty for type: {}", hierarchyType);
-            return;
+            return null;
         }
 
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0).getBoundaryHierarchy();
@@ -148,7 +152,7 @@ public class HierarchicalBoundaryUtil {
 
         if (levelTypes.size() < 1) {
             log.warn("Hierarchy has less than 1 level, skipping boundary column creation");
-            return;
+            return null;
         }
 
         List<BoundaryUtil.BoundaryRowData> filteredBoundaries = boundaryUtil.processBoundariesWithEnrichment(
@@ -156,7 +160,7 @@ public class HierarchicalBoundaryUtil {
 
         if (filteredBoundaries.isEmpty()) {
             log.info("No boundaries available for sheet '{}', skipping boundary column creation", sheetName);
-            return;
+            return null;
         }
 
         Row hiddenRow = sheet.getRow(0);
@@ -244,6 +248,9 @@ public class HierarchicalBoundaryUtil {
         sheet.setDefaultColumnStyle(boundaryCodeColIndex, formulaStyle);
 
         log.info("Added {} cascading boundary dropdown columns (no per-row scaffold).", levelTypes.size());
+
+        return new BoundaryColumnLayout(boundaryCodeColIndex, visibleColIndices,
+                mappingResult.codeMappingStartRow, mappingResult.codeMappingEndRow);
     }
 
     /**
@@ -417,7 +424,9 @@ public class HierarchicalBoundaryUtil {
         log.info("Created cascading boundary lookup sheet: {} children rows, {} display-name mappings (rows {}-{})",
                 childrenSectionEndRow, comboToCodeMap.size(), displayNameMappingStartRow + 1, displayNameMappingEndRow);
 
-        return new ParentChildrenMapping(parentChildrenMap, childrenSectionEndRow);
+        return new ParentChildrenMapping(parentChildrenMap, childrenSectionEndRow,
+                comboToCodeMap.isEmpty() ? 0 : displayNameMappingStartRow + 1,
+                comboToCodeMap.isEmpty() ? 0 : displayNameMappingEndRow);
     }
 
     /**
@@ -427,10 +436,41 @@ public class HierarchicalBoundaryUtil {
         final Map<String, Set<String>> parentChildrenMap;
         /** Number of Section-1 rows: the MATCH range of every cascade validation is $A$1:$A$<this>. */
         final int childrenSectionEndRow;
+        /** 1-based inclusive row bounds of Section 2 (display-path -> code). 0 when empty. */
+        final int codeMappingStartRow;
+        final int codeMappingEndRow;
 
-        ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, int childrenSectionEndRow) {
+        ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, int childrenSectionEndRow,
+                              int codeMappingStartRow, int codeMappingEndRow) {
             this.parentChildrenMap = parentChildrenMap;
             this.childrenSectionEndRow = childrenSectionEndRow;
+            this.codeMappingStartRow = codeMappingStartRow;
+            this.codeMappingEndRow = codeMappingEndRow;
+        }
+    }
+
+    /**
+     * Layout of the boundary columns a generator just had added, so a caller can attach its own
+     * per-row formulas without re-deriving column positions or the lookup sheet's section bounds.
+     * Deliberately data-only: no formulas are written here, so templates that do not ask for them
+     * (facility / user / unified-console) are unaffected.
+     */
+    @Getter
+    public static class BoundaryColumnLayout {
+        private final int boundaryCodeColIndex;
+        private final List<Integer> visibleBoundaryColIndices;
+        /** 1-based inclusive row bounds of the display-path -> code mapping; 0 when there is none. */
+        private final int codeMappingStartRow;
+        private final int codeMappingEndRow;
+
+        public BoundaryColumnLayout(int boundaryCodeColIndex, List<Integer> visibleBoundaryColIndices,
+                                    int codeMappingStartRow, int codeMappingEndRow) {
+            this.boundaryCodeColIndex = boundaryCodeColIndex;
+            // Copy: the caller hands over its live working list, and this layout is a value.
+            this.visibleBoundaryColIndices = visibleBoundaryColIndices == null
+                    ? List.of() : List.copyOf(visibleBoundaryColIndices);
+            this.codeMappingStartRow = codeMappingStartRow;
+            this.codeMappingEndRow = codeMappingEndRow;
         }
     }
 

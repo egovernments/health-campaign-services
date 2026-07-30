@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellReference;
@@ -31,6 +32,9 @@ import java.util.*;
 @Component
 @Slf4j
 public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
+
+    /** Positional format specifier standing in for the Excel row number in a formula template. */
+    private static final String ROW_PLACEHOLDER = "%1$d";
 
     private final BoundaryUtil boundaryUtil;
     private final MDMSService mdmsService;
@@ -88,6 +92,7 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
                 workbook.createSheet(sheetName);
 
                 // Add boundary dropdowns using HierarchicalBoundaryUtil (same pattern as UserSheetGenerator)
+                HierarchicalBoundaryUtil.BoundaryColumnLayout boundaryLayout = null;
                 if (shouldAddBoundaryDropdowns(generateResource)) {
                     List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries =
                             campaignService.getBoundariesFromCampaign(generateResource.getReferenceId(),
@@ -98,7 +103,7 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
                                 generateResource.getId(), generateResource.getReferenceId(),
                                 generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
 
-                        hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
+                        boundaryLayout = hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
                                 workbook, sheetName, localizationMap, enrichedBoundaries,
                                 generateResource.getHierarchyType(), generateResource.getTenantId(),
                                 requestInfo, null);
@@ -109,8 +114,8 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
                 workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(
                         workbook, sheetName, columns, null, localizationMap);
 
-                // Add Register ID auto-populate formulas
-                addRegisterIdFormulas(workbook, sheetName, generateResource.getHierarchyType());
+                // Must run AFTER populateSheetWithData: the Register ID column only exists by then.
+                addBoundaryCodeAndRegisterIdFormulas(workbook, sheetName, boundaryLayout);
             }
 
         } catch (Exception e) {
@@ -148,108 +153,133 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
     }
 
     /**
-     * Add Register ID formulas that auto-populate from the rightmost non-empty boundary column.
-     * Formula: IF(lastBoundary<>"", lastBoundary, IF(secondLast<>"", secondLast, ...))
-     * Uses unlocked cell style so users can manually override.
+     * Attendance-register only: fills the hidden boundary-code column with a per-row lookup so the
+     * Register ID (a plain reference to it) auto-populates in Excel the moment a boundary is picked.
+     *
+     * The shared boundary util deliberately writes no per-row formulas — templates that do not need
+     * this live auto-fill (facility / user / unified-console) stay scaffold-less. The helper columns
+     * the pre-scaffold-removal design used are not recreated either: the cascade now resolves inside
+     * each validation formula, so only this one lookup column is needed.
+     *
+     * Blank until a boundary is selected, and left unlocked so a user can type their own id over it.
+     *
+     * The fill must span the same rows as the dropdown validations (index 2..excelRowLimit + 1) — a
+     * dropdown row without the formula yields a blank code, and project-factory rejects that row with
+     * "Boundary code is missing". There is no server-side recovery for this template: attendance
+     * uploads are parsed by project-factory itself, so BoundaryCodeResolver never runs on them.
      */
-    private void addRegisterIdFormulas(XSSFWorkbook workbook, String sheetName, String hierarchyType) {
+    private void addBoundaryCodeAndRegisterIdFormulas(XSSFWorkbook workbook, String sheetName,
+                                                      HierarchicalBoundaryUtil.BoundaryColumnLayout layout) {
+        if (layout == null || layout.getCodeMappingStartRow() < 1) {
+            log.info("No boundary code mapping available, skipping attendance register formulas");
+            return;
+        }
+
         Sheet sheet = workbook.getSheet(sheetName);
-        if (sheet == null) return;
+        Row hiddenRow = sheet != null ? sheet.getRow(0) : null;
+        if (hiddenRow == null) {
+            log.warn("Hidden header row missing on sheet {}, skipping attendance register formulas", sheetName);
+            return;
+        }
 
-        Row hiddenRow = sheet.getRow(0);
-        if (hiddenRow == null) return;
-
-        // Find boundary code column, visible boundary columns, and Register ID column from hidden row 0
-        String hierarchyPrefix = hierarchyType != null ? hierarchyType.toUpperCase() + "_" : "";
-        List<Integer> visibleBoundaryColIndices = new ArrayList<>();
         int registerIdColIndex = -1;
-        int boundaryCodeColIndex = -1;
-
-        for (int colIdx = 0; colIdx <= hiddenRow.getLastCellNum(); colIdx++) {
+        // getLastCellNum() is already lastIndex + 1; a non-string header would throw on getStringCellValue.
+        for (int colIdx = 0; colIdx < hiddenRow.getLastCellNum(); colIdx++) {
             Cell cell = hiddenRow.getCell(colIdx);
-            if (cell == null) continue;
-            String cellValue = cell.getStringCellValue();
-            if (cellValue == null) continue;
-
-            // Check if it's a visible boundary column (has hierarchy prefix, not hidden, not a helper)
-            if (!hierarchyPrefix.isEmpty() && cellValue.startsWith(hierarchyPrefix)
-                    && !cellValue.endsWith("_HELPER") && !sheet.isColumnHidden(colIdx)) {
-                visibleBoundaryColIndices.add(colIdx);
-            }
-
-            // Check for Register ID column
-            if (ProcessingConstants.REGISTER_ID_COLUMN_KEY.equals(cellValue)) {
+            if (cell != null && cell.getCellType() == CellType.STRING
+                    && ProcessingConstants.REGISTER_ID_COLUMN_KEY.equals(cell.getStringCellValue())) {
                 registerIdColIndex = colIdx;
-            }
-
-            // Check for boundary code column (hidden column with VLOOKUP result)
-            if (ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY.equals(cellValue)) {
-                boundaryCodeColIndex = colIdx;
+                break;
             }
         }
-
         if (registerIdColIndex == -1) {
-            log.info("Register ID column not found, skipping formula generation");
+            log.info("Register ID column not found, skipping attendance register formulas");
             return;
         }
 
-        if (boundaryCodeColIndex == -1 && visibleBoundaryColIndices.isEmpty()) {
-            log.info("Neither boundary code column nor visible boundary columns found, skipping formula generation");
+        List<Integer> levelCols = layout.getVisibleBoundaryColIndices();
+        if (levelCols.isEmpty()) {
+            log.info("No visible boundary columns found, skipping attendance register formulas");
             return;
         }
 
-        // Create unlocked cell style for formula cells (users can override)
+        int codeColIndex = layout.getBoundaryCodeColIndex();
+        String codeColLetter = CellReference.convertNumToColString(codeColIndex);
+        String mappingRange = String.format("%s!$%s$%d:$%s$%d",
+                HierarchicalBoundaryUtil.LOOKUP_SHEET_NAME,
+                CellReference.convertNumToColString(HierarchicalBoundaryUtil.CODE_MAPPING_KEY_COLUMN),
+                layout.getCodeMappingStartRow(),
+                CellReference.convertNumToColString(HierarchicalBoundaryUtil.CODE_MAPPING_CODE_COLUMN),
+                layout.getCodeMappingEndRow());
+
+        // Matches the cascade validation range (HierarchicalBoundaryUtil applies dropdowns to
+        // 2..excelRowLimit + 1), so every row that offers a dropdown can resolve its code.
+        int lastRow = config.getExcelRowLimit() + 1;
+
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
 
-        int maxRow = config.getExcelRowLimit();
+        // Only the row number varies per row, so build the nested formula once and stamp the row in.
+        String codeFormulaTemplate = buildBoundaryCodeFormulaTemplate(levelCols, mappingRange);
 
-        // Apply formula to data rows (row 2 onwards, 0-indexed)
-        for (int r = 2; r <= maxRow; r++) {
+        for (int r = 2; r <= lastRow; r++) {
             Row row = sheet.getRow(r);
             if (row == null) row = sheet.createRow(r);
 
-            Cell registerIdCell = row.getCell(registerIdColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-
-            String formula;
-            if (boundaryCodeColIndex != -1) {
-                // Reference the hidden boundary code column directly (contains boundary code via VLOOKUP)
-                formula = CellReference.convertNumToColString(boundaryCodeColIndex) + (r + 1);
-            } else {
-                // Fallback: build nested IF over visible boundary display-name columns
-                formula = buildRegisterIdFormula(r + 1, visibleBoundaryColIndices);
+            // Only ever fill blanks: a prefilled row's code/id is server-authoritative.
+            Cell codeCell = row.getCell(codeColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+            if (codeCell.getCellType() == CellType.BLANK) {
+                codeCell.setCellFormula(String.format(codeFormulaTemplate, r + 1));
             }
-            registerIdCell.setCellFormula(formula);
-            registerIdCell.setCellStyle(unlocked);
+
+            Cell registerIdCell = row.getCell(registerIdColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+            if (registerIdCell.getCellType() == CellType.BLANK) {
+                // Guarded rather than a bare reference: =<code><row> on a blank code cell renders 0,
+                // which was the reported symptom.
+                String codeRef = codeColLetter + (r + 1);
+                registerIdCell.setCellFormula("IF(" + codeRef + "=\"\",\"\"," + codeRef + ")");
+                registerIdCell.setCellStyle(unlocked);
+            }
         }
 
-        log.info("Added Register ID formulas for {} rows using {} source",
-                maxRow - 1, boundaryCodeColIndex != -1 ? "boundary code column" : "visible boundary columns");
+        log.info("Added attendance register boundary-code + Register ID formulas for rows 3-{} (mapping {})",
+                lastRow + 1, mappingRange);
     }
 
     /**
-     * Build nested IF formula: IF(lastCol<>"", lastCol, IF(secondLastCol<>"", secondLastCol, ...))
-     * Checks from rightmost to leftmost visible boundary column.
+     * Resolves the deepest selected boundary level to its code:
+     * IF(deepest<>"", VLOOKUP(path-to-deepest, mapping, codeOffset, 0), IF(nextUp<>"", ... , "")).
+     * Empty when no level is selected, and IFERROR keeps an out-of-dropdown value blank rather than #N/A.
+     *
+     * Returned as a format template with {@value #ROW_PLACEHOLDER} wherever the row number goes; every
+     * other fragment is an internal constant or a column letter, so no stray format specifiers appear.
      */
-    private String buildRegisterIdFormula(int excelRowNumber, List<Integer> visibleBoundaryColIndices) {
+    private String buildBoundaryCodeFormulaTemplate(List<Integer> levelCols, String mappingRange) {
+        // VLOOKUP's result index is the code column's 1-based offset WITHIN the mapping range, so it
+        // must be derived from the two mapping constants rather than assuming they are adjacent.
+        int codeColumnOffset = HierarchicalBoundaryUtil.CODE_MAPPING_CODE_COLUMN
+                - HierarchicalBoundaryUtil.CODE_MAPPING_KEY_COLUMN + 1;
+
         StringBuilder formula = new StringBuilder();
         int nestCount = 0;
 
-        // Iterate from rightmost to leftmost
-        for (int i = visibleBoundaryColIndices.size() - 1; i >= 0; i--) {
-            String colRef = CellReference.convertNumToColString(visibleBoundaryColIndices.get(i)) + excelRowNumber;
-            formula.append("IF(").append(colRef).append("<>\"\",").append(colRef).append(",");
+        for (int i = levelCols.size() - 1; i >= 0; i--) {
+            String levelRef = CellReference.convertNumToColString(levelCols.get(i)) + ROW_PLACEHOLDER;
+            StringBuilder path = new StringBuilder();
+            for (int j = 0; j <= i; j++) {
+                if (j > 0) path.append(",\"").append(HierarchicalBoundaryUtil.BOUNDARY_SEPARATOR).append("\",");
+                path.append(CellReference.convertNumToColString(levelCols.get(j))).append(ROW_PLACEHOLDER);
+            }
+            formula.append("IF(").append(levelRef).append("<>\"\",IFERROR(VLOOKUP(CONCATENATE(")
+                    .append(path).append("),").append(mappingRange).append(",")
+                    .append(codeColumnOffset).append(",0),\"\"),");
             nestCount++;
         }
 
-        // Innermost: return empty string when no boundary is filled
         formula.append("\"\"");
-
-        // Close all IF parentheses
         for (int i = 0; i < nestCount; i++) {
             formula.append(")");
         }
-
         return formula.toString();
     }
 }
