@@ -53,10 +53,10 @@ class HealthReferralMapperTest {
         assertEquals("coord-1", c.at("/message/contract/id").asText());
         assertEquals("ACTIVE", c.at("/message/contract/status/code").asText());
 
-        // patient participant carries ONLY the SPICE patientId — no name/gender/DOB
+        // patient participant carries ONLY the national id under ABHA (SPICE's lookup key) — no name/gender/DOB
         JsonNode patient = c.at("/message/contract/participants/0");
         assertEquals("PATIENT", patient.at("/participantAttributes/participantRole").asText());
-        assertEquals("SPICE_PATIENT_ID", patient.at("/participantAttributes/healthIds/0/system").asText());
+        assertEquals("ABHA", patient.at("/participantAttributes/healthIds/0/system").asText());
         assertEquals("0690003741962", patient.at("/participantAttributes/healthIds/0/value").asText());
         assertTrue(patient.at("/descriptor/name").isMissingNode(), "no patient name (non-sensitive)");
         assertTrue(patient.at("/participantAttributes/gender").isMissingNode(), "no gender (non-sensitive)");
