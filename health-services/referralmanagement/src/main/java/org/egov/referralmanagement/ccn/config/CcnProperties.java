@@ -47,6 +47,10 @@ public class CcnProperties {
     private String healthParticipantCtx = "https://schema.beckn.io/HealthParticipant/v2.1/context.jsonld";
     private String codedValueCtx = "https://raw.githubusercontent.com/beckn/DHP-Specs/main/devkit/stub/context.jsonld";
 
+    /** healthId.system used for the PATIENT participant. SPICE performs its patient lookup on this
+     *  string (they use "ABHA"); the value carried is the national id (projectBeneficiaryClientReferenceId). */
+    private String patientHealthIdSystem = "ABHA";
+
     // ---- Coordination "slot" booked against SPICE (from SPICE's catalog) ----
     private String offerId = "offer-comemr-coord";
     private String resourceId = "res-comemr-coord";

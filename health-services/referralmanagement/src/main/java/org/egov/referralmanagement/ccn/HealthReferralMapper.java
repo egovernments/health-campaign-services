@@ -77,7 +77,7 @@ public class HealthReferralMapper {
         pa.put("@type", "hpa:HealthParticipant");
         pa.put("participantRole", "PATIENT");
         ObjectNode hid = pa.putArray("healthIds").addObject();
-        hid.put("system", "SPICE_PATIENT_ID");
+        hid.put("system", p.getPatientHealthIdSystem());   // "ABHA" — SPICE looks up the patient by this system
         hid.put("value", spicePatientId);
 
         if (r.getReferrerId() != null) {

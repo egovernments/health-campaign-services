@@ -171,18 +171,24 @@ public class CcnBppService {
         String t = b.at("/message/contract/contractAttributes/@type").asText("");
         return t.contains("HealthReferral") ? "HealthReferral" : "ServiceCoordination";
     }
-    /** Extract the SPICE patientId from the PATIENT participant. Prefer the healthId whose
-     *  system is SPICE_PATIENT_ID (the id we share on the network and sync from household/member);
-     *  fall back to the first healthId only if that system isn't present. */
+    /** Extract the SPICE patientId (national id) from the PATIENT participant. Prefer the healthId whose
+     *  system is the configured patient system (SPICE uses "ABHA"); accept the legacy SPICE_PATIENT_ID as
+     *  an alternate; fall back to the first healthId only if neither system is present. */
     private String patientId(JsonNode b) {
         for (JsonNode part : b.at("/message/contract/participants")) {
             if ("PATIENT".equals(part.at("/participantAttributes/participantRole").asText())) {
                 JsonNode healthIds = part.at("/participantAttributes/healthIds");
+                String legacy = null;
                 for (JsonNode hid : healthIds) {
-                    if ("SPICE_PATIENT_ID".equals(hid.at("/system").asText())) {
+                    String system = hid.at("/system").asText();
+                    if (p.getPatientHealthIdSystem().equals(system)) {
                         return hid.at("/value").asText(null);
                     }
+                    if ("SPICE_PATIENT_ID".equals(system)) {
+                        legacy = hid.at("/value").asText(null);
+                    }
                 }
+                if (legacy != null) return legacy;
                 return healthIds.at("/0/value").asText(null);
             }
         }
