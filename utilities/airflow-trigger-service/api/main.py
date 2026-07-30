@@ -23,7 +23,7 @@ import os
 import re
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -57,6 +57,7 @@ class ReportsMetadataRequest(BaseModel):
     campaignIdentifier: Optional[str] = None
     reportName: Optional[str] = None
     triggerFrequency: Optional[str] = None
+    triggeredDate: Optional[str] = None  # dd-MM-yyyy; returns reports triggered on that day (tenant tz)
 
 class ReportStatusRequest(BaseModel):
     RequestInfo: Optional[RequestInfoModel] = None
@@ -72,6 +73,7 @@ class ReportsInProgressRequest(BaseModel):
     tenantId: str
     campaignIdentifier: Optional[str] = None
     reportName: Optional[str] = None
+    triggeredDate: Optional[str] = None  # dd-MM-yyyy; returns reports triggered on that day (tenant tz)
 
 class CheckExistingCustomReportRequest(BaseModel):
     RequestInfo: Optional[RequestInfoModel] = None
@@ -793,11 +795,25 @@ async def list_task_instances(dag_id: str, dag_run_id: str):
     logger.info("list_task_instances returning %d tasks for dag_run_id=%s", len(tasks), dag_run_id)
     return tasks
 
+# Filter by "triggered on this calendar day": interpret the date in the tenant timezone
+# (default +05:30) and bound reportTriggeredTimeMs to that day. Configurable for other tenants.
+REPORT_QUERY_TZ_OFFSET_MINUTES = int(os.getenv("REPORT_QUERY_TZ_OFFSET_MINUTES", "330"))
+
+def _triggered_day_bounds_ms(date_str):
+    """'dd-MM-yyyy' -> (start_ms, end_ms) epoch-millis spanning that whole day in the
+    configured tenant timezone. Raises ValueError on a bad format."""
+    tz = timezone(timedelta(minutes=REPORT_QUERY_TZ_OFFSET_MINUTES))
+    day_start = datetime.strptime(date_str, "%d-%m-%Y").replace(tzinfo=tz)
+    start_ms = int(day_start.timestamp() * 1000)
+    end_ms = int((day_start + timedelta(days=1)).timestamp() * 1000) - 1
+    return start_ms, end_ms
+
+
 @app.post("/airflow-trigger-api/api/reports-metadata")
 async def search_reports_metadata(req: ReportsMetadataRequest):
     logger.info(
-        "search_reports_metadata called: tenantId=%s campaignIdentifier=%s reportName=%s triggerFrequency=%s",
-        req.tenantId, req.campaignIdentifier, req.reportName, req.triggerFrequency,
+        "search_reports_metadata called: tenantId=%s campaignIdentifier=%s reportName=%s triggerFrequency=%s triggeredDate=%s",
+        req.tenantId, req.campaignIdentifier, req.reportName, req.triggerFrequency, req.triggeredDate,
     )
     tenant_id = req.tenantId
 
@@ -829,6 +845,13 @@ async def search_reports_metadata(req: ReportsMetadataRequest):
     if req.triggerFrequency:
         query += " AND triggerFrequency = %s"
         params.append(req.triggerFrequency)
+    if req.triggeredDate:
+        try:
+            _from_ms, _to_ms = _triggered_day_bounds_ms(req.triggeredDate)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="triggeredDate must be in dd-MM-yyyy format")
+        query += " AND reportTriggeredTimeMs BETWEEN %s AND %s"
+        params.extend([_from_ms, _to_ms])
 
     query += " ORDER BY createdTime DESC"
 
@@ -928,8 +951,8 @@ async def reports_in_progress(req: ReportsInProgressRequest):
     """Latest-status rows that are still in flight (not completed/failed/skipped) -
     drives the 'in progress' cards/badges on the reports UI."""
     logger.info(
-        "reports_in_progress called: tenantId=%s campaignIdentifier=%s reportName=%s",
-        req.tenantId, req.campaignIdentifier, req.reportName,
+        "reports_in_progress called: tenantId=%s campaignIdentifier=%s reportName=%s triggeredDate=%s",
+        req.tenantId, req.campaignIdentifier, req.reportName, req.triggeredDate,
     )
     tenant_id = req.tenantId
 
@@ -944,6 +967,13 @@ async def reports_in_progress(req: ReportsInProgressRequest):
     if req.reportName:
         filters.append("reportName = %s")
         params.append(req.reportName)
+    if req.triggeredDate:
+        try:
+            _from_ms, _to_ms = _triggered_day_bounds_ms(req.triggeredDate)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="triggeredDate must be in dd-MM-yyyy format")
+        filters.append("reportTriggeredTimeMs BETWEEN %s AND %s")
+        params.extend([_from_ms, _to_ms])
 
     where_clause = " AND ".join(filters)
 
