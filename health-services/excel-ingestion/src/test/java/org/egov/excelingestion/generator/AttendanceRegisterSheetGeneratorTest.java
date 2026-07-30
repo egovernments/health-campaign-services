@@ -165,19 +165,6 @@ class AttendanceRegisterSheetGeneratorTest {
     }
 
     @Test
-    void fillSpansTheConfiguredExcelRowLimit() throws Exception {
-        stubRowLimit(10);
-        try (XSSFWorkbook wb = workbookWithLayout()) {
-            invoke(wb, layout());
-
-            Sheet sheet = wb.getSheet(SHEET);
-            assertEquals(CellType.FORMULA, sheet.getRow(2).getCell(REGISTER_ID_COL).getCellType());
-            assertEquals(CellType.FORMULA, sheet.getRow(10).getCell(REGISTER_ID_COL).getCellType());
-            assertNull(sheet.getRow(11), "fill must stop at excelRowLimit");
-        }
-    }
-
-    @Test
     void noFormulasAreWrittenWhenThereIsNoBoundaryCodeMapping() throws Exception {
         try (XSSFWorkbook wb = workbookWithLayout()) {
             invoke(wb, new HierarchicalBoundaryUtil.BoundaryColumnLayout(
@@ -233,6 +220,67 @@ class AttendanceRegisterSheetGeneratorTest {
                     - HierarchicalBoundaryUtil.CODE_MAPPING_KEY_COLUMN + 1;
             assertTrue(formula.contains("," + expectedOffset + ",0)"),
                     "VLOOKUP index must follow the mapping columns, was: " + formula);
+        }
+    }
+
+    @Test
+    void theLastDropdownRowAlsoGetsFormulas() throws Exception {
+        // Dropdowns span row indices 2..excelRowLimit + 1; a covered row without the formula would
+        // yield a blank code and be rejected on upload with "Boundary code is missing".
+        int rowLimit = 10;
+        stubRowLimit(rowLimit);
+        try (XSSFWorkbook wb = workbookWithLayout()) {
+            invoke(wb, layout());
+
+            Sheet sheet = wb.getSheet(SHEET);
+            Row lastRow = sheet.getRow(rowLimit + 1);
+            assertEquals(CellType.FORMULA, lastRow.getCell(CODE_COL).getCellType(),
+                    "last validation row must carry the code formula");
+            assertEquals(CellType.FORMULA, lastRow.getCell(REGISTER_ID_COL).getCellType());
+
+            // Cell type alone would pass even if the formula referenced the wrong row, so resolve it.
+            lastRow.createCell(COUNTRY_COL).setCellValue("Nigeria");
+            lastRow.createCell(STATE_COL).setCellValue("Oyo");
+            FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
+            assertEquals(STATE_CODE, evaluatedString(evaluator, lastRow.getCell(CODE_COL)));
+            assertEquals(STATE_CODE, evaluatedString(evaluator, lastRow.getCell(REGISTER_ID_COL)));
+
+            assertNull(sheet.getRow(rowLimit + 2), "fill must not go past the validation range");
+        }
+    }
+
+    @Test
+    void registerIdIsBlankRatherThanZeroWhenTheCodeCellItselfIsBlank() throws Exception {
+        stubRowLimit(5000);
+        try (XSSFWorkbook wb = workbookWithLayout()) {
+            invoke(wb, layout());
+
+            // Simulate a code cell with no formula at all (the failure mode a bare =<code><row> hit):
+            // a bare reference to a blank cell evaluates to NUMERIC 0, which was the reported symptom.
+            Row row = wb.getSheet(SHEET).getRow(2);
+            row.getCell(CODE_COL).setBlank();
+
+            FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
+            assertEquals("", evaluatedString(evaluator, row.getCell(REGISTER_ID_COL)),
+                    "Register ID must be blank-safe independently of the code column");
+        }
+    }
+
+    @Test
+    void prefilledCodeAndRegisterIdValuesAreNotOverwrittenByFormulas() throws Exception {
+        stubRowLimit(5000);
+        try (XSSFWorkbook wb = workbookWithLayout()) {
+            Sheet sheet = wb.getSheet(SHEET);
+            Row prefilled = sheet.createRow(2);
+            prefilled.createCell(CODE_COL).setCellValue("SERVER_AUTHORITATIVE_CODE");
+            prefilled.createCell(REGISTER_ID_COL).setCellValue("Reg2201");
+
+            invoke(wb, layout());
+
+            assertEquals("SERVER_AUTHORITATIVE_CODE", sheet.getRow(2).getCell(CODE_COL).getStringCellValue());
+            assertEquals("Reg2201", sheet.getRow(2).getCell(REGISTER_ID_COL).getStringCellValue());
+            // The untouched row below still gets its formulas.
+            assertEquals(CellType.FORMULA, sheet.getRow(3).getCell(CODE_COL).getCellType());
         }
     }
 

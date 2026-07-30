@@ -162,7 +162,11 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
      * each validation formula, so only this one lookup column is needed.
      *
      * Blank until a boundary is selected, and left unlocked so a user can type their own id over it.
-     * Rows past excelRowLimit keep a blank code, which BoundaryCodeResolver fills on upload.
+     *
+     * The fill must span the same rows as the dropdown validations (index 2..excelRowLimit + 1) — a
+     * dropdown row without the formula yields a blank code, and project-factory rejects that row with
+     * "Boundary code is missing". There is no server-side recovery for this template: attendance
+     * uploads are parsed by project-factory itself, so BoundaryCodeResolver never runs on them.
      */
     private void addBoundaryCodeAndRegisterIdFormulas(XSSFWorkbook workbook, String sheetName,
                                                       HierarchicalBoundaryUtil.BoundaryColumnLayout layout) {
@@ -208,7 +212,9 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
                 CellReference.convertNumToColString(HierarchicalBoundaryUtil.CODE_MAPPING_CODE_COLUMN),
                 layout.getCodeMappingEndRow());
 
-        int lastRow = config.getExcelRowLimit();
+        // Matches the cascade validation range (HierarchicalBoundaryUtil applies dropdowns to
+        // 2..excelRowLimit + 1), so every row that offers a dropdown can resolve its code.
+        int lastRow = config.getExcelRowLimit() + 1;
 
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
@@ -220,12 +226,20 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
             Row row = sheet.getRow(r);
             if (row == null) row = sheet.createRow(r);
 
-            row.getCell(codeColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
-                    .setCellFormula(String.format(codeFormulaTemplate, r + 1));
+            // Only ever fill blanks: a prefilled row's code/id is server-authoritative.
+            Cell codeCell = row.getCell(codeColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+            if (codeCell.getCellType() == CellType.BLANK) {
+                codeCell.setCellFormula(String.format(codeFormulaTemplate, r + 1));
+            }
 
             Cell registerIdCell = row.getCell(registerIdColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-            registerIdCell.setCellFormula(codeColLetter + (r + 1));
-            registerIdCell.setCellStyle(unlocked);
+            if (registerIdCell.getCellType() == CellType.BLANK) {
+                // Guarded rather than a bare reference: =<code><row> on a blank code cell renders 0,
+                // which was the reported symptom.
+                String codeRef = codeColLetter + (r + 1);
+                registerIdCell.setCellFormula("IF(" + codeRef + "=\"\",\"\"," + codeRef + ")");
+                registerIdCell.setCellStyle(unlocked);
+            }
         }
 
         log.info("Added attendance register boundary-code + Register ID formulas for rows 3-{} (mapping {})",
