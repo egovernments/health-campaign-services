@@ -3,10 +3,12 @@ package org.egov.id.service;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.idgen.*;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.id.config.PropertiesManager;
 import org.egov.id.model.IdPoolConfig;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.tracer.model.CustomException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,7 +28,9 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,6 +55,18 @@ class IdGenerationServiceTest {
 
     @Mock
     private PropertiesManager propertiesManager;
+
+    @BeforeEach
+    void setUpSchemaResolution() {
+        // Real instance rather than a mock: every SQL path in the service calls replaceSchemaPlaceholder,
+        // and a real single-instance util keeps strict-stubs clean for the tests that never reach SQL.
+        setInstanceMode(false, 0);
+    }
+
+    private void setInstanceMode(boolean centralInstance, int schemaIndexInTenantId) {
+        ReflectionTestUtils.setField(idGenerationService, "multiStateInstanceUtil",
+                new MultiStateInstanceUtil(1, centralInstance, schemaIndexInTenantId));
+    }
 
     @ParameterizedTest
     @MethodSource("invalidRequests")
@@ -151,7 +167,7 @@ class IdGenerationServiceTest {
         idGenerationService.handleAsyncIdPoolRequest(request);
 
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(idGenProducer).push(eq("save-in-id-pool"), payloadCaptor.capture());
+        verify(idGenProducer).pushWithKey(eq(tenantId), eq("save-in-id-pool"), anyString(), payloadCaptor.capture());
 
         Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
         List<IdRecord> records = (List<IdRecord>) payload.get("idPool");
@@ -191,7 +207,7 @@ class IdGenerationServiceTest {
         idGenerationService.handleAsyncIdPoolRequest(request);
 
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(idGenProducer).push(eq("save-in-id-pool"), payloadCaptor.capture());
+        verify(idGenProducer).pushWithKey(eq(tenantId), eq("save-in-id-pool"), anyString(), payloadCaptor.capture());
 
         Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
         List<IdRecord> records = (List<IdRecord>) payload.get("idPool");
@@ -223,6 +239,30 @@ class IdGenerationServiceTest {
         // seqCode was blank, so generation aborts before any DB lookup or Kafka publish.
         verifyNoInteractions(jdbcTemplate);
         verifyNoInteractions(idGenProducer);
+    }
+
+    @Test
+    void qualifiesSequenceQueryWithSchemaWhenCentralInstance() {
+        // On a central instance the sequence must be resolved inside the tenant's own schema, taken from
+        // index 1 of the dot-split tenantId. An unqualified sequence name would hit the wrong state's data.
+        setInstanceMode(true, 1);
+        ReflectionTestUtils.setField(idGenerationService, "defaultPaddingLength", 6);
+        when(jdbcTemplate.queryForList(anyString(), any(Object[].class), eq(String.class)))
+                .thenReturn(Collections.singletonList("42"));
+
+        IdGenerationRequest request = request(
+                Collections.singletonList(buildRequest(null, "bednet.city.a", "[SEQ_EG]", 1)), new RequestInfo());
+
+        IdGenerationResponse response = assertDoesNotThrow(() -> idGenerationService.generateIdResponse(request));
+
+        assertEquals("000042", response.getIdResponses().get(0).getId());
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForList(sqlCaptor.capture(), any(Object[].class), eq(String.class));
+        String sql = sqlCaptor.getValue();
+        assertTrue(sql.contains("'city.SEQ_EG'"), "Sequence must be schema-qualified, but was: " + sql);
+        assertFalse(sql.contains(MultiStateInstanceUtil.SCHEMA_REPLACE_STRING),
+                "Schema placeholder must be resolved, but was: " + sql);
     }
 
     private static RequestInfo requestInfoWithUser() {
