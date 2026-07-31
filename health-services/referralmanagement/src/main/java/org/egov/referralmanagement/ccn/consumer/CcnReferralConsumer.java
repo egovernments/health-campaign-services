@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.referralmanagement.ccn.CcnReferralService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -70,6 +71,43 @@ public class CcnReferralConsumer {
             for (JsonNode n : node) out.add(objectMapper.convertValue(n, Referral.class));
         } else if (node.isObject()) {
             out.add(objectMapper.convertValue(node, Referral.class));
+        }
+        return out;
+    }
+
+    // ── HFReferral fan-out ────────────────────────────────────────────────────
+    // The mobile "Refer" screen creates HFReferrals (published to *save-hfreferral-topic) — a DIFFERENT
+    // entity/topic than Referral. Listen for those too and forward them to SPICE via the same ONIX path.
+    @KafkaListener(
+            topicPattern = "${referralmanagement.ccn.hf-create-topic-pattern:.*save-hfreferral-topic}",
+            groupId = "${referralmanagement.ccn.consumer-group}",
+            containerFactory = "ccnKafkaListenerContainerFactory")
+    public void onHfReferralCreate(String message,
+                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            List<HFReferral> hfReferrals = parseHf(message);
+            if (hfReferrals.isEmpty()) {
+                return;
+            }
+            log.info("CCN consumer received {} HFReferral(s) from topic {}", hfReferrals.size(), topic);
+            for (HFReferral hf : hfReferrals) {
+                ccnReferralService.forwardHfReferral(hf);
+            }
+        } catch (Exception exception) {
+            // Isolated: log only. Never rethrow — must not disrupt the persist/create flow.
+            log.error("CCN consumer error on hfreferral topic {}: {}", topic, exception.getMessage());
+            log.error("Trace: {}", ExceptionUtils.getStackTrace(exception));
+        }
+    }
+
+    /** save() publishes a JSON array; tolerate a single object too. */
+    public List<HFReferral> parseHf(String message) throws Exception {
+        List<HFReferral> out = new ArrayList<>();
+        JsonNode node = objectMapper.readTree(message);
+        if (node.isArray()) {
+            for (JsonNode n : node) out.add(objectMapper.convertValue(n, HFReferral.class));
+        } else if (node.isObject()) {
+            out.add(objectMapper.convertValue(node, HFReferral.class));
         }
         return out;
     }
