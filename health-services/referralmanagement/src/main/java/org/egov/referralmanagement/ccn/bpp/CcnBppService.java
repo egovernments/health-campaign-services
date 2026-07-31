@@ -7,6 +7,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralRequest;
+import org.egov.referralmanagement.ccn.CcnIdentityResolver;
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
@@ -34,11 +35,12 @@ public class CcnBppService {
     private final CcnReferralLinkRepository linkRepository;
     private final ReferralManagementService referralService;
     private final InboundProjectResolver projectResolver;
+    private final CcnIdentityResolver identityResolver;
     private final ObjectMapper om;
 
     public CcnBppService(CcnProperties p, ServiceCoordinationMapper mapper, CcnOnixClient onix,
                          CcnReferralLinkRepository linkRepository, ReferralManagementService referralService,
-                         InboundProjectResolver projectResolver,
+                         InboundProjectResolver projectResolver, CcnIdentityResolver identityResolver,
                          @Qualifier("objectMapper") ObjectMapper om) {
         this.p = p;
         this.mapper = mapper;
@@ -46,6 +48,7 @@ public class CcnBppService {
         this.linkRepository = linkRepository;
         this.referralService = referralService;
         this.projectResolver = projectResolver;
+        this.identityResolver = identityResolver;
         this.om = om;
     }
 
@@ -86,7 +89,7 @@ public class CcnBppService {
      *  Tenant is fixed for this node; the project is resolved per-referral from the SPICE patientId
      *  (SPICE_PATIENT_ID → synced ProjectBeneficiary → its projectId) rather than a static value. */
     private String createInboundReferral(String coordinationId, JsonNode body) {
-        String spicePatientId = patientId(body);
+        String spicePatientId = patientId(body);   // canonical UNIQUE_BENEFICIARY_ID off the PATIENT participant
         RequestInfo ri = RequestInfo.builder()
                 .userInfo(User.builder().uuid("ccn-system").tenantId(p.getInboundTenantId()).type("SYSTEM").build())
                 .build();
@@ -94,16 +97,28 @@ public class CcnBppService {
         Referral referral = Referral.builder()
                 .tenantId(p.getInboundTenantId())
                 .clientReferenceId(UUID.randomUUID().toString())
-                .projectId(r.getProjectId())                                         // resolved from the patient's beneficiary
-                .projectBeneficiaryId(r.getProjectBeneficiaryId())                   // real beneficiary link (null if unsynced)
+                .projectId(r.getProjectId())                                         // resolved from the patient's beneficiary (else configured fallback project)
+                .projectBeneficiaryId(r.getProjectBeneficiaryId())                   // real beneficiary link (null if patient not in HCM)
                 .projectBeneficiaryClientReferenceId(r.getProjectBeneficiaryClientReferenceId())
                 .referrerId(body.at("/context/bapId").asText(null))                 // origin system
                 .recipientType("STAFF")
-                .recipientId(p.getInboundRecipientId())                             // CHW/staff to action it (validated as project staff)
+                .recipientId(p.getInboundRecipientId())                             // CHW/staff to action it
                 .reasons(List.of("INBOUND_" + serviceCategory(body)))
                 .referralCode(coordinationId)                                        // cross-ref to the coordination
                 .build();
-        Referral created = referralService.create(ReferralRequest.builder().requestInfo(ri).referral(referral).build());
+        // Stamp the incoming canonical id onto the created referral (additionalFields[abhaId]) — both paths.
+        identityResolver.writeAbhaField(referral, spicePatientId);
+        ReferralRequest request = ReferralRequest.builder().requestInfo(ri).referral(referral).build();
+        Referral created;
+        if (r.isResolved()) {
+            // patient/beneficiary found → normal validated create
+            created = referralService.create(request);
+        } else {
+            // patient not in HCM → persist anyway, skipping reference-existence validators so it never drops
+            log.warn("CCN BPP inbound patient {}={} not resolvable in HCM; persisting referral WITHOUT reference validation",
+                    p.getPatientIdentifierType(), spicePatientId);
+            created = referralService.createSkippingValidation(request);
+        }
         log.info("CCN BPP created inbound Referral id={} for coordinationId={} (project={}, resolved={})",
                 created.getId(), coordinationId, r.getProjectId(), r.isResolved());
         return created.getId();

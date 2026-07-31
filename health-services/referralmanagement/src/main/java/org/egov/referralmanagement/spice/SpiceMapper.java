@@ -153,8 +153,16 @@ public class SpiceMapper {
 
     private List<Identifier> identifiers(SpiceMember m) {
         List<Identifier> ids = new ArrayList<>();
-        if (m.getPatientId() != null)
+        if (m.getPatientId() != null) {
             ids.add(Identifier.builder().identifierType("SPICE_PATIENT_ID").identifierId(m.getPatientId()).build());
+            // Canonical patient identity for the CCN integration. The inbound resolver matches on
+            // identifierType=UNIQUE_BENEFICIARY_ID, so a downsynced individual must carry it (= the
+            // Spice patient id, the 13-digit value that also rides the wire as the ABHA healthId).
+            // NOTE(ccn): the canonical id is defined as idgen-generated from the beneficiary id-pool;
+            // this live downsync has no idgen step, so we source it from the Spice patientId to keep
+            // the key identical on both sides of the wire.
+            ids.add(Identifier.builder().identifierType("UNIQUE_BENEFICIARY_ID").identifierId(m.getPatientId()).build());
+        }
         ids.add(Identifier.builder().identifierType("SPICE_MEMBER_ID").identifierId(m.getId()).build());
         if (m.getMotherPatientId() != null)
             ids.add(Identifier.builder().identifierType("SPICE_MOTHER_PATIENT_ID").identifierId(m.getMotherPatientId()).build());

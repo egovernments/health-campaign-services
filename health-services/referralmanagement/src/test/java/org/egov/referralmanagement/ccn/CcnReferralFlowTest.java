@@ -2,6 +2,8 @@ package org.egov.referralmanagement.ccn;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.models.core.AdditionalFields;
+import org.egov.common.models.core.Field;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
@@ -9,6 +11,7 @@ import org.egov.referralmanagement.ccn.consumer.CcnReferralConsumer;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
 import org.egov.referralmanagement.ccn.repository.CcnReferralLinkRepository;
 import org.egov.referralmanagement.ccn.web.CcnCallbackController;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -47,13 +50,20 @@ class CcnReferralFlowTest {
         when(onix.send(anyString(), any(JsonNode.class))).thenReturn(om.createObjectNode().put("status", "ACK"));
         linkRepo = mock(CcnReferralLinkRepository.class);
         HealthReferralMapper mapper = new HealthReferralMapper(props, om);
-        service = new CcnReferralService(props, mapper, onix, linkRepo);
+        // Real identity resolver; sample() carries the canonical id in additionalFields, so the
+        // outbound resolve short-circuits at step 1 and no HCM client is called here.
+        CcnIdentityResolver identityResolver =
+                new CcnIdentityResolver(null, mock(ReferralManagementConfiguration.class), props);
+        service = new CcnReferralService(props, mapper, onix, linkRepo, identityResolver);
     }
 
     private Referral sample() {
         return Referral.builder()
                 .id("ref-id-1")
-                .projectBeneficiaryClientReferenceId("0690003741962")   // SPICE patientId
+                .projectBeneficiaryClientReferenceId("pb-client-ref-1")   // project-beneficiary link (NOT the ABHA value)
+                .additionalFields(AdditionalFields.builder()
+                        .fields(List.of(Field.builder().key("abhaId").value("0690003741962").build())) // canonical UNIQUE_BENEFICIARY_ID
+                        .build())
                 .referrerId("chw-user-42")
                 .reasons(List.of("FEVER"))
                 .referralCode("REF-0007")

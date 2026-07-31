@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralRequest;
+import org.egov.referralmanagement.ccn.CcnIdentityResolver;
 import org.egov.referralmanagement.ccn.bpp.CcnBppService;
 import org.egov.referralmanagement.ccn.bpp.InboundProjectResolver;
 import org.egov.referralmanagement.ccn.bpp.ServiceCoordinationMapper;
@@ -11,6 +12,7 @@ import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
 import org.egov.referralmanagement.ccn.repository.CcnReferralLinkRepository;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.service.ReferralManagementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +29,8 @@ class CcnBppFlowTest {
     private CcnReferralLinkRepository linkRepo;
     private ReferralManagementService referralService;
     private CcnBppService bpp;
+    private CcnIdentityResolver identityResolver;
+    private InboundProjectResolver resolver;
     private final ObjectMapper om = new ObjectMapper();
 
     @BeforeEach
@@ -42,13 +46,17 @@ class CcnBppFlowTest {
         referralService = mock(ReferralManagementService.class);
         when(referralService.create(any(ReferralRequest.class)))
                 .thenReturn(Referral.builder().id("created-ref-1").build());
-        // Resolver: SPICE patientId → synced beneficiary's project. Here it resolves to proj-1
-        // and echoes the patientId as the beneficiary client ref (what an unsynced fallback also does).
-        InboundProjectResolver resolver = mock(InboundProjectResolver.class);
+        when(referralService.createSkippingValidation(any(ReferralRequest.class)))
+                .thenReturn(Referral.builder().id("created-ref-skip-1").build());
+        // Resolver keys on the individual identifier (UNIQUE_BENEFICIARY_ID) → its beneficiary's project.
+        // Default: resolves to proj-1 (individual/beneficiary found). Unresolved cases re-stub per test.
+        resolver = mock(InboundProjectResolver.class);
         when(resolver.resolve(any(), any())).thenAnswer(inv ->
                 new InboundProjectResolver.Resolution("proj-1", "pb-1", inv.getArgument(0), true));
+        // Real identity resolver: reading/writing additionalFields[abhaId] needs no HCM client calls.
+        identityResolver = new CcnIdentityResolver(null, mock(ReferralManagementConfiguration.class), props);
         ServiceCoordinationMapper mapper = new ServiceCoordinationMapper(props, om);
-        bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, resolver, om);
+        bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, resolver, identityResolver, om);
     }
 
     private JsonNode inbound(String action) throws Exception {
@@ -58,7 +66,7 @@ class CcnBppFlowTest {
                 + "\"@type\":\"scoord:ServiceCoordination\",\"coordinationId\":\"coord-in-1\",\"lifecycleState\":\"ACTIVE\","
                 + "\"targetCriteria\":{\"serviceCategory\":{\"code\":\"FIELD_DATA_COLLECTION\"}}},"
                 + "\"participants\":[{\"participantAttributes\":{\"participantRole\":\"PATIENT\","
-                + "\"healthIds\":[{\"system\":\"SPICE_PATIENT_ID\",\"value\":\"0690003741962\"}]}}]}}}");
+                + "\"healthIds\":[{\"system\":\"ABHA\",\"value\":\"0690003741962\"}]}}]}}}");
     }
 
     @Test
@@ -75,6 +83,8 @@ class CcnBppFlowTest {
         ArgumentCaptor<ReferralRequest> req = ArgumentCaptor.forClass(ReferralRequest.class);
         verify(referralService).create(req.capture());
         assertEquals("0690003741962", req.getValue().getReferral().getProjectBeneficiaryClientReferenceId());
+        // the incoming canonical id is stamped into the referral's additionalFields[abhaId]
+        assertEquals("0690003741962", identityResolver.readAbhaField(req.getValue().getReferral()));
         assertEquals("coord-in-1", req.getValue().getReferral().getReferralCode());
         // project is resolved from the patient's beneficiary, not a hardcoded config value
         assertEquals("proj-1", req.getValue().getReferral().getProjectId());
@@ -88,6 +98,43 @@ class CcnBppFlowTest {
         assertEquals("created-ref-1", link.getValue().getHfReferralId());
         assertEquals("comemr-np-spice-001", link.getValue().getInitiatorSubscriberId());
 
+        // resolved case uses validated create, never the skip-validation path
+        verify(referralService, never()).createSkippingValidation(any());
+        verify(onix).sendBpp(eq("on_confirm"), any(JsonNode.class));
+    }
+
+    @Test
+    void unresolvedInboundConfirmStillPersistsViaSkipValidation() throws Exception {
+        // patient/beneficiary NOT in HCM → resolver returns an unresolved fallback (project only, no beneficiary)
+        when(resolver.resolve(any(), any())).thenAnswer(inv ->
+                new InboundProjectResolver.Resolution("proj-1", null, inv.getArgument(0), false));
+
+        assertDoesNotThrow(() -> bpp.handle("confirm", inbound("confirm")));
+
+        // persisted WITHOUT reference-existence validation (never dropped), not via validated create
+        ArgumentCaptor<ReferralRequest> req = ArgumentCaptor.forClass(ReferralRequest.class);
+        verify(referralService).createSkippingValidation(req.capture());
+        verify(referralService, never()).create(any());
+        // fallback project kept; beneficiary link null; canonical id still stamped
+        assertEquals("proj-1", req.getValue().getReferral().getProjectId());
+        assertNull(req.getValue().getReferral().getProjectBeneficiaryId());
+        assertEquals("0690003741962", identityResolver.readAbhaField(req.getValue().getReferral()));
+
+        // still links the created (skip-validation) referral and dispatches on_confirm
+        ArgumentCaptor<CcnReferralLink> link = ArgumentCaptor.forClass(CcnReferralLink.class);
+        verify(linkRepo).save(link.capture());
+        assertEquals("created-ref-skip-1", link.getValue().getHfReferralId());
+        verify(onix).sendBpp(eq("on_confirm"), any(JsonNode.class));
+    }
+
+    @Test
+    void inboundConfirmNeverBreaksDispatchWhenPersistThrows() throws Exception {
+        // even if the skip-validation persist blows up, on_confirm must still be dispatched (guarded)
+        when(resolver.resolve(any(), any())).thenAnswer(inv ->
+                new InboundProjectResolver.Resolution("proj-1", null, inv.getArgument(0), false));
+        when(referralService.createSkippingValidation(any())).thenThrow(new RuntimeException("db down"));
+
+        assertDoesNotThrow(() -> bpp.handle("confirm", inbound("confirm")));
         verify(onix).sendBpp(eq("on_confirm"), any(JsonNode.class));
     }
 

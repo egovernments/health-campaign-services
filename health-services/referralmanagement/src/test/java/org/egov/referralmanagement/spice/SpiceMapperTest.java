@@ -150,13 +150,15 @@ class SpiceMapperTest {
         }
 
         @Test
-        @DisplayName("identifiers include patientId, member id, and motherPatientId when present")
+        @DisplayName("identifiers include patientId, canonical UNIQUE_BENEFICIARY_ID, member id, and motherPatientId when present")
         void identifiersFull() {
             SpiceMember m = member();
             m.setMotherPatientId("90112342190265");
             List<Identifier> ids = mapper.toIndividual(m, LOC, WARD, TENANT).getIdentifiers();
-            assertEquals(3, ids.size());
+            assertEquals(4, ids.size());
             assertTrue(ids.stream().anyMatch(x -> x.getIdentifierType().equals("SPICE_PATIENT_ID") && x.getIdentifierId().equals("90112342190743")));
+            // canonical CCN key mirrors the Spice patientId so the inbound resolver can match a downsynced individual
+            assertTrue(ids.stream().anyMatch(x -> x.getIdentifierType().equals("UNIQUE_BENEFICIARY_ID") && x.getIdentifierId().equals("90112342190743")));
             assertTrue(ids.stream().anyMatch(x -> x.getIdentifierType().equals("SPICE_MEMBER_ID") && x.getIdentifierId().equals("998357")));
             assertTrue(ids.stream().anyMatch(x -> x.getIdentifierType().equals("SPICE_MOTHER_PATIENT_ID")));
         }
