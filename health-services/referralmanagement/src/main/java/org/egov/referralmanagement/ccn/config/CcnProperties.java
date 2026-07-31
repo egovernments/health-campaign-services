@@ -51,6 +51,16 @@ public class CcnProperties {
      *  string (they use "ABHA"); the value carried is the national id (projectBeneficiaryClientReferenceId). */
     private String patientHealthIdSystem = "ABHA";
 
+    /** idgen-generated identifier type on the Individual that is the ONE canonical patient identity —
+     *  a 13-digit value drawn from the beneficiary id-pool. This value (not the project-beneficiary
+     *  clientReferenceId) is what we send as the ABHA healthId outbound and the sole match key inbound. */
+    private String patientIdentifierType = "UNIQUE_BENEFICIARY_ID";
+
+    /** Key under {@code Referral.additionalFields} where the resolved canonical id is cached/stamped.
+     *  NOTE: the DIGIT Referral model has no free-form {@code additionalDetails} JsonNode; it carries an
+     *  {@code additionalFields} (schema/version + List&lt;Field key,value&gt;). We stamp under this key there. */
+    private String abhaAdditionalDetailsKey = "abhaId";
+
     // ---- Coordination "slot" booked against SPICE (from SPICE's catalog) ----
     private String offerId = "offer-comemr-coord";
     private String resourceId = "res-comemr-coord";

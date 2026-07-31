@@ -4,10 +4,12 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.common.models.individual.Individual;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.ProjectBeneficiarySearch;
+import org.egov.referralmanagement.ccn.CcnIdentityResolver;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.springframework.stereotype.Component;
@@ -22,13 +24,14 @@ import java.util.List;
  * (confirmed to be the same {@code SPICE_PATIENT_ID} we ingest from the household/member sync).
  * So we resolve by that identity:</p>
  *
- * <pre>SPICE_PATIENT_ID → ProjectBeneficiary (clientReferenceId == patientId) → its projectId</pre>
+ * <pre>UNIQUE_BENEFICIARY_ID → Individual (identifier match) → ProjectBeneficiary (beneficiaryId == individual.id) → its projectId</pre>
  *
  * <p>This reuses the sync half authoritatively (the beneficiary already knows its project) and
  * hands back the beneficiary link to attach to the created Referral. If the patient hasn't been
- * synced, we fall back to {@link CcnProperties#getInboundProjectId()} and flag it — and note that
- * {@code RmProjectBeneficiaryIdValidator} will then reject the create, which is the desired
- * loud-fail (we don't invent referrals for unknown patients).</p>
+ * synced, we fall back to {@link CcnProperties#getInboundProjectId()} and flag it as unresolved;
+ * {@code CcnBppService} then persists the inbound referral via
+ * {@code ReferralManagementService.createSkippingValidation(...)} so the coordination is never
+ * dropped, even with no matching household/individual/beneficiary.</p>
  */
 @Slf4j
 @Component
@@ -37,12 +40,15 @@ public class InboundProjectResolver {
     private final ServiceRequestClient serviceRequestClient;
     private final ReferralManagementConfiguration config;
     private final CcnProperties ccn;
+    private final CcnIdentityResolver identityResolver;
 
     public InboundProjectResolver(ServiceRequestClient serviceRequestClient,
-                                  ReferralManagementConfiguration config, CcnProperties ccn) {
+                                  ReferralManagementConfiguration config, CcnProperties ccn,
+                                  CcnIdentityResolver identityResolver) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.ccn = ccn;
+        this.identityResolver = identityResolver;
     }
 
     /** Resolution of an inbound patient to an HCM project + beneficiary link. */
@@ -68,32 +74,44 @@ public class InboundProjectResolver {
     public Resolution resolve(String spicePatientId, RequestInfo requestInfo) {
         String tenantId = ccn.getInboundTenantId();
         if (spicePatientId == null || spicePatientId.isBlank()) {
-            log.warn("CCN BPP: inbound referral has no SPICE patientId; using fallback project {}", ccn.getInboundProjectId());
+            log.warn("CCN BPP: inbound referral has no canonical patient id; using fallback project {}", ccn.getInboundProjectId());
             return fallback(spicePatientId);
         }
         try {
-            ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
-                    .clientReferenceId(List.of(spicePatientId))
-                    .build();
+            // 1) canonical id (UNIQUE_BENEFICIARY_ID) → the Individual that holds that identifier
+            Individual individual = identityResolver.findIndividualByUniqueBeneficiaryId(spicePatientId, tenantId, requestInfo);
+            if (individual == null) {
+                log.warn("CCN BPP: no Individual with {}={} in tenant {}; using fallback project {} "
+                                + "(referral will be persisted skipping reference validation)",
+                        ccn.getPatientIdentifierType(), spicePatientId, tenantId, ccn.getInboundProjectId());
+                return fallback(spicePatientId);
+            }
+            // 2) Individual → its ProjectBeneficiary (beneficiaryId == individual.id) → projectId
+            ProjectBeneficiarySearch.ProjectBeneficiarySearchBuilder<?, ?> b = ProjectBeneficiarySearch.builder();
+            if (individual.getId() != null && !individual.getId().isBlank()) {
+                b.beneficiaryId(List.of(individual.getId()));
+            } else if (individual.getClientReferenceId() != null && !individual.getClientReferenceId().isBlank()) {
+                b.clientReferenceId(List.of(individual.getClientReferenceId()));
+            }
             BeneficiaryBulkResponse resp = serviceRequestClient.fetchResult(
                     new StringBuilder(config.getProjectHost()
                             + config.getProjectBeneficiarySearchUrl()
                             + "?limit=1&offset=0&tenantId=" + tenantId),
-                    BeneficiarySearchRequest.builder().requestInfo(requestInfo).projectBeneficiary(search).build(),
+                    BeneficiarySearchRequest.builder().requestInfo(requestInfo).projectBeneficiary(b.build()).build(),
                     BeneficiaryBulkResponse.class);
             List<ProjectBeneficiary> found = resp != null ? resp.getProjectBeneficiaries() : null;
             if (found != null && !found.isEmpty()) {
                 ProjectBeneficiary pb = found.get(0);
-                log.info("CCN BPP: resolved SPICE patientId={} → project={} beneficiary={}",
-                        spicePatientId, pb.getProjectId(), pb.getId());
+                log.info("CCN BPP: resolved {}={} → individual={} → project={} beneficiary={}",
+                        ccn.getPatientIdentifierType(), spicePatientId, individual.getId(), pb.getProjectId(), pb.getId());
                 return new Resolution(pb.getProjectId(), pb.getId(), pb.getClientReferenceId(), true);
             }
-            log.warn("CCN BPP: SPICE patientId={} not yet synced as a ProjectBeneficiary in tenant {}; "
-                    + "using fallback project {} (create() will validate)", spicePatientId, tenantId, ccn.getInboundProjectId());
+            log.warn("CCN BPP: Individual {} ({}={}) has no ProjectBeneficiary in tenant {}; using fallback project {}",
+                    individual.getId(), ccn.getPatientIdentifierType(), spicePatientId, tenantId, ccn.getInboundProjectId());
             return fallback(spicePatientId);
         } catch (Exception e) {
-            log.error("CCN BPP: project resolution failed for patientId={}: {}; using fallback project {}",
-                    spicePatientId, e.getMessage(), ccn.getInboundProjectId());
+            log.error("CCN BPP: project resolution failed for {}={}: {}; using fallback project {}",
+                    ccn.getPatientIdentifierType(), spicePatientId, e.getMessage(), ccn.getInboundProjectId());
             return fallback(spicePatientId);
         }
     }

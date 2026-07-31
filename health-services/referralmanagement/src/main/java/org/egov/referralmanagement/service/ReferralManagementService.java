@@ -130,6 +130,26 @@ public class ReferralManagementService {
         return validReferrals;
     }
 
+    /**
+     * Persist a referral WITHOUT running the reference-existence validators
+     * (project-beneficiary / project / referrer / recipient / side-effect / existent-entity).
+     *
+     * <p>Used by the CCN inbound (SPICE → HCM) flow: an inbound referral must always be saved even
+     * when the patient's household/individual/beneficiary is not present in HCM, so the coordination
+     * is never dropped. This runs ONLY enrichment (id/audit) + repository save to the same create
+     * topic — no validators and no {@code handleErrors}. Callers guard it and log-and-continue on error.</p>
+     */
+    public Referral createSkippingValidation(ReferralRequest request) {
+        log.info("received request to create referral skipping reference-existence validation");
+        ReferralBulkRequest bulkRequest = ReferralBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .referrals(Collections.singletonList(request.getReferral())).build();
+        List<Referral> referrals = bulkRequest.getReferrals();
+        referralManagementEnrichmentService.create(referrals, bulkRequest);
+        referralRepository.save(referrals, referralManagementConfiguration.getCreateReferralTopic());
+        log.info("successfully created referral (validation skipped)");
+        return referrals.get(0);
+    }
+
     public Referral update(ReferralRequest request) {
         log.info("received request to update referral");
         ReferralBulkRequest bulkRequest = ReferralBulkRequest.builder().requestInfo(request.getRequestInfo())

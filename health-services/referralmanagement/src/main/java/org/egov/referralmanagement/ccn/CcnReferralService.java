@@ -1,7 +1,8 @@
 package org.egov.referralmanagement.ccn;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
@@ -27,13 +28,15 @@ public class CcnReferralService {
     private final HealthReferralMapper mapper;
     private final CcnOnixClient onix;
     private final CcnReferralLinkRepository linkRepository;
+    private final CcnIdentityResolver identityResolver;
 
     public CcnReferralService(CcnProperties p, HealthReferralMapper mapper, CcnOnixClient onix,
-                              CcnReferralLinkRepository linkRepository) {
+                              CcnReferralLinkRepository linkRepository, CcnIdentityResolver identityResolver) {
         this.p = p;
         this.mapper = mapper;
         this.onix = onix;
         this.linkRepository = linkRepository;
+        this.identityResolver = identityResolver;
     }
 
     public void forward(Referral referral) {
@@ -48,9 +51,15 @@ public class CcnReferralService {
             log.debug("CCN skip re-forward of inbound-originated referral {}", referral.getId());
             return;
         }
-        String spicePatientId = HealthReferralMapper.spicePatientId(referral);
+        // Canonical patient identity = the individual's UNIQUE_BENEFICIARY_ID (idgen, from the
+        // beneficiary id-pool). Resolved from additionalFields[abhaId] or via project-beneficiary →
+        // individual lookup (and cached back onto the referral). We no longer send the
+        // projectBeneficiaryClientReferenceId as the ABHA value.
+        RequestInfo ri = systemRequestInfo(referral.getTenantId());
+        String spicePatientId = identityResolver.resolveOutboundAbha(referral, ri);
         if (spicePatientId == null || spicePatientId.isBlank()) {
-            log.warn("CCN skip referral {} — no SPICE patientId on beneficiary id", referral.getId());
+            log.warn("CCN skip referral {} — could not resolve canonical {} identity",
+                    referral.getId(), p.getPatientIdentifierType());
             return;
         }
         String transactionId = UUID.randomUUID().toString();
@@ -94,6 +103,12 @@ public class CcnReferralService {
             log.error("CCN forwarding failed for Referral id={}: {}", referral.getId(), e.getMessage());
             safeUpdate(coordinationId, "SEND_FAILED", "forward", referral.getTenantId());
         }
+    }
+
+    private RequestInfo systemRequestInfo(String tenantId) {
+        return RequestInfo.builder()
+                .userInfo(User.builder().uuid("ccn-system").tenantId(tenantId).type("SYSTEM").build())
+                .build();
     }
 
     private void safeUpdate(String coordinationId, String state, String action, String tenantId) {
