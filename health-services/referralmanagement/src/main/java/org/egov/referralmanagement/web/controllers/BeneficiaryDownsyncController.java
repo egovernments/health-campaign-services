@@ -58,7 +58,7 @@ public class BeneficiaryDownsyncController {
 		boolean isStale = lastSyncedTime != null
 				&& (System.currentTimeMillis() - lastSyncedTime) > staleThresholdMs;
 
-		if (lastSyncedTime == null || isStale) {
+		if (!config.isDownsyncForceLive() && (lastSyncedTime == null || isStale)) {
 			if (isStale)
 				log.info("lastSyncedTime is older than {}h — routing to pregen path, locality={}",
 						config.getDownsyncStaleThresholdHours(), request.getDownsyncCriteria().getLocality());
