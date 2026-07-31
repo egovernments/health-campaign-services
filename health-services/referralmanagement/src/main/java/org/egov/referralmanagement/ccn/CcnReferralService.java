@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
@@ -37,6 +38,39 @@ public class CcnReferralService {
         this.onix = onix;
         this.linkRepository = linkRepository;
         this.identityResolver = identityResolver;
+    }
+
+    /**
+     * Forward an app-created {@link HFReferral} (the entity the mobile "Refer" screen produces) to SPICE.
+     * The HFReferral's {@code beneficiaryId} is already the individual's canonical id (what the app sends
+     * as ABHA), so we stamp it straight into {@code additionalFields[abhaId]} and reuse
+     * {@link #forward(Referral)} — no project-beneficiary → individual resolution needed.
+     */
+    public void forwardHfReferral(HFReferral hf) {
+        if (!p.isEnabled()) {
+            log.debug("CCN forwarding disabled; skipping HFReferral {}", hf.getId());
+            return;
+        }
+        String abhaId = hf.getBeneficiaryId();
+        if (abhaId == null || abhaId.isBlank()) {
+            log.warn("CCN skip HFReferral {} — no beneficiaryId to send as {}", hf.getId(), p.getPatientHealthIdSystem());
+            return;
+        }
+        Referral referral = Referral.builder()
+                .clientReferenceId(hf.getClientReferenceId())
+                .tenantId(hf.getTenantId())
+                .projectId(hf.getProjectId())
+                .projectBeneficiaryClientReferenceId(abhaId)
+                .referrerId(hf.getAuditDetails() != null ? hf.getAuditDetails().getCreatedBy() : null)
+                .recipientType("FACILITY")
+                .recipientId(hf.getProjectFacilityId())
+                .reasons(hf.getSymptom() != null && !hf.getSymptom().isBlank()
+                        ? java.util.List.of(hf.getSymptom()) : java.util.List.of("REFERRAL"))
+                .referralCode(hf.getReferralCode())
+                .build();
+        referral.setId(hf.getId());                          // originating hf_referral id -> ccn_referral_link.hf_referral_id
+        identityResolver.writeAbhaField(referral, abhaId);   // short-circuit ABHA resolution to the app-sent id
+        forward(referral);
     }
 
     public void forward(Referral referral) {
