@@ -212,6 +212,11 @@ public class ReferralManagementConfiguration {
     @Value("${egov.downsync.stale.threshold.hours:8}")
     private int downsyncStaleThresholdHours;
 
+    // When true, /beneficiary-downsync/v1/_get always uses the live HCM-DB path (bypasses the
+    // pregen/file branch, including first/null syncs). Defaults to false when the property is absent.
+    @Value("${egov.downsync.force.live:false}")
+    private boolean downsyncForceLive;
+
     /** When true (default), startup fails if HikariCP maximum-pool-size &lt; wardPoolSize + 4.
      *  Set to false only for local dev / tiny deployments. */
     @Value("${egov.downsync.pool.check.enabled:true}")
