@@ -18,6 +18,7 @@ import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
+import org.egov.excelingestion.web.models.CampaignSearchResponse;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -56,6 +57,7 @@ public class ImmutableJoinService {
     private final ObjectMapper objectMapper;
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
+    private final CampaignService campaignService;
 
     private static final String MULTISELECT_MARKER = "_MULTISELECT_";
 
@@ -73,7 +75,8 @@ public class ImmutableJoinService {
                                 SchemaColumnDefUtil schemaColumnDefUtil,
                                 ObjectMapper objectMapper,
                                 CustomExceptionHandler exceptionHandler,
-                                ExcelIngestionConfig config) {
+                                ExcelIngestionConfig config,
+                                CampaignService campaignService) {
         this.generatedFileRepository = generatedFileRepository;
         this.fileStoreService = fileStoreService;
         this.excelUtil = excelUtil;
@@ -81,6 +84,7 @@ public class ImmutableJoinService {
         this.objectMapper = objectMapper;
         this.exceptionHandler = exceptionHandler;
         this.config = config;
+        this.campaignService = campaignService;
     }
 
     /**
@@ -144,12 +148,30 @@ public class ImmutableJoinService {
         // the processing type (e.g. "unified-console-validation"/"-parse") differ by design, so an
         // equality check would falsely reject every legitimate upload. The generationId (unguessable,
         // looked up by id + tenant) plus the referenceId match are the identity guarantee.
-       
-        // if (!equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
-        //     exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
-        //             ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
-        //     return Collections.emptyMap();
-        // }
+
+        CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(
+                resource.getReferenceId(), resource.getTenantId(), resource.getRequestInfo());
+        String clonedCampaignId = campaign.getAdditionalDetails() == null ? null
+                : campaign.getAdditionalDetails().getClonedCampaignId();
+        log.info("Immutable-baseline join for generationId {}: campaign {} clonedCampaignId {}",
+                generationId, resource.getReferenceId(), clonedCampaignId);
+
+
+
+        // A cloned campaign inherits its parent's generated template, so the baseline legitimately belongs
+        // to the campaign this one was cloned FROM. Match against that id instead; otherwise the baseline
+        // must belong to this campaign itself.
+        if (clonedCampaignId != null && !clonedCampaignId.trim().isEmpty()) {
+            if (!equalsNullSafe(baselineGen.getReferenceId(), clonedCampaignId)) {
+                exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
+                        ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
+                return Collections.emptyMap();
+            }
+        } else if (!equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
+            exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
+                    ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
+            return Collections.emptyMap();
+        }
 
         // 4. Download + parse the baseline, then join per sheet. Collect, per sheet, the always-immutable
         // columns we reconstructed onto existing rows so validation can skip re-checking those cells.
