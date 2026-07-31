@@ -19,6 +19,7 @@ import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.ExcelStyleHelper;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
+import org.egov.excelingestion.web.models.CampaignSearchResponse;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -68,6 +69,7 @@ class ImmutableJoinServiceTest {
         @Mock private ExcelUtil excelUtil;
         @Mock private SchemaColumnDefUtil schemaColumnDefUtil;
         @Mock private ExcelIngestionConfig config;
+        @Mock private CampaignService campaignService;
 
         private ImmutableJoinService service;
 
@@ -89,7 +91,8 @@ class ImmutableJoinServiceTest {
         @BeforeEach
         void setUp() throws Exception {
             service = new ImmutableJoinService(generatedFileRepository, fileStoreService, excelUtil,
-                    schemaColumnDefUtil, new ObjectMapper(), new CustomExceptionHandler(), config);
+                    schemaColumnDefUtil, new ObjectMapper(), new CustomExceptionHandler(), config,
+                    campaignService);
 
             uploadedWorkbook = new XSSFWorkbook();
             uploadedWorkbook.createSheet(SHEET);
@@ -110,6 +113,9 @@ class ImmutableJoinServiceTest {
                             .referenceId(REF).type(TYPE).tenantId(TENANT).build());
             lenient().when(fileStoreService.downloadExcelFromFileStore(BASELINE_FS, TENANT)).thenReturn(baselineWorkbook);
             lenient().when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(columnDefs());
+            // Not a cloned campaign (no additionalDetails) -> identity falls through to the referenceId check.
+            lenient().when(campaignService.searchCampaignById(anyString(), anyString(), any()))
+                    .thenReturn(CampaignSearchResponse.CampaignDetail.builder().id(REF).tenantId(TENANT).build());
         }
 
         // immutable: name (freezeColumn), village (freezeTillData), roles (freezeColumn = multi-select parent)
@@ -578,8 +584,12 @@ class ImmutableJoinServiceTest {
 
             repo = mock(GeneratedFileRepository.class);
             fileStore = mock(FileStoreService.class);
+            // Not a cloned campaign (no additionalDetails) -> identity falls through to the referenceId check.
+            CampaignService campaignService = mock(CampaignService.class);
+            when(campaignService.searchCampaignById(anyString(), anyString(), any()))
+                    .thenReturn(CampaignSearchResponse.CampaignDetail.builder().id(REF).tenantId(TENANT).build());
             join = new ImmutableJoinService(repo, fileStore, excelUtil, schemaColumnDefUtil,
-                    new ObjectMapper(), exceptionHandler, config);
+                    new ObjectMapper(), exceptionHandler, config, campaignService);
         }
 
         // Schema: name (freezeColumn), village (freezeTillData), phone (freezeColumnIfFilled),
