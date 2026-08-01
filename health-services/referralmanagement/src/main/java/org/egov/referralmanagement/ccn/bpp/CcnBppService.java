@@ -5,17 +5,28 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.core.AdditionalFields;
+import org.egov.common.models.core.Field;
+import org.egov.common.models.individual.Individual;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralRequest;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferralRequest;
 import org.egov.referralmanagement.ccn.CcnIdentityResolver;
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
 import org.egov.referralmanagement.ccn.repository.CcnReferralLinkRepository;
+import org.egov.referralmanagement.service.HFReferralService;
 import org.egov.referralmanagement.service.ReferralManagementService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,12 +45,14 @@ public class CcnBppService {
     private final CcnOnixClient onix;
     private final CcnReferralLinkRepository linkRepository;
     private final ReferralManagementService referralService;
+    private final HFReferralService hfReferralService;
     private final InboundProjectResolver projectResolver;
     private final CcnIdentityResolver identityResolver;
     private final ObjectMapper om;
 
     public CcnBppService(CcnProperties p, ServiceCoordinationMapper mapper, CcnOnixClient onix,
                          CcnReferralLinkRepository linkRepository, ReferralManagementService referralService,
+                         HFReferralService hfReferralService,
                          InboundProjectResolver projectResolver, CcnIdentityResolver identityResolver,
                          @Qualifier("objectMapper") ObjectMapper om) {
         this.p = p;
@@ -47,6 +60,7 @@ public class CcnBppService {
         this.onix = onix;
         this.linkRepository = linkRepository;
         this.referralService = referralService;
+        this.hfReferralService = hfReferralService;
         this.projectResolver = projectResolver;
         this.identityResolver = identityResolver;
         this.om = om;
@@ -81,8 +95,113 @@ public class CcnBppService {
         } catch (Exception e) {
             log.error("CCN BPP failed to create inbound Referral for {}: {}", coordinationId, e.getMessage());
         }
+        // Also create an HFReferral (autofilled) so the referral shows in the app's "Referral Details"
+        // (HFReferral) screen for the health-facility worker to view/attend. Isolated — never blocks confirm.
+        try {
+            createInboundHfReferral(coordinationId, body);
+        } catch (Exception e) {
+            log.error("CCN BPP failed to create inbound HFReferral for {}: {}", coordinationId, e.getMessage());
+        }
         upsertInbound(coordinationId, txn, bapId, "ACTIVE", "confirm", body, createdReferralId);
         dispatch("on_confirm", mapper.onEcho("on_confirm", body, "ACTIVE", "ACTIVE"));
+    }
+
+    /**
+     * Create an HFReferral for the inbound SPICE referral so it renders in the app's "Referral Details"
+     * screen. Uses a normal VALIDATED create — HFReferral validation only checks projectId +
+     * projectFacilityId + non-existence (no beneficiary validator), all of which we satisfy; the same
+     * validators run on the device UPDATE (attend), so nothing the update needs is missing here.
+     * All required form fields are auto-filled: cycle (hardcoded current cycle), name of child, age in
+     * months (from the individual's DOB), gender (hardcoded), symptom/referral-reason. Tagged with the
+     * inbound marker so the outbound consumer never bounces it back to SPICE.
+     */
+    private void createInboundHfReferral(String coordinationId, JsonNode body) {
+        if (p.getInboundHfFacilityId() == null || p.getInboundHfFacilityId().isBlank()) {
+            log.warn("CCN BPP: inboundHfFacilityId not configured — skipping HFReferral for {}", coordinationId);
+            return;
+        }
+        String abha = patientId(body);
+        RequestInfo ri = RequestInfo.builder()
+                .userInfo(User.builder().uuid("ccn-system").tenantId(p.getInboundTenantId()).type("SYSTEM").build())
+                .build();
+        String tenantId = p.getInboundTenantId();
+
+        // Resolve the (imported) individual for name + age; tolerate absence.
+        Individual individual = identityResolver.findIndividualByUniqueBeneficiaryId(abha, tenantId, ri);
+        String name = firstNonBlank(patientNameFromBody(body), identityResolver.displayNameOf(individual));
+        String age = ageInMonths(individual);
+
+        // projectId MUST be the project the CHW downloads (config override) else the resolved project.
+        String projectId = p.getInboundHfProjectId();
+        if (projectId == null || projectId.isBlank()) {
+            InboundProjectResolver.Resolution r = projectResolver.resolve(abha, ri);
+            projectId = r != null ? r.getProjectId() : null;
+        }
+        if (projectId == null || projectId.isBlank()) {
+            log.warn("CCN BPP: no projectId for inbound HFReferral {} — skipping", coordinationId);
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        AuditDetails audit = AuditDetails.builder()
+                .createdBy("ccn-system").createdTime(now).lastModifiedBy("ccn-system").lastModifiedTime(now).build();
+
+        List<Field> fields = new ArrayList<>();
+        fields.add(Field.builder().key(p.getInboundHfMarkerKey()).value("true").build());   // loop-guard marker
+        if (name != null) fields.add(Field.builder().key("nameOfReferral").value(name).build());
+        if (age != null) fields.add(Field.builder().key("age").value(age).build());
+        fields.add(Field.builder().key("gender").value(p.getInboundHfGender()).build());
+        fields.add(Field.builder().key("cycle").value(p.getInboundHfCycle()).build());
+
+        HFReferral hf = HFReferral.builder()
+                .clientReferenceId(UUID.randomUUID().toString())
+                .tenantId(tenantId)
+                .projectId(projectId)
+                .projectFacilityId(p.getInboundHfFacilityId())
+                .beneficiaryId(abha)
+                .referralCode(coordinationId)
+                .symptom(p.getInboundHfSymptom())
+                .isDeleted(Boolean.FALSE)
+                .rowVersion(1)
+                .auditDetails(audit)
+                .clientAuditDetails(AuditDetails.builder()
+                        .createdBy("ccn-system").createdTime(now).lastModifiedBy("ccn-system").lastModifiedTime(now).build())
+                .additionalFields(AdditionalFields.builder().schema("HFReferral").version(1).fields(fields).build())
+                .build();
+
+        HFReferral created = hfReferralService.create(
+                HFReferralRequest.builder().requestInfo(ri).hfReferral(hf).build());
+        log.info("CCN BPP created inbound HFReferral id={} (project={}, facility={}, symptom={}, cycle={}) for coordinationId={}",
+                created.getId(), projectId, p.getInboundHfFacilityId(), p.getInboundHfSymptom(), p.getInboundHfCycle(), coordinationId);
+    }
+
+    /** Patient display name from the inbound PATIENT participant descriptor, or null. */
+    private String patientNameFromBody(JsonNode b) {
+        for (JsonNode part : b.at("/message/contract/participants")) {
+            if ("PATIENT".equals(part.at("/participantAttributes/participantRole").asText())) {
+                String nm = part.at("/descriptor/name").asText(null);
+                return (nm != null && !nm.isBlank()) ? nm : null;
+            }
+        }
+        return null;
+    }
+
+    /** Age in whole months between the individual's DOB and today, or null if unknown. */
+    private String ageInMonths(Individual individual) {
+        if (individual == null || individual.getDateOfBirth() == null) return null;
+        try {
+            LocalDate dob = individual.getDateOfBirth().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            long months = ChronoUnit.MONTHS.between(dob, LocalDate.now());
+            return months >= 0 ? String.valueOf(months) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a;
+        if (b != null && !b.isBlank()) return b;
+        return null;
     }
 
     /** Create a normal DIGIT Referral for the CHW from the inbound coordination (validated create).

@@ -3,6 +3,7 @@ package org.egov.referralmanagement.ccn;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.egov.common.models.core.Field;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -66,12 +67,28 @@ public class HealthReferralMapper {
         offer.putArray("resourceIds").add(p.getResourceId());
     }
 
-    /** Participants: PATIENT (SPICE patientId only) + referrer CHW (id only). No PII. */
+    /** The patient's display name stamped on the referral (non-PII per integration rule), or null. */
+    private String patientName(Referral r) {
+        if (r == null || r.getAdditionalFields() == null || r.getAdditionalFields().getFields() == null) return null;
+        String key = p.getPatientNameAdditionalKey();
+        return r.getAdditionalFields().getFields().stream()
+                .filter(f -> f != null && key.equals(f.getKey()))
+                .map(Field::getValue)
+                .filter(v -> v != null && !v.isBlank())
+                .findFirst().orElse(null);
+    }
+
+    /** Participants: PATIENT (SPICE patientId + display name) + referrer CHW (id only). Name is the only
+     *  demographic that crosses — no DOB/address/clinical notes. */
     private void addParticipants(ObjectNode contract, Referral r, String spicePatientId) {
         ArrayNode arr = contract.putArray("participants");
 
         ObjectNode patient = arr.addObject();
         patient.put("id", "participant-patient");
+        String name = patientName(r);
+        if (name != null) {
+            patient.putObject("descriptor").put("name", name);   // visible in CCN; name is not treated as PII
+        }
         ObjectNode pa = patient.putObject("participantAttributes");
         pa.put("@context", p.getHealthParticipantCtx());
         pa.put("@type", "hpa:HealthParticipant");
