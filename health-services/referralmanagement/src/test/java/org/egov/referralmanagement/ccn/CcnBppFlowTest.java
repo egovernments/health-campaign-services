@@ -13,7 +13,14 @@ import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
 import org.egov.referralmanagement.ccn.repository.CcnReferralLinkRepository;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.common.models.core.Field;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferralRequest;
+import org.egov.referralmanagement.service.HFReferralService;
 import org.egov.referralmanagement.service.ReferralManagementService;
+
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -28,6 +35,7 @@ class CcnBppFlowTest {
     private CcnOnixClient onix;
     private CcnReferralLinkRepository linkRepo;
     private ReferralManagementService referralService;
+    private HFReferralService hfReferralService;
     private CcnBppService bpp;
     private CcnIdentityResolver identityResolver;
     private InboundProjectResolver resolver;
@@ -56,7 +64,10 @@ class CcnBppFlowTest {
         // Real identity resolver: reading/writing additionalFields[abhaId] needs no HCM client calls.
         identityResolver = new CcnIdentityResolver(null, mock(ReferralManagementConfiguration.class), props);
         ServiceCoordinationMapper mapper = new ServiceCoordinationMapper(props, om);
-        bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, resolver, identityResolver, om);
+        hfReferralService = mock(HFReferralService.class);
+        when(hfReferralService.create(any(HFReferralRequest.class)))
+                .thenAnswer(inv -> ((HFReferralRequest) inv.getArgument(0)).getHfReferral());
+        bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, hfReferralService, resolver, identityResolver, om);
     }
 
     private JsonNode inbound(String action) throws Exception {
@@ -169,5 +180,36 @@ class CcnBppFlowTest {
         bpp.publishResult("coord-in-1", "CLOSED");
         verify(onix).sendBpp(eq("on_status"), any(JsonNode.class));
         verify(linkRepo).updateState(eq("coord-in-1"), eq("CLOSED"), eq("publishResult"), anyLong(), any());
+    }
+
+    @Test
+    void inboundConfirmAlsoCreatesAutofilledHfReferral() throws Exception {
+        // T2: with a configured facility, confirm ALSO creates a validated HFReferral for the HF worker.
+        props.setInboundHfFacilityId("PF-1");
+        props.setInboundHfProjectId("proj-1");
+
+        bpp.handle("confirm", inbound("confirm"));
+
+        ArgumentCaptor<HFReferralRequest> cap = ArgumentCaptor.forClass(HFReferralRequest.class);
+        verify(hfReferralService).create(cap.capture());
+        HFReferral hf = cap.getValue().getHfReferral();
+        assertEquals("proj-1", hf.getProjectId());               // downsyncs by projectId
+        assertEquals("PF-1", hf.getProjectFacilityId());         // valid project-facility (validated)
+        assertEquals("SICK", hf.getSymptom());                   // hardcoded referral reason
+        assertEquals("0690003741962", hf.getBeneficiaryId());    // ABHA from inbound PATIENT participant
+        assertEquals("coord-in-1", hf.getReferralCode());        // cross-ref to the coordination
+
+        Map<String, String> af = hf.getAdditionalFields().getFields().stream()
+                .collect(Collectors.toMap(Field::getKey, Field::getValue, (a, b) -> a));
+        assertEquals("FEMALE", af.get("gender"));                // hardcoded gender
+        assertEquals("2", af.get("cycle"));                      // hardcoded current cycle
+        assertEquals("true", af.get("ccnInbound"));              // loop-guard marker (won't re-forward)
+    }
+
+    @Test
+    void inboundHfReferralSkippedWhenNoFacilityConfigured() throws Exception {
+        // Default setup has no inboundHfFacilityId → HFReferral creation self-skips (no NPE, no create).
+        bpp.handle("confirm", inbound("confirm"));
+        verify(hfReferralService, never()).create(any(HFReferralRequest.class));
     }
 }
