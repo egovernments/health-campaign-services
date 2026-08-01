@@ -61,6 +61,12 @@ public class CcnProperties {
      *  {@code additionalFields} (schema/version + List&lt;Field key,value&gt;). We stamp under this key there. */
     private String abhaAdditionalDetailsKey = "abhaId";
 
+    /** Key under {@code Referral.additionalFields} where the patient's display name is cached/stamped.
+     *  Name is NOT treated as PII for this integration — it is sent outbound as the PATIENT participant
+     *  {@code descriptor.name} so CCN/SPICE operators can see who the referral is for. Still no other
+     *  demographics (DOB, address, clinical notes) cross the network. */
+    private String patientNameAdditionalKey = "patientName";
+
     // ---- Coordination "slot" booked against SPICE (from SPICE's catalog) ----
     private String offerId = "offer-comemr-coord";
     private String resourceId = "res-comemr-coord";
@@ -86,6 +92,25 @@ public class CcnProperties {
      *  create validates recipientType=STAFF against project staff, so this must be a valid staff on
      *  the inbound project. */
     private String inboundRecipientId;
+
+    // ── Inbound HFReferral autofill (so a SPICE referral also shows in the app's "Referral Details"
+    //     HFReferral screen, not just the Referral entity) ──
+    /** projectFacilityId assigned to inbound HFReferrals. MUST be a valid project-facility id on the
+     *  project (validated by HfrProjectFacilityIdValidator). Blank → HFReferral creation is skipped. */
+    private String inboundHfFacilityId;
+    /** projectId for inbound HFReferrals. MUST equal the project the CHW downloads so the HFReferral
+     *  downsyncs (downsync filters HFReferrals by projectId). Falls back to the resolved project when blank. */
+    private String inboundHfProjectId;
+    /** symptom / referralReason code stamped on inbound HFReferrals — MUST be a valid
+     *  HCM-REFERRAL-REASONS code (e.g. FEVER, SICK) so the app can render/localise it. */
+    private String inboundHfSymptom = "SICK";
+    /** Current project cycle to prefill on inbound HFReferrals (hardcoded for the demo). */
+    private String inboundHfCycle = "2";
+    /** Gender stamped on inbound HFReferrals. Hardcoded FEMALE for the demo (valid genderConfig code). */
+    private String inboundHfGender = "FEMALE";
+    /** additionalFields key that tags an HFReferral as inbound-originated. The outbound CCN consumer
+     *  skips any HFReferral carrying this marker, so an inbound referral is never bounced back to SPICE. */
+    private String inboundHfMarkerKey = "ccnInbound";
 
     // ── Inbound completion → publish result back to SPICE ──
     /** Separate consumer group for the update-referral topic — distinct from the create-side group

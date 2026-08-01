@@ -81,6 +81,74 @@ public class CcnIdentityResolver {
         af.getFields().add(Field.builder().key(key).value(value).build());
     }
 
+    // ── additionalFields (patientName) read/write ─────────────────────────────
+
+    /** Read the cached patient display name from {@code referral.additionalFields[patientNameAdditionalKey]}. */
+    public String readNameField(Referral referral) {
+        if (referral == null) return null;
+        AdditionalFields af = referral.getAdditionalFields();
+        if (af == null || af.getFields() == null) return null;
+        String key = ccn.getPatientNameAdditionalKey();
+        return af.getFields().stream()
+                .filter(f -> f != null && key.equals(f.getKey()))
+                .map(Field::getValue)
+                .filter(v -> v != null && !v.isBlank())
+                .findFirst().orElse(null);
+    }
+
+    /** Stamp the patient display name into {@code referral.additionalFields[patientNameAdditionalKey]}. */
+    public void writeNameField(Referral referral, String value) {
+        if (referral == null || value == null || value.isBlank()) return;
+        String key = ccn.getPatientNameAdditionalKey();
+        AdditionalFields af = referral.getAdditionalFields();
+        if (af == null) {
+            af = AdditionalFields.builder().build();
+            referral.setAdditionalFields(af);
+        }
+        if (af.getFields() == null) af.setFields(new ArrayList<>());
+        for (Field f : af.getFields()) {
+            if (f != null && key.equals(f.getKey())) { f.setValue(value); return; }
+        }
+        af.getFields().add(Field.builder().key(key).value(value).build());
+    }
+
+    /** The Individual's display name ("givenName familyName", trimmed) or null. */
+    public String displayNameOf(Individual individual) {
+        if (individual == null || individual.getName() == null) return null;
+        String given = individual.getName().getGivenName();
+        String family = individual.getName().getFamilyName();
+        String name = ((given != null ? given : "") + " " + (family != null ? family : "")).trim();
+        return name.isBlank() ? null : name;
+    }
+
+    /**
+     * Resolve the patient's display name to send outbound (non-PII per integration rule). Order:
+     * cached {@code additionalFields[patientName]} → project-beneficiary → individual name;
+     * fallback to individual-by-{@code UNIQUE_BENEFICIARY_ID}. Caches back and never throws.
+     */
+    public String resolveOutboundName(Referral referral, RequestInfo requestInfo) {
+        if (referral == null) return null;
+        String cached = readNameField(referral);
+        if (cached != null && !cached.isBlank()) return cached;
+        String tenantId = referral.getTenantId() != null ? referral.getTenantId() : ccn.getInboundTenantId();
+        try {
+            Individual individual = resolveIndividualForReferral(referral, requestInfo);
+            if (individual == null) {
+                String abha = readAbhaField(referral);
+                if (abha != null && !abha.isBlank())
+                    individual = findIndividualByUniqueBeneficiaryId(abha, tenantId, requestInfo);
+            }
+            String name = displayNameOf(individual);
+            if (name != null && !name.isBlank()) {
+                writeNameField(referral, name);
+                return name;
+            }
+        } catch (Exception e) {
+            log.error("CCN identity: outbound name resolve failed for referral {}: {}", referral.getId(), e.getMessage());
+        }
+        return null;
+    }
+
     /** The {@code UNIQUE_BENEFICIARY_ID} identifier value on an Individual, or null. */
     public String uniqueBeneficiaryIdOf(Individual individual) {
         if (individual == null || individual.getIdentifiers() == null) return null;

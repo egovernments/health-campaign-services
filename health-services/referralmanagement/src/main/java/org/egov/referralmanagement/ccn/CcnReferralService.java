@@ -51,6 +51,12 @@ public class CcnReferralService {
             log.debug("CCN forwarding disabled; skipping HFReferral {}", hf.getId());
             return;
         }
+        // Loop guard: an HFReferral WE created from an inbound SPICE coordination carries the inbound
+        // marker in additionalFields — never forward it back to SPICE (would bounce infinitely).
+        if (hasInboundMarker(hf)) {
+            log.debug("CCN skip re-forward of inbound-originated HFReferral {}", hf.getId());
+            return;
+        }
         String abhaId = hf.getBeneficiaryId();
         if (abhaId == null || abhaId.isBlank()) {
             log.warn("CCN skip HFReferral {} — no beneficiaryId to send as {}", hf.getId(), p.getPatientHealthIdSystem());
@@ -96,6 +102,9 @@ public class CcnReferralService {
                     referral.getId(), p.getPatientIdentifierType());
             return;
         }
+        // Resolve + stamp the patient display name (non-PII per integration rule) so the mapper can
+        // include it as the PATIENT participant descriptor.name, visible in CCN/SPICE.
+        String patientName = identityResolver.resolveOutboundName(referral, ri);
         String transactionId = UUID.randomUUID().toString();
         String coordinationId = UUID.randomUUID().toString();
         long now = System.currentTimeMillis();
@@ -137,6 +146,14 @@ public class CcnReferralService {
             log.error("CCN forwarding failed for Referral id={}: {}", referral.getId(), e.getMessage());
             safeUpdate(coordinationId, "SEND_FAILED", "forward", referral.getTenantId());
         }
+    }
+
+    /** True when the HFReferral was created by our inbound (SPICE→HCM) flow — tagged with the marker. */
+    private boolean hasInboundMarker(HFReferral hf) {
+        if (hf == null || hf.getAdditionalFields() == null || hf.getAdditionalFields().getFields() == null) return false;
+        String key = p.getInboundHfMarkerKey();
+        return hf.getAdditionalFields().getFields().stream()
+                .anyMatch(f -> f != null && key.equals(f.getKey()) && "true".equalsIgnoreCase(f.getValue()));
     }
 
     private RequestInfo systemRequestInfo(String tenantId) {
