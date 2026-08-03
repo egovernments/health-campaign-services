@@ -30,6 +30,7 @@ import httpx
 import psycopg2
 import psycopg2.extras
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pydantic import BaseModel
@@ -543,7 +544,7 @@ def _fetch_expected_generation_time_seconds(
     return expected_seconds
 
 
-async def _insert_triggered_on_ui_rows(conf: dict, dag_id: str, dag_run_id: str, triggered_dt: datetime) -> None:
+def _insert_triggered_on_ui_rows(conf: dict, dag_id: str, dag_run_id: str, triggered_dt: datetime) -> None:
     """Best-effort bootstrap row so the UI has something to show within milliseconds
     of the click, instead of waiting ~1-1.5 min for Airflow's scheduler to pick up
     the run and for build_payload to push its own TRIGGERED event.
@@ -563,82 +564,85 @@ async def _insert_triggered_on_ui_rows(conf: dict, dag_id: str, dag_run_id: str,
     triggered_ms = int(triggered_dt.timestamp() * 1000)
     triggered_iso = triggered_dt.isoformat()
 
-    for c in matched_campaigns:
-        if not isinstance(c, dict):
-            continue
-        tenant_id = c.get("tenantId")
-        campaign_identifier = c.get("campaignIdentifier")
-        report_name = c.get("reportName")
-        trigger_frequency = c.get("triggerFrequency")
-        if not tenant_id:
-            logger.warning("Skipping TRIGGERED_ON_UI row - matched campaign has no tenantId (dag_run_id=%s)", dag_run_id)
-            continue
+    # One connection for the whole batch, reused across campaigns (was: a fresh connect
+    # per row inside the loop). Best-effort: if even the connect fails, skip the bootstrap
+    # entirely - the normal Kafka -> persister pipeline still records every later event.
+    try:
+        conn = _get_db_conn()
+    except Exception:
+        logger.exception("Failed to open DB connection for TRIGGERED_ON_UI rows, dag_run_id=%s", dag_run_id)
+        return
 
-        # expectedRows/expectedGenerationTimeSeconds were already computed by trigger_dag
-        # (before Airflow was even called) so they could be stamped onto conf and threaded
-        # through env vars into every subsequent Kafka event - just read them back here.
-        expected_rows = c.get("expectedRows")
-        expected_generation_time_seconds = c.get("expectedGenerationTimeSeconds")
-        row_triggered_ms = c.get("reportTriggeredTimeMs", triggered_ms)
-        seconds_since_triggered = round((triggered_ms - row_triggered_ms) / 1000, 2)
+    try:
+        for c in matched_campaigns:
+            if not isinstance(c, dict):
+                continue
+            tenant_id = c.get("tenantId")
+            campaign_identifier = c.get("campaignIdentifier")
+            report_name = c.get("reportName")
+            trigger_frequency = c.get("triggerFrequency")
+            if not tenant_id:
+                logger.warning("Skipping TRIGGERED_ON_UI row - matched campaign has no tenantId (dag_run_id=%s)", dag_run_id)
+                continue
 
-        report_range = None
-        if (trigger_frequency or "").upper() == "CUSTOM":
+            # expectedRows/expectedGenerationTimeSeconds were already computed by trigger_dag
+            # (before Airflow was even called) so they could be stamped onto conf and threaded
+            # through env vars into every subsequent Kafka event - just read them back here.
+            expected_rows = c.get("expectedRows")
+            expected_generation_time_seconds = c.get("expectedGenerationTimeSeconds")
+            row_triggered_ms = c.get("reportTriggeredTimeMs", triggered_ms)
+            seconds_since_triggered = round((triggered_ms - row_triggered_ms) / 1000, 2)
+
+            report_range = None
+            if (trigger_frequency or "").upper() == "CUSTOM":
+                try:
+                    start_dt, end_dt = _parse_custom_range(
+                        c.get("customReportStartTime", ""), c.get("customReportEndTime", "")
+                    )
+                    report_range = f"{start_dt.strftime('%Y-%m-%d %H:%M:%S%z')}_{end_dt.strftime('%Y-%m-%d %H:%M:%S%z')}"
+                except Exception:
+                    logger.exception(
+                        "Failed to compute report_range for campaignIdentifier=%s dag_run_id=%s",
+                        campaign_identifier, dag_run_id,
+                    )
+
             try:
-                start_dt, end_dt = _parse_custom_range(
-                    c.get("customReportStartTime", ""), c.get("customReportEndTime", "")
+                table = _reports_metadata_table(tenant_id)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        INSERT INTO {table} (
+                            eventId, dagRunId, dagName, campaignIdentifier, identifierType, reportName,
+                            triggerFrequency, triggerTime, tenantId, reportRange,
+                            reportTriggeredTimeMs, reportTriggeredTime,
+                            status, statusOrder, eventTimestamp, eventTimestampMs,
+                            expectedRows, expectedGenerationTimeSeconds, secondsSinceTriggered
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (eventId) DO NOTHING
+                        """,
+                        (
+                            str(uuid.uuid4()), dag_run_id, dag_id,
+                            campaign_identifier, c.get("identifierType"), report_name,
+                            trigger_frequency, c.get("triggerTime"), tenant_id, report_range,
+                            row_triggered_ms, c.get("reportTriggeredTime", triggered_iso),
+                            "TRIGGERED_ON_UI", TRIGGERED_ON_UI_STATUS_ORDER, triggered_iso, triggered_ms,
+                            expected_rows, expected_generation_time_seconds, seconds_since_triggered,
+                        ),
+                    )
+                conn.commit()
+                logger.info(
+                    "Inserted TRIGGERED_ON_UI row: campaignIdentifier=%s reportName=%s dag_run_id=%s "
+                    "expectedRows=%s expectedGenerationTimeSeconds=%s",
+                    campaign_identifier, report_name, dag_run_id, expected_rows, expected_generation_time_seconds,
                 )
-                report_range = f"{start_dt.strftime('%Y-%m-%d %H:%M:%S%z')}_{end_dt.strftime('%Y-%m-%d %H:%M:%S%z')}"
             except Exception:
                 logger.exception(
-                    "Failed to compute report_range for campaignIdentifier=%s dag_run_id=%s",
+                    "Failed to insert TRIGGERED_ON_UI row for campaignIdentifier=%s dag_run_id=%s",
                     campaign_identifier, dag_run_id,
                 )
-
-        table = _reports_metadata_table(tenant_id)
-        try:
-            conn = _get_db_conn()
-            cur = conn.cursor()
-        except Exception:
-            logger.exception("Failed to open DB connection for TRIGGERED_ON_UI row, dag_run_id=%s", dag_run_id)
-            continue
-
-        try:
-            cur.execute(
-                f"""
-                INSERT INTO {table} (
-                    eventId, dagRunId, dagName, campaignIdentifier, identifierType, reportName,
-                    triggerFrequency, triggerTime, tenantId, reportRange,
-                    reportTriggeredTimeMs, reportTriggeredTime,
-                    status, statusOrder, eventTimestamp, eventTimestampMs,
-                    expectedRows, expectedGenerationTimeSeconds, secondsSinceTriggered
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (eventId) DO NOTHING
-                """,
-                (
-                    str(uuid.uuid4()), dag_run_id, dag_id,
-                    campaign_identifier, c.get("identifierType"), report_name,
-                    trigger_frequency, c.get("triggerTime"), tenant_id, report_range,
-                    row_triggered_ms, c.get("reportTriggeredTime", triggered_iso),
-                    "TRIGGERED_ON_UI", TRIGGERED_ON_UI_STATUS_ORDER, triggered_iso, triggered_ms,
-                    expected_rows, expected_generation_time_seconds, seconds_since_triggered,
-                ),
-            )
-            conn.commit()
-            logger.info(
-                "Inserted TRIGGERED_ON_UI row: campaignIdentifier=%s reportName=%s dag_run_id=%s "
-                "expectedRows=%s expectedGenerationTimeSeconds=%s",
-                campaign_identifier, report_name, dag_run_id, expected_rows, expected_generation_time_seconds,
-            )
-        except Exception:
-            logger.exception(
-                "Failed to insert TRIGGERED_ON_UI row for campaignIdentifier=%s dag_run_id=%s",
-                campaign_identifier, dag_run_id,
-            )
-            conn.rollback()
-        finally:
-            cur.close()
-            conn.close()
+                conn.rollback()
+    finally:
+        conn.close()
 
 
 # --------------- Endpoints ---------------
@@ -713,8 +717,9 @@ async def trigger_dag(req: TriggerRequest):
                             c.get("identifierType"), start_dt, end_dt,
                         )
                         c["expectedRows"] = expected_rows
-                        c["expectedGenerationTimeSeconds"] = _fetch_expected_generation_time_seconds(
-                            c.get("tenantId"), c.get("reportName"), c.get("triggerFrequency"), expected_rows
+                        c["expectedGenerationTimeSeconds"] = await run_in_threadpool(
+                            _fetch_expected_generation_time_seconds,
+                            c.get("tenantId"), c.get("reportName"), c.get("triggerFrequency"), expected_rows,
                         )
                     except Exception:
                         logger.exception(
@@ -733,7 +738,12 @@ async def trigger_dag(req: TriggerRequest):
     logger.info("Airflow dag_run created: dag_id=%s dag_run_id=%s state=%s", result["dag_id"], result["dag_run_id"], result["state"])
 
     if req.dag_id == "hcm_dynamic_campaigns" and req.conf:
-        await _insert_triggered_on_ui_rows(req.conf, req.dag_id, result["dag_run_id"], triggered_dt)
+        # Bootstrap row is best-effort and the DAG run is already created, so nothing here -
+        # not even an unexpected error - may turn a successful trigger into a 500.
+        try:
+            await run_in_threadpool(_insert_triggered_on_ui_rows, req.conf, req.dag_id, result["dag_run_id"], triggered_dt)
+        except Exception:
+            logger.exception("TRIGGERED_ON_UI bootstrap failed for dag_run_id=%s - trigger already succeeded, continuing", result["dag_run_id"])
 
     return {
         "dag_id": result["dag_id"],
@@ -809,8 +819,26 @@ def _triggered_day_bounds_ms(date_str):
     return start_ms, end_ms
 
 
+def _latest_per_run_subquery(table: str, where_clause: str) -> str:
+    """Windowed 'latest event per run' source: one row per run (partitioned by the run's
+    identity), ranked by the producer's logical ordering (statusOrder, then eventTimestampMs)
+    so it's correct even under out-of-order Kafka delivery. Wrap with an outer
+    `WHERE rn = 1 [...]` to select/filter the latest row. Shared by report-status and
+    reports-in-progress so the ranking definition can't drift between them."""
+    return f"""
+        SELECT * FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY tenantId, campaignIdentifier, reportName, triggerFrequency, dagRunId
+                ORDER BY statusOrder DESC, eventTimestampMs DESC
+            ) AS rn
+            FROM {table}
+            WHERE {where_clause}
+        ) ranked
+    """
+
+
 @app.post("/airflow-trigger-api/api/reports-metadata")
-async def search_reports_metadata(req: ReportsMetadataRequest):
+def search_reports_metadata(req: ReportsMetadataRequest):
     logger.info(
         "search_reports_metadata called: tenantId=%s campaignIdentifier=%s reportName=%s triggerFrequency=%s triggeredDate=%s",
         req.tenantId, req.campaignIdentifier, req.reportName, req.triggerFrequency, req.triggeredDate,
@@ -862,9 +890,9 @@ async def search_reports_metadata(req: ReportsMetadataRequest):
         rows = cur.fetchall()
         cur.close()
         conn.close()
-    except Exception as e:
-        logger.exception("search_reports_metadata query failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("search_reports_metadata query failed")
+        raise HTTPException(status_code=500, detail="Failed to fetch report metadata")
 
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     data = [_enrich_status_row(row, now_ms) for row in rows]
@@ -877,7 +905,7 @@ async def search_reports_metadata(req: ReportsMetadataRequest):
 
 
 @app.post("/airflow-trigger-api/api/report-status")
-async def search_report_status(req: ReportStatusRequest):
+def search_report_status(req: ReportStatusRequest):
     """Full lifecycle history / latest-state view - REPORT_STATUS_EVENTS was merged into
     REPORTS_METADATA (one topic, one table going forward), so this now reads from there."""
     logger.info(
@@ -910,18 +938,7 @@ async def search_report_status(req: ReportStatusRequest):
     # as a plain number - not by insertion order or the display-only eventTimestamp string),
     # so this stays correct even if Kafka delivered events out of order.
     if req.latestOnly:
-        query = f"""
-            SELECT * FROM (
-                SELECT *, ROW_NUMBER() OVER (
-                    PARTITION BY tenantId, campaignIdentifier, reportName, triggerFrequency, dagRunId
-                    ORDER BY statusOrder DESC, eventTimestampMs DESC
-                ) AS rn
-                FROM {table}
-                WHERE {where_clause}
-            ) ranked
-            WHERE rn = 1
-            ORDER BY eventTimestampMs DESC
-        """
+        query = _latest_per_run_subquery(table, where_clause) + " WHERE rn = 1 ORDER BY eventTimestampMs DESC"
     else:
         query = f"SELECT * FROM {table} WHERE {where_clause} ORDER BY eventTimestampMs ASC"
 
@@ -932,9 +949,9 @@ async def search_report_status(req: ReportStatusRequest):
         rows = cur.fetchall()
         cur.close()
         conn.close()
-    except Exception as e:
-        logger.exception("search_report_status query failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("search_report_status query failed")
+        raise HTTPException(status_code=500, detail="Failed to fetch report status")
 
     for row in rows:
         row.pop("rn", None)
@@ -947,7 +964,7 @@ async def search_report_status(req: ReportStatusRequest):
 
 
 @app.post("/airflow-trigger-api/api/reports-in-progress")
-async def reports_in_progress(req: ReportsInProgressRequest):
+def reports_in_progress(req: ReportsInProgressRequest):
     """Latest-status rows that are still in flight (not completed/failed/skipped) -
     drives the 'in progress' cards/badges on the reports UI."""
     logger.info(
@@ -977,22 +994,18 @@ async def reports_in_progress(req: ReportsInProgressRequest):
 
     where_clause = " AND ".join(filters)
 
-    # expectedRows/expectedGenerationTimeSeconds are now stamped onto matched_campaigns
-    # in trigger_dag and threaded through env vars into every subsequent Kafka event
-    # (see hcm_dynamic_campaigns.py/kafka_status.py), so every row for a run already
-    # carries the same value directly - no carry-forward window function needed here.
-    query = f"""
-        SELECT * FROM (
-            SELECT *, ROW_NUMBER() OVER (
-                PARTITION BY tenantId, campaignIdentifier, reportName, triggerFrequency, dagRunId
-                ORDER BY statusOrder DESC, eventTimestampMs DESC
-            ) AS rn
-            FROM {table}
-            WHERE {where_clause}
-        ) ranked
-        WHERE rn = 1 AND statusOrder < 40 AND status <> 'SKIPPED'
-        ORDER BY eventTimestampMs DESC
-    """
+    # "In flight" = the run's latest status is not terminal. Derive that from the in-file
+    # TERMINAL_STATUSES set (which already includes SKIPPED and every *_FAILED) instead of a
+    # magic `statusOrder < 40` threshold, so it can't silently drift from kafka_status.py's
+    # ordering if a new in-progress stage is added. NULL-status legacy rows fall out of
+    # NOT IN, which is correct - they were never real in-flight runs.
+    terminal_statuses = tuple(sorted(TERMINAL_STATUSES))
+    terminal_placeholders = ",".join(["%s"] * len(terminal_statuses))
+    query = (
+        _latest_per_run_subquery(table, where_clause)
+        + f" WHERE rn = 1 AND status NOT IN ({terminal_placeholders}) ORDER BY eventTimestampMs DESC"
+    )
+    params = params + list(terminal_statuses)
 
     try:
         conn = _get_db_conn()
@@ -1001,9 +1014,9 @@ async def reports_in_progress(req: ReportsInProgressRequest):
         rows = cur.fetchall()
         cur.close()
         conn.close()
-    except Exception as e:
-        logger.exception("reports_in_progress query failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("reports_in_progress query failed")
+        raise HTTPException(status_code=500, detail="Failed to fetch in-progress reports")
 
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     data = []
@@ -1027,7 +1040,7 @@ async def reports_in_progress(req: ReportsInProgressRequest):
 
 
 @app.post("/airflow-trigger-api/api/reports-check-existing")
-async def check_existing_custom_report(req: CheckExistingCustomReportRequest):
+def check_existing_custom_report(req: CheckExistingCustomReportRequest):
     """Pre-flight check before triggering a CUSTOM report: is there already a
     completed/in-progress/failed run for this exact campaign+report+date-range?
 
@@ -1075,9 +1088,9 @@ async def check_existing_custom_report(req: CheckExistingCustomReportRequest):
         row = cur.fetchone()
         cur.close()
         conn.close()
-    except Exception as e:
-        logger.exception("check_existing_custom_report query failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("check_existing_custom_report query failed")
+        raise HTTPException(status_code=500, detail="Failed to check existing report")
 
     if not row:
         logger.info("check_existing_custom_report: no existing run for reportRange=%s", report_range)
