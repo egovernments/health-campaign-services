@@ -149,9 +149,16 @@ public class CcnBppService {
         List<Field> fields = new ArrayList<>();
         fields.add(Field.builder().key(p.getInboundHfMarkerKey()).value("true").build());   // loop-guard marker
         if (name != null) fields.add(Field.builder().key("nameOfReferral").value(name).build());
-        if (age != null) fields.add(Field.builder().key("age").value(age).build());
+        // Write both key variants so the value prefills regardless of app version: the referral form
+        // enum uses "age"/"cycle" (ReferralReconEnums), while the reactive form controls use
+        // "ageInMonths"/"cycleIndex". Populating both keeps it version-proof.
+        if (age != null) {
+            fields.add(Field.builder().key("age").value(age).build());
+            fields.add(Field.builder().key("ageInMonths").value(age).build());
+        }
         fields.add(Field.builder().key("gender").value(p.getInboundHfGender()).build());
         fields.add(Field.builder().key("cycle").value(p.getInboundHfCycle()).build());
+        fields.add(Field.builder().key("cycleIndex").value(p.getInboundHfCycle()).build());
 
         HFReferral hf = HFReferral.builder()
                 .clientReferenceId(UUID.randomUUID().toString())
