@@ -285,7 +285,9 @@ jobs:
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --file ${{ needs.resolve-config.outputs.service_dockerfile }} \
             --tag egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
+            --cache-from=type=gha,scope=${{ github.event.inputs.pipeline_name }}-${{ matrix.arch }} \
             --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=gha,mode=max,scope=${{ github.event.inputs.pipeline_name }}-${{ matrix.arch }} \
             --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
             --push \
             --iidfile digest.txt \
@@ -293,13 +295,17 @@ jobs:
 
       - name: Build and Push DB Image
         if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
+        env:
+          DOCKER_BUILDKIT: 1
         run: |
           docker buildx build \
             --platform ${{ matrix.platform }} \
             --build-arg WORK_DIR=${{ needs.resolve-config.outputs.db_work_dir }} \
             --file ${{ needs.resolve-config.outputs.db_dockerfile }} \
             --tag egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
+            --cache-from=type=gha,scope=${{ github.event.inputs.pipeline_name }}-db-${{ matrix.arch }} \
             --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=gha,mode=max,scope=${{ github.event.inputs.pipeline_name }}-db-${{ matrix.arch }} \
             --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
             --push \
             --iidfile db-digest.txt \
