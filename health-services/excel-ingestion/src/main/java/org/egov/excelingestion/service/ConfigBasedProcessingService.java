@@ -7,6 +7,7 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
 import org.egov.excelingestion.web.models.mdms.ProcessSheetData;
 import org.egov.excelingestion.web.models.ProcessorSheetConfig;
@@ -435,6 +436,7 @@ public class ConfigBasedProcessingService {
         
         // Handle conditional persistence
         if (sheetConfig.isPersistParsings()) {
+            assertBoundaryCodesResolved(sheetName, parsedData, resource);
             log.info("Persisting {} records for sheet: {}", recordCount, sheetName);
             saveSheetDataToTemp(sheetName, parsedData, resource, localizationMap, requestInfo);
         } else {
@@ -442,6 +444,92 @@ public class ConfigBasedProcessingService {
         }
         
         // Note: Per-sheet event publishing removed - now handled at processing type level
+    }
+
+    /**
+     * Runs the blank-boundary check across every to-be-persisted sheet of the run BEFORE any sheet's rows
+     * are published, so a rejection cannot leave an earlier sheet already on the topic. Persistence itself
+     * re-checks per sheet, which is the non-bypassable choke point; this pass only makes the abort atomic.
+     */
+    public void assertBoundaryCodesResolvedForPersistence(Map<String, java.util.List<Map<String, Object>>> sheetData,
+                                                          ProcessResource resource,
+                                                          Map<String, String> localizationMap,
+                                                          RequestInfo requestInfo) {
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType(), requestInfo, resource.getTenantId());
+        if (config == null) {
+            return;
+        }
+        for (Map.Entry<String, java.util.List<Map<String, Object>>> entry : sheetData.entrySet()) {
+            ProcessorSheetConfig sheetConfig = getSheetConfig(entry.getKey(), config, localizationMap);
+            if (sheetConfig == null || !sheetConfig.isPersistParsings()) {
+                continue;
+            }
+            assertBoundaryCodesResolved(entry.getKey(), entry.getValue(), resource);
+        }
+    }
+
+    /**
+     * Fail closed when an active user row is about to be persisted with no resolved boundary code.
+     *
+     * <p>The code is blank in the template by design and is filled server-side on upload by
+     * {@link org.egov.excelingestion.util.BoundaryCodeResolver}. Validation and persistence read the row
+     * maps separately, so a persist read that misses the resolved values would otherwise store blanks
+     * while the run reports success; project-factory then sends a jurisdiction with a null
+     * boundary/boundaryType and HRMS rejects every user in the batch. Re-applying validation's own rule
+     * ({@link org.egov.excelingestion.processor.UserValidationProcessor} boundary-key check) here - on the
+     * exact list that becomes rowJson - makes validation passing imply persistence carries the codes.
+     */
+    private void assertBoundaryCodesResolved(String sheetName, java.util.List<Map<String, Object>> parsedData,
+                                             ProcessResource resource) {
+        if (parsedData == null || parsedData.isEmpty() || isValidationOnlyType(resource.getType())) {
+            return;
+        }
+
+        java.util.List<String> offendingRows = new java.util.ArrayList<>();
+        for (Map<String, Object> rowData : parsedData) {
+            String usage = ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.USER_USAGE_COLUMN_KEY));
+            if (!ValidationConstants.USAGE_ACTIVE.equals(usage)) {
+                continue; // inactive row, or a sheet that has no user-usage column at all
+            }
+            String boundaryCode = ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY));
+            if (boundaryCode != null && !boundaryCode.trim().isEmpty()) {
+                continue;
+            }
+            if (ValidationConstants.ROW_STATUS_INVALID.equals(rowData.get(ValidationConstants.ROW_JSON_STATUS_KEY))) {
+                continue; // already surfaced to the operator; project-factory skips it
+            }
+            Object rowNumber = rowData.get(ProcessingConstants.ACTUAL_ROW_NUMBER_KEY);
+            offendingRows.add(rowNumber == null ? "?" : String.valueOf(rowNumber));
+        }
+
+        if (offendingRows.isEmpty()) {
+            return;
+        }
+
+        log.error("Refusing to persist sheet '{}' for resource {}: {} of {} rows are active with a blank boundary code",
+                sheetName, resource.getId(), offendingRows.size(), parsedData.size());
+        String description = ErrorConstants.BOUNDARY_CODE_MISSING_AT_PERSIST_DESCRIPTION
+                .replace("{0}", String.valueOf(sheetName))
+                .replace("{1}", String.valueOf(offendingRows.size()))
+                .replace("{2}", summariseRows(offendingRows));
+        exceptionHandler.throwCustomException(ErrorConstants.BOUNDARY_CODE_MISSING_AT_PERSIST, description);
+    }
+
+    /**
+     * Validation-only runs annotate the sheet with a friendly per-row error list instead of failing, so the
+     * gate must never turn one into a hard failure. Matched on the type suffix rather than on
+     * persistParsings so the behaviour holds even if a deployment's MDMS marks a validation sheet persistent.
+     */
+    private boolean isValidationOnlyType(String type) {
+        return type != null && type.endsWith(ProcessingConstants.VALIDATION_TYPE_SUFFIX);
+    }
+
+    /** Caps the listed rows so a whole-sheet failure cannot build a multi-megabyte message. */
+    private String summariseRows(java.util.List<String> offendingRows) {
+        int shown = Math.min(offendingRows.size(), ProcessingConstants.MAX_REPORTED_BLANK_BOUNDARY_ROWS);
+        String joined = String.join(", ", offendingRows.subList(0, shown));
+        int remaining = offendingRows.size() - shown;
+        return remaining > 0 ? joined + " (and " + remaining + " more)" : joined;
     }
     
     /**

@@ -26,6 +26,12 @@ public class ProcessingConstants {
     // Generation types are e.g. "unified-console" / "attendanceRegister" / "attendanceRegisterAttendee";
     // the matching processing types append a suffix ("-validation"/"-parse"), so the scope gate matches
     // on a startsWith prefix rather than equality.
+    // Suffix marking a processing type that only annotates the sheet and never persists rows.
+    public static final String VALIDATION_TYPE_SUFFIX = "-validation";
+
+    // Cap on row numbers listed in the blank-boundary persist-gate error before it summarises.
+    public static final int MAX_REPORTED_BLANK_BOUNDARY_ROWS = 20;
+
     public static final String UNIFIED_CONSOLE_TYPE = "unified-console";
     public static final String ATTENDANCE_REGISTER_TYPE = "attendanceRegister";
     public static final String ATTENDANCE_REGISTER_ATTENDEE_TYPE = "attendanceRegisterAttendee";
