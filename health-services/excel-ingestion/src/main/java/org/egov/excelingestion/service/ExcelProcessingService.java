@@ -140,7 +140,7 @@ public class ExcelProcessingService {
                 List<ValidationError> immutableJoinWarnings = new ArrayList<>();
                 Map<String, Set<String>> immutableColumnsBySheet =
                         immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema,
-                                immutableJoinWarnings, mergedLocalizationMap);
+                                request.getRequestInfo(), immutableJoinWarnings, mergedLocalizationMap);
                 if (immutableColumnsBySheet == null) {
                     immutableColumnsBySheet = Collections.emptyMap();
                 }

@@ -7,6 +7,7 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
@@ -93,22 +94,27 @@ public class ImmutableJoinService {
      * authoritative data. No-op for legacy/protected files (no embedded generationId).
      *
      * @param sheetNameToSchema visible sheet name -> its MDMS schema map (resolved by the caller)
+     * @param requestInfo the caller's RequestInfo, used to authenticate the campaign search
      * @return per visible sheet, the set of "always-immutable" columns that were reconstructed from the
      *         baseline onto existing rows. Downstream validation uses this to skip re-validating cells it
      *         did not let the user change. Empty map when the feature is inactive / legacy / no-op.
      */
     public Map<String, Set<String>> applyImmutableBaseline(Workbook uploadedWorkbook, ProcessResource resource,
-                                       Map<String, Map<String, Object>> sheetNameToSchema) {
-        return applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, new ArrayList<>(), null);
+                                       Map<String, Map<String, Object>> sheetNameToSchema,
+                                       RequestInfo requestInfo) {
+        return applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, requestInfo,
+                new ArrayList<>(), null);
     }
 
     /**
-     * As {@link #applyImmutableBaseline(Workbook, ProcessResource, Map)} but also appends a non-failing
-     * WARNING to {@code warningsOut} for every locked cell whose uploaded value differed from the baseline
-     * (a user edit to a server-managed cell that was reverted), localized via {@code localizationMap}.
+     * As {@link #applyImmutableBaseline(Workbook, ProcessResource, Map, RequestInfo)} but also appends a
+     * non-failing WARNING to {@code warningsOut} for every locked cell whose uploaded value differed from
+     * the baseline (a user edit to a server-managed cell that was reverted), localized via
+     * {@code localizationMap}.
      */
     public Map<String, Set<String>> applyImmutableBaseline(Workbook uploadedWorkbook, ProcessResource resource,
                                        Map<String, Map<String, Object>> sheetNameToSchema,
+                                       RequestInfo requestInfo,
                                        List<ValidationError> warningsOut, Map<String, String> localizationMap) {
         // Scope: only the join-mode template families (unified-console, attendanceRegister,
         // attendanceRegisterAttendee) use join-mode. Any other type is processed as before, with no
@@ -150,7 +156,7 @@ public class ImmutableJoinService {
         // looked up by id + tenant) plus the referenceId match are the identity guarantee.
 
         CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(
-                resource.getReferenceId(), resource.getTenantId(), resource.getRequestInfo());
+                resource.getReferenceId(), resource.getTenantId(), requestInfo);
         String clonedCampaignId = campaign.getAdditionalDetails() == null ? null
                 : campaign.getAdditionalDetails().getClonedCampaignId();
         log.info("Immutable-baseline join for generationId {}: campaign {} clonedCampaignId {}",

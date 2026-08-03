@@ -143,7 +143,7 @@ class ImmutableJoinServiceTest {
         }
 
         private void run() {
-            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema);
+            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, null);
         }
 
         @Test
@@ -216,7 +216,7 @@ class ImmutableJoinServiceTest {
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
 
             List<ValidationError> warnings = new ArrayList<>();
-            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, warnings, null);
+            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, null, warnings, null);
 
             assertEquals("RealName", up.get("name"), "tampered freezeColumn reverted");
             assertEquals("RealV", up.get("village"), "tampered freezeTillData reverted");
@@ -306,7 +306,7 @@ class ImmutableJoinServiceTest {
             Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name"); // no 'village' key
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
 
-            Map<String, Set<String>> skip = service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema);
+            Map<String, Set<String>> skip = service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, null);
 
             assertEquals("Real Name", up.get("name"), "present immutable column restored from baseline");
             assertEquals("USER_TYPED", up.get("village"), "immutable column absent from baseline is NOT overwritten");
@@ -328,7 +328,7 @@ class ImmutableJoinServiceTest {
                     "HZ_COUNTRY", "Mozambique", "HZ_PROVINCE", null);
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
 
-            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema);
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
 
             assertEquals("Mozambique", up.get("HZ_COUNTRY"), "prefilled boundary column locked to baseline value");
             assertEquals("UserPicked", up.get("HZ_PROVINCE"), "empty-baseline boundary level stays user-editable");
@@ -354,7 +354,7 @@ class ImmutableJoinServiceTest {
                     ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "ZQ_VILL_231");
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
 
-            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema);
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
 
             assertEquals("Manland", up.get("HZ_COUNTRY"),
                     "boundary column reconstructed even when the schema has NO immutable columns");
@@ -376,7 +376,7 @@ class ImmutableJoinServiceTest {
                     ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_MARYLAND");
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
 
-            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema);
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
 
             assertEquals("Maryland", up.get("HZ_PROVINCE"), "locked boundary level restored");
             assertEquals("HZ_MZ_MARYLAND", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
@@ -395,7 +395,7 @@ class ImmutableJoinServiceTest {
                     ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ");
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
 
-            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema);
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
 
             assertEquals("Maryland", up.get("HZ_PROVINCE"), "user-deepened (empty-baseline) level kept");
             assertEquals("HZ_MZ_MARYLAND", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
@@ -486,7 +486,7 @@ class ImmutableJoinServiceTest {
             // A type outside the join-mode families must be left completely untouched (no baseline lookup, no join).
             ProcessResource other = ProcessResource.builder()
                     .tenantId(TENANT).type("someUnrelatedType-validation").referenceId(REF).fileStoreId(UPLOAD_FS).build();
-            assertDoesNotThrow(() -> service.applyImmutableBaseline(uploadedWorkbook, other, sheetNameToSchema));
+            assertDoesNotThrow(() -> service.applyImmutableBaseline(uploadedWorkbook, other, sheetNameToSchema, null));
             verifyNoInteractions(generatedFileRepository, fileStoreService);
         }
 
@@ -499,7 +499,7 @@ class ImmutableJoinServiceTest {
             Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name");
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
 
-            service.applyImmutableBaseline(uploadedWorkbook, attendance, sheetNameToSchema);
+            service.applyImmutableBaseline(uploadedWorkbook, attendance, sheetNameToSchema, null);
 
             assertEquals("Real Name", up.get("name"), "attendanceRegister type is in join scope -> immutable restored");
         }
@@ -513,7 +513,7 @@ class ImmutableJoinServiceTest {
             Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name");
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
 
-            service.applyImmutableBaseline(uploadedWorkbook, attendee, sheetNameToSchema);
+            service.applyImmutableBaseline(uploadedWorkbook, attendee, sheetNameToSchema, null);
 
             assertEquals("Real Name", up.get("name"), "attendanceRegisterAttendee type is in join scope -> immutable restored");
         }
@@ -714,7 +714,7 @@ class ImmutableJoinServiceTest {
             setCell(up, 5, cName, "NewGuy");
             setCell(up, 5, cComment, "brand new");
 
-            join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap());
+            join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap(), null);
 
             List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(UPLOAD_FS, SHEET, up);
             assertEquals(4, rows.size(), "3 existing + 1 new row");
@@ -740,7 +740,7 @@ class ImmutableJoinServiceTest {
             up.removeRow(up.getRow(4));
 
             assertThrows(CustomException.class,
-                    () -> join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap()),
+                    () -> join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap(), null),
                     "A deleted pre-filled row must fail closed (orphan)");
             uploaded.close();
         }
@@ -754,7 +754,7 @@ class ImmutableJoinServiceTest {
 
             Workbook uploaded = fromBytes(baselineBytes);
             assertThrows(CustomException.class,
-                    () -> join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap()),
+                    () -> join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap(), null),
                     "referenceId mismatch must fail closed");
             uploaded.close();
         }
@@ -773,7 +773,7 @@ class ImmutableJoinServiceTest {
             int cName = colIndex(up, "name");
             setCell(up, 2, cName, "HACKED");   // tamper one immutable cell
 
-            join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap());
+            join.applyImmutableBaseline(uploaded, resource(), sheetSchemaMap(), null);
             long elapsed = System.currentTimeMillis() - t0;
 
             List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(UPLOAD_FS, SHEET, up);
