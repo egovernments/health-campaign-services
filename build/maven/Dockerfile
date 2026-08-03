@@ -1,14 +1,22 @@
+# syntax=docker/dockerfile:1
 FROM maven:3.9.6-amazoncorretto-17 AS build
 ARG WORK_DIR
 WORKDIR /app
 
-# Copy project files
+# Copy only POM first to cache dependencies separately
 COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
+
+# Download dependencies - this layer will be cached unless pom.xml changes
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B dependency:go-offline || true
+
+# Copy source code after dependencies are cached
 COPY ${WORK_DIR}/src ./src
 
-# Build the project
-RUN mvn -B -f /app/pom.xml package
+# Build the project with BuildKit cache mount for Maven repository
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -f /app/pom.xml package
 
 # Runtime image – using a multi-arch base image
 FROM amazoncorretto:17-alpine
