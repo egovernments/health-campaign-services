@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 FROM maven:3.9-eclipse-temurin-25 AS build
 ARG WORK_DIR
 WORKDIR /app
@@ -8,15 +7,13 @@ COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
 
 # Download dependencies - this layer will be cached unless pom.xml changes
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B dependency:go-offline || true
+RUN mvn -B dependency:go-offline || true
 
 # Copy source code after dependencies are cached
 COPY ${WORK_DIR}/src ./src
 
-# Build the project with BuildKit cache mount for Maven repository
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -f /app/pom.xml package -DskipTests
+# Build the project
+RUN mvn -B -f /app/pom.xml package -DskipTests
 
 # Runtime image – using Eclipse Temurin Alpine for Java 25
 FROM eclipse-temurin:25-jre-alpine
