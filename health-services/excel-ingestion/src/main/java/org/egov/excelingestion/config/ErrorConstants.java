@@ -86,15 +86,6 @@ public class ErrorConstants {
     public static final String EXCEL_PROCESSING_ERROR_MESSAGE = "Error processing Excel file";
     public static final String EXCEL_PROCESSING_ERROR_DESCRIPTION = "An error occurred while processing the Excel file: {0}";
 
-    // Fail-closed persist gate: validation passing must imply persistence carries the resolved codes
-    public static final String BOUNDARY_CODE_MISSING_AT_PERSIST = "BOUNDARY_CODE_MISSING_AT_PERSIST";
-    public static final String BOUNDARY_CODE_MISSING_AT_PERSIST_MESSAGE =
-            "Boundary codes were not resolved for active user rows; the upload was rejected instead of creating users without a boundary.";
-    public static final String BOUNDARY_CODE_MISSING_AT_PERSIST_DESCRIPTION =
-            "Sheet '{0}': {1} active row(s) carry no boundary code at persistence time. Affected row(s): {2}. "
-                    + "The code is resolved server-side on upload, so a blank here means the resolved value did not "
-                    + "reach persistence. Re-upload the file and retry.";
-
     public static final String EXCEL_ROW_LIMIT_EXCEEDED = "EXCEL_ROW_LIMIT_EXCEEDED";
     public static final String EXCEL_ROW_LIMIT_EXCEEDED_MESSAGE = "Sheet '{0}' exceeds the maximum allowed rows ({1}). Please split the data and retry.";
     

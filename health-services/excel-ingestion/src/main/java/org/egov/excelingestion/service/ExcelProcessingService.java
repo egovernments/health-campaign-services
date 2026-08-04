@@ -209,12 +209,6 @@ public class ExcelProcessingService {
                         workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
 
                 // Step 3: Handle post-processing (persistence and event publishing) - MOVED AFTER PROCESSORS
-                // Collect every sheet's rows FIRST, then hand them over. handlePostProcessing publishes a
-                // sheet's rows to Kafka as it goes and can fail closed on unresolved boundary codes, so
-                // collecting up front keeps that abort atomic: an earlier sheet is never published when a
-                // later one is rejected. The SAME list instances are passed on, so what is checked is what
-                // is persisted.
-                Map<String, List<Map<String, Object>>> sheetDataForPersistence = new LinkedHashMap<>();
                 for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                     Sheet sheet = workbook.getSheetAt(i);
                     String sheetName = sheet.getSheetName();
@@ -224,17 +218,11 @@ public class ExcelProcessingService {
                     }
 
                     // Convert sheet data again for post-processing (after processors have run) - CACHED VERSION
-                    sheetDataForPersistence.put(sheetName, excelUtil.convertSheetToMapListCached(
-                            resource.getFileStoreId(), sheetName, sheet));
-                }
+                    List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                            resource.getFileStoreId(), sheetName, sheet);
 
-                configBasedProcessingService.assertBoundaryCodesResolvedForPersistence(
-                        sheetDataForPersistence, resource, mergedLocalizationMap, request.getRequestInfo());
-
-                for (Map.Entry<String, List<Map<String, Object>>> entry : sheetDataForPersistence.entrySet()) {
-                    List<Map<String, Object>> sheetData = entry.getValue();
                     configBasedProcessingService.handlePostProcessing(
-                            entry.getKey(), sheetData.size(), resource, mergedLocalizationMap, sheetData, request.getRequestInfo());
+                            sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData, request.getRequestInfo());
                 }
 
                 // Upload the processed Excel file

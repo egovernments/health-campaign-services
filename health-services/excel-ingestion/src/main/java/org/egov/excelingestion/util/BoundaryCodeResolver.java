@@ -113,18 +113,9 @@ public class BoundaryCodeResolver {
                 resource.getFileStoreId(), sheetName, sheet);
 
         int resolved = 0;
-        int restored = 0;
         for (Map<String, Object> row : rows) {
             String existing = ExcelUtil.getValueAsString(row.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY));
             if (existing != null && !existing.trim().isEmpty()) {
-                // The map already carries a code, so this row needs no resolution. But the row maps are
-                // shared and cached while the workbook cell is the durable artifact: if a previous run
-                // filled the map and this run re-downloaded the original (blank-cell) file, a later
-                // re-read of the sheet would produce a BLANK code again. Write the value through so cell
-                // and map agree and any subsequent re-read in this run still sees the code.
-                if (writeCodeCellIfBlank(sheet, row, codeColIdx, existing)) {
-                    restored++;
-                }
                 continue; // prefilled or legacy-formula code - authoritative, leave untouched
             }
             String path = buildDeepestPath(row, levelKeys);
@@ -139,34 +130,10 @@ public class BoundaryCodeResolver {
             writeCodeCell(sheet, row, codeColIdx, code);
             resolved++;
         }
-        if (resolved > 0 || restored > 0) {
-            log.info("Boundary-code resolver: sheet '{}' resolved {} rows, restored {} cells from already-mapped codes",
-                    sheetName, resolved, restored);
+        if (resolved > 0) {
+            log.info("Boundary-code resolver: sheet '{}' resolved {} rows", sheetName, resolved);
         }
         return resolved;
-    }
-
-    /**
-     * Writes a known code onto the workbook cell only when that cell is blank, so the durable artifact
-     * catches up with the shared row map without ever overwriting a value already present in the file.
-     * Returns true when a repair was made.
-     */
-    private boolean writeCodeCellIfBlank(Sheet sheet, Map<String, Object> row, int codeColIdx, String code) {
-        Object rowNum = row.get(ProcessingConstants.ACTUAL_ROW_NUMBER_KEY);
-        if (!(rowNum instanceof Number)) {
-            return false;
-        }
-        Row poiRow = sheet.getRow(((Number) rowNum).intValue() - 1);
-        if (poiRow == null) {
-            return false;
-        }
-        Cell cell = poiRow.getCell(codeColIdx, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-        String cellValue = ExcelUtil.getCellValueAsString(cell);
-        if (cellValue != null && !cellValue.trim().isEmpty()) {
-            return false; // cell already durable
-        }
-        cell.setCellValue(code);
-        return true;
     }
 
     /**
