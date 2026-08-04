@@ -3,6 +3,8 @@ package org.egov.stock.validator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -17,11 +19,14 @@ import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
+import org.egov.stock.config.StockConfiguration;
+import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationBulkRequestTestBuilder;
 import org.egov.stock.service.FacilityService;
 import org.egov.stock.validator.stock.SReferenceIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrReferenceIdValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +45,18 @@ class ReferenceIdValidatorTest {
 
     @Mock
     private FacilityService facilityService;
+
+    @Mock
+    private StockConfiguration stockConfiguration;
+
+    @Mock
+    private StockReconciliationConfiguration stockReconciliationConfiguration;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(stockConfiguration.getProjectFacilityValidationEnabled()).thenReturn(true);
+        lenient().when(stockReconciliationConfiguration.getProjectFacilityValidationEnabled()).thenReturn(true);
+    }
 
     private void mockEmptyResponse() {
         when(facilityService.validateProjectFacilityMappings(any(List.class),
@@ -103,5 +120,30 @@ class ReferenceIdValidatorTest {
 
         Map<StockReconciliation, List<Error>> errorDetailsMap = srReferenceIdValidator.validate(request);
         assertEquals(errorDetailsMap.size(), 0);
+    }
+
+    @Test
+    @DisplayName("should skip stock project facility validation when flag is disabled")
+    void shouldSkipStockValidationWhenFlagDisabled() {
+        StockBulkRequest request = StockBulkRequestTestBuilder.builder().withStock().withRequestInfo().build();
+
+        when(stockConfiguration.getProjectFacilityValidationEnabled()).thenReturn(false);
+
+        Map<Stock, List<Error>> errorDetailsMap = sReferenceIdValidator.validate(request);
+        assertEquals(errorDetailsMap.size(), 0);
+        verifyNoInteractions(facilityService);
+    }
+
+    @Test
+    @DisplayName("should skip stock reconciliation project facility validation when flag is disabled")
+    void shouldSkipStockReconciliationValidationWhenFlagDisabled() {
+        StockReconciliationBulkRequest request = StockReconciliationBulkRequestTestBuilder.builder()
+                .withStock().withRequestInfo().build();
+
+        when(stockReconciliationConfiguration.getProjectFacilityValidationEnabled()).thenReturn(false);
+
+        Map<StockReconciliation, List<Error>> errorDetailsMap = srReferenceIdValidator.validate(request);
+        assertEquals(errorDetailsMap.size(), 0);
+        verifyNoInteractions(facilityService);
     }
 }
