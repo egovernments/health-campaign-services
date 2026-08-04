@@ -24,6 +24,7 @@ export interface ResourceDetailRow {
   lastmodifiedtime: number;
 }
 
+/** Maps a lowercase DB row to the camelCase API response shape (DB columns are folded to lowercase). */
 export function toResourceDetailsResponse(row: ResourceDetailRow): ResourceDetailsResponse {
   return {
     id: row.id,
@@ -139,6 +140,7 @@ export async function getResourceDetailById(id: string, tenantId: string): Promi
   return result?.rows?.[0] || null;
 }
 
+/** Finds the single active resource identifying a campaign's upsert slot (tenant+campaign+type+parent). */
 export async function findActiveResourceByUpsertKey(
   tenantId: string,
   campaignId: string,

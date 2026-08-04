@@ -7,6 +7,7 @@ import { validateDatasWithSchema } from "../validators/campaignValidators";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { throwError } from "../utils/genericUtils";
 
+/** Validation process class for the Attendance Register sheet — schema + campaign-boundary membership checks, annotating invalid rows. */
 export class TemplateClass {
     static async process(
         resourceDetails: any,

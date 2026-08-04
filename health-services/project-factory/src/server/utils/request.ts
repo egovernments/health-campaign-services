@@ -1,12 +1,12 @@
-import { Response } from "express"; // Importing necessary module Response from Express
-import { getFormattedStringForDebug, logger } from "./logger"; // Importing logger from logger module
-import { throwErrorViaRequest } from "./genericUtils"; // Importing necessary functions from genericUtils module
+import { Response } from "express";
+import { getFormattedStringForDebug, logger } from "./logger";
+import { throwErrorViaRequest } from "./genericUtils";
 import config from "../config";
-import { redis, checkRedisConnection, reconnectRedis } from "./redisUtils"; // Importing checkRedisConnection function
+import { redis, checkRedisConnection, reconnectRedis } from "./redisUtils";
 import { resolveHttpTimeout } from "./httpTimeout"; // NaN-safe timeout resolution from env
 
-var Axios = require("axios").default; // Importing axios library
-var get = require("lodash/get"); // Importing get function from lodash library
+var Axios = require("axios").default;
+var get = require("lodash/get");
 // Default 5-minute timeout; use HTTP_TIMEOUT_MS=0 env var to disable (file downloads).
 const axiosInstance = Axios.create({
   timeout: resolveHttpTimeout(process.env.HTTP_TIMEOUT_MS),
@@ -28,38 +28,34 @@ const axiosInstance = Axios.create({
   }
 });
 
-// Axios interceptor to handle response errors
+// Normalize error shape so downstream handlers always see err.response.data.Errors
 axiosInstance.interceptors.response.use(
   (res: Response) => {
     return res;
   },
   (err: any) => {
-    // If there is no response object in the error, create one with status 400
     if (err && !err.response) {
       err.response = {
         status: 400,
       };
     }
-    // If there is a response but no data, create an error object with the error message
     if (err && err.response && !err.response.data) {
       err.response.data = {
         Errors: [{ code: err.message }],
       };
     }
-    throw err; // Throw the error
+    throw err;
   }
 );
 
-// Default header for HTTP requests
 export const defaultheader = {
   "content-type": "application/json;charset=UTF-8",
   accept: "application/json, text/plain, */*",
 };
 
-// Function to extract service name from URL
 const getServiceName = (url = "") => url && url.slice && url.slice(url.lastIndexOf(url.split("/")[3]));
 
-const cacheEnabled = config.cacheValues.cacheEnabled; // Variable to indicate whether caching is enabled or not
+const cacheEnabled = config.cacheValues.cacheEnabled;
 
 /**
  * Used to Make API call through axios library
@@ -87,28 +83,27 @@ const httpRequest = async (
 ): Promise<any> => {
   let attempt = 0;
   const maxAttempts = parseInt(config.values.maxHttpRetries) || 4;
-  const cacheKey = headers && headers.cachekey ? `cache:${headers.cachekey}` : null; // Create cache key
-  const cacheTTL = 300; // TTL in seconds (5 minutes)
+  const cacheKey = headers && headers.cachekey ? `cache:${headers.cachekey}` : null;
+  const cacheTTL = 300; // seconds
 
   while (attempt < maxAttempts) {
     try {
       let isRedisConnected = await checkRedisConnection();
       if (!isRedisConnected) {
-        await reconnectRedis(); // Re-establish connection if not connected
+        await reconnectRedis();
         isRedisConnected = await checkRedisConnection();
       }
       if (cacheKey && cacheEnabled && isRedisConnected) {
-        const cachedData = await redis.get(cacheKey); // Get cached data
+        const cachedData = await redis.get(cacheKey);
         if (cachedData) {
           logger.info("CACHE HIT :: " + cacheKey);
           logger.debug(`CACHED DATA :: ${getFormattedStringForDebug(cachedData)}`);
 
-          // Reset the TTL for the cache key
           if (config.cacheValues.resetCache) {
             await redis.expire(cacheKey, cacheTTL);
           }
 
-          return JSON.parse(cachedData); // Return parsed cached data if available
+          return JSON.parse(cachedData);
         }
         logger.info("NO CACHE FOUND :: REQUEST :: " + cacheKey);
       }
@@ -141,7 +136,7 @@ const httpRequest = async (
 
       if ([200, 201, 202].includes(responseStatus)) {
         if (cacheKey && isRedisConnected) {
-          await redis.set(cacheKey, JSON.stringify(response.data), "EX", cacheTTL); // Cache the response data with TTL
+          await redis.set(cacheKey, JSON.stringify(response.data), "EX", cacheTTL);
         }
         return sendStatusCode ? { ...response.data, statusCode: responseStatus } : response.data;
       }
@@ -225,12 +220,10 @@ const httpRequest = async (
 };
 
 function throwTheHttpError(errorResponse?: any, error?: any, _url?: string) {
-  // Throw error response via request if error response contains errors
   if (errorResponse?.data?.Errors?.[0]) {
     errorResponse.data.Errors[0].status = errorResponse?.data?.Errors?.[0]?.status || errorResponse?.status;
     throwErrorViaRequest(errorResponse?.data?.Errors?.[0]);
   } else {
-    // Throw error message via request
     throwErrorViaRequest(
       "error occurred while making request to " +
       getServiceName(_url) +
@@ -240,4 +233,4 @@ function throwTheHttpError(errorResponse?: any, error?: any, _url?: string) {
   }
 }
 
-export { httpRequest }; // Exporting the httpRequest function for use in other modules
+export { httpRequest };

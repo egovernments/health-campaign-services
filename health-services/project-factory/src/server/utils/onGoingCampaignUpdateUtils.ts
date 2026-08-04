@@ -14,8 +14,6 @@ async function getParentCampaignObject(request: any, parentId: any) {
         tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId || request?.body?.CampaignDetails?.tenantId,
         ids: [parentId]
       }
-    // };
-    // const req: any = replicateRequest(request, searchBodyForParent);
     const parentSearchResponse = await searchProjectTypeCampaignService(CampaignDetails);
     return parentSearchResponse?.CampaignDetails?.[0];
   } catch (error) {
@@ -60,7 +58,6 @@ function modifyProcessedSheetData(type: any, sheetData: any, schema: any, locali
 
   let localizedHeaders = getLocalizedHeaders(originalHeaders, localizationMap);
 
-  // Map each object in sheetData to an array of values corresponding to the header order
   let dataRows = sheetData.map((row: any) => {
     return localizedHeaders.map((header: any) => row[header] || '');
   });
@@ -76,40 +73,36 @@ function modifyProcessedSheetData(type: any, sheetData: any, schema: any, locali
     return [...row, boundaryCodeValue];
   });
 
-  // Combine headers and dataRows
   const modifiedData = [localizedHeaders, ...dataRows];
 
   return modifiedData;
 }
 
 function freezeUnfreezeColumnsForProcessedFile(sheet: any, columnsToFreeze: number[], columnsToUnfreeze: number[]) {
-  // First, unfreeze specified columns
   columnsToUnfreeze.forEach(colNumber => {
     for (let row = 1; row <= sheet.rowCount; row++) {
       const cell = sheet.getCell(row, colNumber);
-      cell.protection = { locked: false }; // Unfreeze the cell
+      cell.protection = { locked: false };
     }
   });
 
-  // Then, freeze specified columns
   columnsToFreeze.forEach(colNumber => {
     for (let row = 1; row <= sheet.rowCount; row++) {
       const cell = sheet.getCell(row, colNumber);
-      cell.protection = { locked: true }; // Freeze the cell
+      cell.protection = { locked: true };
     }
   });
 }
 
 
+// Returns the 1-based column index whose header-row cell matches headerName, defaulting to 1 when absent.
 function getColumnIndexByHeader(sheet: any, headerName: string): number {
-  // Get the first row (assumed to be the header row)
   const firstRow = sheet.getRow(1);
 
-  // Find the column index where the header matches the provided name
   for (let col = 1; col <= firstRow.cellCount; col++) {
     const cell = firstRow.getCell(col);
     if (cell.value === headerName) {
-      return col; // Return the column index (1-based)
+      return col;
     }
   }
   return 1;
@@ -151,7 +144,6 @@ function modifyNewSheetData(processedDistrictSheetData: any, newSheetData: any, 
     });
     modifiedData = [localizedHeaders, ...dataRows];
   } else {
-    // If processedDistrictSheetData is not present, work only with newSheetData
     modifiedData = [newSheetData];
   }
 
@@ -164,7 +156,7 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
 
   const boundaryCodeIndex = localizedHeaders.indexOf(getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
 
-  // Update newData with matching values from originalData
+  // Backfill blank target cells in newData from the matching originalData row (matched on the boundary-code prefix).
   newData = newData.map((newRow: any) => {
     const matchingRow = originalData.find((originalRow: any) =>
       originalRow.slice(0, boundaryCodeIndex + 1).every((val: any, index: any) => val === newRow[index])
@@ -176,22 +168,23 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
         : value
     );
   });
+  // Rename the header row's old target columns with an "(OLD)" suffix (to be hidden) and append original target values to every row.
   newData = newData.map((newRow: any, rowIndex: number) => {
     const updatedValues: any[] = [];
     for (let i = boundaryCodeIndex + 1; i < localizedHeaders.length; i++) {
-      updatedValues.push(newRow[i]);  // Store original value
-      if (rowIndex === 0) {  // Only modify the first row
-        const modifiedValue = `${newRow[i]}(OLD)`; // Create modified value with (OLD) suffix
-        newRow[i] = modifiedValue; // Update newRow[i] with the modified value
-        oldTargetColumnsToHide.push(modifiedValue); // Push the modified value      
+      updatedValues.push(newRow[i]);
+      if (rowIndex === 0) {
+        const modifiedValue = `${newRow[i]}(OLD)`;
+        newRow[i] = modifiedValue;
+        oldTargetColumnsToHide.push(modifiedValue);
       }
     }
-    // Concatenate original values at the end of every row
     return [...newRow, ...updatedValues];
   });
   return newData;
 }
 
+/** Fails validation if the child campaign drops any parent-campaign boundary, or changes boundaries on create without supplying a new boundary file. */
 export async function validateMissingBoundaryFromParent(requestBody : any) {
   const { CampaignDetails, parentCampaign } = requestBody;
   const allCurrentCampaignBoundaries : any = await getAllBoundariesFromCampaign(CampaignDetails);
@@ -249,7 +242,6 @@ const getAllBoundariesFromCampaign = async (campaignDetails: any) => {
 };
 
 function getBoundariesArray(parentCampaignBoundaries: any, campaignBoundaries: any) {
-  // Ensure both inputs are arrays or default to empty arrays
   const validParentBoundaries = Array.isArray(parentCampaignBoundaries) ? parentCampaignBoundaries : [];
   const validCampaignBoundaries = Array.isArray(campaignBoundaries) ? campaignBoundaries : [];
 
@@ -267,11 +259,10 @@ async function getBoundariesFromCampaignSearchResponse(request: any, campaignDet
 
 async function fetchProjectsWithProjectId(
   request: any,
-  projectIds: string | string[], // can accept string or array of strings
+  projectIds: string | string[],
   tenantId: string,
-  includeDescendants: boolean = true   // default to true
+  includeDescendants: boolean = true
 ) {
-  // Normalize to array
   const idsArray = Array.isArray(projectIds) ? projectIds : [projectIds];
 
   if (idsArray.length === 0) return [];
@@ -287,7 +278,7 @@ async function fetchProjectsWithProjectId(
   const projectSearchParams = {
     tenantId,
     offset: 0,
-    limit: idsArray.length, // Optional: adjust based on expected max
+    limit: idsArray.length,
     includeDescendants: includeDescendants
   };
 
@@ -350,7 +341,6 @@ function getBoundaryProjectMappingFromParentCampaign(request: any, project: any)
 
   const boundarySet = new Set<string>();
 
-  // Initialize result array with the project itself (id and boundary)
   const result = [
     {
       id: project.id,
@@ -362,15 +352,12 @@ function getBoundaryProjectMappingFromParentCampaign(request: any, project: any)
     }))
   ];
 
-  // Iterate over the result array to find matching boundaries and populate projectId
   result.forEach((entry: any) => {
     const boundary = entry.boundary;
     boundarySet.add(boundary);
-    // Initialize the boundaryProjectMapping for this boundary if not present
     if (!request?.body?.boundaryProjectMapping?.[boundary]) {
       request.body.boundaryProjectMapping[boundary] = { parent: null, projectId: null };
     }
-    // Update the projectId in the request's boundaryProjectMapping
     request.body.boundaryProjectMapping[boundary].projectId = entry.id;
   });
 
@@ -411,6 +398,7 @@ async function fetchProjectFacilityWithProjectId(request: any, projectId: any, f
   }
 }
 
+/** Resolves a filestore id to its downloadable URL, throwing INVALID_FILE if the filestore returns no URL. */
 export async function getFileUrl(fileStoreId: string, tenantId: string) {
   const fileResponse = await httpRequest(
     `${config.host.filestore}${config.paths.filestore}/url`,

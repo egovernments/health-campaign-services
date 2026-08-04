@@ -12,9 +12,8 @@ import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 
-// This will be a dynamic template class for different types
 export class TemplateClass {
-    // Static generate function
+    /** Validates the user sheet (schema, phones, usernames, boundaries, worker IDs, beneficiary codes) and annotates row errors. */
     static async process(
         resourceDetails: any,
         wholeSheetData: any,
@@ -91,7 +90,6 @@ export class TemplateClass {
 
     private static reconstructMultiSelectFields(rows: any[]): void {
         for (const row of rows) {
-            // Collect {parent -> [{index, value}]} preserving column order
             const multiSelectParents: Record<string, { index: number; value: string }[]> = {};
             for (const key of Object.keys(row)) {
                 const idx = key.indexOf("_MULTISELECT_");
@@ -127,7 +125,7 @@ export class TemplateClass {
         }
         const allPhoneNumbersToSearch = Object.keys(phoneNumbersToRowMap);
         const allCurrentUsersInCampaignDataWithPhoneNumbersRows = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, tenantId, dataRowStatuses.completed);
-        const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => String(user?.uniqueIdentifier))); // uniqueIdentifiers of AllCurrentUsersInCampaignDataWithPhoneNumbers
+        const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => String(user?.uniqueIdentifier)));
         const allPhoneNumbersNotInCampaignData = allPhoneNumbersToSearch.filter((phoneNumber: any) => !setOfAllCurrentUsersInCampaignDataWithPhoneNumbers.has(String(phoneNumber)));
         logger.info(`Number of phone numbers not in campaign data: ${allPhoneNumbersNotInCampaignData?.length}`);
         logger.info(`Phone numbers not in campaign data: ${JSON.stringify(allPhoneNumbersNotInCampaignData)}`);
@@ -209,7 +207,6 @@ export class TemplateClass {
             }
         };
 
-        // const tenantId = request?.body?.ResourceDetails?.tenantId;
         const searchUrl = config.host.healthIndividualHost + config.paths.healthIndividualSearch;
         const chunkSize = config.user.validationSearchBatchSize;
 

@@ -266,10 +266,10 @@ describe('createResourceDetail — registered child type parent handling', () =>
     it('T13: attendee create succeeds for child campaign with no parent resource under its campaignId', async () => {
         await createResourceDetail(ATTENDEE_INPUT, 'user-1');
 
-        const parentExistenceLookup = mockFindActiveResource.mock.calls.find(
-            (args: any[]) => args[2] === 'attendanceRegister'
+        const validationCall = mockThrowError.mock.calls.find(
+            (args: any[]) => typeof args[3] === 'string' && args[3].includes('No active resource of parent type')
         );
-        expect(parentExistenceLookup).toBeUndefined();
+        expect(validationCall).toBeUndefined();
 
         expect(mockProduce).toHaveBeenCalledWith(
             expect.objectContaining({

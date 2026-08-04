@@ -9,9 +9,8 @@ import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { throwError } from "../utils/genericUtils";
 
 
-// This will be a dynamic template class for different types
 export class TemplateClass {
-    // Static generate function
+    /** Validates the facility sheet against schema, active-field minima, and campaign boundaries, annotating row errors. */
     static async process(
         resourceDetails: any,
         wholeSheetData: any,

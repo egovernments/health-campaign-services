@@ -20,6 +20,7 @@ import { ResourceDetailsCreateInput } from "../config/models/resourceDetailsCrea
 import { ResourceDetailsUpdateInput } from "../config/models/resourceDetailsUpdateSchema";
 import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
 
+/** Reads a campaign's current status and campaignNumber from the details table (null fields when the campaign row is absent). */
 export async function getCampaignStatusFromDB(campaignId: string, tenantId: string): Promise<{ status: string | null; campaignNumber: string | null }> {
   const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
   const result = await executeQuery(
@@ -42,7 +43,6 @@ export async function createResourceDetail(
 ): Promise<any> {
   const { tenantId, campaignId, type, parentResourceId, fileStoreId, filename, additionalDetails } = input;
 
-  // Campaign status guard
   const { status: campaignStatus } = await getCampaignStatusFromDB(campaignId, tenantId);
   if (campaignStatus === campaignStatuses.started) {
     throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot add/update resources while campaign is processing");
@@ -56,36 +56,29 @@ export async function createResourceDetail(
       "Cannot add resources while campaign resources are currently being processed");
   }
 
-  // Upsert check: find existing active resource with same key
   const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, type, parentResourceId);
 
-  // Validate parent if type is registered with parentType
   const typeConfig = getResourceConfigOrDefault(type);
   if (isRegisteredType(type) && typeConfig.parentType) {
     if (!parentResourceId) {
       throwError("COMMON", 400, "VALIDATION_ERROR", `parentResourceId is required for resource type '${type}'`);
     }
-    // If not allowMultiplePerParent, check no other active resource of same type+parent
     if (!typeConfig.allowMultiplePerParent) {
       const existingCount = await countResourcesByType(tenantId, campaignId, type, parentResourceId);
-      // existingCount check will be overridden by upsert below, so just log
+      // Existing count is only advisory — the upsert below deactivates + replaces any prior active resource.
       if (existingCount > 0) {
         logger.info(`Found existing resource for type ${type} and parent ${parentResourceId}, will upsert`);
       }
     }
   }
 
-  // Use existing resource found above for upsert
-
   if (existing) {
     if (existing.status === resourceStatuses.creating) {
       throwError("COMMON", 409, "RESOURCE_PROCESSING", `Resource of type '${type}' is currently being processed`);
     }
-    // Deactivate old resource
     await deactivateResource(existing, userUuid, tenantId);
   }
 
-  // Create new resource
   const now = Date.now();
   const newResource = {
     id: uuidv4(),
@@ -128,7 +121,6 @@ export async function updateResourceDetail(
 ): Promise<any> {
   const { id, tenantId, campaignId, fileStoreId, filename } = input;
 
-  // Campaign status guard
   const { status: campaignStatus } = await getCampaignStatusFromDB(campaignId, tenantId);
   if (campaignStatus === campaignStatuses.started) {
     throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot update resources while campaign is processing");
@@ -153,10 +145,8 @@ export async function updateResourceDetail(
     throwError("COMMON", 409, "RESOURCE_PROCESSING", `Resource '${id}' is currently being processed`);
   }
 
-  // Deactivate old resource
   await deactivateResource(existing!, userUuid, tenantId);
 
-  // Create replacement resource
   const now = Date.now();
   const newResource = {
     id: uuidv4(),
@@ -256,6 +246,7 @@ async function searchResourceDetailsAcrossCampaignFamily(
   };
 }
 
+/** Soft-deactivates every active resource of a campaign — used when hierarchy/boundary changes invalidate prior uploads. */
 export async function deactivateAllResourcesForCampaign(campaignId: string, tenantId: string, userUuid: string): Promise<void> {
   const rows = await searchResourceDetailsFromDB({ tenantId, campaignId, isActive: true });
   await Promise.all(rows.map(row => deactivateResource(row, userUuid, tenantId)));

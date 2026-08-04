@@ -1,7 +1,7 @@
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { CampaignResource } from "../config/models/resourceTypes";
 import { logger } from "./logger";
-import { getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
+import { getCurrentProcesses, getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
 import { enrichAndPersistCampaignWithErrorProcessingTask, updateResourceDetails } from "./campaignUtils";
 import { searchResourceDetailsFromDB } from "./resourceDetailsUtils";
 import { processStatuses } from "../config/constants";
@@ -15,19 +15,32 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { createAndUploadFileWithOutRequest } from "../api/genericApis";
 import config from "../config";
 
+/** Kafka handler: runs the process class for one campaign task, uploads the annotated file, and persists process/resource status (idempotent under redelivery). */
 export async function handleTaskForCampaign(messageObject: any) {
     const taskStartTime = Date.now();
     try {
         const { CampaignDetails, task } = messageObject;
         const processName = task?.processName
         logger.info(`Task START campaign=${CampaignDetails?.id} process=${processName}`);
+
+        // Idempotency guard for at-least-once delivery: a crash-redelivered task carries its
+        // dispatch-time status, so without this check processRequest would re-run in full.
+        // Re-read the live process status and skip if this process already completed.
+        const campaignNumber = task?.campaignNumber || CampaignDetails?.campaignNumber;
+        if (campaignNumber && processName) {
+            const alreadyCompleted = await getCurrentProcesses(campaignNumber, CampaignDetails?.tenantId, processName, processStatuses.completed);
+            if (alreadyCompleted.length > 0) {
+                logger.info(`Task SKIP campaign=${CampaignDetails?.id} process=${processName} — already completed (redelivery-safe)`);
+                return;
+            }
+        }
+
         const resourceType : string = getResourceType(processName);
         if(!resourceType) {
             logger.error(`Resource type not found for process ${processName}`);
             throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `Resource type not found for process ${processName}`);
         }
         const resource = getResorceViaResourceType(CampaignDetails, resourceType);
-        // Support both camelCase (table-enriched) and lowercase (request-body legacy)
         const resolvedFileStoreId = resource?.filestoreId;
         if (!resolvedFileStoreId) {
             logger.error(`FileStoreId not found for resource type ${resourceType}`);
@@ -47,10 +60,8 @@ export async function handleTaskForCampaign(messageObject: any) {
         const fileUrl = await fetchFileFromFilestore(resourceDetails?.fileStoreId, resourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
 
-        // Try to extract locale from workbook metadata
+        // Graceful fallback: use campaign locale or default locale if workbook metadata is missing
         let locale: string = getLocaleFromWorkbook(workBook) || "";
-
-        // Graceful fallback: use campaign locale or default locale if metadata missing
         if (!locale) {
             logger.warn(`Locale metadata not found in workbook for resource type ${resourceType}. Using fallback locale.`);
             locale = CampaignDetails?.additionalDetails?.locale
@@ -110,7 +121,6 @@ export async function handleTaskForCampaign(messageObject: any) {
         );
 
         task.status = processStatuses.completed;
-        // Add audit details for update
         const currentTime = Date.now();
         task.auditDetails = {
             createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,
@@ -123,7 +133,6 @@ export async function handleTaskForCampaign(messageObject: any) {
     } catch (error) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
-        // Add audit details for failed status update
         const currentTime = Date.now();
         task.auditDetails = {
             createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,

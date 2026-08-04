@@ -139,7 +139,6 @@ async function createOrUpdateWorkers(
     const workersToCreate: WorkerCreatePayload[] = [];
     const workersToUpdate: WorkerRegistryRecord[] = [];
 
-    // Handle workers with explicit workerId
     if (workersByIdList.length) {
         try {
             const workerIds = workersByIdList.map(w => w.id as string);
@@ -183,13 +182,12 @@ async function createOrUpdateWorkers(
         }
     }
 
-    // Handle workers using individualId lookup (original path)
+    // Fallback path: resolve remaining workers by individualId lookup
     if (workersByIndividualIdList.length) {
         try {
             const individualIds = workersByIndividualIdList.map(w => w.individualId);
             const existingWorkers = await searchWorkersByIndividualIds(individualIds, tenantId, requestInfo);
 
-            // O(n) map: individualId → existing worker
             const existingWorkerMap = new Map<string, WorkerRegistryRecord>();
             for (const worker of existingWorkers) {
                 if (worker.individualIds?.length) {

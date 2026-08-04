@@ -14,5 +14,4 @@ export const generateTemplateQuerySchema = z.object({
     registerId: z.string().optional()
 });
 
-// TypeScript interface (can be omitted if you're using z.infer)
 export type GenerateTemplateQuery = z.infer<typeof generateTemplateQuerySchema>;

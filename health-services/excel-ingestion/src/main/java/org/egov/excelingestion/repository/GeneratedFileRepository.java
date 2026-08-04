@@ -72,6 +72,22 @@ public class GeneratedFileRepository {
         }
     }
 
+    /**
+     * Convenience lookup of a single generation record by its generationId (the primary key).
+     * Returns null when not found. Used by the upload-time immutable-baseline join to locate the
+     * original generated file (and verify identity) for a given upload.
+     */
+    public GenerateResource findByGenerationId(String generationId, String tenantId) throws InvalidTenantIdException {
+        GenerationSearchCriteria criteria = GenerationSearchCriteria.builder()
+                .tenantId(tenantId)
+                .ids(List.of(generationId))
+                .limit(1)
+                .offset(0)
+                .build();
+        List<GenerateResource> rows = search(criteria);
+        return CollectionUtils.isEmpty(rows) ? null : rows.get(0);
+    }
+
     public Long getCount(GenerationSearchCriteria criteria) throws InvalidTenantIdException {
         Map<String, Object> preparedStmtList = new HashMap<>();
         

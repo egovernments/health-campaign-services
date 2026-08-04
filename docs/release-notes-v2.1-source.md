@@ -43,6 +43,7 @@ deployed alongside, and the matching **UI + multi-architecture** builds rolled o
 9. [MDMS & Config Reference (unified-uat)](#9-mdms--config-reference-unified-uat)
 10. [Related Documents](#10-related-documents)
 11. [Open Questions / Needs Confirmation](#11-open-questions--needs-confirmation)
+12. [Performance & Reliability Hardening (`master-perf`, post-v2.1)](#12-performance--reliability-hardening-master-perf-post-v21)
 
 ## 1. Overview of Changes
 
@@ -51,7 +52,7 @@ deployed alongside, and the matching **UI + multi-architecture** builds rolled o
 | New services | **worker-registry** (worker registry for attendance & payments); **egov-notification-push** (Firebase Cloud Messaging push service); **health-notification-service** (health-domain notifications); **airflow-trigger-service** (Airflow DAG trigger service — new in this release) |
 | Updated services | project-factory, excel-ingestion, referralmanagement, stock, project, household, individual, facility (health-services); egov-hrms, pgr-services, beneficiary-idgen, service-request (core-services). Microplanning line also rolled together: plan-service, census-service, resource-generator, boundary-management, transformer, product |
 | UI / multi-arch | workbench-ui (nigeria changes — HCMPRE-3928), dashboard-ui, payments-ui (HCMPRE-3928), health-ui (multi-arch), microplan-ui (arm64), health-service-request (multi-arch). See §8 |
-| Shared libraries | `health-services-models` → `1.0.35-SNAPSHOT` (new USER ACTION enums, new task statuses, `campaignNumber`); `health-services-common` → `1.1.5-SNAPSHOT` |
+| Shared libraries | `health-services-models` → `1.0.35-SNAPSHOT` (new USER ACTION enums, new task statuses, `campaignNumber`); `health-services-common` → `1.1.5-SNAPSHOT` *(→ `1.1.6-SNAPSHOT` on the `master-perf` line — see §12)* |
 | DB schema | 18 new Flyway migrations (see §5 Step 1). Notably: project-factory **campaign resources moved from `campaigndetails` JSONB into `eg_cm_resource_details`** with a one-time data backfill; worker-registry tables created; egov-notification-push device-token tables created; `campaignNumber` added to stock |
 | Persister / indexer configs | Updated/added in the `configs/` repo (`configs/health/egov-persister` + `egov-indexer`). New: egov-notification-push, health-notification persisters + health-notification indexer; stock `campaignNumber`; project-factory resource tables; referral `projectId`. Applied via **config PRs #3811–#3840** on unified-uat (§9) |
 | MDMS masters | **enc-client `DataSecurity.SecurityPolicy`** is the hard dependency (§3/§9). Attendance roles are **standard RBAC** (`ACCESSCONTROL-ROLES`), not a service-level MDMS read. No `FormConfig` master is used by the attendance backend — that earlier assumption was incorrect (§9) |
@@ -119,7 +120,8 @@ deployed alongside, and the matching **UI + multi-architecture** builds rolled o
 ### 4.3 Shared model/common version bump
 
 - **What changed:** `health-services-models` → `1.0.35-SNAPSHOT` (new USER ACTION enums,
-  new task statuses), `health-services-common` → `1.1.5-SNAPSHOT`.
+  new task statuses), `health-services-common` → `1.1.5-SNAPSHOT`. *(On the `master-perf`
+  line `health-services-common` is later bumped to `1.1.6-SNAPSHOT` — see §12.)*
 - **Why it matters:** All consuming services must build/deploy against these versions
   together to avoid enum/status deserialization mismatches.
 - **Action required:** Deploy the dependent services as a set (Step 3).
@@ -149,7 +151,10 @@ deployed alongside, and the matching **UI + multi-architecture** builds rolled o
     this was delivered by adding a per-service `DataAccessExceptionHandler`
     `@ControllerAdvice` directly in each service** (ticket **HCMPRE-1870**) — **tracer was
     NOT bumped.** Tracer stays `2.9.0-SNAPSHOT` (most HCM services) / `2.9.1-SNAPSHOT`,
-    and `2.9.0-SNAPSHOT` across DIGIT-Works. (The tracer-version-bump approach
+    and `2.9.0-SNAPSHOT` across DIGIT-Works. *(This is the v2.1 state; the later
+    `master-perf` line **does** bump tracer to `2.9.3-SNAPSHOT` — for `correlationId` /
+    `tenantId` propagation across Kafka, a change distinct from this VAPT DB-error masking.
+    See §12.)* (The tracer-version-bump approach
     — `2.9.0-data-access-error-SNAPSHOT` / `2.1.2-data-access-error-SNAPSHOT` — was used
     only for the Digit-Core central services egov-otp / egov-workflow-v2 / MDMS-v2 /
     egov-user, which are **not** part of this HCM release.)
@@ -471,5 +476,85 @@ Remaining items not fully resolvable from code/config/MDMS in this workspace:
   tracker snapshot; reconcile with the CI pipeline for prod/other envs.
 - **Multi-arch** coverage: confirm the target node pool arch (arm64/amd64) matches the
   available images (health-ui, microplan-ui, health-service-request).
+
+## 12. Performance & Reliability Hardening (`master-perf`, post-v2.1)
+
+The **`master-perf`** branch is a performance/reliability effort layered on top of the v2.1
+release described above. It adds **no new Flyway migrations and no new services**; the
+operator-visible deltas are shared-library/tracer bumps, new config flags, and a few
+default-behaviour changes. Deploy the health-services set together (shared-lib bump).
+
+### 12.1 Shared libraries & tracing
+
+- **`health-services-common` → `1.1.6-SNAPSHOT`** (from `1.1.5-SNAPSHOT`); `health-services-models`
+  stays `1.0.35-SNAPSHOT`. Supersedes §1/§4.3. Rebuild/redeploy consumers as a set.
+- **tracer → `2.9.3-SNAPSHOT`** (from `2.9.2-SNAPSHOT`), inherited transitively via
+  `health-services-common`, and bumped in Digit-Core (`core-services/libraries/tracer`). It now
+  propagates **`correlationId` + `tenantId` across Kafka** (message headers, with a payload
+  fallback) and rebuilds the MDC per record on consume. New kill-switch `tracer.kafka.mdc.enabled`
+  (default `true`). This is **distinct** from the v2.1 VAPT DB-error masking in §4.6.
+
+### 12.2 Cross-entity validation "unbundled" — default OFF (breaking behaviour)
+
+- **What changed:** create/update no longer **synchronously reject on a missing parent** by
+  default (offline-first). Structural / uniqueness / required-link checks still run. Gated per
+  service, read **live** at request time (no restart):
+  - `household.member.relationship.validation=false`
+  - `project.relationship.validation=false`
+  - `referralmanagement.relationship.validation=false`
+  - `individual.beneficiary.id.validation.enabled=false`
+- **Why it matters:** default-OFF changes what the APIs enforce out of the box — e.g.
+  `INDIVIDUAL_NOT_FOUND` / relative-existence errors on household-member create are suppressed;
+  a record can be created while its parent is still on the persister queue.
+- **Action required:** set the relevant flag(s) to `true` for any environment that needs
+  synchronous parent-existence rejection. Surface these as env keys in §5 Step 5.
+
+### 12.3 excel-ingestion — new server-side gates + OOM/perf fixes
+
+- `egov.excel.immutable-reject-on-change=true` — editing a server-managed / pre-filled template
+  cell now **fails the upload** (previously silently reverted).
+- `egov.excel.usage-value-validation-enabled=true`, `egov.excel.boundary-selection-validation-enabled=true`
+  — stricter Active/Inactive + boundary-code validation.
+- `egov.excel.join-mode-sheet-protection-enabled=false` — User/Facility join-mode sheets ship unprotected.
+- `excel.ingestion.listener.watchdog.interval.ms=60000` — scheduled restart of a stopped/zombie
+  generation-init Kafka listener container.
+- Serialized async pool + OOM / generation-time fixes for large (~50k-row) sheets. New
+  `IMMUTABLE_*` / usage-validation error codes.
+
+### 12.4 Boundary throughput (boundary-management + core boundary-service)
+
+- Relationship creation moved to a **dedicated bulk Kafka topic** with batch persist and a
+  bulk `/boundary-relationships/bulk/_create` API. Tunable: `BULK_RELATIONSHIP_CHUNK_SIZE`
+  (`100`), `BULK_RELATIONSHIP_RETRY_ATTEMPTS` (`30`), `BULK_RELATIONSHIP_RETRY_DELAY_MS`
+  (`2000`), `RELATIONSHIP_CREATE_CONCURRENCY`, `PERSISTENCE_DRAIN_TIMEOUT_MS`.
+  > The bulk relationship topic must **not** be tenant-prefixed on a central instance.
+- All-existing re-upload is now an idempotent **no-op** (was `400 Boundary already present`).
+- boundary-management Node heap raised (`--max-old-space-size` `1024` → `2048`).
+- core boundary-service: single vs. bulk relationship create now use **separate** persister
+  queryMaps (single object vs. array); bulk publishes one array message keyed by parent code.
+
+### 12.5 project-factory reliability
+
+- `BOUNDARY_SYNC_RETRY_DELAY_MS=4000` (configurable boundary-sync retry delay).
+- HRMS per-user create fallback is **bounded + retried** with back-off/throttle; a poll-time
+  reconciler converges adopted-user rows on retry and surfaces upsert errors; the credential
+  sheet shows the existing login username for adopted users. Kafka consumption is at-least-once.
+
+### 12.6 egov-persister (core-services)
+
+- **At-least-once** delivery (`enable-auto-commit=false` + manual RECORD/BATCH ack); SQLSTATE
+  failure classification (benign `23505` / transient `08*,57*,40001,40P01,53300,55P03` /
+  permanent → DLQ); **dead-letter + bounded reprocessor (`max-retries=5`) + terminal parking
+  topic** (`egov-persister-deadletter`, `egov-persister-deadletter-processed`); DB-health
+  pause/resume (`persister.db-health.check-interval-ms=5000`); per-record poison isolation for
+  bulk (bare-array) messages; batch-persist row aggregation; `ON CONFLICT (uuid) DO NOTHING`
+  idempotency; batch topics selected via `persister.batch.topics` / the `-batch` convention,
+  excluded from the single consumer only when `persister.bulk.enabled=true`.
+  > **Ops:** provision & monitor the two new topics — **parking-topic growth is the
+  > terminal-poison signal** to alert on.
+
+> **Deployment note:** surface the new env keys above (§12.2–§12.5) in the DIGIT-DevOps
+> Helm values so they are tunable per environment; the persister dead-letter/parking topics
+> must be provisioned on the broker.
 </content>
 </invoke>

@@ -39,8 +39,10 @@ public class CampaignService {
     }
 
     /**
-     * Search campaign by ID with caching
+     * Search campaign by ID with caching. Cached by campaignId + tenantId (requestInfo is auth-only and
+     * does not affect the result), so repeated lookups of the same campaign within the TTL reuse one call.
      */
+    @Cacheable(value = "campaignDetail", key = "#campaignId + '_' + #tenantId")
     public CampaignSearchResponse.CampaignDetail searchCampaignById(String campaignId, String tenantId, RequestInfo requestInfo) {
         // Ensure RequestInfo contains userInfo.tenantId expected by downstream services
         RequestInfo sanitizedRequestInfo = ensureTenantInRequestInfo(requestInfo, tenantId);
@@ -94,8 +96,11 @@ public class CampaignService {
     }
 
     /**
-     * Extract projectType from campaign with validation
+     * Extract projectType from campaign with validation. Cached at its own level (by campaignId +
+     * tenantId): the internal searchCampaignById call is a same-bean invocation so it is not served from
+     * the campaignDetail cache, but caching here means repeat calls for the same campaign skip the work.
      */
+    @Cacheable(value = "campaignProjectType", key = "#campaignId + '_' + #tenantId")
     public String getProjectTypeFromCampaign(String campaignId, String tenantId, RequestInfo requestInfo) {
         CampaignSearchResponse.CampaignDetail campaign = searchCampaignById(campaignId, tenantId, requestInfo);
 
@@ -114,8 +119,12 @@ public class CampaignService {
     }
 
     /**
-     * Extract boundaries from campaign with validation
+     * Extract boundaries from campaign with validation. Cached by campaignId + tenantId. This is the
+     * hot upload-path entry point (called by the user + facility processors and BoundaryUtil), so caching
+     * here collapses those repeated per-upload campaign fetches into one. The returned list is treated as
+     * read-only by callers (consistent with the other cached collections in this service).
      */
+    @Cacheable(value = "campaignBoundaries", key = "#campaignId + '_' + #tenantId", unless = "#result == null")
     public java.util.List<CampaignSearchResponse.BoundaryDetail> getBoundariesFromCampaign(String campaignId, String tenantId, RequestInfo requestInfo) {
         CampaignSearchResponse.CampaignDetail campaign = searchCampaignById(campaignId, tenantId, requestInfo);
         if (campaign != null) {

@@ -9,7 +9,6 @@ import { checkIfSourceIsMicroplan } from "./campaignUtils";
 import { httpRequest } from "./request";
 import { RequestInfo } from "../config/models/requestInfoSchema";
 
-// Now you can use Lodash functions with the "_" prefix, e.g., _.isEqual(), _.sortBy(), etc.
 function extractProperties(obj: any) {
     return {
         code: obj.code || null,
@@ -22,7 +21,6 @@ function areBoundariesSame(existingBoundaries: any, currentBoundaries: any) {
     const existing = existingBoundaries ?? [];
     const current = currentBoundaries ?? [];
 
-    // If both are empty, return true
     if (existing.length === 0 && current.length === 0) return true;
     if (existing.length !== current.length) return false;
     const existingSetOfBoundaries = new Set(existing.map((exboundary: any) => JSON.stringify(extractProperties(exboundary))));
@@ -36,6 +34,7 @@ function isCampaignTypeSame(request: any) {
     return _.isEqual(existingCampaignType, currentCampaignType);
 }
 
+/** Delegates template generation to the excel-ingestion service; swallows errors so a generate failure never blocks the caller. */
 export async function callExcelIngestionService(requestBody: any, referenceIdOverride?: string, referenceTypeOverride?: string, typeOverride?: string, additionalDetailsOverride?: Record<string, any>) {
     try {
         const campaignDetails = requestBody?.CampaignDetails;
@@ -69,10 +68,10 @@ export async function callExcelIngestionService(requestBody: any, referenceIdOve
         logger.info(`Successfully called excel-ingestion generate API for campaign ${campaignId}`);
     } catch (error: any) {
         logger.error(`Error calling excel-ingestion generate API: ${error.message}`);
-        // Decide if we want to throw the error or just log it
     }
 }
 
+/** Queries excel-ingestion for the completed generation result of a campaign's template. */
 export async function callExcelIngestionGenerateSearch(requestBody: any) {
     try {
         const excelIngestionSearchUrl = config.host.excelIngestionHost + config.paths.excelIngestionGenerateSearch;
@@ -107,7 +106,7 @@ export async function callExcelIngestionGenerateSearch(requestBody: any) {
 
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
-        // Apply 2-second timeout after the condition check
+        // Let the just-persisted campaign changes settle before regenerating templates
         await new Promise(resolve => setTimeout(resolve, 2000));
         const campaignDetails = request?.body?.CampaignDetails;
         const tenantId = campaignDetails?.tenantId;
@@ -124,7 +123,6 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         }
 
         if (isMicroplan) {
-            // For microplan, trigger all three types
             const types = ["boundary", "facilityWithBoundary"];
             for (const t of types) {
                 const newRequestToGenerate = {
@@ -148,7 +146,6 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         }
     } catch (error: any) {
         logger.error(error);
-        // throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
     }
 }
 
@@ -162,6 +159,7 @@ function isSourceDifferent(request: any){
     return false;
 }
 
+/** Runs the template generate flow for a type; the *WithBoundary types additionally attach localized boundary sheet data. */
 export async function callGenerate(request: any, type: any, enableCaching = false) {
     logger.info(`calling generate api for type ${type}`);
     if (type === "facilityWithBoundary" || type == "userWithBoundary") {
@@ -180,6 +178,7 @@ export async function callGenerate(request: any, type: any, enableCaching = fals
     }
 }
 
+/** Fire-and-forget generate for one resource type; logs and swallows errors so one type's failure doesn't abort the others. */
 export async function triggerGenerate(type: string, tenantId: string, hierarchyType: string, campaignId: string, userUuid: string, locale: string = config.localisation.defaultLocale, requestInfo?: RequestInfo) {
 
     logger.info(`Calling generate API for type ${type}`);
@@ -200,22 +199,7 @@ export async function triggerGenerate(type: string, tenantId: string, hierarchyT
 
 
 
-// const buildGenerateRequest = (request: any) => {
-//     const newRequestBody = {
-//         RequestInfo: request?.body?.RequestInfo
-//     };
-
-//     const params = {
-//         type: request?.query?.type,
-//         tenantId: request?.query?.tenantId,
-//         forceUpdate: 'true',
-//         hierarchyType: request?.query?.hierarchyType,
-//         campaignId: request?.query?.campaignId
-//     };
-
-//     return replicateRequest(request, newRequestBody, params);
-// };
-
+/** True (with the new boundaries) when a campaign update changed boundaries, source, or campaign type and templates must be regenerated. */
 export const isGenerationTriggerNeeded = (request: any) => {
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     const boundaries = request?.body?.CampaignDetails?.boundaries;

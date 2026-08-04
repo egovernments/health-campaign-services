@@ -7,11 +7,13 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { httpRequest } from "./request";
 
+/** Legacy path: runs user staff mapping then demapping for a campaign in sequence. */
 export async function startUserMappingAndDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     await startUserMapping(campaignDetails, useruuid, requestInfo);
     await startUserDemapping(campaignDetails, useruuid, requestInfo);
 }
 
+/** Creates project-staff links for each to-be-mapped user; skips rows with no created user, marks failed rows non-blocking. */
 export async function startUserMapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeMapped);
     if (allCurrentMappingsToDo.length <= 0) {
@@ -77,6 +79,7 @@ export async function startUserMapping(campaignDetails: any, useruuid: string, r
     }
 }
 
+/** Removes project-staff links for to-be-demapped users; writes deMapFailed (never failed) on error to preserve demap direction. */
 export async function startUserDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const allCurrentMappingsToDeMap = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeDeMapped);
     if (allCurrentMappingsToDeMap.length <= 0) {

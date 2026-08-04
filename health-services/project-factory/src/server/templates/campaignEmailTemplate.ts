@@ -22,6 +22,7 @@ interface EmailTemplateParams {
     egovLogoLink: string;
 }
 
+/** Renders the localized campaign credential/notification email as a self-contained inline-styled HTML string. */
 export function generateCampaignEmailTemplate(params: EmailTemplateParams): string {
     const {
         logoLabel,

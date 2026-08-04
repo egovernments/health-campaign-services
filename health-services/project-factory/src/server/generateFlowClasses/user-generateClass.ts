@@ -7,35 +7,29 @@ import { logger } from "../utils/logger";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
 
-// This will be a dynamic template class for different types
+/** Builds the user Excel template: README + boundary data + a User List sheet prefilled with created users and decrypted credentials. */
 export class TemplateClass {
-    // Static generate function 
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating template...");
         logger.info(`Input payload: ${JSON.stringify(responseToSend)}`);
 
         const { tenantId, type, campaignId } = responseToSend;
 
-        // Fetch campaign details
         const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         const campaignDetails = campaignResp?.CampaignDetails?.[0];
         if (!campaignDetails) throw new Error("Campaign not found");
 
         const { campaignNumber, hierarchyType } = campaignDetails;
 
-        // Localized keys for sheet names and column headers
         const templateSheetForReadMe = templateConfig?.sheets?.[0];
         const readMeHeaderKey = Object.keys(templateSheetForReadMe?.schema?.properties || {})[0];
 
-        // Prepare ReadMe sheet
         const readMeConfig = await getReadMeConfig(tenantId, type);
         const readMeData = this.getReadMeData(readMeConfig, readMeHeaderKey, localizationMap);
 
-        // Prepare Boundary sheet
         const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
         const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType);
 
-        // Prepare User List sheet
         const users = await getRelatedDataWithCampaign(type, campaignNumber, tenantId, dataRowStatuses.completed);
         const userData = users.map((u: any, idx: number) => {
             const rawData = u?.data || {};
@@ -50,7 +44,6 @@ export class TemplateClass {
             return localizedData;
         });
 
-        // Construct the final SheetMap
         const sheetMap: SheetMap = {
             [templateSheetForReadMe?.sheetName]: {
                 data: readMeData,
@@ -130,13 +123,11 @@ export class TemplateClass {
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
         const result :any = [];
 
-        // Step 1: Index boundaries by code
         const codeToBoundary: Record<string, any> = {};
         for (const boundary of boundaries) {
             codeToBoundary[boundary.code] = { ...boundary, children: [] };
         }
 
-        // Step 2: Build tree
         const roots: any[] = [];
         for (const boundary of boundaries) {
             if (boundary.parent) {
@@ -146,14 +137,10 @@ export class TemplateClass {
             }
         }
 
-        // Step 3: DFS traversal
         function traverse(node: any, path: any[] = []) {
             const entry: Record<string, string> = {};
-
-            // Add main boundary code
             entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
 
-            // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
                 const key = `${hierarchyType}_${b.type}`.toUpperCase();
@@ -168,7 +155,6 @@ export class TemplateClass {
             }
         }
 
-        // Step 4: Start traversal from roots
         for (const root of roots) {
             traverse(root);
         }

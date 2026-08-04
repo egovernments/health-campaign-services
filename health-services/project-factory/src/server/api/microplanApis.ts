@@ -1,7 +1,7 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
-import config from "../config"; // Import configuration settings
-import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
-import { logger } from "../utils/logger"; // Import logger for logging information and errors
+import config from "../config";
+import { httpRequest } from "../utils/request";
+import { logger } from "../utils/logger";
 
 /**
  * Searches for facilities associated with a specific plan configuration.
@@ -25,10 +25,10 @@ export const searchPlanFacility = async (
     `Received a search request for plan facility with ID: ${planConfigId}`
   );
   const planFacilityResponse = await httpRequest(
-    config.host.planServiceHost + config.paths.planFacilitySearch, // Construct the request URL
-    searchBody // Pass the request body
+    config.host.planServiceHost + config.paths.planFacilitySearch,
+    searchBody
   );
-  return planFacilityResponse?.PlanFacility; // Return the response from the facility search
+  return planFacilityResponse?.PlanFacility;
 };
 
 /**
@@ -47,11 +47,10 @@ export const searchPlan = async (
   const searchBody = {
     PlanSearchCriteria: {
       tenantId: tenantId,
-      active: true, // Search only active plans
-      // jurisdiction: boundaries, // Specify jurisdiction for the search
+      active: true,
       planConfigurationId: planConfigId,
-      limit: limit, // Limit the response to 1 result
-      offset: 0, // Start from the first result
+      limit: limit,
+      offset: 0,
     },
     RequestInfo: requestInfo,
   };
@@ -59,10 +58,10 @@ export const searchPlan = async (
     `Received a search request for plans with ID: ${planConfigId}`
   );
   const planResponse = await httpRequest(
-    config.host.planServiceHost + config.paths.planSearch, // Construct the request URL
-    searchBody // Pass the request body
+    config.host.planServiceHost + config.paths.planSearch,
+    searchBody
   );
-  return planResponse?.Plan; // Return the response from the plan search
+  return planResponse?.Plan;
 };
 
 /**
@@ -81,8 +80,7 @@ export const searchPlanCensus = async (
   const searchBody = {
     CensusSearchCriteria: {
       tenantId: tenantId,
-      source: planConfigId, // Use planConfigId as the source of the census data
-      // areaCodes: boundaryCodes, // Specify area codes for the search
+      source: planConfigId,
       offset: 0,
       limit: limit,
     },
@@ -92,10 +90,10 @@ export const searchPlanCensus = async (
     `Received a search request for census data with ID: ${planConfigId}`
   );
   const planCensusResponse = await httpRequest(
-    config.host.censusServiceHost + config.paths.censusSearch, // Construct the request URL
-    searchBody // Pass the request body
+    config.host.censusServiceHost + config.paths.censusSearch,
+    searchBody
   );
-  return planCensusResponse?.Census; // Return the response from the census search
+  return planCensusResponse?.Census;
 };
 
 /**
@@ -112,7 +110,7 @@ export const searchPlanConfig = async (
   const searchBody = {
     PlanConfigurationSearchCriteria: {
       tenantId: tenantId,
-      id: planConfigId, // Specify the plan configuration ID
+      id: planConfigId,
     },
     RequestInfo: requestInfo,
   };
@@ -120,8 +118,8 @@ export const searchPlanConfig = async (
     `Received a search request for plan configuration with ID: ${planConfigId}`
   );
   const planConfigResponse = await httpRequest(
-    config.host.planServiceHost + config.paths.planConfigSearch, // Construct the request URL
-    searchBody // Pass the request body
+    config.host.planServiceHost + config.paths.planConfigSearch,
+    searchBody
   );
-  return planConfigResponse; // Return the response from the plan configuration search
+  return planConfigResponse;
 };

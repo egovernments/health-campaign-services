@@ -18,6 +18,7 @@ import { fetchFileFromFilestore } from "../api/coreApis";
 import { EnrichProcessConfigUtil } from "./EnrichProcessConfigUtil";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
 
+/** Expires any prior generated resources for this key and produces a fresh in-progress record to track template generation. */
 export async function initializeGenerateAndGetResponse(
     tenantId: string,
     type: string,
@@ -74,6 +75,7 @@ export async function initializeGenerateAndGetResponse(
     return newResource;
 }
 
+/** Produces a new creating-status resource-details record to track processing of an uploaded file. */
 export async function initializeProcessAndGetResponse(
     ResourceDetails: ResourceDetails,
     userUuid: string,
@@ -124,6 +126,7 @@ const markAsExpired = (resources: any[], currentTime: number, userUuid: string) 
 
 
 
+/** Builds the template workbook, uploads it to filestore, and produces a completed/failed generated-resource update. */
 export async function generateResource(responseToSend: any, templateConfig: any) {
     try {
         const localizationMapHierarchy = responseToSend?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(responseToSend?.locale, responseToSend?.tenantId, getLocalisationModuleName(responseToSend?.hierarchyType), true);
@@ -142,12 +145,12 @@ export async function generateResource(responseToSend: any, templateConfig: any)
     }
 }
 
+/** Downloads the uploaded file, runs the resource type's process class, uploads the annotated result, and persists status. */
 export async function processResource(ResourceDetails: any, templateConfig: any) {
     try {
         const fileUrl = await fetchFileFromFilestore(ResourceDetails?.fileStoreId, ResourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
 
-        // Try to extract locale from workbook metadata
         let locale: string = getLocaleFromWorkbook(workBook) || "";
 
         // Graceful fallback: use default locale if metadata missing
@@ -188,6 +191,7 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
     }
 }
 
+/** Rejects the sheet if data rows are not contiguous starting at row 3 (blank gaps break row-to-status mapping). */
 export function checkAllRowsConsistency(jsonData: any) {
     if (!Array.isArray(jsonData)) return;
     if (!jsonData.length) return;
@@ -210,6 +214,7 @@ export function checkAllRowsConsistency(jsonData: any) {
 }
 
 
+/** Core processing pipeline: loads schemas, invokes the type's process class, then writes/styles/locks output sheets. */
 export async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
     validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId);
     const wholeSheetData: any = {};
@@ -249,7 +254,6 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
         templateConfig.sheets = templateConfig.sheets.filter((s: any) => !sheetsToRemove.includes(s?.sheetName));
         logger.info(`Removed optional sheet(s) with missing schemas or not in file: ${sheetsToRemove.join(", ")}`);
     }
-    // Only process expected sheets - ignore any extra sheets in the workbook
     logger.info(`Processing only required sheets, ignoring any extra sheets that may exist`);
     const className = `${ResourceDetails?.type}-processClass`;
     let classFilePath = path.join(__dirname, '..', 'processFlowClasses', `${className}.js`);
@@ -307,14 +311,12 @@ async function lockSheetAccordingToConfig(workBook: any, templateConfig: any, lo
 
             logger.info(`Locking sheet ${sheetName}`);
 
-            // Mark all cells as locked
             worksheet.eachRow((row) => {
                 row.eachCell({ includeEmpty: true }, (cell) => {
                     cell.protection = { locked: true };
                 });
             });
 
-            // Protect sheet with full options
             await worksheet.protect('passwordhere', {
                 selectLockedCells: true,
                 selectUnlockedCells: false,
@@ -350,6 +352,7 @@ async function handleErrorDuringGenerate(responseToSend: any, error: any) {
     await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC, responseToSend?.tenantId);
 }
 
+/** Marks the resource failed with error details and produces the update so the failure is persisted. */
 export async function handleErrorDuringProcess(ResourceDetails: any, error: any) {
     ResourceDetails.status = resourceStatuses.failed;
     ResourceDetails.additionalDetails = {
@@ -445,7 +448,6 @@ function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localiz
 
     const sheetsProcessed = new Set<string>();
 
-    // Preprocess sheets in templateConfig
     for (const sheet of templateConfig?.sheets || []) {
         const rawSheetName = sheet?.sheetName;
 
@@ -460,7 +462,7 @@ function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localiz
         sheetsProcessed.add(rawSheetName);
     }
 
-    // Post-process unmatched sheetMap entries
+    // Handle sheetMap entries not declared in templateConfig — synthesize a schema from their columns
     for (const [sheetName, sheetData] of Object.entries(sheetMap)) {
         if (sheetsProcessed.has(sheetName)) continue;
 
@@ -515,7 +517,7 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any): any {
     for (const propertyKey in schema?.properties) {
         const property = schema.properties[propertyKey];
 
-        // Process multiSelectDetails if any
+        // Expand a multiselect column into one _MULTISELECT_i column per allowed selection
         if (property?.multiSelectDetails?.maxSelections) {
             const max = property.multiSelectDetails.maxSelections;
             const parentOrder = dynamicColumns[propertyKey]?.orderNumber ?? property.orderNumber ?? maxOrderNumber;
@@ -550,7 +552,6 @@ async function fillSheetMapInWorkbook(worksheet: ExcelJS.Worksheet, sheetData: a
     logger.info(`Added data to sheet ${worksheet.name}`);
 }
 
-// Helper functions
 function getOrCreateWorksheet(workbook: ExcelJS.Workbook, sheetName: string) {
     let worksheet = workbook.getWorksheet(sheetName);
     if (!worksheet) {
@@ -569,8 +570,8 @@ function processDynamicColumns(
 
     if (!sheetData.dynamicColumns) return columnNameToIndexMap;
 
-    const keyRow = worksheet.getRow(1);       // Row 1: Original keys
-    const headerRow = worksheet.getRow(2);    // Row 2: Localized values
+    const keyRow = worksheet.getRow(1);       // raw keys (hidden)
+    const headerRow = worksheet.getRow(2);    // localized values
 
     // Clear existing cells in rows 1 and 2 to prevent stale columns from a previous
     // template layout (e.g. after schema changes or column count decreases).
@@ -579,7 +580,7 @@ function processDynamicColumns(
         keyRow.getCell(i).value = null;
         const hCell = headerRow.getCell(i);
         hCell.value = null;
-        hCell.fill = { type: 'pattern', pattern: 'none' };  // Clear old fill so applyColumnProperties wins
+        hCell.fill = { type: 'pattern', pattern: 'none' };  // clear old fill so applyColumnProperties wins
     }
 
     let columnIndex = 1;
@@ -588,12 +589,10 @@ function processDynamicColumns(
         const localisedColumnName = getLocalizedName(columnName, localizationMap);
         columnNameToIndexMap[columnName] = columnIndex;
 
-        // Row 1 - Raw key (hidden)
         const keyCell = keyRow.getCell(columnIndex);
         keyCell.value = columnName;
         keyCell.protection = { locked: true };
 
-        // Row 2 - Localized name
         const headerCell = headerRow.getCell(columnIndex);
         headerCell.value = localisedColumnName;
         headerCell.protection = { locked: true };
@@ -604,7 +603,6 @@ function processDynamicColumns(
     }
 
 
-    // Hide row with original keys
     keyRow.hidden = true;
     keyRow.commit();
     headerRow.commit();
@@ -619,8 +617,7 @@ function processDynamicColumns(
 function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps: ColumnProperties, isProcessedFile = false) {
     const column = cell.worksheet.getColumn(cell.col);
 
-    // Apply column-level properties like width and hidden
-    column.width = columnProps.width ?? 40; // Default width = 40
+    column.width = columnProps.width ?? 40;
     if (columnProps.hideColumn !== undefined) column.hidden = columnProps.hideColumn;
     if( isProcessedFile && columnProps.showInProcessed) {
         column.hidden = false
@@ -658,7 +655,7 @@ function addDataToWorksheet(
         headers.map(columnName => rowData[columnName] ?? '')
     );
 
-    worksheet.insertRows(3, newRows); // Start inserting data from row 2
+    worksheet.insertRows(3, newRows);
 
     applyCellFormatting(worksheet, newRows.length, columnNameToIndexMap, sheetData);
 }
@@ -673,10 +670,9 @@ function applyCellFormatting(
 ) {
     if (!sheetData?.dynamicColumns) return;
 
-    // 1. Convert dynamicColumns array to map
     const dynamicColumnMap: Record<string, any> = Object.fromEntries(sheetData.dynamicColumns);
 
-    // 2. Precompute colIndex → config map for fast O(1) access
+    // Precompute colIndex → config map for O(1) per-cell lookup
     const columnIndexToConfigMap: Record<number, any> = {};
     for (const [columnName, index] of Object.entries(columnNameToIndexMap)) {
         if (dynamicColumnMap[columnName]) {
@@ -684,7 +680,6 @@ function applyCellFormatting(
         }
     }
 
-    // 3. Loop through rows and cells
     for (let i = 1; i <= rowCount + 2; i++) {
         const row = worksheet.getRow(i);
         if (!row.hasValues) continue;
@@ -713,7 +708,7 @@ function processBoldFormatting(cell: ExcelJS.Cell) {
     const boldRanges: { start: number, end: number }[] = [];
     let pos = 0;
 
-    // Find all bold ranges
+    // Find **...** delimited ranges to render as bold rich text
     while (pos < text.length) {
         const startBold = text.indexOf('**', pos);
         if (startBold === -1) break;
@@ -727,7 +722,6 @@ function processBoldFormatting(cell: ExcelJS.Cell) {
 
     if (boldRanges.length === 0) return;
 
-    // Process rich text formatting
     const cleanedText = text.replace(/\*\*/g, '');
     const richText: ExcelJS.RichText[] = [];
     boldRanges.sort((a, b) => a.start - b.start);
@@ -765,6 +759,7 @@ function adjustRowHeightAndWrapIfNeeded(
   }
   
 
+/** Runs the template config's declared enrichment function (if any) to populate dynamic config before processing. */
 export async function enrichProcessTemplateConfig(ResourceDetails: any, processTemplateConfig: any){
     if (processTemplateConfig?.enrichmentFunction){
         const util = new EnrichProcessConfigUtil();
@@ -772,6 +767,7 @@ export async function enrichProcessTemplateConfig(ResourceDetails: any, processT
     }
 }
 
+/** Dry-runs the process pipeline under a validation config and throws if any sheet-level errors were collected. */
 export async function validateResourceDetailsBeforeProcess(validationProcessType : string, resourceDetails: any, localizationMap : any) {
     logger.info("Validating resource details before process main function...");
     const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(validationProcessType)]));
@@ -788,10 +784,8 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
     const fileUrl = await fetchFileFromFilestore(validationResourceDetails?.fileStoreId, validationResourceDetails?.tenantId);
     const workBook = await getExcelWorkbookFromFileURL(fileUrl);
 
-    // Try to extract locale from workbook metadata
+    // Graceful fallback: use default locale if workbook metadata is missing
     let locale: string = getLocaleFromWorkbook(workBook) || "";
-
-    // Graceful fallback: use default locale if metadata missing
     if (!locale) {
         logger.warn(`Locale metadata not found in workbook during validation for resource type ${validationProcessType}. Using default locale.`);
         locale = config.localisation.defaultLocale || "en_IN";
@@ -805,6 +799,7 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
     logger.info("Validated resource details before process main function...");
 }
 
+/** Throws unless the type has a controller-passable process template config (guards the create endpoint). */
 export function filterResourceDetailType(type : string){
     const templateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(type)]));
     if(!templateConfig?.passFromController){

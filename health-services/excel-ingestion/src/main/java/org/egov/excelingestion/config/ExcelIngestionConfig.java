@@ -62,6 +62,30 @@ public class ExcelIngestionConfig {
     @Value("${egov.excel.sheet.zoom:60}")
     private int excelSheetZoom;
 
+    // When true, join-mode templates (unified-console / attendanceRegister) are ALSO sheet-protected at
+    // generation so only unlocked (target/entry) cells are editable in Excel; the server-side immutable-join
+    // remains the backstop. Default true. Set false to restore the fully-unprotected join-mode template.
+    @Value("${egov.excel.join-mode-sheet-protection-enabled:false}")
+    private boolean joinModeSheetProtectionEnabled;
+
+    // When true, editing a pre-filled (server-managed/immutable) cell in an unprotected join-mode template
+    // makes the upload FAIL, instead of silently reverting the cell to the generated baseline value.
+    // Default true. Set false to restore the legacy silent-revert-with-warning behaviour.
+    @Value("${egov.excel.immutable-reject-on-change:true}")
+    private boolean immutableRejectOnChange;
+
+    // When true, the sole editable active/inactive (usage) column is validated server-side against the
+    // allowed values {Active, Inactive}. Excel list-validation is bypassed on paste/drag-fill, so this is
+    // the real gate against an out-of-list value. Default true.
+    @Value("${egov.excel.usage-value-validation-enabled:true}")
+    private boolean usageValueValidationEnabled;
+
+    // When true, a row whose boundary selection did not resolve to a boundary code (an out-of-list name
+    // entered via paste/drag-fill leaves the VLOOKUP code formula blank) fails validation instead of being
+    // silently skipped. Default true.
+    @Value("${egov.excel.boundary-selection-validation-enabled:true}")
+    private boolean boundarySelectionValidationEnabled;
+
     @Value("${egov.excel.validation.error.color:#ff0000}")
     private String validationErrorColor;
 
@@ -100,6 +124,19 @@ public class ExcelIngestionConfig {
 
     @Value("${egov.attendance.register.search.parallel.calls:5}")
     private int attendanceRegisterSearchParallelCalls;
+
+    // Bounded concurrency for the user existence searches (phone/username) in UserValidationProcessor.
+    // At large row counts these run as many 50-id batches; firing them with bounded parallelism instead
+    // of sequentially is the dominant scale win for unified-console validation.
+    @Value("${egov.excel.user.search.parallel.calls:20}")
+    private int userSearchParallelCalls;
+
+    // Number of phone/username ids per individual-search call. Fewer, larger batches mean fewer HTTP
+    // round-trips. Default 100 (verified working in-app; ~halves the round-trips vs 50). The individual
+    // search now paginates results, so a batch can never silently truncate matches; the only ceiling is
+    // the individual-search API's per-query id-list cap (100 confirmed safe; raise with care).
+    @Value("${egov.excel.user.search.batch.size:100}")
+    private int userSearchBatchSize;
 
     @Value("${egov.hrms.host}")
     private String hrmsHost;

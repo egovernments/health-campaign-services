@@ -12,15 +12,8 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
 
 /**
- * Process class for Attendance Register creation
- * Flow:
- * 1. Fetch sheet data from "HCM_ATTENDANCE_REGISTER_LIST"
- * 2. Build boundary -> project mapping from campaign data
- * 3. Transform rows to register payloads with serviceCode, dates, etc.
- * 4. Check for existing registers via idempotency (by serviceCode)
- * 5. Batch create new registers (100 per batch)
- * 6. Persist all rows to campaign_data table
- * 7. Re-fetch all rows from campaign_data and return as SheetMap
+ * Process class for Attendance Register creation — idempotently creates/updates registers
+ * per boundary (keyed by serviceCode), persists rows to campaign_data, returns them as a SheetMap.
  */
 export class TemplateClass {
     static async process(
@@ -48,17 +41,13 @@ export class TemplateClass {
             };
         }
 
-        // Build boundary -> project mapping - O(n) construction
         const boundaryProjectMap = await this.buildBoundaryProjectMap(campaignNumber, tenantId, campaign);
         logger.info(`Built boundary to project mapping with ${boundaryProjectMap.size} entries`);
 
-        // Validate that projects exist for all boundaries in the sheet
         this.validateProjectsExist(sheetData, boundaryProjectMap);
 
-        // Get hierarchy levels for boundary column detection
         const hierarchyLevels = campaign?.hierarchyType || "admin";
 
-        // Transform rows to register payloads with per-row status - O(n)
         const transformResults = this.transformRowsToRegisterPayloads(
             sheetData,
             boundaryProjectMap,
@@ -70,7 +59,6 @@ export class TemplateClass {
             resourceDetails
         );
 
-        // Extract valid payloads for batch creation
         const validPayloads = transformResults
             .filter(r => r.payload !== null)
             .map(r => r.payload);
@@ -86,7 +74,7 @@ export class TemplateClass {
         const { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap } =
             await this.idempotentBatchCreate(validPayloads, campaignNumber, tenantId, requestInfo);
 
-        // Build processed data with per-row status and error details (same as before, used for persistence)
+        // Build processed data with per-row status and error details, used for persistence
         const processedData = sheetData.map((row: any, index: number) => {
             const result = transformResults[index];
             let status = result?.status || sheetDataRowStatuses.CREATED;
@@ -113,7 +101,6 @@ export class TemplateClass {
             };
         });
 
-        // Persist all rows to campaign_data table
         await this.persistRegistersToCampaignData(
             sheetData,
             transformResults,
@@ -131,7 +118,7 @@ export class TemplateClass {
         logger.info(`Waiting ${waitTime}ms for campaign_data persistence...`);
         await new Promise(res => setTimeout(res, waitTime));
 
-        // Re-fetch ALL rows from campaign_data (includes previous uploads)
+        // Re-fetch ALL rows (includes previous uploads) so the output reflects the full campaign state
         const allRows = await getRelatedDataWithCampaign("attendanceRegister", campaignNumber, tenantId);
         logger.info(`Re-fetched ${allRows.length} rows from campaign_data for attendanceRegister`);
 
@@ -340,39 +327,32 @@ export class TemplateClass {
 
         for (const row of sheetData) {
             try {
-                // Get the boundary code from the hidden column
                 const boundaryCode = row["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
                 if (!boundaryCode) {
                     results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: "Boundary code is missing" });
                     continue;
                 }
 
-                // Get project info from mapping - O(1) lookup
                 const projectInfo = boundaryProjectMap.get(boundaryCode);
                 if (!projectInfo) {
                     results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: `No project found for boundary: ${boundaryCode}. Ensure project creation is completed.` });
                     continue;
                 }
 
-                // Get Register ID from the sheet
                 const registerId = row["HCM_ATTENDANCE_REGISTER_ID"] ? String(row["HCM_ATTENDANCE_REGISTER_ID"]).trim() : "";
                 if (!registerId) {
                     results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: "Register ID is required" });
                     continue;
                 }
 
-                // Get boundary name from localized map
                 const boundaryName = localizationMap[boundaryCode] || boundaryCode;
 
-                // Read optional fields from Excel
                 const eventType = row["HCM_ATTENDANCE_REGISTER_EVENT_TYPE"];
                 const sessions = row["HCM_ATTENDANCE_REGISTER_SESSIONS"];
 
-                // Get defaults from config
                 const defaultEventType = config.attendanceRegister.defaultEventType;
                 const defaultSessions = config.attendanceRegister.defaultSessions;
 
-                // Build additionalDetails with conditional fields
                 const additionalDetails: any = {
                     campaignNumber: campaignNumber,
                     campaignName: campaignName
@@ -386,7 +366,7 @@ export class TemplateClass {
                     logger.debug(`Using default eventType from config: ${defaultEventType}`);
                 }
 
-                // Add sessions: Excel value > Config default (with validation)
+                // Add sessions: Excel value > Config default, validated non-negative
                 if (sessions !== undefined && sessions !== null && sessions !== "") {
                     const parsedSessions = typeof sessions === 'number' ? sessions : parseInt(sessions, 10);
                     if (!isNaN(parsedSessions) && parsedSessions >= 0) {
@@ -400,7 +380,6 @@ export class TemplateClass {
                     logger.debug(`Using default sessions from config: ${defaultSessions}`);
                 }
 
-                // Create register payload
                 const payload = {
                     tenantId: tenantId,
                     name: `${campaignName} ${boundaryName}`,
@@ -453,29 +432,25 @@ export class TemplateClass {
         }
 
         try {
-            // Step 1: Fetch existing registers by serviceCode across all campaigns - O(n) lookup after fetch
             const serviceCodes = payloads.map(p => p.serviceCode);
             logger.info(`Checking for existing registers with ${serviceCodes.length} serviceCode(s)`);
 
             const existingRegisters = await this.searchExistingRegisters(serviceCodes, tenantId, requestInfo);
 
-            // Build a map from serviceCode -> existing register for O(1) lookup
             const existingByServiceCode = new Map<string, any>();
             for (const r of existingRegisters) {
                 existingByServiceCode.set(r.serviceCode, r);
-                // Populate UUID map for existing registers
                 if (r.serviceCode && r.id) {
                     serviceCodeToUuidMap.set(r.serviceCode, r.id);
                 }
             }
 
-            // Build a map from serviceCode -> incoming payload localityCode for O(1) lookup
             const incomingLocalityByServiceCode = new Map<string, string>();
             for (const p of payloads) {
                 incomingLocalityByServiceCode.set(p.serviceCode, p.localityCode);
             }
 
-            // Step 2: Classify registers by campaign ownership and boundary match
+            // Classify registers by campaign ownership and boundary match
             const existingServiceCodes = new Set<string>();                    // same campaign, same boundary — update
             const conflictingServiceCodes = new Set<string>();                 // different campaign — mark INVALID
             const boundaryChangedServiceCodes = new Map<string, string>();     // serviceCode -> original boundary code
@@ -496,7 +471,6 @@ export class TemplateClass {
 
             logger.info(`Found ${existingServiceCodes.size} same-campaign registers to update, ${conflictingServiceCodes.size} cross-campaign conflicts, ${boundaryChangedServiceCodes.size} boundary-changed`);
 
-            // Step 3: Separate new vs existing same-campaign registers - O(n)
             const newRegisters = payloads.filter(p =>
                 !existingServiceCodes.has(p.serviceCode) &&
                 !conflictingServiceCodes.has(p.serviceCode) &&
@@ -510,13 +484,11 @@ export class TemplateClass {
 
             const BATCH_SIZE = config.attendanceRegister.registerApiBatchSize;
 
-            // Step 4: Create new registers in batches of 100
             if (newRegisters.length > 0) {
                 for (let i = 0; i < newRegisters.length; i += BATCH_SIZE) {
                     const batch = newRegisters.slice(i, i + BATCH_SIZE);
                     logger.info(`Creating batch of ${batch.length} registers (batch ${Math.floor(i / BATCH_SIZE) + 1})`);
                     const createdRegisters = await this.createAttendanceRegisters(batch, tenantId, requestInfo);
-                    // Capture UUIDs from created registers
                     for (const reg of createdRegisters) {
                         if (reg.serviceCode && reg.id) {
                             serviceCodeToUuidMap.set(reg.serviceCode, reg.id);
@@ -526,7 +498,6 @@ export class TemplateClass {
                 logger.info(`Successfully created ${newRegisters.length} new attendance registers`);
             }
 
-            // Step 5: Update existing same-campaign registers in batches of 100
             if (registersToUpdate.length > 0) {
                 for (let i = 0; i < registersToUpdate.length; i += BATCH_SIZE) {
                     const batch = registersToUpdate.slice(i, i + BATCH_SIZE);

@@ -359,20 +359,38 @@ public class ValidationService {
     }
 
     /**
-     * Locks all cells in the sheet by setting them as locked
+     * Locks all cells in the sheet by applying a locked variant of each cell's existing style.
+     *
+     * <p>We must NOT mutate the style returned by {@code cell.getCellStyle()} directly: POI cell
+     * styles are workbook-scoped flyweights shared across many cells, so mutating one would affect
+     * every cell using it. Instead we clone each distinct source style once into a locked variant
+     * (cached by style index) and reuse it. Cells already locked (POI's default) are left untouched.
+     * This preserves each cell's formatting, avoids shared-style corruption, and bounds new-style
+     * creation to the number of distinct styles rather than the cell count.
      */
     private void lockAllCells(Sheet sheet) {
         Workbook workbook = sheet.getWorkbook();
+        Map<Short, CellStyle> lockedStyleCache = new HashMap<>();
         for (Row row : sheet) {
             for (Cell cell : row) {
-                CellStyle style = cell.getCellStyle();
-                if (style == null) {
-                    style = workbook.createCellStyle();
+                CellStyle original = cell.getCellStyle();
+                if (original != null && original.getLocked()) {
+                    continue; // already locked (POI default) - nothing to do
                 }
-                style.setLocked(true); // lock this cell
-                cell.setCellStyle(style);
+                short key = original != null ? original.getIndex() : -1;
+                CellStyle lockedStyle = lockedStyleCache.get(key);
+                if (lockedStyle == null) {
+                    lockedStyle = workbook.createCellStyle();
+                    if (original != null) {
+                        lockedStyle.cloneStyleFrom(original); // preserve existing formatting
+                    }
+                    lockedStyle.setLocked(true);
+                    lockedStyleCache.put(key, lockedStyle);
+                }
+                cell.setCellStyle(lockedStyle);
             }
         }
-        log.debug("Locked all cells in sheet: {}", sheet.getSheetName());
+        log.debug("Locked all cells in sheet: {} ({} distinct locked styles created)",
+                sheet.getSheetName(), lockedStyleCache.size());
     }
 }

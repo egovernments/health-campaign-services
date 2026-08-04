@@ -154,6 +154,12 @@ public class ReferralManagementConfiguration {
     @Value("${egov.enable.matview.search}")
     private boolean enableMatviewSearch;
 
+    // When false, the cross-entity existence checks (project / beneficiary / task / side-effect / referrer /
+    // recipient) are skipped on the referral & side-effect create/update chains so records are not rejected
+    // while a referenced parent is still on the persister queue. Default FALSE = disabled (validators off) for the unified-dev rollout test; set true to enforce.
+    @Value("${referralmanagement.relationship.validation:false}")
+    private boolean relationshipValidation;
+
     @Value("${egov.s3.bucket}")
     private String s3Bucket;
 

@@ -43,10 +43,7 @@ export type PlainAccessRequest = z.infer<typeof plainAccessRequestSchema>;
 export type UserInfo = z.infer<typeof userInfoSchema>;
 export type RequestInfo = z.infer<typeof requestInfoSchema>;
 
-/**
- * Creates a new RequestInfo with overridden userInfo fields.
- * Does NOT mutate the original requestInfo — returns a new object.
- */
+/** Returns a new RequestInfo with overridden userInfo fields — never mutates the original. */
 export function withUserInfo(requestInfo: RequestInfo, overrides: Partial<UserInfo>): RequestInfo {
   return {
     ...requestInfo,

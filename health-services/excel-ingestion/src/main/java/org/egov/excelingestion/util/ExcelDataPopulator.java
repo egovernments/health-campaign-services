@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -74,10 +75,48 @@ public class ExcelDataPopulator {
      * @param localizationMap Map for localizing column headers
      * @return The same workbook with the new sheet added
      */
-    public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties, 
+    public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties,
                                         List<Map<String, Object>> dataRows, Map<String, String> localizationMap) {
-        log.info("Adding sheet: {} with {} data rows to workbook", sheetName, 
-                dataRows != null ? dataRows.size() : 0);
+        // Default to protected (non-join). Join mode (unprotect + stamp hidden row-ids) is opt-in via the
+        // 6-arg overload below, used only by the join-mode template families (see
+        // ProcessingConstants.isJoinModeType: unified-console / attendanceRegister / attendanceRegisterAttendee).
+        return populateSheetWithData(workbook, sheetName, columnProperties, dataRows, localizationMap, false);
+    }
+
+    /**
+     * Adds a sheet populated with data to an existing workbook.
+     *
+     * @param unprotectedJoinMode when true, the sheet is left UNPROTECTED (paste-friendly) and a hidden
+     *                            per-row id is stamped on each pre-filled row, so the upload path can
+     *                            reconstruct authoritative pre-filled values by joining against the
+     *                            original generated file. Immutability is then enforced server-side, not
+     *                            by Excel protection.
+     */
+    public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties,
+                                        List<Map<String, Object>> dataRows, Map<String, String> localizationMap,
+                                        boolean unprotectedJoinMode) {
+        // Default userEntrySheet=false: only the explicitly free-entry console sheets (User/Facility)
+        // opt out of protection via the 7-arg overload; every other sheet keeps today's behavior.
+        return populateSheetWithData(workbook, sheetName, columnProperties, dataRows, localizationMap,
+                unprotectedJoinMode, false);
+    }
+
+    /**
+     * Adds a sheet populated with data to an existing workbook.
+     *
+     * @param unprotectedJoinMode see the 6-arg overload; still gates hidden row-id stamping and other
+     *                            join-mode behavior on EVERY join-mode sheet (do not vary it per sheet).
+     * @param userEntrySheet      when true, this is a free-entry (user-typed) console sheet — the User
+     *                            List or Facilities List — that must stay fully UNPROTECTED in join mode
+     *                            so operators can edit/paste freely. The server-side immutable-join is the
+     *                            safety backstop. Pre-filled/non-user-entry sheets (e.g. Boundary List)
+     *                            pass false and stay protected. Ignored outside join mode.
+     */
+    public Workbook populateSheetWithData(Workbook workbook, String sheetName, List<ColumnDef> columnProperties,
+                                        List<Map<String, Object>> dataRows, Map<String, String> localizationMap,
+                                        boolean unprotectedJoinMode, boolean userEntrySheet) {
+        log.info("Adding sheet: {} with {} data rows to workbook (unprotectedJoinMode={}, userEntrySheet={})", sheetName,
+                dataRows != null ? dataRows.size() : 0, unprotectedJoinMode, userEntrySheet);
 
         // 2. Get or Create Sheet - Use existing sheet if present, otherwise create new
         Sheet sheet = workbook.getSheet(sheetName);
@@ -87,7 +126,7 @@ public class ExcelDataPopulator {
 
         // 3. Expand multi-select columns like ExcelSchemaSheetCreator does
         List<ColumnDef> expandedColumns = expandMultiSelectColumns(columnProperties);
-        
+
         // 4. Create Headers - reuse existing pattern from ExcelSchemaSheetCreator
         createHeaderRows(workbook, sheet, expandedColumns, localizationMap);
 
@@ -99,12 +138,18 @@ public class ExcelDataPopulator {
         // 6. Apply Formatting - reuse existing methods
         applyFormatting(workbook, sheet, expandedColumns);
 
-        // 7. Apply Protection - reuse existing protection logic
-        applyProtection(workbook, sheet, expandedColumns);
+        // 7. Apply Protection - reuse existing protection logic (skipped in unprotected join mode)
+        applyProtection(workbook, sheet, expandedColumns, unprotectedJoinMode, userEntrySheet);
 
         // 8. Apply Validation - reuse existing dropdown creation logic
         applyValidations(workbook, sheet, expandedColumns, localizationMap);
-        
+
+        // 9. Stamp hidden per-row ids on pre-filled rows (join-mode only). Done LAST so the trailing
+        // id column does not shift the column math used by the formatting/protection/validation passes.
+        if (unprotectedJoinMode && dataRows != null && !dataRows.isEmpty()) {
+            stampRowIds(sheet, dataRows.size());
+        }
+
         log.info("Successfully added sheet: {} to workbook", sheetName);
         return workbook;
     }
@@ -146,8 +191,12 @@ public class ExcelDataPopulator {
             if (headerCell == null) {
                 headerCell = visibleRow.createCell(col);
             }
-            String displayName = localizationMap != null && localizationMap.containsKey(def.getName()) 
-                ? localizationMap.get(def.getName()) 
+            // Fall back to the technical code when the localized value is missing OR blank.
+            // A blank map value (e.g. localization not yet set for a newly created, possibly
+            // non-ASCII level name) must not produce an empty header cell.
+            String localizedName = localizationMap != null ? localizationMap.get(def.getName()) : null;
+            String displayName = (localizedName != null && !localizedName.trim().isEmpty())
+                ? localizedName
                 : def.getName();
             headerCell.setCellValue(displayName);
             
@@ -353,14 +402,64 @@ public class ExcelDataPopulator {
     /**
      * Apply protection using existing CellProtectionManager
      */
-    private void applyProtection(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties) {
-        // Use existing cell protection manager
+    private void applyProtection(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties,
+                                 boolean unprotectedJoinMode, boolean userEntrySheet) {
+        // Use existing cell protection manager (sets locked/unlocked cell STYLES).
         cellProtectionManager.applyCellProtection(workbook, sheet, columnProperties);
-        
-        // Protect sheet with password if configured
-        if (config.getExcelSheetPassword() != null && !config.getExcelSheetPassword().isEmpty()) {
-            sheet.protectSheet(config.getExcelSheetPassword());
+
+        // Protect the sheet with a password when configured. Historically join-mode templates were left
+        // fully unprotected so copy/paste works, relying only on the server-side immutable-join to revert
+        // edits to locked cells. We now protect the pre-filled join-mode sheets (e.g. Boundary List) so
+        // Excel itself keeps the locked columns (boundary hierarchy / code / row-id) read-only while
+        // unlocked target/entry cells stay editable and paste-able. POI's protectSheet leaves the
+        // permissive defaults (select + edit unlocked cells allowed), so paste into the target area is
+        // unaffected.
+        //
+        // Decision:
+        //   non-join-mode                       -> protected (unchanged)
+        //   join-mode, user-entry sheet         -> UNPROTECTED (User/Facility List: fully editable)
+        //   join-mode, non-user-entry sheet     -> protected (Boundary List and any other pre-filled sheet)
+        //   joinModeSheetProtectionEnabled=true -> protect-all override (backward compatible; default false)
+        boolean protect = !unprotectedJoinMode || !userEntrySheet || config.isJoinModeSheetProtectionEnabled();
+        String pwd = config.getExcelSheetPassword();
+        if (protect && pwd != null && !pwd.isEmpty()) {
+            sheet.protectSheet(pwd);
+            log.info("Sheet protection applied to '{}' (unprotectedJoinMode={}, userEntrySheet={}, joinModeSheetProtectionEnabled={})",
+                    sheet.getSheetName(), unprotectedJoinMode, userEntrySheet, config.isJoinModeSheetProtectionEnabled());
+        } else {
+            log.info("Sheet protection SKIPPED for '{}' (unprotectedJoinMode={}, userEntrySheet={}, passwordConfigured={})",
+                    sheet.getSheetName(), unprotectedJoinMode, userEntrySheet, pwd != null && !pwd.isEmpty());
         }
+    }
+
+    /**
+     * Stamps a hidden, server-generated UUID into each pre-filled data row so the upload path can
+     * join an uploaded row to its generated baseline row (robust to row insertion/reordering/deletion).
+     * The technical key {@link ProcessingConstants#ROW_ID_COLUMN_NAME} is written into hidden row 0 so
+     * the parser surfaces the id as a normal column on re-upload. The column is appended at the far
+     * right AFTER all other column passes so it does not shift their column-index math.
+     *
+     * @param dataRowCount number of pre-filled data rows (sheet rows 2 .. 2+count-1)
+     */
+    private void stampRowIds(Sheet sheet, int dataRowCount) {
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            return;
+        }
+        int idCol = headerRow.getLastCellNum(); // index just past the last existing column
+        if (idCol < 0) {
+            return;
+        }
+        headerRow.createCell(idCol).setCellValue(ProcessingConstants.ROW_ID_COLUMN_NAME);
+        for (int rowIdx = 0; rowIdx < dataRowCount; rowIdx++) {
+            Row excelRow = sheet.getRow(rowIdx + 2);
+            if (excelRow == null) {
+                excelRow = sheet.createRow(rowIdx + 2);
+            }
+            excelRow.createCell(idCol).setCellValue(UUID.randomUUID().toString());
+        }
+        sheet.setColumnHidden(idCol, true);
+        log.info("Stamped {} hidden row-ids on sheet '{}' at column index {}", dataRowCount, sheet.getSheetName(), idCol);
     }
 
     /**
@@ -401,11 +500,8 @@ public class ExcelDataPopulator {
                 } else {
                     constraint = dvHelper.createExplicitListConstraint(column.getEnumValues().toArray(new String[0]));
                 }
-                // Use actual data row count or config limit, whichever is larger to cover all rows
-                // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
-                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-                CellRangeAddressList addressList = new CellRangeAddressList(2, maxRow, colIndex, colIndex);
+                int lastRow = getValidationLastRowIndex(sheet);
+                CellRangeAddressList addressList = new CellRangeAddressList(2, lastRow, colIndex, colIndex);
                 DataValidation validation = dvHelper.createValidation(constraint, addressList);
                 validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                 validation.setShowErrorBox(true);
@@ -434,9 +530,8 @@ public class ExcelDataPopulator {
                             .collect(Collectors.joining(","));
                     String formula = "=OR(AND(" + notTriggerPart + "),LEN(TRIM($" + thisLetter + "3))>0)";
 
-                    int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                    int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-                    CellRangeAddressList range = new CellRangeAddressList(2, maxRow, colIndex, colIndex);
+                    int lastRow = getValidationLastRowIndex(sheet);
+                    CellRangeAddressList range = new CellRangeAddressList(2, lastRow, colIndex, colIndex);
                     DataValidationConstraint constraint = dvHelper.createCustomConstraint(formula);
                     DataValidation dv = dvHelper.createValidation(constraint, range);
                     dv.setErrorStyle(DataValidation.ErrorStyle.STOP);
@@ -471,9 +566,17 @@ public class ExcelDataPopulator {
         }
 
         // Apply payee-field-specific conditional formatting rules (payment provider conditions)
-        int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-        int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-        applyPayeeFieldConditionalFormatting(sheet, headerNameToColIndex, maxRow);
+        applyPayeeFieldConditionalFormatting(sheet, headerNameToColIndex, getValidationLastRowIndex(sheet));
+    }
+
+    /**
+     * Last 0-based row index (inclusive) that data-row validations and conditional formatting
+     * must cover. Data rows start at 0-based row 2 (Excel row 3) and POI range bounds are
+     * inclusive, so covering excelRowLimit pasted rows needs lastRow = 2 + excelRowLimit - 1.
+     * When pre-filled data already extends beyond that, cover up to its actual last data row.
+     */
+    private int getValidationLastRowIndex(Sheet sheet) {
+        return Math.max(ExcelUtil.findActualLastRowWithData(sheet), 2 + config.getExcelRowLimit() - 1);
     }
 
     /**
@@ -765,11 +868,9 @@ public class ExcelDataPopulator {
                 // 1. Apply conditional formatting for error color
                 XSSFSheetConditionalFormatting conditionalFormatting = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
                 
-                // Define cell range for the column (data rows only, starting from row 3)
-                // Use actual data row count or config limit, whichever is larger to cover all rows
-                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-                CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
+                // Define cell range for the column (data rows only, starting from Excel row 3)
+                int lastRow = getValidationLastRowIndex(sheet);
+                CellRangeAddress[] regions = {new CellRangeAddress(2, lastRow, colIndex, colIndex)};
                 
                 // Create conditional formatting rule
                 XSSFConditionalFormattingRule rule = conditionalFormatting.createConditionalFormattingRule(formula);
@@ -812,9 +913,8 @@ public class ExcelDataPopulator {
             String triggerCondition = triggerValues.size() == 1 ? triggerMatch : "OR(" + triggerMatch + ")";
 
             XSSFSheetConditionalFormatting cf = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
-            int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-            int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-            CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
+            int lastRow = getValidationLastRowIndex(sheet);
+            CellRangeAddress[] regions = {new CellRangeAddress(2, lastRow, colIndex, colIndex)};
 
             // Rule 1: required-but-empty — highlight when trigger is met and cell is empty
             String requiredEmptyFormula = "AND(" + triggerCondition + ",LEN(TRIM(" + colLetter + "3))=0)";

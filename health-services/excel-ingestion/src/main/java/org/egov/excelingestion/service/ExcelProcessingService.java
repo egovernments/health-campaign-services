@@ -11,6 +11,7 @@ import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
 import org.egov.excelingestion.web.models.mdms.ProcessSheetData;
 import org.egov.excelingestion.web.models.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.util.BoundaryCodeResolver;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
@@ -46,6 +47,8 @@ public class ExcelProcessingService {
     private final EnrichmentUtil enrichmentUtil;
     private final MDMSConfigService mdmsConfigService;
     private final ExcelUtil excelUtil;
+    private final ImmutableJoinService immutableJoinService;
+    private final BoundaryCodeResolver boundaryCodeResolver;
 
     public ExcelProcessingService(ValidationService validationService,
                                   SchemaValidationService schemaValidationService,
@@ -58,7 +61,9 @@ public class ExcelProcessingService {
                                   ExcelIngestionConfig config,
                                   EnrichmentUtil enrichmentUtil,
                                   MDMSConfigService mdmsConfigService,
-                                  ExcelUtil excelUtil) {
+                                  ExcelUtil excelUtil,
+                                  ImmutableJoinService immutableJoinService,
+                                  BoundaryCodeResolver boundaryCodeResolver) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -71,6 +76,8 @@ public class ExcelProcessingService {
         this.enrichmentUtil = enrichmentUtil;
         this.mdmsConfigService = mdmsConfigService;
         this.excelUtil = excelUtil;
+        this.immutableJoinService = immutableJoinService;
+        this.boundaryCodeResolver = boundaryCodeResolver;
     }
 
     /**
@@ -116,9 +123,45 @@ public class ExcelProcessingService {
                 Map<String, Map<String, Object>> preValidatedSchemas = configBasedProcessingService.preValidateAndFetchSchemas(
                         workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
 
-                // Validate data and collect errors with localization
+                // Reconstruct authoritative pre-filled values from the generated baseline (unprotected join
+                // mode) BEFORE validation, so validation/processors/persistence all see server-authoritative
+                // immutable data. No-op for legacy/protected files (no embedded generationId).
+                Map<String, Map<String, Object>> sheetNameToSchema = new HashMap<>();
+                for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    String sheetName = workbook.getSheetAt(i).getSheetName();
+                    if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
+                        continue;
+                    }
+                    Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(),
+                            mergedLocalizationMap, preValidatedSchemas, request.getRequestInfo(), tenantId);
+
+                    sheetNameToSchema.put(sheetName, schema != null ? schema : new HashMap<>());
+                }
+                List<ValidationError> immutableJoinWarnings = new ArrayList<>();
+                Map<String, Set<String>> immutableColumnsBySheet =
+                        immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema,
+                                request.getRequestInfo(), immutableJoinWarnings, mergedLocalizationMap);
+                if (immutableColumnsBySheet == null) {
+                    immutableColumnsBySheet = Collections.emptyMap();
+                }
+
+                // Resolve boundary codes for user-entered rows from the workbook's own lookup mapping.
+                // Scaffold-less templates carry no per-row VLOOKUP formulas, so blank code cells are
+                // filled here (after the join restored authoritative prefilled values, before
+                // validation). Legacy files' formula-evaluated codes are non-blank and left untouched.
+                boundaryCodeResolver.resolveBlankBoundaryCodes(workbook, resource);
+
+                // Validate data and collect errors with localization. Cells reconstructed from the trusted
+                // baseline (always-immutable columns on existing rows) are skipped - they came verbatim from
+                // an already-valid generated template, so re-validating them is wasted work.
                 List<ValidationError> validationErrors = validateExcelData(workbook, resource,
-                        request.getRequestInfo(), mergedLocalizationMap, preValidatedSchemas);
+                        request.getRequestInfo(), mergedLocalizationMap, preValidatedSchemas, immutableColumnsBySheet);
+
+                // Surface server-managed-cell revert warnings (non-failing; status=valid) alongside errors,
+                // so a user who edited a locked cell sees "your edit was reverted" without failing the row.
+                if (!immutableJoinWarnings.isEmpty()) {
+                    validationErrors.addAll(immutableJoinWarnings);
+                }
 
                 // Process each sheet: only add validation columns to sheets with errors
                 Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
@@ -237,7 +280,8 @@ public class ExcelProcessingService {
      */
     private List<ValidationError> validateExcelData(Workbook workbook, ProcessResource resource,
                                                     org.egov.common.contract.request.RequestInfo requestInfo, Map<String, String> localizationMap,
-                                                    Map<String, Map<String, Object>> preValidatedSchemas) {
+                                                    Map<String, Map<String, Object>> preValidatedSchemas,
+                                                    Map<String, Set<String>> immutableColumnsBySheet) {
         List<ValidationError> allErrors = new ArrayList<>();
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -259,9 +303,11 @@ public class ExcelProcessingService {
             // Get schema for this sheet from pre-validated schemas
             Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(), localizationMap, preValidatedSchemas, requestInfo, resource.getTenantId());
 
-            // Perform schema validation with pre-fetched schema
+            // Perform schema validation with pre-fetched schema. Skip re-validating always-immutable cells
+            // on existing rows (reconstructed from the trusted baseline by the immutable-join step).
+            Set<String> immutableSkipColumns = immutableColumnsBySheet.getOrDefault(sheetName, Collections.emptySet());
             List<ValidationError> schemaErrors = schemaValidationService.validateDataWithPreFetchedSchema(
-                    sheetData, sheetName, schema, localizationMap);
+                    sheetData, sheetName, schema, localizationMap, immutableSkipColumns);
 
             allErrors.addAll(schemaErrors);
         }

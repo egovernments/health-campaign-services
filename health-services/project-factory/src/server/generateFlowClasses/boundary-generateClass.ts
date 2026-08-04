@@ -7,16 +7,14 @@ import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { getHierarchy } from "../api/campaignApis";
 import { getReadMeConfig, getRelatedDataWithCampaign } from "../utils/genericUtils";
 
-// This will be a dynamic template class for different types
+/** Builds the boundary-target Excel template: README + per-sheet boundary rows split on the campaign's split boundary. */
 export class TemplateClass {
-    // Static generate function
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating template...");
         logger.info(`Response to send: ${JSON.stringify(responseToSend)}`);
 
         const { tenantId, campaignId, type } = responseToSend;
 
-        // Run async operations in parallel
         const [readMeConfig, campaignDetails] = await Promise.all([
             getReadMeConfig(tenantId, type),
             this.getCampaignDetails(tenantId, campaignId),
@@ -232,12 +230,6 @@ export class TemplateClass {
                 }
                 return d;
             })
-            // TEST : default target filled for all selected boundaries testing
-            // localisedData.forEach((d: any) => {
-            //     for(const col of Object.keys(baseDynamicColumns)) {
-            //         if(!d[col]) d[col] = 100;
-            //     }
-            // })
             sheetMap[sheetName] = {
                 dynamicColumns: { ...commonDynamicColumns },
                 data : localisedData
@@ -273,13 +265,11 @@ export class TemplateClass {
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
         const result: any = [];
 
-        // Step 1: Index boundaries by code
         const codeToBoundary: Record<string, any> = {};
         for (const boundary of boundaries) {
             codeToBoundary[boundary.code] = { ...boundary, children: [] };
         }
 
-        // Step 2: Build tree
         const roots: any[] = [];
         for (const boundary of boundaries) {
             if (boundary.parent) {
@@ -289,14 +279,10 @@ export class TemplateClass {
             }
         }
 
-        // Step 3: DFS traversal
         function traverse(node: any, path: any[] = []) {
             const entry: Record<string, string> = {};
-
-            // Add main boundary code
             entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
 
-            // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
                 entry[`${hierarchyType}_${b.type}`.toUpperCase()] = b.code;
@@ -309,7 +295,6 @@ export class TemplateClass {
             }
         }
 
-        // Step 4: Start traversal from roots
         for (const root of roots) {
             traverse(root);
         }
