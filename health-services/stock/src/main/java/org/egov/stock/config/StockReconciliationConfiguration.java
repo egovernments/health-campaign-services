@@ -42,4 +42,7 @@ public class StockReconciliationConfiguration {
 
     @Value("${stock.reconciliation.idgen.id.format}")
     private String stockReconciliationIdFormat;
+
+    @Value("${stock.reconciliation.project.facility.validation.enabled:true}")
+    private Boolean projectFacilityValidationEnabled;
 }

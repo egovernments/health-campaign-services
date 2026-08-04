@@ -54,5 +54,8 @@ public class StockConfiguration {
 
     @Value("${egov.search.project.facility.url}")
     private String projectFacilityServiceSearchUrl;
-    
+
+    @Value("${stock.project.facility.validation.enabled:true}")
+    private Boolean projectFacilityValidationEnabled;
+
 }
