@@ -8,10 +8,6 @@ public class ProcessingConstants {
     public static final String MDMS_EXCEL_INGESTION_GENERATE_SCHEMA = "HCM-ADMIN-CONSOLE.excelIngestionGenerate";
     public static final String MDMS_ATTENDANCE_REGISTER_ATTENDEE_CONFIG_NAME = "attendanceRegisterAttendee";
 
-    // ReadMe (instructions) sheet - MDMS master holding the per-resource-type instruction blocks.
-    public static final String MDMS_README_CONFIG_SCHEMA = "HCM-ADMIN-CONSOLE.ReadMeConfig";
-    public static final String MDMS_README_CONFIG_TYPE_FILTER = "type";
-
     // Column Keys
     public static final String BOUNDARY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String WORKER_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";

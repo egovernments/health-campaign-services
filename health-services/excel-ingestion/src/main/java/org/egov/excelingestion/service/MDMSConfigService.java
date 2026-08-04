@@ -5,10 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionGenerateData;
-import org.egov.excelingestion.web.models.mdms.ReadMeConfigData;
 
 import java.util.HashMap;
 import java.util.List;
@@ -114,47 +112,6 @@ public class MDMSConfigService {
         }
         
         log.warn("No excel ingestion generate config found for: {}", uniqueIdentifier);
-        return null;
-    }
-
-    /**
-     * Get the ReadMe (instructions) config for a single resource type from MDMS, cached per
-     * (tenant, type). Returns null when the type has no ReadMe config authored — the README sheet
-     * simply skips that block rather than failing the whole generation.
-     *
-     * @param type resource type, e.g. "user", "facility", "boundary"
-     */
-    @Cacheable(value = "mdmsReadMeConfig", key = "#tenantId + '_' + #type", cacheManager = "cacheManager",
-               unless = "#result == null")
-    public ReadMeConfigData getReadMeConfig(RequestInfo requestInfo, String tenantId, String type) {
-        log.info("Fetching ReadMe config from MDMS for type: {}", type);
-
-        Map<String, Object> filters = new HashMap<>();
-        filters.put(ProcessingConstants.MDMS_README_CONFIG_TYPE_FILTER, type);
-
-        List<Map<String, Object>> results = mdmsService.searchMDMS(
-            requestInfo,
-            tenantId,
-            ProcessingConstants.MDMS_README_CONFIG_SCHEMA,
-            filters,
-            1,
-            0
-        );
-
-        if (!results.isEmpty()) {
-            try {
-                Map<String, Object> data = (Map<String, Object>) results.get(0).get("data");
-                if (data != null) {
-                    ReadMeConfigData readMeConfig = objectMapper.convertValue(data, ReadMeConfigData.class);
-                    log.info("Found ReadMe config for type: {}", type);
-                    return readMeConfig;
-                }
-            } catch (Exception e) {
-                log.error("Error converting MDMS data to ReadMeConfigData for type: {}", type, e);
-            }
-        }
-
-        log.warn("No ReadMe config found for type: {}", type);
         return null;
     }
 }

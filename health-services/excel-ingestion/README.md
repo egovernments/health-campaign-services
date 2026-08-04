@@ -12,7 +12,6 @@ Changes from v2.0 to v2.1, for product owners, QA and ops.
 - **Attendance registers (new capability).** The service can generate attendance-register and attendee templates and ingest the filled sheets — boundary dropdowns, an auto-filled Register ID derived from boundary **code** (not name), locked formula cells, dates accepted in numeric or text form and clamped to the register's window, and rejection of sheets that belong to another campaign or reuse a register ID. Register roles and attendee boundary rules are now MDMS-configured, not hard-coded.
 - **Stronger user/worker validation.** A beneficiary-code field with validation; whitespace rejected in beneficiary code, bank account and bank code; all cell values trimmed consistently; payment fields conditionally required by payment-provider type (and highlighted red); worker IDs verified against the worker registry before a user sheet is accepted; and processing no longer crashes when the sheet has validation errors — they're reported row by row.
 - **Join-mode templates: unprotected sheets, server-enforced immutability (new).** For join-mode template types (`unified-console`, `attendanceRegister`, `attendanceRegisterAttendee`) the **User List and Facilities List are now generated UNPROTECTED** so campaign managers can freely copy/paste and drag-fill in the editable columns. Immutability is instead **enforced on the server**: on upload the service reconstructs every pre-filled / server-managed cell from the **original generated baseline** — matched by a hidden per-row id (`HCM_ADMIN_CONSOLE____ROW_ID`) and a hidden `_h_Meta_h_` metadata sheet that carries the generation id. By **default an edit to a server-managed cell now REJECTS the upload** (`IMMUTABLE_CELL_TAMPERED`), and tampering that removes/duplicates/forges pre-filled rows or strips the embedded generation id is rejected **fail-closed** (missing generationId / baseline-not-found / identity-mismatch / unknown-row-id / orphan-rows / duplicate-row-id). QA note: cells that used to be *locked in Excel* are now *editable in Excel but enforced server-side*.
-- **README (instructions) sheet in generated templates (new).** Generated workbooks can now carry a **README tab with the fill-in instructions**, restoring what project-factory's per-resource workbooks used to show. Because excel-ingestion produces **one combined workbook** (user + facility + boundary/target together) while the instruction copy is authored **per resource type**, the README is **merged**: the blocks for every type listed on the sheet config are rendered one after another, each under its own bold header with a blank line between blocks. Copy comes from the **same MDMS master project-factory already uses** — `HCM-ADMIN-CONSOLE.ReadMeConfig`, filtered by `type`, with only `inSheet: true` blocks rendered — and every header/description is a **localization key** resolved from the `hcm-admin-schemas` module the service already loads, so no new localization wiring is needed. A type with no ReadMeConfig authored is **skipped with a warning** rather than failing the download. The README ships **locked** (read-only, like the Boundary List) — it is reference content, never a user-entry sheet. Enabling it is an **MDMS-only change** (see below) — no code change per template.
 - **Paste / drag-fill bypass closed server-side (new).** The active/inactive (usage) column must be **exactly `Active` or `Inactive`** (else rejected with `HCM_VALIDATION_INVALID_USAGE`), and a **boundary selection that does not resolve to a boundary code is now rejected** (`HCM_BOUNDARY_INVALID_SELECTION`) instead of being silently skipped. Both checks run in the user and facility validators.
 - **Boundary correctness.** Boundaries with the same display name at different levels no longer collide; facilities map to boundaries by id/code instead of name; multi-hierarchy and root-boundary processing are supported/fixed. A not-yet-localized / non-ASCII boundary now renders its **boundary code** instead of a blank cell (fallback when the localized value is missing **or blank**).
 - **Search and ops.** `process/_search` and `generate/_search` now filter by `additionalDetails` key-value pairs; campaign search pagination was fixed; the original request context now travels with `hcm-processing-result` (fixing downstream campaign-creation failures); and publish logs show the actual tenant-prefixed topic names for easier log correlation.
@@ -229,49 +228,6 @@ These environment-tunable keys are new; defaults are shown and match `applicatio
 | `egov.excel.usage-value-validation-enabled` | `true` | Server enforces the usage column is exactly `Active`/`Inactive` (`HCM_VALIDATION_INVALID_USAGE`). |
 | `egov.excel.boundary-selection-validation-enabled` | `true` | Server rejects a boundary selection that does not resolve to a boundary code (`HCM_BOUNDARY_INVALID_SELECTION`). |
 | `excel.ingestion.listener.watchdog.interval.ms` | `60000` | Interval for the Kafka listener watchdog that restarts a stopped generation-init consumer. |
-
-### Enabling the README (instructions) sheet — MDMS only
-
-The generator ships with the service but stays inert until the template's generate config lists the sheet.
-Add one entry to `HCM-ADMIN-CONSOLE.excelIngestionGenerate` for the template (e.g. `unified-console`),
-as the **first** sheet so the README opens as the leading tab:
-
-```json
-{
-  "sheetName": "HCM_README_SHEETNAME",
-  "generationClass": "ReadMeSheetGenerator",
-  "isGenerationClassViaExcelPopulator": false,
-  "schemaName": "unified-sheet",
-  "order": 0,
-  "visible": true
-}
-```
-
-| Field | Meaning |
-|---|---|
-| `generationClass` | `ReadMeSheetGenerator`. Must run on the **direct** path, so `isGenerationClassViaExcelPopulator` is `false` — the README is free-form text, not a column/header sheet. |
-| `schemaName` | `ReadMeConfig` types to render, **in order**, comma-separated. One entry (`"unified-sheet"`) renders a single authored config; several (`"user,facility,boundary"`) merge the per-resource configs. Surrounding spaces and stray commas are ignored. A duplicated type, or a block shared by two types, renders once. |
-| `order` / `visible` | `order: 0` puts README first; `visible: true` is required or `applyWorkbookSettings` hides it. |
-
-> **Why the type list rides in `schemaName`.** The `HCM-ADMIN-CONSOLE.excelIngestionGenerate` **schema**
-> sets `"additionalProperties": false` on each `sheets[]` item, so saving a dedicated key is rejected
-> with `INVALID_REQUEST — extraneous key [readMeTypes] is not permitted`. `schemaName` is reused because
-> it is **inert for this sheet**: schema-based generation only kicks in when `generationClass` is empty,
-> and the upload path takes its schema from the separate `excelIngestionProcess` master. If the schema
-> is ever extended, a `readMeTypes` array on the sheet takes precedence over `schemaName`.
-
-> **Name the type explicitly for the combined workbook.** Omitting `schemaName` falls back to the
-> generation type, which only suits single-resource templates. The combined template's generation type
-> is `unified-console` while its ReadMeConfig type is `unified-sheet`, so the fallback would look up the
-> wrong entry and render an empty README.
-
-The instruction copy itself is **not** authored here — it stays in `HCM-ADMIN-CONSOLE.ReadMeConfig`
-(one entry per `type`, with `texts[].header`, `texts[].descriptions[].text`, `inSheet`, `isHeaderBold`),
-the same master project-factory reads, so both flows show identical instructions. Only blocks with
-`inSheet: true` are rendered — UI-only blocks (`inSheet: false`) are skipped — and extra authored fields
-such as `inUiInfo` / `isStepRequired` are ignored by the sheet renderer. All header and description
-values are **localization keys** in the `hcm-admin-schemas` module; a missing key falls back to the raw
-key rather than rendering blank.
 
 ## 8. Release Version
 

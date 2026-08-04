@@ -84,13 +84,6 @@ public class ExcelIngestionApplication {
                 .maximumSize(100)
                 .build();
 
-        // ReadMe (instructions) config per resource type - stable MDMS config read once per generated
-        // workbook for each type in it, so cache it like the other mdms config regions.
-        com.github.benmanes.caffeine.cache.Cache<Object, Object> mdmsReadMeConfigCache = Caffeine.newBuilder()
-                .expireAfterWrite(5, TimeUnit.MINUTES)
-                .maximumSize(50)
-                .build();
-
         // Campaign lookups - the same campaign is otherwise re-fetched several times per generate/upload
         // (user + facility processors + boundary util). Keyed by campaignId + tenantId. Three separate
         // regions because the cached return types differ (detail / boundary list / projectType string).
@@ -120,7 +113,6 @@ public class ExcelIngestionApplication {
         cacheManager.registerCustomCache("mdmsExcelIngestionProcess", mdmsExcelIngestionProcessCache);
         cacheManager.registerCustomCache("mdmsExcelIngestionGenerate", mdmsExcelIngestionGenerateCache);
         cacheManager.registerCustomCache("mdmsSchemas", mdmsSchemasCache);
-        cacheManager.registerCustomCache("mdmsReadMeConfig", mdmsReadMeConfigCache);
         cacheManager.registerCustomCache("campaignDetail", campaignDetailCache);
         cacheManager.registerCustomCache("campaignBoundaries", campaignBoundariesCache);
         cacheManager.registerCustomCache("campaignProjectType", campaignProjectTypeCache);
