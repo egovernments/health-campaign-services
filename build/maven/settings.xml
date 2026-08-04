@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+          http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <!-- Maven Central Mirror for faster downloads -->
+    <mirrors>
+        <mirror>
+            <id>maven-central</id>
+            <mirrorOf>central</mirrorOf>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </mirror>
+    </mirrors>
+
+    <!-- Server configurations with timeouts -->
+    <servers>
+        <server>
+            <id>flyway-repo</id>
+            <configuration>
+                <httpConfiguration>
+                    <all>
+                        <connectionTimeout>10000</connectionTimeout>
+                        <readTimeout>10000</readTimeout>
+                    </all>
+                </httpConfiguration>
+            </configuration>
+        </server>
+    </servers>
+
+    <!-- Profile for build optimizations -->
+    <profiles>
+        <profile>
+            <id>build-optimization</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <!-- Connection pool disabled for better compatibility -->
+                <maven.wagon.http.pool>false</maven.wagon.http.pool>
+                <!-- Timeout settings -->
+                <maven.wagon.httpconnectionManager.ttlSeconds>120</maven.wagon.httpconnectionManager.ttlSeconds>
+                <!-- Retry settings -->
+                <maven.wagon.http.retryHandler.requestSentEnabled>true</maven.wagon.http.retryHandler.requestSentEnabled>
+                <maven.wagon.http.retryHandler.count>3</maven.wagon.http.retryHandler.count>
+                <!-- Connection timeout in milliseconds -->
+                <maven.wagon.http.connectionTimeout>10000</maven.wagon.http.connectionTimeout>
+                <!-- Read timeout in milliseconds -->
+                <maven.wagon.http.readTimeout>60000</maven.wagon.http.readTimeout>
+            </properties>
+        </profile>
+    </profiles>
+
+    <!-- Active profiles -->
+    <activeProfiles>
+        <activeProfile>build-optimization</activeProfile>
+    </activeProfiles>
+</settings>

@@ -5,15 +5,18 @@ WORKDIR /app
 # Copy only POM first to cache dependencies separately
 COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
+COPY build/maven/settings.xml /root/.m2/settings.xml
 
-# Download dependencies - this layer will be cached unless pom.xml changes
-RUN mvn -B dependency:go-offline || true
-
-# Copy source code after dependencies are cached
+# Copy source code
 COPY ${WORK_DIR}/src ./src
 
-# Build the project
-RUN mvn -B -f /app/pom.xml package -DskipTests
+# Build the project with connection timeout settings
+RUN mvn -B -f /app/pom.xml \
+    -Dmaven.wagon.http.pool=false \
+    -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+    -Dmaven.wagon.http.retryHandler.requestSentEnabled=true \
+    -Dmaven.wagon.http.retryHandler.count=3 \
+    package -DskipTests
 
 # Runtime image – using Eclipse Temurin Alpine for Java 25
 FROM eclipse-temurin:25-jre-alpine

@@ -10,17 +10,19 @@ RUN microdnf install -y maven && \
 # Copy only POM first to cache dependencies separately
 COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
+COPY build/maven/settings.xml /root/.m2/settings.xml
 
-# Download dependencies - this layer will be cached unless pom.xml changes
-# Using standard RUN command for compatibility
-RUN mvn -B -ntp dependency:go-offline -Pnative || true
-
-# Copy source code after dependencies are cached
+# Copy source code
 COPY ${WORK_DIR}/src ./src
 
-# Build the native image
-# Standard RUN command without cache mount for compatibility
-RUN mvn -B -ntp -f /app/pom.xml -Pnative -DskipTests package native:compile
+# Build the native image with connection timeout settings
+# Downloads dependencies and builds in one step for better reliability
+RUN mvn -B -ntp -f /app/pom.xml \
+    -Dmaven.wagon.http.pool=false \
+    -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+    -Dmaven.wagon.http.retryHandler.requestSentEnabled=true \
+    -Dmaven.wagon.http.retryHandler.count=3 \
+    -Pnative -DskipTests package native:compile
 
 # Resolve the native executable name from the module directory.
 RUN APP_NAME=$(basename "${WORK_DIR}") && \
