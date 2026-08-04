@@ -59,6 +59,7 @@ class ReportsMetadataRequest(BaseModel):
     reportName: Optional[str] = None
     triggerFrequency: Optional[str] = None
     triggeredDate: Optional[str] = None  # dd-MM-yyyy; returns reports triggered on that day (tenant tz)
+    includeFailed: bool = False  # also return runs whose final state is *_FAILED (else completed-only)
 
 class ReportStatusRequest(BaseModel):
     RequestInfo: Optional[RequestInfoModel] = None
@@ -590,7 +591,7 @@ def _insert_triggered_on_ui_rows(conf: dict, dag_id: str, dag_run_id: str, trigg
             # through env vars into every subsequent Kafka event - just read them back here.
             expected_rows = c.get("expectedRows")
             expected_generation_time_seconds = c.get("expectedGenerationTimeSeconds")
-            row_triggered_ms = c.get("reportTriggeredTimeMs", triggered_ms)
+            row_triggered_ms = c.get("reportTriggeredTimeMs") or triggered_ms  # treat explicit null as unset
             seconds_since_triggered = round((triggered_ms - row_triggered_ms) / 1000, 2)
 
             report_range = None
@@ -840,48 +841,61 @@ def _latest_per_run_subquery(table: str, where_clause: str) -> str:
 @app.post("/airflow-trigger-api/api/reports-metadata")
 def search_reports_metadata(req: ReportsMetadataRequest):
     logger.info(
-        "search_reports_metadata called: tenantId=%s campaignIdentifier=%s reportName=%s triggerFrequency=%s triggeredDate=%s",
-        req.tenantId, req.campaignIdentifier, req.reportName, req.triggerFrequency, req.triggeredDate,
+        "search_reports_metadata called: tenantId=%s campaignIdentifier=%s reportName=%s triggerFrequency=%s triggeredDate=%s includeFailed=%s",
+        req.tenantId, req.campaignIdentifier, req.reportName, req.triggerFrequency, req.triggeredDate, req.includeFailed,
     )
     tenant_id = req.tenantId
 
     table = _reports_metadata_table(tenant_id)
 
-    # REPORTS_METADATA is now append-only (one row per status event, not just terminal
-    # outcomes) - filtering to REPORT_COMPLETED reproduces the original "one row per
-    # successful, downloadable report" shape this endpoint has always returned, since
-    # REPORT_COMPLETED is emitted exactly once per run. Failed attempts simply won't
-    # appear here anymore (they're still fully visible via /report-status).
-    # Rows written before this column existed have status IS NULL - the only success/
-    # failure signal available for those is whether fileStoreId was ever populated
-    # (the pre-existing persister mapping never included a status column, and a FAILED
-    # push always left file_store_id at its "" default) - so those legacy rows are
-    # included here precisely when they have a real fileStoreId, to avoid every
-    # historical successful report silently disappearing the moment this ships.
-    query = f"""SELECT * FROM {table} WHERE tenantId = %s AND (
-        status = 'REPORT_COMPLETED'
-        OR (status IS NULL AND fileStoreId IS NOT NULL AND fileStoreId <> '')
-    )"""
-    params: list[str] = [tenant_id]
-
+    filters = ["tenantId = %s"]
+    params: list = [tenant_id]
     if req.campaignIdentifier:
-        query += " AND campaignIdentifier = %s"
+        filters.append("campaignIdentifier = %s")
         params.append(req.campaignIdentifier)
     if req.reportName:
-        query += " AND reportName = %s"
+        filters.append("reportName = %s")
         params.append(req.reportName)
     if req.triggerFrequency:
-        query += " AND triggerFrequency = %s"
+        filters.append("triggerFrequency = %s")
         params.append(req.triggerFrequency)
     if req.triggeredDate:
         try:
             _from_ms, _to_ms = _triggered_day_bounds_ms(req.triggeredDate)
         except ValueError:
             raise HTTPException(status_code=400, detail="triggeredDate must be in dd-MM-yyyy format")
-        query += " AND reportTriggeredTimeMs BETWEEN %s AND %s"
+        filters.append("reportTriggeredTimeMs BETWEEN %s AND %s")
         params.extend([_from_ms, _to_ms])
+    where_clause = " AND ".join(filters)
 
-    query += " ORDER BY createdTime DESC"
+    # REPORTS_METADATA is append-only (one row per status event). By default this returns one
+    # row per *successfully generated* report: REPORT_COMPLETED is emitted exactly once per run,
+    # plus legacy rows that predate the status column (status IS NULL) that ever got a real
+    # fileStoreId. includeFailed=True also surfaces runs whose FINAL state is a *_FAILED - so the
+    # UI can show failures (with their errorMessage) instead of them silently vanishing. That
+    # path takes the LATEST row per run, so a fail-then-retry-succeed run shows once (as
+    # completed) and never appears twice; SKIPPED is deliberately not included (not a failure).
+    if req.includeFailed:
+        failed_statuses = tuple(sorted(FAILED_STATUSES))
+        failed_placeholders = ",".join(["%s"] * len(failed_statuses))
+        query = _latest_per_run_subquery(table, where_clause) + f"""
+            WHERE rn = 1 AND (
+                status = 'REPORT_COMPLETED'
+                OR status IN ({failed_placeholders})
+                OR (status IS NULL AND fileStoreId IS NOT NULL AND fileStoreId <> '')
+            )
+            ORDER BY createdTime DESC
+        """
+        params = params + list(failed_statuses)
+    else:
+        query = f"""
+            SELECT * FROM {table}
+            WHERE {where_clause} AND (
+                status = 'REPORT_COMPLETED'
+                OR (status IS NULL AND fileStoreId IS NOT NULL AND fileStoreId <> '')
+            )
+            ORDER BY createdTime DESC
+        """
 
     try:
         conn = _get_db_conn()
@@ -895,8 +909,11 @@ def search_reports_metadata(req: ReportsMetadataRequest):
         raise HTTPException(status_code=500, detail="Failed to fetch report metadata")
 
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-    data = [_enrich_status_row(row, now_ms) for row in rows]
-    logger.info("search_reports_metadata returning %d rows", len(data))
+    data = []
+    for row in rows:
+        row.pop("rn", None)  # present only on the includeFailed (windowed) path
+        data.append(_enrich_status_row(row, now_ms))
+    logger.info("search_reports_metadata returning %d rows (includeFailed=%s)", len(data), req.includeFailed)
 
     return {
         "ResponseInfo": req.RequestInfo,

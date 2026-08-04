@@ -6,11 +6,15 @@ Run from this directory (deps: fastapi, pydantic, psycopg2, httpx, pytest):
 Importing main.py does NOT open a DB connection (that's lazy in _get_db_conn), so these
 tests need no database.
 """
+import os
+import sys
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import HTTPException
 
+# Make `import main` resolve regardless of the directory pytest is invoked from.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import main
 
 
@@ -19,7 +23,8 @@ IST = timezone(timedelta(minutes=330))  # +05:30, main's default REPORT_QUERY_TZ
 
 # --------------- _triggered_day_bounds_ms ---------------
 
-def test_triggered_day_bounds_spans_full_day():
+def test_triggered_day_bounds_spans_full_day(monkeypatch):
+    monkeypatch.setattr(main, "REPORT_QUERY_TZ_OFFSET_MINUTES", 330)  # pin tz, don't depend on env
     start_ms, end_ms = main._triggered_day_bounds_ms("30-07-2026")
     assert end_ms - start_ms == 24 * 3600 * 1000 - 1  # 23:59:59.999 inclusive
     # midnight of the requested day in the configured tenant tz (+05:30)
@@ -57,8 +62,9 @@ def test_cooldown_default_for_unlisted_report():
     assert main._get_retry_cooldown_seconds("some_other_report") == main.CUSTOM_REPORT_RETRY_COOLDOWN_SECONDS
 
 
-def test_cooldown_never_returns_none():
-    # beneficiary_visit_list is configured "NEVER" by default -> permanent block
+def test_cooldown_never_returns_none(monkeypatch):
+    # pin the override so the test doesn't depend on the deployed default
+    monkeypatch.setitem(main.CUSTOM_REPORT_RETRY_COOLDOWN_OVERRIDES, "beneficiary_visit_list", "NEVER")
     assert main._get_retry_cooldown_seconds("beneficiary_visit_list") is None
 
 
