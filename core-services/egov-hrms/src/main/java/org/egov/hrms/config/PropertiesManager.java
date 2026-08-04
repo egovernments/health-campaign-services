@@ -154,4 +154,10 @@ public class PropertiesManager {
 
 	@Value("${hrms.email.notification.website.link}")
 	public String emailNotificationWebsiteLink;
+
+	@Value("${egov.hrms.mobile.number.min.length}")
+	private Integer mobileNumberMinLength;
+
+	@Value("${egov.hrms.mobile.number.max.length}")
+	private Integer mobileNumberMaxLength;
 }
