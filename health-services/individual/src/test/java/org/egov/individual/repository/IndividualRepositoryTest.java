@@ -3,6 +3,7 @@ package org.egov.individual.repository;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.utils.MultiStateInstanceUtil;
@@ -30,6 +31,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -192,6 +196,72 @@ class IndividualRepositoryTest {
                 .query(anyString(), anyMap(), any(AddressRowMapper.class));
         verify(namedParameterJdbcTemplate)
                 .query(anyString(), anyMap(), any(SkillRowMapper.class));
+    }
+
+    @Test
+    @DisplayName("proximity search with a matched identifier should return the individual")
+    void shouldFindByIdentifierWithProximity() throws QueryBuilderException, InvalidTenantIdException {
+        IndividualSearch individualSearch = IndividualSearch.builder()
+                .identifier(Identifier.builder()
+                        .identifierId("some-identifier-id")
+                        .identifierType("SYSTEM_GENERATED")
+                        .build())
+                .latitude(9.0)
+                .longitude(11.0)
+                .searchRadius(5.0)
+                .build();
+
+        Identifier identifier = Identifier.builder()
+                .individualId("some-id")
+                .identifierId("some-identifier-id")
+                .identifierType("SYSTEM_GENERATED")
+                .build();
+
+        Individual individual = IndividualTestBuilder.builder().withId("some-id").build();
+
+        when(multiStateInstanceUtil.replaceSchemaPlaceholder(any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(IdentifierRowMapper.class)))
+                .thenReturn(Collections.singletonList(identifier));
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(IndividualRowMapper.class)))
+                .thenReturn(Collections.singletonList(individual));
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(AddressRowMapper.class)))
+                .thenReturn(Collections.emptyList());
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(SkillRowMapper.class)))
+                .thenReturn(Collections.emptyList());
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(ResultSetExtractor.class)))
+                .thenReturn(1L);
+
+        SearchResponse<Individual> response = individualRepository
+                .find(individualSearch, 2, 0, "default", null, false);
+
+        assertEquals(1, response.getResponse().size());
+        assertEquals("some-id", response.getResponse().get(0).getId());
+        assertEquals(1, response.getResponse().get(0).getIdentifiers().size());
+    }
+
+    @Test
+    @DisplayName("proximity search with an unmatched identifier should return empty without throwing")
+    void shouldReturnEmptyForProximitySearchWhenIdentifierMatchesNothing() throws QueryBuilderException, InvalidTenantIdException {
+        IndividualSearch individualSearch = IndividualSearch.builder()
+                .identifier(Identifier.builder()
+                        .identifierId("unknown-identifier-id")
+                        .identifierType("SYSTEM_GENERATED")
+                        .build())
+                .latitude(9.0)
+                .longitude(11.0)
+                .searchRadius(5.0)
+                .build();
+
+        when(multiStateInstanceUtil.replaceSchemaPlaceholder(any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(IdentifierRowMapper.class)))
+                .thenReturn(Collections.emptyList());
+
+        SearchResponse<Individual> response = assertDoesNotThrow(() -> individualRepository
+                .find(individualSearch, 2, 0, "default", null, false));
+
+        assertTrue(response.getResponse() == null || response.getResponse().isEmpty());
     }
 
     @Test
