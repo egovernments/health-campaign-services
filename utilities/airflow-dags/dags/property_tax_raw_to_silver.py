@@ -54,30 +54,20 @@ from airflow.utils.timezone import make_aware
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 import clickhouse_connect
 
-# Payment → demand collection back-update lives in a shared module (see dags/common).
-# It is imported here as a plain function and run as a task in THIS DAG's run —
-# no separate DAG, no cross-DAG conf passing.
-from common.payment_backupdate import back_update_demand_collection
-
-# Shared ClickHouse helpers (client, config, parsing, windowing, insert buffers)
-# now live in dags/common/ch_utils.py — single source, reused by payment_backupdate.
-from common.ch_utils import (
-    CH_FETCH_SIZE,
-    STREAM_BATCH_SIZE,
-    EPOCH,
-    get_client,
-    run_query,
-    run_insert,
-    parse_ts,
-    safe_dec,
-    safe_int,
-    compute_financial_year,
-    get_window,
-    batch_insert,
-    InsertBuffer,
-)
-
 logger = logging.getLogger(__name__)
+
+# -- Configuration -----------------------------------------------------------
+
+CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickhouse-clickstack-clickhouse-clickhouse-headless.clickhouse.svc.cluster.local')
+CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', '8123'))
+CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
+CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', 'egov')
+CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'punjab_property_tax')
+
+# Streaming configuration for large datasets
+STREAM_BATCH_SIZE = 10000  # INSERT chunk size: large batches → fewer ClickHouse parts created
+CH_FETCH_SIZE = 2000       # SELECT fetch size: small → low concurrent ClickHouse SELECT memory
+                            # Rows accumulate in InsertBuffer until STREAM_BATCH_SIZE is reached
 
 default_args = {
     'owner': 'property_tax',
@@ -86,6 +76,171 @@ default_args = {
     'retries': 2,
     'retry_delay': timedelta(minutes=3),
 }
+
+# -- Helpers -----------------------------------------------------------------
+
+
+def get_client():
+    return clickhouse_connect.get_client(
+        host=CLICKHOUSE_HOST,
+        port=CLICKHOUSE_PORT,
+        username=CLICKHOUSE_USER,
+        password=CLICKHOUSE_PASSWORD,
+        database=CLICKHOUSE_DB,
+                settings={
+            # Single-threaded reads: ClickHouse defaults max_threads to the core count,
+            # so each query spawns N decompression threads and N× the peak memory. Our
+            # pages are small (CH_FETCH_SIZE rows), so 1 thread costs ~nothing in speed
+            # but keeps peak RSS low when several pipelines read concurrently.
+            'max_threads': 1,
+            # This ETL reads each block once, so the uncompressed cache gives no hit-rate
+            # benefit — disable it so it can't accumulate server RSS across queries.
+            'use_uncompressed_cache': 0,
+        },
+    )
+
+
+# -- Query helpers -----------------------------------------------------------
+
+
+def run_query(client, query, parameters=None):
+    return client.query(query, parameters=parameters)
+
+
+def run_insert(client, table, data, column_names):
+    client.insert(table, data=data, column_names=column_names)
+
+
+def parse_ts(val) -> Optional[datetime]:
+    """Parse epoch-millis, datetime, or ISO string into timezone-aware datetime."""
+    if val is None:
+        return None
+
+    if isinstance(val, datetime):
+        return make_aware(val) if val.tzinfo is None else val
+
+    if isinstance(val, (int, float)):
+        if val == 0:
+            return None
+        return make_aware(datetime.fromtimestamp(val / 1000))
+
+    if isinstance(val, str):
+        try:
+            dt = datetime.fromisoformat(val.replace('Z', '+00:00'))
+            return make_aware(dt) if dt.tzinfo is None else dt
+        except ValueError:
+            try:
+                return make_aware(datetime.fromtimestamp(int(val) / 1000))
+            except (ValueError, OSError):
+                return None
+
+    return None
+
+def safe_dec(val, scale=2) -> Decimal:
+    if val is None:
+        return Decimal('0')
+    try:
+        return round(Decimal(str(val)), scale)
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal('0')
+
+
+def safe_int(val, default=0) -> int:
+    if val is None:
+        return default
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+def get_window(context):
+    """
+    Scheduled Run:
+        Uses Airflow's data interval
+
+    All other runs (manual/backfill/etc):
+        Processes last 24 hours minus overlap
+    """
+
+    dag_run = context.get("dag_run")
+
+    # Scheduled runs use Airflow interval
+    if dag_run and dag_run.run_type == "scheduled":
+        logger.info(f"context data_interval_start = {context.get('data_interval_start')}")
+        logger.info(f"context data_interval_end   = {context.get('data_interval_end')}")
+
+        return (
+            context.get("data_interval_start"),
+            context.get("data_interval_end"),
+        )
+
+    # Manual/backfill/etc → rolling 24 hr window
+    end_time = utcnow()
+    start_time = end_time - timedelta(hours=24) + timedelta(milliseconds=1)
+
+    logger.info(f"Manual window: [{start_time}, {end_time})")
+
+    return start_time, end_time
+
+
+def batch_insert(client, table: str, rows: List[dict], chunk_size: int = 10000):
+    """Insert rows in chunks to manage memory and handle large datasets.
+    
+    Args:
+        client: ClickHouse client connection
+        table: Target table name
+        rows: List of dictionaries to insert
+        chunk_size: Number of rows to insert per batch (default: 10000)
+    """
+    if not rows:
+        return
+    
+    cols = list(rows[0].keys())
+    total_inserted = 0
+    
+    # Process in chunks
+    for i in range(0, len(rows), chunk_size):
+        chunk = rows[i:i + chunk_size]
+        data = [[r.get(c) for c in cols] for r in chunk]
+        
+        try:
+            run_insert(client, table, data, cols)
+            total_inserted += len(chunk)
+            logger.info(f"Inserted {len(chunk)} rows into {table}")
+        except Exception as e:
+            logger.error(f"Failed to insert chunk into {table} at offset {i}: {e}")
+            raise
+
+
+class InsertBuffer:
+    """Accumulates transformed rows and flushes to ClickHouse in STREAM_BATCH_SIZE chunks.
+
+    Decouples the ClickHouse SELECT fetch size (CH_FETCH_SIZE, small) from the INSERT
+    batch size (STREAM_BATCH_SIZE, large). This keeps concurrent SELECT memory low while
+    maintaining large INSERT batches to minimise ClickHouse part creation.
+    """
+
+    def __init__(self, client, table: str, flush_size: int = STREAM_BATCH_SIZE):
+        self._client = client
+        self._table = table
+        self._flush_size = flush_size
+        self._buf: List[dict] = []
+        self.total_inserted = 0
+
+    def add(self, rows: List[dict]) -> None:
+        self._buf.extend(rows)
+        while len(self._buf) >= self._flush_size:
+            batch = self._buf[:self._flush_size]
+            batch_insert(self._client, self._table, batch, chunk_size=self._flush_size)
+            self.total_inserted += len(batch)
+            self._buf = self._buf[self._flush_size:]
+
+    def flush(self) -> None:
+        if self._buf:
+            batch_insert(self._client, self._table, self._buf, chunk_size=self._flush_size)
+            self.total_inserted += len(self._buf)
+            self._buf = []
+
 
 # -- Fetch by lastModifiedTime window ----------------------------------------
 
@@ -339,6 +494,9 @@ def count_assessment_events(client, window_start: datetime,
 # -- Extraction helpers -------------------------------------------------------
 
 
+EPOCH = make_aware(datetime(1970, 1, 1))
+
+
 def extract_property_address(prop: dict) -> dict:
     audit = prop.get('auditDetails', {}) or {}
     addr = prop.get('address', {}) or {}
@@ -455,6 +613,21 @@ def extract_owners(prop: dict) -> List[dict]:
             'no_of_floors': safe_int(prop.get('noOfFloors', 0)),
         })
     return rows
+
+
+def compute_financial_year(epoch_ms) -> str:
+    """Derive Indian fiscal year (Apr–Mar) from epoch-millis using UTC."""
+    if not epoch_ms:
+        return ''
+    try:
+        ms = int(epoch_ms)
+    except (TypeError, ValueError):
+        return ''
+    if ms == 0:
+        return ''
+    dt = datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+    start_year = dt.year if dt.month >= 4 else dt.year - 1
+    return f"{start_year}-{(start_year + 1) % 100:02d}"
 
 
 def extract_demand(demand: dict) -> dict:
@@ -1396,13 +1569,6 @@ with DAG(
         pool='transform_load_pool',
     )
 
-    # Payment → demand collection back-update (analytics mirror of billing-service).
-    back_update_demand = PythonOperator(
-        task_id='back_update_demand_collection',
-        python_callable=back_update_demand_collection,
-        pool='transform_load_pool',
-    )
-
     # Property pipeline
     start >> extract_props >> transform_load_props
     # Demand pipeline (runs in parallel)
@@ -1414,16 +1580,11 @@ with DAG(
     # Assessment pipeline (runs in parallel)
     start >> extract_assessments >> transform_load_assessments
 
-    # Back-update needs demand rows loaded AND payment apportionment available.
-    # It therefore transitively gates trigger_rmv_refresh on demands + payments,
-    # so those two are omitted from the fan-in list below.
-    [transform_load_demands, transform_load_payments] >> back_update_demand
-
-    # Fan-in: all pipelines (including the back-update) must complete before the
-    # downstream ReplacingMergeTree refresh runs.
+    # Fan-in: all pipelines must complete before triggering downstream refresh
     [
         transform_load_props,
+        transform_load_demands,
+        transform_load_payments,
         transform_load_bills,
         transform_load_assessments,
-        back_update_demand,
     ] >> trigger_rmv_refresh >> end
