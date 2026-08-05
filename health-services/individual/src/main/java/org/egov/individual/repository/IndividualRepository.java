@@ -4,7 +4,9 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -12,6 +14,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
@@ -160,27 +163,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                         paramsMap, this.rowMapper);
                 if (!individuals.isEmpty()) {
-                    individuals.forEach(individual -> {
-                        individual.setIdentifiers(identifiers);
-                        List<Address> addresses = null;
-                        // Fetch the addresses for each individual
-                        // catch the InvalidTenantIdException and throw a custom exception
-                        try {
-                            addresses = getAddressForIndividual( tenantId, individual.getId(), includeDeleted);
-                        } catch (InvalidTenantIdException e) {
-                            throw new CustomException( INVALID_TENANT_ID , INVALID_TENANT_ID_MSG);
-                        }
-                        individual.setAddress(addresses);
-                        Map<String, Object> indServerGenIdParamMap = new HashMap<>();
-                        indServerGenIdParamMap.put("individualId", individual.getId());
-                        indServerGenIdParamMap.put("isDeleted", includeDeleted);
-                        // catch the InvalidTenantIdException and throw a custom exception
-                        try {
-                            enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
-                        } catch (InvalidTenantIdException e) {
-                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
-                        }
-                    });
+                    // identifiers come from the search criterion and are deliberately narrower than
+                    // all identifiers of the individual, so they are not re-fetched here
+                    individuals.forEach(individual -> individual.setIdentifiers(new ArrayList<>(identifiers)));
+                    try {
+                        enrichAddressAndSkills(tenantId, individuals, includeDeleted);
+                    } catch (InvalidTenantIdException e) {
+                        throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+                    }
                 }
                 return SearchResponse.<Individual>builder().response(individuals).build();
             }
@@ -205,6 +195,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
             identifierParamMap.put("isDeleted", includeDeleted);
             List<Identifier> identifiers = this.namedParameterJdbcTemplate
                     .query(identifierQuery, identifierParamMap, new IdentifierRowMapper());
+            // guard is inverted relative to find(): findAny().get() below throws on the empty list this
+            // admits, and a non-empty list skips the block entirely. Left as-is deliberately — correcting
+            // it turns an exception into live results, which is a behaviour change outside this refactor.
             if (CollectionUtils.isEmpty(identifiers)) {
                 query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
                 paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
@@ -226,24 +219,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                         paramsMap, this.rowMapper);
                 if (!individuals.isEmpty()) {
-                    individuals.forEach(individual -> {
-                        individual.setIdentifiers(identifiers);
-                        List<Address> addresses = null;
-                        try {
-                            addresses = getAddressForIndividual(tenantId, individual.getId(), includeDeleted);
-                        } catch (InvalidTenantIdException e) {
-                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
-                        }
-                        individual.setAddress(addresses);
-                        Map<String, Object> indServerGenIdParamMap = new HashMap<>();
-                        indServerGenIdParamMap.put("individualId", individual.getId());
-                        indServerGenIdParamMap.put("isDeleted", includeDeleted);
-                        try {
-                            enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
-                        } catch (InvalidTenantIdException e) {
-                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
-                        }
-                    });
+                    // identifiers come from the search criterion and are deliberately narrower than
+                    // all identifiers of the individual, so they are not re-fetched here
+                    individuals.forEach(individual -> individual.setIdentifiers(new ArrayList<>(identifiers)));
+                    try {
+                        enrichAddressAndSkills(tenantId, individuals, includeDeleted);
+                    } catch (InvalidTenantIdException e) {
+                        throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+                    }
                 }
                 return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
             }
@@ -276,14 +259,22 @@ public class IndividualRepository extends GenericRepository<Individual> {
         return searchObject.getLatitude() != null && searchObject.getLongitude() != null && searchObject.getSearchRadius() != null;
     }
 
-    private void enrichSkills(Boolean includeDeleted, Individual individual, Map<String, Object> indServerGenIdParamMap) throws InvalidTenantIdException {
-        String individualSkillQuery = getQuery("SELECT * FROM %s.individual_skill WHERE individualId =:individualId",
+    private Map<String, List<Skill>> fetchSkills(String tenantId, List<String> individualIds,
+                                                 Boolean includeDeleted) throws InvalidTenantIdException {
+        if (CollectionUtils.isEmpty(individualIds)) {
+            return Collections.emptyMap();
+        }
+        String individualSkillQuery = getQuery("SELECT * FROM %s.individual_skill WHERE individualId IN (:individualIds)",
                 includeDeleted);
         individualSkillQuery = String.format(individualSkillQuery, SCHEMA_REPLACE_STRING);
-        individualSkillQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualSkillQuery, individual.getTenantId());
-        List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, indServerGenIdParamMap,
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("individualIds", individualIds);
+        individualSkillQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualSkillQuery, tenantId);
+        List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, paramMap,
                 new SkillRowMapper());
-        individual.setSkills(skills);
+        return skills.stream()
+                .filter(skill -> skill.getIndividualId() != null)
+                .collect(Collectors.groupingBy(Skill::getIndividualId));
     }
 
     private String getQueryForIndividual(IndividualSearch searchObject, Integer limit, Integer offset,
@@ -415,62 +406,183 @@ public class IndividualRepository extends GenericRepository<Individual> {
         return GenericQueryBuilder.generateQuery(identifierQuery, identifierWhereFields).toString();
     }
 
-    private List<Address> getAddressForIndividual(String tenantId, String individualId, Boolean includeDeleted) throws InvalidTenantIdException {
+    private Map<String, List<Address>> fetchAddresses(String tenantId, List<String> individualIds,
+                                                      Boolean includeDeleted) throws InvalidTenantIdException {
+        if (CollectionUtils.isEmpty(individualIds)) {
+            return Collections.emptyMap();
+        }
+        // individualId is the leading partition key, so widening the predicate to an IN list cannot
+        // change any row's rn: ranking restarts per individual. Latest-per-(individual, type) is preserved.
         String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.addressId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted" +
                 " FROM (" +
                 "    SELECT individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, " +
                 "           ROW_NUMBER() OVER (PARTITION BY individualId, type ORDER BY lastModifiedTime DESC) AS rn" +
                 "    FROM %s.individual_address" +
-                "    WHERE individualId = :individualId" +
+                "    WHERE individualId IN (:individualIds)" +
                 " ) AS ia" +
                 " JOIN %s.address AS a ON ia.addressId = a.id" +
                 " WHERE ia.rn = 1 ", includeDeleted, "ia");
         addressQuery = String.format(addressQuery,SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING );
-        Map<String, Object> indServerGenIdParamMap = new HashMap<>();
-        indServerGenIdParamMap.put("individualId", individualId);
-        indServerGenIdParamMap.put("isDeleted", includeDeleted);
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("individualIds", individualIds);
         addressQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(addressQuery, tenantId);
-        return this.namedParameterJdbcTemplate
-                .query(addressQuery, indServerGenIdParamMap, new AddressRowMapper());
+        List<Address> addresses = this.namedParameterJdbcTemplate
+                .query(addressQuery, paramMap, new AddressRowMapper());
+        return addresses.stream()
+                .filter(address -> address.getIndividualId() != null)
+                .collect(Collectors.groupingBy(Address::getIndividualId));
     }
 
     private void enrichIndividuals(List<Individual> individuals, Boolean includeDeleted) {
-        if (!individuals.isEmpty()) {
-            String tenantId = CommonUtils.getTenantId(individuals);
-            individuals.forEach(individual -> {
-                Map<String, Object> indServerGenIdParamMap = new HashMap<>();
-                indServerGenIdParamMap.put("individualId", individual.getId());
-                indServerGenIdParamMap.put("clientReferenceId", individual.getClientReferenceId());
-                indServerGenIdParamMap.put("isDeleted", includeDeleted);
-                List<Address> addresses = null;
-                try {
-                    addresses = getAddressForIndividual( tenantId, individual.getId(), includeDeleted);
-                } catch (InvalidTenantIdException e) {
-                    throw new RuntimeException(e);
-                }
-                // Constructing the base query for identifiers
-                String baseQuery = "SELECT * FROM %s.individual_identifier ii WHERE ii.individualId =:individualId ";
-                if (!ObjectUtils.isEmpty(individual.getId()) && !ObjectUtils.isEmpty(individual.getClientReferenceId())) {
-                    // If both individualId and clientReferenceId are present, use them in the query
-                    baseQuery = "SELECT * FROM %s.individual_identifier ii WHERE (ii.individualId =:individualId OR ii.individualClientReferenceId=:clientReferenceId) ";
-                }
-                String individualIdentifierQuery = String.format(getQuery(baseQuery, includeDeleted), SCHEMA_REPLACE_STRING);
-                try {
-                    individualIdentifierQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualIdentifierQuery, tenantId);
-                } catch (InvalidTenantIdException e) {
-                    throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
-                }
-                List<Identifier> identifiers = this.namedParameterJdbcTemplate
-                        .query(individualIdentifierQuery, indServerGenIdParamMap,
-                                new IdentifierRowMapper());
-                try {
-                    enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
-                } catch (InvalidTenantIdException e) {
-                    throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
-                }
-                individual.setAddress(addresses);
-                individual.setIdentifiers(identifiers);
-            });
+        if (CollectionUtils.isEmpty(individuals)) {
+            return;
+        }
+        String tenantId = CommonUtils.getTenantId(individuals);
+        try {
+            IdentifierIndex identifierIndex = fetchIdentifiers(tenantId, collectIndividualIds(individuals),
+                    collectClientReferenceIds(individuals), includeDeleted);
+            enrichAddressAndSkills(tenantId, individuals, includeDeleted);
+            individuals.forEach(individual -> individual.setIdentifiers(resolveIdentifiers(individual, identifierIndex)));
+        } catch (InvalidTenantIdException e) {
+            // preserves the pre-batching error surface: the first per-row failure was wrapped this way
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Batched address and skill enrichment. Used by the identifier-search branches too, where the
+     * identifiers are already known from the search query and must not be re-fetched.
+     */
+    private void enrichAddressAndSkills(String tenantId, List<Individual> individuals,
+                                        Boolean includeDeleted) throws InvalidTenantIdException {
+        if (CollectionUtils.isEmpty(individuals)) {
+            return;
+        }
+        List<String> individualIds = collectIndividualIds(individuals);
+        Map<String, List<Address>> addressMap = fetchAddresses(tenantId, individualIds, includeDeleted);
+        Map<String, List<Skill>> skillMap = fetchSkills(tenantId, individualIds, includeDeleted);
+        individuals.forEach(individual -> {
+            individual.setAddress(copyOf(addressMap.get(individual.getId())));
+            individual.setSkills(copyOf(skillMap.get(individual.getId())));
+        });
+    }
+
+    private IdentifierIndex fetchIdentifiers(String tenantId, List<String> individualIds,
+                                             List<String> clientReferenceIds,
+                                             Boolean includeDeleted) throws InvalidTenantIdException {
+        if (CollectionUtils.isEmpty(individualIds) && CollectionUtils.isEmpty(clientReferenceIds)) {
+            return new IdentifierIndex(Collections.emptyMap(), Collections.emptyMap());
+        }
+        Map<String, Object> paramMap = new HashMap<>();
+        StringBuilder predicate = new StringBuilder();
+        if (!CollectionUtils.isEmpty(individualIds)) {
+            predicate.append("ii.individualId IN (:individualIds)");
+            paramMap.put("individualIds", individualIds);
+        }
+        // appended only when non-empty: an empty collection expands to IN (), which Postgres rejects
+        if (!CollectionUtils.isEmpty(clientReferenceIds)) {
+            if (predicate.length() > 0) {
+                predicate.append(" OR ");
+            }
+            predicate.append("ii.individualClientReferenceId IN (:clientReferenceIds)");
+            paramMap.put("clientReferenceIds", clientReferenceIds);
+        }
+        String baseQuery = "SELECT * FROM %s.individual_identifier ii WHERE (" + predicate + ") ";
+        String individualIdentifierQuery = String.format(getQuery(baseQuery, includeDeleted), SCHEMA_REPLACE_STRING);
+        individualIdentifierQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualIdentifierQuery, tenantId);
+        List<Identifier> identifiers = this.namedParameterJdbcTemplate
+                .query(individualIdentifierQuery, paramMap, new IdentifierRowMapper());
+        return new IdentifierIndex(
+                identifiers.stream()
+                        .filter(identifier -> identifier.getIndividualId() != null)
+                        .collect(Collectors.groupingBy(Identifier::getIndividualId)),
+                identifiers.stream()
+                        .filter(identifier -> identifier.getIndividualClientReferenceId() != null)
+                        .collect(Collectors.groupingBy(Identifier::getIndividualClientReferenceId)));
+    }
+
+    /**
+     * Re-applies the original per-individual identifier predicate against the batched result, so the
+     * deliberately broader IN-list fetch yields exactly what the per-row query returned.
+     */
+    private List<Identifier> resolveIdentifiers(Individual individual, IdentifierIndex index) {
+        if (!ObjectUtils.isEmpty(individual.getId()) && !ObjectUtils.isEmpty(individual.getClientReferenceId())) {
+            // a row matching both arms must appear once, as SQL OR would return it once
+            Map<String, Identifier> deduped = new LinkedHashMap<>();
+            index.byIndividualId.getOrDefault(individual.getId(), Collections.emptyList())
+                    .forEach(identifier -> deduped.put(identifier.getId(), identifier));
+            index.byIndividualClientReferenceId
+                    .getOrDefault(individual.getClientReferenceId(), Collections.emptyList())
+                    .forEach(identifier -> deduped.put(identifier.getId(), identifier));
+            return deduped.values().stream().map(this::copyOfIdentifier)
+                    .collect(Collectors.toList());
+        }
+        // matches only on individualId, which for a null id is "= NULL" and therefore no rows
+        return index.byIndividualId.getOrDefault(individual.getId(), Collections.emptyList()).stream()
+                .map(this::copyOfIdentifier)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * The per-row queries mapped a fresh Identifier per individual; a row resolved for two
+     * individuals (shared client reference id) must not become a shared instance.
+     */
+    private Identifier copyOfIdentifier(Identifier source) {
+        AuditDetails audit = source.getAuditDetails();
+        return Identifier.builder()
+                .id(source.getId())
+                .clientReferenceId(source.getClientReferenceId())
+                .individualId(source.getIndividualId())
+                .individualClientReferenceId(source.getIndividualClientReferenceId())
+                .identifierType(source.getIdentifierType())
+                .identifierId(source.getIdentifierId())
+                .isDeleted(source.getIsDeleted())
+                .auditDetails(audit == null ? null : AuditDetails.builder()
+                        .createdBy(audit.getCreatedBy())
+                        .createdTime(audit.getCreatedTime())
+                        .lastModifiedBy(audit.getLastModifiedBy())
+                        .lastModifiedTime(audit.getLastModifiedTime())
+                        .build())
+                .build();
+    }
+
+    private List<String> collectIndividualIds(List<Individual> individuals) {
+        return individuals.stream()
+                .map(Individual::getId)
+                .filter(id -> !ObjectUtils.isEmpty(id))
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Only individuals carrying both keys contribute, mirroring the per-row predicate: an individual
+     * without an id matched on "individualId = NULL" and so returned no identifiers.
+     */
+    private List<String> collectClientReferenceIds(List<Individual> individuals) {
+        return individuals.stream()
+                .filter(individual -> !ObjectUtils.isEmpty(individual.getId())
+                        && !ObjectUtils.isEmpty(individual.getClientReferenceId()))
+                .map(Individual::getClientReferenceId)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Per-individual mutable copy. The previous per-row queries always handed each individual its own
+     * mutable list, and downstream enrichment mutates these lists in place.
+     */
+    private <T> List<T> copyOf(List<T> values) {
+        return values == null ? new ArrayList<>() : new ArrayList<>(values);
+    }
+
+    private static final class IdentifierIndex {
+        private final Map<String, List<Identifier>> byIndividualId;
+        private final Map<String, List<Identifier>> byIndividualClientReferenceId;
+
+        private IdentifierIndex(Map<String, List<Identifier>> byIndividualId,
+                                Map<String, List<Identifier>> byIndividualClientReferenceId) {
+            this.byIndividualId = byIndividualId;
+            this.byIndividualClientReferenceId = byIndividualClientReferenceId;
         }
     }
 
