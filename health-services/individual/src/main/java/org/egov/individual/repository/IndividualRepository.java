@@ -195,12 +195,16 @@ public class IndividualRepository extends GenericRepository<Individual> {
             identifierParamMap.put("isDeleted", includeDeleted);
             List<Identifier> identifiers = this.namedParameterJdbcTemplate
                     .query(identifierQuery, identifierParamMap, new IdentifierRowMapper());
-            // guard is inverted relative to find(): findAny().get() below throws on the empty list this
-            // admits, and a non-empty list skips the block entirely. Left as-is deliberately — correcting
-            // it turns an exception into live results, which is a behaviour change outside this refactor.
-            if (CollectionUtils.isEmpty(identifiers)) {
-                query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
-                paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
+            if (!CollectionUtils.isEmpty(identifiers)) {
+                String individualId = identifiers.stream().findAny().get().getIndividualId();
+                String individualClientRefId = identifiers.stream().findAny().get().getIndividualClientReferenceId();
+                if (!ObjectUtils.isEmpty(individualId)) {
+                    query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
+                    paramsMap.put("individualId", individualId);
+                } else {
+                    query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND clientReferenceId=:individualClientReferenceId ");
+                    paramsMap.put("individualClientReferenceId", individualClientRefId);
+                }
                 query = cteQuery + ", cte_individual AS (" + query + ")";
                 query = query + "SELECT * FROM (SELECT cte_i.*, " + calculateDistanceFromTwoWaypointsFormulaQuery
                         + String.format(" FROM cte_individual cte_i LEFT JOIN %s.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN %s.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
