@@ -890,7 +890,9 @@ public class CommonUtils {
                 applicableValidators, request,
                 setPayloadMethodName);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
-            throw new CustomException(errorCode, errorDetailsMap.values().toString());
+            // Masked again here: this toString is the exact text the tracer echoes into the HTTP 400.
+            throw new CustomException(errorCode,
+                    SensitiveDataMasker.maskText(errorDetailsMap.values().toString()));
         }
         Method getEntities = getMethod(getPayloadMethodName, request.getClass());
         List<T> validEntities = (List<T>) ReflectionUtils.invokeMethod(getEntities, request);
@@ -955,7 +957,11 @@ public class CommonUtils {
                             .methodType(HttpMethod.POST.name())
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .url(requestInfo.getApiId()).build();
-                    apiDetails.setRequestBody(objectMapper.writeValueAsString(newRequest));
+                    // Trap: mask the serialized STRING only. newRequest holds the caller's ORIGINAL
+                    // RequestInfo reference and the live request still needs its authToken for
+                    // downstream calls, so the object must not be mutated.
+                    apiDetails.setRequestBody(
+                            SensitiveDataMasker.maskText(objectMapper.writeValueAsString(newRequest)));
                     ErrorDetails errorDetails = ErrorDetails.builder()
                             .errors(entry.getValue())
                             .apiDetails(apiDetails)
@@ -986,7 +992,8 @@ public class CommonUtils {
                                                   String setPayloadMethodName) {
         Error.ErrorType errorType = Error.ErrorType.NON_RECOVERABLE;
         String errorCode = "INTERNAL_SERVER_ERROR";
-        String errorMessage = exception.getMessage();
+        // A wrapped downstream error can carry the caller's authToken in its message.
+        String errorMessage = SensitiveDataMasker.maskText(exception.getMessage());
         if (exception instanceof CustomException) {
             errorCode = ((CustomException) exception).getCode();
             // in case further cases come up, we can add more cases in a set and check using contains.
@@ -1000,7 +1007,8 @@ public class CommonUtils {
             errorCode = "QUERY_EXECUTION_ERROR";
             errorType = Error.ErrorType.NON_RECOVERABLE;
             Throwable rootCause = ((DataAccessException) exception).getMostSpecificCause();
-            errorMessage = "Database query failed: " + (rootCause != null ? rootCause.getMessage() : exception.getMessage());
+            errorMessage = SensitiveDataMasker.maskText("Database query failed: "
+                    + (rootCause != null ? rootCause.getMessage() : exception.getMessage()));
         }
         List<Error> errorList = new ArrayList<>();
         errorList.add(Error.builder().errorMessage(errorMessage)
@@ -1070,7 +1078,9 @@ public class CommonUtils {
             } else {
                 Map<String, String> getErrorMap = getErrorMap(errorDetailList);
                 String code =  getErrorMap.keySet().stream().collect(Collectors.joining(":"));
-                throw new CustomException(code, errorDetailsMap.values().toString());
+                // Masked again here: this toString is the exact text the tracer echoes into the HTTP 400.
+                throw new CustomException(code,
+                        SensitiveDataMasker.maskText(errorDetailsMap.values().toString()));
             }
         }
     }

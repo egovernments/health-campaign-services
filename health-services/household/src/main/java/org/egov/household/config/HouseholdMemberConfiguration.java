@@ -45,4 +45,17 @@ public class HouseholdMemberConfiguration {
     // Default FALSE = disabled (validators off) — chosen for the unified-dev rollout test; set true to enforce.
     @Value("${household.member.relationship.validation:false}")
     private boolean householdMemberRelationshipValidation;
+
+    /**
+     * Widens the duplicate-membership guard in {@code HmHouseholdHeadValidator} (household already has a
+     * head) so that an existing household_member row linked to its parent only by the device-minted
+     * clientReferenceId is visible to it. See the enablement prerequisites in application.properties.
+     * <p>
+     * Default FALSE = every code path in that validator is the one that ships today.
+     * <p>
+     * Scope note (4 Aug 2026 reachability sweep): the second consumer of this flag,
+     * {@code HmUniqueIndividualValidator}, was reverted to HEAD, so the flag now reaches one guard, not two.
+     */
+    @Value("${household.member.duplicate.check.by.client.reference.enabled:false}")
+    private boolean duplicateCheckByClientReferenceEnabled;
 }

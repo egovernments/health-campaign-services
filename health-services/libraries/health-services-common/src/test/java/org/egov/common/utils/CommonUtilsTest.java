@@ -876,6 +876,163 @@ class CommonUtilsTest {
 
         }
 
+        // ---- SensitiveDataMasker wiring: token must never leave through error details ----
+        // The requestBody is masked ONCE, at the construction choke point (populateErrorDetails), so
+        // both sinks - the Kafka error-details topic and the HTTP 400 message echo - are covered. The
+        // pre-built-ErrorDetails pass-through pinned by shouldCallExceptionHandlerWithCorrectModel is
+        // deliberately untouched.
+
+        private Map<OtherObject, ErrorDetails> buildErrorDetailsMapWithCompleteRequestInfo(
+                        OtherObject otherObject) {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                SomeObject someObject = SomeObject.builder().otherField("other-field")
+                                .requestInfo(requestInfo).build();
+                Map<OtherObject, ErrorDetails> errorDetailsMap = new HashMap<>();
+                Map<OtherObject, List<Error>> errors = new HashMap<>();
+                errors.put(otherObject, Arrays.asList(Error.builder()
+                                .errorCode("SOMECODE")
+                                .errorMessage("some validation failure")
+                                .type(Error.ErrorType.RECOVERABLE)
+                                .build()));
+                CommonUtils.populateErrorDetails(someObject, errorDetailsMap, errors, "setOtherObject");
+                return errorDetailsMap;
+        }
+
+        @Test
+        @DisplayName("should mask authToken in the attached requestBody without mutating the caller's request")
+        void shouldMaskAuthTokenInRequestBodyAtConstruction() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                SomeObject someObject = SomeObject.builder().otherField("other-field")
+                                .requestInfo(requestInfo).build();
+                OtherObject otherObject = OtherObject.builder()
+                                .someOtherField("some-business-field").build();
+                Map<OtherObject, ErrorDetails> errorDetailsMap = new HashMap<>();
+                Map<OtherObject, List<Error>> errors = new HashMap<>();
+                errors.put(otherObject, Arrays.asList(Error.builder()
+                                .errorCode("SOMECODE")
+                                .errorMessage("some validation failure")
+                                .type(Error.ErrorType.RECOVERABLE)
+                                .build()));
+
+                CommonUtils.populateErrorDetails(someObject, errorDetailsMap, errors, "setOtherObject");
+
+                String requestBody = errorDetailsMap.get(otherObject).getApiDetails().getRequestBody();
+                assertTrue(requestBody.contains("***MASKED***"));
+                assertFalse(requestBody.contains("some-auth-token"));
+                // The failing payload's business fields must survive - only the credential is masked.
+                assertTrue(requestBody.contains("some-business-field"));
+                // The live request still needs its token downstream: no caller mutation.
+                assertEquals("some-auth-token", someObject.getRequestInfo().getAuthToken());
+        }
+
+        @Test
+        @DisplayName("should throw a masked message from non-bulk handleErrors, with error content intact")
+        void shouldMaskAuthTokenInNonBulkHandleErrorsMessage() {
+                OtherObject otherObject = OtherObject.builder()
+                                .someOtherField("some-business-field").build();
+                Map<OtherObject, ErrorDetails> errorDetailsMap =
+                                buildErrorDetailsMapWithCompleteRequestInfo(otherObject);
+
+                CustomException e = assertThrows(CustomException.class,
+                                () -> CommonUtils.handleErrors(errorDetailsMap, false, "SOME_ERROR"));
+
+                // This message is what the tracer's @ControllerAdvice echoes into the HTTP 400.
+                assertFalse(e.getMessage().contains("some-auth-token"));
+                assertTrue(e.getMessage().contains("***MASKED***"));
+                // Nothing else is dropped or made silent: code and message stay visible.
+                assertTrue(e.getMessage().contains("SOMECODE"));
+                assertTrue(e.getMessage().contains("some validation failure"));
+        }
+
+        @Test
+        @DisplayName("should throw a masked message from the non-bulk validate overload")
+        void shouldMaskAuthTokenInNonBulkValidateThrow() {
+                List<Validator<SomeObject, OtherObject>> validators = new ArrayList<>();
+                validators.add(someValidator);
+                Predicate<Validator<SomeObject, OtherObject>> isApplicableForTest = validator -> true;
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                OtherObject otherObject = OtherObject.builder()
+                                .someOtherField("some-business-field").build();
+                SomeObject someObject = SomeObject.builder().otherField("other-field")
+                                .requestInfo(requestInfo)
+                                .otherObject(Arrays.asList(otherObject)).build();
+                Map<OtherObject, List<Error>> errors = new HashMap<>();
+                errors.put(otherObject, Arrays.asList(Error.builder()
+                                .errorCode("SOMECODE")
+                                .errorMessage("some validation failure")
+                                .type(Error.ErrorType.RECOVERABLE)
+                                .build()));
+                when(someValidator.validate(any())).thenReturn(errors);
+
+                CustomException e = assertThrows(CustomException.class,
+                                () -> CommonUtils.validate(validators, isApplicableForTest, someObject,
+                                                "setOtherObject", "getOtherObject", "VALIDATION_ERROR",
+                                                false));
+
+                assertEquals("VALIDATION_ERROR", e.getCode());
+                assertFalse(e.getMessage().contains("some-auth-token"));
+                assertTrue(e.getMessage().contains("***MASKED***"));
+                assertTrue(e.getMessage().contains("SOMECODE"));
+        }
+
+        @Test
+        @DisplayName("should mask a token carried by a wrapped downstream exception's message")
+        void shouldMaskAuthTokenInExceptionPathErrorMessage() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                SomeObject someObject = SomeObject.builder().otherField("other-field")
+                                .requestInfo(requestInfo).build();
+                OtherObject otherObject = OtherObject.builder()
+                                .someOtherField("some-business-field").build();
+                List<OtherObject> validPayloads = Arrays.asList(otherObject);
+                Map<OtherObject, ErrorDetails> errorDetailsMap = new HashMap<>();
+                // The D19-observed shape: a downstream error echoing the caller's credential.
+                CustomException exception = new CustomException("X",
+                                "downstream failed authToken=abc123 while calling idgen");
+
+                CommonUtils.populateErrorDetails(someObject, errorDetailsMap, validPayloads, exception,
+                                "setOtherObject");
+
+                Error error = errorDetailsMap.get(otherObject).getErrors().get(0);
+                assertFalse(error.getErrorMessage().contains("abc123"));
+                assertTrue(error.getErrorMessage().contains("***MASKED***"));
+                assertTrue(error.getErrorMessage().contains("downstream failed"));
+                // The embedded exception carries the same masked text into ErrorEntity serialization.
+                assertFalse(error.getException().getMessage().contains("abc123"));
+                assertTrue(error.getException().getMessage().contains("***MASKED***"));
+        }
+
+        @Test
+        @DisplayName("should hand the tracer a masked requestBody on the bulk error-details path")
+        void shouldMaskAuthTokenInBulkErrorDetailsHandedToTracer() {
+                OtherObject otherObject = OtherObject.builder()
+                                .someOtherField("some-business-field").build();
+                Map<OtherObject, ErrorDetails> errorDetailsMap =
+                                buildErrorDetailsMapWithCompleteRequestInfo(otherObject);
+                ExceptionAdvise original = ErrorHandler.exceptionAdviseInstance;
+                try {
+                        ErrorHandler.exceptionAdviseInstance = Mockito.mock(ExceptionAdvise.class);
+
+                        CommonUtils.handleErrors(errorDetailsMap, true, "SOME_ERROR");
+
+                        ArgumentCaptor<List<ErrorDetail>> argument = ArgumentCaptor.forClass(List.class);
+                        verify(ErrorHandler.exceptionAdviseInstance, times(1))
+                                        .exceptionHandler(argument.capture());
+                        // Exactly what lands on the error-details-indexer-topic and therefore in the
+                        // Kibana-visible egov-tracer-error-details index.
+                        String publishedRequestBody = argument.getValue().get(0)
+                                        .getApiDetails().getRequestBody();
+                        assertFalse(publishedRequestBody.contains("some-auth-token"));
+                        assertTrue(publishedRequestBody.contains("***MASKED***"));
+                        assertTrue(publishedRequestBody.contains("some-business-field"));
+                } finally {
+                        ErrorHandler.exceptionAdviseInstance = original;
+                }
+        }
+
         @Data
         @Builder
         public static class SomeRequest {

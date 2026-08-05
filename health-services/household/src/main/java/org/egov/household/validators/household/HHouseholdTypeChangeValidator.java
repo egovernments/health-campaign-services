@@ -37,8 +37,16 @@ public class HHouseholdTypeChangeValidator implements Validator<HouseholdBulkReq
         Map<Household, List<Error>> errorDetailsMap = new HashMap<>();
         // Get the list of household entities from the request
         List<Household> entities = request.getHouseholds();
-        // Map to store entities by their IDs
-        Map<String, Household> eMap = entities.stream().filter(notHavingErrors()).collect(Collectors.toMap(Household::getId, household -> household));
+        // Map to store entities by their IDs. A null id is the normal shape here - a household created
+        // offline reaches this validator with only a clientReferenceId - and a repeated id is possible on a
+        // replayed batch. The raw two-arg toMap could not take either: it puts a null key that never matches,
+        // and throws IllegalStateException on a duplicate, straight out of validate(). Skip null ids (there is
+        // no stored type to compare against) and keep the first of any duplicate.
+        Map<String, Household> eMap = entities.stream()
+                .filter(notHavingErrors())
+                .filter(household -> household.getId() != null)
+                .collect(Collectors.toMap(Household::getId, household -> household,
+                        (existing, duplicate) -> existing));
         // Lists to store IDs and client reference IDs
         List<String> idList = new ArrayList<>();
         List<String> clientReferenceIdList = new ArrayList<>();
@@ -61,9 +69,13 @@ public class HHouseholdTypeChangeValidator implements Validator<HouseholdBulkReq
                 existingEntities = householdRepository.find(householdSearch, entities.size(), 0,
                         entities.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
-                // Handle query builder exception
-                log.error("Search failed for Household with error: {}", e.getMessage(), e);
-                throw new CustomException("HOUSEHOLD_SEARCH_FAILED", "Search Failed for Household, " + e.getMessage());
+                // Fail open. A DB blip threw HOUSEHOLD_SEARCH_FAILED out of validate(), which the bulk consumer
+                // swallowed as an empty result - the whole batch was lost behind an HTTP 202. This validator only
+                // detects an attempted householdType CHANGE, so with no stored rows to compare against the worst
+                // case of failing open is one missed change on a transient failure, against losing every record.
+                log.warn("HOUSEHOLD_SEARCH_FAILED: search failed for Household - failing open, householdType "
+                        + "change not validated for this batch: {}", e.getMessage(), e);
+                return errorDetailsMap;
             }
             // Check for non-existent entities
             List<Household> entitiesWithHouseholdTypeChange = changeInHouseholdType(eMap,

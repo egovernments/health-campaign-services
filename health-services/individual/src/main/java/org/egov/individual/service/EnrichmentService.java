@@ -93,6 +93,17 @@ public class EnrichmentService {
                 .collect(Collectors.toList());
         validIndividuals.forEach(individual -> {
             RequestInfo requestInfo = request.getRequestInfo();
+            // rowVersion has no default in EgovModel and individual delete runs no row-version validator
+            // (isApplicableForDelete = NullIdValidator + NonExistentEntityValidator only, unlike household,
+            // which does include HRowVersionValidator). A delete that omits rowVersion therefore reaches
+            // "rowVersion + 1" - in CommonUtils.enrichForDelete on the delete branch, and in
+            // previousRowVersion + 1 on the partial branch below - and the NPE is caught by
+            // IndividualService.delete, which error-marks the WHOLE batch, not just the offending record.
+            // Normalise once, for both branches. This does NOT rest on P2: it holds even if individual
+            // delete always sets isDeleted:true. See RESTORE-MAP Q13.
+            if (individual.getRowVersion() == null) {
+                individual.setRowVersion(0);
+            }
             if (individual.getIsDeleted()) {
                 log.info("enriching individuals for delete");
                 enrichForDelete(Collections.singletonList(individual), requestInfo, true);
