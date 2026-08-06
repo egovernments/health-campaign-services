@@ -169,4 +169,45 @@ public class HealthReferralMapper {
         addCommitments(contract, "ACTIVE");
         return root;
     }
+
+    /**
+     * update: HCM (BAP) pushes a lifecycle change on an OUTBOUND referral to SPICE — e.g. the CHW
+     * cancels a referral they raised. Fire-and-store: SPICE may or may not act; whatever it returns on
+     * on_update is mirrored back onto the HFReferral, and HCM does not re-act. Self-contained (no
+     * Referral needed) so it can be driven straight from the coordination link. {@code reason} (nullable)
+     * is the worker's free-text note, carried on the status descriptor + contractAttributes.
+     */
+    public ObjectNode update(String txnId, String coordinationId, String spicePatientId,
+                             String statusCode, String lifecycleState, String reason) {
+        ObjectNode root = om.createObjectNode();
+        root.set("context", context("update", txnId));
+        ObjectNode contract = root.putObject("message").putObject("contract");
+        contract.put("id", coordinationId);
+        ObjectNode status = contract.putObject("status");
+        status.put("code", statusCode);
+        if (reason != null && !reason.isBlank()) {
+            status.putObject("descriptor").put("short_desc", reason);
+        }
+        addCommitments(contract, statusCode);
+        if (spicePatientId != null && !spicePatientId.isBlank()) {
+            ObjectNode patient = contract.putArray("participants").addObject();
+            patient.put("id", "participant-patient");
+            ObjectNode pa = patient.putObject("participantAttributes");
+            pa.put("@context", p.getHealthParticipantCtx());
+            pa.put("@type", "hpa:HealthParticipant");
+            pa.put("participantRole", "PATIENT");
+            ObjectNode hid = pa.putArray("healthIds").addObject();
+            hid.put("system", p.getPatientHealthIdSystem());
+            hid.put("value", spicePatientId);
+        }
+        ObjectNode ca = contract.putObject("contractAttributes");
+        ca.put("@context", p.getHealthReferralCtx());
+        ca.put("@type", "hrf:HealthReferral");
+        ca.put("coordinationId", coordinationId);
+        ca.put("lifecycleState", lifecycleState);
+        if (reason != null && !reason.isBlank()) {
+            ca.put("statusReason", reason);
+        }
+        return root;
+    }
 }

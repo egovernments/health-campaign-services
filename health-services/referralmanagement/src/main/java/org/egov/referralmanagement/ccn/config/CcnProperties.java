@@ -121,4 +121,34 @@ public class CcnProperties {
     private String completeReason = "TASK_COMPLETE";
     /** Lifecycle state published back to SPICE on completion. */
     private String closedState = "CLOSED";
+
+    // ── Referral status lifecycle (HFReferral-only; mirrored to additionalFields[referralStatus]) ──
+    /** additionalFields key on the HFReferral holding the app-facing referral status. */
+    private String referralStatusKey = "referralStatus";
+    /** additionalFields key holding the free-text reason the worker gives (e.g. rejection reason).
+     *  Stored on the HFReferral and forwarded to SPICE alongside the status. */
+    private String referralStatusReasonKey = "referralStatusReason";
+    /** Status stamped on an inbound HFReferral when SPICE first sends it (before the HF worker acts). */
+    private String inboundInitialStatus = "RECEIVED";
+    /** SPICE lifecycleStates (from on_status/on_update on an OUTBOUND referral) that we mirror onto the
+     *  HFReferral's {@code referralStatus} so the CHW app sees the outcome. Comma-separated, UPPERCASE.
+     *  Placeholder set until SPICE confirms the exact codes (task: pull from DeDi). */
+    private String mirroredStates = "ACCEPTED,REJECTED,COMPLETED,CANCELLED,BOOKING_CONFIRMED";
+    /** referralStatus values that, when set on an INBOUND HFReferral (HF worker accept/reject/resolve),
+     *  we forward to SPICE via the Beckn {@code update} action. Comma-separated, UPPERCASE. */
+    private String forwardableStatuses = "ACCEPTED,REJECTED,RESOLVED,COMPLETED,CANCELLED";
+    /** Topic pattern for HFReferral updates (the entity the app updates on accept/reject/resolve). */
+    private String hfUpdateTopicPattern = ".*update-hfreferral-topic";
+    /** Consumer group for the HFReferral-update CCN listener — own pub-sub copy, never steals from persister. */
+    private String hfUpdateConsumerGroup = "referralmanagement-ccn-hfreferral-status";
+    /** Beckn action used to push HCM-initiated (inbound accept/reject/resolve) status changes back to SPICE. */
+    private String backAction = "on_update";
+    /** Maps each HCM referralStatus → the Beckn contract {@code status.code} sent to SPICE
+     *  ({@code referralStatus:statusCode}, comma-separated, UPPERCASE). Unmapped defaults to ACTIVE. */
+    private String backStatusCodeMap =
+            "ACCEPTED:ACTIVE,REJECTED:CANCELLED,RESOLVED:COMPLETE,COMPLETED:COMPLETE,CANCELLED:CANCELLED,CLOSED:COMPLETE";
+    /** System user stamped on backend-initiated HFReferral writes (e.g. the SPICE→HCM status mirror).
+     *  The status consumer skips push-back for updates made by this user so a mirror never bounces
+     *  back to SPICE — only genuine app/worker status changes flow out. */
+    private String systemUser = "ccn-system";
 }

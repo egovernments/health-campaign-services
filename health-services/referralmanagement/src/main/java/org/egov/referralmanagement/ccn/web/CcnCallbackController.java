@@ -3,6 +3,7 @@ package org.egov.referralmanagement.ccn.web;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.referralmanagement.ccn.CcnReferralStatusService;
 import org.egov.referralmanagement.ccn.repository.CcnReferralLinkRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
@@ -25,11 +26,14 @@ import org.springframework.web.bind.annotation.*;
 public class CcnCallbackController {
 
     private final CcnReferralLinkRepository linkRepository;
+    private final CcnReferralStatusService statusService;
     private final ObjectMapper objectMapper;
 
     public CcnCallbackController(CcnReferralLinkRepository linkRepository,
+                                 CcnReferralStatusService statusService,
                                  @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.linkRepository = linkRepository;
+        this.statusService = statusService;
         this.objectMapper = objectMapper;
     }
 
@@ -75,6 +79,10 @@ public class CcnCallbackController {
             } else {
                 log.info("CCN {} recorded: coordinationId={} lifecycle={}", action, coordinationId, state);
             }
+            // Mirror a SPICE-reported status onto the linked OUTBOUND HFReferral so the CHW sees the
+            // outcome next cycle (Accepted/Rejected/Completed/Cancelled). No-op for non-mirrored states
+            // and for inbound coordinations. HCM sends nothing back on outbound — it only reflects.
+            statusService.mirrorFromSpice(coordinationId, state);
             return ResponseEntity.ok(ack());
         } catch (Exception e) {
             log.error("CCN {} callback error: {}", action, e.getMessage());

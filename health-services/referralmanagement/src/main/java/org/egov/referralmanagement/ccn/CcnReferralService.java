@@ -30,14 +30,17 @@ public class CcnReferralService {
     private final CcnOnixClient onix;
     private final CcnReferralLinkRepository linkRepository;
     private final CcnIdentityResolver identityResolver;
+    private final CcnReferralStatusService statusService;
 
     public CcnReferralService(CcnProperties p, HealthReferralMapper mapper, CcnOnixClient onix,
-                              CcnReferralLinkRepository linkRepository, CcnIdentityResolver identityResolver) {
+                              CcnReferralLinkRepository linkRepository, CcnIdentityResolver identityResolver,
+                              CcnReferralStatusService statusService) {
         this.p = p;
         this.mapper = mapper;
         this.onix = onix;
         this.linkRepository = linkRepository;
         this.identityResolver = identityResolver;
+        this.statusService = statusService;
     }
 
     /**
@@ -145,6 +148,31 @@ public class CcnReferralService {
         } catch (Exception e) {
             log.error("CCN forwarding failed for Referral id={}: {}", referral.getId(), e.getMessage());
             safeUpdate(coordinationId, "SEND_FAILED", "forward", referral.getTenantId());
+        }
+    }
+
+    /**
+     * Push an HCM-initiated status change on an OUTBOUND referral to SPICE via the BAP {@code update}
+     * action — e.g. the CHW cancels a referral they raised. Fire-and-store: we send it and let SPICE
+     * respond however it likes (that on_update is mirrored back onto the HFReferral); HCM does not act
+     * again. Isolated — a send failure is logged, never rethrown.
+     */
+    public void sendOutboundUpdate(CcnReferralLink link, String status, String reason) {
+        if (!p.isEnabled() || link == null) {
+            return;
+        }
+        String coordinationId = link.getCoordinationId();
+        String spicePatientId = link.getBeneficiaryId();   // the SPICE patientId originally sent
+        String statusCode = statusService.statusCodeFor(status);
+        String txn = link.getTransactionId() != null ? link.getTransactionId() : UUID.randomUUID().toString();
+        try {
+            log.info("CCN outbound update: pushing {} ({}={}) to SPICE for coordinationId={}{}",
+                    "update", status, statusCode, coordinationId, reason != null ? " reason=" + reason : "");
+            onix.send("update", mapper.update(txn, coordinationId, spicePatientId, statusCode, status, reason));
+            safeUpdate(coordinationId, status, "update", link.getTenantId());
+        } catch (Exception e) {
+            // Fire-and-store: SPICE may or may not receive it — never block the CHW's cancel.
+            log.error("CCN outbound update failed for coordinationId={}: {}", coordinationId, e.getMessage());
         }
     }
 

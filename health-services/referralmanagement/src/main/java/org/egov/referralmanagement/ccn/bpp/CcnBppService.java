@@ -14,6 +14,7 @@ import org.egov.common.models.referralmanagement.ReferralRequest;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralRequest;
 import org.egov.referralmanagement.ccn.CcnIdentityResolver;
+import org.egov.referralmanagement.ccn.CcnReferralStatusService;
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
@@ -48,12 +49,14 @@ public class CcnBppService {
     private final HFReferralService hfReferralService;
     private final InboundProjectResolver projectResolver;
     private final CcnIdentityResolver identityResolver;
+    private final CcnReferralStatusService statusService;
     private final ObjectMapper om;
 
     public CcnBppService(CcnProperties p, ServiceCoordinationMapper mapper, CcnOnixClient onix,
                          CcnReferralLinkRepository linkRepository, ReferralManagementService referralService,
                          HFReferralService hfReferralService,
                          InboundProjectResolver projectResolver, CcnIdentityResolver identityResolver,
+                         CcnReferralStatusService statusService,
                          @Qualifier("objectMapper") ObjectMapper om) {
         this.p = p;
         this.mapper = mapper;
@@ -63,6 +66,7 @@ public class CcnBppService {
         this.hfReferralService = hfReferralService;
         this.projectResolver = projectResolver;
         this.identityResolver = identityResolver;
+        this.statusService = statusService;
         this.om = om;
     }
 
@@ -89,20 +93,17 @@ public class CcnBppService {
     }
 
     private void onConfirm(String coordinationId, String txn, String bapId, JsonNode body) {
-        String createdReferralId = null;
+        // HFReferral-only: the app no longer uses the normal Referral entity, so we create ONLY an
+        // autofilled HFReferral (shows in the app's "Referral Details" screen for the HF worker to
+        // view/accept/reject/resolve). The normal Referral flow is intentionally not integrated.
+        String createdHfReferralId = null;
         try {
-            createdReferralId = createInboundReferral(coordinationId, body);   // in-process, validated
-        } catch (Exception e) {
-            log.error("CCN BPP failed to create inbound Referral for {}: {}", coordinationId, e.getMessage());
-        }
-        // Also create an HFReferral (autofilled) so the referral shows in the app's "Referral Details"
-        // (HFReferral) screen for the health-facility worker to view/attend. Isolated — never blocks confirm.
-        try {
-            createInboundHfReferral(coordinationId, body);
+            createdHfReferralId = createInboundHfReferral(coordinationId, body);
         } catch (Exception e) {
             log.error("CCN BPP failed to create inbound HFReferral for {}: {}", coordinationId, e.getMessage());
         }
-        upsertInbound(coordinationId, txn, bapId, "ACTIVE", "confirm", body, createdReferralId);
+        // Link points at the created HFReferral so the inbound status-back flow can correlate it.
+        upsertInbound(coordinationId, txn, bapId, "ACTIVE", "confirm", body, createdHfReferralId);
         dispatch("on_confirm", mapper.onEcho("on_confirm", body, "ACTIVE", "ACTIVE"));
     }
 
@@ -115,10 +116,10 @@ public class CcnBppService {
      * months (from the individual's DOB), gender (hardcoded), symptom/referral-reason. Tagged with the
      * inbound marker so the outbound consumer never bounces it back to SPICE.
      */
-    private void createInboundHfReferral(String coordinationId, JsonNode body) {
+    private String createInboundHfReferral(String coordinationId, JsonNode body) {
         if (p.getInboundHfFacilityId() == null || p.getInboundHfFacilityId().isBlank()) {
             log.warn("CCN BPP: inboundHfFacilityId not configured — skipping HFReferral for {}", coordinationId);
-            return;
+            return null;
         }
         String abha = patientId(body);
         RequestInfo ri = RequestInfo.builder()
@@ -139,7 +140,7 @@ public class CcnBppService {
         }
         if (projectId == null || projectId.isBlank()) {
             log.warn("CCN BPP: no projectId for inbound HFReferral {} — skipping", coordinationId);
-            return;
+            return null;
         }
 
         long now = System.currentTimeMillis();
@@ -159,6 +160,9 @@ public class CcnBppService {
         fields.add(Field.builder().key("gender").value(p.getInboundHfGender()).build());
         fields.add(Field.builder().key("cycle").value(p.getInboundHfCycle()).build());
         fields.add(Field.builder().key("cycleIndex").value(p.getInboundHfCycle()).build());
+        // Initial referral status — the HF worker moves this to ACCEPTED/REJECTED/RESOLVED, which the
+        // HFReferral-update consumer pushes back to SPICE. Downsyncs to the device so the CHW sees it.
+        fields.add(Field.builder().key(p.getReferralStatusKey()).value(p.getInboundInitialStatus()).build());
 
         HFReferral hf = HFReferral.builder()
                 .clientReferenceId(UUID.randomUUID().toString())
@@ -178,8 +182,10 @@ public class CcnBppService {
 
         HFReferral created = hfReferralService.create(
                 HFReferralRequest.builder().requestInfo(ri).hfReferral(hf).build());
-        log.info("CCN BPP created inbound HFReferral id={} (project={}, facility={}, symptom={}, cycle={}) for coordinationId={}",
-                created.getId(), projectId, p.getInboundHfFacilityId(), p.getInboundHfSymptom(), p.getInboundHfCycle(), coordinationId);
+        log.info("CCN BPP created inbound HFReferral id={} (project={}, facility={}, symptom={}, cycle={}, status={}) for coordinationId={}",
+                created.getId(), projectId, p.getInboundHfFacilityId(), p.getInboundHfSymptom(), p.getInboundHfCycle(),
+                p.getInboundInitialStatus(), coordinationId);
+        return created.getId();
     }
 
     /** Patient display name from the inbound PATIENT participant descriptor, or null. */
@@ -250,16 +256,29 @@ public class CcnBppService {
         return created.getId();
     }
 
-    /** Called by HCM when the CHW completes the field task — publishes the result to SPICE. */
+    /**
+     * Push an HCM-initiated status back to SPICE for an inbound coordination (HF worker accept / reject
+     * / resolve / complete). Uses the configured back action ({@code on_update} per the update API) and
+     * resolves the Beckn status.code from config. Only inbound coordinations are pushed.
+     */
     public void publishResult(String coordinationId, String lifecycleState) {
+        publishResult(coordinationId, lifecycleState, null);
+    }
+
+    /** Push with an optional worker reason (e.g. why the referral was rejected) — stored by SPICE. */
+    public void publishResult(String coordinationId, String lifecycleState, String reason) {
         CcnReferralLink link = linkRepository.findByCoordinationId(coordinationId, p.getInboundTenantId());
         if (link == null || !CcnReferralLink.INBOUND.equals(link.getDirection())) {
             log.warn("CCN BPP publishResult: no inbound coordination {}", coordinationId);
             return;
         }
         JsonNode lastInbound = parse(link.getLastPayload());
-        dispatch("on_status", mapper.statusUpdate(lastInbound, coordinationId, lifecycleState));
+        String statusCode = statusService.statusCodeFor(lifecycleState);
+        String onAction = p.getBackAction();
+        dispatch(onAction, mapper.statusUpdate(lastInbound, coordinationId, lifecycleState, statusCode, onAction, reason));
         linkRepository.updateState(coordinationId, lifecycleState, "publishResult", System.currentTimeMillis(), p.getInboundTenantId());
+        log.info("CCN BPP pushed {} ({}={}) to SPICE for inbound coordinationId={}{}",
+                onAction, lifecycleState, statusCode, coordinationId, reason != null ? " reason=" + reason : "");
     }
 
     private void dispatch(String onAction, JsonNode payload) {

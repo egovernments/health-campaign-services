@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.core.Field;
 import org.egov.common.models.referralmanagement.Referral;
+import org.egov.referralmanagement.ccn.CcnReferralStatusService;
 import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.consumer.CcnReferralConsumer;
@@ -54,7 +55,8 @@ class CcnReferralFlowTest {
         // outbound resolve short-circuits at step 1 and no HCM client is called here.
         CcnIdentityResolver identityResolver =
                 new CcnIdentityResolver(null, mock(ReferralManagementConfiguration.class), props);
-        service = new CcnReferralService(props, mapper, onix, linkRepo, identityResolver);
+        service = new CcnReferralService(props, mapper, onix, linkRepo, identityResolver,
+                mock(CcnReferralStatusService.class));
     }
 
     private Referral sample() {
@@ -133,7 +135,7 @@ class CcnReferralFlowTest {
 
     @Test
     void onConfirmCallbackUpdatesLink() {
-        CcnCallbackController cb = new CcnCallbackController(linkRepo, om);
+        CcnCallbackController cb = new CcnCallbackController(linkRepo, mock(CcnReferralStatusService.class), om);
         when(linkRepo.updateState(anyString(), anyString(), anyString(), anyLong(), any())).thenReturn(1);
         String body = "{\"message\":{\"contract\":{\"id\":\"coord-9\",\"contractAttributes\":{\"coordinationId\":\"coord-9\",\"lifecycleState\":\"ACTIVE\"}}}}";
         var resp = cb.onConfirm(body);
