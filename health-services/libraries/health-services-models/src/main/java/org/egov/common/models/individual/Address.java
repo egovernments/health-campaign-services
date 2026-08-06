@@ -6,6 +6,7 @@ import io.swagger.annotations.ApiModel;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -80,7 +81,8 @@ public class Address   {
 
         @JsonProperty("type")
 
-    // nullable, matching the nullable DB column and the household/facility models
+        @NotNull
+
     private AddressType type = null;
 
         @JsonProperty("addressLine1")

@@ -27,8 +27,8 @@ public class IndividualMapper {
     public static UserRequest toUserRequest(Individual individual, IndividualProperties properties, boolean generateDummyMobile) {
         Long id = individual.getUserId() != null ? Long.parseLong(individual.getUserId()) : null;
         String addressLine1 = individual.getAddress() != null && !individual.getAddress().isEmpty()
-                ? individual.getAddress().stream().filter(address -> AddressType.CORRESPONDENCE
-                        .equals(address.getType())).findFirst()
+                ? individual.getAddress().stream().filter(address -> address.getType()
+                        .equals(AddressType.CORRESPONDENCE)).findFirst()
                 .orElse(Address.builder().build())
                 .getAddressLine1() : null;
         return  UserRequest.builder()
