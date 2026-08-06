@@ -363,8 +363,8 @@ public class IndividualService implements UserService {
                 .userName(individual.getUserDetails().getUsername())
                 .emailId(individual.getEmail())
                 .correspondenceAddress(individual.getAddress() != null && !individual.getAddress().isEmpty()
-                        ? individual.getAddress().stream().filter(address -> address.getType()
-                                .equals(AddressType.CORRESPONDENCE)).findFirst()
+                        ? individual.getAddress().stream().filter(address -> AddressType.CORRESPONDENCE
+                                .equals(address.getType())).findFirst()
                         .orElse(Address.builder().build())
                         .getAddressLine1() : null)
                 .dob(individual.getDateOfBirth().getTime())

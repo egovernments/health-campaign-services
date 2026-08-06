@@ -137,7 +137,7 @@ class HouseholdMemberUpdateTest {
     }
 
     private void mockIndividualMapping() throws InvalidTenantIdException {
-        when(householdMemberRepository.findIndividual(anyString(), anyString())).thenReturn(SearchResponse.<HouseholdMember>builder().response(Collections.singletonList(
+        when(householdMemberRepository.findIndividual(anyString(), anyString(), anyString())).thenReturn(SearchResponse.<HouseholdMember>builder().response(Collections.singletonList(
                 HouseholdMember.builder()
                         .individualId("some-other-individual")
                         .build()

@@ -84,7 +84,7 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
                     // If yes, add an error to the error details map
                     try {
                         List<HouseholdMember> individualSearchResult = householdMemberRepository
-                                .findIndividual(tenantId, individual.getId()).getResponse();
+                                .findIndividual(tenantId, individual.getId(), individual.getClientReferenceId()).getResponse();
                         if(!individualSearchResult.isEmpty()) {
                             Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
                                     .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)

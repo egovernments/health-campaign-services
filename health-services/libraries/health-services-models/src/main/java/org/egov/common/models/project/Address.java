@@ -6,7 +6,6 @@ import io.swagger.annotations.ApiModel;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -59,7 +58,7 @@ import org.springframework.validation.annotation.Validated;
     private Double locationAccuracy = null;
 
     @JsonProperty("type")
-    @NotNull
+    // nullable, matching the nullable DB column and the household/facility models
     private AddressType type = null;
 
     @JsonProperty("addressLine1")

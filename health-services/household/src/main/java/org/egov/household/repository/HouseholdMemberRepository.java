@@ -172,12 +172,17 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
      * @param individualId   The individual ID of the household members to be fetched.
      * @return SearchResponse<HouseholdMember> A response object containing the list of household members and total count.
      */
-    public SearchResponse<HouseholdMember> findIndividual(String tenantId , String individualId) throws InvalidTenantIdException {
+    public SearchResponse<HouseholdMember> findIndividual(String tenantId , String individualId, String individualClientReferenceId) throws InvalidTenantIdException {
         log.info("searching for HouseholdMember with individualId: {}", individualId);
         // add the schema placeholder to the query
-        String query = String.format("SELECT * FROM %s.household_member where individualId = :individualId AND isDeleted = false" , SCHEMA_REPLACE_STRING) ;
+        // Match on either the individual SERVER id or the individual CLIENT reference: an existing
+        // member row whose individualId is NULL (e.g. a member persisted before its individual was
+        // resolved, out-of-order write) still carries individualClientReferenceId, and must not be
+        // missed by the INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD uniqueness check.
+        String query = String.format("SELECT * FROM %s.household_member where (individualId = :individualId OR individualClientReferenceId = :individualClientReferenceId) AND isDeleted = false" , SCHEMA_REPLACE_STRING) ;
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("individualId", individualId);
+        paramMap.put("individualClientReferenceId", individualClientReferenceId);
         // replace the schema placeholder with the actual tenant ID
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);

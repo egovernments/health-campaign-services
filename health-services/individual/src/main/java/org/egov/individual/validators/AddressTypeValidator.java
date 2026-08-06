@@ -47,6 +47,10 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
                 continue;
             }
             for (Address address : individual.getAddress()) {
+                // type is nullable; EnumMap throws NPE on a null key and an untyped address cannot conflict
+                if (address.getType() == null) {
+                    continue;
+                }
                 addressTypeCountMap.merge(address.getType(), 1, Integer::sum);
             }
             addressTypeCountMap.entrySet().stream().filter(e -> e.getValue() > 1)
