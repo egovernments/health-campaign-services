@@ -18,7 +18,6 @@ The `master-perf` line adds a substantial set of throughput and correctness chan
 - **Idempotent re-upload** — a re-upload with no new rows is now a completed no-op instead of a `400 "Boundary already present"`.
 - **Delta localisation + verify-gate** — only new/changed names are upserted (bounded-parallel), then a completeness verify-gate reads back and, on timeout, records `additionalDetails.localisationIncomplete` / `localisationMissingCount` instead of silently dropping names.
 - **Duplicate-name collision fix** — path-aware boundary identity preserves user-entered names; duplicate names under **different** parents are now valid (the old `_lvl_NN` name-mangling was removed).
-- **Exact duplicate rows de-duplicated instead of rejected** — a row repeating another in every column no longer fails the upload; the first occurrence is kept, later identical ones are dropped, and the removal is logged and recorded on `additionalDetails.duplicateRowsRemoved` (see §6).
 - **Boundary-name character validation** — names containing structural characters are rejected with a `400 VALIDATION_ERROR` (see §7).
 - **Hierarchy-scoped existence check** — a single relationship search replaces the tenant-global chunked entity lookup, fixing cross-hierarchy false "already processed" and scaling entity creation with the delta.
 - **Memory bump** — Node heap raised 1024 → 2048 MB (Dockerfile `NODE_OPTIONS` and the `serve` script).
@@ -115,7 +114,7 @@ sequenceDiagram
     BM-->>Console: completed + file URL
 
     Console->>BM: POST /v1/_process (fileStoreId, action=create)
-    BM->>BM: Validate sheet (hierarchy, codes) + drop exact duplicate rows
+    BM->>BM: Validate sheet (hierarchy, duplicates, codes)
     BM-->>Console: 200 inprogress (id, referenceId)
     Note over BM: Background work
     BM->>Files: Fetch uploaded sheet
@@ -136,8 +135,7 @@ sequenceDiagram
 ## 6. Failure / Retry Handling
 
 - **Asynchronous, poll-based.** A `200 inprogress` only means the request was accepted. A job can still fail in the background — clients must poll `*-search` and check the `status`. A `failed` (or `invalid`) row carries the error detail in `additionalDetails.error`.
-- **Validation up front.** _process rejects malformed sheets early: wrong rows, a non-unique first (root) column, and — in Manual flow — any boundary (including parents/intermediates) missing a service code.
-- **Exact duplicate rows are de-duplicated, not rejected (`master-perf`).** A row that repeats another row in **every** column no longer fails the upload: the **first** occurrence is kept and the later identical ones are dropped, per distinct row (rows 18/19/20/21 all identical → 19, 20, 21 dropped; 18 = 19 and 20 = 21 → 19 and 21 dropped). Rows differing in any cell — including boundary code or lat/long — are always kept. The dropped row numbers are logged (first 20 named) and recorded on `additionalDetails.duplicateRowsRemoved` — `{count, rowNumbers}`, where `count` is exact and `rowNumbers` is capped at 100 entries with `rowNumbersTruncated: true` added when it is cut. Previously this was a `400 VALIDATION_ERROR "Boundary Sheet has duplicate rows at rowNumber ..."`.
+- **Validation up front.** _process rejects malformed sheets early: wrong/duplicate rows, a non-unique first (root) column, and — in Manual flow — any boundary (including parents/intermediates) missing a service code.
 - **Idempotent boundary creation.** Before creating, the service searches boundary-service for codes that already exist and only creates the missing ones, so re-running a process does not duplicate boundaries. On `master-perf` a re-upload whose boundaries **all** already exist is a **completed no-op** (it previously threw `400 "Boundary already present"`).
 - **HTTP retries** on downstream calls are built in (configurable `MAX_HTTP_RETRIES`, default 4). On `master-perf` the auto-retry error list is broadened from just `"socket hang up"` to `socket hang up,write EPIPE,read ECONNRESET,ECONNRESET,EPIPE` (`AUTO_RETRY_IF_HTTP_ERROR`), and the shared axios client uses **keep-alive HTTP/HTTPS agents with idle-socket recycling** (`HTTP_SOCKET_IDLE_TIMEOUT_MS`, default 60000) so a stale pooled socket doesn't fail the first call after a long-running phase.
 - **Bulk relationship create with transient retry (`master-perf`).** The last two hierarchy levels are created via boundary-service `/boundary-relationships/bulk/_create` in chunks (`BULK_RELATIONSHIP_CHUNK_SIZE`). Per-record transient outcomes (`PARENT_NOT_FOUND`, `BOUNDARY_ENTITY_DOES_NOT_EXIST`, `BULK_RELATIONSHIP_PERSIST_TRANSIENT`) are retried up to `BULK_RELATIONSHIP_RETRY_ATTEMPTS` (default 30) spaced by `BULK_RELATIONSHIP_RETRY_DELAY_MS` (default 2000); `DUPLICATE_RECORD` is treated as an idempotent success; permanent codes fail fast.

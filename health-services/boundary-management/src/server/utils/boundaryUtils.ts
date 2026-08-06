@@ -365,33 +365,11 @@ const autoGenerateBoundaryCodes = async (
     localizationMap,
     request
   );
-
-  const duplicateRowRemoval = dropExactDuplicateRows(boundaryData);
-  boundaryData = duplicateRowRemoval.rows;
-  if (duplicateRowRemoval.removedCount > 0) {
-    logger.info(
-      `Removed ${duplicateRowRemoval.removedCount} exact duplicate row(s) from the uploaded boundary sheet ` +
-      `(first occurrence of each kept); ingesting ${boundaryData.length} rows`
-    );
-  }
-  // The validation read and this read are the same file (excelUtils caches the parsed workbook per
-  // request), so the two removals must agree. A mismatch means the data being ingested is not the data
-  // that was validated - worth a loud line rather than a silent divergence.
-  const removedDuringValidation = request?.body?.duplicateBoundaryRowsRemoved?.count;
-  if (typeof removedDuringValidation === "number" && removedDuringValidation !== duplicateRowRemoval.removedCount) {
-    logger.warn(
-      `Duplicate row removal mismatch: validation removed ${removedDuringValidation} row(s) but ingestion ` +
-      `removed ${duplicateRowRemoval.removedCount}`
-    );
-  }
   var latLongData: any;
   if (type === "boundaryManagement") {
     validateBoundarySheetDataInCreateFlow(
       boundaryData,
-      localizedHeadersOfBoundarySheet,
-      // Sheet row per surviving row: once duplicates are dropped, this function's own array index no
-      // longer identifies the row it would report to the user.
-      duplicateRowRemoval.keptRowNumbers
+      localizedHeadersOfBoundarySheet
     );
     const result = updateBoundaryDataForBoundaryManagement(
       request,
@@ -416,7 +394,7 @@ const autoGenerateBoundaryCodes = async (
 
   checkForMixedBoundaryFlowInArrays(withoutBoundaryCode, manualBoundaryCode);
 
-  validateHierarchyCurrentFlow(currentFlow, hierarchyType, withoutBoundaryCode, manualBoundaryCode, withBoundaryCode, duplicateRowRemoval.keptRowNumbers);
+  validateHierarchyCurrentFlow(currentFlow, hierarchyType, withoutBoundaryCode, manualBoundaryCode, withBoundaryCode);
 
   // Determine and store currentFlow for first-time processing
   if (!currentFlow || currentFlow === "") {
@@ -847,15 +825,9 @@ async function generateProcessedFileAndPersist(
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
   if (request?.body?.ResourceDetails?.action == "create") {
     persistMessage.ResourceDetails.additionalDetails = {
-      source:null,
+      source:null, 
       fileName:
         request?.body?.ResourceDetails?.additionalDetails?.fileName || null,
-      // This object REPLACES additionalDetails for creates (persistMessage.ResourceDetails is the same
-      // object as request.body.ResourceDetails), so the duplicate-row note set further up would be
-      // dropped before persistence unless it is restated here.
-      ...(request?.body?.duplicateBoundaryRowsRemoved
-        ? { duplicateRowsRemoved: request.body.duplicateBoundaryRowsRemoved }
-        : {}),
     };
   }
   await produceModifiedMessages(
@@ -1158,73 +1130,6 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localiz
   return { mappingMap, countMap };
 }
 
-// Parse-only key stamped on every row by getJsonData when it is called with getRow = true (the
-// validation read). It is metadata, not sheet data, so it must not take part in row identity.
-const ROW_NUMBER_KEY = "!row#number!";
-
-// Identity of a boundary sheet row for EXACT-duplicate detection: every cell, trimmed for strings,
-// serialized in the row's own key order and with the parse-only row-number key excluded. This is the
-// identity the duplicate-row check has always used, so the rows dropped by dropExactDuplicateRows are
-// exactly the rows the old hard failure used to name in its error message.
-//
-// Why the serialized form is comparable:
-//   - getJsonData (genericApis.ts:953) builds every row by walking the header row left-to-right, so
-//     the key order of two rows holding the same cells is necessarily the same;
-//   - it OMITS keys for empty cells, so a row that leaves a level blank and a row that fills it can
-//     never collide (different key sets -> different JSON);
-//   - the row-number key is stripped, so the signature of a row from the validation read (getRow=true)
-//     equals the signature of the same row from the ingestion read (getRow=false).
-// Cell VALUES are left as parsed (a numeric 18 and the text "18" stay distinct) - only whole rows are
-// ever compared, never rewritten.
-function getExactRowSignature(row: any): string {
-  const normalizedRow: Record<string, any> = {};
-  for (const [key, value] of Object.entries(row || {})) {
-    if (key === ROW_NUMBER_KEY) continue;
-    normalizedRow[key] = typeof value === "string" ? value.trim() : value;
-  }
-  return JSON.stringify(normalizedRow);
-}
-
-/**
- * Removes EXACT duplicate rows from a parsed boundary sheet, KEEPING THE FIRST OCCURRENCE of each
- * distinct row and dropping every later identical one. Duplicates are matched per distinct row, not
- * per block: rows 18/19/20/21 all identical -> 19, 20, 21 go; 18 == 19 and 20 == 21 (two different
- * rows) -> only 19 and 21 go. Rows that differ in ANY cell are never touched.
- *
- * Returns the surviving rows as the SAME objects in their original order (nothing is rewritten, whole
- * rows are only filtered out), plus:
- *   removedRowNumbers - the Excel row numbers dropped, present only for a getRow = true parse (the
- *                       ingestion read carries no row numbers, so it gets the count alone);
- *   keptRowNumbers    - index-aligned with `rows`: the sheet row each survivor came from. Taken from the
- *                       row-number key when the parse carries one, else derived from the row's position
- *                       in the input (position + 2 = header row + 1-based indexing), which is the same
- *                       arithmetic the positional consumers used before any rows were removed. Callers
- *                       that report a row to the user must use this instead of their own array index,
- *                       which no longer lines up with the sheet once duplicates are dropped.
- *
- * @param boundaryData Rows as returned by getSheetData
- */
-function dropExactDuplicateRows(boundaryData: any[]): { rows: any[]; removedRowNumbers: any[]; keptRowNumbers: any[]; removedCount: number } {
-  const seenRowSignatures = new Set<string>();
-  const rows: any[] = [];
-  const removedRowNumbers: any[] = [];
-  const keptRowNumbers: any[] = [];
-  const inputRows = boundaryData || [];
-  for (let index = 0; index < inputRows.length; index++) {
-    const row = inputRows[index];
-    const rowNumber = row?.[ROW_NUMBER_KEY] ?? index + 2;
-    const rowSignature = getExactRowSignature(row);
-    if (seenRowSignatures.has(rowSignature)) {
-      if (row?.[ROW_NUMBER_KEY] !== undefined && row?.[ROW_NUMBER_KEY] !== null) removedRowNumbers.push(rowNumber);
-      continue;
-    }
-    seenRowSignatures.add(rowSignature);
-    rows.push(row);
-    keptRowNumbers.push(rowNumber);
-  }
-  return { rows, removedRowNumbers, keptRowNumbers, removedCount: inputRows.length - rows.length };
-}
-
 function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   // Trim string cells only. The previous logic also DISAMBIGUATED duplicate boundary names that
   // sat under different parents by rewriting the name (appending a "_<lvl>_NN" suffix). That was
@@ -1420,10 +1325,6 @@ async function getCurrentFlowFromDB(
  * @param withoutBoundaryCode - Array of boundaries for auto-generation
  * @param manualBoundaryCode - Array of boundaries for manual flow
  * @param withBoundaryCode - Array of already processed boundaries
- * @param rowNumbers - Sheet row of each row that survived de-duplication, index-aligned with the rows
- *   the three arrays above were segregated from. Used only to name the first affected sheet row in the
- *   mismatch message: counting array entries understates that row by however many exact duplicate rows
- *   were dropped above it.
  * @throws Error if validation fails
  */
 function validateHierarchyCurrentFlow(
@@ -1431,8 +1332,7 @@ function validateHierarchyCurrentFlow(
   hierarchyType: string,
   withoutBoundaryCode: any[],
   manualBoundaryCode: any[],
-  withBoundaryCode: any[],
-  rowNumbers?: any[]
+  withBoundaryCode: any[]
 ): void {
   logger.info(`Validating hierarchy flow - Current: '${currentFlow}', Auto boundaries: ${withoutBoundaryCode.length}, Manual boundaries: ${manualBoundaryCode.length}`);
 
@@ -1463,10 +1363,7 @@ function validateHierarchyCurrentFlow(
   const affectedRowCount = withoutBoundaryCode.length > 0
     ? withoutBoundaryCode.length
     : manualBoundaryCode.length;
-  // The already-processed rows are expected to come first (the download-and-append workflow), so the
-  // first affected row is the next surviving row after them. Its sheet row is looked up when available;
-  // the fallback is the original arithmetic (+1 for header, +1 for 1-based indexing).
-  const startingRow = rowNumbers?.[withBoundaryCode.length] ?? withBoundaryCode.length + 2;
+  const startingRow = withBoundaryCode.length + 2; // +1 for header, +1 for 1-based indexing
 
   const errorMessage = `Existing flow is '${currentFlow}' for hierarchy '${hierarchyType}'. Please use the same flow. ` +
     `To change the flow: ${currentFlow === 'auto' ? 'remove boundary codes' : 'add boundary codes'}. ` +
@@ -1478,6 +1375,6 @@ function validateHierarchyCurrentFlow(
 
 export {getHeadersOfBoundarySheet ,getLocalizedName,getHierarchy,validateHeaders,boundaryBulkUpload
   ,extractCodesFromBoundaryRelationshipResponse ,getLocalizedNameOnlyIfMessagePresent ,buildGenerateRequest,processDataSearchRequest
-  ,validateHierarchyCurrentFlow ,dropExactDuplicateRows
+  ,validateHierarchyCurrentFlow
 };
 ;

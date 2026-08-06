@@ -57,12 +57,6 @@ async function handleResouceDetailsError(request: any, error: any) {
     if (request?.body?.ResourceDetails?.action == "create") {
       persistMessage.ResourceDetails.additionalDetails = {
         error: stringifiedError,
-        // Keep the duplicate-row note on a FAILED record too: this object replaces additionalDetails, and
-        // a run that silently dropped rows and then failed is exactly when knowing what was dropped
-        // matters (the reported row positions are relative to the de-duplicated sheet).
-        ...(request?.body?.duplicateBoundaryRowsRemoved
-          ? { duplicateRowsRemoved: request.body.duplicateBoundaryRowsRemoved }
-          : {}),
       };
     }
     await produceModifiedMessages(
