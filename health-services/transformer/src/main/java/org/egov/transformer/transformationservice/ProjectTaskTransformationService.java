@@ -230,7 +230,7 @@ public class ProjectTaskTransformationService {
         if (task.getResources() == null || task.getResources().isEmpty()) {
             TaskResource taskResource = new TaskResource();
             taskResource.setId(task.getStatus() + HYPHEN + task.getId());
-            taskResource.setClientReferenceId(task.getStatus() + HYPHEN + task.getClientReferenceId());
+            taskResource.setClientReferenceId(task.getClientReferenceId());
             taskResource.setIsDelivered(false);
             taskResource.setDeliveryComment(null);
 
