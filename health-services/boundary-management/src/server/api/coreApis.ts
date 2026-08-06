@@ -2,6 +2,7 @@
 import { BoundaryModels, MDMSModels } from "../models";
 import config from "../config";
 import { defaultheader, httpRequest } from "../utils/request";
+import { logger } from "../utils/logger";
 
 // Default request information for MDMS API requests
 export const defaultRequestInfo: any = {
@@ -303,4 +304,42 @@ const fetchFileFromFilestore = async (filestoreId: string, tenantId: string) => 
 }
 
 // Exporting all API functions for MDMS operations
-export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api, searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, fetchFileFromFilestore };
+/**
+ * Fetches the README (instructions) blocks for the given type from the MDMS master shared with
+ * project-factory and excel-ingestion (`HCM-ADMIN-CONSOLE.ReadMeConfig`, one entry per resource type).
+ *
+ * Returns null when the master or the type entry is absent, or when MDMS is unreachable: an instructions
+ * tab is helpful but never worth failing a template download for. excel-ingestion's own reader behaves the
+ * same way (logs a warning and returns null); project-factory instead throws, which is not appropriate
+ * here because this service generates the only template the boundary flow has.
+ *
+ * @param tenantId Tenant to read the master for
+ * @param type Value matched against each entry's `type` (see config.readMe.type)
+ */
+const getReadMeConfig = async (tenantId: string, type: string): Promise<any | null> => {
+  const [moduleName, masterName] = config.readMe.mdmsSchemaCode.split(".");
+  try {
+    const response = await searchMDMSDataViaV1Api({
+      MdmsCriteria: {
+        tenantId,
+        moduleDetails: [{ moduleName, masterDetails: [{ name: masterName }] }],
+      },
+    });
+    const readMeConfigs = response?.MdmsRes?.[moduleName]?.[masterName];
+    if (!Array.isArray(readMeConfigs) || readMeConfigs.length === 0) {
+      logger.warn(`No ${config.readMe.mdmsSchemaCode} master found for tenant ${tenantId}; the README sheet will be skipped`);
+      return null;
+    }
+    const readMeConfig = readMeConfigs.find((entry: any) => entry?.type === type);
+    if (!readMeConfig) {
+      logger.warn(`${config.readMe.mdmsSchemaCode} has no entry of type "${type}"; the README sheet will be skipped`);
+      return null;
+    }
+    return readMeConfig;
+  } catch (error: any) {
+    logger.warn(`Could not read ${config.readMe.mdmsSchemaCode} from MDMS (${error?.message || error}); the README sheet will be skipped`);
+    return null;
+  }
+};
+
+export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api, searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, fetchFileFromFilestore, getReadMeConfig };

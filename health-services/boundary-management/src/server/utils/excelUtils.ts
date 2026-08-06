@@ -436,4 +436,96 @@ export function adjustRowHeight(row: any, cell: any, columnWidth: number) {
   row.height = Math.max(row.height ?? 0, lines * 15);
 }
 
-export{getExcelWorkbookFromFileURL,getNewExcelWorkbook,addDataToSheet};
+// Renders **bold** spans in a plain string as ExcelJS rich text. The MDMS readme copy marks emphasis with
+// the same ** markers project-factory uses (it wraps a block header in ** when isHeaderBold is set), so the
+// markers must never reach the user's screen. Ported from project-factory's processBoldFormatting.
+function applyBoldMarkersAsRichText(cell: any) {
+  if (typeof cell.value !== "string") return;
+  const text: string = cell.value;
+  // Split on the marker: every ODD segment sat between a pair of ** and is the bold part
+  // ("plain**bold**plain" -> ["plain", "bold", "plain"]). An odd number of markers means one is
+  // unpaired, in which case the text is left exactly as the config author wrote it.
+  const segments = text.split("**");
+  if (segments.length < 3 || segments.length % 2 === 0) return;
+  const richText = segments
+    .map((segment, index) => ({ text: segment, font: { bold: index % 2 === 1 } }))
+    .filter(part => part.text !== "");
+  if (richText.length > 0) cell.value = { richText };
+}
+
+/**
+ * Adds the README (instructions) tab built from the MDMS readme config to an existing workbook.
+ *
+ * Only blocks flagged `inSheet` are rendered - the rest of the master is console-only copy. Each block is
+ * separated by two blank rows, then its header, then one row per description line; every header and
+ * description string in the master is itself a LOCALISATION KEY, so each is resolved through the
+ * localisation map (an unresolved key renders as the raw key rather than blank). Same layout project-factory
+ * produces, so both consoles show the operator the same instructions sheet.
+ *
+ * The sheet is appended LAST on purpose: the console pre-validates a boundary upload by reading
+ * `workbook.SheetNames[0]` (DIGIT-Frontend campaign-manager validateBoundaryExcel.js), so the boundary data
+ * tab must stay the first sheet or every upload of a downloaded template would be rejected client-side.
+ *
+ * @returns true when a sheet was added, false when there was nothing to render
+ */
+function addReadMeSheetToWorkbook(workbook: any, readMeConfig: any, localizationMap?: { [key: string]: string }) {
+  const blocks = (readMeConfig?.texts || []).filter((text: any) => text?.inSheet);
+  if (blocks.length === 0) {
+    logger.warn("README config has no blocks marked inSheet; skipping the README sheet");
+    return false;
+  }
+  const sheetName = getLocalizedName(config.readMe.readMeTab, localizationMap);
+  const sheet = workbook.addWorksheet(sheetName);
+  const columnWidth = config.readMe.columnWidth;
+  sheet.getColumn(1).width = columnWidth;
+
+  const lines: string[] = [];
+  for (const block of blocks) {
+    if (lines.length > 0) lines.push("", "");
+    const header = getLocalizedName(block.header, localizationMap);
+    lines.push(block?.isHeaderBold ? `**${header}**` : header);
+    for (const description of block?.descriptions || []) {
+      lines.push(getLocalizedName(description?.text, localizationMap));
+    }
+  }
+
+  for (const line of lines) {
+    const row = sheet.addRow([line]);
+    const cell = row.getCell(1);
+    cell.alignment = { vertical: "top", horizontal: "left", wrapText: true };
+    applyBoldMarkersAsRichText(cell);
+    if (line) adjustRowHeight(row, cell, columnWidth);
+  }
+  logger.info(`Added README sheet "${sheetName}" with ${blocks.length} instruction block(s)`);
+  return true;
+}
+
+// Fill applied to every populated cell of a duplicate row in the returned validation file. Solid red, the
+// same cell.fill shape setFirstRowCellStyles already uses for the header colour.
+const DUPLICATE_ROW_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFF0000" } };
+
+/**
+ * Paints every populated cell of the given sheet rows red, in place, and returns how many rows were painted.
+ *
+ * Row numbers are the sheet's own 1-based numbers (the "!row#number!" values stamped during parsing), so
+ * they index rows directly. Columns are walked by index against the header row rather than with
+ * row.eachCell, which skips blank cells - a boundary row legitimately leaves deeper hierarchy levels empty
+ * and those cells must still be coloured for the row to read as one block.
+ */
+function markRowsAsDuplicate(sheet: any, rowNumbers: number[]) {
+  const columnCount = sheet?.getRow(1)?.cellCount || 0;
+  if (!columnCount) return 0;
+  let markedRows = 0;
+  for (const rowNumber of rowNumbers) {
+    const row = sheet.getRow(rowNumber);
+    if (!row) continue;
+    for (let columnNumber = 1; columnNumber <= columnCount; columnNumber++) {
+      row.getCell(columnNumber).fill = { ...DUPLICATE_ROW_FILL };
+    }
+    row.commit?.();
+    markedRows++;
+  }
+  return markedRows;
+}
+
+export{getExcelWorkbookFromFileURL,getNewExcelWorkbook,addDataToSheet,addReadMeSheetToWorkbook,markRowsAsDuplicate};

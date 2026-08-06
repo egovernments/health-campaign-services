@@ -3,10 +3,11 @@ import {getLocalizedMessagesHandler,enrichResourceDetails,processGenerate,search
 import { getLocalisationModuleName ,getLocaleFromRequestInfo} from "../utils/localisationUtils";
 import { logger ,getFormattedStringForDebug} from "../utils/logger";
 import config from "../config/index";
-import { getNewExcelWorkbook, addDataToSheet } from "../utils/excelUtils";
+import { getNewExcelWorkbook, addDataToSheet, addReadMeSheetToWorkbook } from "../utils/excelUtils";
+import { getReadMeConfig } from "../api/coreApis";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import { validateProcessRequest,validateDownloadRequest,validateSearchRequest } from "../validators/boundaryValidators";
-import { processRequest } from "../api/boundaryApis";
+import { processRequest, markResourceDetailsInvalid } from "../api/boundaryApis";
 import {validateGenerateRequest} from "../validators/genericValidator";
 import {getBoundarySheetData,createAndUploadFile} from "../api/genericApis";
 import {getLocalizedName,getBoundaryTabName,buildGenerateRequest,processDataSearchRequest} from "../utils/boundaryUtils";
@@ -26,6 +27,15 @@ const processBoundaryService = async (request: any) => {
 
     // Enrich resource details
     await enrichResourceDetails(request);
+
+    // The sheet had duplicate rows: validation has already uploaded a copy with those rows highlighted, so
+    // this run ends here as invalid and NOTHING is ingested. Mirrors excel-ingestion's unified-sheet
+    // validation - the caller gets a record it can poll, whose terminal status is invalid and whose
+    // processedFileStoreId is the marked sheet to download and fix.
+    if (request?.body?.duplicateRowValidation) {
+      await markResourceDetailsInvalid(request);
+      return request?.body?.ResourceDetails;
+    }
 
     // Process the generic request
     await processRequest(request, localizationMap);
@@ -85,6 +95,11 @@ const getBoundaryDataService = async (
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
         const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
         addDataToSheet(request, boundarySheet, boundarySheetData, '93C47D', 40, true);
+        // Instructions tab for whoever fills the template (dos/don'ts, allowed characters, flow rules). Added
+        // AFTER the data tab so the boundary sheet stays sheet index 0 - the console pre-validates an upload
+        // by reading the first sheet. Missing/empty MDMS config just means no tab, never a failed download.
+        const readMeConfig = await getReadMeConfig(String(request?.query?.tenantId), config.readMe.type);
+        if (readMeConfig) addReadMeSheetToWorkbook(workbook, readMeConfig, localizationMap);
         const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
         // Return boundary file details
         logger.info("RETURNS THE BOUNDARY RESPONSE");

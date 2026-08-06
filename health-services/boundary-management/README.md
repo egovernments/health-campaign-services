@@ -18,6 +18,8 @@ The `master-perf` line adds a substantial set of throughput and correctness chan
 - **Idempotent re-upload** — a re-upload with no new rows is now a completed no-op instead of a `400 "Boundary already present"`.
 - **Delta localisation + verify-gate** — only new/changed names are upserted (bounded-parallel), then a completeness verify-gate reads back and, on timeout, records `additionalDetails.localisationIncomplete` / `localisationMissingCount` instead of silently dropping names.
 - **Duplicate-name collision fix** — path-aware boundary identity preserves user-entered names; duplicate names under **different** parents are now valid (the old `_lvl_NN` name-mangling was removed).
+- **Instructions (README) tab in the generated template** — the downloaded template carries a second tab with the filling rules, allowed characters and dos/don'ts, built from the MDMS master `HCM-ADMIN-CONSOLE.ReadMeConfig` (shared with project-factory / excel-ingestion) filtered on `type = boundaryManagement`. It is added **after** the data tab so the boundary sheet stays the first tab — the console pre-validates an upload by reading the first sheet. See §4 for the config it needs; seed files in [`readme-config/`](readme-config).
+- **Duplicate rows are returned highlighted** — a repeated row no longer fails the upload with a row-number message; the sheet comes back with those rows filled red and the run ends `invalid` (see §6).
 - **Boundary-name character validation** — names containing structural characters are rejected with a `400 VALIDATION_ERROR` (see §7).
 - **Hierarchy-scoped existence check** — a single relationship search replaces the tenant-global chunked entity lookup, fixing cross-hierarchy false "already processed" and scaling entity creation with the delta.
 - **Memory bump** — Node heap raised 1024 → 2048 MB (Dockerfile `NODE_OPTIONS` and the `serve` script).
@@ -80,7 +82,7 @@ _Produces only — no consumer listeners._
 ## 4. Dependencies
 
 - **boundary-service** (Digit-Core) — the real boundary store. Boundary Management searches the hierarchy definition and existing boundaries here, then creates new boundary **entities** and **relationships** here. This is the most important dependency. On `master-perf` it also calls boundary-service's **synchronous bulk relationship endpoint** `/boundary-relationships/bulk/_create` (overridable via `EGOV_BOUNDARY_RELATIONSHIP_BULK_CREATE`) for the two highest-cardinality hierarchy levels — that boundary-service endpoint must be available.
-- **MDMS (v1/v2)** — schema and master data that drive template columns and validation.
+- **MDMS (v1/v2)** — schema and master data that drive template columns and validation. On `master-perf` the generated template's **instructions tab** is also MDMS-driven: master **`HCM-ADMIN-CONSOLE.ReadMeConfig`** (shared with project-factory and excel-ingestion — one entry per resource type), read via MDMS **v1** `_search` and filtered on `type = boundaryManagement` (`READ_ME_TYPE`). Every `header` / `descriptions[].text` in that entry is a **localisation key** resolved from the `hcm-admin-schemas` module. Ready-to-seed payloads: [`readme-config/HCM-ADMIN-CONSOLE.ReadMeConfig.boundaryManagement.json`](readme-config/HCM-ADMIN-CONSOLE.ReadMeConfig.boundaryManagement.json) and [`readme-config/localisation-messages.json`](readme-config/localisation-messages.json). **Until both are seeded the template is generated without the instructions tab** (warning logged; the download never fails). Blocks with `inSheet: false` are console-only copy and are not rendered; a header with `isHeaderBold: true` renders bold.
 - **Filestore** — stores the generated/processed Excel files; the console downloads by `fileStoreId`.
 - **Localization** — localized sheet headers, tab names and messages (multi-locale, e.g. `en_MZ`).
 - **Kafka** (`kafkajs`) — the service **emits its own status events** (`create/update-generated-…`, `create/update-processed-boundary-management`) which a persister turns into the Postgres rows above. It does not write those state rows directly.
@@ -114,7 +116,12 @@ sequenceDiagram
     BM-->>Console: completed + file URL
 
     Console->>BM: POST /v1/_process (fileStoreId, action=create)
-    BM->>BM: Validate sheet (hierarchy, duplicates, codes)
+    BM->>BM: Validate sheet (hierarchy, names, codes)
+    alt Duplicate rows found
+        BM->>Files: Upload the sheet with duplicate rows filled red
+        BM->>DB: status = invalid (processedFileStoreId)
+        BM-->>Console: 200 invalid (download the highlighted sheet)
+    end
     BM-->>Console: 200 inprogress (id, referenceId)
     Note over BM: Background work
     BM->>Files: Fetch uploaded sheet
@@ -135,7 +142,8 @@ sequenceDiagram
 ## 6. Failure / Retry Handling
 
 - **Asynchronous, poll-based.** A `200 inprogress` only means the request was accepted. A job can still fail in the background — clients must poll `*-search` and check the `status`. A `failed` (or `invalid`) row carries the error detail in `additionalDetails.error`.
-- **Validation up front.** _process rejects malformed sheets early: wrong/duplicate rows, a non-unique first (root) column, and — in Manual flow — any boundary (including parents/intermediates) missing a service code.
+- **Validation up front.** _process rejects malformed sheets early: wrong rows, a non-unique first (root) column, and — in Manual flow — any boundary (including parents/intermediates) missing a service code.
+- **Duplicate rows come back highlighted, not as a bare message (`master-perf`).** If any row repeats an earlier row in **every** column, nothing is ingested: the uploaded sheet is returned with each repeated row filled **red** across all its columns (the first occurrence is left unmarked — that is the one to keep) and the run ends as `status: invalid` with `processedFileStoreId` pointing at the highlighted file and the row numbers in `additionalDetails.error` / `additionalDetails.duplicateRows`. This mirrors excel-ingestion's unified-sheet validation, so the console can poll `_process-search` and offer the file for download. It happens entirely in the synchronous validation step — `_process` still returns 200 and the background create never starts. If the highlighted file cannot be produced or uploaded, validation falls back to the previous `400 VALIDATION_ERROR "Boundary Sheet has duplicate rows at rowNumber ..."`.
 - **Idempotent boundary creation.** Before creating, the service searches boundary-service for codes that already exist and only creates the missing ones, so re-running a process does not duplicate boundaries. On `master-perf` a re-upload whose boundaries **all** already exist is a **completed no-op** (it previously threw `400 "Boundary already present"`).
 - **HTTP retries** on downstream calls are built in (configurable `MAX_HTTP_RETRIES`, default 4). On `master-perf` the auto-retry error list is broadened from just `"socket hang up"` to `socket hang up,write EPIPE,read ECONNRESET,ECONNRESET,EPIPE` (`AUTO_RETRY_IF_HTTP_ERROR`), and the shared axios client uses **keep-alive HTTP/HTTPS agents with idle-socket recycling** (`HTTP_SOCKET_IDLE_TIMEOUT_MS`, default 60000) so a stale pooled socket doesn't fail the first call after a long-running phase.
 - **Bulk relationship create with transient retry (`master-perf`).** The last two hierarchy levels are created via boundary-service `/boundary-relationships/bulk/_create` in chunks (`BULK_RELATIONSHIP_CHUNK_SIZE`). Per-record transient outcomes (`PARENT_NOT_FOUND`, `BOUNDARY_ENTITY_DOES_NOT_EXIST`, `BULK_RELATIONSHIP_PERSIST_TRANSIENT`) are retried up to `BULK_RELATIONSHIP_RETRY_ATTEMPTS` (default 30) spaced by `BULK_RELATIONSHIP_RETRY_DELAY_MS` (default 2000); `DUPLICATE_RECORD` is treated as an idempotent success; permanent codes fail fast.

@@ -1,0 +1,734 @@
+{
+  "_comment": [
+    "Localisation messages for the keys in the ReadMeConfig entry above.",
+    "Upsert with POST /localization/messages/v1/_upsert (RequestInfo + this body).",
+    "module MUST be hcm-admin-schemas: that is the module boundary-management reads",
+    "(config.localisation.localizationModule) merged with hcm-boundary-<HIERARCHY>.",
+    "HCM_README_SHEETNAME (the tab name) is already seeded upstream and is not included here.",
+    "pt_MZ / fr_MZ text is a first pass - have the localisation team review it.",
+    "Regenerate with dedupe-verify-2026-08-06/seed_readme_config.py --emit-only"
+  ],
+  "tenantId": "dev",
+  "messages": [
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1",
+      "message": "How to fill the boundary sheet",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_1",
+      "message": "1. Enter one boundary per row in the boundary data tab, filling the columns from left to right in hierarchy order.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_2",
+      "message": "2. The first (root) column must be filled in every row, and it must hold the same single value in every row - one upload covers one root boundary.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_3",
+      "message": "3. Do not leave a gap in the middle of a row: once you leave a level blank, every level to its right must be blank too. Stopping at a higher level is fine.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_4",
+      "message": "4. Type names as they should appear. The same name may be used under different parents - two villages with the same name in different districts are treated as two boundaries.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_5",
+      "message": "5. Latitude, Longitude and the French / Portuguese name columns are optional; leave them empty if you do not have the values.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2",
+      "message": "Allowed characters in a boundary name",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_1",
+      "message": "Allowed: letters of any language including accents and tone marks, numbers, spaces, apostrophes ( ' ’ ‘ ), ampersand ( & ), hyphens and dashes ( - ‐ – — ), slash ( / ), full stop ( . ), underscore ( _ ), brackets ( ) and , : ; @ + ! ?",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_2",
+      "message": "Not allowed: { } [ ] < > | \\ # $ % * = ~ ^ \" - a name containing any of these is rejected and the upload fails.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_3",
+      "message": "The hash character ( # ) is rejected even though it looks harmless: it breaks the parent-child dropdown lookups used in the campaign templates.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_4",
+      "message": "Leading and trailing spaces are removed automatically, and invisible characters that come with copy-paste from PDFs or websites are cleaned up for you.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3",
+      "message": "Duplicate rows",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_1",
+      "message": "Do not repeat a row. Two rows are duplicates only when every column matches, including the boundary code and the latitude / longitude.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_2",
+      "message": "If duplicates are found, nothing is created: your sheet is returned with every repeated row highlighted in red. The first copy of each row is left unmarked - that is the one to keep.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_3",
+      "message": "Delete the highlighted rows and upload the sheet again.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4",
+      "message": "Boundary codes: let the system generate them, or provide your own",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_1",
+      "message": "Leave the boundary code column empty and the system generates a code for every boundary from its parent chain. This is the usual choice.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_2",
+      "message": "If you want to use your own codes, every boundary in the sheet needs one - including the parent levels. A sheet that mixes your codes with blanks is rejected.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_3",
+      "message": "Each code must be unique. Two different boundaries sharing one code is rejected.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_4",
+      "message": "A hierarchy keeps whichever choice it started with: once codes have been generated for it you cannot switch to your own codes later, and the other way round.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5",
+      "message": "Adding to a hierarchy that already exists",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_1",
+      "message": "Always start from a freshly downloaded template: it already contains the boundaries that exist, with their codes filled in.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_2",
+      "message": "Leave those existing rows exactly as they are and add your new boundaries as new rows underneath.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_3",
+      "message": "Uploading a sheet with no new rows is safe - nothing is duplicated and nothing is changed.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6",
+      "message": "Do not",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_1",
+      "message": "Do not add, remove, rename or reorder the columns, and do not rename the boundary data tab - the headers must match the hierarchy exactly.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_2",
+      "message": "Do not reorder the tabs. The boundary data tab must stay the first tab in the file; this instructions tab is ignored when you upload.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_3",
+      "message": "Do not enter formulas, and do not leave a formula uncalculated - type the names as plain text.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_4",
+      "message": "Do not change the codes of boundaries that already exist, and do not reuse a code for a different boundary.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_5",
+      "message": "Edit and save the file in Excel. Other spreadsheet applications rewrite the template when saving and can silently drop rows or drop-down lists.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1",
+      "message": "How to fill the boundary sheet",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_1",
+      "message": "1. Enter one boundary per row in the boundary data tab, filling the columns from left to right in hierarchy order.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_2",
+      "message": "2. The first (root) column must be filled in every row, and it must hold the same single value in every row - one upload covers one root boundary.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_3",
+      "message": "3. Do not leave a gap in the middle of a row: once you leave a level blank, every level to its right must be blank too. Stopping at a higher level is fine.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_4",
+      "message": "4. Type names as they should appear. The same name may be used under different parents - two villages with the same name in different districts are treated as two boundaries.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_5",
+      "message": "5. Latitude, Longitude and the French / Portuguese name columns are optional; leave them empty if you do not have the values.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2",
+      "message": "Allowed characters in a boundary name",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_1",
+      "message": "Allowed: letters of any language including accents and tone marks, numbers, spaces, apostrophes ( ' ’ ‘ ), ampersand ( & ), hyphens and dashes ( - ‐ – — ), slash ( / ), full stop ( . ), underscore ( _ ), brackets ( ) and , : ; @ + ! ?",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_2",
+      "message": "Not allowed: { } [ ] < > | \\ # $ % * = ~ ^ \" - a name containing any of these is rejected and the upload fails.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_3",
+      "message": "The hash character ( # ) is rejected even though it looks harmless: it breaks the parent-child dropdown lookups used in the campaign templates.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_4",
+      "message": "Leading and trailing spaces are removed automatically, and invisible characters that come with copy-paste from PDFs or websites are cleaned up for you.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3",
+      "message": "Duplicate rows",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_1",
+      "message": "Do not repeat a row. Two rows are duplicates only when every column matches, including the boundary code and the latitude / longitude.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_2",
+      "message": "If duplicates are found, nothing is created: your sheet is returned with every repeated row highlighted in red. The first copy of each row is left unmarked - that is the one to keep.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_3",
+      "message": "Delete the highlighted rows and upload the sheet again.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4",
+      "message": "Boundary codes: let the system generate them, or provide your own",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_1",
+      "message": "Leave the boundary code column empty and the system generates a code for every boundary from its parent chain. This is the usual choice.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_2",
+      "message": "If you want to use your own codes, every boundary in the sheet needs one - including the parent levels. A sheet that mixes your codes with blanks is rejected.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_3",
+      "message": "Each code must be unique. Two different boundaries sharing one code is rejected.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_4",
+      "message": "A hierarchy keeps whichever choice it started with: once codes have been generated for it you cannot switch to your own codes later, and the other way round.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5",
+      "message": "Adding to a hierarchy that already exists",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_1",
+      "message": "Always start from a freshly downloaded template: it already contains the boundaries that exist, with their codes filled in.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_2",
+      "message": "Leave those existing rows exactly as they are and add your new boundaries as new rows underneath.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_3",
+      "message": "Uploading a sheet with no new rows is safe - nothing is duplicated and nothing is changed.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6",
+      "message": "Do not",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_1",
+      "message": "Do not add, remove, rename or reorder the columns, and do not rename the boundary data tab - the headers must match the hierarchy exactly.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_2",
+      "message": "Do not reorder the tabs. The boundary data tab must stay the first tab in the file; this instructions tab is ignored when you upload.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_3",
+      "message": "Do not enter formulas, and do not leave a formula uncalculated - type the names as plain text.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_4",
+      "message": "Do not change the codes of boundaries that already exist, and do not reuse a code for a different boundary.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_5",
+      "message": "Edit and save the file in Excel. Other spreadsheet applications rewrite the template when saving and can silently drop rows or drop-down lists.",
+      "module": "hcm-admin-schemas",
+      "locale": "en_IN"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1",
+      "message": "Como preencher a folha de limites",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_1",
+      "message": "1. Introduza um limite por linha no separador de dados de limites, preenchendo as colunas da esquerda para a direita, na ordem da hierarquia.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_2",
+      "message": "2. A primeira coluna (raiz) deve estar preenchida em todas as linhas e deve conter o mesmo valor em todas elas - cada carregamento abrange apenas um limite raiz.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_3",
+      "message": "3. Não deixe espaços em branco no meio de uma linha: a partir do momento em que deixa um nível vazio, todos os níveis à direita também devem ficar vazios. Terminar num nível superior é permitido.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_4",
+      "message": "4. Escreva os nomes como devem aparecer. O mesmo nome pode ser usado sob pais diferentes - duas aldeias com o mesmo nome em distritos diferentes são tratadas como dois limites.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_5",
+      "message": "5. As colunas Latitude, Longitude e os nomes em francês / português são opcionais; deixe-as vazias se não tiver os valores.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2",
+      "message": "Caracteres permitidos no nome de um limite",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_1",
+      "message": "Permitido: letras de qualquer idioma, incluindo acentos e sinais tonais, números, espaços, apóstrofos ( ' ’ ‘ ), e comercial ( & ), hífenes e travessões ( - ‐ – — ), barra ( / ), ponto ( . ), sublinhado ( _ ), parênteses ( ) e , : ; @ + ! ?",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_2",
+      "message": "Não permitido: { } [ ] < > | \\ # $ % * = ~ ^ \" - um nome que contenha qualquer um destes é rejeitado e o carregamento falha.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_3",
+      "message": "O carácter cardinal ( # ) é rejeitado mesmo parecendo inofensivo: quebra as listas suspensas pai-filho usadas nos modelos de campanha.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_4",
+      "message": "Os espaços no início e no fim são removidos automaticamente, e os caracteres invisíveis que vêm de copiar e colar de PDFs ou páginas web são limpos automaticamente.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3",
+      "message": "Linhas duplicadas",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_1",
+      "message": "Não repita linhas. Duas linhas são duplicadas apenas quando todas as colunas coincidem, incluindo o código do limite e a latitude / longitude.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_2",
+      "message": "Se forem encontradas duplicações, nada é criado: a sua folha é devolvida com todas as linhas repetidas destacadas em vermelho. A primeira cópia de cada linha fica sem marcação - é essa que deve manter.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_3",
+      "message": "Elimine as linhas destacadas e carregue a folha novamente.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4",
+      "message": "Códigos de limite: deixe o sistema gerar ou forneça os seus",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_1",
+      "message": "Deixe a coluna do código do limite vazia e o sistema gera um código para cada limite a partir da respetiva cadeia de pais. Esta é a opção habitual.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_2",
+      "message": "Se quiser usar os seus próprios códigos, todos os limites da folha precisam de um - incluindo os níveis pais. Uma folha que misture códigos seus com células vazias e rejeitada.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_3",
+      "message": "Cada código deve ser único. Dois limites diferentes com o mesmo código são rejeitados.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_4",
+      "message": "Uma hierarquia mantém a opção com que começou: depois de os códigos terem sido gerados, não pode passar a usar códigos próprios, nem o contrário.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5",
+      "message": "Acrescentar a uma hierarquia que já existe",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_1",
+      "message": "Comece sempre a partir de um modelo recém-descarregado: já contém os limites existentes, com os respetivos códigos preenchidos.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_2",
+      "message": "Deixe essas linhas existentes exatamente como estão e acrescente os novos limites como novas linhas abaixo.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_3",
+      "message": "Carregar uma folha sem linhas novas é seguro - nada é duplicado e nada é alterado.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6",
+      "message": "Não faça",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_1",
+      "message": "Não acrescente, remova, mude o nome nem reordene as colunas, e não mude o nome do separador de dados de limites - os cabeçalhos devem corresponder exatamente à hierarquia.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_2",
+      "message": "Não reordene os separadores. O separador de dados de limites deve permanecer o primeiro do ficheiro; este separador de instruções é ignorado no carregamento.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_3",
+      "message": "Não introduza fórmulas e não deixe fórmulas sem calcular - escreva os nomes como texto simples.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_4",
+      "message": "Não altere os códigos de limites que já existem e não reutilize um código para um limite diferente.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_5",
+      "message": "Edite e guarde o ficheiro no Excel. Outras aplicações de folhas de cálculo reescrevem o modelo ao guardar e podem eliminar silenciosamente linhas ou listas suspensas.",
+      "module": "hcm-admin-schemas",
+      "locale": "pt_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1",
+      "message": "Comment remplir la feuille des limites",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_1",
+      "message": "1. Saisissez une limite par ligne dans l'onglet des données de limites, en remplissant les colonnes de gauche à droite dans l'ordre de la hiérarchie.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_2",
+      "message": "2. La première colonne (racine) doit être remplie sur chaque ligne et contenir la même valeur partout - un import ne couvre qu'une seule limite racine.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_3",
+      "message": "3. Ne laissez pas de trou au milieu d'une ligne : dès qu'un niveau est vide, tous les niveaux à sa droite doivent l'être aussi. S'arrêter à un niveau supérieur est autorisé.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_4",
+      "message": "4. Saisissez les noms tels qu'ils doivent apparaître. Un même nom peut être utilisé sous des parents différents : deux villages homonymes dans des districts différents sont deux limites distinctes.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_5",
+      "message": "5. Les colonnes Latitude, Longitude et les noms en français / portugais sont facultatives ; laissez-les vides si vous n'avez pas les valeurs.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2",
+      "message": "Caractères autorisés dans un nom de limite",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_1",
+      "message": "Autorisé : lettres de toute langue y compris accents et signes tonaux, chiffres, espaces, apostrophes ( ' ’ ‘ ), esperluette ( & ), traits d'union et tirets ( - ‐ – — ), barre oblique ( / ), point ( . ), tiret bas ( _ ), parenthèses ( ) et , : ; @ + ! ?",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_2",
+      "message": "Interdit : { } [ ] < > | \\ # $ % * = ~ ^ \" - un nom contenant l'un de ces caractères est rejeté et l'import échoue.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_3",
+      "message": "Le caractère dièse ( # ) est rejeté bien qu'il paraisse anodin : il casse les listes déroulantes parent-enfant des modèles de campagne.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_4",
+      "message": "Les espaces en début et en fin sont supprimés automatiquement, et les caractères invisibles issus d'un copier-coller depuis un PDF ou un site web sont nettoyés pour vous.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3",
+      "message": "Lignes en double",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_1",
+      "message": "Ne répétez pas une ligne. Deux lignes sont des doublons uniquement si toutes les colonnes correspondent, y compris le code de la limite et la latitude / longitude.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_2",
+      "message": "Si des doublons sont détectés, rien n'est créé : votre feuille est renvoyée avec chaque ligne répétée surlignée en rouge. La première occurrence reste non surlignée : c'est celle a conserver.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_3",
+      "message": "Supprimez les lignes surlignées et importez la feuille de nouveau.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4",
+      "message": "Codes de limite : laissez le système les générer ou fournissez les vôtres",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_1",
+      "message": "Laissez la colonne du code de limite vide et le système génère un code pour chaque limite à partir de sa chaîne de parents. C'est le choix habituel.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_2",
+      "message": "Si vous souhaitez utiliser vos propres codes, chaque limite de la feuille doit en avoir un, y compris les niveaux parents. Une feuille qui mélange vos codes et des cases vides est rejetée.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_3",
+      "message": "Chaque code doit être unique. Deux limites différentes partageant un code sont rejetées.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_4",
+      "message": "Une hiérarchie conserve le choix initial : une fois les codes générés, vous ne pouvez plus passer à vos propres codes, ni l'inverse.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5",
+      "message": "Ajouter à une hiérarchie existante",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_1",
+      "message": "Partez toujours d'un modèle fraîchement téléchargé : il contient déjà les limites existantes, avec leurs codes remplis.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_2",
+      "message": "Laissez ces lignes existantes telles quelles et ajoutez vos nouvelles limites en dessous.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_3",
+      "message": "Importer une feuille sans nouvelle ligne est sans risque : rien n'est dupliqué et rien n'est modifié.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6",
+      "message": "À ne pas faire",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_1",
+      "message": "N'ajoutez, ne supprimez, ne renommez ni ne réordonnez les colonnes, et ne renommez pas l'onglet des données de limites : les en-têtes doivent correspondre exactement a la hiérarchie.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_2",
+      "message": "Ne réordonnez pas les onglets. L'onglet des données de limites doit rester le premier du fichier ; cet onglet d'instructions est ignoré à l'import.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_3",
+      "message": "Ne saisissez pas de formules et ne laissez pas une formule non calculée : saisissez les noms en texte brut.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_4",
+      "message": "Ne modifiez pas les codes des limites existantes et ne réutilisez pas un code pour une autre limite.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    },
+    {
+      "code": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_5",
+      "message": "Modifiez et enregistrez le fichier dans Excel. D'autres tableurs réécrivent le modèle à l'enregistrement et peuvent supprimer silencieusement des lignes ou des listes déroulantes.",
+      "module": "hcm-admin-schemas",
+      "locale": "fr_MZ"
+    }
+  ]
+}

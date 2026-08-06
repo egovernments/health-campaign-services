@@ -5,7 +5,9 @@ import config from "../config";
 import { httpRequest } from "../utils/request";
 // import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
 import {getLocalizedName,getBoundaryTabName,getHeadersOfBoundarySheet,getHierarchy,validateHeaders} from "../utils/boundaryUtils";
-import {getSheetData} from "../api/genericApis";
+import {getSheetData, createAndUploadFile} from "../api/genericApis";
+import { getExcelWorkbookFromFileURL, markRowsAsDuplicate } from "../utils/excelUtils";
+import { logger } from "../utils/logger";
 import { downloadRequestSchema } from "../config/models/downloadRequestSchema";
 import {searchCriteriaSchema} from "../config/models/SearchCriteria";
 
@@ -67,11 +69,17 @@ async function validateBoundarySheetData(request: any, fileUrl: any, localizatio
     const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap, request);
     //validate for whether root boundary level column should not be empty
     validateForRootElementExists(boundaryData, localizedHierarchy, localizedBoundaryTab);
-    // validate for duplicate rows(array of objects)
-    validateForDuplicateRows(boundaryData);
     // validate boundary names contain only allowed characters (reject [] {} <> etc.; allow letters of any
     // language plus the punctuation that occurs in real place names)
     validateBoundaryNameCharacters(boundaryData, localizedHierarchy);
+    // Duplicate rows are reported by handing the operator their own sheet back with the offending rows
+    // highlighted, instead of a message they have to map onto row numbers themselves. Runs LAST of the
+    // sheet checks so a sheet with a harder problem (missing root level, illegal characters) still fails
+    // with that error rather than being sent back as a duplicates file.
+    const duplicateRowNumbers = findDuplicateRows(boundaryData);
+    if (duplicateRowNumbers.length > 0) {
+        await markDuplicateRowsAndUploadSheet(request, fileUrl, localizedBoundaryTab, duplicateRowNumbers);
+    }
 }
 
 function validateForRootElementExists(boundaryData: any[], hierachy: any[], sheetName: string) {
@@ -81,7 +89,14 @@ function validateForRootElementExists(boundaryData: any[], hierachy: any[], shee
     }
 }
 
-function validateForDuplicateRows(boundaryData: any[]) {
+/**
+ * Returns the sheet row numbers of rows that repeat an earlier row in EVERY column (string cells compared
+ * trimmed). Only the second and later copies of each distinct row are reported - the first occurrence is
+ * the one the operator keeps, so it is deliberately not flagged.
+ *
+ * Unchanged from the check that used to fail the upload outright; only the reporting changed.
+ */
+function findDuplicateRows(boundaryData: any[]): number[] {
     // Step 1: Trim strings in all rows
     boundaryData = boundaryData.map(row =>
         Object.fromEntries(
@@ -91,7 +106,7 @@ function validateForDuplicateRows(boundaryData: any[]) {
         )
     );
     const seen = new Set<string>();
-    const duplicateRowNumbers: string[] = [];
+    const duplicateRowNumbers: number[] = [];
     for (const row of boundaryData) {
         const rowNumber = row["!row#number!"];
         const rowCopy = { ...row };
@@ -99,14 +114,55 @@ function validateForDuplicateRows(boundaryData: any[]) {
         // Serialize row as a string (key), which is much faster than deep object comparison
         const rowKey = JSON.stringify(rowCopy);
         if (seen.has(rowKey)) {
-            duplicateRowNumbers.push(rowNumber);
+            duplicateRowNumbers.push(Number(rowNumber));
         } else {
             seen.add(rowKey);
         }
     }
-    if (duplicateRowNumbers.length > 0) {
-        const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersSeparatedWithCommas}`);
+    return duplicateRowNumbers;
+}
+
+// How many duplicate row numbers to name in the message that accompanies the returned file. A sheet can be
+// duplicated wholesale, so the list is capped; the highlighted file itself is the complete record.
+const MAX_REPORTED_DUPLICATE_ROWS = 20;
+
+/**
+ * Hands the operator their own boundary sheet back with every duplicate row highlighted red, instead of
+ * failing the upload with row numbers they have to find by hand. Mirrors excel-ingestion's unified-sheet
+ * validation: the file is uploaded to filestore and the run is marked invalid, so the console can poll
+ * _process-search and offer the marked file for download.
+ *
+ * Nothing is ingested for such a run - processBoundaryService stops before processRequest when this stash
+ * is present, which is what makes this a validation-time outcome rather than a partially-processed upload.
+ *
+ * If the file cannot be produced or uploaded for any reason, this falls back to the original hard failure:
+ * the sheet genuinely has duplicates, and reporting that as a plain validation error is always better than
+ * letting an infrastructure problem turn into a silent success.
+ */
+async function markDuplicateRowsAndUploadSheet(request: any, fileUrl: string, localizedBoundaryTab: string, duplicateRowNumbers: number[]) {
+    const reportedRowNumbers = duplicateRowNumbers.slice(0, MAX_REPORTED_DUPLICATE_ROWS);
+    const notReported = duplicateRowNumbers.length - reportedRowNumbers.length;
+    const rowNumbersForMessage = `${reportedRowNumbers.join(', ')}${notReported > 0 ? ` ... and ${notReported} more` : ''}`;
+    try {
+        // Reuses the workbook already parsed for this request (excelUtils memoises it per request), so no
+        // second download or parse. Safe to colour in place: this run never reaches the ingestion parse.
+        const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedBoundaryTab, request);
+        const sheet = workbook.getWorksheet(localizedBoundaryTab);
+        if (!sheet) throw new Error(`Sheet ${localizedBoundaryTab} not found in the uploaded workbook`);
+        const markedRows = markRowsAsDuplicate(sheet, duplicateRowNumbers);
+        const uploadedFile: any = await createAndUploadFile(workbook, request);
+        const processedFileStoreId = uploadedFile?.[0]?.fileStoreId;
+        if (!processedFileStoreId) throw new Error("Filestore did not return an id for the marked boundary sheet");
+        logger.info(`Boundary Sheet has ${duplicateRowNumbers.length} duplicate row(s); highlighted ${markedRows} row(s) and uploaded the marked sheet as ${processedFileStoreId}`);
+        request.body.duplicateRowValidation = {
+            processedFileStoreId,
+            count: duplicateRowNumbers.length,
+            rowNumbers: duplicateRowNumbers,
+            message: `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersForMessage}. The uploaded sheet has been returned with those rows highlighted; remove them and upload again.`,
+        };
+    } catch (error: any) {
+        logger.error(`Could not produce the highlighted duplicate-rows sheet (${error?.message || error}); failing validation with the plain error instead`);
+        throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersForMessage}`);
     }
 }
 

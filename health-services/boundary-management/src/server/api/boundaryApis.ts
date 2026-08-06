@@ -2,6 +2,7 @@ import {boundaryBulkUpload} from "../utils/boundaryUtils"
 import {logger} from "../utils/logger";
 import config from "../config";
 import {produceModifiedMessages} from "../kafka/Producer";
+import {resourceDataStatuses} from "../config/constants";
 
 /**
  * Processes generic requests such as create or validate.
@@ -68,6 +69,43 @@ async function handleResouceDetailsError(request: any, error: any) {
 }
 
 
+/**
+ * Ends a run as INVALID because the uploaded sheet failed a data check that is reported back as a marked-up
+ * copy of the sheet rather than as a plain error - today that is duplicate rows, highlighted red by the
+ * validator. Publishes the terminal update so _process-search returns:
+ *   status                = invalid
+ *   processedFileStoreId  = the highlighted sheet to download and fix
+ *   additionalDetails.error = the same message the hard failure used to carry
+ * `additionalDetails.error` is reused deliberately: it is the field the console already reads for a failed
+ * or invalid row (see README §6), so no console change is needed to surface the reason.
+ */
+async function markResourceDetailsInvalid(request: any) {
+  const duplicateRowValidation = request?.body?.duplicateRowValidation;
+  if (!request?.body?.ResourceDetails || !duplicateRowValidation) return;
+
+  request.body.ResourceDetails.status = resourceDataStatuses.invalid;
+  request.body.ResourceDetails.processedFileStoreId = duplicateRowValidation.processedFileStoreId || null;
+  request.body.ResourceDetails.referenceId = request?.body?.ResourceDetails?.referenceId || null;
+  request.body.ResourceDetails.additionalDetails = {
+    ...request?.body?.ResourceDetails?.additionalDetails,
+    error: duplicateRowValidation.message,
+    duplicateRows: {
+      count: duplicateRowValidation.count,
+      rowNumbers: duplicateRowValidation.rowNumbers,
+    },
+  };
+
+  logger.info(
+    `Marking resource ${request?.body?.ResourceDetails?.id} invalid: ${duplicateRowValidation.count} duplicate row(s); ` +
+    `highlighted sheet is ${request.body.ResourceDetails.processedFileStoreId}`
+  );
+  await produceModifiedMessages(
+    { ResourceDetails: request.body.ResourceDetails },
+    config?.kafka?.KAFKA_UPDATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC,
+    request?.body?.ResourceDetails?.tenantId
+  );
+}
+
 function generateHierarchyList(data: any[], parentChain: any = []) {
   let result: any[] = [];
 
@@ -88,4 +126,4 @@ function generateHierarchyList(data: any[], parentChain: any = []) {
 }
 
 
-export { processRequest ,handleResouceDetailsError,generateHierarchyList};
+export { processRequest ,handleResouceDetailsError,generateHierarchyList,markResourceDetailsInvalid};

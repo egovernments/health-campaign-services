@@ -1,0 +1,158 @@
+{
+  "type": "boundaryManagement",
+  "texts": [
+    {
+      "header": "BOUNDARY_MNGMNT_README_HEADER_1",
+      "isHeaderBold": true,
+      "inSheet": true,
+      "inUiInfo": true,
+      "descriptions": [
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_1",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_2",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_3",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_4",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_1_DESC_5",
+          "isStepRequired": false
+        }
+      ]
+    },
+    {
+      "header": "BOUNDARY_MNGMNT_README_HEADER_2",
+      "isHeaderBold": true,
+      "inSheet": true,
+      "inUiInfo": true,
+      "descriptions": [
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_1",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_2",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_3",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_2_DESC_4",
+          "isStepRequired": false
+        }
+      ]
+    },
+    {
+      "header": "BOUNDARY_MNGMNT_README_HEADER_3",
+      "isHeaderBold": true,
+      "inSheet": true,
+      "inUiInfo": true,
+      "descriptions": [
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_1",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_2",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_3_DESC_3",
+          "isStepRequired": false
+        }
+      ]
+    },
+    {
+      "header": "BOUNDARY_MNGMNT_README_HEADER_4",
+      "isHeaderBold": true,
+      "inSheet": true,
+      "inUiInfo": true,
+      "descriptions": [
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_1",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_2",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_3",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_4_DESC_4",
+          "isStepRequired": false
+        }
+      ]
+    },
+    {
+      "header": "BOUNDARY_MNGMNT_README_HEADER_5",
+      "isHeaderBold": true,
+      "inSheet": true,
+      "inUiInfo": true,
+      "descriptions": [
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_1",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_2",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_5_DESC_3",
+          "isStepRequired": false
+        }
+      ]
+    },
+    {
+      "header": "BOUNDARY_MNGMNT_README_HEADER_6",
+      "isHeaderBold": true,
+      "inSheet": true,
+      "inUiInfo": true,
+      "descriptions": [
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_1",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_2",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_3",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_4",
+          "isStepRequired": false
+        },
+        {
+          "text": "BOUNDARY_MNGMNT_README_HEADER_6_DESC_5",
+          "isStepRequired": false
+        }
+      ]
+    }
+  ],
+  "_comment": [
+    "MDMS entry for the instructions (README) tab of the boundary-management template.",
+    "Master: HCM-ADMIN-CONSOLE.ReadMeConfig (shared with project-factory and excel-ingestion; one entry per type).",
+    "Create with uniqueIdentifier = \"boundaryManagement\" and isActive = true; the service picks the entry whose",
+    "`type` matches config.readMe.type (READ_ME_TYPE). Blocks with inSheet=false are console-only.",
+    "Every header / descriptions[].text is a LOCALISATION KEY - seed localisation-messages.json too,",
+    "or the sheet shows raw keys. A missing entry only means no README tab; the download still works.",
+    "Regenerate both files with dedupe-verify-2026-08-06/seed_readme_config.py --emit-only"
+  ]
+}

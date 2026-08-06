@@ -26,6 +26,16 @@ const config = {
     // default configurable number of data of boundary type on which generate different tabs
     numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2"
   },
+  readMe: {
+    // Instructions tab added to the generated template. Same localisation key project-factory uses for
+    // its readme tab, so one localisation entry serves both consoles.
+    readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
+    // MDMS master holding the per-resource-type instruction blocks, shared with project-factory and
+    // excel-ingestion; `type` selects the block set for this flow.
+    mdmsSchemaCode: process.env.READ_ME_MDMS_SCHEMA_CODE || "HCM-ADMIN-CONSOLE.ReadMeConfig",
+    type: process.env.READ_ME_TYPE || "boundaryManagement",
+    columnWidth: parseInt(process.env.READ_ME_COLUMN_WIDTH || "120"),
+  },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,
     resetCache: process.env.RESET_CACHE,
