@@ -161,6 +161,17 @@ class CcnBppFlowTest {
     }
 
     @Test
+    void publishResultWithNullLastPayloadStillDispatches() {
+        // Regression: a link read back with lastPayload=null must NOT crash responseContext — the
+        // context is synthesized from config. (Live bug: RowMapper didn't map last_payload.)
+        when(linkRepo.findByCoordinationId(eq("coord-in-1"), any())).thenReturn(
+                CcnReferralLink.builder().coordinationId("coord-in-1").direction(CcnReferralLink.INBOUND)
+                        .lastPayload(null).build());
+        assertDoesNotThrow(() -> bpp.publishResult("coord-in-1", "REJECTED", "wrong facility"));
+        verify(onix).sendBpp(eq("on_update"), any(JsonNode.class));
+    }
+
+    @Test
     void publishResultIgnoresOutboundCoordination() {
         // an OUTBOUND coordination is SPICE's to drive — HCM never pushes status back on it.
         when(linkRepo.findByCoordinationId(eq("coord-out-1"), any())).thenReturn(
