@@ -30,7 +30,14 @@ public class ServiceCoordinationMapper {
      *  Force domain+version so ONIX's bppTxnCaller can match a routing rule (it routes by
      *  domain+version; a missing version yields "no routing rules found for domain health"). */
     private ObjectNode responseContext(JsonNode inbound, String action) {
-        ObjectNode c = inbound.path("context").deepCopy();
+        // Prefer the inbound context (carries SPICE's bapId/uri for routing back); if the stored
+        // payload is missing/empty, synthesize one from config so the push never crashes and can
+        // still route. The BAP is SPICE and the BPP is us (roles are the inbound perspective).
+        JsonNode ctx = inbound == null ? null : inbound.path("context");
+        ObjectNode c = (ctx != null && ctx.isObject()) ? ((ObjectNode) ctx).deepCopy() : om.createObjectNode();
+        if (!c.hasNonNull("networkId")) c.put("networkId", p.getNetworkId());
+        if (!c.hasNonNull("bppId")) c.put("bppId", p.getBapId());       // we are the BPP on inbound
+        if (!c.hasNonNull("bppUri")) c.put("bppUri", p.getBapUri());
         c.put("action", action);
         c.put("messageId", UUID.randomUUID().toString());
         c.put("timestamp", OffsetDateTime.now().toString());
