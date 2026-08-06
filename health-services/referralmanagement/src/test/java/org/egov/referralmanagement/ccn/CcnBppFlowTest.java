@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralRequest;
 import org.egov.referralmanagement.ccn.CcnIdentityResolver;
+import org.egov.referralmanagement.ccn.CcnReferralStatusService;
 import org.egov.referralmanagement.ccn.bpp.CcnBppService;
 import org.egov.referralmanagement.ccn.bpp.InboundProjectResolver;
 import org.egov.referralmanagement.ccn.bpp.ServiceCoordinationMapper;
@@ -12,6 +13,7 @@ import org.egov.referralmanagement.ccn.client.CcnOnixClient;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
 import org.egov.referralmanagement.ccn.repository.CcnReferralLinkRepository;
+import org.egov.referralmanagement.repository.HFReferralRepository;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.common.models.core.Field;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
@@ -66,8 +68,14 @@ class CcnBppFlowTest {
         ServiceCoordinationMapper mapper = new ServiceCoordinationMapper(props, om);
         hfReferralService = mock(HFReferralService.class);
         when(hfReferralService.create(any(HFReferralRequest.class)))
-                .thenAnswer(inv -> ((HFReferralRequest) inv.getArgument(0)).getHfReferral());
-        bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, hfReferralService, resolver, identityResolver, om);
+                .thenAnswer(inv -> {
+                    HFReferral in = ((HFReferralRequest) inv.getArgument(0)).getHfReferral();
+                    in.setId("hf-created-1");
+                    return in;
+                });
+        CcnReferralStatusService statusService = new CcnReferralStatusService(
+                props, hfReferralService, mock(HFReferralRepository.class), linkRepo);
+        bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, hfReferralService, resolver, identityResolver, statusService, om);
     }
 
     private JsonNode inbound(String action) throws Exception {
@@ -87,63 +95,32 @@ class CcnBppFlowTest {
     }
 
     @Test
-    void confirmCreatesReferralAndStoresInboundLink() throws Exception {
+    void confirmCreatesHfReferralAndStoresInboundLink() throws Exception {
+        // HFReferral-only: confirm creates ONLY the autofilled HFReferral (normal Referral is not used).
+        props.setInboundHfFacilityId("PF-1");
+        props.setInboundHfProjectId("proj-1");
+
         bpp.handle("confirm", inbound("confirm"));
 
-        // creates a normal Referral (validated, in-process) with the SPICE patientId on beneficiary id
-        ArgumentCaptor<ReferralRequest> req = ArgumentCaptor.forClass(ReferralRequest.class);
-        verify(referralService).create(req.capture());
-        assertEquals("0690003741962", req.getValue().getReferral().getProjectBeneficiaryClientReferenceId());
-        // the incoming canonical id is stamped into the referral's additionalFields[abhaId]
-        assertEquals("0690003741962", identityResolver.readAbhaField(req.getValue().getReferral()));
-        assertEquals("coord-in-1", req.getValue().getReferral().getReferralCode());
-        // project is resolved from the patient's beneficiary, not a hardcoded config value
-        assertEquals("proj-1", req.getValue().getReferral().getProjectId());
-        assertEquals("pb-1", req.getValue().getReferral().getProjectBeneficiaryId());
+        // never touches the normal Referral flow
+        verify(referralService, never()).create(any());
+        verify(referralService, never()).createSkippingValidation(any());
 
-        // stores an INBOUND link linked to the created referral
+        // stores an INBOUND link pointing at the created HFReferral
         ArgumentCaptor<CcnReferralLink> link = ArgumentCaptor.forClass(CcnReferralLink.class);
         verify(linkRepo).save(link.capture());
         assertEquals(CcnReferralLink.INBOUND, link.getValue().getDirection());
         assertEquals("BPP", link.getValue().getLocalRole());
-        assertEquals("created-ref-1", link.getValue().getHfReferralId());
+        assertEquals("hf-created-1", link.getValue().getHfReferralId());   // links to the HFReferral, not a Referral
         assertEquals("comemr-np-spice-001", link.getValue().getInitiatorSubscriberId());
-
-        // resolved case uses validated create, never the skip-validation path
-        verify(referralService, never()).createSkippingValidation(any());
         verify(onix).sendBpp(eq("on_confirm"), any(JsonNode.class));
     }
 
     @Test
-    void unresolvedInboundConfirmStillPersistsViaSkipValidation() throws Exception {
-        // patient/beneficiary NOT in HCM → resolver returns an unresolved fallback (project only, no beneficiary)
-        when(resolver.resolve(any(), any())).thenAnswer(inv ->
-                new InboundProjectResolver.Resolution("proj-1", null, inv.getArgument(0), false));
-
-        assertDoesNotThrow(() -> bpp.handle("confirm", inbound("confirm")));
-
-        // persisted WITHOUT reference-existence validation (never dropped), not via validated create
-        ArgumentCaptor<ReferralRequest> req = ArgumentCaptor.forClass(ReferralRequest.class);
-        verify(referralService).createSkippingValidation(req.capture());
-        verify(referralService, never()).create(any());
-        // fallback project kept; beneficiary link null; canonical id still stamped
-        assertEquals("proj-1", req.getValue().getReferral().getProjectId());
-        assertNull(req.getValue().getReferral().getProjectBeneficiaryId());
-        assertEquals("0690003741962", identityResolver.readAbhaField(req.getValue().getReferral()));
-
-        // still links the created (skip-validation) referral and dispatches on_confirm
-        ArgumentCaptor<CcnReferralLink> link = ArgumentCaptor.forClass(CcnReferralLink.class);
-        verify(linkRepo).save(link.capture());
-        assertEquals("created-ref-skip-1", link.getValue().getHfReferralId());
-        verify(onix).sendBpp(eq("on_confirm"), any(JsonNode.class));
-    }
-
-    @Test
-    void inboundConfirmNeverBreaksDispatchWhenPersistThrows() throws Exception {
-        // even if the skip-validation persist blows up, on_confirm must still be dispatched (guarded)
-        when(resolver.resolve(any(), any())).thenAnswer(inv ->
-                new InboundProjectResolver.Resolution("proj-1", null, inv.getArgument(0), false));
-        when(referralService.createSkippingValidation(any())).thenThrow(new RuntimeException("db down"));
+    void inboundConfirmNeverBreaksDispatchWhenHfReferralCreateThrows() throws Exception {
+        // even if the HFReferral create blows up, on_confirm must still be dispatched (guarded)
+        props.setInboundHfFacilityId("PF-1");
+        when(hfReferralService.create(any())).thenThrow(new RuntimeException("db down"));
 
         assertDoesNotThrow(() -> bpp.handle("confirm", inbound("confirm")));
         verify(onix).sendBpp(eq("on_confirm"), any(JsonNode.class));
@@ -173,13 +150,23 @@ class CcnBppFlowTest {
     }
 
     @Test
-    void publishResultSendsClosedWhenInbound() {
+    void publishResultPushesOnUpdateWhenInbound() {
         when(linkRepo.findByCoordinationId(eq("coord-in-1"), any())).thenReturn(
                 CcnReferralLink.builder().coordinationId("coord-in-1").direction(CcnReferralLink.INBOUND)
                         .lastPayload("{\"context\":{\"action\":\"confirm\"}}").build());
-        bpp.publishResult("coord-in-1", "CLOSED");
-        verify(onix).sendBpp(eq("on_status"), any(JsonNode.class));
-        verify(linkRepo).updateState(eq("coord-in-1"), eq("CLOSED"), eq("publishResult"), anyLong(), any());
+        // HF worker accepted the inbound referral → pushed back to SPICE via on_update (the update API).
+        bpp.publishResult("coord-in-1", "ACCEPTED");
+        verify(onix).sendBpp(eq("on_update"), any(JsonNode.class));
+        verify(linkRepo).updateState(eq("coord-in-1"), eq("ACCEPTED"), eq("publishResult"), anyLong(), any());
+    }
+
+    @Test
+    void publishResultIgnoresOutboundCoordination() {
+        // an OUTBOUND coordination is SPICE's to drive — HCM never pushes status back on it.
+        when(linkRepo.findByCoordinationId(eq("coord-out-1"), any())).thenReturn(
+                CcnReferralLink.builder().coordinationId("coord-out-1").direction(CcnReferralLink.OUTBOUND).build());
+        bpp.publishResult("coord-out-1", "ACCEPTED");
+        verify(onix, never()).sendBpp(any(), any());
     }
 
     @Test
@@ -204,6 +191,7 @@ class CcnBppFlowTest {
         assertEquals("FEMALE", af.get("gender"));                // hardcoded gender
         assertEquals("2", af.get("cycle"));                      // hardcoded current cycle
         assertEquals("true", af.get("ccnInbound"));              // loop-guard marker (won't re-forward)
+        assertEquals("RECEIVED", af.get("referralStatus"));      // initial status (worker moves to ACCEPTED/…)
     }
 
     @Test

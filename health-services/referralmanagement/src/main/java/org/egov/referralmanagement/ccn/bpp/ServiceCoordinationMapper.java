@@ -76,18 +76,38 @@ public class ServiceCoordinationMapper {
         return root;
     }
 
-    /** Outbound update published when the CHW completes the task (lifecycleState -> given state). */
+    /** Legacy 2-state helper (completion): CLOSED -> COMPLETE else ACTIVE, dispatched as on_status. */
     public ObjectNode statusUpdate(JsonNode lastInbound, String coordinationId, String lifecycleState) {
+        return statusUpdate(lastInbound, coordinationId, lifecycleState,
+                "CLOSED".equals(lifecycleState) ? "COMPLETE" : "ACTIVE", "on_status", null);
+    }
+
+    /**
+     * HCM-initiated status push back to SPICE (inbound accept / reject-with-reason / complete). The
+     * {@code lifecycleState} is the HCM referralStatus; {@code statusCode} is the Beckn contract
+     * status.code SPICE reads (resolved from config); {@code onAction} is normally {@code on_update};
+     * {@code reason} (nullable) is the worker's free-text reason (e.g. why rejected) — carried on the
+     * status descriptor and on contractAttributes so SPICE can store it.
+     */
+    public ObjectNode statusUpdate(JsonNode lastInbound, String coordinationId, String lifecycleState,
+                                   String statusCode, String onAction, String reason) {
         ObjectNode root = om.createObjectNode();
-        root.set("context", responseContext(lastInbound, "on_status"));
+        root.set("context", responseContext(lastInbound, onAction));
         ObjectNode contract = root.putObject("message").putObject("contract");
         contract.put("id", coordinationId);
-        contract.putObject("status").put("code", "CLOSED".equals(lifecycleState) ? "COMPLETE" : "ACTIVE");
+        ObjectNode status = contract.putObject("status");
+        status.put("code", statusCode);
+        if (reason != null && !reason.isBlank()) {
+            status.putObject("descriptor").put("short_desc", reason);
+        }
         ObjectNode ca = contract.putObject("contractAttributes");
         ca.put("@context", p.getServiceCoordinationCtx());
         ca.put("@type", "scoord:ServiceCoordination");
         ca.put("coordinationId", coordinationId);
         ca.put("lifecycleState", lifecycleState);
+        if (reason != null && !reason.isBlank()) {
+            ca.put("statusReason", reason);
+        }
         return root;
     }
 }
