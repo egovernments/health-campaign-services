@@ -56,5 +56,25 @@ public class AddressTypeValidatorTest {
         assertEquals("INVALID_ADDRESS", errorList.get(0).getErrorCode());
     }
 
+    @Test
+    void shouldIsolateNullAddressTypeToTheOffendingIndividual() {
+        Address badAddress = Address.builder()
+                .id("bad-address").tenantId("some-tenant-id").type(null).build();
+        Individual bad = IndividualTestBuilder.builder().withAddress(badAddress).build();
+        Address validAddress = Address.builder()
+                .id("valid-address").tenantId("some-tenant-id").type(AddressType.PERMANENT).build();
+        Individual good = IndividualTestBuilder.builder().withAddress(validAddress).build();
+        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
+                .withIndividuals(bad, good)
+                .build();
+
+        Map<Individual, List<Error>> errors = addressTypeValidator.validate(request);
+
+        assertEquals(1, errors.size());
+        assertTrue(errors.containsKey(bad));
+        assertTrue(!errors.containsKey(good));
+    }
+
+
 
 }

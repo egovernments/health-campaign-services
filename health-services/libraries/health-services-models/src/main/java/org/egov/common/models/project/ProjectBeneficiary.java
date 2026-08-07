@@ -4,10 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
@@ -21,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
 
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
@@ -28,7 +30,7 @@ import org.springframework.validation.annotation.Validated;
 public class ProjectBeneficiary extends EgovOfflineModel {
 
     @JsonProperty("projectId")
-    @NotNull
+    @NotBlank
     @Size(min=2,max=64)
     private String projectId = null;
 

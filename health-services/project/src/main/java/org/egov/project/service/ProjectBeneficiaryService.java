@@ -254,7 +254,8 @@ public class ProjectBeneficiaryService {
         log.info("validating request");
         Map<ProjectBeneficiary, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
-                SET_PROJECT_BENEFICIARIES);
+                SET_PROJECT_BENEFICIARIES,
+                isApplicable != isApplicableForDelete);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());

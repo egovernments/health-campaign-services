@@ -50,6 +50,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNullId;
 public class CommonUtils {
 
     public static final String GET_API_OPERATION = "getApiOperation";
+    public static final String ID_ENRICHMENT_ERROR = "ID_ENRICHMENT_ERROR";
 
     private static final Map<Class<?>, Map<String, Method>> methodCache = new ConcurrentHashMap<>();
 
@@ -350,9 +351,12 @@ public class CommonUtils {
      * @param updateRowVersion denoting whether to update rowVersion or not
      * @param <T> is any type that has an id field, auditDetails field, rowVersion field and isDeleted field with setters and getters
      */
-    //TODO COMPARE the size and throw error when objList and idList are not equal
     public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo,
                                            boolean updateRowVersion) {
+        validateGeneratedIds(objList, idList);
+        if (objList.isEmpty()) {
+            return;
+        }
         AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
         Class<?> objClass = getObjClass(objList);
         Method setIdMethod = getMethod("setId", objClass);
@@ -432,6 +436,10 @@ public class CommonUtils {
      * @param <T> The type of objects in the list.
      */
     public static <T> void enrichId(List<T> objList, List<String> idList) {
+        validateGeneratedIds(objList, idList);
+        if (objList.isEmpty()) {
+            return;
+        }
         // Get the class of objects in the list
         Class<?> objClass = getObjClass(objList);
         // Get the method to set the ID
@@ -444,6 +452,34 @@ public class CommonUtils {
                     // Invoke the method to set the ID on the object using the corresponding ID from the ID list
                     ReflectionUtils.invokeMethod(setIdMethod, obj, idList.get(i));
                 });
+    }
+
+    /**
+     * Prevents an incomplete or malformed ID-generation response from reaching the persister.
+     * A count mismatch previously failed later with an index exception (or assigned the wrong
+     * IDs), while a null/blank generated ID failed only at a PostgreSQL primary-key constraint.
+     */
+    public static void validateGeneratedIds(List<?> objList, List<String> idList) {
+        if (objList == null) {
+            throw new CustomException(ID_ENRICHMENT_ERROR, "Objects to enrich must not be null");
+        }
+        if (idList == null || objList.size() != idList.size()) {
+            int generatedCount = idList == null ? 0 : idList.size();
+            throw new CustomException(ID_ENRICHMENT_ERROR,
+                    "Generated ID count " + generatedCount
+                            + " does not match object count " + objList.size());
+        }
+        for (int index = 0; index < objList.size(); index++) {
+            if (objList.get(index) == null) {
+                throw new CustomException(ID_ENRICHMENT_ERROR,
+                        "Object at index " + index + " must not be null");
+            }
+            String id = idList.get(index);
+            if (id == null || id.trim().isEmpty()) {
+                throw new CustomException(ID_ENRICHMENT_ERROR,
+                        "Generated ID at index " + index + " must not be blank");
+            }
+        }
     }
 
     /**
@@ -915,12 +951,16 @@ public class CommonUtils {
                                                        Predicate<Validator<R, T>> applicableValidators,
                                                        R request,
                                                        String setPayloadMethodName) {
-        Map<T, ErrorDetails> errorDetailsMap = new HashMap<>();
-        validators.stream().filter(applicableValidators)
-                .map(validator -> validator.validate(request))
-                .forEach(e -> populateErrorDetails(request, errorDetailsMap, e,
-                        setPayloadMethodName));
-        return errorDetailsMap;
+        return validate(validators, applicableValidators, request, setPayloadMethodName, true);
+    }
+
+    public static <T, R> Map<T, ErrorDetails> validate(List<Validator<R, T>> validators,
+                                                       Predicate<Validator<R, T>> applicableValidators,
+                                                       R request,
+                                                       String setPayloadMethodName,
+                                                       boolean enforceDtoConstraints) {
+        return ValidatorIsolation.validate(validators, applicableValidators, request,
+                setPayloadMethodName, enforceDtoConstraints);
     }
 
     /**
@@ -940,6 +980,8 @@ public class CommonUtils {
         try {
             for (Map.Entry<T, List<Error>> entry : errorMap.entrySet()) {
                 T payload = entry.getKey();
+                ReflectionUtils.invokeMethod(getMethod("setHasErrors", payload.getClass()),
+                        payload, Boolean.TRUE);
                 if (errorDetailsMap.containsKey(payload)) {
                     errorDetailsMap.get(payload).getErrors().addAll(entry.getValue());
                 } else {

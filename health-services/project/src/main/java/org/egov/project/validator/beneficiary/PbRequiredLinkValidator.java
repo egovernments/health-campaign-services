@@ -20,9 +20,10 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 /**
  * Structural link validation for project beneficiaries. With existence validation unbundled
  * (flags off), an enrollment saved without any beneficiary (household/individual) link is an
- * orphan that can never be traced back, and one without its own clientReferenceId is accepted
- * by the API but violates the DB NOT NULL later. Presence is enforced even though the referenced
- * entity is allowed to not exist yet. Always on: structural, not an existence check.
+ * orphan that can never be traced back. The database currently permits a null clientReferenceId,
+ * but accepting one would make offline reconciliation and record-level recovery unreliable.
+ * Presence is enforced even though the referenced entity is allowed to not exist yet. Always on:
+ * structural, not an existence check.
  */
 @Component
 @Order(value = 1)

@@ -20,9 +20,10 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 /**
  * Structural link validation for tasks. With existence validation unbundled (flags off), a task
  * saved without any beneficiary link is an orphan delivery that can never be traced back to a
- * person, and a task without its own clientReferenceId is accepted by the API but violates the
- * DB NOT NULL later. Presence of the links is therefore enforced even though the referenced
- * beneficiary is allowed to not exist yet. Always on: structural, not an existence check.
+ * person. The database currently permits a null clientReferenceId, but accepting one would make
+ * offline reconciliation and record-level recovery unreliable. Presence of the links is therefore
+ * enforced even though the referenced beneficiary is allowed to not exist yet. Always on:
+ * structural, not an existence check.
  */
 @Component
 @Order(value = 1)

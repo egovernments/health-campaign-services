@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
+import org.egov.common.models.household.Relationship;
 import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
@@ -26,7 +27,8 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
  *    DB NOT NULL later, silently killing the whole persister batch),
  *  - a household link (householdId or householdClientReferenceId) must be present,
  *  - an individual link (individualId or individualClientReferenceId) must be present
- *    (records missing either link were silently dropped in the pipeline).
+ *    (records missing either link were silently dropped in the pipeline),
+ *  - each relationship must identify its relative by server ID or client reference ID.
  * Always on: this is a structural check, not an existence check.
  */
 @Component
@@ -51,6 +53,18 @@ public class HmRequiredLinkValidator implements Validator<HouseholdMemberBulkReq
             if (StringUtils.isBlank(member.getIndividualId())
                     && StringUtils.isBlank(member.getIndividualClientReferenceId())) {
                 missing.add("individualId/individualClientReferenceId");
+            }
+            List<Relationship> relationships = member.getMemberRelationships();
+            if (relationships != null) {
+                for (int index = 0; index < relationships.size(); index++) {
+                    Relationship relationship = relationships.get(index);
+                    if (relationship == null
+                            || (StringUtils.isBlank(relationship.getRelativeId())
+                            && StringUtils.isBlank(relationship.getRelativeClientReferenceId()))) {
+                        missing.add("memberRelationships[" + index
+                                + "].relativeId/relativeClientReferenceId");
+                    }
+                }
             }
             if (!missing.isEmpty()) {
                 String message = "Required link field(s) missing: " + String.join(", ", missing);

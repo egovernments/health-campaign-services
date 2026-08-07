@@ -266,7 +266,8 @@ public class HouseholdMemberService {
         log.info("validating request for household members");
         Map<HouseholdMember, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
-                SET_HOUSEHOLD_MEMBERS);
+                SET_HOUSEHOLD_MEMBERS,
+                isApplicable != isApplicableForDelete);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.info("errors found in the request for household members");
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());

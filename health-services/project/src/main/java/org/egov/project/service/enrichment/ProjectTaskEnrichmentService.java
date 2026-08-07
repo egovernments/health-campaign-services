@@ -42,9 +42,9 @@ public class ProjectTaskEnrichmentService {
 
         log.info("generating id for tasks");
         List<String> taskIdList = idGenService.getIdList(request.getRequestInfo(),
-                getTenantId(request.getTasks()),
+                getTenantId(validTasks),
                 projectConfiguration.getProjectTaskIdFormat(),
-                "", request.getTasks().size());
+                "", validTasks.size());
         log.info("enriching tasks");
         enrichForCreate(validTasks, taskIdList, request.getRequestInfo());
         enrichAddressesForCreate(validTasks);

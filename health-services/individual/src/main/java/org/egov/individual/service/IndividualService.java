@@ -32,6 +32,7 @@ import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.IBoundaryValidator;
 import org.egov.individual.validators.IExistentEntityValidator;
+import org.egov.individual.validators.IRequiredLinkValidator;
 import org.egov.individual.validators.IdPoolValidatorForCreate;
 import org.egov.individual.validators.IdPoolValidatorForUpdate;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
@@ -99,7 +100,8 @@ public class IndividualService {
             ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
-            validator.getClass().equals(AddressTypeValidator.class)
+            validator.getClass().equals(IRequiredLinkValidator.class)
+                    || validator.getClass().equals(AddressTypeValidator.class)
                     || validator.getClass().equals(IExistentEntityValidator.class)
                     || validator.getClass().equals(IBoundaryValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
@@ -205,7 +207,8 @@ public class IndividualService {
         log.info("validating request");
         Map<Individual, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicableForCreate, request,
-                SET_INDIVIDUALS);
+                SET_INDIVIDUALS,
+                isApplicableForCreate != isApplicableForDelete);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             Set<String> hashset = new HashSet<>();
             for (Map.Entry<Individual, ErrorDetails> entry : errorDetailsMap.entrySet()) {

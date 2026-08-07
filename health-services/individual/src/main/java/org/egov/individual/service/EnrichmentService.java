@@ -27,6 +27,7 @@ import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.validateGeneratedIds;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 import static org.egov.individual.Constants.GET_ID;
 import static org.egov.individual.Constants.SYSTEM_GENERATED;
@@ -180,6 +181,7 @@ public class EnrichmentService {
      * Enriches individualId - formatted idGen generated value on create
      */
     private static void enrichIndividualIdOnCreate(List<Individual> individuals, List<String> idGenList) {
+        validateGeneratedIds(individuals, idGenList);
         IntStream.range(0, individuals.size()).forEach((i) -> {
             individuals.get(i).setIndividualId(idGenList.get(i));
         });

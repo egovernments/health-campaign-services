@@ -6,11 +6,13 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
@@ -22,6 +24,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
@@ -29,7 +32,7 @@ import org.springframework.validation.annotation.Validated;
 public class Task extends EgovOfflineModel {
 
     @JsonProperty("projectId")
-    @NotNull
+    @NotBlank
     @Size(min=2,max=64)
     private String projectId = null;
 
@@ -44,7 +47,7 @@ public class Task extends EgovOfflineModel {
     @JsonProperty("resources")
     @Valid
     @Builder.Default
-    private List<TaskResource> resources = new ArrayList<>();
+    private List<@NotNull TaskResource> resources = new ArrayList<>();
 
     @JsonProperty("plannedStartDate")
     private Long plannedStartDate = null;

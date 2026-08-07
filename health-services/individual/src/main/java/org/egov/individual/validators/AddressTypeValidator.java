@@ -46,11 +46,21 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
             if (individual.getAddress() == null) {
                 continue;
             }
+            boolean invalidAddress = false;
             for (Address address : individual.getAddress()) {
-                addressTypeCountMap.merge(address.getType(), 1, Integer::sum);
+                if (address == null || address.getType() == null) {
+                    invalidAddress = true;
+                    break;
+                }
+                int count = addressTypeCountMap.merge(address.getType(), 1, Integer::sum);
+                if (count > 1) {
+                    invalidAddress = true;
+                    break;
+                }
             }
-            addressTypeCountMap.entrySet().stream().filter(e -> e.getValue() > 1)
-                    .forEach(e -> individuals.add(individual));
+            if (invalidAddress) {
+                individuals.add(individual);
+            }
         }
         return individuals;
     }

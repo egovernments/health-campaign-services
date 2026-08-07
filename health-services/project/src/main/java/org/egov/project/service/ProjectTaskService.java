@@ -222,7 +222,8 @@ public class ProjectTaskService {
         log.info("validating request");
         Map<Task, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
-                SET_TASKS);
+                SET_TASKS,
+                applicableValidators != isApplicableForDelete);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }

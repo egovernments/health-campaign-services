@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
@@ -26,6 +27,7 @@ import org.springframework.validation.annotation.Validated;
 
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
@@ -74,7 +76,7 @@ public class Individual extends EgovOfflineModel {
     @JsonProperty("address")
     @Valid
     @Size(max = 3)
-    private List<Address> address = null;
+    private List<@NotNull Address> address = null;
 
     @JsonProperty("fatherName")
     @Size(max = 100)
@@ -90,11 +92,11 @@ public class Individual extends EgovOfflineModel {
 
     @JsonProperty("identifiers")
     @Valid
-    private List<Identifier> identifiers = null;
+    private List<@NotNull Identifier> identifiers = null;
 
     @JsonProperty("skills")
     @Valid
-    private List<Skill> skills = null;
+    private List<@NotNull Skill> skills = null;
 
     @JsonProperty("photo")
     private String photo = null;

@@ -54,7 +54,8 @@ public class HouseholdService {
     private final HouseholdEnrichmentService enrichmentService;
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForCreate = validator ->
-            validator.getClass().equals(HBoundaryValidator.class)
+            validator.getClass().equals(HRequiredLinkValidator.class)
+                    || validator.getClass().equals(HBoundaryValidator.class)
                     || validator.getClass().equals(HExistentEntityValidator.class)
                     || validator.getClass().equals(HCommunityValidator.class)
                     || validator.getClass().equals(HCommunityTypeValidator.class);
@@ -244,7 +245,8 @@ public class HouseholdService {
         log.info("validating the request for households");
         Map<Household, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
-                SET_HOUSEHOLDS);
+                SET_HOUSEHOLDS,
+                applicableValidators != isApplicableForDelete);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. Error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());

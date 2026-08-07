@@ -7,6 +7,7 @@ import org.egov.common.models.project.TaskRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.TaskRequestTestBuilder;
+import org.egov.project.helper.TaskTestBuilder;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -128,5 +131,19 @@ public class ProjectTaskEnrichmentTest {
 
         Task task = request.getTasks().get(0);
         assertNotNull(task.getResources().stream().findAny().get().getTaskId());
+    }
+
+    @Test
+    @DisplayName("should generate IDs only for the validated subset")
+    void shouldGenerateIdsOnlyForValidatedTasks() throws Exception {
+        Task valid = request.getTasks().get(0);
+        Task rejected = TaskTestBuilder.builder().withTask().build();
+        request.setTasks(Arrays.asList(valid, rejected));
+
+        projectTaskEnrichmentService.create(Collections.singletonList(valid), request);
+
+        verify(idGenService).getIdList(any(RequestInfo.class),
+                eq(valid.getTenantId()), eq("project.task.id"), eq(""), eq(1));
+        assertNotNull(valid.getId());
     }
 }

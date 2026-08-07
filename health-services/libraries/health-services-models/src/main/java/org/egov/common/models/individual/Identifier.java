@@ -3,7 +3,7 @@ package org.egov.common.models.individual;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,12 +43,12 @@ public class Identifier {
     private String individualClientReferenceId = null;
 
     @JsonProperty("identifierType")
-    @NotNull
+    @NotBlank
     @Size(min = 2, max = 64)
     private String identifierType = null;
 
     @JsonProperty("identifierId")
-    @NotNull
+    @NotBlank
     @Size(min = 2, max = 64)
     private String identifierId = null;
 

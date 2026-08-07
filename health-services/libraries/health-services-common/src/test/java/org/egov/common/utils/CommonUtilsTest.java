@@ -359,6 +359,43 @@ class CommonUtilsTest {
         }
 
         @Test
+        @DisplayName("should reject a generated ID count mismatch before enrichment")
+        void shouldRejectGeneratedIdCountMismatch() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                List<SomeObject> objects = Arrays.asList(
+                                SomeObject.builder().build(), SomeObject.builder().build());
+
+                CustomException exception = assertThrows(CustomException.class,
+                                () -> CommonUtils.enrichForCreate(objects,
+                                                Collections.singletonList("one-id"), requestInfo));
+
+                assertEquals(CommonUtils.ID_ENRICHMENT_ERROR, exception.getCode());
+                assertNull(objects.get(0).getId());
+                assertNull(objects.get(1).getId());
+        }
+
+        @Test
+        @DisplayName("should reject blank generated IDs before enrichment")
+        void shouldRejectBlankGeneratedId() {
+                SomeObject object = SomeObject.builder().build();
+
+                CustomException exception = assertThrows(CustomException.class,
+                                () -> CommonUtils.enrichId(Collections.singletonList(object),
+                                                Collections.singletonList("  ")));
+
+                assertEquals(CommonUtils.ID_ENRICHMENT_ERROR, exception.getCode());
+                assertNull(object.getId());
+        }
+
+        @Test
+        @DisplayName("should allow empty enrichment collections")
+        void shouldAllowEmptyEnrichmentCollections() {
+                assertDoesNotThrow(() -> CommonUtils.enrichId(
+                                Collections.emptyList(), Collections.emptyList()));
+        }
+
+        @Test
         @DisplayName("should create id to obj map")
         void shouldCreateIdToObjMap() {
                 SomeObject someObject = SomeObject.builder()
@@ -750,6 +787,175 @@ class CommonUtilsTest {
                 CommonUtils.validate(validators, isApplicableForTest, someObject, "setOtherObject");
 
                 verify(someValidator, times(1)).validate(any());
+        }
+        @Test
+        @DisplayName("should isolate a validator exception to the offending record")
+        void shouldIsolateValidatorExceptionToOffendingRecord() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                OtherObject bad = OtherObject.builder().someOtherField("bad").build();
+                OtherObject good = OtherObject.builder().someOtherField("good").build();
+                SomeObject request = SomeObject.builder()
+                                .requestInfo(requestInfo)
+                                .otherObject(Arrays.asList(bad, good))
+                                .build();
+
+                when(someValidator.validate(any())).thenAnswer(invocation -> {
+                        SomeObject candidate = invocation.getArgument(0);
+                        List<OtherObject> payloads = candidate.getOtherObject();
+                        if (payloads.size() > 1 || "bad".equals(payloads.get(0).getSomeOtherField())) {
+                                throw new IllegalArgumentException("invalid bad record");
+                        }
+                        return Collections.emptyMap();
+                });
+
+                Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
+                                Collections.singletonList(someValidator), validator -> true,
+                                request, "setOtherObject");
+
+                assertEquals(1, errors.size());
+                assertTrue(errors.containsKey(bad));
+                assertFalse(errors.containsKey(good));
+                assertTrue(bad.getHasErrors());
+                assertFalse(good.getHasErrors());
+                assertEquals(Arrays.asList(bad, good), request.getOtherObject());
+                verify(someValidator, times(3)).validate(any());
+        }
+
+        @Test
+        @DisplayName("should reject all records when a batch-only validator failure cannot be isolated")
+        void shouldRejectBatchWhenValidatorFailureCannotBeIsolated() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                OtherObject first = OtherObject.builder().someOtherField("first").build();
+                OtherObject second = OtherObject.builder().someOtherField("second").build();
+                SomeObject request = SomeObject.builder()
+                                .requestInfo(requestInfo)
+                                .otherObject(Arrays.asList(first, second))
+                                .build();
+
+                when(someValidator.validate(any())).thenAnswer(invocation -> {
+                        SomeObject candidate = invocation.getArgument(0);
+                        if (candidate.getOtherObject().size() > 1) {
+                                throw new IllegalStateException("cross-record validation failed");
+                        }
+                        return Collections.emptyMap();
+                });
+
+                Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
+                                Collections.singletonList(someValidator), validator -> true,
+                                request, "setOtherObject");
+
+                assertEquals(2, errors.size());
+                assertTrue(first.getHasErrors());
+                assertTrue(second.getHasErrors());
+                assertEquals(Arrays.asList(first, second), request.getOtherObject());
+        }
+
+        @Test
+        @DisplayName("should apply DTO annotations per record for service-originated validation")
+        void shouldApplyBeanValidationPerRecord() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                OtherObject bad = OtherObject.builder().someOtherField(null).build();
+                OtherObject good = OtherObject.builder().someOtherField("good").build();
+                SomeObject request = SomeObject.builder()
+                                .requestInfo(requestInfo)
+                                .otherObject(Arrays.asList(bad, good))
+                                .build();
+
+                when(someValidator.validate(any())).thenReturn(Collections.emptyMap());
+
+                Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
+                                Collections.singletonList(someValidator), validator -> true,
+                                request, "setOtherObject");
+
+                assertEquals(1, errors.size());
+                assertTrue(errors.containsKey(bad));
+                assertFalse(errors.containsKey(good));
+                assertTrue(bad.getHasErrors());
+                assertFalse(good.getHasErrors());
+                assertEquals("FIELD_VALIDATION_ERROR",
+                                errors.get(bad).getErrors().get(0).getErrorCode());
+                assertTrue(errors.get(bad).getErrors().get(0).getErrorMessage()
+                                .contains("someOtherField"));
+        }
+
+        @Test
+        @DisplayName("should isolate identical invalid records by object identity")
+        void shouldIsolateIdenticalInvalidRecords() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                OtherObject first = OtherObject.builder().someOtherField(null).build();
+                OtherObject second = OtherObject.builder().someOtherField(null).build();
+                SomeObject request = SomeObject.builder()
+                                .requestInfo(requestInfo)
+                                .otherObject(Arrays.asList(first, second))
+                                .build();
+
+                when(someValidator.validate(any())).thenReturn(Collections.emptyMap());
+
+                Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
+                                Collections.singletonList(someValidator), validator -> true,
+                                request, "setOtherObject");
+
+                assertEquals(2, errors.size());
+                assertTrue(errors.containsKey(first));
+                assertTrue(errors.containsKey(second));
+                assertTrue(first.getHasErrors());
+                assertTrue(second.getHasErrors());
+        }
+
+        @Test
+        @DisplayName("should reject PostgreSQL NUL characters per record before persistence")
+        void shouldRejectPostgresNulCharacterPerRecord() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                OtherObject bad = OtherObject.builder().someOtherField("bad\0value").build();
+                OtherObject good = OtherObject.builder().someOtherField("good").build();
+                SomeObject request = SomeObject.builder()
+                                .requestInfo(requestInfo)
+                                .otherObject(Arrays.asList(bad, good))
+                                .build();
+
+                when(someValidator.validate(any())).thenReturn(Collections.emptyMap());
+
+                Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
+                                Collections.singletonList(someValidator), validator -> true,
+                                request, "setOtherObject");
+
+                assertEquals(1, errors.size());
+                assertTrue(errors.containsKey(bad));
+                assertFalse(errors.containsKey(good));
+                assertEquals("INVALID_DATABASE_CHARACTER",
+                                errors.get(bad).getErrors().get(0).getErrorCode());
+                assertTrue(errors.get(bad).getErrors().get(0).getErrorMessage()
+                                .contains("$.someOtherField"));
+        }
+
+        @Test
+        @DisplayName("should skip create-only DTO constraints but retain database safety checks")
+        void shouldRetainDatabaseSafetyChecksWhenDtoConstraintsAreDisabled() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                OtherObject incompleteDelete = OtherObject.builder().someOtherField(null).build();
+                OtherObject invalidDelete = OtherObject.builder().someOtherField("bad\0value").build();
+                SomeObject request = SomeObject.builder()
+                                .requestInfo(requestInfo)
+                                .otherObject(Arrays.asList(incompleteDelete, invalidDelete))
+                                .build();
+
+                when(someValidator.validate(any())).thenReturn(Collections.emptyMap());
+
+                Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
+                                Collections.singletonList(someValidator), validator -> true,
+                                request, "setOtherObject", false);
+
+                assertEquals(1, errors.size());
+                assertFalse(errors.containsKey(incompleteDelete));
+                assertTrue(errors.containsKey(invalidDelete));
+                assertEquals("INVALID_DATABASE_CHARACTER",
+                                errors.get(invalidDelete).getErrors().get(0).getErrorCode());
         }
 
         @Test

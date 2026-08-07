@@ -4,10 +4,11 @@ package org.egov.common.models.household;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
@@ -21,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
 @ApiModel(description = "A representation of relationship with the relative")
 @Validated
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
@@ -46,7 +48,7 @@ public class Relationship extends EgovOfflineModel
 
     @Size(min = 2, max = 64)
     @JsonProperty("relationshipType")
-    @NotNull
+    @NotBlank
     private String relationshipType;
 
     @JsonProperty("isDeleted")
