@@ -75,21 +75,9 @@ public class PbExistentEntityValidator implements Validator<BeneficiaryBulkReque
                 .collect(Collectors.toList()); // Collect the IDs into a list.
 
         // Create a map of client reference ID to ProjectBeneficiary entity for quick lookup.
-        Map<String, ProjectBeneficiary> map = new HashMap<>();
-        // Within-batch duplicate clientReferenceId must NOT crash Collectors.toMap (that
-        // IllegalStateException previously propagated to the consumer and dropped the ENTIRE bulk
-        // batch, losing unrelated valid records). Keep the first occurrence and isolate each
-        // subsequent duplicate as a per-record uniqueness error so the good records still persist.
-        for (ProjectBeneficiary entity : entities) {
-            if (!StringUtils.hasText(entity.getClientReferenceId())) {
-                continue;
-            }
-            if (map.containsKey(entity.getClientReferenceId())) {
-                populateErrorDetails(entity, getErrorForUniqueEntity(), errorDetailsMap);
-            } else {
-                map.put(entity.getClientReferenceId(), entity);
-            }
-        }
+        Map<String, ProjectBeneficiary> map = entities.stream()
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty.
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map.
 
         // Create a search object to query entities by client reference IDs.
         ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()

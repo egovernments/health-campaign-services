@@ -37,47 +37,7 @@ interface UserBatchMessage {
 }
 
 /**
- * Mark an already-existing (adopted) user row as terminally completed — symmetric with the
- * newly-created path — so a retry of a partially-created campaign converges (pendingRows → 0)
- * instead of leaving adopted rows stuck 'pending'.
- */
-export function markAdoptedUserRecordCompleted(campaignRecord: CampaignRecord, serviceUuid: string, userName?: string): void {
-    campaignRecord.status = dataRowStatuses.completed;
-    campaignRecord.data = {
-        ...campaignRecord.data,
-        [userCredentialFields.userServiceUuids]: serviceUuid,
-        [campaignDataRowFields.status]: sheetDataRowStatuses.EXISTING,
-        // Adopted users have no campaign-generated credentials; surface their real login id
-        // (authoritative from egov-user) on the credential sheet. Password stays blank (unrecoverable).
-        ...(userName ? { [userCredentialFields.userName]: userName } : {}),
-    };
-    campaignRecord.uniqueIdAfterProcess = serviceUuid;
-}
-
-/**
- * Reconcile-selector: from a set of still-`pending` user rows and a phone→existing-HRMS-user map,
- * mark every row whose user already exists as terminally completed and return only those rows.
- * Pure (no I/O) so the convergence rule is unit-testable; the DB fetch / HRMS search / persist
- * are orchestrated by the caller (see reconcilePendingUserRows in processingResultHandler).
- */
-export function selectReconcilableUserRows(
-    pendingRows: CampaignRecord[],
-    existingByPhone: Record<string, ExistingHrmsUser>
-): CampaignRecord[] {
-    const reconciled: CampaignRecord[] = [];
-    for (const row of pendingRows) {
-        const existing = existingByPhone[String(row?.uniqueIdentifier ?? '')];
-        if (existing?.serviceUuid) {
-            markAdoptedUserRecordCompleted(row, existing.serviceUuid, existing.userName);
-            reconciled.push(row);
-        }
-    }
-    return reconciled;
-}
-
-/**
- * Kafka handler for one user batch: idempotently creates HRMS users (adopting existing ones), then gates and
- * creates worker-registry records, marking per-row status. Failures here are non-blocking for the campaign.
+ * Handle user batch creation from Kafka message
  */
 export async function handleUserBatch(messageObject: UserBatchMessage): Promise<void> {
     try {
@@ -95,13 +55,14 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             throw new Error(`User batch ${batchNumber}/${totalBatches} missing requestInfo.userInfo — cannot generate usernames via IDGen`);
         }
 
-        // userData is keyed by phone number
+        // Get unique identifiers from user data keys (phone numbers)
         const uniqueIdentifiers = Object.keys(userData);
 
         logger.info(`=== USER BATCH PROCESSING STARTED ===`);
         logger.info(`Processing user batch ${batchNumber}/${totalBatches}: ${uniqueIdentifiers.length} users`);
         logger.info(`Campaign: ${campaignNumber}, Tenant: ${tenantId}`);
-
+        
+        // Get campaign details for transformation
         const campaignResponse = await searchProjectTypeCampaignService({
             tenantId,
             ids: [campaignId]
@@ -157,7 +118,12 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             const hrmsName = normalizeNameForCompare(existing.existingName);
 
             const wasRetry = campaignRecord.status === dataRowStatuses.failed;
-            markAdoptedUserRecordCompleted(campaignRecord, existing.serviceUuid, existing.userName);
+            campaignRecord.status = dataRowStatuses.completed;
+            campaignRecord.data = {
+                ...campaignRecord.data,
+                [userCredentialFields.userServiceUuids]: existing.serviceUuid,
+            };
+            campaignRecord.uniqueIdAfterProcess = existing.serviceUuid;
 
             if (sheetName && hrmsName && sheetName !== hrmsName) {
                 const reason = `${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS as '${existing.existingName}' but sheet provided '${campaignRecord?.data?.[userDataFields.name] ?? ''}'. HRMS user kept as source of truth.`;
@@ -170,7 +136,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             }
         });
 
-        // Transform only the rows that need creation (existing users already handled above)
+        // Transform user data from campaign records — only for users needing creation
         const userRowDatas = phoneNumbersNeedingCreation.map(uniqueIdentifier => {
             const campaignRecord = userData[uniqueIdentifier];
             return campaignRecord?.data;
@@ -188,9 +154,10 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 
         logger.info(`Transformed ${transformedUsers.length} users (${uniqueIdentifiers.length - phoneNumbersNeedingCreation.length} already existed)`);
 
+        // Create only new users via HRMS API
         const createResult = await createUsersViaHrmsApi(transformedUsers, useruuid, messageObject.requestInfo);
 
-        // Per-user failures from the HRMS per-user fallback are handed back via a global (see createUsersViaHrmsApi)
+        // Check for per-user failures from HRMS fallback
         const failedHrmsUsers: Record<string, string> = (global as any).__hrmsFailedUsers || {};
         delete (global as any).__hrmsFailedUsers;
 
@@ -210,8 +177,10 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             phoneToTransformedUser.set(phone, transformedUsers[i]);
         });
 
+        // Build worker data for worker registry integration
         const workerDataList: WorkerData[] = [];
 
+        // Process results and update campaign data
         let successCount = 0;
         let failureCount = 0;
         const updatedUsers: CampaignRecord[] = [];
@@ -227,6 +196,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             const wasRetry = campaignRecord.status === dataRowStatuses.failed;
 
             if (hrmsError) {
+                // Failure - mark row as failed with HRMS error
                 campaignRecord.status = dataRowStatuses.failed;
                 campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
                 campaignRecord.data[campaignDataRowFields.errorDetails] = hrmsError;
@@ -234,6 +204,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 failureCount++;
                 logger.warn(`HRMS create failed for phone ${phoneNumber}${wasRetry ? ' (retry=true)' : ''}: ${hrmsError}`);
             } else if (serviceUuid) {
+                // Success - user created
                 campaignRecord.status = dataRowStatuses.completed;
                 const userName = transformedUser?.user?.userName;
                 const password = transformedUser?.user?.password;
@@ -242,10 +213,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     [userCredentialFields.userServiceUuids]: serviceUuid,
                     [userCredentialFields.userName]: userName ? encrypt(userName) : campaignRecord.data[userCredentialFields.userName],
                     [userCredentialFields.password]: password ? encrypt(password) : campaignRecord.data[userCredentialFields.password],
-                    // Preserve EXISTING for adopted rows; only newly-created rows are CREATED.
-                    [campaignDataRowFields.status]: campaignRecord.data[campaignDataRowFields.status] === sheetDataRowStatuses.EXISTING
-                        ? sheetDataRowStatuses.EXISTING
-                        : sheetDataRowStatuses.CREATED
+                    [campaignDataRowFields.status]: sheetDataRowStatuses.CREATED
                 };
                 campaignRecord.uniqueIdAfterProcess = serviceUuid;
                 updatedUsers.push(campaignRecord);
@@ -254,6 +222,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     logger.info(`HRMS create succeeded on retry for phone ${phoneNumber}: serviceUuid ${serviceUuid}`);
                 }
 
+                // Collect worker data from campaign record
                 if (individualId) {
                     const recordData = campaignRecord.data;
                     workerDataList.push({
@@ -285,6 +254,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             }
         });
 
+        // Create/update workers in worker registry and capture worker IDs
         if (workerDataList.length > 0) {
             // Build individualId → campaignRecords map (multiple phones can map to same individualId)
             const individualIdToRecords = new Map<string, CampaignRecord[]>();
@@ -297,40 +267,16 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 }
             }
 
-            // Consistency gate runs outside the try: waitForIndividualsSearchable is fail-open (never throws),
-            // so creatable/deferred are in scope for the catch below — deferred rows are already demoted and
-            // must not be double-counted if the create throws.
-            const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
-            const { missing } = await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
-            const { creatable, deferred } = partitionWorkersByIndividualSearchability(workerDataList, missing);
-
-            // Defer workers whose individual is not yet searchable — never send them to worker-registry
-            // (worker/v1/bulk/_create returns terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND); mark them
-            // retryable so a later upload/retry re-attempts them once individual indexing catches up.
-            if (deferred.length > 0) {
-                const deferMsg = `Individual not searchable after ${config.user.individualConsistencyMaxPollAttempts} consistency poll attempt(s); worker creation deferred for retry`;
-                const deferredIds = new Set<string>();
-                for (const w of deferred) {
-                    if (deferredIds.has(w.individualId)) continue;
-                    deferredIds.add(w.individualId);
-                    const records = individualIdToRecords.get(w.individualId) || [];
-                    const demoted = markWorkerRecordsFailed(records, deferMsg);
-                    successCount -= demoted;
-                    failureCount += demoted;
-                }
-                logger.warn(`Deferred ${deferredIds.size} worker(s) for retry — individual(s) not yet searchable`);
-            }
-
             try {
-                const { individualIdToWorkerIdMap, errors } = creatable.length > 0
-                    ? await createOrUpdateWorkers(creatable, workerRequestInfo)
-                    : { individualIdToWorkerIdMap: new Map<string, string>(), errors: [] as string[] };
-                logger.info(`Worker registry integration completed for ${creatable.length} worker(s) (${deferred.length} deferred)`);
+                const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
+                await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
+                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
+                logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 
                 // Store only worker IDs back in campaign data — payee fields are fetched fresh
                 // from worker registry at credential sheet generation time to avoid storing
                 // potentially encrypted values that would corrupt subsequent updates.
-                for (const workerData of creatable) {
+                for (const workerData of workerDataList) {
                     const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
                     if (workerId) {
                         const records = individualIdToRecords.get(workerData.individualId) || [];
@@ -345,7 +291,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     const errMsg = errors.join("; ");
                     logger.error("Worker registry integration had errors:", errMsg);
                     const processedIds = new Set<string>();
-                    for (const w of creatable) {
+                    for (const w of workerDataList) {
                         if (processedIds.has(w.individualId)) continue;
                         processedIds.add(w.individualId);
                         if (!individualIdToWorkerIdMap.has(w.individualId)) {
@@ -360,8 +306,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
                 logger.error("Worker registry integration failed:", errMsg);
                 const processedIds = new Set<string>();
-                // Only the creatable set was sent to worker-registry; deferred rows are already demoted above.
-                for (const w of creatable) {
+                for (const w of workerDataList) {
                     if (processedIds.has(w.individualId)) continue;
                     processedIds.add(w.individualId);
                     const records = individualIdToRecords.get(w.individualId) || [];
@@ -384,6 +329,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 );
                 logger.info(`Updated ${updatedUsers.length} users in campaign data via persister`);
             } catch (kafkaError) {
+                // System error: Kafka publish failed
                 logger.error(`Kafka publish failed while updating user batch results. Sending campaign failure message.`);
                 const systemError = new Error(`Failed to persist user batch results: ${kafkaError instanceof Error ? kafkaError.message : String(kafkaError)}`);
                 await sendCampaignFailureMessage(campaignId, tenantId, systemError);
@@ -493,59 +439,39 @@ async function createUsersViaHrmsApi(
             const mobileToUserServiceMap: Record<string, string> = {};
             const mobileToIndividualIdMap: Record<string, string> = {};
 
-            // One per-user create. Kept as a thunk (not pre-mapped) so requests are
-            // only started when their chunk is awaited — an unbounded
-            // Promise.allSettled over the whole batch caused a thundering herd that
-            // exhausted the downstream DB connection pool ("Failed to obtain JDBC
-            // Connection") on large uploads.
-            const maxRetries = config.user.hrmsFallbackMaxRetries >= 0 ? config.user.hrmsFallbackMaxRetries : 2;
-            const backoffMs = config.user.hrmsFallbackBackoffMs > 0 ? config.user.hrmsFallbackBackoffMs : 500;
-            const createOne = async (transformedUser: any): Promise<{ success: boolean; mobileNumber: string; error?: string }> => {
+            // Create per-user promises for each employee
+            const perUserPromises = transformedUsers.map(async (transformedUser) => {
                 const mobileNumber = String(transformedUser?.user?.mobileNumber ?? '');
-                const singleRequestBody = { RequestInfo, Employees: [transformedUser] };
-                let lastError = 'Unknown error';
-                // Retry transient downstream failures (e.g. "Failed to obtain JDBC
-                // Connection") with exponential backoff + jitter; permanent errors
-                // (already-exists, validation) are returned immediately.
-                for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                    try {
-                        const response = await httpRequest(url, singleRequestBody);
-                        if (response?.Employees?.[0]) {
-                            const employee = response.Employees[0];
-                            const serviceUuid = employee?.user?.userServiceUuid;
-                            const individualId = employee?.user?.uuid;
-                            if (mobileNumber && serviceUuid) mobileToUserServiceMap[mobileNumber] = serviceUuid;
-                            if (mobileNumber && individualId) mobileToIndividualIdMap[mobileNumber] = individualId;
-                            return { success: true, mobileNumber };
-                        }
-                        return { success: false, mobileNumber, error: 'No employee data in response' };
-                    } catch (perUserError: any) {
-                        lastError = extractHrmsErrorMessage(perUserError);
-                        if (attempt < maxRetries && isRetryableHrmsError(lastError)) {
-                            const delay = backoffMs * (2 ** attempt) + Math.floor((attempt + 1) * 37);
-                            logger.warn(`Per-user create for ${mobileNumber} hit a transient error (attempt ${attempt + 1}/${maxRetries + 1}), backing off ${delay}ms: ${lastError}`);
-                            await sleep(delay);
-                            continue;
-                        }
-                        return { success: false, mobileNumber, error: lastError };
-                    }
-                }
-                return { success: false, mobileNumber, error: lastError };
-            };
+                try {
+                    const singleRequestBody = {
+                        RequestInfo,
+                        Employees: [transformedUser],
+                    };
 
-            // Run per-user creates in bounded concurrency windows (never the whole batch
-            // at once), with a throttle pause between windows to smooth downstream load.
-            const fallbackConcurrency = config.user.hrmsFallbackConcurrency > 0 ? config.user.hrmsFallbackConcurrency : 5;
-            const windowDelayMs = config.user.hrmsFallbackWindowDelayMs >= 0 ? config.user.hrmsFallbackWindowDelayMs : 200;
-            const results: PromiseSettledResult<{ success: boolean; mobileNumber: string; error?: string }>[] = [];
-            for (let i = 0; i < transformedUsers.length; i += fallbackConcurrency) {
-                const window = transformedUsers.slice(i, i + fallbackConcurrency);
-                const settled = await Promise.allSettled(window.map((tu) => createOne(tu)));
-                results.push(...settled);
-                if (windowDelayMs > 0 && i + fallbackConcurrency < transformedUsers.length) {
-                    await sleep(windowDelayMs);
+                    const response = await httpRequest(url, singleRequestBody);
+
+                    if (response?.Employees?.[0]) {
+                        const employee = response.Employees[0];
+                        const serviceUuid = employee?.user?.userServiceUuid;
+                        const individualId = employee?.user?.uuid;
+                        if (mobileNumber && serviceUuid) {
+                            mobileToUserServiceMap[mobileNumber] = serviceUuid;
+                        }
+                        if (mobileNumber && individualId) {
+                            mobileToIndividualIdMap[mobileNumber] = individualId;
+                        }
+                        return { success: true, mobileNumber };
+                    }
+                    return { success: false, mobileNumber, error: 'No employee data in response' };
+                } catch (perUserError: any) {
+                    // Extract concise error message (mirror workerRegistryUtils pattern)
+                    const errorMsg = extractHrmsErrorMessage(perUserError);
+                    return { success: false, mobileNumber, error: errorMsg };
                 }
-            }
+            });
+
+            // Wait for all per-user calls to complete
+            const results = await Promise.allSettled(perUserPromises);
 
             // Log outcomes and track failures
             let successCount = 0;
@@ -581,32 +507,6 @@ async function createUsersViaHrmsApi(
         logger.error("HRMS employee creation failed :: " + (error?.stack || error?.message || error));
         throw new Error(`HRMS API failed: ${error.message || error}`);
     }
-}
-
-/** Promise-based delay used for fallback throttling and backoff. */
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * True when an HRMS create error is transient/overload-related and worth retrying
- * (e.g. DB connection-pool exhaustion, timeouts, 5xx). Permanent errors like
- * already-exists / validation are NOT retryable.
- */
-function isRetryableHrmsError(message: string): boolean {
-    const m = String(message ?? '').toLowerCase();
-    if (m.includes('already exist') || m.includes('duplicate') || m.includes('conflict')) return false;
-    return m.includes('failed to obtain jdbc')
-        || m.includes('jdbc')
-        || m.includes('database_error')
-        || m.includes('user creation failed at the user service')
-        || m.includes('timeout')
-        || m.includes('econnreset')
-        || m.includes('econnrefused')
-        || m.includes('connection refused')
-        || m.includes('socket hang up')
-        || / 5\d\d\b/.test(m)
-        || m.includes('http 502') || m.includes('http 503') || m.includes('http 504');
 }
 
 /**
@@ -661,42 +561,6 @@ export interface ExistingHrmsUser {
     serviceUuid: string;
     individualId: string;
     existingName: string;
-    /** Existing egov-user login username, resolved by serviceUuid — shown on the credential sheet
-     *  for adopted users (their password is unrecoverable, but the login id is). */
-    userName?: string;
-}
-
-/**
- * Resolve existing egov-user login usernames by user uuid. Adopted (already-in-HRMS) users have no
- * campaign-generated credentials, so we surface their real login id on the credential sheet.
- * Non-fatal: a failed lookup just leaves the username blank.
- */
-export async function fetchUserNamesByUuid(
-    uuids: string[],
-    tenantId: string,
-    requestInfo: RequestInfo
-): Promise<Record<string, string>> {
-    const result: Record<string, string> = {};
-    const unique = Array.from(new Set(uuids.filter(Boolean)));
-    if (unique.length === 0) return result;
-
-    const batchSize = config.user.individualSearchBatchSize;
-    for (let i = 0; i < unique.length; i += batchSize) {
-        const batch = unique.slice(i, i + batchSize);
-        try {
-            const response = await httpRequest(
-                config.host.userHost + config.paths.userSearch,
-                { RequestInfo: requestInfo, tenantId, uuid: batch },
-                { tenantId }
-            );
-            for (const user of response?.user ?? []) {
-                if (user?.uuid && user?.userName) result[String(user.uuid)] = String(user.userName);
-            }
-        } catch (err) {
-            logger.warn(`Existing-username lookup failed for batch starting at index ${i}: ${err}`);
-        }
-    }
-    return result;
 }
 
 /**
@@ -764,19 +628,6 @@ export async function fetchExistingUsersByPhone(
             logger.warn(`Idempotency pre-check failed for batch starting at index ${i}: ${err}`);
         }
     }
-
-    // Resolve the existing login usernames (by serviceUuid) so adopted users show their real
-    // user id on the credential sheet. Non-fatal — leaves userName blank on failure.
-    const uuidToName = await fetchUserNamesByUuid(
-        Object.values(result).map(u => u.serviceUuid),
-        tenantId,
-        requestInfo
-    );
-    for (const existing of Object.values(result)) {
-        const name = uuidToName[existing.serviceUuid];
-        if (name) existing.userName = name;
-    }
-
     return result;
 }
 
@@ -825,26 +676,6 @@ export async function waitForIndividualsSearchable(
     }
 
     const missing = uniqueIds.filter(id => !found.has(id));
-    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${maxAttempts} attempt(s); their workers will be deferred for retry (not sent to worker-registry, which would return NON_RECOVERABLE INDIVIDUAL_NOT_FOUND)`);
+    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${maxAttempts} attempt(s); proceeding — worker-registry will gate the rest`);
     return { found, missing };
-}
-
-/**
- * Split worker payloads by whether their individual is confirmed searchable: `creatable` are safe to send to
- * worker-registry now, `deferred` reference individuals that lost the read-after-write race and must NOT be
- * sent (worker/v1/bulk/_create would return a terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND) — the caller
- * marks them retryable so a later pass re-attempts them once indexing catches up.
- */
-export function partitionWorkersByIndividualSearchability(
-    workerDataList: WorkerData[],
-    missingIndividualIds: string[]
-): { creatable: WorkerData[]; deferred: WorkerData[] } {
-    if (missingIndividualIds.length === 0) return { creatable: workerDataList, deferred: [] };
-    const missingSet = new Set(missingIndividualIds);
-    const creatable: WorkerData[] = [];
-    const deferred: WorkerData[] = [];
-    for (const worker of workerDataList) {
-        (missingSet.has(worker.individualId) ? deferred : creatable).push(worker);
-    }
-    return { creatable, deferred };
 }

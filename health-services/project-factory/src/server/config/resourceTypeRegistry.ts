@@ -75,7 +75,6 @@ const processNameToTypeMap: Map<string, string> = new Map(
   Object.values(RESOURCE_TYPE_REGISTRY).map(cfg => [cfg.processName, cfg.type])
 );
 
-/** Reverse-maps a process name back to its resource type; returns "" for unknown process names. */
 export function getResourceTypeByProcessName(processName: string): string {
   return processNameToTypeMap.get(processName) || "";
 }
@@ -96,7 +95,6 @@ export function getAllAllowedTypes(): string[] {
   return Object.keys(RESOURCE_TYPE_REGISTRY);
 }
 
-/** Returns configs for a processing phase, optionally narrowed to a set of types, to drive phased provisioning. */
 export function getResourceConfigsByPhase(phase: number, filterTypes?: Set<string>): ResourceTypeConfig[] {
   return Object.values(RESOURCE_TYPE_REGISTRY)
     .filter(cfg => cfg.phase === phase && (!filterTypes || filterTypes.has(cfg.type)));
@@ -116,7 +114,6 @@ export function getPhase2Types(): ResourceTypeConfig[] {
   return Object.values(RESOURCE_TYPE_REGISTRY).filter(cfg => cfg.phase === 2);
 }
 
-/** Gates a type's processing on all its dependsOn processes already being complete. */
 export function hasDependenciesMet(type: string, completedProcessNames: Set<string>): boolean {
   const config = RESOURCE_TYPE_REGISTRY[type];
   if (!config) return false;

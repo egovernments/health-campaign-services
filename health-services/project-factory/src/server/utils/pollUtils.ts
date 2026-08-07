@@ -1,5 +1,5 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
-import { getFormattedStringForDebug, logger } from "./logger";
+import { getFormattedStringForDebug, logger } from "./logger"; // Import logger for logging information and errors
 import { createDataService, downloadDataService, searchDataService } from "../service/dataManageService";
 import { throwError } from "./genericUtils";
 
@@ -18,15 +18,16 @@ export const downloadTemplate = async (
   hierarchy: string,
   requestBody?: any
 ) => {
+  // Use request body info if provided, otherwise fall back to default
   const searchBody = {
     RequestInfo: requestBody?.RequestInfo
   };
 
   const params = {
-    tenantId: tenantId,
-    type: type,
-    hierarchyType: hierarchy,
-    campaignId: campaignId,
+    tenantId: tenantId, // Tenant information for the request
+    type: type, // Specify the template type
+    hierarchyType: hierarchy, // Specify the hierarchy type
+    campaignId: campaignId, // Campaign identifier
   };
 
   logger.info(
@@ -40,7 +41,7 @@ export const downloadTemplate = async (
   const downloadResponse: any = await downloadDataService(request);
 
   logger.debug(`Received response : ${getFormattedStringForDebug(downloadResponse)}`);
-  return downloadResponse;
+  return downloadResponse; // Return the API response containing template details
 };
 
 /**
@@ -57,7 +58,7 @@ const pollForTemplateGeneration = async (
   pollInterval: number = 2500,
   maxRetries: number = 20
 ) => {
-  let retries = 0;
+  let retries = 0; // Initialize the retry counter
   logger.info("received a request for Polling ");
   if (!functionToBePolledFor || !conditionForTermination) {
     return null;
@@ -68,31 +69,35 @@ const pollForTemplateGeneration = async (
     const poll = async () => {
       try {
         if (retries >= maxRetries) {
+          // Reject if maximum retries are reached
           reject(new Error("Max  retries reached"));
           return;
         }
 
-        const functionResponse = await functionToBePolledFor();
+        const functionResponse = await functionToBePolledFor(); // Execute the polling function
 
         if (conditionForTermination(functionResponse)) {
+          // Check if the termination condition is met
           logger.info("Polling completed");
           resolve(functionResponse);
           return;
         } else {
+          // Increment retries and continue polling after the specified interval
           retries++;
           logger.info("Polling continuing");
           setTimeout(poll, pollInterval);
         }
       } catch (error) {
-        // Retry on error too — an intermittent failure shouldn't abort the whole poll.
+        // Handle errors by retrying after the specified interval
         retries++;
         setTimeout(poll, pollInterval);
       }
     };
 
+    // Start polling
     poll().catch(reject);
 
-    // Hard ceiling so the poll can never outlive maxRetries*interval even if a setTimeout chain stalls.
+    // Set a timeout to ensure the entire polling operation doesn't exceed a maximum duration
     const timeoutDuration = (maxRetries + 1) * pollInterval;
     setTimeout(() => {
       if (retries < maxRetries) {
@@ -115,9 +120,9 @@ const conditionForTermination2 = (downloadResponse: any) => {
   return downloadResponse?.[0]?.status === "completed" && downloadResponse?.[0]?.processedFileStoreId;
 }
 
-/** Creates a resource then polls until its processed file is ready — the processed-file wait is intentional eventual-consistency with the persister. */
 export const createAndPollForCompletion = async (request: any) => {
   try {
+    // Step 1: Create data
     logger.info("Creating data...");
     const resourceDetails = await createDataService(request);
     const resourceId = resourceDetails?.id;
@@ -128,6 +133,7 @@ export const createAndPollForCompletion = async (request: any) => {
 
     logger.info(`Created resource with ID: ${resourceId} of type ${request?.body?.ResourceDetails?.type}`);
 
+    // Step 2: Poll for completion
     const polledResponse = await pollForTemplateGeneration(
       () => searchData(resourceId, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.type, request?.body?.RequestInfo),
       conditionForTermination2,
@@ -162,7 +168,6 @@ async function searchData(resourceId: any, tenantId: any, type: any, requestInfo
 
 
 
-/** Polls template download until generation completes and returns the generated file's fileStoreid. */
 export const getTheGeneratedResource = async (
   campaignId: string,
   tenantId: string,
@@ -171,17 +176,21 @@ export const getTheGeneratedResource = async (
   requestBody?: any
 ) => {
   try {
+    // Await the response from polling for template generation
     const polledResponse: any = await pollForTemplateGeneration(
       () => downloadTemplate(campaignId, tenantId, type, hierarchy, requestBody),
       conditionForTermination
     );
 
+    // Log the polled response for debugging
     logger.debug(polledResponse);
     logger.debug(`polledResponse  : ${getFormattedStringForDebug(polledResponse)}`);
 
+    // Return the fileStoreid from the response, ensuring the correct format
     return polledResponse?.[0]?.fileStoreid;
 
   } catch (error: any) {
+    // Log any error that occurs during polling or processing
     logger.error(`Error while fetching the generated resource: ${error?.message}`);
   }
 }

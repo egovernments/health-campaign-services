@@ -53,15 +53,18 @@ export class TemplateClass {
         logger.info(`Processing attendance register attendee file — tenantId=${tenantId}, campaignId=${resourceDetails?.campaignId}`);
         const requestInfo = resourceDetails?.requestInfo || {};
 
+        // Fetch campaign details for campaignNumber (not in resourceDetails)
         const campaign = await this.getCampaignDetails(resourceDetails);
         const campaignNumber = campaign?.campaignNumber;
 
+        // Collect all rows indexed by sheet
         const sheetRows: Map<string, any[]> = new Map();
         for (const name of SHEET_NAMES) {
             const localizedKey = getLocalizedName(name, localizationMap);
             sheetRows.set(name, wholeSheetData[localizedKey] || []);
         }
 
+        // Collect all unique usernames across all sheets
         const usernameToRows: Map<string, Array<{ row: any; sheetName: string }>> = new Map();
         for (const sheetName of SHEET_NAMES) {
             const rows = sheetRows.get(sheetName) || [];
@@ -77,11 +80,13 @@ export class TemplateClass {
             }
         }
 
+        // Resolve individualIds via HRMS batch search
         const usernames = Array.from(usernameToRows.keys());
         const rootTenantId = tenantId.split(".")[0];
         const usernameToIndividualId = await this.resolveIndividualIds(usernames, rootTenantId, requestInfo);
         logger.info(`Resolved ${usernameToIndividualId.size}/${usernames.length} usernames via HRMS`);
 
+        // Mark rows invalid where HRMS lookup failed
         Array.from(usernameToRows.entries()).forEach(([username, rowEntries]) => {
             if (!usernameToIndividualId.has(username)) {
                 for (const { row } of rowEntries) {
@@ -113,6 +118,7 @@ export class TemplateClass {
         const totalInputRows = SHEET_NAMES.reduce((sum, name) => sum + (sheetRows.get(name)?.length || 0), 0);
         logger.info(`Attendee processing context — campaignNumber=${campaignNumber}, totalInputRows=${totalInputRows}, validRegisters=${registerServiceCodes.size}, allRegisters=${allUploadRegisterServiceCodes.size}`);
 
+        // Fetch registers with existing attendees/staff
         const registerDataMap = await this.fetchRegistersWithEnrollments(Array.from(registerServiceCodes), tenantId, requestInfo);
 
         // Per-row idempotency decision — collect operations with their row references

@@ -7,7 +7,7 @@ Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
 - **No more placeholder mobile numbers.** Dummy mobile-number generation is now conditional during create — the service no longer injects a placeholder mobile number when one isn't supplied (`_create`/`_update` flows are otherwise unchanged).
 - **Plaintext password removed from the database.** A migration drops the `password` column from the `individual` table (`V20250303122000`); Individual holds no local credentials — login accounts live in the platform's **egov-user** service and are resolved by the stored `userUuid`.
 - **Boundary validation is more forgiving** — addresses with a missing/blank locality code no longer fail boundary validation, and ward/boundary search no longer errors on records lacking ward/locality data (null-pointer guards added).
-- **Platform/library bumps (artifact 1.2.3)** — tracer upgraded to 2.9.3 (database errors handled centrally via tracer's exception advice) and now inherited transitively through `health-services-common`; OpenTelemetry BOMs + OTEL exporter config added; the primary `ObjectMapper` bean marked `@Primary`; Lombok 1.18.30 for Java 17. These are plumbing changes with no API impact.
+- **Platform/library bumps (artifact 1.2.3)** — tracer upgraded to 2.9.2 (database errors handled centrally via tracer's exception advice) and now inherited transitively through `health-services-common`; OpenTelemetry BOMs + OTEL exporter config added; the primary `ObjectMapper` bean marked `@Primary`; Lombok 1.18.30 for Java 17. These are plumbing changes with no API impact.
 
 ## 1. Purpose
 
@@ -122,7 +122,6 @@ sequenceDiagram
 
 - **Async, no batch rollback.** A bulk request returns `202` before persistence. In the consumer each record is validated individually; invalid records are dropped with an error and the rest proceed — check consumer logs and the record's status.
 - **Idempotency** is via `clientReferenceId` — re-submitting the same one should not create a duplicate person.
-- **Within-batch duplicate `clientReferenceId` no longer aborts the whole bulk request.** The first occurrence is kept and each later duplicate is isolated as a per-record uniqueness error, so the remaining valid records still persist (previously a duplicate key threw during batch mapping and dropped the entire bulk batch in the consumer).
 - **Optimistic locking** via `rowVersion` protects against concurrent edits on update.
 - **Soft delete** (`isDeleted`) everywhere — nothing is hard-deleted; unique constraints include the delete flag.
 - **User-service failures are per-record.** If creating/updating the egov-user login account fails for a person, that person is removed from the valid set with a `USER_SERVICE_ERROR`; the others still persist.
@@ -143,8 +142,8 @@ sequenceDiagram
 |---|---|
 | Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 (service artifact `1.2.3`) |
-| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
-| Doc updated | 2026-07-20 |
+| Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.30-SNAPSHOT |
+| Doc updated | 2026-07-03 |
 | Maintainers | Health Campaign Services team (CODEOWNERS: `@kavi-egov`, `@sathishp-eGov`) |
 
 ## Pre-commit script

@@ -14,7 +14,6 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
-import org.egov.excelingestion.util.RequestInfoUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
@@ -252,11 +251,9 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
 
         ExecutorService executor = Executors.newFixedThreadPool(Math.min(parallelCalls, batches.size()));
         try {
-            // normalize once before the parallel boundary so tasks don't mutate a shared RequestInfo concurrently
-            RequestInfo resolvedRequestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
             List<Future<?>> futures = new ArrayList<>();
             for (List<String> batch : batches) {
-                futures.add(executor.submit(() -> searchBatch(batch, tenantId, resolvedRequestInfo, existingServiceCodes)));
+                futures.add(executor.submit(() -> searchBatch(batch, tenantId, requestInfo, existingServiceCodes)));
             }
             for (Future<?> future : futures) {
                 try {

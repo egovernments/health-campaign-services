@@ -24,7 +24,7 @@ public class ServiceRequestClient {
 
     // Constructor injection of ObjectMapper and RestTemplate
     @Autowired
-    public ServiceRequestClient(@Qualifier("objectMapper") ObjectMapper objectMapper, @Qualifier("logAwareRestTemplate") RestTemplate restTemplate) {
+    public ServiceRequestClient(@Qualifier("objectMapper") ObjectMapper objectMapper, RestTemplate restTemplate) {
         this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
     }

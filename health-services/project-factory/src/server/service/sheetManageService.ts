@@ -8,7 +8,6 @@ import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { validateGenerateQuery, validateResourceDetails } from "../validators/campaignValidators";
 
 
-/** Validates the generate query and kicks off template generation for the given resource type, returning the tracking resource. */
 export async function generateDataService(generateRequestQuery: GenerateTemplateQuery, userUuid: string, locale : string = config.localisation.defaultLocale, requestInfo?: RequestInfo) {
     let { type, tenantId, hierarchyType, campaignId } = generateRequestQuery;
     await validateGenerateQuery(generateRequestQuery);
@@ -28,7 +27,6 @@ export async function generateDataService(generateRequestQuery: GenerateTemplate
     return responseToSend;
 }
 
-/** Validates and processes an uploaded resource sheet through its type's process template, returning the tracking resource. */
 export async function processDataService(ResourceDetails : ResourceDetails, userUuid: string, locale : string = config.localisation.defaultLocale) {
     await validateResourceDetails(ResourceDetails);
     const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(ResourceDetails.type)]));

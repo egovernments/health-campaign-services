@@ -8,7 +8,6 @@ import { getHierarchy } from "../api/campaignApis";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 
 export class TemplateClass {
-    /** Validates boundary target sheets against schema + campaign's required lowest boundaries, annotating row errors. */
     static async process(
         resourceDetails: any,
         wholeSheetData: any,

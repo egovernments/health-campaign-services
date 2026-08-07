@@ -9,16 +9,6 @@ Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
 - **Big downsync overhaul for offline scale.** Added a pre-generation pipeline: `/downsync/v1/_generate` builds per-locality / per-project files in the background and stores them in S3, while `/beneficiary-downsync/v1/_get` serves a fresh on-device bundle for recent syncs and falls back to those pre-generated file links for cold/stale syncs. New audit tables track every job, locality and file (`V20260423100000`), and a materialized view speeds up locality scoping (`V20260426140000`).
 - **Downsync jobs are safe to retry and resume.** Single-flight locks per tenant and per project prevent duplicate runs, interrupted jobs resume on startup, and partially-failed jobs report exactly which localities/files failed.
 - **Persisted data includes projectId.** The deployed persister config for the referral topics was updated to write `projectId`. Environments must pick up the updated persister config alongside the new build, or the field is accepted but not saved.
-- **Cross-entity existence validation is now configurable ("validator unbundle").** A new flag `referralmanagement.relationship.validation` (default `false`) lets referrals and side-effects be accepted while their referenced parents may still be in flight (offline-first). See *Configuration* below.
-- **Bulk batches survive within-batch duplicates.** A duplicate `clientReferenceId` inside one bulk batch no longer fails the whole batch — the first is kept, each later duplicate is flagged individually, and the good records still persist (at-least-once behaviour). New always-on structural validators also reject a referral/side-effect that is missing its own `clientReferenceId` or its beneficiary/task link (`REQUIRED_LINK_MISSING`).
-
-### Configuration
-
-| Property | Default | Effect |
-|---|---|---|
-| `referralmanagement.relationship.validation` | `false` | Read live per request. When `false`, cross-entity **existence** checks (project, project-beneficiary, project-task, referrer, recipient staff/facility, side-effect) are **skipped** on the referral & side-effect create/update chains, so a record is not rejected while a referenced parent is still on the persister queue (offline-first). The `recipientType` enum check and all structural/uniqueness checks stay on. Set `true` to enforce existence. |
-
-> **Note:** the default (`false`) means existence validation is **OFF**; deployments that need parents verified synchronously must set this to `true` per environment (via the deploy/config repo).
 
 > **Note on the official LLD diagrams** (`docs.digit.org/health/design/architecture/low-level-design/services/referral`): the published create/update/delete/search sequence diagrams (images) still match the current code at a high level (validate → async persist → search-from-DB) for Referral, Side Effect and HF Referral. The `projectId` field, the `includeOnlyUpdatedByOthers` sync filter, and the pre-generated **downsync** pipeline are **newer than the published diagrams** and are captured in the flow above.
 
@@ -140,8 +130,6 @@ sequenceDiagram
 ## 6. Failure / Retry Handling
 
 - **Async, no batch rollback.** A bulk request returns `202` before persistence. If one record in the batch fails validation in the consumer, it does not roll back the others — check consumer logs and the record's status.
-- **A within-batch duplicate `clientReferenceId` no longer drops the whole bulk batch.** The first occurrence is kept; each later duplicate is isolated as a per-record uniqueness error while the other valid records still persist (at-least-once / partial-batch survival). Previously such a duplicate threw and lost the entire batch.
-- **Structural link fields are always enforced, even with existence validation off.** A referral must carry a `clientReferenceId` and a beneficiary link (`projectBeneficiaryId` or `projectBeneficiaryClientReferenceId`); a side-effect must carry a `clientReferenceId` and a task link (`taskId` or `taskClientReferenceId`). Missing any of these rejects the record with error code `REQUIRED_LINK_MISSING`. This is a presence check, not an existence check, so it stays on regardless of `referralmanagement.relationship.validation`.
 - **Idempotency** is via `clientReferenceId` — re-submitting the same one should not create a duplicate row (the unique-entity validators guard this).
 - **Optimistic locking** via `rowVersion` protects against concurrent edits on update/delete.
 - **Soft delete** (`isDeleted`) everywhere — nothing is hard-deleted.
@@ -156,7 +144,7 @@ sequenceDiagram
 - **Side effects are linked to a task; the linkage query is a known shortcut** (flagged in code as needing a proper task-search enhancement) — keep an eye on it as task volumes grow.
 - **Relaxed-edit / last-write semantics across devices.** With `includeOnlyUpdatedByOthers`, a device intentionally ignores its own latest edits during sync; QA should confirm multi-device edit scenarios behave as expected.
 - **Downsync fans out to many services synchronously.** A slow household/individual/project search makes the on-device bundle path slow; the pre-gen path exists precisely to take that off the request hot path.
-- **Cross-entity existence validation is OFF by default** (`referralmanagement.relationship.validation=false`). Records are accepted while their referenced parents may not exist yet (offline-first) — see *Configuration* in the Enhancements section. Ops must decide per environment whether to enforce (`true`); QA should test both settings.
+- **CLAUDE.md lists `health-services-common` as 1.1.5-SNAPSHOT, but this service's `pom.xml` is on `1.1.3-SNAPSHOT`** — confirm the intended version before release.
 
 ## 8. Release Version
 
@@ -164,6 +152,6 @@ sequenceDiagram
 |---|---|
 | Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
-| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
-| Doc updated | 2026-07-20 |
+| Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
+| Doc updated | 2026-06-12 |
 | Maintainers | Health Campaign Services team (CODEOWNERS: `@kavi-egov`, `@sathishp-eGov`) |

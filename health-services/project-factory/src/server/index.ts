@@ -1,7 +1,5 @@
 import { checkGenerateFlowClasses } from './generateFlowClasses/generateFlowClassChecker';
 import { checkProcessFlowClasses } from './processFlowClasses/processFlowClassChecker';
-
-// Type-check the flow classes at startup and exit non-zero on any error, before the server binds.
 checkGenerateFlowClasses();
 checkProcessFlowClasses();
 

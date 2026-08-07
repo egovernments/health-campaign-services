@@ -254,12 +254,7 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                     String boundaryName = "";
                     
                     if (boundaryCode != null && !boundaryCode.isEmpty()) {
-                        // Fall back to the boundary code when the localized value is missing OR blank,
-                        // so a non-ASCII / not-yet-localized boundary never renders as an empty cell.
-                        String localizedBoundaryName = localizationMap.get(boundaryCode);
-                        boundaryName = (localizedBoundaryName != null && !localizedBoundaryName.trim().isEmpty())
-                                ? localizedBoundaryName
-                                : boundaryCode;
+                        boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
                     }
                     
                     row.put(columnName, boundaryName);

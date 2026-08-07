@@ -34,7 +34,7 @@ export class TemplateClass {
             throwError("CAMPAIGN", 400, "REGISTER_ID_REQUIRED", "registerId is required for attendanceRegisterAttendee generation");
         }
 
-        // Attendee mapping requires registers to already exist — verify creation completed
+        // Fetch campaign details and verify attendance register creation is complete
         const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         const campaign = campaignResp?.CampaignDetails?.[0];
         if (!campaign) {
@@ -50,6 +50,7 @@ export class TemplateClass {
                 "Attendance registers must be created before mapping attendees");
         }
 
+        // Fetch attendance register to get localityCode, startDate, endDate
         const register = await this.fetchRegister(registerId, tenantId, responseToSend?.requestInfo);
         if (!register) {
             throwError("CAMPAIGN", 400, "ATTENDANCE_REGISTER_NOT_FOUND", `Attendance register not found: ${registerId}`);
@@ -68,8 +69,9 @@ export class TemplateClass {
                 `Campaign ${campaignId} has no hierarchyType set`);
         }
 
-        // DB-first: if attendees were already processed into campaign_data, return them
-        // directly rather than re-generating from HRMS (reflects real processed state).
+        // ── DB-first population ────────────────────────────────────────────────
+        // If attendees have been processed and stored in campaign_data, return them
+        // directly rather than re-generating from HRMS (shows real processed state).
         const storedAttendeeRows = await getRelatedDataWithCampaign(
             "attendanceRegisterAttendee", campaign?.campaignNumber, tenantId, dataRowStatuses.completed
         );
@@ -95,7 +97,7 @@ export class TemplateClass {
         }
         logger.info(`No stored attendee rows found for register ${registerServiceCode} — falling back to HRMS generation`);
 
-        // Allowed boundary codes per sheet come from MDMS boundaryFilter config
+        // Resolve allowed boundary codes per sheet from MDMS boundaryFilter config (run in parallel)
         const getBoundaryFilter = (sheetName: string) =>
             templateConfig?.sheets?.find((s: any) => s.sheetName === sheetName)?.boundaryFilter;
 
@@ -105,6 +107,7 @@ export class TemplateClass {
             this.resolveAllowedBoundaryCodes(tenantId, hierarchyType, localityCode, getBoundaryFilter(APPROVER_SHEET))
         ]);
 
+        // Fetch all completed user credentials for this campaign
         const users = await getRelatedDataWithCampaign("user", campaign?.campaignNumber, tenantId, dataRowStatuses.completed);
         logger.info(`Fetched ${users.length} users for campaign ${campaignId}`);
 

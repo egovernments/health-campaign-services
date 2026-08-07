@@ -94,6 +94,7 @@ function buildSheetSearchRequest(
  * POST a sheet-data search request to the excel-ingestion service.
  */
 async function postSheetDataSearch(requestData: SheetDataSearchRequest): Promise<SheetDataSearchResponse | null> {
+    // Excel ingestion service configuration
     const searchUrl = `${config.host.excelIngestionHost}${config.paths.excelIngestionSheetSearch}`;
     logger.info(`Making HTTP request to: ${searchUrl}`);
     return await httpRequest(
@@ -132,6 +133,7 @@ export async function searchSheetData(
         if (searchResponse?.SheetDataDetails && searchResponse.SheetDataDetails.Data) {
             logger.info(`Found ${searchResponse.SheetDataDetails.TotalCount} records for referenceId: ${referenceId}`);
 
+            // Log sheet-wise counts
             if (searchResponse.SheetDataDetails.SheetWiseCounts) {
                 logger.info('Sheet-wise record counts:');
                 searchResponse.SheetDataDetails.SheetWiseCounts.forEach((sheetCount : any) => {

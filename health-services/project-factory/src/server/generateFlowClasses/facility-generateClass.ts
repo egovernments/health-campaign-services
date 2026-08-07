@@ -9,7 +9,6 @@ import { dataRowStatuses } from "../config/constants";
 import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
 import Ajv from "ajv";
-/** Builds the facility Excel template: README + permanent facilities (from facility service) merged with campaign-new facilities + boundary data. */
 export class TemplateClass {
 
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
@@ -34,7 +33,7 @@ export class TemplateClass {
         );
 
         const permanentCompletedFacilitiesFromDB = completedFacilitiesRow.filter(
-            (f: any) => permanentCodes.has(f?.data?.HCM_ADMIN_CONSOLE_FACILITY_CODE)
+            (f: any) => permanentCodes.has(f?.data?.HCM_ADMIN_CONSOLE_FACILITY_CODE) // if f.uniqueIdentifier is facility id
         );
 
         const dbFacilityUniqueIdentifierToDataMap = new Map(
@@ -42,6 +41,7 @@ export class TemplateClass {
         );
 
 
+        // Generate final data
         const { structuredBoundaries: boundaryData, codesOfBoundaries }: any = await this.getBoundaryData(campaignDetails, localizationMap);
         const faciltySchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_FACILITIES")[0]?.schema;
         const allPermanentFacilitiesTransformed: any = await this.getFacilityData(allPermanentFacilities, codesOfBoundaries, dbFacilityUniqueIdentifierToDataMap, faciltySchema);
@@ -65,7 +65,7 @@ export class TemplateClass {
                 data: boundaryData,
                 dynamicColumns: boundaryDynamicColumns
             }
-        };
+        }; // Initialize the SheetMap object
         logger.info(`SheetMap generated for template of type ${responseToSend.type}.`);
         return sheetMap;
     }
@@ -123,11 +123,13 @@ export class TemplateClass {
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
         const result: any = [];
 
+        // Step 1: Index boundaries by code
         const codeToBoundary: Record<string, any> = {};
         for (const boundary of boundaries) {
             codeToBoundary[boundary.code] = { ...boundary, children: [] };
         }
 
+        // Step 2: Build tree
         const roots: any[] = [];
         for (const boundary of boundaries) {
             if (boundary.parent) {
@@ -137,10 +139,14 @@ export class TemplateClass {
             }
         }
 
+        // Step 3: DFS traversal
         function traverse(node: any, path: any[] = []) {
             const entry: Record<string, string> = {};
+
+            // Add main boundary code
             entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
 
+            // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
                 const localizedValue = getLocalizedName(b.code, localizationMap);
@@ -154,6 +160,7 @@ export class TemplateClass {
             }
         }
 
+        // Step 4: Start traversal from roots
         for (const root of roots) {
             traverse(root);
         }
@@ -223,6 +230,7 @@ export class TemplateClass {
                 return d;
             })
             .filter((d: any) => {
+                // Only keep valid records
                 const isValid = validate(d);
                 return isValid;
             });

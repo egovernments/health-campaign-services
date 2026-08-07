@@ -14,15 +14,19 @@ import { validateSearchProjectCampaignRequest } from "../../validators/campaignV
 
 
 
+// Define the MeasurementController class
 class campaignManageController {
+    // Define class properties
     public path = "/v1/project-type";
     public router = express.Router();
     public dayInMilliSecond = 86400000;
 
+    // Constructor to initialize routes
     constructor() {
         this.intializeRoutes();
     }
 
+    // Initialize routes for MeasurementController
     public intializeRoutes() {
         this.router.post(`${this.path}/create`, this.createProjectTypeCampaign);
         this.router.post(`${this.path}/update`, this.updateProjectTypeCampaign);
@@ -50,6 +54,7 @@ class campaignManageController {
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
@@ -70,6 +75,7 @@ class campaignManageController {
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
@@ -85,12 +91,15 @@ class campaignManageController {
     ) => {
         try {
             logger.info("RECEIVED A PROJECT TYPE SEARCH REQUEST");
+            // Validate the search request for project type campaigns
             await validateSearchProjectCampaignRequest(request);
             const responseBody = await searchProjectTypeCampaignService(request?.body?.CampaignDetails ,request);
+            // Send response with campaign details and total count
             return sendResponse(response, responseBody, request);
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
@@ -167,6 +176,7 @@ class campaignManageController {
                 }, request, response, 400);
             }
 
+            // Check if campaign exists
             const campaignSearchCriteria = {
                 tenantId,
                 campaignNumber

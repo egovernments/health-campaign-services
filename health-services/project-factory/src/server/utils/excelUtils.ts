@@ -16,15 +16,18 @@ const getNewExcelWorkbook = () => {
   return workbook;
 };
 
+// Function to retrieve workbook from Excel file URL and sheet name
 const getExcelWorkbookFromFileURL = async (
   fileUrl: string,
   sheetName?: string
 ) => {
+  // Define headers for HTTP request
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/pdf",
   };
   logger.info("loading for the file based on fileurl");
+  // Make HTTP request to retrieve Excel file as arraybuffer
   const responseFile = await httpRequest(
     fileUrl,
     null,
@@ -42,6 +45,7 @@ const getExcelWorkbookFromFileURL = async (
 
 
   if (sheetName) {
+    // Check if the specified sheet exists in the workbook
     const worksheet = workbook.getWorksheet(sheetName);
     if (!worksheet) {
       throwError(
@@ -53,11 +57,11 @@ const getExcelWorkbookFromFileURL = async (
     }
   }
 
+  // Return the workbook
   return workbook;
 };
 
 
-/** Loads a workbook from its URL and validates its embedded locale/campaign metadata (only when action is "validate"). */
 export async function validateFileMetaDataViaFileUrl(fileUrl: string, expectedLocale: string, expectedCampaignId: string, action: string) {
   if (!fileUrl) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no file URL was found.");
@@ -73,8 +77,8 @@ export async function validateFileMetaDataViaFileUrl(fileUrl: string, expectedLo
   }
 }
 
-/** Rejects an uploaded template unless its keywords carry a locale#campaignId matching the current campaign. */
 export const validateFileMetadata = (workbook: any, expectedLocale: string, expectedCampaignId: string) => {
+  // Retrieve and validate keywords from the workbook's custom properties
   const keywords = workbook?.keywords;
   if (!keywords || !keywords.includes("#")) {
     throwError(
@@ -87,6 +91,7 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 
   const [templateLocale, templateCampaignId] = keywords.split("#");
 
+  // Ensure there are exactly two parts in the metadata
   if (!templateLocale || !templateCampaignId) {
     throwError(
       "FILE",
@@ -96,6 +101,7 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
     );
   }
 
+  // Validate locale if provided
   if (templateLocale !== expectedLocale) {
     throwError(
       "FILE",
@@ -105,6 +111,7 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
     );
   }
 
+  // Validate campaignId if provided
   if (templateCampaignId !== expectedCampaignId && config.values.validateCampaignIdInMetadata) {
     throwError(
       "FILE",
@@ -115,8 +122,8 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
   }
 };
 
-/** Validates only the campaignId portion of a template's keyword metadata against the expected campaign. */
 export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaignId: string) => {
+  // Retrieve and validate keywords from the workbook's custom properties
   const keywords = workbook?.keywords;
   if (!keywords || !keywords.includes("#")) {
     throwError(
@@ -129,6 +136,7 @@ export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaign
 
   const [templateLocale, templateCampaignId] = keywords.split("#");
 
+  // Ensure there are exactly two parts in the metadata
   if (!templateLocale || !templateCampaignId) {
     throwError(
       "FILE",
@@ -138,6 +146,7 @@ export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaign
     );
   }
 
+  // Validate campaignId if provided
   if (templateCampaignId !== expectedCampaignId && config.values.validateCampaignIdInMetadata) {
     throwError(
       "FILE",
@@ -174,11 +183,13 @@ function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
   logger.info("Updating font name to Roboto...");
   worksheet?.eachRow({ includeEmpty: true }, (row) => {
     row.eachCell({ includeEmpty: true }, (cell) => {
-      // Preserve existing font properties, changing only the name
+      // Preserve existing font properties
       const existingFont = cell.font || {};
+
+      // Update only the font name to Roboto
       cell.font = {
-        ...existingFont,
-        name: 'Roboto'
+        ...existingFont, // Spread existing properties
+        name: 'Roboto'   // Update the font name
       };
     });
   });
@@ -186,18 +197,24 @@ function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
 }
 
 function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
+  // Add empty rows after the main header
+  // worksheet.addRow([]);
+  // worksheet.addRow([]);
   worksheet.addRow([]);
 
-  const lineHeight = 15;
-  const maxCharactersPerLine = 100;
+  // Add the data rows with text wrapping
+  const lineHeight = 15; // Set an approximate line height
+  const maxCharactersPerLine = 100; // Set a maximum number of characters per line for wrapping
 
   datas.forEach((data: any) => {
     const row = worksheet.addRow([data]);
     row.eachCell({ includeEmpty: true }, (cell: any) => {
-      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }; // Apply text wrapping
+      // Calculate the required row height based on content length
       const numberOfLines = Math.ceil(data.length / maxCharactersPerLine);
       row.height = numberOfLines * lineHeight;
 
+      // Make the header text bold
       if (headerSet.has(cell.value)) {
         cell.font = { bold: true };
       }
@@ -232,6 +249,7 @@ function performUnfreezeCells(sheet: any, localizationMap?: any, fileUrl?: any) 
       }
     }
   }
+  // sheet.protect('passwordhere', { selectLockedCells: true, selectUnlockedCells: true });
 }
 
 
@@ -245,6 +263,7 @@ function performFreezeWholeSheet(sheet: any) {
   sheet.protect('passwordhere', { selectLockedCells: true });
 }
 
+// Function to add data to the sheet
 function addDataToSheet(
   request: any,
   sheet: any,
@@ -271,9 +290,8 @@ function addDataToSheet(
 }
 
 
-/** Adds enum dropdowns (and locks child-campaign cells) to the spread-out _MULTISELECT_N columns for each multi-select schema property. */
 export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any, fileUrl?: string, sheetData?: any[]) {
-  const headerRow = sheet.getRow(1);
+  const headerRow = sheet.getRow(1); // Assuming first row is the header
   const rowsLength = sheetData?.length || 0;
   const isChildOfSomeCampaign = Boolean(fileUrl);
 
@@ -284,6 +302,7 @@ export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any
       const lastMultiSelectHeader = getLocalizedName(`${property}_MULTISELECT_${maxSelections}`, localizationMap);
       const enumsList = multiSelectDetails?.enum;
 
+      // Find the last _MULTISELECT_N column index
       let lastMultiSelectColIndex = -1;
       headerRow.eachCell((cell: any, colNumber: any) => {
         if (cell.value === lastMultiSelectHeader) {
@@ -296,6 +315,7 @@ export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any
         continue;
       }
 
+      // Apply dropdowns for all _MULTISELECT_* columns
       if (Array.isArray(enumsList) && enumsList.length > 0) {
         applyDropdownsForMultiSelect(sheet, lastMultiSelectColIndex + 1, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
       }
@@ -303,9 +323,8 @@ export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any
   }
 }
 
-/** Like manageMultiSelect but matches raw (un-localized) header keys — used on templates whose headers are not yet translated. */
 export function manageMultiSelectUnlocalised(sheet: any, schema: any, fileUrl?: string, sheetData?: any[]) {
-  const headerRow = sheet.getRow(1);
+  const headerRow = sheet.getRow(1); // Assuming first row is the header
   const rowsLength = sheetData?.length || 0;
   const isChildOfSomeCampaign = Boolean(fileUrl);
 
@@ -316,6 +335,7 @@ export function manageMultiSelectUnlocalised(sheet: any, schema: any, fileUrl?: 
       const enumsList = multiSelectDetails?.enum;
       const lastMultiSelectHeader = `${property}_MULTISELECT_${maxSelections}`;
 
+      // Find the last _MULTISELECT_N column index
       let lastMultiSelectColIndex = -1;
       headerRow.eachCell((cell: any, colNumber: any) => {
         if (cell.value === lastMultiSelectHeader) {
@@ -328,6 +348,7 @@ export function manageMultiSelectUnlocalised(sheet: any, schema: any, fileUrl?: 
         continue;
       }
 
+      // Apply dropdowns for all _MULTISELECT_* columns
       if (Array.isArray(enumsList) && enumsList.length > 0) {
         applyDropdownsForMultiSelectForUnlocalised(sheet, lastMultiSelectColIndex + 1, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
       }
@@ -335,10 +356,15 @@ export function manageMultiSelectUnlocalised(sheet: any, schema: any, fileUrl?: 
   }
 }
 
+// -----------------------------
+// Function to Apply Dropdowns
+// -----------------------------
 function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, maxSelections: number, enumsList: string[], isChildOfSomeCampaign: boolean = false, rowsLength: number = 1) {
+  // Loop through columns for multi-select
   for (let i = 1; i <= maxSelections; i++) {
     const colIndex = currentColumnIndex - maxSelections + i - 1;
 
+    // Apply dropdown validation to each cell (skipping the first row)
     sheet.getColumn(colIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: number) => {
       if (rowNumber > 1) {
         cell.dataValidation = {
@@ -349,13 +375,14 @@ function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, ma
           errorStyle: 'stop',
           showErrorMessage: true,
           errorTitle: 'Invalid Entry',
-          allowBlank: true
+          allowBlank: true // Allow blank entries
         };
       }
 
+      // Freeze the current cell (the multi-select cell itself)
       if (rowNumber > 1 && rowNumber <= rowsLength && isChildOfSomeCampaign) {
         cell.protection = {
-          locked: true,
+          locked: true, // Lock the cell
         };
       }
     });
@@ -363,9 +390,11 @@ function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, ma
 }
 
 function applyDropdownsForMultiSelectForUnlocalised(sheet: any, currentColumnIndex: number, maxSelections: number, enumsList: string[], isChildOfSomeCampaign: boolean = false, rowsLength: number = 1) {
+  // Loop through columns for multi-select
   for (let i = 1; i <= maxSelections; i++) {
     const colIndex = currentColumnIndex - maxSelections + i - 1;
 
+    // Apply dropdown validation to each cell (skipping the first row)
     sheet.getColumn(colIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: number) => {
       if (rowNumber > 2) {
         cell.dataValidation = {
@@ -376,13 +405,14 @@ function applyDropdownsForMultiSelectForUnlocalised(sheet: any, currentColumnInd
           errorStyle: 'stop',
           showErrorMessage: true,
           errorTitle: 'Invalid Entry',
-          allowBlank: true
+          allowBlank: true // Allow blank entries
         };
       }
 
+      // Freeze the current cell (the multi-select cell itself)
       if (rowNumber > 2 && rowNumber <= rowsLength && isChildOfSomeCampaign) {
         cell.protection = {
-          locked: true,
+          locked: true, // Lock the cell
         };
       }
     });
@@ -390,6 +420,7 @@ function applyDropdownsForMultiSelectForUnlocalised(sheet: any, currentColumnInd
 }
 
 
+// Function to format the first row
 function formatFirstRow(row: any, sheet: any, firstRowColor: string, columnWidth: number, frozeCells: boolean) {
   row.eachCell((cell: any, colNumber: number) => {
     setFirstRowCellStyles(cell, firstRowColor, frozeCells);
@@ -398,6 +429,7 @@ function formatFirstRow(row: any, sheet: any, firstRowColor: string, columnWidth
   });
 }
 
+// Function to set styles for the first row's cells
 function setFirstRowCellStyles(cell: any, firstRowColor: string, frozeCells: boolean) {
   cell.fill = {
     type: 'pattern',
@@ -414,11 +446,12 @@ function setFirstRowCellStyles(cell: any, firstRowColor: string, frozeCells: boo
   cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
 }
 
+// Function to adjust column width
 function adjustColumnWidth(sheet: any, colNumber: number, columnWidth: number) {
   sheet.getColumn(colNumber).width = columnWidth;
 }
 
-/** Grows a row's height to fit wrapped cell text based on content length and column width. */
+// Function to adjust row height based on content
 export function adjustRowHeight(row: any, cell: any, columnWidth: number) {
   const text = cell.value ? cell.value.toString() : '';
   const denominator = Math.max(1, columnWidth - 10);
@@ -426,6 +459,7 @@ export function adjustRowHeight(row: any, cell: any, columnWidth: number) {
   row.height = Math.max(row.height ?? 0, lines * 15);
 }
 
+// Function to format cells in other rows
 function formatOtherRows(row: any, frozeCells: boolean) {
   row.eachCell((cell: any) => {
     if (frozeCells) {
@@ -434,6 +468,7 @@ function formatOtherRows(row: any, frozeCells: boolean) {
   });
 }
 
+// Function to finalize the sheet settings
 function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWholeSheet: boolean, localizationMap?: any, fileUrl?: any, schema?: any) {
   const type = (request?.query?.type || request?.body?.ResourceDetails?.type);
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
@@ -467,7 +502,7 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
     const localizedActiveColumnWhichIsNotToBeFreezed = getLocalizedName(activeColumnWhichIsNotToBeFreezed, localizationMap);
     const columnIndexOfActiveColumn = getColumnIndexByHeader(sheet, localizedActiveColumnWhichIsNotToBeFreezed);
     const columnIndexOfBoundaryCodeMandatory = getColumnIndexByHeader(sheet, boundaryCodeMandatoryColumnWhichIsNotToBeFreezed);
-    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn, columnIndexOfBoundaryCodeMandatory]);
+    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn, columnIndexOfBoundaryCodeMandatory]); // Example columns to freeze and unfreeze
     hideColumnsOfProcessedFile(sheet, columnIndexesToBeHidden);
   }
   updateFontNameToRoboto(sheet);
@@ -479,12 +514,14 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
 
 
 function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCodeColumnIndex: any) {
+  // Make every cell locked by default
   newSheet?.eachRow((row: any) => {
     row.eachCell((cell: any) => {
       cell.protection = { locked: true };
     });
   });
 
+  // // Get headers in the first row and filter out empty items
   const headers = newSheet.getRow(1).values.filter((header: any) => header);
   logger.info(`Filtered Headers in the first row : ${headers}`);
 
@@ -508,17 +545,18 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
     });
   }
 
+  // Hide the boundary code column
   if (boundaryCodeColumnIndex !== -1) {
     newSheet.getColumn(boundaryCodeColumnIndex + 1).hidden = true; // Excel columns are 1-based
   }
 
+  // Protect the sheet with a password (optional)
   newSheet.protect('passwordhere', {
     selectLockedCells: true,
     selectUnlockedCells: true,
   });
 }
 
-/** Defaults blank facility usage cells to inactive so downstream validation treats un-filled facilities as inactive. */
 export function enrichUsageColumnForFacility(worksheet: any, localizationMap: any) {
   const configType = "facility";
   const usageColumn = getLocalizedName(createAndSearch[configType]?.activeColumnName, localizationMap);
@@ -526,8 +564,9 @@ export function enrichUsageColumnForFacility(worksheet: any, localizationMap: an
     const usageColumnIndex = getColumnIndexByHeader(worksheet, usageColumn);
     if (usageColumnIndex !== -1) {
       worksheet?.eachRow((row: any, rowNumber: number) => {
-        if (rowNumber === 1) return;
+        if (rowNumber === 1) return; // Skip header row
         const cell = row.getCell(usageColumnIndex);
+        // Only change the value if it is empty or null
         if (!cell.value) {
           cell.value = usageColumnStatus.inactive;
         }
@@ -544,18 +583,16 @@ function protectSheet(sheet: any) {
 }
 
 
-/** Finds a header in row 1 and returns its Excel column letter (A, B, …), or "" if not found. */
 export const findColumnByHeader = (header: string, worksheet: any) => {
   for (let col = 1; col <= worksheet.columnCount; col++) {
     if (worksheet.getCell(1, col).value === header) {
-      return String.fromCharCode(64 + col); // 1 -> A, 2 -> B, ...
+      return String.fromCharCode(64 + col); // Convert to Excel column letter (e.g., 1 -> A, 2 -> B)
     }
   }
   return "";
 };
 
 
-/** Applies per-column cell locking to an uploaded template: some columns freeze fully, some only up to the last data row, some only when empty. */
 export async function freezeUnfreezeColumns(
   worksheet: ExcelJS.Worksheet,
   columnsToFreeze: string[],
@@ -567,6 +604,7 @@ export async function freezeUnfreezeColumns(
   const headerRow = worksheet.getRow(1);
   const headerMap: Record<string, number> = {};
 
+  // Step 1: Map headers to column indices
   headerRow.eachCell((cell: any, col) => {
     const header = cell.value;
     if (header) headerMap[header] = col;
@@ -589,7 +627,7 @@ export async function freezeUnfreezeColumns(
   const unfrozeTillRow = Number(config.values.unfrozeTillRow);
   const unfrozeTillColumn = Number(config.values.unfrozeTillColumn);
 
-  // Unlock the default editable area, skipping frozen columns and empty headers
+  // Step 2: Unlock default editable area, skipping frozen columns and empty headers
   for (let r = 3; r <= unfrozeTillRow; r++) {
     for (let c = 1; c <= unfrozeTillColumn; c++) {
       const headerValue: any = worksheet.getCell(1, c).value;
@@ -606,32 +644,34 @@ export async function freezeUnfreezeColumns(
     }
   }
 
-  // Unlock columnsToUnFreezeTillData only up to the last data row
+  // 🔹 Step 2.1: Unlock columns in columnsToUnFreezeTillData only till last data row
   for (let r = 3; r <= rowCount; r++) {
     for (const col of tillDataIndexes) {
       worksheet.getCell(r, col).protection = { locked: false };
     }
   }
 
-  // Header and second row are always locked
+  // Step 3: Lock the first row (header) and second row always
   for (let c = 1; c <= maxCol; c++) {
     worksheet.getCell(1, c).protection = { locked: true };
     worksheet.getCell(2, c).protection = { locked: true };
   }
 
+  // Step 4: Lock only the specified frozen columns (excluding first row)
   for (let r = 3; r <= rowCount; r++) {
     for (const col of freezeIndexes) {
       worksheet.getCell(r, col).protection = { locked: true };
     }
   }
 
-  // Lock columnsToFreezeTillData up to the last data row
+  // 🔹 Step 4.1: Lock columns in columnsToFreezeTillData till last data row
   for (let r = 3; r <= rowCount; r++) {
     for (const col of freezeTillDataIndexes) {
       worksheet.getCell(r, col).protection = { locked: true };
     }
   }
 
+  // Step 5: Apply protection (await required)
   await worksheet.protect('passwordhere', {
     selectLockedCells: true,
     selectUnlockedCells: true,

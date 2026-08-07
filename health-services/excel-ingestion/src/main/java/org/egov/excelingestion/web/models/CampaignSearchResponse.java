@@ -39,17 +39,8 @@ public class CampaignSearchResponse {
         private String boundaryCode;
         private String campaignNumber;
         private List<BoundaryDetail> boundaries;
-        private AdditionalDetails additionalDetails;
     }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class AdditionalDetails {
-        private String clonedCampaignId;
-    }
-
+    
     @Data
     @NoArgsConstructor
     @AllArgsConstructor

@@ -102,6 +102,7 @@ class SheetManageController {
             }
 
             const processedData = await processDataService(ResourceDetails, userUuid, locale);
+            // Continue processing with validated `validData`
             return sendResponse(res, { ResourceDetails : processedData }, req);
         } catch (e: any) {
             logger.error(String(e));

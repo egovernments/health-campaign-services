@@ -23,9 +23,10 @@ export class TemplateClass {
 
         const { tenantId, type, campaignId } = responseToSend;
 
-        // Registers can only be templated after projects exist
+        // Precondition: Verify project creation is complete
         await this.verifyProjectCreationComplete(campaignId, tenantId);
 
+        // Fetch campaign details
         const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         const campaignDetails = campaignResp?.CampaignDetails?.[0];
         if (!campaignDetails) {
@@ -34,23 +35,27 @@ export class TemplateClass {
 
         const { hierarchyType } = campaignDetails;
 
+        // Localized keys for sheet names and column headers
         const templateSheetForReadMe = templateConfig?.sheets?.[0];
         const readMeHeaderKey = Object.keys(templateSheetForReadMe?.schema?.properties || {})[0];
 
+        // Prepare ReadMe sheet
         const readMeConfig = await getReadMeConfig(tenantId, type);
         const readMeData = this.getReadMeData(readMeConfig, readMeHeaderKey, localizationMap);
 
+        // Prepare Boundary sheet for dropdown population
         const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
         const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType);
         const registerListBoundaryColumns = await this.getRegisterListBoundaryDynamicColumns(tenantId, hierarchyType);
 
-        // Populate the register-list sheet from campaign_data if registers already exist
+        // Prepare Attendance Register List sheet — populate from campaign_data if registers exist
         const existingRegisterRows = await getRelatedDataWithCampaign(
             "attendanceRegister", campaignDetails.campaignNumber, tenantId, dataRowStatuses.completed
         );
         const attendanceRegisterData = existingRegisterRows.map((r: any) => r.data || {});
         logger.info("Loaded {} existing attendance registers from campaign_data for template", attendanceRegisterData.length);
 
+        // Construct the final SheetMap
         const sheetMap: SheetMap = {
             [templateSheetForReadMe?.sheetName]: {
                 data: readMeData,
@@ -160,11 +165,13 @@ export class TemplateClass {
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
         const result: any = [];
 
+        // Step 1: Index boundaries by code - O(n)
         const codeToBoundary: Record<string, any> = {};
         for (const boundary of boundaries) {
             codeToBoundary[boundary.code] = { ...boundary, children: [] };
         }
 
+        // Step 2: Build tree - O(n)
         const roots: any[] = [];
         for (const boundary of boundaries) {
             // Treat a node as a root when it has no parent, or when its parent is not in the
@@ -177,10 +184,14 @@ export class TemplateClass {
             }
         }
 
+        // Step 3: DFS traversal - O(n)
         function traverse(node: any, path: any[] = []) {
             const entry: Record<string, string> = {};
+
+            // Add main boundary code
             entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
 
+            // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
                 const key = `${hierarchyType}_${b.type}`.toUpperCase();
@@ -195,6 +206,7 @@ export class TemplateClass {
             }
         }
 
+        // Step 4: Start traversal from roots
         for (const root of roots) {
             traverse(root);
         }

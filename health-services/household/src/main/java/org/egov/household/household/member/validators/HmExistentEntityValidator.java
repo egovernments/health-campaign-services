@@ -76,22 +76,10 @@ public class HmExistentEntityValidator implements Validator<HouseholdMemberBulkR
                 .clientReferenceId(clientReferenceIdList) // Set the client reference IDs for the search
                 .build();
 
-        // Create a map of client reference ID to HouseholdMember entity for easy lookup.
-        // A WITHIN-BATCH duplicate clientReferenceId must NOT crash Collectors.toMap (that
-        // IllegalStateException previously propagated to the consumer and dropped the ENTIRE bulk
-        // batch, losing unrelated valid records). Keep the first occurrence and isolate each
-        // subsequent duplicate as a per-record uniqueness error so the good records still persist.
-        Map<String, HouseholdMember> map = new HashMap<>();
-        for (HouseholdMember entity : entities) {
-            if (!StringUtils.hasText(entity.getClientReferenceId())) {
-                continue;
-            }
-            if (map.containsKey(entity.getClientReferenceId())) {
-                populateErrorDetails(entity, getErrorForUniqueEntity(), errorDetailsMap);
-            } else {
-                map.put(entity.getClientReferenceId(), entity);
-            }
-        }
+        // Create a map of client reference ID to HouseholdMember entity for easy lookup
+        Map<String, HouseholdMember> map = entities.stream()
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map
 
         // Check if the client reference ID list is not empty before querying the database
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {

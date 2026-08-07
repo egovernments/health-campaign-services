@@ -104,12 +104,30 @@ const consumer = kafka.consumer({
     maxBytesPerPartition: config?.kafka?.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION,
 });
 
-// Bounded consumer concurrency. KafkaJS processes up to this many partitions in
-// parallel (partitionsConsumedConcurrently); within a partition messages stay
-// sequential. This replaces the previous fire-and-forget semaphore, which advanced
-// offsets before processing finished (at-most-once) and silently dropped in-flight
-// messages on pod restart/crash/rebalance.
+// Add a simple semaphore for concurrency control
 const MAX_CONCURRENT = config?.user?.KAFKA_CONSUMER_MAX_CONCURRENT;
+let currentConcurrent = 0;
+const queue: (() => void)[] = [];
+
+function acquireSemaphore() {
+    return new Promise<void>((resolve) => {
+        if (currentConcurrent < MAX_CONCURRENT) {
+            currentConcurrent++;
+            resolve();
+        } else {
+            queue.push(resolve);
+            logger.warn(`Kafka listener concurrency limit reached (${MAX_CONCURRENT}). Message will wait.`);
+        }
+    });
+}
+
+function releaseSemaphore() {
+    currentConcurrent--;
+    if (queue.length > 0) {
+        const next = queue.shift();
+        if (next) next();
+    }
+}
 
 /**
  * Builds a map of base topic name -> handler function.
@@ -165,16 +183,14 @@ export async function listener() {
             logger.info(`KAFKA :: LISTENER :: Subscribed to topic: ${String(topicPattern)}`);
         }
 
-        // Await processing so the offset is committed only after the handler completes:
-        // a crash mid-processing leaves the offset uncommitted and Kafka redelivers the
-        // message (at-least-once). Handlers are idempotent (search/adopt-before-create),
-        // so redelivery is safe. processMessageKJS swallows handler errors by design —
-        // app-layer status rows own failure handling — so a handled failure still commits
-        // and is not redelivered, avoiding a poison-message reprocessing loop.
         await consumer.run({
-            partitionsConsumedConcurrently: MAX_CONCURRENT,
             eachMessage: async (payload: EachMessagePayload) => {
-                await processMessageKJS(payload.topic, payload.message, topicHandlerMap);
+                const { topic, message } = payload;
+                await acquireSemaphore();
+                processMessageKJS(topic, message, topicHandlerMap)
+                    .finally(() => {
+                        releaseSemaphore();
+                    });
             },
         });
 

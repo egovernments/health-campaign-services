@@ -16,7 +16,6 @@ import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionGenerateData;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.excelingestion.util.RequestInfoUtil;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
 
@@ -105,7 +104,6 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         log.info("Generating attendance register attendee sheet: {} for tenant: {}", sheetName, tenantId);
 
-        requestInfo = RequestInfoUtil.ensureUserInfo(requestInfo, tenantId);
         // 1. Fetch schema from MDMS → convert to ColumnDefs
         List<ColumnDef> columnDefs = fetchSchemaColumnDefs(sheetConfig.getSchemaName(), tenantId, requestInfo);
 

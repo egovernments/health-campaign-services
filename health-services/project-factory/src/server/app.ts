@@ -28,12 +28,15 @@ class App {
     this.initializeControllers(controllers);
     this.app.use(invalidPathHandler);
 
+    // Start periodic memory usage logging
     this.startMemoryLogging();
 
+    // Global error handling for uncaught exceptions
     process.on("uncaughtException", (err) => {
       console.error("Unhandled Exception:", err);
     });
 
+    // Global error handling for unhandled promise rejections
     process.on("unhandledRejection", (reason, promise) => {
       console.error("Unhandled Rejection at:", promise, "reason:", reason);
     });
@@ -110,9 +113,10 @@ class App {
       logger: (msg, err) => logger.error(msg, err)
     });
 
-    server.setTimeout(480000); // 480s
-    server.keepAliveTimeout = 90000; // 90s
-    server.headersTimeout = 120000; // 120s
+    // Configure server timeouts
+    server.setTimeout(480000); // 480 seconds
+    server.keepAliveTimeout = 90000; // 90 seconds
+    server.headersTimeout = 120000; // 120 seconds
   }
   
 }

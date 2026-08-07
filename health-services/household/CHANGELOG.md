@@ -2,14 +2,6 @@
 
 All notable changes to this module will be documented in this file.
 
-## 1.2.3 - 2026-07-20
-
-- Added `household.member.relationship.validation` flag (default `false`) that unbundles cross-entity **existence** validation (household / individual / relative) for member create/update, so a member is accepted while its parent is still on the persister queue (offline-first). Set `true` to enforce.
-- Added `HmRequiredLinkValidator` (always on, error `REQUIRED_LINK_MISSING`, non-recoverable) enforcing presence of the member's own `clientReferenceId`, a household link, and an individual link.
-- A within-batch duplicate `clientReferenceId` in a bulk create no longer drops the whole batch: first occurrence is kept, each later duplicate is isolated as a per-record uniqueness error, and valid records still persist (household and member; replaced `Collectors.toMap` with a first-wins loop in `HExistentEntityValidator` / `HmExistentEntityValidator`).
-- Added enrichment NPE guards in `HouseholdMemberEnrichmentService` — an empty or partially unresolved household list leaves `householdId` unset and logs a warning instead of throwing `No value present`/NPE.
-- Upgraded `health-services-common` to 1.1.6-SNAPSHOT and `health-services-models` to 1.0.35-SNAPSHOT. Service artifact version unchanged at 1.2.2.
-
 ## 1.2.2 - 2026-03-10
 
 - Upgraded tracer to 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.

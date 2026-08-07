@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.egov.tracer.config.TracerProperties;
-import org.egov.tracer.http.RestTemplateLoggingInterceptor;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
 
@@ -22,11 +20,10 @@ public class ApplicationConfig {
     }
 
     @Bean
-    public RestTemplate restTemplate(ObjectMapper objectMapper, TracerProperties tracerProperties) {
+    public RestTemplate restTemplate(ObjectMapper objectMapper) {
         // Keep RestTemplate bean for FileStoreService multipart file upload
         RestTemplate restTemplate = new RestTemplate();
         restTemplate.getMessageConverters().add(0, new MappingJackson2HttpMessageConverter(objectMapper));
-        restTemplate.getInterceptors().add(new RestTemplateLoggingInterceptor(tracerProperties));
         return restTemplate;
     }
 }

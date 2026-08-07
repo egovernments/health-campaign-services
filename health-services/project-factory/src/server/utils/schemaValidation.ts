@@ -4,7 +4,6 @@ import { logger } from "./logger";
 
 const REQUIRED_MAPPING_COLUMNS = ["retrycount", "lasterror"];
 
-/** Fails pod startup fast if the mapping table is missing reconciler columns (migration V20260612120000). */
 export async function validateRequiredSchema(): Promise<void> {
   const tableName = config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME;
   for (const column of REQUIRED_MAPPING_COLUMNS) {

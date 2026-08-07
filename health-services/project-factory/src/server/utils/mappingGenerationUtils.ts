@@ -24,7 +24,6 @@ export async function bumpMappingGeneration(tenantId: string, campaignNumber: st
     }
 }
 
-/** Reads the current fencing generation so consumers can drop batches from a superseded cycle; null disables fencing. */
 export async function getCurrentMappingGeneration(tenantId: string, campaignNumber: string): Promise<MappingGeneration | null> {
     try {
         const value = await redis.get(generationKey(tenantId, campaignNumber));

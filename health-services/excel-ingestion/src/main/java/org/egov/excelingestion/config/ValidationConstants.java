@@ -19,26 +19,7 @@ public class ValidationConstants {
     
     // Error message constants
     public static final String HCM_VALIDATION_FAILED_NO_DETAILS = "HCM_VALIDATION_FAILED_NO_DETAILS";
-
-    // Warning surfaced when the server-authoritative immutable-join reverts a user's edit to a locked cell.
-    public static final String HCM_IMMUTABLE_CELL_REVERTED = "HCM_IMMUTABLE_CELL_REVERTED";
-    public static final String DEFAULT_IMMUTABLE_CELL_REVERTED =
-            "This column is server-managed; your edit was reverted to the generated value.";
-
-    // Allowed values for the editable active/inactive (usage) column, and the error when a value is not one
-    // of them (Excel list-validation is bypassed on paste/drag-fill, so this is enforced server-side).
-    public static final String USAGE_ACTIVE = "Active";
-    public static final String USAGE_INACTIVE = "Inactive";
-    public static final String HCM_VALIDATION_INVALID_USAGE = "HCM_VALIDATION_INVALID_USAGE";
-    public static final String DEFAULT_INVALID_USAGE =
-            "Usage must be either 'Active' or 'Inactive'.";
-
-    // Error when a boundary selection did not resolve to a boundary code: cascading dropdowns are bypassed
-    // by Excel on paste/drag-fill, so an out-of-list boundary name leaves the code formula blank.
-    public static final String HCM_BOUNDARY_INVALID_SELECTION = "HCM_BOUNDARY_INVALID_SELECTION";
-    public static final String DEFAULT_BOUNDARY_INVALID_SELECTION =
-            "Selected boundary is not a valid boundary from the dropdown list.";
-
+    
     // Search validation constants
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
     public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";

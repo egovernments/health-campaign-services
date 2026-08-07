@@ -135,9 +135,7 @@ public class ProjectTaskEnrichmentService {
     }
 
     private static void enrichAddressesForCreate(List<Task> validTasks) {
-        List<Address> addresses = validTasks.stream()
-                .filter(task -> task.getAddress() != null)
-                .map(Task::getAddress)
+        List<Address> addresses = validTasks.stream().map(Task::getAddress)
                 .collect(Collectors.toList());
         if (!addresses.isEmpty()) {
             log.info("enriching addresses");

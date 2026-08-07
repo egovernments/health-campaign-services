@@ -2,14 +2,6 @@
 
 All notable changes to this module will be documented in this file.
 
-## 1.2.4 - 2026-07-20
-
-- Cross-entity existence validation is now gated behind a new config flag `project.relationship.validation` (default `false` = disabled) for the task and beneficiary create/update chains, so records referencing a not-yet-persisted parent are accepted (offline-first / persister-queue-tolerant). Set `true` to enforce (`PtProjectIdValidator`, `PtProductVariantIdValidator`, `PtProjectBeneficiaryIdValidator` DB lookup, `PbProjectIdValidator`, `BeneficiaryValidator`).
-- Added two always-on structural validators `PtRequiredLinkValidator` and `PbRequiredLinkValidator` (error code `REQUIRED_LINK_MISSING`) that reject records missing `clientReferenceId` or a beneficiary link, regardless of the relationship-validation flag — prevents orphan / NOT-NULL-violating rows.
-- Within-batch duplicate `clientReferenceId` no longer drops the entire bulk batch: first occurrence kept, each subsequent duplicate flagged individually as a uniqueness error so valid records still persist (task, beneficiary and user-action bulk paths — `PtExistentEntityValidator`, `PbExistentEntityValidator`, `UaExistentEntityValidator`).
-- Added an NPE guard in bulk task create enrichment (`ProjectTaskEnrichmentService.enrichAddressesForCreate` now skips tasks with a null address).
-- Upgraded `health-services-common` to 1.1.6-SNAPSHOT.
-
 ## 1.2.3 - 2026-06-24
 
 - Disabled row-version validation on user-action (stock-count) updates and lifted the search limit cap to support bulk stock-count updates.

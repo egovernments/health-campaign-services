@@ -7,13 +7,13 @@ import { isMicroplanRequest } from "../utils/microplanUtils";
 import { throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 
-/** Collects per-row errors (into rowMapping) for microplan user rows whose contact number is missing or not an N-digit number. */
 export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
     for (const data of datas) {
         const phoneColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap);
         if (data[phoneColumn]) {
             let phoneNumber = data[phoneColumn].toString();
 
+            // Check if the phone number is numeric and has exactly 10 digits
             const isNumeric = /^\d+$/.test(phoneNumber);
             if (phoneNumber.length !== config?.user?.phoneNumberLength || !isNumeric) {
                 const row = data["!row#number!"];
@@ -33,16 +33,15 @@ export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any,
 }
 
 
-/** Collects per-row errors (into rowMapping) for microplan user rows with a malformed email (email is optional). */
 export function validateEmailSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Simple email regex pattern
 
     for (const data of datas) {
         const emailColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL_MICROPLAN", localizationMap);
         if (data[emailColumn]) {
             let email = data[emailColumn].toString();
 
-            if (!emailRegex.test(email)) {
+            if (!emailRegex.test(email)) { // Validate email format with regex
                 const row = data["!row#number!"];
                 if (!rowMapping[row]) {
                     rowMapping[row] = [];
@@ -53,7 +52,6 @@ export function validateEmailSheetWise(datas: any[], localizationMap: any, rowMa
     }
 }
 
-/** Collects per-row errors (into rowMapping) for microplan user rows whose name is missing, wrong length, or has no letters. */
 export function validateNameSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
     for (const data of datas) {
         const nameColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME_MICROPLAN", localizationMap);
@@ -62,6 +60,7 @@ export function validateNameSheetWise(datas: any[], localizationMap: any, rowMap
             name = name.toString();
             const row = data["!row#number!"];
 
+            // Check name length
             if (name.length > 128 || name.length < 2) {
                 if (!rowMapping[row]) {
                     rowMapping[row] = [];
@@ -69,6 +68,7 @@ export function validateNameSheetWise(datas: any[], localizationMap: any, rowMap
                 rowMapping[row].push("The ‘Name’ should be between 2 to 128 characters. Please update and re-upload");
             }
             else {
+                // Check if name contains at least one alphabetic character
                 const hasAlphabetic = /[a-zA-Z]/.test(name);
                 if (!hasAlphabetic) {
                     if (!rowMapping[row]) {
@@ -89,7 +89,6 @@ export function validateNameSheetWise(datas: any[], localizationMap: any, rowMap
 }
 
 
-/** Runs all microplan user-sheet validations (phone, email, name, uniqueness); flags empty sheets in errorMap. */
 export function validateUserForMicroplan(data: any, sheetName: any, request: any, errorMap: any, newSchema: any, rowMapping: any, localizationMap: any) {
     if (data?.length > 0) {
         validatePhoneNumberSheetWise(data, localizationMap, rowMapping);
@@ -102,7 +101,6 @@ export function validateUserForMicroplan(data: any, sheetName: any, request: any
     }
 }
 
-/** Flags duplicate values (per-row, into rowMapping) for each column marked unique in the schema. */
 export function validateUniqueSheetWise(schema: any, data: any[], request: any, rowMapping: any, localizationMap: any) {
     if (schema?.unique) {
         const uniqueElements = schema.unique;
@@ -110,6 +108,7 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
         for (const element of uniqueElements) {
             const uniqueMap = new Map();
 
+            // Iterate over each data object and check uniqueness
             for (const item of data) {
                 const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
                 const localizedUniqueIdentifierColumnName = getLocalizedName(uniqueIdentifierColumnName, localizationMap);
@@ -122,6 +121,7 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
                         }
                         rowMapping[rowNum].push(`Duplicate value '${value}' found for '${element}'`);
                     }
+                    // Add the value to the map
                     uniqueMap.set(value, rowNum);
                 }
             }
@@ -129,7 +129,6 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
     }
 }
 
-/** Validates target columns per boundary row (present, integer 1..1e8) and that sub-target columns don't exceed the first (total) column. */
 export function validateRequiredTargetsForMicroplanCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
@@ -190,7 +189,6 @@ export function validateRequiredTargetsForMicroplanCampaigns(data: any, errors: 
     }
 }
 
-/** Validates that configured lat/long columns hold numeric values across all boundary sheets. */
 export function validateLatLongForMicroplanCampaigns(data: any, errors: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
@@ -238,7 +236,6 @@ function validateLatLongForFacility(data: any, errors: any, localizationMap?: { 
     }
 };
 
-/** Validates microplan facility rows (active flag + required fields for active/unidentified rows) and marks the resource INVALID if any errors accumulate. */
 export function validateMicroplanFacility(request: any, data: any, localizationMap: any) {
     const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap);
     const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
@@ -299,7 +296,6 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
 }
 
 
-/** Rejects a microplan upload if any sheet references a boundary code outside the campaign's boundary set (tampered/wrong template). */
 export async function validateExtraBoundariesForMicroplan(request: any, dataFromSheet: any, localizationMap: any) {
     if (await isMicroplanRequest(request)) {
         const campaignBoundariesSet = new Set(request?.body?.campaignBoundaries?.map((boundary: any) => boundary.code));

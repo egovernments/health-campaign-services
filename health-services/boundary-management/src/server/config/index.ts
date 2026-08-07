@@ -31,22 +31,6 @@ const config = {
     resetCache: process.env.RESET_CACHE,
     redisPort: process.env.REDIS_PORT || "6379",
   },
-  // Heartbeat + reconciler for boundary "process"/create runs abandoned by a pod restart.
-  // The create runs as a detached in-process promise (boundaryApis.ts processCreate, no await); a
-  // mid-run pod restart leaves the resource stuck at data-accepted forever and the UI polls it
-  // indefinitely. While a create runs we tick lastModifiedTime (heartbeat, metadata only); a sweep
-  // then marks a resource 'failed' once its ticks stop for stalenessMs (the owning pod died). A live
-  // run keeps ticking, so it is never false-failed regardless of TOTAL run time — even a long 50k
-  // create ticks every heartbeatMs through the (awaited) relationship fan-out and slow-persister
-  // drain. stalenessMs therefore need only exceed the longest SYNCHRONOUS codegen burst (which blocks
-  // the event loop and can delay a tick), NOT the whole run; the 10 min default is a large safety
-  // margin for 50k+/slow pods. A truly dead run is marked failed ~stalenessMs after its pod died.
-  orphanReconcile: {
-    enabled: process.env.BOUNDARY_ORPHAN_RECONCILE_ENABLED !== "false", // default ON
-    heartbeatMs: parseInt(process.env.BOUNDARY_RESOURCE_HEARTBEAT_MS || "30000"),      // tick every 30s
-    stalenessMs: parseInt(process.env.BOUNDARY_ORPHAN_STALENESS_MS || "600000"),       // fail after ~10 min of no tick (20x heartbeat; safe for 50k+/slow pods)
-    sweepIntervalMs: parseInt(process.env.BOUNDARY_ORPHAN_SWEEP_INTERVAL_MS || "60000"), // sweep every 60s
-  },
   kafka: {
     // Kafka topics
     KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC || "create-processed-boundary-management",
@@ -85,17 +69,8 @@ const config = {
     defaultLocale: process.env.LOCALE || "en_MZ",
     boundaryPrefix: "hcm-boundary",
     localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
-    // Optional blind settle after the upsert chunks, retained only as an escape hatch. The
-    // consistency guarantee is the verify-gate below (read-back poll until every name is visible),
-    // not this sleep — upserts are synchronous, so the first read normally already sees everything.
-    localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "0"),
+    localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "30000"),
     localizationChunkSizeForBoundaryCreation: parseInt(process.env.LOCALIZATION_CHUNK_SIZE_FOR_BOUNDARY_CREATION || "2000"),
-    localizationUpsertConcurrency: parseInt(process.env.LOCALIZATION_UPSERT_CONCURRENCY || "5"),
-    // Verify-gate: after cache-burst, poll the read-back until all intended names are present,
-    // bounded by the timeout. On timeout the run still completes with the localisationIncomplete
-    // flag (unchanged semantics) — the gate only defers, it never fails the run.
-    localisationVerifyPollIntervalMs: parseInt(process.env.LOCALISATION_VERIFY_POLL_INTERVAL_MS || "3000"),
-    localisationVerifyTimeoutMs: parseInt(process.env.LOCALISATION_VERIFY_TIMEOUT_MS || "30000"),
   },
   // targetColumnsForSpecificCampaigns: {
   //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],
@@ -128,36 +103,13 @@ const config = {
     localizationCreate: "localization/messages/v1/_upsert",
     cacheBurst: process.env.CACHE_BURST || "localization/messages/cache-bust",
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
-    boundaryRelationshipBulkCreate: process.env.EGOV_BOUNDARY_RELATIONSHIP_BULK_CREATE || "boundary-service/boundary-relationships/bulk/_create",
   },
   // Values configuration
   values: {
     //module name
     unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "5010",
     maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4",
-    // Transport-level errors that should auto-retry. "socket hang up" was the only one matched before;
-    // a stale pooled keep-alive socket surfaces as "write EPIPE" / "(read )ECONNRESET", so cover those too.
-    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up,write EPIPE,read ECONNRESET,ECONNRESET,EPIPE" /* substring-matched against the failing error code */,
-    // Idle timeout (ms) for pooled keep-alive sockets in the shared axios agent (see utils/request.ts).
-    httpSocketIdleTimeoutMs: process.env.HTTP_SOCKET_IDLE_TIMEOUT_MS || "60000",
-    // Max concurrent boundary-relationship creates within a single dependency wave (siblings).
-    // Kept modest by default so parallel creates don't flood the asynchronous persister.
-    relationshipCreateConcurrency: process.env.RELATIONSHIP_CREATE_CONCURRENCY || "10",
-    // Chunk size for the boundary-service bulk relationship API (the last two hierarchy levels).
-    bulkRelationshipChunkSize: process.env.BULK_RELATIONSHIP_CHUNK_SIZE || "100",
-    // Transient-retry budget for /bulk/_create (records awaiting parent/entity persistence).
-    bulkRelationshipRetryAttempts: process.env.BULK_RELATIONSHIP_RETRY_ATTEMPTS || "30",
-    bulkRelationshipRetryDelayMs: process.env.BULK_RELATIONSHIP_RETRY_DELAY_MS || "2000",
-    // Bounded gate before a bulk upload is marked completed: boundary-service's persister commits
-    // relationships asynchronously, so the DB can lag the accepted creates by minutes at 50k scale.
-    // The gate polls the relationship search until every intended relationship is visible; on
-    // timeout the run still completes (the gate only defers "completed", it never fails the run).
-    persistenceDrainTimeoutMs: process.env.PERSISTENCE_DRAIN_TIMEOUT_MS || "600000",
-    persistenceDrainPollIntervalMs: process.env.PERSISTENCE_DRAIN_POLL_INTERVAL_MS || "5000",
-    // Delay before the post-upload template regeneration is triggered. The persistence-drain gate
-    // has already proven every relationship searchable by the time this is scheduled, so this only
-    // buffers the redis prefix-delete / status-flip ordering — it is not a consistency wait.
-    generateTriggerDelayMs: process.env.GENERATE_TRIGGER_DELAY_MS || "5000",
+    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" /* can be retry if there is any error for which default retry can be set */,
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   },
 };

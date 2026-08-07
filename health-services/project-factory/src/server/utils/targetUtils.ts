@@ -3,7 +3,6 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import _ from 'lodash';
 
 
-/** Returns target column headers, derived from delivery rules for dynamic-template project types, else from campaign-type config. */
 async function generateDynamicTargetHeaders(request: any, campaignObject: any, localizationMap?: any) {
     const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
     let headerColumnsAfterHierarchy: any;
@@ -20,7 +19,6 @@ async function generateDynamicTargetHeaders(request: any, campaignObject: any, l
 }
 
 
-/** Dedupes delivery-rule conditions into a set of unique attribute conditions, collapsing two operators on the same attribute into an IN_BETWEEN range. */
 function modifyDeliveryConditions(dataa: any[]): any {
     let resultSet = new Set<string>();
     dataa.forEach((delivery) => {
@@ -34,6 +32,7 @@ function modifyDeliveryConditions(dataa: any[]): any {
 
             if (existingIndex !== -1) {
                 const existingItem = newArray[existingIndex];
+                // Combine conditions if necessary
                 if (existingItem.operator.code !== item.operator.code) {
                     newArray[existingIndex] = {
                         attribute: existingItem.attribute,
@@ -45,6 +44,7 @@ function modifyDeliveryConditions(dataa: any[]): any {
                     };
                 }
             } else {
+                // If attribute does not exist in newArray, add the item
                 newArray.push({
                     attribute: { code: item.attribute },
                     operator: { code: item.operator },
@@ -53,7 +53,7 @@ function modifyDeliveryConditions(dataa: any[]): any {
             }
         });
         newArray.map((element: any) => {
-            const stringifiedElement = JSON.stringify(element);
+            const stringifiedElement = JSON.stringify(element); // Convert object to string
             resultSet.add(stringifiedElement);
         })
     });
@@ -61,11 +61,10 @@ function modifyDeliveryConditions(dataa: any[]): any {
 }
 
 
-/** Builds localized target column headers from unique delivery conditions, capping at 18 with an OTHER_TARGETS overflow column. */
 function generateTargetColumnsBasedOnDeliveryConditions(uniqueDeliveryConditions: any, localizationMap?: any) {
     const targetColumnsBasedOnDeliveryConditions: string[] = [];
     uniqueDeliveryConditions.forEach((str: any, index: number) => {
-        const uniqueDeliveryConditionsObject = JSON.parse(str);
+        const uniqueDeliveryConditionsObject = JSON.parse(str); // Parse JSON string into object
         const targetColumnString = createTargetString(uniqueDeliveryConditionsObject, localizationMap);
         targetColumnsBasedOnDeliveryConditions.push(targetColumnString);
     });
@@ -91,7 +90,6 @@ function createTargetString(uniqueDeliveryConditionsObject: any, localizationMap
     return targetString;
 }
 
-/** True if the project type is in the config allowlist for delivery-rule-driven dynamic target templates. */
 function isDynamicTargetTemplateForProjectType(projectType: string) {
     const projectTypesFromConfig = config?.enableDynamicTemplateFor;
     const projectTypesArray = projectTypesFromConfig ? projectTypesFromConfig.split(',') : [];

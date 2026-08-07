@@ -1,3 +1,4 @@
+// Importing necessary modules
 import * as express from "express";
 import { logger } from "../utils/logger";
 import Ajv from "ajv";
@@ -8,7 +9,6 @@ import { validateMappingId } from "../utils/campaignMappingUtils";
 import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { BoundaryModels } from "../models";
 
-/** AJV-validates a campaign body against schema and throws a formatted VALIDATION_ERROR on failure. */
 function validateCampaignBodyViaSchema(schema: any, objectData: any) {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(schema);
@@ -17,10 +17,12 @@ function validateCampaignBodyViaSchema(schema: any, objectData: any) {
         const formattedError = validate?.errors?.map((error: any) => {
             let formattedErrorMessage = "";
             if (error?.dataPath) {
+                // Replace slash with dot and remove leading dot if present
                 const dataPath = error.dataPath.replace(/\//g, '.').replace(/^\./, '');
                 formattedErrorMessage = `${dataPath} ${error.message}`;
             }
             else if (error?.instancePath) {
+                // Replace slash with dot and remove leading dot if present
                 const dataPath = error.instancePath.replace(/\//g, '.').replace(/^\./, '');
                 formattedErrorMessage = `${dataPath} ${error.message}`;
             }
@@ -33,6 +35,7 @@ function validateCampaignBodyViaSchema(schema: any, objectData: any) {
             if (error.keyword === 'additionalProperties' && error.params && error.params.additionalProperty) {
                 formattedErrorMessage += `, Additional property '${error.params.additionalProperty}' found.`;
             }
+            // Capitalize the first letter of the error message
             formattedErrorMessage = formattedErrorMessage.charAt(0).toUpperCase() + formattedErrorMessage.slice(1);
             return formattedErrorMessage;
         }).join("; ");
@@ -41,7 +44,6 @@ function validateCampaignBodyViaSchema(schema: any, objectData: any) {
     }
 }
 
-/** AJV-validates objectData against schema (lenient mode) and throws a formatted VALIDATION_ERROR on failure. */
 function validateBodyViaSchema(schema: any, objectData: any) {
     const properties: any = { jsonPointers: true, allowUnknownAttributes: true, strict: false }
     const ajv = new Ajv(properties);
@@ -51,10 +53,12 @@ function validateBodyViaSchema(schema: any, objectData: any) {
         const formattedError = validate?.errors?.map((error: any) => {
             let formattedErrorMessage = "";
             if (error?.dataPath) {
+                // Replace slash with dot and remove leading dot if present
                 const dataPath = error.dataPath.replace(/\//g, '.').replace(/^\./, '');
                 formattedErrorMessage = `${dataPath} ${error.message}`;
             }
             else if (error?.instancePath) {
+                // Replace slash with dot and remove leading dot if present
                 const dataPath = error.instancePath.replace(/\//g, '.').replace(/^\./, '');
                 formattedErrorMessage = `${dataPath} ${error.message}`;
             }
@@ -67,6 +71,7 @@ function validateBodyViaSchema(schema: any, objectData: any) {
             if (error.keyword === 'additionalProperties' && error.params && error.params.additionalProperty) {
                 formattedErrorMessage += `, Additional property '${error.params.additionalProperty}' found.`;
             }
+            // Capitalize the first letter of the error message
             formattedErrorMessage = formattedErrorMessage.charAt(0).toUpperCase() + formattedErrorMessage.slice(1);
             return formattedErrorMessage;
         }).join("; ");
@@ -75,22 +80,27 @@ function validateBodyViaSchema(schema: any, objectData: any) {
     }
 }
 
+// Function to validate the resources associated with a campaign
 async function validateProjectResource(requestBody: any) {
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
         for (const resource of campaignDetails?.resources) {
             const type = resource?.type;
             for (const resourceId of resource?.resourceIds) {
+                // Check if resource type and ID are provided
                 if (!type) {
                     throwError("COMMON", 400, "VALIDATION_ERROR", "Enter Type In Resources");
                 }
                 if (!resourceId) {
                     throwError("COMMON", 400, "VALIDATION_ERROR", "Enter ResourceId In Resources of type " + type);
                 }
+                // Validate the resource ID based on its type
+                // await validateResourceId(type, resourceId, requestBody);
             }
         }
     }
 }
 
+// Function to validate the campaign details including resource validation
 async function validateCampaign(requestBody: any) {
     const id = requestBody?.Campaign?.id
     if (!id) {
@@ -104,7 +114,7 @@ async function validateCampaign(requestBody: any) {
     await validateProjectResource(requestBody)
 }
 
-/** Validates a campaign mapping request and rejects it if the campaign is already in-progress/mapped. */
+// Function to validate the entire campaign request
 async function validateCampaignRequest(requestBody: any) {
     try {
         if (requestBody?.Campaign) {
@@ -139,7 +149,7 @@ async function validateCampaignRequest(requestBody: any) {
     }
 }
 
-/** Confirms the hierarchyType exists for the tenant and replaces request.body.hierarchyType with the resolved definition. */
+// Function to validate the hierarchy type
 async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
 
     const BoundaryTypeHierarchySearchCriteria: BoundaryModels.BoundaryHierarchyDefinitionSearchCriteria={
@@ -159,7 +169,7 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
     }
 }
 
-/** Validates template-generation query params, enforces tenant match with userInfo, and defaults forceUpdate. */
+// Function to validate the generation request
 async function validateGenerateRequest(request: express.Request) {
     const { tenantId, hierarchyType, forceUpdate } = request.query;
     validateBodyViaSchema(generateRequestSchema, request.query);

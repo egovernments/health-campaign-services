@@ -52,6 +52,7 @@ export class TemplateClass {
         const multiRegisterAllowedRoles = await this.fetchMultiRegisterAllowedRoles(tenantId, resourceDetails?.requestInfo);
         logger.info(`Multi-register allowed roles for tenant ${tenantId}: [${Array.from(multiRegisterAllowedRoles).join(", ")}]`);
 
+        // Collect all rows from all sheets
         const allRows: { row: any; sheetName: string }[] = [];
         for (const name of SHEET_NAMES) {
             const localizedKey = getLocalizedName(name, localizationMap);
@@ -61,6 +62,7 @@ export class TemplateClass {
             }
         }
 
+        // Find registerId from first non-empty row
         let registerId: string | null = null;
         for (const { row } of allRows) {
             const val = row[attendanceColumnKeys.REGISTER_ID];
@@ -109,6 +111,7 @@ export class TemplateClass {
             }
         }
 
+        // Resolve HRMS usernames → individualIds
         const usernames = this.collectUniqueUsernames(allRows);
         const { usernameToIndividualId, usernameToRoles } = await this.resolveIndividualIds(usernames, tenantId, resourceDetails?.requestInfo);
         const allIndividualIds = [...new Set(usernameToIndividualId.values())];
@@ -127,6 +130,7 @@ export class TemplateClass {
         ]);
         const staffEnrollmentsMap = new Map<string, any[]>([...ownerStaffMap, ...approverStaffMap]);
 
+        // Validate each row — structural + truth-table business rules
         for (const { row, sheetName } of allRows) {
             const rowRegisterId = row[attendanceColumnKeys.REGISTER_ID];
             if (!rowRegisterId || !String(rowRegisterId).trim()) {

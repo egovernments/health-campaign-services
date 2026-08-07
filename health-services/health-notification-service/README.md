@@ -160,6 +160,6 @@ sequenceDiagram
 |---|---|
 | Release | **v2.1** — service first introduced in this line |
 | Stack | Spring Boot 3.2.2 / Java 17 |
-| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT, `enc-client` 2.9.0 |
-| Doc updated | 2026-07-20 |
+| Shared libs | `health-services-common` 1.1.2-SNAPSHOT, `health-services-models` 1.0.30-SNAPSHOT, `tracer` 2.9.2-SNAPSHOT, `enc-client` 2.9.0 |
+| Doc updated | 2026-06-12 |
 | Maintainers | Health Campaign Services team |

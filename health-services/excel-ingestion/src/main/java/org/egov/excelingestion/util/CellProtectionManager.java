@@ -51,56 +51,32 @@ public class CellProtectionManager {
         // Apply protection logic to all data rows
         int protectedCells = 0;
         int unprotectedCells = 0;
-
-        // The empty paste area (rows lastDataRow+1 .. excelRowLimit) used to be MATERIALIZED here as
-        // ~excelRowLimit real Row/Cell objects each carrying a locked/unlocked style. For a template with
-        // only a handful of pre-filled rows that meant tens/hundreds of thousands of empty styled cells,
-        // which is the dominant driver of the multi-MB file size and the GB-scale POI heap on generation.
-        //
-        // Instead we apply the empty-region lock intent ONCE per data column via the sheet's DEFAULT
-        // COLUMN STYLE (an O(columns) XML attribute, materializes zero cells). Empty cells the user pastes
-        // into inherit that column default, so sheet protection still keeps the paste area editable exactly
-        // as before. We then explicitly style ONLY the rows that actually carry data (2 .. lastDataRow),
-        // which is where per-cell decisions (freezeColumnIfFilled) genuinely need a real cell.
-        for (int i = 0; i < columns.size(); i++) {
-            int colIdx = startCol + i;
-            ColumnDef column = columns.get(i);
-            boolean emptyRegionLocked = isEmptyRegionLocked(column, lastDataRow);
-            sheet.setDefaultColumnStyle(colIdx, emptyRegionLocked ? lockedStyle : unlockedStyle);
-        }
-
-        // Style only the materialized data rows. When the sheet is truly empty (lastDataRow <= 1) this
-        // loop runs zero times and the column default styles above carry all the protection.
-        for (int rowIdx = 2; rowIdx <= lastDataRow; rowIdx++) {
+        
+        // Important: We need to apply styles to a reasonable number of rows
+        // to ensure protection works properly even for empty rows
+        // For sheets with lots of data (like target sheets), protect all data rows
+        int maxRowsToProtect = Math.max(lastDataRow, config.getExcelRowLimit());
+        
+        for (int rowIdx = 2; rowIdx <= maxRowsToProtect; rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row == null) {
-                // A gap row inside the data region: its lock state matches the column default already
-                // applied above, so there is no need to materialize it.
-                continue;
+                row = sheet.createRow(rowIdx);
             }
-
+            
             for (int i = 0; i < columns.size(); i++) {
                 int colIdx = startCol + i; // Use correct column index
                 ColumnDef column = columns.get(i);
                 Cell cell = row.getCell(colIdx);
                 if (cell == null) {
-                    // Empty cell within a data row inherits the column default style; only materialize +
-                    // style it when its intended lock state differs from that default.
-                    boolean shouldLockEmpty = determineCellLockState(column, null, rowIdx, lastDataRow);
-                    boolean colDefaultLocked = isEmptyRegionLocked(column, lastDataRow);
-                    if (shouldLockEmpty == colDefaultLocked) {
-                        if (shouldLockEmpty) protectedCells++; else unprotectedCells++;
-                        continue;
-                    }
                     cell = row.createCell(colIdx);
                 }
-
+                
                 // Use comprehensive protection logic
                 boolean shouldLock = determineCellLockState(column, cell, rowIdx, lastDataRow);
-
+                
                 CellStyle styleToApply = shouldLock ? lockedStyle : unlockedStyle;
                 cell.setCellStyle(styleToApply);
-
+                
                 if (shouldLock) {
                     protectedCells++;
                 } else {
@@ -108,35 +84,10 @@ public class CellProtectionManager {
                 }
             }
         }
-
-        log.info("Cell protection applied - Protected: {}, Unprotected: {}, LastDataRow: {} (empty paste area covered by default column styles, not materialized rows)",
+        
+        log.info("Cell protection applied - Protected: {}, Unprotected: {}, LastDataRow: {}", 
                 protectedCells, unprotectedCells, lastDataRow);
         return workbook;
-    }
-
-    /**
-     * Lock state for the EMPTY paste region of a column (rows after {@code lastDataRow}, no value).
-     * This mirrors {@link #determineCellLockState} for an empty cell located past the last data row, so
-     * the single default column style we set is identical to what per-cell styling would have produced
-     * for every empty row — just without materializing those rows.
-     *
-     * @return true if empty cells in this column should be LOCKED by default, false if UNLOCKED
-     */
-    private boolean isEmptyRegionLocked(ColumnDef column, int lastDataRow) {
-        // Matches determineCellLockState(column, emptyCell, rowIdx > lastDataRow, lastDataRow):
-        // 1. unFreezeColumnTillData: empty template (lastDataRow<=1) -> unlocked; otherwise rows past
-        //    the data are LOCKED.
-        if (column.isUnFreezeColumnTillData()) {
-            return lastDataRow > 1;
-        }
-        // 2. freezeColumn: always locked.
-        if (column.isFreezeColumn()) {
-            return true;
-        }
-        // 3. freezeTillData: locks only rows <= lastDataRow; the empty region is beyond that -> unlocked.
-        // 4. freezeColumnIfFilled: locks only cells WITH a value; empty cells -> unlocked.
-        // 5. default: unlocked.
-        return false;
     }
 
     /**
@@ -204,18 +155,11 @@ public class CellProtectionManager {
      * @return The protected workbook
      */
     public Workbook applySheetProtection(Workbook workbook, Sheet sheet, String password) {
-        String name = sheet.getSheetName();
-        // Never protect hidden helper sheets (_h_...._h_): they carry lookup/meta data the pipeline reads
-        // and must stay freely writable.
-        if (name != null && name.startsWith("_h_") && name.endsWith("_h_")) {
-            return workbook;
-        }
-        log.info("Applying sheet protection to: {}", name);
-
-        // Protect sheet with password - POI leaves permissive defaults so users can still edit/paste
-        // into UNLOCKED cells while locked cells stay read-only.
+        log.info("Applying sheet protection to: {}", sheet.getSheetName());
+        
+        // Protect sheet with password - allows users to edit unlocked cells
         sheet.protectSheet(password);
-
+        
         return workbook;
     }
 

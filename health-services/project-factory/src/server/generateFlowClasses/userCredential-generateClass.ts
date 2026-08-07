@@ -8,18 +8,22 @@ import { dataRowStatuses, sheetDataRowStatuses, errorWorksheetName, campaignData
 import { decrypt } from "../utils/cryptUtils";
 import { WorkerRegistryRecord, searchWorkersByIds } from "../utils/workerRegistryUtils";
 
-/** Builds the user-credential Excel template: created users (with decrypted credentials + worker-registry payee details) plus an errors worksheet. */
+// This will be a dynamic template class for different types
 export class TemplateClass {
+    // Static generate function 
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating template...");
         logger.info(`Input payload: ${JSON.stringify(responseToSend)}`);
 
         const { tenantId, type, campaignId } = responseToSend;
 
+        // Fetch campaign details
         const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         const campaignDetails = campaignResp?.CampaignDetails?.[0];
         if (!campaignDetails) throw new Error("Campaign not found");
 
+
+        // Prepare User List sheet
         const users = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.completed);
 
         // Fetch decrypted payee details from worker registry for all users that have a stored workerId.
@@ -95,10 +99,12 @@ export class TemplateClass {
             }
 
             const boundaryCode = localizedData[userDataFields.boundaryCode] ;
+            // Add localized boundary code
             if (boundaryCode && !localizedData[userDataFields.boundaryCodeMandatory]){
                 localizedData[userDataFields.boundaryCodeMandatory] = localizedData[userDataFields.boundaryCode];
             }
             const boundaryMandatoryCode = localizedData[userDataFields.boundaryCodeMandatory] ;
+            // Add boundary Name
             if (!localizedData[userDataFields.boundaryName]) {
                 localizedData[userDataFields.boundaryName] = getLocalizedName(boundaryMandatoryCode, localizationMap);
             }
@@ -112,24 +118,28 @@ export class TemplateClass {
         // rows tagged {status:"failed", data["#status#"]:"INVALID"}.
         const erroredUsers = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.failed);
 
+        // Build errors worksheet data (same columns as main sheet + #status# + #errorDetails#)
         const errorUserData = erroredUsers.map((u: any) => {
             const rawData = u?.data || {};
             const errorData: Record<string, any> = {};
 
+            // Copy all data except sensitive fields
             for (const key in rawData) {
-                // Never surface credentials/service UUIDs on error rows
                 if (key === userCredentialFields.userName || key === userCredentialFields.password || key === userCredentialFields.userServiceUuids) {
+                    // Skip sensitive fields for error rows
                     continue;
                 }
                 errorData[key] = rawData[key];
             }
 
+            // Add status and error details
             errorData[campaignDataRowFields.status] = rawData[campaignDataRowFields.status] || sheetDataRowStatuses.FAILED;
             errorData[campaignDataRowFields.errorDetails] = rawData[campaignDataRowFields.errorDetails] || "";
 
             return errorData;
         });
 
+        // Construct the final SheetMap with both main and errors worksheets
         const sheetMap: SheetMap = {
             ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
@@ -199,11 +209,13 @@ export class TemplateClass {
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
         const result: any = [];
 
+        // Step 1: Index boundaries by code
         const codeToBoundary: Record<string, any> = {};
         for (const boundary of boundaries) {
             codeToBoundary[boundary.code] = { ...boundary, children: [] };
         }
 
+        // Step 2: Build tree
         const roots: any[] = [];
         for (const boundary of boundaries) {
             if (boundary.parent) {
@@ -213,10 +225,14 @@ export class TemplateClass {
             }
         }
 
+        // Step 3: DFS traversal
         function traverse(node: any, path: any[] = []) {
             const entry: Record<string, string> = {};
+
+            // Add main boundary code
             entry[userDataFields.boundaryCode] = node.code;
 
+            // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
                 const key = `${hierarchyType}_${b.type}`.toUpperCase();
@@ -231,6 +247,7 @@ export class TemplateClass {
             }
         }
 
+        // Step 4: Start traversal from roots
         for (const root of roots) {
             traverse(root);
         }

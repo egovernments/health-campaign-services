@@ -10,12 +10,14 @@ class Localisation {
   public path = "/localization/messages/v1";
   public router = express.Router();
   public dayInMilliSecond = 86400000;
-  private cachedResponse: any = {};
+  private cachedResponse: any = {}; // Property to store the cached response
   private localizationHost;
+  // Hold the single instance of the class
   private static instance: Localisation;
   constructor() {
     this.localizationHost = config.host.localizationHost;
   }
+  // Public method to provide access to the single instance
   public static getInstance(): Localisation {
     if (!Localisation.instance) {
       Localisation.instance = new Localisation();
@@ -23,6 +25,14 @@ class Localisation {
     return Localisation.instance;
   }
 
+  // private getLocalisationMap = (): any => {
+  //   //{
+  //   return Object.values(this.cachedResponse).reduce((acc: any, curr: any) => {
+  //     acc = { ...acc, ...curr };
+  //     return acc;
+  //   }, {}); //
+  // };
+  // search localization
   public getLocalisedData: any = async (
     module: string,
     locale: string,
@@ -39,7 +49,7 @@ class Localisation {
     logger.info(`Found in cache`);
     return this?.cachedResponse?.[`${module}-${locale}`];
   };
-
+  // fetch localization messages
   private fetchLocalisationMessage = async (
   module: string,
   locale: string,
@@ -68,7 +78,7 @@ class Localisation {
       logger.info(
         `Fetched Localisation Message for module ${module}, locale ${locale}, tenantId ${tenantId} with count ${localisationResponse?.messages?.length}`
       );
-      break;
+      break; // Exit loop if successful
     } catch (error) {
       attempt++;
       logger.error(
@@ -81,11 +91,12 @@ class Localisation {
         logger.error(
           `All ${maxRetries} attempts failed for module ${module}, locale ${locale}, tenantId ${tenantId}`
         );
-        throw error;
+        throw error; // Re-throw after final attempt
       }
     }
   }
 
+  // Proceed only if we have a successful response
   this.cachedResponse = {
     ...cachedResponse,
     ...this.cachedResponse,
@@ -138,10 +149,11 @@ class Localisation {
             `Fetched ${messages.length} messages from server for module ${module}, locale ${locale}`
           );
 
+          // Cache the raw message array using the new key
           this.cachedResponse[cacheKey] = messages;
           cachedResponse = { ...this.cachedResponse };
 
-          break;
+          break; // success, exit loop
         } catch (error) {
           attempt++;
           logger.error(
@@ -154,7 +166,7 @@ class Localisation {
             logger.error(
               `All ${maxRetries} attempts failed to fetch messages for ${cacheKey}`
             );
-            throw error;
+            throw error; // Re-throw after final failure
           }
         }
       }
@@ -190,9 +202,13 @@ class Localisation {
     RequestInfo: any
   ) => {
     try {
+      // Construct request body with RequestInfo and localisation messages
       const requestBody = { RequestInfo, messages, tenantId };
+      // Construct URL for localization create endpoint
       const url = this.localizationHost + config.paths.localizationCreate;
+      // Log the start of the localisation messages creation process
       logger.info(`Creating the localisation messages of count ${messages?.length}`);
+      // Send HTTP POST request to create localisation messages
 
       await httpRequest(url, requestBody);
 
@@ -202,8 +218,10 @@ class Localisation {
           messages?.[0]?.module,
           messages?.[0]?.locale
         );
+      // Log the completion of the localisation messages creation process
       logger.info("Localisation messages created successfully");
     } catch (e: any) {
+      // Log and handle any errors that occur during the process
       console.log(e);
       logger.error(String(e));
       throw new Error(e);

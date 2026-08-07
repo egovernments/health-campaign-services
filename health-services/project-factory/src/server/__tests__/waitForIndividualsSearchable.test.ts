@@ -1,4 +1,4 @@
-import { waitForIndividualsSearchable, partitionWorkersByIndividualSearchability } from '../utils/userBatchHandler';
+import { waitForIndividualsSearchable } from '../utils/userBatchHandler';
 
 jest.mock('../utils/logger', () => ({
     logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
@@ -112,48 +112,5 @@ describe('waitForIndividualsSearchable', () => {
             expect(res.missing).toEqual([]);
             expect(res.found.has('a')).toBe(true);
         });
-    });
-});
-
-const worker = (individualId: string): any => ({ individualId, name: 'w', tenantId: 'mz' });
-
-describe('partitionWorkersByIndividualSearchability', () => {
-    it('returns all as creatable when nothing is missing', () => {
-        const list = [worker('a'), worker('b')];
-        const { creatable, deferred } = partitionWorkersByIndividualSearchability(list, []);
-        expect(creatable).toEqual(list);
-        expect(deferred).toEqual([]);
-    });
-
-    it('returns the same array reference when nothing is missing (no needless copy)', () => {
-        const list = [worker('a')];
-        expect(partitionWorkersByIndividualSearchability(list, []).creatable).toBe(list);
-    });
-
-    it('routes only the still-missing individuals to deferred', () => {
-        const list = [worker('a'), worker('b'), worker('c')];
-        const { creatable, deferred } = partitionWorkersByIndividualSearchability(list, ['b']);
-        expect(creatable.map(w => w.individualId)).toEqual(['a', 'c']);
-        expect(deferred.map(w => w.individualId)).toEqual(['b']);
-    });
-
-    it('defers every worker sharing a missing individualId', () => {
-        const list = [worker('a'), worker('a'), worker('b')];
-        const { creatable, deferred } = partitionWorkersByIndividualSearchability(list, ['a']);
-        expect(creatable.map(w => w.individualId)).toEqual(['b']);
-        expect(deferred.map(w => w.individualId)).toEqual(['a', 'a']);
-    });
-
-    it('defers all when every individual is missing (nothing sent to worker-registry)', () => {
-        const list = [worker('a'), worker('b')];
-        const { creatable, deferred } = partitionWorkersByIndividualSearchability(list, ['a', 'b']);
-        expect(creatable).toEqual([]);
-        expect(deferred).toEqual(list);
-    });
-
-    it('handles an empty worker list', () => {
-        const { creatable, deferred } = partitionWorkersByIndividualSearchability([], ['a']);
-        expect(creatable).toEqual([]);
-        expect(deferred).toEqual([]);
     });
 });

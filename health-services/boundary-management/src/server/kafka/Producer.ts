@@ -147,13 +147,10 @@ const sendWithReconnect = async (payloads: any[]): Promise<void> => {
 };
 
 
-async function produceModifiedMessages(modifiedMessages: any, topic: any, tenantId: string , key?: string, skipCentralInstancePrefix: boolean = false
+async function produceModifiedMessages(modifiedMessages: any, topic: any, tenantId: string , key?: string
 ): Promise<void> {
     try {
-        // Fixed cross-service topics consumed by another service by their exact name (e.g. the
-        // boundary bulk-job topic) must NOT be tenant-prefixed, or the producer and consumer
-        // topic names diverge and messages are silently never consumed.
-        if(config.isEnvironmentCentralInstance && !skipCentralInstancePrefix) {
+        if(config.isEnvironmentCentralInstance) {
             // If tenantId has no ".", default to tenantId itself
             const firstTenantPartAfterSplit = tenantId.includes(".") ? tenantId.split(".")[0] : tenantId;
             topic = `${firstTenantPartAfterSplit}-${topic}`;

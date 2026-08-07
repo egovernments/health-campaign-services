@@ -10,8 +10,9 @@
     "build": "yarn run build-ts",
     "build-ts": "tsc",
     "clean": "rm -rf ./dist",
-    "serve": "if [ \"$DEBUG\" = \"true\" ]; then NODE_OPTIONS=--max-old-space-size=2048 node --inspect=0.0.0.0:9229 dist/index.js; else NODE_OPTIONS=--max-old-space-size=2048 node dist/index.js; fi",
+    "serve": "if [ \"$DEBUG\" = \"true\" ]; then NODE_OPTIONS=--max-old-space-size=1024 node --inspect=0.0.0.0:9229 dist/index.js; else NODE_OPTIONS=--max-old-space-size=1024 node dist/index.js; fi",
     "start": "yarn run dev",
+    "test": "jest",
     "dev": "ts-node-dev --respawn src/server/index.ts",
     "prod": "if [ \"$DEBUG\" = \"true\" ]; then cp tsconfig.debug.json tsconfig.json; fi && yarn build && yarn serve",
     "watch-ts": "tsc --watch"
@@ -51,7 +52,9 @@
     "@types/express": "4.17.21",
     "@types/hash-sum": "1.0.2",
     "@types/helmet": "0.0.47",
+    "@types/http-proxy-middleware": "^1.0.0",
     "@types/jaeger-client": "^3.18.7",
+    "@types/jest": "29.5.12",
     "@types/lodash": "^4.17.5",
     "@types/morgan": "1.9.9",
     "@types/node": "20.11.29",
@@ -60,6 +63,7 @@
     "@types/xlsx": "0.0.36",
     "ajv": "^8.16.0",
     "eslint": "7.16.0",
+    "jest": "29.7.0",
     "pg": "8.12.0",
     "ts-node-dev": "2.0.0",
     "typescript": "5.4.2"

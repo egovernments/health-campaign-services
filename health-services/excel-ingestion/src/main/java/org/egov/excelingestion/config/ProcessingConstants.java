@@ -12,72 +12,6 @@ public class ProcessingConstants {
     public static final String BOUNDARY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String WORKER_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
 
-    // User active/inactive column - user-editable, excluded from the immutable-baseline join
-    public static final String USER_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_USAGE";
-
-    // Facility active/inactive column - user-editable, excluded from the immutable-baseline join
-    public static final String FACILITY_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_USAGE";
-
-    // Template type families the unprotected join-mode immutability feature applies to.
-    // Generation types are e.g. "unified-console" / "attendanceRegister" / "attendanceRegisterAttendee";
-    // the matching processing types append a suffix ("-validation"/"-parse"), so the scope gate matches
-    // on a startsWith prefix rather than equality.
-    public static final String UNIFIED_CONSOLE_TYPE = "unified-console";
-    public static final String ATTENDANCE_REGISTER_TYPE = "attendanceRegister";
-    public static final String ATTENDANCE_REGISTER_ATTENDEE_TYPE = "attendanceRegisterAttendee";
-
-    // Prefixes a resource type must start with to use join mode. attendanceRegisterAttendee is listed
-    // explicitly for clarity even though the "attendanceRegister" prefix already matches it (startsWith).
-    // The list match also covers the "-validation"/"-parse" processing suffixes.
-    private static final java.util.List<String> JOIN_MODE_TYPE_PREFIXES =
-            java.util.List.of(UNIFIED_CONSOLE_TYPE, ATTENDANCE_REGISTER_TYPE, ATTENDANCE_REGISTER_ATTENDEE_TYPE);
-
-    /**
-     * Whether the given resource type belongs to a template family that uses unprotected join-mode
-     * pre-filled immutability. Single source of truth shared by the generation and upload gates.
-     * Null-safe.
-     */
-    public static boolean isJoinModeType(String type) {
-        if (type == null) {
-            return false;
-        }
-        for (String prefix : JOIN_MODE_TYPE_PREFIXES) {
-            if (type.startsWith(prefix)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Simple class names of the generators that produce free-entry (user-typed) console sheets:
-    // the User List and Facilities List. These sheets must stay fully UNPROTECTED in join mode so
-    // operators can freely edit/paste; the server-side immutable-join reverts any tampering with
-    // boundary/code/row-id on upload, so leaving them unprotected is safe. All other join-mode sheets
-    // (e.g. the pre-filled Boundary List) stay protected. Matched on class-name suffix so a fully
-    // qualified generationClass (e.g. "org.egov.excelingestion.generator.UserSheetGenerator") still hits.
-    public static final String USER_SHEET_GENERATOR_CLASS = "UserSheetGenerator";
-    public static final String FACILITY_SHEET_GENERATOR_CLASS = "FacilitySheetGenerator";
-
-    /**
-     * Whether the given generation class produces a free-entry (user-typed) console sheet — currently
-     * the User List and Facilities List. Matched by simple-name suffix so it works whether the config
-     * carries a fully qualified name or a bare class name. Null-safe (returns false).
-     */
-    public static boolean isUserEntrySheet(String generationClass) {
-        if (generationClass == null) {
-            return false;
-        }
-        return generationClass.endsWith(USER_SHEET_GENERATOR_CLASS)
-                || generationClass.endsWith(FACILITY_SHEET_GENERATOR_CLASS);
-    }
-
-    // Hidden, server-stamped per-row identifier used to join an uploaded row to its generated
-    // baseline row (unprotected join mode). Robust to row insertion/reordering/deletion.
-    public static final String ROW_ID_COLUMN_NAME = "HCM_ADMIN_CONSOLE____ROW_ID";
-
-    // Suffix of hidden per-level boundary helper columns - excluded from the immutable set
-    public static final String HELPER_COLUMN_SUFFIX = "_HELPER";
-
     // Payee field column keys
     public static final String PAYMENT_PROVIDER_COL = "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER";
     public static final String PAYEE_NAME_COL = "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME";
@@ -101,7 +35,6 @@ public class ProcessingConstants {
     // AdditionalDetails Keys
     public static final String ADDITIONAL_DETAILS_CAMPAIGN_ID = "campaignId";
     public static final String ADDITIONAL_DETAILS_REGISTER_ID = "registerId";
-    public static final String ADDITIONAL_DETAILS_CLONED_CAMPAIGN_ID = "clonedCampaignId";
 
     // Attendance Register API Response Keys
     public static final String ATTENDANCE_REGISTER_RESPONSE_KEY = "attendanceRegister";

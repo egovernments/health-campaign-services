@@ -88,15 +88,6 @@ public class HouseholdMemberEnrichmentService {
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
         log.info("finding households from householdService with ids: {}", houseHoldIds);
         List<Household> householdList =  householdService.findById(tenantId, houseHoldIds, columnName, false).getResponse();
-        if (CollectionUtils.isEmpty(householdList)) {
-            // With household.member.relationship.validation=false, none of the referenced households may be
-            // persisted yet (still on the persister queue). Skip household enrichment (householdId left unset)
-            // rather than fail at getIdMethod/getObjClass, which throws "No value present" on an empty list.
-            // The per-member enrichWithHouseholdId null-guard below covers the partial (some-found) case.
-            log.warn("no households resolved for the household-member batch; leaving householdId unset for {} member(s)",
-                    householdMembers.size());
-            return;
-        }
         log.info("getting method for householdList with columnName: {}", columnName);
         Method householdMethod = getIdMethod(householdList, columnName);
         log.info("getting Map of households");
@@ -124,14 +115,6 @@ public class HouseholdMemberEnrichmentService {
     private void enrichWithHouseholdId(Map<String, Household> householdMap, HouseholdMember householdMember) {
         log.info("enriching householdMember with household id and householdClientReferenceId");
         Household household = householdMap.get(getHouseholdId(householdMember));
-        if (household == null) {
-            // With household.member.relationship.validation=false, HmHouseholdValidator no longer rejects a
-            // member whose parent household is absent/still on the persister queue, so it reaches enrichment.
-            // Leave householdId/householdClientReferenceId unset and log rather than NPE, so the member persists.
-            log.warn("household not resolved for household member (clientReferenceId={}, id={}); leaving householdId unset",
-                    householdMember.getClientReferenceId(), householdMember.getId());
-            return;
-        }
         householdMember.setHouseholdId(household.getId());
         householdMember.setHouseholdClientReferenceId(household.getClientReferenceId());
     }

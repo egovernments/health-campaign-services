@@ -9,7 +9,6 @@ import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.validator.Validator;
-import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.household.service.IndividualService;
 import org.egov.tracer.model.CustomException;
@@ -37,14 +36,10 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
 
     private final IndividualService individualService;
 
-    private final HouseholdMemberConfiguration householdMemberConfiguration;
-
     public HmUniqueIndividualValidator(HouseholdMemberRepository householdMemberRepository,
-                                       IndividualService individualService,
-                                       HouseholdMemberConfiguration householdMemberConfiguration) {
+                                       IndividualService individualService) {
         this.householdMemberRepository = householdMemberRepository;
         this.individualService = individualService;
-        this.householdMemberConfiguration = householdMemberConfiguration;
     }
 
     @Override
@@ -67,14 +62,9 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
                     requestInfo,
                     tenantId
             );
-            // Gate ONLY the INDIVIDUAL_NOT_FOUND emission behind the flag; the search, the individualId/
-            // individualClientReferenceId back-fill, and the INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD uniqueness
-            // check all keep running. When the flag is OFF, a member whose individual is still propagating
-            // persists instead of a false not-found reject.
-            boolean suppressNotFound = !householdMemberConfiguration.isHouseholdMemberRelationshipValidation();
             validHouseholdMembers.forEach(householdMember -> {
                 Individual individual = individualService.validateIndividual(householdMember,
-                        searchResponse, errorDetailsMap, suppressNotFound);
+                        searchResponse, errorDetailsMap);
                 if (individual != null) {
                     householdMember.setIndividualId(individual.getId());
                     householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());

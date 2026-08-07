@@ -21,7 +21,6 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.service.enrichment.ProjectBeneficiaryEnrichmentService;
-import org.egov.project.validator.beneficiary.PbRequiredLinkValidator;
 import org.egov.project.validator.beneficiary.BeneficiaryValidator;
 import org.egov.project.validator.beneficiary.PbExistentEntityValidator;
 import org.egov.project.validator.beneficiary.PbIsDeletedValidator;
@@ -62,12 +61,6 @@ public class ProjectBeneficiaryService {
 
     private final ProjectConfiguration projectConfiguration;
 
-    // Read the relationship-validation flag live at request time. Kept as a method so the (blank-final) config
-    // bean is not referenced directly inside the predicate field-initializers (definite-assignment compile error).
-    private boolean relationshipValidationEnabled() {
-        return projectConfiguration.getIsRelationshipValidationEnabled();
-    }
-
     private final ProjectBeneficiaryEnrichmentService projectBeneficiaryEnrichmentService;
 
     private final List<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> validators;
@@ -78,16 +71,15 @@ public class ProjectBeneficiaryService {
                     || validator.getClass().equals(PbUniqueTagsValidator.class)
                     || validator.getClass().equals(PbVoucherTagUniqueForUpdateValidator.class)
                     || validator.getClass().equals(PbIsDeletedValidator.class)
-                    || (relationshipValidationEnabled() && validator.getClass().equals(PbProjectIdValidator.class))
-                    || (relationshipValidationEnabled() && validator.getClass().equals(BeneficiaryValidator.class))
+                    || validator.getClass().equals(PbProjectIdValidator.class)
+                    || validator.getClass().equals(BeneficiaryValidator.class)
                     || validator.getClass().equals(PbRowVersionValidator.class)
                     || validator.getClass().equals(PbUniqueEntityValidator.class);
 
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PbRequiredLinkValidator.class) ||
-            (relationshipValidationEnabled() && validator.getClass().equals(PbProjectIdValidator.class))
+            validator.getClass().equals(PbProjectIdValidator.class)
                     || validator.getClass().equals(PbExistentEntityValidator.class)
-                    || (relationshipValidationEnabled() && validator.getClass().equals(BeneficiaryValidator.class))
+                    || validator.getClass().equals(BeneficiaryValidator.class)
                     || validator.getClass().equals(PbUniqueTagsValidator.class)
                     || validator.getClass().equals(PbVoucherTagUniqueForCreateValidator.class);
 

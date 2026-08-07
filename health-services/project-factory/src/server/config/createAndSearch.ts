@@ -21,9 +21,11 @@ const createAndSearch: any = {
                     "minLength": 1
                 },
                 "Facility Type": {
+                    // "type": "string",
                     "enum": ["Warehouse", "Health Facility"]
                 },
                 "Facility Status": {
+                    // "type": "string",
                     "enum": ["Temporary", "Permanent"]
                 },
                 "Capacity": {

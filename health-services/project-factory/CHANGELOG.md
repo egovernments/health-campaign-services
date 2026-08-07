@@ -63,16 +63,3 @@ All notable changes to this module will be documented in this file.
   9. attendanceRegister / attendee resource search now resolves across the whole campaign family via the shared `campaignNumber`.
   10. User mappings are de-mapped only for phone numbers explicitly present in the uploaded sheet, preserving externally-created project staff on target-only updates.
   11. Mapping reconciliation reworked into a convergence-driven reconciler with retry budgets and direction-aware failure tracking.
-
-## 1.0.2 - 2026-07-20
-#### Reliability hardening
-  1. Kafka consumer switched from at-most-once to at-least-once delivery: the fire-and-forget semaphore was removed and `eachMessage` now awaits the handler, so the offset commits only after processing completes and a crash/restart/rebalance mid-processing redelivers the message instead of silently dropping it. Consumer concurrency is bounded by `partitionsConsumedConcurrently = KAFKA_CONSUMER_MAX_CONCURRENT` (default 5).
-  2. Handlers made idempotent for redelivery: facility batch re-reads live DB status and creates only not-yet-completed rows; task and legacy mapping-task short-circuit when their process is already `completed`; per-boundary project creation adopts an existing project for the same boundary + `campaignNumber` before creating.
-  3. Adopted-user reconciler: a `pending` user row whose phone already exists in HRMS is marked terminally completed (sheet status `EXISTING`, existing login id surfaced on the credential sheet) so partially-created campaigns converge to zero pending rows instead of the completion poller timing out.
-  4. HRMS per-user create fallback now runs in bounded-concurrency windows with retry + backoff for transient errors (e.g. `Failed to obtain JDBC Connection`) instead of an unbounded parallel batch that exhausted the downstream DB pool; permanent errors (already-exists / validation) are not retried.
-  5. Producer pacing for user-create batches: pause `USER_KAFKA_PRODUCE_WINDOW_DELAY_MS` after every `USER_KAFKA_PRODUCE_WINDOW_SIZE` batches (delay `0` = no pacing) so small batch sizes don't flood the topic instantly.
-  6. Boundary sync-retry delay made configurable via `BOUNDARY_SYNC_RETRY_DELAY_MS` (default 4000ms), replacing the hardcoded 1000ms in `tryTriggerGenerateIfBoundariesSynced`.
-  7. Blank / non-ASCII localization fallback: `getLocalizedName` returns the code when the localized value is missing or blank so a not-yet-localized name never renders as an empty Unified Template cell.
-  8. `decrypt()` guards non-encrypted / undefined input (adopted users carry a plaintext username and no generated password) instead of crashing during credential-sheet generation.
-  9. Skipped user-boundary mappings are revived to `toBeMapped` on retry once the user exists, so the user is actually assigned to the project.
-  10. New / changed config keys: `BOUNDARY_SYNC_RETRY_DELAY_MS`, `USER_KAFKA_PRODUCE_WINDOW_SIZE`, `USER_KAFKA_PRODUCE_WINDOW_DELAY_MS`, `USER_HRMS_FALLBACK_CONCURRENCY`, `USER_HRMS_FALLBACK_MAX_RETRIES`, `USER_HRMS_FALLBACK_BACKOFF_MS`, `USER_HRMS_FALLBACK_WINDOW_DELAY_MS`, `USER_SEARCH_CONCURRENCY`; default `USER_KAFKA_CREATE_BATCH_SIZE` changed 30→20.

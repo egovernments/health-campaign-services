@@ -16,11 +16,10 @@ ENV ACTION_NUMBER=$ACTION_NUMBER
 ENV COMMIT_ID=$COMMIT_ID
 
 # Remove heap limit: let Node.js use all available memory -- for now it is 1GB
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 
-# Copy package.json and yarn.lock (if exists). Build context is the repo root and the
-# service dir is passed via WORK_DIR (matches build/maven/Dockerfile + the generic build.yaml).
-COPY ${WORK_DIR}/package.json ./
+# Copy package.json and yarn.lock (if exists)
+COPY package.json ./
 
 # Install dependencies
 RUN yarn install
@@ -29,7 +28,7 @@ RUN yarn install
 LABEL commit_id=$COMMIT_ID
 
 # Copy the rest of the application code
-COPY ${WORK_DIR}/ ./
+COPY . .
 
 # Expose the port your app runs on
 EXPOSE 3000

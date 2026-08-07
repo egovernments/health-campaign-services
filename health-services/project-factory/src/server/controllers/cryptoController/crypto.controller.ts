@@ -28,7 +28,8 @@ class CryptoController {
             logger.info(`RECEIVED BULK DECRYPT REQUEST`);
             
             const { encryptedStrings } = request.body;
-
+            
+            // Validation
             if (!encryptedStrings || !Array.isArray(encryptedStrings)) {
                 return errorResponder(
                     { 
@@ -68,6 +69,7 @@ class CryptoController {
                 );
             }
 
+            // Perform bulk decryption
             const decryptedStrings = bulkDecrypt(encryptedStrings);
             
             logger.info(`Successfully decrypted ${decryptedStrings.length} strings`);

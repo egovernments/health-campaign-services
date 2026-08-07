@@ -9,15 +9,19 @@ import { logger } from "../../utils/logger";
 
 
 
+// Define the MeasurementController class
 class dataManageController {
+    // Define class properties
     public path = "/v1/data";
     public router = express.Router();
     public dayInMilliSecond = 86400000;
 
+    // Constructor to initialize routes
     constructor() {
         this.intializeRoutes();
     }
 
+    // Initialize routes for MeasurementController
     public intializeRoutes() {
         this.router.post(`${this.path}/_generate`, this.generateData);
         this.router.post(`${this.path}/_download`, this.downloadData)
@@ -39,6 +43,7 @@ class dataManageController {
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
@@ -69,10 +74,12 @@ class dataManageController {
         try {
             logger.info(`RECEIVED A DATA CREATE REQUEST FOR TYPE :: ${request?.body?.ResourceDetails?.type}`);
             const ResourceDetails = await createDataService(request);
+            // Send response with resource details
             return sendResponse(response, { ResourceDetails }, request);
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
@@ -90,6 +97,7 @@ class dataManageController {
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
@@ -107,6 +115,7 @@ class dataManageController {
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
@@ -124,6 +133,7 @@ class dataManageController {
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }

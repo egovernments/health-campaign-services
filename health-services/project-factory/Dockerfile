@@ -18,10 +18,9 @@ ENV COMMIT_ID=$COMMIT_ID
 # Remove heap limit: let Node.js use all available memory
 ENV NODE_OPTIONS="--max-old-space-size=3072"
 
-# Copy package.json and yarn.lock for reproducible installs. Build context is the repo root
-# and the service dir is passed via WORK_DIR (matches build/maven/Dockerfile + generic build.yaml).
-COPY ${WORK_DIR}/package.json ./
-COPY ${WORK_DIR}/yarn.lock ./
+# Copy package.json and yarn.lock for reproducible installs
+COPY package.json ./
+COPY yarn.lock ./
 
 # Install dependencies locked to yarn.lock versions
 RUN yarn install --frozen-lockfile
@@ -30,7 +29,7 @@ RUN yarn install --frozen-lockfile
 LABEL commit_id=$COMMIT_ID
 
 # Copy the rest of the application code
-COPY ${WORK_DIR}/ ./
+COPY . .
 
 # Expose the port your app runs on
 EXPOSE 3000

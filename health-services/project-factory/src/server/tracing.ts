@@ -1,6 +1,7 @@
 import { initTracer } from 'jaeger-client';
 import { FORMAT_HTTP_HEADERS, Tags } from 'opentracing';
 
+// Initialize Jaeger Tracer
 const config = {
     serviceName: 'my-express-service',
     sampler: {
@@ -21,10 +22,10 @@ const options = {
 
 const tracer = initTracer(config, options);
 
-/** Express middleware that opens a Jaeger span per request, continuing an upstream trace when one is propagated in the headers. */
 export const tracingMiddleware = (req: any, res: any, next: any) => {
     const parentSpanContext = tracer.extract(FORMAT_HTTP_HEADERS, req.headers);
 
+    // Conditionally create span based on parentSpanContext
     const span = parentSpanContext ?
         tracer.startSpan(req.path, { childOf: parentSpanContext }) :
         tracer.startSpan(req.path);

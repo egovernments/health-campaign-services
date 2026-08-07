@@ -23,7 +23,7 @@ public class ServiceRequestRepository {
 
 
     @Autowired
-    public ServiceRequestRepository(@Qualifier("objectMapper") ObjectMapper mapper, @Qualifier("logAwareRestTemplate") RestTemplate restTemplate) {
+    public ServiceRequestRepository(@Qualifier("objectMapper") ObjectMapper mapper, RestTemplate restTemplate) {
         this.mapper = mapper;
         this.restTemplate = restTemplate;
     }

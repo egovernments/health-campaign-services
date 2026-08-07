@@ -1,4 +1,4 @@
-import { createLogger, format, transports } from "winston";
+import { createLogger, format, transports } from "winston"; // Importing necessary modules from Winston library
 import config from "../../config";
 import { getRequestContext } from "../requestContext";
 
@@ -17,29 +17,31 @@ function getCallerInfo(): string {
   return 'unknown';
 }
 
-// Caller file:line is appended only at debug level to keep prod logs cheap.
+// Custom log format for Winston logger
 const myFormat = format.printf(({ level, message, timestamp }) => {
   const { correlationId, tenantId } = getRequestContext();
   const callerInfo = level.includes('debug') ? ` [${getCallerInfo()}]` : '';
   return `${timestamp} [${level}] [tenantId=${tenantId}] [correlationId=${correlationId}]${callerInfo}: ${message}`;
 });
 
+// Creating a logger instance with specified format and transports
 const logger = createLogger({
-  level: config.app.logLevel,
+  level: config.app.logLevel, // Set the minimum level to log, in this case, DEBUG
   format: format.combine(
-    format.timestamp({ format: " YYYY-MM-DD HH:mm:ss.SSSZZ " }),
-    format.simple(),
-    format.colorize(),
-    myFormat
+    // Combining different log formats
+    format.timestamp({ format: " YYYY-MM-DD HH:mm:ss.SSSZZ " }), // Adding timestamp to logs
+    format.simple(), // Simplifying log format
+    format.colorize(), // Adding color to logs for console output
+    myFormat // Using custom log format defined above
   ),
-  transports: [new transports.Console()],
+  transports: [new transports.Console()], // Using Console transport for logging
 });
 
+// Exporting the logger instance for external use
 export { logger };
 
 const DEFAULT_LOG_MESSAGE_COUNT = config.app.debugLogCharLimit;
 
-/** Truncates a stringified object to the debug char limit so large payloads don't blow up log volume or OOM on serialize. */
 export const getFormattedStringForDebug = (obj: any): string => {
   try {
     const convertedMessage = JSON.stringify(obj);

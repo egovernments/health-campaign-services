@@ -58,6 +58,7 @@ import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } 
  * @param requestBody The request body containing the campaign data.
  */
 async function enrichCampaign(requestBody: any) {
+  // Enrich campaign data with unique IDs and generate campaign numbers
   if (requestBody?.Campaign) {
     requestBody.Campaign.id = uuidv4();
     logger.info(`ENRICHMENT:: generated id for the campaign ${requestBody.Campaign.id}`);
@@ -101,6 +102,7 @@ async function getAllFacilitiesInLoop(
  * @returns An array of facilities.
  */
 async function getAllFacilities(tenantId: string, requestInfo?: RequestInfo) {
+  // Retrieve all facilities for the given tenant ID
   const facilitySearchBody = {
     RequestInfo: requestInfo,
     Facility: { isPermanent: true },
@@ -144,6 +146,7 @@ async function getFacilitiesViaIds(
   ids: any[],
   requestBody: any
 ) {
+  // Retrieve facilities by their IDs
   const facilitySearchBody: any = {
     RequestInfo: requestBody?.RequestInfo,
     Facility: {},
@@ -157,6 +160,7 @@ async function getFacilitiesViaIds(
 
   const searchedFacilities: any[] = [];
 
+  // Split ids into chunks
   const facilitySearchBatchSize = config.facility.searchBatchSize;
   for (let i = 0; i < ids.length; i += facilitySearchBatchSize) {
     const chunkIds = ids.slice(i, i + facilitySearchBatchSize);
@@ -178,6 +182,7 @@ async function getFacilitiesViaIds(
  * @returns Parameters extracted from elements.
  */
 function getParamsViaElements(elements: any, request: any) {
+  // Extract parameters based on elements
   var params: any = {};
   if (!elements) {
     return params;
@@ -204,6 +209,7 @@ function getParamsViaElements(elements: any, request: any) {
  * @param requestBody The request body to be modified.
  */
 function changeBodyViaElements(elements: any, requestBody: any) {
+  // Modify request body based on elements
   if (!elements) {
     return;
   }
@@ -375,7 +381,7 @@ const searchBatchRequest = async (
     },
   };
   const params = {
-    limit: config.user.searchBatchSize + 5,
+    limit: 55,
     offset: 0,
     tenantId: request?.body?.ResourceDetails?.tenantId,
     includeDeleted: true,
@@ -410,37 +416,34 @@ const searchBatchRequest = async (
   return [];
 };
 
-/** Returns the set of mobile numbers already registered as individuals, searched in bounded-concurrency windows to survive 50k-row uploads. */
-export async function getUserWithMobileNumbers(
+async function getUserWithMobileNumbers(
   request: any,
   mobileNumbers: any[],
   mobileNumberRowNumberMapping: any
-): Promise<Set<any>> {
+) {
   logger.debug(
     "mobileNumbers to search: " + getFormattedStringForDebug(mobileNumbers)
   );
   const BATCH_SIZE = config.user.searchBatchSize;
   let allResults: any[] = [];
 
-  // Build the per-batch requests, then run them in bounded concurrency windows
-  // instead of firing every batch at once — a 50k-row upload would otherwise
-  // open ~1000 simultaneous health-individual calls.
-  const batchPromiseFns: (() => Promise<any[]>)[] = [];
+  // Create an array of batch promises
+  const batchPromises = [];
   for (let i = 0; i < mobileNumbers.length; i += BATCH_SIZE) {
     const batch = mobileNumbers.slice(i, i + BATCH_SIZE);
-    batchPromiseFns.push(() =>
+    batchPromises.push(
       searchBatchRequest(request, batch, mobileNumberRowNumberMapping)
     );
   }
 
-  const CONCURRENCY = config.user.searchConcurrency;
-  for (let i = 0; i < batchPromiseFns.length; i += CONCURRENCY) {
-    const window = batchPromiseFns.slice(i, i + CONCURRENCY);
-    const windowResults = await Promise.all(window.map((fn) => fn()));
-    for (const result of windowResults) {
-      allResults = allResults.concat(result);
-    }
+  // Wait for all batch requests to complete
+  const batchResults = await Promise.all(batchPromises);
+
+  // Aggregate all results
+  for (const result of batchResults) {
+    allResults = allResults.concat(result);
   }
+  // Convert the results array to a Set to eliminate duplicates
   const resultSet = new Set(allResults);
   logger.info(`Already Existing mobile numbers : ${Array.from(resultSet).join(",")}`);
   return resultSet;
@@ -457,6 +460,9 @@ async function matchUserValidation(createdData: any[], request: any) {
     acc[curr.user.mobileNumber] = curr["!row#number!"];
     return acc;
   }, {});
+  // const userNames = createdData
+  // .filter((item) => item?.user?.code)
+  // .map((item) => item?.user?.code);
 
   const userNameRowNumberMapping = createdData.reduce((acc, curr) => {
     if (curr?.user?.userName) {
@@ -754,21 +760,23 @@ async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
     RequestInfo: request?.body?.RequestInfo,
   };
 
+  // const tenantId = request?.body?.ResourceDetails?.tenantId;
   const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
   logger.info(`Waiting for 10 seconds`);
+  // await new Promise((resolve) => setTimeout(resolve, 10000));
   const chunkSize = config.hrms.searchByUsernameBatchSize;
-  let foundUsernames = new Set<string>();
+  let foundUsernames = new Set<string>(); // ✅ Initialize resultSet properly
 
   for (let i = 0; i < dataToCreate.length; i += chunkSize) {
     const chunk = dataToCreate.slice(i, i + chunkSize);
-    const userNames = chunk.map((data: any) => data?.code).filter(Boolean);
+    const userNames = chunk.map((data: any) => data?.code).filter(Boolean); // ✅ Now an array, not a string
 
 
     const params = {
       tenantId: request?.body?.RequestInfo?.userInfo?.tenantId,
       limit: 51,
       offset: 0,
-      codes: userNames.join(","),
+      codes: userNames.join(","), // ✅ Convert array to comma-separated string
     };
 
     try {
@@ -784,7 +792,7 @@ async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
       );
       if (response?.Employees?.length) {
         response.Employees.forEach((emp: any) => {
-          if (emp?.code) foundUsernames.add(emp.code);
+          if (emp?.code) foundUsernames.add(emp.code); // ✅ Add only valid codes
         });
       }
     } catch (error: any) {
@@ -803,6 +811,7 @@ async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
 }
 
 
+// Confirms the creation of resources by matching created and searched data.
 async function confirmCreation(
   createAndSearchConfig: any,
   request: any,
@@ -810,6 +819,7 @@ async function confirmCreation(
   creationTime: any,
   activities: any
 ) {
+  // Confirm creation of resources by matching data  // wait for 5 seconds
   if (request?.body?.ResourceDetails?.type != "user") {
     const params: any = getParamsViaElements(
       createAndSearchConfig?.searchDetails?.searchElements,
@@ -1081,18 +1091,20 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-/** Generates a random password matching the required aXyz@123 pattern (4-letter sequence with an uppercase second letter, then a 3-digit number). */
 export function generateUserPassword() {
+  // Function to generate a random lowercase letter
   function getRandomLowercaseLetter() {
     const letters = "abcdefghijklmnopqrstuvwxyz";
     return letters.charAt(Math.floor(Math.random() * letters.length));
   }
 
+  // Function to generate a random uppercase letter
   function getRandomUppercaseLetter() {
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     return letters.charAt(Math.floor(Math.random() * letters.length));
   }
 
+  // Generate a random 4-letter sequence where the second letter is uppercase
   function generate4LetterSequence() {
     const firstLetter = getRandomLowercaseLetter();
     const secondLetter = getRandomUppercaseLetter();
@@ -1101,10 +1113,12 @@ export function generateUserPassword() {
     return firstLetter + secondLetter + thirdLetter + fourthLetter;
   }
 
+  // Generate a random 3-digit number
   function getRandom3DigitNumber() {
-    return Math.floor(100 + Math.random() * 900);
+    return Math.floor(100 + Math.random() * 900); // Ensures the number is 3 digits
   }
 
+  // Combine parts to form the password
   const firstSequence = generate4LetterSequence();
   const randomNumber = getRandom3DigitNumber();
 
@@ -1167,6 +1181,7 @@ async function enrichEmployees(employees: any[], request: any) {
       user.userName = result?.idResponses?.[i]?.id;
       i++; // Only increment when an ID is used
     }
+    // user.userName = employee.user?.userName || result?.idResponses?.[i]?.id;
     user.password = generatedPassword;
     employee.code = user.userName;
     await enrichJurisdictions(employee, request, boundaryCodeAndBoundaryTypeMapping);
@@ -1183,6 +1198,7 @@ function enrichDataToCreateForUser(
   request: any
 ) {
   const createdEmployees = responsePayload?.Employees;
+  // create an object which have keys as employee.code and values as employee.uuid
   const employeeMap = createdEmployees.reduce((map: any, employee: any) => {
     map[employee.code] = {
       uuid: employee?.uuid,
@@ -1348,13 +1364,13 @@ async function createBulkData(
 ) {
   const limit = createAndSearchConfig?.createBulkDetails?.limit;
   const dataToCreate = request?.body?.dataToCreate;
-  const chunks = Math.ceil(dataToCreate.length / limit);
+  const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
   let creationTime = Date.now();
   var activities: any[] = [];
   for (let i = 0; i < chunks; i++) {
     const start = i * limit;
     const end = (i + 1) * limit;
-    const chunkData = dataToCreate.slice(start, end);
+    const chunkData = dataToCreate.slice(start, end); // Get a chunk of data
     const newRequestBody: any = {
       RequestInfo: request?.body?.RequestInfo,
     };
@@ -1442,6 +1458,7 @@ async function processGenericRequest(
   request: any,
   localizationMap?: { [key: string]: string }
 ) {
+  // Process generic requests
   if (
     request?.body?.ResourceDetails?.type != "boundary"
   ) {
@@ -1619,10 +1636,13 @@ async function performAndSaveResourceActivityByChangingBody(
  * @param request The HTTP request object.
  */
 async function processCreate(request: any, localizationMap?: any) {
+  // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
   if (type == "boundary") {
-  }
+    // boundaryBulkUpload(request, localizationMap);
+  }  
   else {
+    // console.log(`Source is MICROPLAN -->`, source);
     let createAndSearchConfig: any;
     createAndSearchConfig = createAndSearch[type];
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
@@ -1713,6 +1733,7 @@ async function processAfterGettingSchema(
  */
 async function createProjectCampaignResourcData(request: any) {
   try {
+    // Create resources for a project campaign
     if (
       request?.body?.CampaignDetails?.action == "create" &&
       request?.body?.CampaignDetails?.resources
@@ -1720,6 +1741,7 @@ async function createProjectCampaignResourcData(request: any) {
       for (const resource of request?.body?.CampaignDetails?.resources as CampaignResource[]) {
         const action =
           resource?.type === "boundaryWithTarget" ? "validate" : "create";
+        // if (resource.type != "boundaryWithTarget") {
         const resourceDetails = {
           type: resource.type,
           fileStoreId: resource.filestoreId,
@@ -1750,8 +1772,7 @@ async function createProjectCampaignResourcData(request: any) {
   }
 }
 
-/** Polls project/_search until a just-created parent project is searchable, tolerating the async persister lag before hard-failing the campaign. */
-async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any, requestInfo?: RequestInfo): Promise<void> {
+async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any, requestInfo?: RequestInfo) {
   const searchBody = {
     RequestInfo: requestInfo,
     Projects: [
@@ -1766,14 +1787,9 @@ async function confirmProjectParentCreation(tenantId: string, uuid: string, proj
     offset: 0,
     limit: 5,
   };
-  // A project/_create returns the id from enrichment, but the row is persisted asynchronously; under a
-  // large project-create burst that write can lag, so the confirm window is config-driven and wide enough
-  // to tolerate it (never a hardcoded wait) — otherwise a persisted project is falsely reported missing and
-  // PROJECT_CONFIRMATION_FAILED hard-fails the campaign.
-  const maxRetries = Math.max(1, config.project.confirmRetries);
-  const pollIntervalMs = config.project.confirmPollIntervalMs;
-  let projectFound = false;
-  for (let attempt = 1; attempt <= maxRetries && !projectFound; attempt++) {
+  var projectFound = false;
+  var retry = 6;
+  while (!projectFound && retry >= 0) {
     const response = await httpRequest(
       config.host.projectHost + config.paths.projectSearch,
       searchBody,
@@ -1781,11 +1797,11 @@ async function confirmProjectParentCreation(tenantId: string, uuid: string, proj
     );
     if (response?.Project?.[0]) {
       projectFound = true;
-      break;
-    }
-    logger.info(`Project ${projectId} not yet searchable (attempt ${attempt}/${maxRetries}); waiting ${pollIntervalMs}ms`);
-    if (attempt < maxRetries) {
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    } else {
+      logger.info("Project not found. Waiting for 1 seconds");
+      retry = retry - 1;
+      logger.info(`Waiting for ${retry} for 1 more second`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
   if (!projectFound) {
@@ -1827,10 +1843,14 @@ async function projectUpdateForTargets(projectUpdateBody: any, request: any, bou
 function generateHierarchyList(data: any[], parentChain: any = []) {
   let result: any[] = [];
 
+  // Iterate over each boundary in the current level
   for (let boundary of data) {
     let currentChain = [...parentChain, boundary.code];
+
+    // Add the current chain to the result
     result.push(currentChain.join(","));
 
+    // If there are children, recursively call the function
     if (boundary.children && boundary.children.length > 0) {
       let childResults = generateHierarchyList(boundary.children, currentChain);
       result = result.concat(childResults);
@@ -1880,6 +1900,7 @@ const getHeadersOfBoundarySheet = async (
       header ? header.toString().trim() : undefined
     );
 
+  // Filter out empty items and return the result
   return columnsToValidate.filter((header: any) => typeof header === "string");
 };
 

@@ -39,10 +39,4 @@ public class HouseholdMemberConfiguration {
 
     @Value("${egov.individual.search.url}")
     private String individualServiceSearchUrl;
-
-    // When false, the cross-entity existence checks (household / individual / relative) are skipped so a
-    // member is not rejected while a referenced parent is still on the persister queue.
-    // Default FALSE = disabled (validators off) — chosen for the unified-dev rollout test; set true to enforce.
-    @Value("${household.member.relationship.validation:false}")
-    private boolean householdMemberRelationshipValidation;
 }

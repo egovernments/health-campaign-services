@@ -25,7 +25,6 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.ReferralRepository;
 import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
-import org.egov.referralmanagement.validator.RmRequiredLinkValidator;
 import org.egov.referralmanagement.validator.RmExistentEntityValidator;
 import org.egov.referralmanagement.validator.RmIsDeletedValidator;
 import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
@@ -61,31 +60,24 @@ public class ReferralManagementService {
 
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
-    // Read the relationship-validation flag live at request time. Kept as a method so the (blank-final) config
-    // bean is not referenced directly inside the predicate field-initializers (definite-assignment compile error).
-    private boolean relationshipValidationEnabled() {
-        return referralManagementConfiguration.isRelationshipValidation();
-    }
-
     private final ReferralManagementEnrichmentService referralManagementEnrichmentService;
 
     private final List<Validator<ReferralBulkRequest, Referral>> validators;
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForCreate = validator ->
-            validator.getClass().equals(RmRequiredLinkValidator.class) ||
-            (relationshipValidationEnabled() && validator.getClass().equals(RmProjectBeneficiaryIdValidator.class))
-                || (relationshipValidationEnabled() && validator.getClass().equals(RmProjectIdValidator.class))
+            validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmProjectIdValidator.class)
                 || validator.getClass().equals(RmExistentEntityValidator.class)
-                || (relationshipValidationEnabled() && validator.getClass().equals(RmReferrerIdValidator.class))
+                || validator.getClass().equals(RmReferrerIdValidator.class)
                 || validator.getClass().equals(RmRecipientIdValidator.class)
-                || (relationshipValidationEnabled() && validator.getClass().equals(RmSideEffectIdValidator.class));
+                || validator.getClass().equals(RmSideEffectIdValidator.class);
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForUpdate = validator ->
-            (relationshipValidationEnabled() && validator.getClass().equals(RmProjectBeneficiaryIdValidator.class))
-                || (relationshipValidationEnabled() && validator.getClass().equals(RmProjectIdValidator.class))
-                || (relationshipValidationEnabled() && validator.getClass().equals(RmReferrerIdValidator.class))
+            validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmProjectIdValidator.class)
+                || validator.getClass().equals(RmReferrerIdValidator.class)
                 || validator.getClass().equals(RmRecipientIdValidator.class)
-                || (relationshipValidationEnabled() && validator.getClass().equals(RmSideEffectIdValidator.class))
+                || validator.getClass().equals(RmSideEffectIdValidator.class)
                 || validator.getClass().equals(RmNullIdValidator.class)
                 || validator.getClass().equals(RmIsDeletedValidator.class)
                 || validator.getClass().equals(RmUniqueEntityValidator.class)

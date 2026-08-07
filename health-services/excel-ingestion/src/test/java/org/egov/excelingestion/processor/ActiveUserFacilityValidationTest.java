@@ -51,10 +51,6 @@ class ActiveUserFacilityValidationTest {
     private FacilityValidationProcessor facilityValidationProcessor;
     private Method validateAtLeastOneActiveUserMethod;
     private Method validateAtLeastOneActiveFacilityMethod;
-    private Method validateUserUsageValuesMethod;
-    private Method validateFacilityUsageValuesMethod;
-    private Method validateUserBoundarySelectionsMethod;
-    private Method validateFacilityBoundarySelectionsMethod;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -78,22 +74,6 @@ class ActiveUserFacilityValidationTest {
         validateAtLeastOneActiveFacilityMethod = FacilityValidationProcessor.class
             .getDeclaredMethod("validateAtLeastOneActiveFacility", List.class, List.class, Map.class);
         validateAtLeastOneActiveFacilityMethod.setAccessible(true);
-
-        validateUserUsageValuesMethod = UserValidationProcessor.class
-            .getDeclaredMethod("validateUsageValues", List.class, List.class, Map.class);
-        validateUserUsageValuesMethod.setAccessible(true);
-
-        validateFacilityUsageValuesMethod = FacilityValidationProcessor.class
-            .getDeclaredMethod("validateUsageValues", List.class, List.class, Map.class);
-        validateFacilityUsageValuesMethod.setAccessible(true);
-
-        validateUserBoundarySelectionsMethod = UserValidationProcessor.class
-            .getDeclaredMethod("validateBoundarySelections", List.class, ProcessResource.class, List.class, Map.class);
-        validateUserBoundarySelectionsMethod.setAccessible(true);
-
-        validateFacilityBoundarySelectionsMethod = FacilityValidationProcessor.class
-            .getDeclaredMethod("validateBoundarySelections", List.class, ProcessResource.class, List.class, Map.class);
-        validateFacilityBoundarySelectionsMethod.setAccessible(true);
     }
 
     // ===== USER VALIDATION TESTS =====
@@ -360,122 +340,6 @@ class ActiveUserFacilityValidationTest {
 
         // Then: Should recognize only exact "Active" match
         assertTrue(errors.isEmpty()); // One facility has exactly "Active" status
-    }
-
-    // ===== USAGE VALUE VALIDATION TESTS (paste/drag-fill server-side gate) =====
-
-    @Test
-    void testUsageValidation_Facility_OutOfListValues_ShouldError() throws Exception {
-        // Given: exact "Active"/"Inactive" are valid; wrong case and arbitrary values are not in the dropdown
-        when(config.isUsageValueValidationEnabled()).thenReturn(true);
-        List<Map<String, Object>> sheetData = Arrays.asList(
-            createFacilityRow("Health Center A", "FACILITY_001", "Active", 3),   // valid
-            createFacilityRow("Health Center B", "FACILITY_002", "Inactive", 4), // valid
-            createFacilityRow("Health Center C", "FACILITY_003", "ACTIVE", 5),   // wrong case - counts as inactive downstream
-            createFacilityRow("Health Center D", "FACILITY_004", "State2", 6),   // drag-filled garbage
-            createFacilityRow("Health Center E", "FACILITY_005", null, 7)        // blank - left to active-count checks
-        );
-        List<ValidationError> errors = new ArrayList<>();
-
-        validateFacilityUsageValuesMethod.invoke(facilityValidationProcessor, sheetData, errors, new HashMap<>());
-
-        assertEquals(2, errors.size());
-        assertEquals(5, errors.get(0).getRowNumber());
-        assertEquals(6, errors.get(1).getRowNumber());
-        assertEquals("invalid", errors.get(0).getStatus());
-        assertEquals("HCM_ADMIN_CONSOLE_FACILITY_USAGE", errors.get(0).getColumnName());
-    }
-
-    @Test
-    void testUsageValidation_User_OutOfListValue_ShouldError() throws Exception {
-        when(config.isUsageValueValidationEnabled()).thenReturn(true);
-        List<Map<String, Object>> sheetData = Arrays.asList(
-            createUserRow("John Doe", "9876543210", "john123", "Active", 3),
-            createUserRow("Jane Smith", "9876543211", "jane456", "State2", 4)
-        );
-        List<ValidationError> errors = new ArrayList<>();
-
-        validateUserUsageValuesMethod.invoke(userValidationProcessor, sheetData, errors, new HashMap<>());
-
-        assertEquals(1, errors.size());
-        assertEquals(4, errors.get(0).getRowNumber());
-        assertEquals("HCM_ADMIN_CONSOLE_USER_USAGE", errors.get(0).getColumnName());
-    }
-
-    @Test
-    void testUsageValidation_Disabled_ShouldSkip() throws Exception {
-        when(config.isUsageValueValidationEnabled()).thenReturn(false);
-        List<Map<String, Object>> sheetData = Arrays.asList(
-            createFacilityRow("Health Center A", "FACILITY_001", "State2", 3)
-        );
-        List<ValidationError> errors = new ArrayList<>();
-
-        validateFacilityUsageValuesMethod.invoke(facilityValidationProcessor, sheetData, errors, new HashMap<>());
-
-        assertTrue(errors.isEmpty());
-    }
-
-    // ===== BOUNDARY SELECTION VALIDATION TESTS (out-of-list name -> blank VLOOKUP code) =====
-
-    @Test
-    void testBoundarySelectionValidation_Facility_UnresolvedName_ShouldError() throws Exception {
-        when(config.isBoundarySelectionValidationEnabled()).thenReturn(true);
-        ProcessResource resource = ProcessResource.builder().hierarchyType("hier").build();
-
-        Map<String, Object> unresolved = createFacilityRow("Health Center A", "FACILITY_001", "Inactive", 3);
-        unresolved.put("HIER_COUNTRY", "State7"); // drag-filled name not in the dropdown -> code stays blank
-
-        Map<String, Object> resolved = createFacilityRow("Health Center B", "FACILITY_002", "Active", 4);
-        resolved.put("HIER_COUNTRY", "State1");
-        resolved.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "BND_001"); // valid selection resolved to a code
-
-        Map<String, Object> noSelection = createFacilityRow("Health Center C", "FACILITY_003", "Inactive", 5);
-
-        Map<String, Object> helperOnly = createFacilityRow("Health Center D", "FACILITY_004", "Inactive", 6);
-        helperOnly.put("HIER_COUNTRY_HELPER", "internal"); // helper columns are not user selections
-
-        List<Map<String, Object>> sheetData = Arrays.asList(unresolved, resolved, noSelection, helperOnly);
-        List<ValidationError> errors = new ArrayList<>();
-
-        validateFacilityBoundarySelectionsMethod.invoke(facilityValidationProcessor,
-            sheetData, resource, errors, new HashMap<>());
-
-        assertEquals(1, errors.size());
-        assertEquals(3, errors.get(0).getRowNumber());
-        assertEquals("invalid", errors.get(0).getStatus());
-    }
-
-    @Test
-    void testBoundarySelectionValidation_User_UnresolvedName_ShouldError() throws Exception {
-        when(config.isBoundarySelectionValidationEnabled()).thenReturn(true);
-        ProcessResource resource = ProcessResource.builder().hierarchyType("hier").build();
-
-        Map<String, Object> unresolved = createUserRow("John Doe", "9876543210", "john123", "Inactive", 3);
-        unresolved.put("HIER_PROVINCE", "State9");
-
-        List<Map<String, Object>> sheetData = Arrays.asList(unresolved);
-        List<ValidationError> errors = new ArrayList<>();
-
-        validateUserBoundarySelectionsMethod.invoke(userValidationProcessor,
-            sheetData, resource, errors, new HashMap<>());
-
-        assertEquals(1, errors.size());
-        assertEquals(3, errors.get(0).getRowNumber());
-    }
-
-    @Test
-    void testBoundarySelectionValidation_Disabled_ShouldSkip() throws Exception {
-        when(config.isBoundarySelectionValidationEnabled()).thenReturn(false);
-        ProcessResource resource = ProcessResource.builder().hierarchyType("hier").build();
-
-        Map<String, Object> unresolved = createFacilityRow("Health Center A", "FACILITY_001", "Inactive", 3);
-        unresolved.put("HIER_COUNTRY", "State7");
-
-        List<ValidationError> errors = new ArrayList<>();
-        validateFacilityBoundarySelectionsMethod.invoke(facilityValidationProcessor,
-            Arrays.asList(unresolved), resource, errors, new HashMap<>());
-
-        assertTrue(errors.isEmpty());
     }
 
     // Helper methods

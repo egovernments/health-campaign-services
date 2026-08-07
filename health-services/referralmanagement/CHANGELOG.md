@@ -2,13 +2,6 @@
 
 All notable changes to this module will be documented in this file.
 
-## 1.2.5 - 2026-07-20
-
-- Validator unbundle: added config flag `referralmanagement.relationship.validation` (default `false`, read live) that gates cross-entity **existence** checks (project, project-beneficiary, project-task, referrer, recipient staff/facility, side-effect) on the referral & side-effect create/update chains, so a record is not rejected while a referenced parent is still on the persister queue (offline-first). The `recipientType` enum check and all structural/uniqueness checks remain on. Set `true` to enforce.
-- Added always-on structural validators `RmRequiredLinkValidator` / `SeRequiredLinkValidator` (error code `REQUIRED_LINK_MISSING`): a referral must carry a `clientReferenceId` and a beneficiary link, and a side-effect a `clientReferenceId` and a task link, regardless of the flag.
-- At-least-once / partial-batch resilience: a within-batch duplicate `clientReferenceId` no longer throws and drops the entire bulk batch — the first occurrence is kept and each later duplicate is flagged as a per-record uniqueness error while the good records still persist (in `RmExistentEntityValidator`, `HfrExistentEntityValidator`, `SeExistentEntityValidator`).
-- Upgraded `health-services-common` dependency to 1.1.6-SNAPSHOT (`health-services-models` unchanged at 1.0.35-SNAPSHOT).
-
 ## 1.2.4 - 2026-06-24
 
 - Added `includeOnlyUpdatedByOthers` filter to referral search; combined with a changed-since time it excludes records last modified by the calling user (#1991).

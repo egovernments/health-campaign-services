@@ -73,14 +73,14 @@
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-common</artifactId>
-            <version>1.1.6-SNAPSHOT</version>
+            <version>1.1.2-SNAPSHOT</version>
         </dependency>
 
         <!-- Health Services Models -->
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-models</artifactId>
-            <version>1.0.35-SNAPSHOT</version>
+            <version>1.0.30-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
 
@@ -89,6 +89,13 @@
             <groupId>org.egov.services</groupId>
             <artifactId>digit-models</artifactId>
             <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Tracer for Kafka -->
+        <dependency>
+            <groupId>org.egov.services</groupId>
+            <artifactId>tracer</artifactId>
+            <version>2.9.2-SNAPSHOT</version>
         </dependency>
 
         <!-- Encryption Client -->

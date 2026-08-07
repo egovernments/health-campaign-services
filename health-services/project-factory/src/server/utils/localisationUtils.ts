@@ -1,19 +1,26 @@
 import config from "../config/index";
 
-/** Locale is encoded as the second '|'-delimited segment of msgId; falls back to the config default. */
+// Function to extract locale from request object
 export const getLocaleFromRequest = (request: any) => {
+  // Extract msgId from request body
   const msgId = request?.body?.RequestInfo?.msgId;
+  // Split msgId by '|' delimiter and get the second part (index 1)
+  // If splitting fails or no second part is found, use default locale from config
   return msgId?.split("|")?.[1] || config?.localisation?.defaultLocale;
 };
 
-/** Locale is encoded as the second '|'-delimited segment of msgId; falls back to the config default. */
 export const getLocaleFromRequestInfo = (RequestInfo: any) => {
+  // Extract msgId from request body
   const msgId = RequestInfo?.msgId;
+  // Split msgId by '|' delimiter and get the second part (index 1)
+  // If splitting fails or no second part is found, use default locale from config
   return msgId?.split("|")?.[1] || config?.localisation?.defaultLocale;
 };
 
-/** Boundary localisation module name is derived per hierarchy type so each hierarchy has its own key namespace. */
+// Function to generate localisation module name based on hierarchy type
 export const getLocalisationModuleName = (hierarchyType: any) => {
+  // Construct module name using boundary prefix from config and hierarchy type
+  // Convert module name to lowercase
   return `${config.localisation.boundaryPrefix}-${getTransformedLocale(hierarchyType)}`?.toLowerCase();
 };
 
@@ -23,12 +30,13 @@ export const getLocalisationModuleName = (hierarchyType: any) => {
  * @returns The transformed locale string.
  */
 export const getTransformedLocale = (label: string) => {
+  // Trim leading and trailing whitespace from the label
   label = label?.trim();
+  // If label is not empty, convert to uppercase and replace special characters with underscores
   return label && label.toUpperCase().replace(/[.:-\s\/]/g, "_");
 };
 
 
-/** Flattens the localization search response into a code→message lookup used everywhere as localizationMap. */
 export const convertLocalisationResponseToMap = (messages: any = []) => {
   const localizationMap: any = {};
   messages.forEach((message: any) => {

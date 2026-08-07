@@ -40,8 +40,9 @@ export async function addDataToWorksheet(worksheet: any, data: string[][]) {
     worksheet.addRow(row);
   });
 
+  // Optionally, you can apply styles or adjust column widths
   worksheet.columns.forEach((column: any) => {
-    column.width = 20;
+    column.width = 20; // Adjust column width to fit content
   });
 }
 
@@ -52,14 +53,15 @@ export async function addDataToWorksheet(worksheet: any, data: string[][]) {
  */
 function updateWorksheetRows(worksheet: any, data: string[][]) {
   data.forEach((rowData, index) => {
-    const rowNumber = 2 + index; // Row 1 is the header.
+    const rowNumber = 2 + index; // Start updating from row 2
     const row = worksheet.getRow(rowNumber);
 
+    // Set values for each column in the row
     rowData.forEach((cellValue, colIndex) => {
-      row.getCell(colIndex + 1).value = cellValue; // ExcelJS columns are 1-indexed.
+      row.getCell(colIndex + 1).value = cellValue; // Column index starts at 1
     });
 
-    row.commit();
+    row.commit(); // Commit changes to the row
   });
 }
 
@@ -84,7 +86,7 @@ const getRolesAndCount = (resources = [], userRoleMapping: any) => {
     const { to, from, filter } = mapping;
 
     resources?.forEach((resource: any) => {
-      // A resource matches only when every `from` criterion matches (includes vs exact per `filter`).
+      // Apply filter logic ensuring all criteria in `from` must match
       const match = from.every((criteria: string) =>
         filter === "includes"
           ? resource?.resourceType?.includes(criteria)
@@ -92,12 +94,14 @@ const getRolesAndCount = (resources = [], userRoleMapping: any) => {
       );
 
       if (match) {
+        // Log the resource information
         logger.info(
           `filtered ${filter.toUpperCase()}: ${resource?.resourceType} :: ${
             resource?.estimatedNumber
           }`
         );
 
+        // Map roles based on the "to" field
         USER_ROLE_MAP[to] = resource?.estimatedNumber;
       }
     });
@@ -115,6 +119,7 @@ const getUserRoleMapWithBoundaryCode = (
 ) => {
   return planFacilityArray?.reduce((acc: any, curr: any) => {
     acc[curr?.locality] = {
+      //   ...curr,
       ...getRolesAndCount(
         curr?.resources?.filter(
           (resource: any) => resource?.estimatedNumber > 0
@@ -132,15 +137,17 @@ function consolidateUserRoles(
 ) {
   const result: any = {};
 
+  // Iterate through all parent boundaries
   for (const parentBoundary in boundaryiwthchildrednMap) {
     const children = boundaryiwthchildrednMap[parentBoundary];
     const consolidatedRoles: any = {};
 
-    // Sum each child boundary's role counts up into the parent.
+    // Process each child boundary
     children.forEach((child: any) => {
       const childCode = child.code;
       const userRoles = userBoundaryMap[childCode]?.USER_ROLE_MAP || {};
 
+      // Aggregate roles for the parent boundary
       for (const role in userRoles) {
         if (!consolidatedRoles[role]) {
           consolidatedRoles[role] = 0;
@@ -149,6 +156,7 @@ function consolidateUserRoles(
       }
     });
 
+    // Attach consolidated roles to the parent boundary
     result[parentBoundary] = {
       parentBoundary,
       children,
@@ -166,7 +174,6 @@ const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
   }, {});
 };
 
-/** Pulls plan-facility boundary assignments from plan-service into the campaign's facility template, then validates it. */
 export const fetchFacilityData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
@@ -285,7 +292,6 @@ function getLocalizedHeadersMapForFacility(
   return descriptionToFieldMap;
 }
 
-/** Pulls census target figures from plan-service into the campaign's boundary-target template, then validates it. */
 export const fetchTargetData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
@@ -342,13 +348,14 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
     logger.info(`Processing worksheet: ${worksheet.name}`);
     logger.info(`skipping processing worksheet: ${getLocalizedName(config?.boundary?.boundaryTab, localizationMap)} and ${getLocalizedName(config?.values?.readMeTab, localizationMap)} `);
 
-    // The boundary and readme tabs carry no per-boundary targets, so only data tabs are updated.
     if (
       worksheet.name !==
         getLocalizedName(config?.boundary?.boundaryTab, localizationMap) &&
       worksheet.name !==
         getLocalizedName(config?.values?.readMeTab, localizationMap)
     ) {
+      // harcoded to be changed
+      // Iterate over rows (skip the header row)
       await findAndChangeTargetData(
         worksheet,
         targetBoundaryMap,
@@ -410,6 +417,7 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
     }`
   );
   logger.debug(`${getFormattedStringForDebug(mappingData)}, "mappingData user`);
+  // column no is // harcoded to be changed
   const mappedData: any = {};
 
   const dataRows: any = [];
@@ -461,6 +469,7 @@ function findAndChangeFacilityData(
   const mappedData: Record<string, boolean> = {};
   const missingFacilities: string[] = [];
 
+  // Iterate through each row in the worksheet
   worksheet.eachRow((row: any, rowIndex: number) => {
     if (rowIndex === 1) {
       headerValues = row.values;
@@ -483,22 +492,24 @@ function findAndChangeFacilityData(
     }
   });
 
-  // Facilities in the plan but absent from the sheet are appended into the first empty row.
+  // Handle missing facilities
   for (const [facilityCode, facilityDetails] of Object.entries(mappingData)) {
     if (!mappedData[facilityCode]) {
       missingFacilities.push(facilityCode);
-
-      let emptyRowIndex = worksheet.rowCount + 1;
+  
+      // Find the first empty row in the sheet
+      let emptyRowIndex = worksheet.rowCount + 1; // Default to the next available row
       for (let i = 1; i <= worksheet.rowCount; i++) {
         const row = worksheet.getRow(i);
-        if (!row.getCell(1).value) { // Column 1 (facility code) empty marks a free row.
+        if (!row.getCell(1).value) { // Assuming column 1 is used to determine emptiness
           emptyRowIndex = i;
           break;
         }
       }
-
+  
       const newRow = worksheet.getRow(emptyRowIndex);
-
+  
+      // Assign values to the identified empty row
       newRow.getCell(facilityCodeIndex).value = facilityCode;
       newRow.getCell(headerValues.indexOf(headersMap["Facility Name"])).value =
         facilityDetails?.additionalDetails?.facilityName;
@@ -512,8 +523,8 @@ function findAndChangeFacilityData(
       newRow.getCell(boundaryCodeIndex).value =
         facilityDetails.serviceBoundaries.join(",") || "";
       newRow.getCell(facilityUsageIndex).value = usageColumnStatus.active;
-
-      newRow.commit();
+  
+      newRow.commit(); // Save the changes to the row
     }
   }
   
@@ -564,19 +575,21 @@ function findAndChangeTargetData(
   );
   let headersInSheet = worksheet.getRow(1).values;
   const mappedData: any = {};
+  // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
   worksheet.eachRow((row: any, rowIndex: number) => {
-    if (rowIndex === 1) return;
+    if (rowIndex === 1) return; // Skip the header row
     const column1Value = row.getCell(
       getHeaderIndex(
         headersInSheet,
         config?.boundary?.boundaryCode,
         localizationMap
       )
-    ).value;
+    ).value; // Get the value from column 1
     logger.debug(
       `column1Value: ${getFormattedStringForDebug(column1Value)}`
     );
     if (mappingData?.[column1Value] && headers != null && headers.length > 0) {
+      // Update columns 5 and 6 if column 1 value matches
       headers.forEach((header: any) => {
         header.from.forEach((fromValue: any) => {
           row.getCell(
@@ -622,7 +635,6 @@ const getBoundariesFromCampaign = (CampaignDetails: any = {}) => {
   return boundaries;
 };
 
-/** Derives per-boundary user role counts from plan-service and fills the campaign's user template. */
 export const fetchUserData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
@@ -750,7 +762,6 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   );
 };
 
-/** Re-searches the campaign and upserts the given resource type's filestore/resource id so we never overwrite concurrent edits. */
 export async function updateCampaignDetailsAfterSearch(
   request: any,
   resourceObject: any,
@@ -768,13 +779,15 @@ export async function updateCampaignDetailsAfterSearch(
     searchedCampaignResponse?.CampaignDetails?.[0] || null;
   if (searchedCamapignObject != null) {
     const newRequestBody = {
-      RequestInfo: request.body.RequestInfo,
-      CampaignDetails: searchedCamapignObject,
+      RequestInfo: request.body.RequestInfo, // Retain the original RequestInfo
+      CampaignDetails: searchedCamapignObject, // campaigndetails from search response
     };
     const req: any = replicateRequest(request, newRequestBody);
+    // Validate input structure
     if (resourceObject) {
-      let resourceFound = false;
+      let resourceFound = false; // Flag to track if resource is updated
 
+      // Loop through resources to update or append as needed
       searchedCamapignObject?.resources?.forEach((resource: CampaignResource) => {
         if (resource.type === type) {
           resource.filestoreId = resourceObject?.fileStoreId;
@@ -786,6 +799,7 @@ export async function updateCampaignDetailsAfterSearch(
         }
       });
 
+      // If no resource of the given type was found, append a new one
       if (!resourceFound) {
         const newResource: CampaignResource = {
           type: type,
@@ -803,6 +817,7 @@ export async function updateCampaignDetailsAfterSearch(
       );
     }
 
+    // Call external service after updating the campaign details
     await updateProjectTypeCampaignService(req);
   } else {
     throwError(
@@ -814,7 +829,6 @@ export async function updateCampaignDetailsAfterSearch(
   }
 }
 
-/** Triggers async validation of a generated sheet; on failure returns a `not-validated` stub so the microplan flow continues. */
 export async function validateSheet(
   request: any,
   tenantId: string,
@@ -836,7 +850,7 @@ export async function validateSheet(
   };
 
   const newRequest: any = {
-    body: { ...request.body, ...dataCreateBody },
+    body: { ...request.body, ...dataCreateBody }, // Spread both objects to keep both their properties
   };
 
   try {
@@ -853,11 +867,13 @@ export async function validateSheet(
     return [{ ...dataCreateBody?.ResourceDetails, id: "not-validated" }];
   }
 }
+// sample oundary
+//{code: "MICROPLAN_MO", name: "MICROPLAN_MO", parent:"", type: "COUNTRY", isRoot: true, includeAllChildren: false}
 const getFilteredBoundariesAtWhichUserGetsCreated = (
   boundaries = [],
   hierarchySchemaDataForConsole: any[]
 ) => {
-  // Defaults to LOCALITY when MDMS does not specify the consolidation level.
+  // setting default value in case data is not present
   let consolidateUserAtForConsole = "LOCALITY";
   if (hierarchySchemaDataForConsole?.length > 0) {
     consolidateUserAtForConsole =
@@ -874,6 +890,7 @@ const getFilteredBoundariesAtWhichUserGetsCreated = (
         " for user at console as it is not present in mdms data"
     );
   }
+  //add config at which level grouping will happen. hardcoded to loclaity
   const filteredBoundariesAtWhichUserGetsCreated = boundaries?.filter(
     (boundary: any) => boundary?.type == consolidateUserAtForConsole
   );
@@ -921,7 +938,6 @@ const enrichBoundariesWithTheSelectedChildrens = (
   });
   return enrichedMap;
 };
-/** Loads the microplan→campaign role/column mapping config from MDMS, keyed by integration type. */
 export async function fetchUserRoleMappingFromMDMS(tenantId: any) {
   const MdmsCriteria: MDMSModels.MDMSv1RequestCriteria = {
     MdmsCriteria: {

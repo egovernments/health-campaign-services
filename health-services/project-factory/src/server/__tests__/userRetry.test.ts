@@ -57,7 +57,7 @@ jest.mock('../config', () => ({
         project: { creationBatchSize: 20 },
         boundary: { mappingPersistBatchSize: 100, persistBatchSize: 100 },
         facility: { persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50 },
-        user: { mappingPersistBatchSize: 100, persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50, validationSearchBatchSize: 50, individualSearchBatchSize: 50, individualConsistencyPollIntervalMs: 1, individualConsistencyMaxPollAttempts: 2, workerCreateBatchLag: 0 },
+        user: { mappingPersistBatchSize: 100, persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50, validationSearchBatchSize: 50, individualSearchBatchSize: 50 },
         workerRegistry: { searchBatchSize: 50, updateBatchSize: 100 },
         mapping: { kafkaBatchSize: 30, persistBatchSize: 100 },
         attendanceRegister: { attendeePersistBatchSize: 100, registerPersistBatchSize: 100, registerApiBatchSize: 100 },
@@ -113,12 +113,6 @@ describe('handleUserBatch — retry idempotency + mismatch detection', () => {
         jest.clearAllMocks();
         searchCampaignMock.mockResolvedValue(buildCampaign() as any);
         produceMock.mockResolvedValue(undefined);
-        // Default: the individual-searchability consistency check (search by id) finds every requested
-        // individual. Per-test mockResolvedValueOnce (pre-check search by phone) is consumed first.
-        httpMock.mockImplementation(async (_url: any, body: any) =>
-            (Array.isArray(body?.Individual?.id)
-                ? { Individual: body.Individual.id.map((id: string) => ({ id })) }
-                : undefined) as any);
     });
 
     it('absorbs a pending row when HRMS already has the same phone + same name (no HRMS create)', async () => {

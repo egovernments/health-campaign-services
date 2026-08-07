@@ -1,6 +1,5 @@
 package org.egov.excelingestion.util;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddressList;
@@ -22,43 +21,23 @@ import java.util.stream.Collectors;
  * Utility for creating cascading boundary dropdowns starting from 1st level
  * Creates a hidden sheet with boundary hierarchy and cascading dropdowns
  *
- * Architecture: NO per-row scaffold. Each cascade level's dropdown is a single data-validation
- * formula (applied to the whole column range) that resolves the parent selection to that parent's
- * children named range, evaluated by Excel/LibreOffice only when a dropdown is opened:
- *   INDIRECT(IFERROR("_hL"&MATCH(&lt;parent path&gt;, lookupKeyColumn, 0), "_h_EmptyList"))
- * - The lookup sheet holds one row per parent path: column A = display-name path key, columns B..
- *   = the children; a positional named range (_hL&lt;row&gt;) spans exactly the children cells.
- * - Relative references in the validation formula (row 3 template) auto-adjust per row in both
- *   MS Excel and LibreOffice; MATCH compares plain strings, so no name sanitization/hashing is
- *   needed for the lookup itself.
- * - The hidden boundary-code column carries VALUES only for prefilled rows; codes for user-entered
- *   rows are resolved server-side on upload ({@link BoundaryCodeResolver}) from the same lookup
- *   sheet's display-path-to-code mapping, so this util writes no per-row VLOOKUP formulas either.
- *   (The attendance-register template is the one exception: it needs the code live in the sheet so
- *   Register ID auto-fills on selection, so its generator adds that lookup itself from the range
- *   reported in {@link BoundaryColumnLayout} — deliberately not here, to keep other templates flat.)
- * This keeps the generated file size and open/parse cost independent of the row limit (previously
- * ~6 formulas x rowLimit x 2 sheets made 20k-row templates multi-MB, slow to open, and truncated
- * to 1000 scaffold rows by a LibreOffice save).
+ * Architecture: Uses helper columns to separate complex formula logic from data validation.
+ * - Helper columns contain cell formulas that compute the lookup key hash
+ * - Data validation formulas simply reference the helper column with a relative reference
+ * - This approach works in both LibreOffice Calc and MS Excel
  */
 @Component
 @Slf4j
 public class HierarchicalBoundaryUtil {
 
-    /** Separator joining path segments in lookup keys; shared with {@link BoundaryCodeResolver}. */
-    public static final String BOUNDARY_SEPARATOR = "#";
+    private static final String BOUNDARY_SEPARATOR = "#";
     private static final String HASH_PREFIX = "H_";
+    private static final String LIST_SUFFIX = "_LIST";
     private static final String SHA256_ALGORITHM = "SHA-256";
-    /** Name of the hidden lookup sheet holding cascade children + display-path-to-code mapping. */
-    public static final String LOOKUP_SHEET_NAME = "_h_SimpleLookup_h_";
-    /** Positional per-parent children named ranges: _hL1, _hL2, ... (row number in the lookup sheet). */
-    public static final String CHILD_LIST_NAME_PREFIX = "_hL";
-    /** Named range pointing at a guaranteed-empty cell; cascade fallback when the parent is not selected. */
-    public static final String EMPTY_LIST_NAME = "_h_EmptyList";
-    // Display-path key -> boundary code mapping (Section 2 of the lookup sheet); read back on upload
-    // by BoundaryCodeResolver to resolve codes for user-entered rows.
-    public static final int CODE_MAPPING_KEY_COLUMN = 3;   // Column D: display-path key
-    public static final int CODE_MAPPING_CODE_COLUMN = 4;  // Column E: boundary code
+    // Column indices for the separate key-to-hash mapping table
+    // This table is stored in a completely separate section of the lookup sheet
+    private static final int KEY_HASH_TABLE_KEY_COLUMN = 7;     // Column H: Code-based key
+    private static final int KEY_HASH_TABLE_HASH_COLUMN = 9;  // Column J: Hashed key
 
     private final ExcelIngestionConfig config;
     private final BoundaryService boundaryService;
@@ -108,10 +87,10 @@ public class HierarchicalBoundaryUtil {
      * Adds cascading boundary dropdown columns to an existing sheet
      * Creates multiple columns starting from 1st level with cascading dropdowns
      */
-    public BoundaryColumnLayout addHierarchicalBoundaryColumn(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
+    public void addHierarchicalBoundaryColumn(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
                                               List<Boundary> configuredBoundaries, String hierarchyType,
                                               String tenantId, RequestInfo requestInfo) {
-        return addHierarchicalBoundaryColumnWithData(workbook, sheetName, localizationMap, configuredBoundaries,
+        addHierarchicalBoundaryColumnWithData(workbook, sheetName, localizationMap, configuredBoundaries,
                 hierarchyType, tenantId, requestInfo, null);
     }
 
@@ -120,18 +99,18 @@ public class HierarchicalBoundaryUtil {
      * Creates multiple columns starting from 1st level with cascading dropdowns
      * If existingData is provided, populates the first rows with that data
      */
-    public BoundaryColumnLayout addHierarchicalBoundaryColumnWithData(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
+    public void addHierarchicalBoundaryColumnWithData(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
                                                       List<Boundary> configuredBoundaries, String hierarchyType,
                                                       String tenantId, RequestInfo requestInfo, List<Map<String, Object>> existingData) {
         Sheet sheet = workbook.getSheet(sheetName);
         if (sheet == null) {
             log.warn("Sheet '{}' not found, cannot add hierarchical boundary column", sheetName);
-            return null;
+            return;
         }
 
         if (configuredBoundaries == null || configuredBoundaries.isEmpty()) {
             log.info("No boundaries configured for sheet '{}', skipping boundary column creation", sheetName);
-            return null;
+            return;
         }
 
         // Fetch boundary relationship data
@@ -142,7 +121,7 @@ public class HierarchicalBoundaryUtil {
         BoundaryHierarchyResponse hierarchyData = boundaryService.fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null || hierarchyData.getBoundaryHierarchy().isEmpty()) {
             log.error("Boundary hierarchy data is null or empty for type: {}", hierarchyType);
-            return null;
+            return;
         }
 
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0).getBoundaryHierarchy();
@@ -152,7 +131,7 @@ public class HierarchicalBoundaryUtil {
 
         if (levelTypes.size() < 1) {
             log.warn("Hierarchy has less than 1 level, skipping boundary column creation");
-            return null;
+            return;
         }
 
         List<BoundaryUtil.BoundaryRowData> filteredBoundaries = boundaryUtil.processBoundariesWithEnrichment(
@@ -160,7 +139,7 @@ public class HierarchicalBoundaryUtil {
 
         if (filteredBoundaries.isEmpty()) {
             log.info("No boundaries available for sheet '{}', skipping boundary column creation", sheetName);
-            return null;
+            return;
         }
 
         Row hiddenRow = sheet.getRow(0);
@@ -181,8 +160,16 @@ public class HierarchicalBoundaryUtil {
             String boundaryType = hierarchyRelations.get(i).getBoundaryType();
             String columnName = (hierarchyType + "_" + boundaryType).toUpperCase();
 
-            // Add the visible column for all levels (no hidden helper columns: the cascade is
-            // resolved directly inside each level's data-validation formula)
+            // For levels 2+, first add the hidden helper column
+            if (i > 0) {
+                String helperColumnName = columnName + "_HELPER";
+                hiddenRow.createCell(currentColIndex).setCellValue(helperColumnName);
+                visibleRow.createCell(currentColIndex).setCellValue(helperColumnName);
+                sheet.setColumnHidden(currentColIndex, true);
+                currentColIndex++;
+            }
+
+            // Add the visible column for all levels
             hiddenRow.createCell(currentColIndex).setCellValue(columnName);
             Cell headerCell = visibleRow.createCell(currentColIndex);
             headerCell.setCellValue(localizationMap.getOrDefault(columnName, columnName));
@@ -226,31 +213,80 @@ public class HierarchicalBoundaryUtil {
 
         int dataRowsPopulated = 0;
         if (existingData != null && !existingData.isEmpty()) {
-            dataRowsPopulated = populateExistingDataWithBoundaries(sheet, existingData,
-                    boundaryCodeColIndex, filteredBoundaries, localizationMap, unlocked, formulaStyle,
-                    visibleColIndices, codeToUniqueName);
+            dataRowsPopulated = populateExistingDataWithBoundaries(sheet, existingData, lastSchemaCol,
+                    levelTypes.size(), boundaryCodeColIndex, levelTypes, hierarchyType,
+                    filteredBoundaries, localizationMap, unlocked, formulaStyle, visibleColIndices,
+                    mappingResult.displayNameMappingStartRow, mappingResult.displayNameMappingEndRow, codeToUniqueName);
         }
 
-        // The empty paste area of the VISIBLE dropdown columns used to be MATERIALIZED here as one
-        // unlocked-styled cell per column per row up to excelRowLimit. Apply the unlock intent ONCE
-        // per column via the sheet's DEFAULT COLUMN STYLE instead (same pattern as
-        // CellProtectionManager): empty cells inherit the column default, so the paste area stays
-        // editable under sheet protection without materializing a single dropdown cell.
-        for (int colIdx : visibleColIndices) {
-            sheet.setDefaultColumnStyle(colIdx, unlocked);
+        // Create remaining empty rows with dropdowns and formulas
+        for (int r = 2 + dataRowsPopulated; r <= config.getExcelRowLimit(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) row = sheet.createRow(r);
+            for (int colIdx : visibleColIndices) {
+                Cell cell = row.getCell(colIdx, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                cell.setCellStyle(unlocked);
+            }
+            Cell boundaryCodeCell = row.getCell(boundaryCodeColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+            boundaryCodeCell.setCellStyle(formulaStyle);
+            String boundaryCodeFormula = createBoundaryCodeFormula(r + 1, visibleColIndices,
+                    mappingResult.displayNameMappingStartRow, mappingResult.displayNameMappingEndRow);
+            boundaryCodeCell.setCellFormula(boundaryCodeFormula);
         }
 
-        // The hidden boundary-code column carries no per-row formulas: prefilled rows got their code
-        // VALUE in populateExistingDataWithBoundaries, and codes for rows the user fills later are
-        // resolved server-side on upload by BoundaryCodeResolver from this workbook's own
-        // display-path-to-code mapping (lookup sheet Section 2). Locking intent for the untouched
-        // tail is expressed once via the column default style - no cells are materialized.
-        sheet.setDefaultColumnStyle(boundaryCodeColIndex, formulaStyle);
+        log.info("Added {} cascading boundary dropdown columns with helper columns.", levelTypes.size());
+    }
 
-        log.info("Added {} cascading boundary dropdown columns (no per-row scaffold).", levelTypes.size());
+    /**
+     * Creates a formula to get the boundary code based on the selected boundary values
+     * Uses a simple approach - checks from right to left and returns code for first non-empty value
+     * @param rowNumber The Excel row number (1-based)
+     * @param visibleColIndices List of visible column indices
+     * @param displayNameMappingStartRow Start row of display name to code mapping (0-based)
+     * @param displayNameMappingEndRow End row of display name to code mapping (0-based)
+     */
+    private String createBoundaryCodeFormula(int rowNumber, List<Integer> visibleColIndices,
+                                             int displayNameMappingStartRow, int displayNameMappingEndRow) {
+        StringBuilder formula = new StringBuilder();
 
-        return new BoundaryColumnLayout(boundaryCodeColIndex, visibleColIndices,
-                mappingResult.codeMappingStartRow, mappingResult.codeMappingEndRow);
+        // Convert 0-based row indices to 1-based Excel row numbers
+        int excelStartRow = displayNameMappingStartRow + 1;
+        int excelEndRow = displayNameMappingEndRow;
+
+        // Build nested IF statements from last column to first
+        for (int i = visibleColIndices.size() - 1; i >= 0; i--) {
+            String colRef = CellReference.convertNumToColString(visibleColIndices.get(i)) + rowNumber;
+
+            formula.append("IF(").append(colRef).append("<>\"\",");
+
+            // Build combination string: e.g., CONCATENATE(A2, "#", B2, "#", C2)
+            StringBuilder concatBuilder = new StringBuilder("CONCATENATE(");
+            for (int j = 0; j <= i; j++) {
+                if (j > 0) concatBuilder.append(",\"").append(BOUNDARY_SEPARATOR).append("\",");
+                concatBuilder.append(CellReference.convertNumToColString(visibleColIndices.get(j))).append(rowNumber);
+            }
+            concatBuilder.append(")");
+
+            // Use VLOOKUP to find the boundary code from the display name mapping in columns D:E
+            // Use the correct row range where the mapping data actually exists
+            formula.append("IFERROR(VLOOKUP(").append(concatBuilder.toString())
+                   .append(",_h_SimpleLookup_h_!$D$").append(excelStartRow)
+                   .append(":$E$").append(excelEndRow).append(",2,0),\"\")");
+
+            if (i > 0) {
+                formula.append(",");
+            }
+        }
+
+        // Close all IF statements with empty string as final fallback
+        if (!visibleColIndices.isEmpty()) {
+            formula.append(",\"\"");
+            for (int i = 0; i < visibleColIndices.size(); i++) {
+                formula.append(")");
+            }
+        }
+
+        return formula.toString();
     }
 
     /**
@@ -336,37 +372,16 @@ public class HierarchicalBoundaryUtil {
             parentChildrenMap.put(hashedKey, displayNames);
         }
 
-        // Stale positional names from any previous generation into this workbook would point at the
-        // deleted lookup sheet - remove them all before recreating (names are workbook-scoped).
-        List<Name> staleNames = new ArrayList<>();
-        for (Name name : workbook.getAllNames()) {
-            if (name.getNameName() != null && name.getNameName().startsWith(CHILD_LIST_NAME_PREFIX)) {
-                staleNames.add(name);
-            }
-        }
-        staleNames.forEach(workbook::removeName);
-
-        // SECTION 1: Children data (Rows 1-N), one row per parent path.
-        // Structure: Column A = display-name path key (what the sheet's parent cells contain, joined
-        // with '#'), Columns B onwards = children display names. A positional named range (_hL<row>)
-        // spans exactly the children cells; the data-validation formula finds the row by MATCHing the
-        // parent path against column A and INDIRECTs to the positional name. Display-path keys are
-        // unique because sibling names are uniquified per parent (buildCodeToUniqueNameMap).
+        // SECTION 1: Children data (Rows 1-N)
+        // Structure: Column A = Hash, Columns B onwards = Children (NO original key here!)
         int rowNum = 0;
         for (Map.Entry<String, Set<String>> entry : parentChildrenMap.entrySet()) {
             String hashedKey = entry.getKey();
             Set<String> children = entry.getValue();
 
-            // Display-name version of this parent's code path - the MATCH key.
-            StringBuilder displayKeyBuilder = new StringBuilder();
-            String[] codes = hashToOriginalKeyMap.get(hashedKey).split(BOUNDARY_SEPARATOR, -1);
-            for (int i = 0; i < codes.length; i++) {
-                if (i > 0) displayKeyBuilder.append(BOUNDARY_SEPARATOR);
-                displayKeyBuilder.append(codeToUniqueName.getOrDefault(codes[i], localizationMap.getOrDefault(codes[i], codes[i])));
-            }
-
             Row row = lookupSheet.createRow(rowNum);
-            row.createCell(0).setCellValue(displayKeyBuilder.toString());
+            // Column A: Hashed key
+            row.createCell(0).setCellValue(hashedKey);
 
             // Columns B onwards: Children ONLY (one per column)
             int col = 1;
@@ -374,29 +389,34 @@ public class HierarchicalBoundaryUtil {
                 row.createCell(col++).setCellValue(child);
             }
 
-            // Positional named range over exactly the children cells of this row
-            String rangeName = CHILD_LIST_NAME_PREFIX + (rowNum + 1);
+            // Create a named range for this row of children (columns B to last child column)
+            // NO original key in this row - children only!
+            String rangeName = hashedKey + LIST_SUFFIX;
             try {
+                Name existingName = workbook.getName(rangeName);
+                if (existingName != null) {
+                    workbook.removeName(existingName);
+                }
+
                 Name childrenRange = workbook.createName();
                 childrenRange.setNameName(rangeName);
-                String rangeFormula = String.format("%s!$B$%d:$%s$%d",
-                        LOOKUP_SHEET_NAME,
+                // Range from column B to the last child column (col-1 since col was incremented after last child)
+                String rangeFormula = String.format("_h_SimpleLookup_h_!$B$%d:$%s$%d",
                         rowNum + 1,
                         CellReference.convertNumToColString(col - 1),
                         rowNum + 1);
                 childrenRange.setRefersToFormula(rangeFormula);
             } catch (Exception e) {
-                log.error("Error creating children named range {}: {}", rangeName, e.getMessage());
+                log.error("Error creating children named range for: {} - {}", hashedKey, e.getMessage());
             }
 
             rowNum++;
         }
         int childrenSectionEndRow = rowNum;
 
-        // SECTION 2: Display name combination to code mapping.
-        // Structure: Column D = Combination String, Column E = Code (plain display names, no type
-        // suffix, matching what the dropdowns write into the sheet). Read back on upload by
-        // BoundaryCodeResolver to resolve boundary codes for user-entered rows.
+        // SECTION 2: Display name combination to code mapping (for boundary code VLOOKUP)
+        // Structure: Column D = Combination String, Column E = Code
+        // Use PLAIN display names (without type suffix) so VLOOKUP can match dropdown values
         rowNum += 2; // Add spacing
         int displayNameMappingStartRow = rowNum;
 
@@ -416,17 +436,43 @@ public class HierarchicalBoundaryUtil {
 
         for (Map.Entry<String, String> entry : comboToCodeMap.entrySet()) {
             Row mappingRow = lookupSheet.createRow(rowNum++);
-            mappingRow.createCell(CODE_MAPPING_KEY_COLUMN).setCellValue(entry.getKey());   // Column D: Combination String
-            mappingRow.createCell(CODE_MAPPING_CODE_COLUMN).setCellValue(entry.getValue()); // Column E: Code
+            mappingRow.createCell(3).setCellValue(entry.getKey());   // Column D: Combination String
+            mappingRow.createCell(4).setCellValue(entry.getValue()); // Column E: Code
         }
         int displayNameMappingEndRow = rowNum;
 
-        log.info("Created cascading boundary lookup sheet: {} children rows, {} display-name mappings (rows {}-{})",
-                childrenSectionEndRow, comboToCodeMap.size(), displayNameMappingStartRow + 1, displayNameMappingEndRow);
+        // SECTION 3: Key-to-Hash mapping table (COMPLETELY SEPARATE from children!)
+        // Structure: Column H = Code-based key, Column I = Display-name key, Column J = Hash
+        // Code key is unique (for disambiguation), Display key matches dropdown values
+        rowNum += 2; // Add spacing
+        int keyHashTableStartRow = rowNum;
+        for (Map.Entry<String, String> entry : hashToOriginalKeyMap.entrySet()) {
+            String hashedKey = entry.getKey();
+            String codeKey = entry.getValue();  // e.g., "code1#code2"
 
-        return new ParentChildrenMapping(parentChildrenMap, childrenSectionEndRow,
-                comboToCodeMap.isEmpty() ? 0 : displayNameMappingStartRow + 1,
-                comboToCodeMap.isEmpty() ? 0 : displayNameMappingEndRow);
+            // Build display name version of the key for matching dropdown values
+            StringBuilder displayKeyBuilder = new StringBuilder();
+            String[] codes = codeKey.split(BOUNDARY_SEPARATOR, -1);
+            for (int i = 0; i < codes.length; i++) {
+                if (i > 0) displayKeyBuilder.append(BOUNDARY_SEPARATOR);
+                displayKeyBuilder.append(codeToUniqueName.getOrDefault(codes[i], localizationMap.getOrDefault(codes[i], codes[i])));
+            }
+            String displayKey = displayKeyBuilder.toString();
+
+            Row keyHashRow = lookupSheet.createRow(rowNum++);
+            keyHashRow.createCell(KEY_HASH_TABLE_KEY_COLUMN).setCellValue(codeKey);       // Column H: Code-based key
+            keyHashRow.createCell(KEY_HASH_TABLE_KEY_COLUMN + 1).setCellValue(displayKey); // Column I: Display-name key
+            keyHashRow.createCell(KEY_HASH_TABLE_HASH_COLUMN).setCellValue(hashedKey);    // Column J: Hash
+        }
+        int keyHashTableEndRow = rowNum;
+
+        log.info("Created cascading boundary lookup sheet: {} children rows, {} display-name mappings (rows {}-{}), {} key-hash mappings (rows {}-{})",
+                childrenSectionEndRow, codeToDisplayNameMap.size(), displayNameMappingStartRow + 1, displayNameMappingEndRow,
+                hashToOriginalKeyMap.size(), keyHashTableStartRow + 1, keyHashTableEndRow);
+
+        return new ParentChildrenMapping(parentChildrenMap, codeToDisplayNameMap, parentChildrenCodeMap,
+                hashToOriginalKeyMap, keyHashTableStartRow, keyHashTableEndRow,
+                displayNameMappingStartRow, displayNameMappingEndRow);
     }
 
     /**
@@ -434,59 +480,41 @@ public class HierarchicalBoundaryUtil {
      */
     private static class ParentChildrenMapping {
         final Map<String, Set<String>> parentChildrenMap;
-        /** Number of Section-1 rows: the MATCH range of every cascade validation is $A$1:$A$<this>. */
-        final int childrenSectionEndRow;
-        /** 1-based inclusive row bounds of Section 2 (display-path -> code). 0 when empty. */
-        final int codeMappingStartRow;
-        final int codeMappingEndRow;
+        final Map<String, String> codeToDisplayNameMap;
+        final Map<String, Set<String>> parentChildrenCodeMap;
+        final Map<String, String> hashToOriginalKeyMap;
+        final int keyHashTableStartRow;  // Start row of the key-to-hash mapping table
+        final int keyHashTableEndRow;    // End row of the key-to-hash mapping table
+        final int displayNameMappingStartRow;  // Start row of display name to code mapping (Section 2)
+        final int displayNameMappingEndRow;    // End row of display name to code mapping (Section 2)
 
-        ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, int childrenSectionEndRow,
-                              int codeMappingStartRow, int codeMappingEndRow) {
+        ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, Map<String, String> codeToDisplayNameMap,
+                            Map<String, Set<String>> parentChildrenCodeMap, Map<String, String> hashToOriginalKeyMap,
+                            int keyHashTableStartRow, int keyHashTableEndRow,
+                            int displayNameMappingStartRow, int displayNameMappingEndRow) {
             this.parentChildrenMap = parentChildrenMap;
-            this.childrenSectionEndRow = childrenSectionEndRow;
-            this.codeMappingStartRow = codeMappingStartRow;
-            this.codeMappingEndRow = codeMappingEndRow;
+            this.codeToDisplayNameMap = codeToDisplayNameMap;
+            this.parentChildrenCodeMap = parentChildrenCodeMap;
+            this.hashToOriginalKeyMap = hashToOriginalKeyMap;
+            this.keyHashTableStartRow = keyHashTableStartRow;
+            this.keyHashTableEndRow = keyHashTableEndRow;
+            this.displayNameMappingStartRow = displayNameMappingStartRow;
+            this.displayNameMappingEndRow = displayNameMappingEndRow;
         }
     }
 
     /**
-     * Layout of the boundary columns a generator just had added, so a caller can attach its own
-     * per-row formulas without re-deriving column positions or the lookup sheet's section bounds.
-     * Deliberately data-only: no formulas are written here, so templates that do not ask for them
-     * (facility / user / unified-console) are unaffected.
-     */
-    @Getter
-    public static class BoundaryColumnLayout {
-        private final int boundaryCodeColIndex;
-        private final List<Integer> visibleBoundaryColIndices;
-        /** 1-based inclusive row bounds of the display-path -> code mapping; 0 when there is none. */
-        private final int codeMappingStartRow;
-        private final int codeMappingEndRow;
-
-        public BoundaryColumnLayout(int boundaryCodeColIndex, List<Integer> visibleBoundaryColIndices,
-                                    int codeMappingStartRow, int codeMappingEndRow) {
-            this.boundaryCodeColIndex = boundaryCodeColIndex;
-            // Copy: the caller hands over its live working list, and this layout is a value.
-            this.visibleBoundaryColIndices = visibleBoundaryColIndices == null
-                    ? List.of() : List.copyOf(visibleBoundaryColIndices);
-            this.codeMappingStartRow = codeMappingStartRow;
-            this.codeMappingEndRow = codeMappingEndRow;
-        }
-    }
-
-    /**
-     * Adds cascading data validations for all boundary columns.
+     * Adds cascading data validations for all boundary columns using helper column architecture
      *
      * Architecture:
      * - Level 1 (Country): Direct list validation
-     * - Level 2+ (State, District, etc.): ONE data-validation formula per column (no per-row cells):
-     *     INDIRECT(IFERROR("_hL"&MATCH(&lt;parent path&gt;, lookup!$A$1:$A$N, 0), "_h_EmptyList"))
-     *   The parent path is built from relative references to the parent VISIBLE cells (row 3 is the
-     *   template row of the applied range, so Excel/LibreOffice auto-adjust it per row). MATCH finds
-     *   the parent's row in the lookup sheet; the positional name _hL&lt;row&gt; spans exactly that
-     *   parent's children. An unselected/invalid parent chain makes MATCH fail, and IFERROR degrades
-     *   the name to _h_EmptyList (an empty list), exactly like the old helper-based behaviour.
-     *   The formula is evaluated only when a dropdown is opened - nothing is computed on file open.
+     * - Level 2+ (State, District, etc.):
+     *   - Helper column: Contains formula to compute the hash key from parent selections
+     *   - Visible column: Data validation references helper column with simple relative reference
+     *
+     * This separation is critical for MS Excel compatibility because:
+     * - INDIRECT("A"&ROW()) works in cell formulas but NOT in data validation formulas in Excel
+     * - Simple relative references (like G3) work correctly in data validation
      */
     private void addCascadingBoundaryValidations(XSSFWorkbook workbook, Sheet sheet,
                                                  int startColumnIndex, int numLevels,
@@ -496,58 +524,86 @@ public class HierarchicalBoundaryUtil {
                                                  Map<String, String> codeToUniqueName) {
 
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
-        Sheet lookupSheet = workbook.getSheet(LOOKUP_SHEET_NAME);
+        Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
         if (lookupSheet == null) {
             log.error("Lookup sheet not found, cannot create cascading validations");
             return;
         }
 
         // Create a named range for an empty cell to gracefully handle formula errors
-        Name emptyListRange = workbook.getName(EMPTY_LIST_NAME);
+        Name emptyListRange = workbook.getName("_h_EmptyList");
         if (emptyListRange == null) {
             emptyListRange = workbook.createName();
-            emptyListRange.setNameName(EMPTY_LIST_NAME);
-            emptyListRange.setRefersToFormula(LOOKUP_SHEET_NAME + "!$ZZ$1"); // Point to a guaranteed empty cell
+            emptyListRange.setNameName("_h_EmptyList");
+            emptyListRange.setRefersToFormula("_h_SimpleLookup_h_!$ZZ$1"); // Point to a guaranteed empty cell
         }
 
         // Level 1 Validation (First visible column) - direct list
         addLevel1BoundaryValidation(workbook, sheet, dvHelper, visibleColIndices.get(0), level1Boundaries);
 
-        if (mappingResult.childrenSectionEndRow < 1) {
-            log.info("No parent-children rows in the lookup sheet; skipping cascade validations for {} levels.",
-                    numLevels - 1);
-            return;
-        }
-        String matchKeyRange = String.format("%s!$A$1:$A$%d", LOOKUP_SHEET_NAME, mappingResult.childrenSectionEndRow);
+        // Cascading Validations for Levels 2+ using Helper Column Architecture
+        // Key-to-Hash lookup table is in a SEPARATE section (columns H=code key, I=display key, J=hash)
+        // This ensures children data (cols B onwards) never overlaps with the lookup keys
+        int keyHashStartRow = mappingResult.keyHashTableStartRow + 1; // Excel rows are 1-based
+        int keyHashEndRow = mappingResult.keyHashTableEndRow;
+        String displayKeyColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN + 1);
+        String hashColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN);
+
+        String lookupRangeDisplayKeys = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
+                displayKeyColLetter, keyHashStartRow, displayKeyColLetter, keyHashEndRow);
+        String lookupRangeHashes = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
+                hashColLetter, keyHashStartRow, hashColLetter, keyHashEndRow);
 
         for (int level = 1; level < numLevels; level++) {
             int currentVisibleColIdx = visibleColIndices.get(level);
+            // The helper column is located immediately to the left of the visible column
+            int helperColIdx = currentVisibleColIdx - 1;
 
-            // Parent path from relative refs to the parent visible cells, e.g. A3&"#"&B3. Row 3 is the
-            // first row of the applied range, so the references shift per row automatically.
-            StringBuilder parentPath = new StringBuilder();
-            for (int i = 0; i < level; i++) {
-                if (i > 0) parentPath.append("&\"").append(BOUNDARY_SEPARATOR).append("\"&");
-                parentPath.append(CellReference.convertNumToColString(visibleColIndices.get(i))).append("3");
+            // Data validation formula: simple relative reference to helper column
+            // Uses row 3 as template - Excel automatically adjusts for each row
+            String helperColLetter = CellReference.convertNumToColString(helperColIdx);
+            String validationFormula = String.format("INDIRECT(IF(%s3<>\"\", %s3 & \"%s\", \"_h_EmptyList\"))",
+                                                     helperColLetter, helperColLetter, LIST_SUFFIX);
+
+            // Apply the helper formula to every cell in the helper column.
+            // The lookup key is built with literal relative cell references (e.g. B3, C3) for the
+            // current row instead of INDIRECT("B"&ROW()). INDIRECT is a volatile function, so the
+            // previous approach forced every helper cell to recalculate on every edit/open/scroll
+            // across the whole sheet. Plain relative references are non-volatile and auto-adjust per
+            // row, so a cell now recalculates only when its own parent selections change. This keeps
+            // the cascade behaviour identical while removing the dominant recalculation cost.
+            for (int r = 2; r <= config.getExcelRowLimit(); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) row = sheet.createRow(r);
+                Cell helperCell = row.createCell(helperColIdx);
+
+                int excelRow = r + 1; // POI row index is 0-based; Excel rows are 1-based
+                // Build the CONCATENATE key from previous selections, e.g. CONCATENATE(B3, "#", C3)
+                StringBuilder keyBuilder = new StringBuilder();
+                for (int i = 0; i < level; i++) {
+                    if (i > 0) keyBuilder.append(", \"").append(BOUNDARY_SEPARATOR).append("\", ");
+                    String colLetter = CellReference.convertNumToColString(visibleColIndices.get(i));
+                    keyBuilder.append(colLetter).append(excelRow);
+                }
+
+                String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
+                                                     lookupRangeHashes, keyBuilder.toString(), lookupRangeDisplayKeys);
+                helperCell.setCellFormula(helperFormula);
             }
-            String validationFormula = String.format(
-                    "INDIRECT(IFERROR(\"%s\"&MATCH(%s,%s,0),\"%s\"))",
-                    CHILD_LIST_NAME_PREFIX, parentPath, matchKeyRange, EMPTY_LIST_NAME);
 
             // Apply data validation to the visible column
-            // last row = excelRowLimit + 1 (data starts at row index 2) so all excelRowLimit paste rows are covered
-            CellRangeAddressList validationRange = new CellRangeAddressList(2, config.getExcelRowLimit() + 1, currentVisibleColIdx, currentVisibleColIdx);
+            CellRangeAddressList validationRange = new CellRangeAddressList(2, config.getExcelRowLimit(), currentVisibleColIdx, currentVisibleColIdx);
             DataValidationConstraint dvConstraint = dvHelper.createFormulaListConstraint(validationFormula);
             DataValidation validation = dvHelper.createValidation(dvConstraint, validationRange);
             validation.setShowErrorBox(false);
             validation.setEmptyCellAllowed(true);
             sheet.addValidationData(validation);
 
-            log.debug("Applied cascade validation for level {} (visible col: {}): {}",
-                     level, currentVisibleColIdx, validationFormula);
+            log.debug("Applied helper-based cascade validation for level {} (visible col: {}, helper col: {})",
+                     level, currentVisibleColIdx, helperColIdx);
         }
 
-        log.info("Finished applying cascading validations for {} levels (no helper columns).", numLevels);
+        log.info("Finished applying helper-column based cascading validations for {} levels.", numLevels);
     }
 
     /**
@@ -570,7 +626,7 @@ public class HierarchicalBoundaryUtil {
                 // Use explicit list for small lists
                 String[] level1Array = level1Boundaries.toArray(new String[0]);
                 int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit() + 1);
+                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
                 CellRangeAddressList level1Range = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
                 DataValidationConstraint level1Constraint = dvHelper.createExplicitListConstraint(level1Array);
                 DataValidation level1Validation = dvHelper.createValidation(level1Constraint, level1Range);
@@ -626,7 +682,7 @@ public class HierarchicalBoundaryUtil {
             log.info("Created named range '{}' for {} level1 boundaries", rangeName, level1Boundaries.size());
 
             int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-            int maxRow = Math.max(actualDataRows, config.getExcelRowLimit() + 1);
+            int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
             CellRangeAddressList validationRange = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
             DataValidationConstraint rangeConstraint = dvHelper.createFormulaListConstraint(rangeName);
             DataValidation rangeValidation = dvHelper.createValidation(rangeConstraint, validationRange);
@@ -641,7 +697,7 @@ public class HierarchicalBoundaryUtil {
             try {
                 String directFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level1Boundaries.size());
                 int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit() + 1);
+                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
                 CellRangeAddressList validationRange = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
                 DataValidationConstraint formulaConstraint = dvHelper.createFormulaListConstraint(directFormula);
                 DataValidation formulaValidation = dvHelper.createValidation(formulaConstraint, validationRange);
@@ -661,11 +717,13 @@ public class HierarchicalBoundaryUtil {
      * Populates existing data rows with boundary information
      */
     private int populateExistingDataWithBoundaries(Sheet sheet, List<Map<String, Object>> existingData,
-                                                   int boundaryCodeColIndex,
+                                                   int lastSchemaCol, int numCascadingColumns, int boundaryCodeColIndex,
+                                                   List<String> levelTypes, String hierarchyType,
                                                    List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
                                                    Map<String, String> localizationMap,
                                                    CellStyle unlocked, CellStyle formulaStyle,
                                                    List<Integer> visibleColIndices,
+                                                   int displayNameMappingStartRow, int displayNameMappingEndRow,
                                                    Map<String, String> codeToUniqueName) {
 
         int rowsPopulated = 0;
@@ -709,17 +767,15 @@ public class HierarchicalBoundaryUtil {
                 }
             }
 
-            // Write the boundary code VALUE into the hidden column (the code is known server-side;
-            // no per-row formula). Left blank when the code did not resolve to a configured boundary
-            // path - identical to what the old VLOOKUP formula produced for unmatched selections.
+            // Set boundary code formula in hidden column
             Cell boundaryCodeCell = row.getCell(boundaryCodeColIndex);
             if (boundaryCodeCell == null) {
                 boundaryCodeCell = row.createCell(boundaryCodeColIndex);
             }
             boundaryCodeCell.setCellStyle(formulaStyle);
-            if (boundaryPath != null && boundaryCode != null && !boundaryCode.isEmpty()) {
-                boundaryCodeCell.setCellValue(boundaryCode);
-            }
+            String boundaryCodeFormula = createBoundaryCodeFormula(excelRowIndex + 1, visibleColIndices,
+                    displayNameMappingStartRow, displayNameMappingEndRow);
+            boundaryCodeCell.setCellFormula(boundaryCodeFormula);
 
             rowsPopulated++;
         }

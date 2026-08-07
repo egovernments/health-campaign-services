@@ -40,6 +40,9 @@ const createGeneratedResourceTopic = config?.kafka?.KAFKA_CREATE_GENERATED_RESOU
 
 const appCache = new NodeCache({ stdTTL: 1800000, checkperiod: 300 });
 
+/* 
+Send The Error Response back to client with proper response code 
+*/
 const throwErrorViaRequest = (message: any = "Internal Server Error") => {
   logger.error("Error : ", message);
   if (message?.message || message?.code) {
@@ -56,7 +59,8 @@ const throwErrorViaRequest = (message: any = "Internal Server Error") => {
 
 function shutdownGracefully() {
   logger.info('Shutting down gracefully...');
-  process.exit(1);
+  // Perform any cleanup tasks here, like closing database connections
+  process.exit(1); // Exit with a non-zero code to indicate an error
 }
 
 function capitalizeFirstLetter(str: string | undefined) {
@@ -76,13 +80,16 @@ const throwError = (module = "COMMON", status = 500, code = "UNKNOWN_ERROR", des
 const replicateRequest = (originalRequest: Request, requestBody: any, requestQuery?: any) => {
   const newRequest = {
     ...originalRequest,
-    body: _.cloneDeep(requestBody),
+    body: _.cloneDeep(requestBody), // Deep clone using lodash
     query: requestQuery ? _.cloneDeep(requestQuery) : _.cloneDeep(originalRequest.query)
   };
   return newRequest;
 };
 
 
+/* 
+Error Object
+*/
 const getErrorResponse = (
   code = "INTERNAL_SERVER_ERROR",
   message = "Some Error Occured!!",
@@ -99,12 +106,21 @@ const getErrorResponse = (
   ],
 });
 
+/* 
+Send The Response back to client with proper response code and response info
+*/
 const sendResponse = (
   response: Response,
   responseBody: any,
   req: Request,
   code: number = 200
 ) => {
+  /* if (code != 304) {
+    appCache.set(req.headers.cachekey, { ...responseBody });
+  } else {
+    logger.info("CACHED RESPONSE FOR :: " + req.headers.cachekey);
+  }
+  */
   logger.info("Send back the response to the client");
   response.status(code).send({
     ...getResponseInfo(code),
@@ -112,6 +128,9 @@ const sendResponse = (
   });
 };
 
+/* 
+Response Object
+*/
 const getResponseInfo = (code: Number) => ({
   ResponseInfo: {
     apiId: "egov-bff",
@@ -145,7 +164,7 @@ const errorLogger = (
 ) => {
   logger.error(error.stack);
   logger.error(`error ${error.message}`);
-  next(error);
+  next(error); // calling next middleware
 };
 
 /*
@@ -181,6 +200,7 @@ const trimError = (e: any) => {
   return e;
 }
 
+/* Fetches data from the database */
 async function searchGeneratedResources(searchQuery : any, locale : any) {
   try {
     const { type, tenantId, hierarchyType, id, status, campaignId } = searchQuery;
@@ -222,6 +242,7 @@ async function searchGeneratedResources(searchQuery : any, locale : any) {
 
     queryString += queryConditions.join(" AND ");
 
+    // Add sorting and limiting
     queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
 
     const queryResult = await executeQuery(queryString, queryValues);
@@ -230,7 +251,7 @@ async function searchGeneratedResources(searchQuery : any, locale : any) {
     console.log(error)
     logger.error(`Error fetching data from the database: ${error.message}`);
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
-    return null;
+    return null; // Return null in case of an error
   }
 }
 
@@ -280,7 +301,7 @@ async function searchAllGeneratedResources(searchQuery: any, locale: any) {
     console.log(error)
     logger.error(`Error fetching data from the database: ${error.message}`);
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
-    return null;
+    return null; // Return null in case of an error
   }
 }
 
@@ -357,6 +378,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
   try {
     const { type, hierarchyType } = request?.query;
     generatedResource = { generatedResource: newEntryResponse }
+    // send message to create toppic
     logger.info(`processing the generate request for type ${type}`)
     await produceModifiedMessages(generatedResource, createGeneratedResourceTopic, request?.query?.tenantId);
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
@@ -383,15 +405,18 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
 
     }
     if (type === 'boundary') {
+      // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
       const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
       logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
+      // get boundary sheet data after being generated
       var boundaryDataSheetGeneratedAfterDifferentTabSeparation = boundaryDataSheetGeneratedBeforeDifferentTabSeparation;
       logger.info("generating different tabs logic ")
       boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap, fileUrlResponse)
       logger.info(`Different tabs based on level configured generated, ${JSON.stringify(boundaryDataSheetGeneratedAfterDifferentTabSeparation)}`)
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedAfterDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
+      // send to update topic
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
       request.body.generatedResource = finalResponse;
     }
@@ -411,6 +436,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
 
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
+  // from schema.properties find the key whose value have value.hideColumn == true
   const hiddenColumns = Object.entries(schema.properties).filter(([key, value]: any) => value.hideColumn == true).map(([key, value]: any) => getLocalizedName(key, localizationMap));
   logger.info(`Columns to hide ${JSON.stringify(hiddenColumns)}`);
   request.body.hiddenColumns = hiddenColumns;
@@ -459,6 +485,7 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   request.body.isSourceMicroplan = isSourceMicroplan;
   let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
+  // setDropdownFromSchema(request, schema, localizationMap);
   setHiddenColumns(request, schema, localizationMap);
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   let localizedHeaders;
@@ -488,23 +515,26 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
 
 
 function setAndFormatHeaders(worksheet: any, mainHeader: any, headerSet: any) {
+
+  // Ensure mainHeader is an array
   if (!Array.isArray(mainHeader)) {
     mainHeader = [mainHeader];
   }
+  // headerSet.add(mainHeader)
   const headerRow = worksheet.addRow(mainHeader);
 
+  // Color the header cell
   headerRow.eachCell((cell: any) => {
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'f25449' }
+      fgColor: { argb: 'f25449' } // Header cell color
     };
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; // Center align and wrap text
     cell.font = { bold: true };
   });
 }
 
-/** Builds the localized ReadMe/instructions sheet for a template from MDMS ReadMe config (microplan config when applicable). */
 async function createReadMeSheet(request: any, workbook: any, mainHeader: any, localizationMap = {}) {
   const isSourceMicroplan = await isMicroplanRequest(request);
   let readMeConfig: any;
@@ -516,7 +546,7 @@ async function createReadMeSheet(request: any, workbook: any, mainHeader: any, l
   }
   const headerSet = new Set();
   const datas = readMeConfig.texts
-    .filter((text: any) => text?.inSheet)
+    .filter((text: any) => text?.inSheet) // Filter out texts with inSheet set to false
     .flatMap((text: any) => {
       const descriptions = text.descriptions.map((description: any) => {
         return getLocalizedName(description.text, localizationMap);
@@ -525,6 +555,7 @@ async function createReadMeSheet(request: any, workbook: any, mainHeader: any, l
       return [getLocalizedName(text.header, localizationMap), ...descriptions, ""];
     });
 
+  // Create the worksheet and add the main header
   const worksheet = workbook.addWorksheet(getLocalizedName("HCM_README_SHEETNAME", localizationMap));
 
   setAndFormatHeaders(worksheet, mainHeader, headerSet);
@@ -585,10 +616,9 @@ function getLocalizedHeadersForMicroplan(responseFromCampaignSearch: any, header
   return messages;
 }
 
-/** Fetches the MDMS ReadMe config entry matching the given template type, throwing if none exists. */
 export async function getReadMeConfig(tenantId: string , type : string) {
   const MdmsCriteria = {
-    MdmsCriteria: {
+    MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
       tenantId,
       moduleDetails: [
         {
@@ -598,6 +628,7 @@ export async function getReadMeConfig(tenantId: string , type : string) {
       ],
     },
   };
+  // const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
   const mdmsResponse = await searchMDMSDataViaV1Api(MdmsCriteria);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
@@ -617,7 +648,8 @@ export async function getReadMeConfig(tenantId: string , type : string) {
 
 
 function changeFirstRowColumnColour(facilitySheet: any, color: any, columnNumber = 1) {
-  const headerRow = facilitySheet.getRow(1);
+  // Color the first column header of the facility sheet orange
+  const headerRow = facilitySheet.getRow(1); // Assuming the first row is the header
   const firstHeaderCell = headerRow.getCell(columnNumber);
   firstHeaderCell.fill = {
     type: 'pattern',
@@ -636,13 +668,16 @@ function hideUniqueIdentifierColumn(sheet: any, column: any) {
 async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any, localizationMap?: any, fileUrl?: any, schema?: any) {
   const workbook = getNewExcelWorkbook();
 
+  // Add facility sheet to the workbook
   const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
   const type = request?.query?.type;
   const headingInSheet = headingMapping?.[type];
   const localizedHeading = getLocalizedName(headingInSheet, localizationMap);
 
+  // Create and add ReadMe sheet
   await createReadMeSheet(request, workbook, localizedHeading, localizationMap);
 
+  // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
   addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   enrichUsageColumnForFacility(facilitySheet, localizationMap);
@@ -653,10 +688,12 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
+  // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
   addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
+  // Create and upload the fileData at row
   const fileDetails = await createAndUploadFile(workbook, request);
   request.body.fileDetails = fileDetails;
 }
@@ -678,12 +715,12 @@ function writeEnumToDropdownSheet(helperSheet: any, values: string[]): string {
   return helperSheet.getColumn(colIdx).letter;
 }
 
-/** Adds single-select enum dropdowns to each schema-defined column, using a hidden helper sheet when an enum list exceeds Excel's inline-list limit. */
 export async function handledropdownthings(workbook: any, sheet: any, schema: any, localizationMap: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
     .reduce((result: any, [key, value]: any) => {
+      // Transform the key using localisedValue function
       const newKey: any = getLocalizedName(key, localizationMap);
       result[newKey] = value.enum;
       return result;
@@ -754,12 +791,12 @@ export async function handledropdownthings(workbook: any, sheet: any, schema: an
   }
 }
 
-/** Like handledropdownthings but keys columns by raw (un-localized) header names. */
 export async function handledropdownthingsUnLocalised(workbook: any, sheet: any, schema: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
     .reduce((result: any, [key, value]: any) => {
+      // Transform the key using localisedValue function
       result[key] = value.enum;
       return result;
     }, {});
@@ -830,6 +867,7 @@ export async function handledropdownthingsUnLocalised(workbook: any, sheet: any,
 }
 
 async function handleHiddenColumns(sheet: any, hiddenColumns: any) {
+  // logger.info(sheet)
   logger.info("hiddenColumns", hiddenColumns);
   if (hiddenColumns) {
     for (const columnName of hiddenColumns) {
@@ -867,9 +905,15 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   let receivedDropdowns = request.body?.dropdowns;
   logger.info("started adding dropdowns in user", JSON.stringify(receivedDropdowns))
 
+  // if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
+  //   logger.info("No dropdowns found");
+  //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
+  //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
+  // }
   await handledropdownthings(workbook, userSheet, schema, localizationMap);
   protectSheet(userSheet);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
+  // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
   addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
@@ -882,6 +926,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
 async function generateFacilityAndBoundarySheet(tenantId: string, request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
   const type = request?.query?.type || request?.body?.ResourceDetails?.type;
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
+  // Get facility and boundary data
   logger.info("Generating facilities started");
   const allFacilities = await getAllFacilities(tenantId, request?.body?.RequestInfo);
   request.body.generatedResourceCount = allFacilities?.length;
@@ -890,17 +935,20 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
   let schemaFinal: any;
   if (fileUrl) {
-    // Update flow: rebuild facility sheet data from the previously processed file
+    /* fetch facility from processed file 
+    and generate facility sheet data */
     schemaFinal = await callMdmsTypeSchema(tenantId, true, typeWithoutWith, "all");
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
     const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schemaFinal, localizationMap);
     facilitySheetDataFinal = modifiedProcessedFacilitySheetData;
+    // setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
     const { schema, facilitySheetData }: any = await createFacilitySheet(request, allFacilities, localizationMap);
     facilitySheetDataFinal = facilitySheetData;
     schemaFinal = schema;
   }
+  // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   if (filteredBoundary && filteredBoundary.length > 0) {
     logger.info("proceed with the filtered boundary data")
     await createFacilityAndBoundaryFile(facilitySheetDataFinal, filteredBoundary, request, localizationMap, fileUrl, schemaFinal);
@@ -924,7 +972,7 @@ function addMultiSelectColumn(properties: any, headers: string[]) {
     }
   }
 
-  // Replace original array in place
+  // Clear and replace original array
   headers.length = 0;
   headers.push(...newHeaders);
 }
@@ -936,15 +984,18 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
   let schema: any;
   const isUpdate = fileUrl ? true : false;
   schema = await callMdmsTypeSchema(tenantId, isUpdate, typeWithoutWith);
+  // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   setHiddenColumns(request, schema, localizationMap);
   addMultiSelectColumn(schema?.properties, headers);
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   let userSheetData: any;
+  // const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   logger.info("Generated an empty user template");
   if (fileUrl) {
-    // Update flow: rebuild user sheet data from the previously processed file
+    /* fetch facility from processed file 
+    and generate facility sheet data */
     const processedUserSheetData = await getSheetData(fileUrl, localizedUserTab, false, undefined, localizationMap);
     const modifiedProcessedUserSheetData = modifyProcessedSheetData(typeWithoutWith, processedUserSheetData, schema, localizationMap);
     userSheetData = modifiedProcessedUserSheetData;
@@ -1031,14 +1082,16 @@ async function generateUserSheetForMicroPlan(
 ) {
   const { tenantId, type } = request?.query;
   const schema = await callMdmsTypeSchema(tenantId, false, "user", "microplan");
+  // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
   logger.info("Generated an empty user template");
 
   const workbook = getNewExcelWorkbook();
-  const userSheetData = await createExcelSheet(userData, localizedHeaders);
+  const userSheetData = await createExcelSheet(userData, localizedHeaders); // Create data only once
 
+  // Create and add ReadMe sheet
   const headingInSheet = headingMapping?.[type];
   const localizedHeading = getLocalizedName(headingInSheet, localizationMap);
   await createReadMeSheet(request, workbook, localizedHeading, localizationMap);
@@ -1046,8 +1099,9 @@ async function generateUserSheetForMicroPlan(
 
   await makeCustomSheetData(request, request?.query?.type, "USER_MICROPLAN_SHEET_ROLES", workbook, localizationMap);
 
-  // One sheet per microplan role, named after the role
+  // Loop through the rolesForMicroplan array to create sheets for each role
   for (const role of rolesForMicroplan) {
+    // Create a sheet for each role, using the role name as the sheet name
     const userSheet: any = workbook.addWorksheet(role);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
     await handledropdownthings(workbook, userSheet, schema, localizationMap);
@@ -1055,6 +1109,7 @@ async function generateUserSheetForMicroPlan(
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   }
 
+  // Create and upload the workbook file
   const fileDetails = await createAndUploadFile(workbook, request);
   request.body.fileDetails = fileDetails;
 }
@@ -1115,6 +1170,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
   let generatedResource: any;
   if (forceUpdateBool && responseData.length > 0) {
     generatedResource = { generatedResource: oldEntryResponse };
+    // send message to update topic 
     await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic, request?.query?.tenantId);
     request.body.generatedResource = oldEntryResponse;
   }
@@ -1125,15 +1181,25 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
     request.body.generatedResource = responseData
   }
 }
+/* 
+
+*/
 async function processGenerate(request: any, enableCaching = false, filteredBoundary?: any) {
+  // fetch the data from db  to check any request already exists
   const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
+  // modify response from db 
   const modifiedResponse = await enrichAuditDetails(responseData);
+  // generate new random id and make filestore id null
   const newEntryResponse = await generateNewRequestObject(request);
-  // Mark any existing generated resource as expired before persisting the new one
+  // make old data status as expired
   const oldEntryResponse = await updateExistingResourceExpired(modifiedResponse, request);
+  // generate data 
   await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, enableCaching, filteredBoundary);
 }
-// TODO add comments @nitish-egov
+/*
+TODO add comments @nitish-egov
+
+*/
 async function enrichResourceDetails(request: any) {
   request.body.ResourceDetails.id = uuidv4();
   request.body.ResourceDetails.processedFileStoreId = null;
@@ -1200,6 +1266,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
   const modifiedReducedHierarchy = getLocalizedHeaders(reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase()), localizationMap);
+  // get Campaign Details from Campaign Search Api
   var configurableColumnHeadersBasedOnCampaignType: any[] = []
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
@@ -1220,6 +1287,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     const boundaryCode = boundaryParts[boundaryParts.length - 1];
     boundaryCodeList.push(boundaryCode);
     const rowData = boundaryParts.concat(Array(Math.max(0, reducedHierarchy.length - boundaryParts.length)).fill(''));
+    // localize the boundary codes
     const mappedRowData = rowData.map((cell: any, index: number) =>
       index === reducedHierarchy.length ? '' : cell !== '' ? getLocalizedName(cell, localizationMap) : ''
     );
@@ -1314,7 +1382,6 @@ function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: 
 }
 
 
-/** Builds the localized header row for a target sheet: hierarchy levels + boundary code + dynamic target columns. */
 async function getConfigurableColumnHeadersFromSchemaForTargetSheet(request: any, hierarchy: any, boundaryData: any, differentTabsBasedOnLevel: any, campaignObject: any, localizationMap?: any) {
   const districtIndex = hierarchy.indexOf(differentTabsBasedOnLevel);
   let headers: any;
@@ -1345,11 +1412,12 @@ async function getMdmsDataBasedOnCampaignType(request: any, localizationMap?: an
 
 
 function appendProjectTypeToCapacity(schema: any, projectType: string): any {
-  const updatedSchema = JSON.parse(JSON.stringify(schema)); // Deep clone so the source schema is untouched
+  const updatedSchema = JSON.parse(JSON.stringify(schema)); // Deep clone the schema
 
   const capacityKey = 'HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN';
   const newCapacityKey = `${capacityKey}_${projectType}`;
 
+  // Update properties
   if (updatedSchema.properties[capacityKey]) {
     updatedSchema.properties[newCapacityKey] = {
       ...updatedSchema.properties[capacityKey],
@@ -1358,23 +1426,28 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
     delete updatedSchema.properties[capacityKey];
   }
 
+  // Update required
   updatedSchema.required = updatedSchema.required.map((item: string) =>
     item === capacityKey ? newCapacityKey : item
   );
 
+  // Update columns
   updatedSchema.columns = updatedSchema.columns.map((item: string) =>
     item === capacityKey ? newCapacityKey : item
   );
 
+  // Update unique
   updatedSchema.unique = updatedSchema.unique.map((item: string) =>
     item === capacityKey ? newCapacityKey : item
   );
 
+  // Update errorMessage
   if (updatedSchema.errorMessage[capacityKey]) {
     updatedSchema.errorMessage[newCapacityKey] = updatedSchema.errorMessage[capacityKey];
     delete updatedSchema.errorMessage[capacityKey];
   }
 
+  // Update columnsNotToBeFreezed
   updatedSchema.columnsNotToBeFreezed = updatedSchema.columnsNotToBeFreezed.map((item: string) =>
     item === capacityKey ? newCapacityKey : item
   );
@@ -1383,7 +1456,6 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
 }
 
 
-/** Reads campaign-data rows for a type/campaign (optionally filtered by status and uniqueIdentifier), mapped to camelCase. */
 export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string) {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
@@ -1408,7 +1480,6 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
   return rows;
 }
 
-/** Hard-deletes failed/invalid campaign-data rows before re-validation so a retry starts from a clean slate. */
 export async function deleteCampaignDataFailedAndInvalid(
   campaignNumber: string,
   type: string,
@@ -1449,7 +1520,6 @@ export async function getCampaignIdsByCampaignNumber(campaignNumber: string, ten
   return (result?.rows || []).map((row: any) => row.id);
 }
 
-/** Reads campaign-data rows for a type across a set of uniqueIdentifiers (optionally filtered by status). */
 export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], tenantId : string, status ?: string ){
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1`;
@@ -1473,7 +1543,6 @@ export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueI
   return rows;
 }
 
-/** Reads mapping-data rows for a type/campaign (optionally filtered by status), mapped to camelCase. */
 export async function getMappingDataRelatedToCampaign(type: string, campaignNumber: string,tenantId: string, status?: string) {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
@@ -1496,7 +1565,6 @@ export async function getMappingDataRelatedToCampaign(type: string, campaignNumb
   return rows;
 }
 
-/** Reads process-tracking rows for a campaign (optionally filtered by process name and status). */
 export async function getCurrentProcesses(campaignNumber: string, tenantId: string, processName ?: string, status ?: string) {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE campaignNumber = $1`;
@@ -1524,7 +1592,6 @@ export async function getCurrentProcesses(campaignNumber: string, tenantId: stri
   return rows;
 }
 
-/** Reads campaign-data rows matching a type and set of uniqueIdentifiers; returns empty when no identifiers given. */
 export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uniqueIdentifiers: any[], tenantId: string, status ?: string) {
   if(uniqueIdentifiers?.length === 0) return [];
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
@@ -1549,13 +1616,13 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 }
 
 
-/** Resets all process rows to pending and creates any missing ones for a campaign, then waits for the persister to catch up. */
 export async function prepareProcessesInDb(campaignNumber: any, tenantId: string, userUuid?: string, excludeProcessNames: string[] = []) {
   logger.info("Preparing processes in DB...");
   let allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
 
   const currentTime = Date.now();
 
+  // Add audit details to existing processes being updated
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
       allCurrentProcesses[i].status = processStatuses.pending;
       allCurrentProcesses[i].auditDetails = {
@@ -1590,7 +1657,7 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
   }
 
   produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
-  // Post-produce wait: let the persister write the process rows before callers read them back
+  // wait for 2 second
   logger.info("Waiting for 10 seconds for processes to get updated...");
   await new Promise(resolve => setTimeout(resolve, 10000));
 }
@@ -1968,7 +2035,8 @@ export async function checkCampaignDataCompletionStatus(campaignNumber: string, 
  * mapping was intentionally not attempted — these must not block the campaign.
  *
  * Returns: { allCompleted, anyFailed, totalMappings, completedMappings, failedMappings, pendingMappings }
- *
+ */
+/**
  * The terminal/retryable failure split depends on maxRetries — pass it explicitly
  * when the caller's policy differs from the service default.
  */

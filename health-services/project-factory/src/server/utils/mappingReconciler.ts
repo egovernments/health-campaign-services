@@ -11,8 +11,7 @@ import { executeQuery, getTableName } from './db';
 import { bumpMappingGeneration } from './mappingGenerationUtils';
 
 /**
- * Marks facility/user/resource mapping processes completed at conclusion — only ones not already
- * completed, preserving original audit createdBy/createdTime.
+ * Mark all mapping processes as completed
  */
 async function markMappingProcessesAsCompleted(
     campaignNumber: string,
