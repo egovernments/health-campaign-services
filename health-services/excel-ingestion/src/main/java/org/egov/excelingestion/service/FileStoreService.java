@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.tracer.config.TracerProperties;
+import org.egov.tracer.http.RestTemplateLoggingInterceptor;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.http.converter.FormHttpMessageConverter;
@@ -31,16 +33,18 @@ public class FileStoreService {
     private static final long RETRY_DELAY_MS = 5000; // 5 second delay between retries
     
     private final RestTemplate restTemplate; // Keep for multipart file upload
-    private final ExcelIngestionConfig config;  
+    private final ExcelIngestionConfig config;
     private final ObjectMapper objectMapper;
     private final CustomExceptionHandler exceptionHandler;
+    private final TracerProperties tracerProperties;
 
     public FileStoreService(RestTemplate restTemplate, ExcelIngestionConfig config, ObjectMapper objectMapper,
-                           CustomExceptionHandler exceptionHandler) {
+                           CustomExceptionHandler exceptionHandler, TracerProperties tracerProperties) {
         this.restTemplate = restTemplate; // FileStore requires multipart upload, keeping RestTemplate
         this.config = config;
         this.objectMapper = objectMapper;
         this.exceptionHandler = exceptionHandler;
+        this.tracerProperties = tracerProperties;
     }
 
     public String uploadFile(byte[] fileBytes, String tenantId, String fileName) throws IOException {
@@ -65,7 +69,10 @@ public class FileStoreService {
             
             // Add only form converter for request (multipart)
             customRestTemplate.getMessageConverters().add(new FormHttpMessageConverter());
-            
+
+            // attach tracer interceptor for propagation
+            customRestTemplate.getInterceptors().add(new RestTemplateLoggingInterceptor(tracerProperties));
+
             HttpHeaders requestHeaders = new HttpHeaders();
             requestHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
             

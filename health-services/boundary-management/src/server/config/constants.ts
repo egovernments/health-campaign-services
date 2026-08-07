@@ -17,7 +17,14 @@ export const CONSTANTS: any = {
             BOUNDARY_SHEET_HEADER_ERROR: "Boundary sheet header error",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
             BOUNDARY_SHEET_UPLOADED_INVALID_ERROR: "Error in the boundary data uploaded",
-            BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR: "First Column Of Boundary Sheet uploaded should be unique as it is the root of hierarchy"
+            BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR: "First Column Of Boundary Sheet uploaded should be unique as it is the root of hierarchy",
+            // Registered so these validation rejections surface a clear message and their real
+            // code/status instead of falling back to "Unknown Error. Check Logs" (Issue 4).
+            MIXED_BOUNDARY_FLOW: "All rows must either provide boundary service codes or leave them all empty — mixed files are not supported. Provide a code for every boundary, or for none.",
+            MISSING_BOUNDARY_CODE: "A boundary service code is missing. In manual flow every boundary must have a service code.",
+            MISSING_PARENT_BOUNDARY_CODE: "One or more parent/intermediate boundaries are missing service codes. In manual flow all boundaries must have service codes.",
+            DUPLICATE_BOUNDARY_CODE: "Duplicate boundary service codes were provided. Each boundary service code must be unique.",
+            FLOW_MISMATCH_ERROR: "This hierarchy was created with a different code flow (auto vs manual). Continue with the same flow that was used for the existing boundaries."
         },
     }
 }

@@ -13,13 +13,12 @@ import { getRegistryEntry } from "../config/resourceTypeRegistry";
 import { isGenerationTriggerNeeded } from "../utils/generateUtils";
 import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 
+/** Validates and creates a project-type campaign, persisting its resources to eg_cm_resource_details so they survive the Flow 2 JSONB overwrite. */
 async function createProjectTypeCampaignService(request: express.Request) {
-    // Validate the request for creating a project type campaign
     logger.info("VALIDATING:: for project type");
     await validateProjectCampaignRequest(request, "create");
     logger.info("VALIDATED:: THE PROJECT TYPE CREATE REQUEST");
 
-    // Process the action based on the request type
     await processBasedOnAction(request, "create");
 
     // Persist resources to eg_cm_resource_details table so they survive Flow 2 JSONB overwrite
@@ -50,6 +49,7 @@ async function createProjectTypeCampaignService(request: express.Request) {
     return request?.body?.CampaignDetails;
 }
 
+/** Validates and updates a campaign, deactivating stale resources when hierarchy/boundaries change and re-fetching so the response carries table-backed resources. */
 async function updateProjectTypeCampaignService(request: express.Request) {
 
     await validateProjectCampaignRequest(request, "update");
@@ -74,7 +74,6 @@ async function updateProjectTypeCampaignService(request: express.Request) {
         }
     }
 
-    // Process the action based on the request type
     await processBasedOnAction(request, "update");
 
     // Backward compat: if resources are in the request body, upsert into eg_cm_resource_details
@@ -86,7 +85,6 @@ async function updateProjectTypeCampaignService(request: express.Request) {
             try {
                 const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
                 if (existing) {
-                    // Update existing resource instead of deactivating + creating new
                     await updateResourceDetail({
                         id: existing.id,
                         tenantId,
@@ -107,8 +105,14 @@ async function updateProjectTypeCampaignService(request: express.Request) {
                     }, useruuid);
                     logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
                 }
-            } catch (err) {
-                logger.warn(`Failed to upsert resource type=${res.type} for campaign ${campaignId}: ${err}`);
+            } catch (err: any) {
+                // Surface the real cause instead of collapsing to `${err}` (which hides
+                // the downstream code/status/stack behind a generic "Unknown Error. Check Logs").
+                logger.error(
+                    `Failed to upsert resource type=${res.type} for campaign ${campaignId}: ` +
+                    `code=${err?.code ?? "n/a"} status=${err?.status ?? "n/a"} message=${err?.message ?? String(err)}`
+                );
+                logger.error(`:: UPSERT ERROR STACK :: ${err?.stack ?? err}`);
             }
         }
         // Re-fetch campaign so response includes full resources from table
@@ -128,10 +132,8 @@ async function updateProjectTypeCampaignService(request: express.Request) {
 
 async function searchProjectTypeCampaignService(campaignDetails: any , request? :any
 ) {
-    // await validateSearchProjectCampaignRequest(request);
     logger.info("VALIDATED THE PROJECT TYPE SEARCH REQUEST");
 
-    // Search for project campaign resource data
     const { responseData, totalCount } = await searchProjectCampaignResourcData(campaignDetails , request);
     const responseBody: any = { CampaignDetails: responseData, totalCount: totalCount }
     return responseBody;
@@ -159,8 +161,8 @@ async function cancelCampaignService(request: any) {
  * Resources are stored in eg_cm_resource_details, not in the campaign JSONB.
  * Preserves backward-compatible request/response shape.
  */
+/** Adds resources to an existing (non-processing) campaign via the resource details service and triggers processing if the campaign is already created. */
 async function addResourcesToCampaignService(request: express.Request) {
-    // Validate request
     validateAddResourcesRequest(request);
 
     const requestCampaignDetails = request?.body?.CampaignDetails;
@@ -169,7 +171,6 @@ async function addResourcesToCampaignService(request: express.Request) {
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
     const newResources = requestCampaignDetails?.resources || [];
 
-    // Search for the existing campaign
     const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
     const existingCampaign = campaignResp?.CampaignDetails?.[0];
 
@@ -192,7 +193,6 @@ async function addResourcesToCampaignService(request: express.Request) {
     }
     // drafted, inprogress (created), failed → allowed
 
-    // Delegate to resource details service — stores in eg_cm_resource_details
     const createdResources: ResourceDetailsResponse[] = [];
     const createdResourceTypes: string[] = [];
     for (const res of newResources as CampaignResource[]) {

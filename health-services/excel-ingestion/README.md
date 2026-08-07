@@ -7,10 +7,13 @@ Changes from v2.0 to v2.1, for product owners, QA and ops.
 - **Generation is now event-driven, with clean retry.** `generate/_init` no longer does the heavy work on the request thread — it validates, queues, and an internal Kafka consumer builds the template. Re-running for the same campaign + type **expires the previous run**, so a stuck, timed-out or stale generation can't shadow the new one and polling always reflects the latest attempt.
 - **Large sheets: faster and safer.** A database search index was added for the staged sheet data (migration `V20260530120000`, applied automatically on start) so status/row searches stay fast on huge uploads; a configurable **max-row guardrail** (default 100,000) rejects oversized files with a clear error instead of hanging; and the Excel parser now runs with **Apache POI safety limits** against oversized/zip-bomb files.
 - **CPU and memory optimised.** Reading formula cells no longer re-scans the whole sheet (removed a slowdown that grew with sheet size), regexes are cached, the formula evaluator is reused, multi-select values are computed lazily, and column-definition lookups are O(1). Template generation for large boundary datasets is faster, and the hidden helper column for multi-select fields was dropped — templates are smaller and quicker.
+- **OOM fix + generation speed-up (this branch).** Heavy upload processing is now **serialized to one task at a time** (async pool trimmed from 5/10/200 to `corePoolSize=1`/`maxPoolSize=1`/`queueCapacity=100` with a `CallerRunsPolicy` backpressure fallback) so a single upload can no longer hold two full workbook DOMs at once — this bounds peak heap and avoids the 2× workbook-DOM OOM. Campaign detail/boundaries/project-type lookups and MDMS schemas are now Caffeine-cached; the user/username existence search is O(n) (`LinkedHashSet` dedup instead of O(n²) `List.contains`) and runs in **bounded-parallel, larger, paginated batches** (no more fixed-limit ~55/~51 silent truncation); and the generation output buffer is pre-sized to avoid repeated array-doubling.
 - **Bigger Kafka payloads supported.** The producer max request size was raised to ~3 MB so large parsed-row chunks and results go through cleanly.
 - **Attendance registers (new capability).** The service can generate attendance-register and attendee templates and ingest the filled sheets — boundary dropdowns, an auto-filled Register ID derived from boundary **code** (not name), locked formula cells, dates accepted in numeric or text form and clamped to the register's window, and rejection of sheets that belong to another campaign or reuse a register ID. Register roles and attendee boundary rules are now MDMS-configured, not hard-coded.
 - **Stronger user/worker validation.** A beneficiary-code field with validation; whitespace rejected in beneficiary code, bank account and bank code; all cell values trimmed consistently; payment fields conditionally required by payment-provider type (and highlighted red); worker IDs verified against the worker registry before a user sheet is accepted; and processing no longer crashes when the sheet has validation errors — they're reported row by row.
-- **Boundary correctness.** Boundaries with the same display name at different levels no longer collide; facilities map to boundaries by id/code instead of name; multi-hierarchy and root-boundary processing are supported/fixed.
+- **Join-mode templates: unprotected sheets, server-enforced immutability (new).** For join-mode template types (`unified-console`, `attendanceRegister`, `attendanceRegisterAttendee`) the **User List and Facilities List are now generated UNPROTECTED** so campaign managers can freely copy/paste and drag-fill in the editable columns. Immutability is instead **enforced on the server**: on upload the service reconstructs every pre-filled / server-managed cell from the **original generated baseline** — matched by a hidden per-row id (`HCM_ADMIN_CONSOLE____ROW_ID`) and a hidden `_h_Meta_h_` metadata sheet that carries the generation id. By **default an edit to a server-managed cell now REJECTS the upload** (`IMMUTABLE_CELL_TAMPERED`), and tampering that removes/duplicates/forges pre-filled rows or strips the embedded generation id is rejected **fail-closed** (missing generationId / baseline-not-found / identity-mismatch / unknown-row-id / orphan-rows / duplicate-row-id). QA note: cells that used to be *locked in Excel* are now *editable in Excel but enforced server-side*.
+- **Paste / drag-fill bypass closed server-side (new).** The active/inactive (usage) column must be **exactly `Active` or `Inactive`** (else rejected with `HCM_VALIDATION_INVALID_USAGE`), and a **boundary selection that does not resolve to a boundary code is now rejected** (`HCM_BOUNDARY_INVALID_SELECTION`) instead of being silently skipped. Both checks run in the user and facility validators.
+- **Boundary correctness.** Boundaries with the same display name at different levels no longer collide; facilities map to boundaries by id/code instead of name; multi-hierarchy and root-boundary processing are supported/fixed. A not-yet-localized / non-ASCII boundary now renders its **boundary code** instead of a blank cell (fallback when the localized value is missing **or blank**).
 - **Search and ops.** `process/_search` and `generate/_search` now filter by `additionalDetails` key-value pairs; campaign search pagination was fixed; the original request context now travels with `hcm-processing-result` (fixing downstream campaign-creation failures); and publish logs show the actual tenant-prefixed topic names for easier log correlation.
 
 ## 1. Purpose
@@ -82,6 +85,8 @@ Base path `/excel-ingestion/v1/data`. Generation and processing are async (retur
 ## 5. Processing Flow
 
 Both generation and processing are **async with polling**. The HTTP call returns a `202` and an id; the work happens off-thread and the caller polls `_search`. Generation is **event-driven**: the API only validates and queues, then an internal Kafka consumer (one record at a time) drives boundary/MDMS/localization fetch → build workbook → upload → status update. Processing parses the uploaded file, stages rows in chunks, and emits the result project-factory waits for.
+
+> **Join-mode immutability check (new).** For join-mode template types (`unified-console`, `attendanceRegister`, `attendanceRegisterAttendee`) the User/Facility lists are generated **unprotected**. During processing the service first loads the **original generated baseline** for the upload's generation id, matches each uploaded row to its baseline row by the hidden `HCM_ADMIN_CONSOLE____ROW_ID` (the generation id itself is carried on a hidden `_h_Meta_h_` sheet), and **reconstructs every server-managed / pre-filled cell**. With `egov.excel.immutable-reject-on-change=true` (default), any edit to a server-managed cell **fails the upload** with `IMMUTABLE_CELL_TAMPERED`; structural tampering (missing/forged generation id, missing baseline, unknown/duplicate row id, orphan rows) is rejected fail-closed. Setting the flag to `false` restores the legacy behaviour of silently reverting the cell and emitting an `HCM_IMMUTABLE_CELL_REVERTED` warning.
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'actorBkg':'#F8746D','actorBorder':'#C9433E','actorTextColor':'#FFFFFF','actorLineColor':'#C9433E','signalColor':'#2C3E50','signalTextColor':'#2C3E50','noteBkgColor':'#57C7C7','noteTextColor':'#06302F','noteBorderColor':'#1B9E9E','labelBoxBkgColor':'#E0F7F4','labelBoxBorderColor':'#1B9E9E','labelTextColor':'#06302F','loopTextColor':'#06302F','sequenceNumberColor':'#FFFFFF'}}}%%
@@ -196,6 +201,7 @@ erDiagram
 - **Retry supersedes the old run ("expired").** A new `generate/_init` for the same `(tenantId, referenceId, type)` marks every prior record for that key as `EXPIRED` (whether it was queued, in progress, completed, failed, or effectively stuck/timed-out) and becomes the single live record. So a stale or hung run can't linger and confuse a poll — the latest request always wins. Expiring old rows is best-effort and never blocks the new run.
 - **Always reports back to project-factory.** The `hcm-processing-result` message is sent in a `finally` block, on success **and** failure, so the campaign flow is never left waiting silently.
 - **Single-consumer assumption.** Generation runs one event at a time (`max-poll-records=1`, listener concurrency 1). The queued→in-progress transition has no DB lock, so raising either without first adding a compare-and-set would cause duplicate generation runs (called out in `application.properties`).
+- **Kafka listener watchdog (new).** A scheduled watchdog restarts any generation-init listener container that has stopped ("zombie" consumer) while the pod otherwise stays healthy, so a dead consumer no longer silently stops processing init events. The check interval is `excel.ingestion.listener.watchdog.interval.ms` (default `60000`). The generation-init `@KafkaListener` now binds a **fixed topic name** (`topics=${excel.ingestion.generation.init.topic}`) rather than a tenant `topicPattern`.
 - **Staging data self-cleans.** Parsed rows in `eg_ex_in_sheet_data_temp` carry a `deleteTime` ~24h out, and `sheet/_delete` lets the caller clean up sooner.
 - If the **persister config** for these topics is missing/stale in an environment, the API will accept and acknowledge work but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
 
@@ -209,14 +215,28 @@ erDiagram
 - **Big-file ceilings are configurable, not infinite.** The 100,000-row limit, POI byte/zip limits and ~3 MB Kafka message size are environment-tunable; an undersized environment can still reject genuinely large campaigns.
 - **Persister dependency.** Like all DIGIT services here, writes go via Kafka → persister; missing/stale persister config means accepted-but-not-saved data.
 
+### Configurable knobs (new on this branch)
+
+These environment-tunable keys are new; defaults are shown and match `application.properties` / `ExcelIngestionConfig`.
+
+| Key | Default | Effect |
+|---|---|---|
+| `egov.excel.user.search.parallel.calls` | `20` | Bounded-parallelism for the user/username existence search. |
+| `egov.excel.user.search.batch.size` | `100` | Batch size per existence-search call (paginated, no fixed-limit truncation). |
+| `egov.excel.immutable-reject-on-change` | `true` | `true` fails the upload when a server-managed pre-filled cell was edited (`IMMUTABLE_CELL_TAMPERED`); `false` reverts the cell silently and warns (`HCM_IMMUTABLE_CELL_REVERTED`). |
+| `egov.excel.join-mode-sheet-protection-enabled` | `false` | `false` keeps the join-mode User/Facility lists editable; `true` protects all join-mode sheets. |
+| `egov.excel.usage-value-validation-enabled` | `true` | Server enforces the usage column is exactly `Active`/`Inactive` (`HCM_VALIDATION_INVALID_USAGE`). |
+| `egov.excel.boundary-selection-validation-enabled` | `true` | Server rejects a boundary selection that does not resolve to a boundary code (`HCM_BOUNDARY_INVALID_SELECTION`). |
+| `excel.ingestion.listener.watchdog.interval.ms` | `60000` | Interval for the Kafka listener watchdog that restarts a stopped generation-init consumer. |
+
 ## 8. Release Version
 
 | Field | Value |
 |---|---|
 | Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
-| Shared libs | `health-services-common` 1.1.4-SNAPSHOT, `health-services-models` 1.0.23-SNAPSHOT, Apache POI 5.4.1 |
-| Doc updated | 2026-06-12 |
+| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT, Apache POI 5.4.1 |
+| Doc updated | 2026-07-20 |
 | Maintainers | Health Campaign Services team (`@jagankumar-egov`) |
 
 ## Pre-commit script

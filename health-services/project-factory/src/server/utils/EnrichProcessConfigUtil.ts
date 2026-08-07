@@ -5,7 +5,7 @@ import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { getBoundaryOnWhichWeSplit, populateBoundariesRecursively } from "./campaignUtils";
 
 export class EnrichProcessConfigUtil {
-    // Example void method: modifies templateConfig in-place
+    // Mutates templateConfig in-place (adds locked sheets per split boundary).
     async enrichTargetProcessConfig(resourceDetails: ResourceDetails, templateConfig: any) {
         logger.info("Enriching Boundary Process Config");
         const { campaignId, tenantId } = resourceDetails;
@@ -41,7 +41,7 @@ export class EnrichProcessConfigUtil {
         logger.info("Boundary Process Config Enriched");
     }
 
-    // Dynamic function executor for void methods
+    // Dispatches to the named enrich method by string, so config can select the enrichment step.
     async execute(functionName: string, resourceDetails: ResourceDetails, templateConfig: any) {
         const func = (this as any)[functionName];
         if (typeof func === 'function') {

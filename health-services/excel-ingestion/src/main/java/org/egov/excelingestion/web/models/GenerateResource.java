@@ -67,6 +67,17 @@ public class GenerateResource {
 
     @JsonProperty("fileStoreId")
     private String fileStoreId;
+
+    /**
+     * Transient (not persisted) runtime flag set during generation: true ONLY for the join-mode template
+     * families (see ProcessingConstants.isJoinModeType: unified-console / attendanceRegister /
+     * attendanceRegisterAttendee) and when the master switch is on. Carried on the resource so all
+     * generation routes (schema-based, custom ExcelPopulator, and the direct User/Facility generators)
+     * leave the sheet unprotected + stamp hidden row-ids, and so applyWorkbookSettings embeds the
+     * generationId metadata sheet and skips workbook-level protection.
+     */
+    @JsonIgnore
+    private boolean unprotectedJoinMode;
     
     @JsonProperty("createdBy")
     private String createdBy;

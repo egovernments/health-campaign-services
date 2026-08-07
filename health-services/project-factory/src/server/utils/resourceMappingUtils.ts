@@ -6,6 +6,7 @@ import { createProjectResource } from "../api/genericApis";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 
+/** Legacy path: creates project-resource links for each to-be-mapped resource row and persists the new mapping status. */
 export async function startResourceMapping(campaignDetails : any, useruuid : string, requestInfo: RequestInfo) {
     const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("resource", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeMapped);
     if(allCurrentMappingsToDo.length <= 0){
@@ -45,9 +46,8 @@ export async function startResourceMapping(campaignDetails : any, useruuid : str
             await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
           }
           catch (error) {
-            // Log the error if the API call fails
             logger.error(`Failed to create project resource for resourceId ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, error);
-            throw error; // Rethrow the error to propagate it
+            throw error;
           }
     }
 }

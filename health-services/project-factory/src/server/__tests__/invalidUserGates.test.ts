@@ -92,7 +92,7 @@ jest.mock('../config', () => ({
         project: { creationBatchSize: 20 },
         boundary: { mappingPersistBatchSize: 100, persistBatchSize: 100 },
         facility: { persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50 },
-        user: { mappingPersistBatchSize: 100, persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50, validationSearchBatchSize: 50, individualSearchBatchSize: 50 },
+        user: { mappingPersistBatchSize: 100, persistBatchSize: 100, creationBatchSize: 100, kafkaCreateBatchSize: 30, searchBatchSize: 50, validationSearchBatchSize: 50, individualSearchBatchSize: 50, individualConsistencyPollIntervalMs: 1, individualConsistencyMaxPollAttempts: 2, workerCreateBatchLag: 0 },
         workerRegistry: { searchBatchSize: 50, updateBatchSize: 100 },
         mapping: { kafkaBatchSize: 30, persistBatchSize: 100 },
         attendanceRegister: { attendeePersistBatchSize: 100, registerPersistBatchSize: 100, registerApiBatchSize: 100 },
@@ -358,7 +358,8 @@ describe('Gap 3 — worker registry failures tagged FAILED not INVALID', () => {
             .mockResolvedValueOnce({ Individual: [] } as any)      // idempotency check
             .mockResolvedValueOnce({                               // HRMS create
                 Employees: [{ user: { mobileNumber: '+91-1', userServiceUuid: 'svc-1', uuid: 'ind-1' } }],
-            } as any);
+            } as any)
+            .mockResolvedValueOnce({ Individual: [{ id: 'ind-1' }] } as any); // consistency check finds the individual → worker path reached
 
         const { DataTransformer } = await import('../utils/transFormUtil');
         (DataTransformer as jest.Mock).mockImplementation(() => ({

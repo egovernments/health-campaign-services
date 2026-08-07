@@ -4,9 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.kafka.CustomKafkaTemplate;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+
+import static org.egov.tracer.constants.TracerConstants.TENANTID_MDC;
 
 // NOTE: If tracer is disabled change CustomKafkaTemplate to KafkaTemplate in autowiring
 
@@ -34,7 +37,16 @@ public class Producer {
     public void push(String tenantId, String topic, Object value) {
         String updatedTopic = multiStateInstanceUtil.getStateSpecificTopicName(tenantId, topic);
         log.info("The Kafka topic for the tenantId : {} is : {}", tenantId, updatedTopic);
-        kafkaTemplate.send(updatedTopic, value);
+        // seed tenantId into MDC (restore after) so the producer interceptor can stamp the header
+        boolean seeded = ObjectUtils.isEmpty(MDC.get(TENANTID_MDC)) && !ObjectUtils.isEmpty(tenantId);
+        if (seeded)
+            MDC.put(TENANTID_MDC, tenantId);
+        try {
+            kafkaTemplate.send(updatedTopic, value);
+        } finally {
+            if (seeded)
+                MDC.remove(TENANTID_MDC);
+        }
     }
 
     /**

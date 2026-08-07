@@ -7,7 +7,7 @@ Changes from v2.0 to v2.1.
 - **No functional changes — dependency/config-only rebuild.** Product was rebuilt against newer shared libraries with no change to its APIs, entities, Kafka topics or database schema. The git history for this service since `v2.0` is limited to version bumps and the items below.
 - **Tracer 2.9.2 upgrade for consistent `DataAccessException` handling.** The direct `tracer` dependency was removed; tracer now comes in transitively via `health-services-common`, so database-error responses are handled uniformly via tracer's shared `ExceptionAdvise`.
 - **OpenTelemetry wiring added.** OTEL BOMs were added to dependency management (for version resolution) and the OTEL exporters are configured off by default (`otel.*.exporter=none`) in `application.properties`.
-- **Shared-library version bumps.** `health-services-common` to `1.1.3-SNAPSHOT`; service version bumped to `1.2.1`.
+- **Shared-library version bumps.** `health-services-common` to `1.1.6-SNAPSHOT`, `health-services-models` to `1.0.35-SNAPSHOT`; service version bumped to `1.2.1`.
 
 ## 1. Purpose
 
@@ -126,8 +126,8 @@ sequenceDiagram
 |---|---|
 | Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
-| Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.29-SNAPSHOT, `services-common` 2.9.0-SNAPSHOT |
-| Doc updated | 2026-06-12 |
+| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT, `services-common` 2.9.0-SNAPSHOT |
+| Doc updated | 2026-07-20 |
 | Maintainers | Health Campaign Services team (CODEOWNERS: `@kavi-egov`, `@sathishp-eGov`) |
 
 ## Pre-commit script

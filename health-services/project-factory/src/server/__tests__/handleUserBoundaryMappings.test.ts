@@ -192,6 +192,39 @@ describe('handleUserBoundaryMappings — sheet-presence-driven demap', () => {
         expect(producedTo('update-map')).toHaveLength(0);
     });
 
+    it('revives a skipped mapping to toBeMapped on retry (user now created)', async () => {
+        getMappingMock.mockResolvedValue([
+            existingMapping('+91-1', 'B001', mappingStatuses.skipped),
+        ] as any);
+
+        await handleUserBoundaryMappings(
+            'CMP-1', 'tn',
+            [{ phoneNumber: '+91-1', boundaryCode: 'B001', active: true }],
+            new Set(), new Set(['+91-1'])
+        );
+
+        const revived = producedTo('update-map');
+        expect(revived).toHaveLength(1);
+        expect(revived[0]).toMatchObject({
+            uniqueIdentifierForData: '+91-1',
+            boundaryCode: 'B001',
+            status: mappingStatuses.toBeMapped,
+        });
+        // Must update the existing row, not create a duplicate
+        expect(producedTo('save-map')).toHaveLength(0);
+    });
+
+    it('does not revive a skipped mapping for a user absent from the sheet', async () => {
+        getMappingMock.mockResolvedValue([
+            existingMapping('+91-1', 'B001', mappingStatuses.skipped),
+        ] as any);
+
+        await handleUserBoundaryMappings('CMP-1', 'tn', [], new Set(), new Set());
+
+        expect(producedTo('update-map')).toHaveLength(0);
+        expect(producedTo('save-map')).toHaveLength(0);
+    });
+
     it('creates toBeMapped rows for new active users without touching others', async () => {
         getMappingMock.mockResolvedValue([existingMapping('+91-9', 'B009')] as any);
 

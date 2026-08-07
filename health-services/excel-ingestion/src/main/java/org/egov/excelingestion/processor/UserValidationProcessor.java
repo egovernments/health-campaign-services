@@ -14,6 +14,7 @@ import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.util.RequestInfoUtil;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.BoundaryService;
@@ -26,6 +27,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component
@@ -86,7 +93,10 @@ public class UserValidationProcessor implements IWorkbookProcessor {
 
             // Validate that at least one active user exists
             validateAtLeastOneActiveUser(sheetData, errors, localizationMap);
-            
+
+            // Validate the editable active/inactive column against the allowed values (paste/drag-fill safe)
+            validateUsageValues(sheetData, errors, localizationMap);
+
             // Validate phone numbers and get list of existing ones in campaign
             Set<String> existingPhonesInCampaign = validatePhoneNumbers(sheetData, resource, requestInfo, errors, localizationMap);
             
@@ -95,7 +105,10 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             
             // Validate boundary keys for active users
             validateBoundaryKeys(sheetData, errors, localizationMap);
-            
+
+            // Validate that boundary selections resolved to a code (paste/drag-fill safe)
+            validateBoundarySelections(sheetData, resource, errors, localizationMap);
+
             // Validate boundary codes against campaign boundaries
             validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
 
@@ -367,6 +380,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             log.info("No phone numbers to validate");
             return new HashSet<>();
         }
+
+        // Materialize as a List for the index-based batch (subList) and stream operations below.
+        List<String> allPhoneNumbers = new ArrayList<>(uniquePhoneNumbers);
         
         // Check campaign data for existing users with completed status (any campaign)
         String tenantId = resource.getTenantId();
@@ -448,7 +464,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                     ErrorConstants.PHONE_VALIDATION_FAILED_MESSAGE, e);
             }
         }
-        
+
         log.info("Phone number validation completed");
         return existingInCampaign;
     }
@@ -509,6 +525,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             log.info("No usernames to validate");
             return;
         }
+
+        // Materialize as a List for the index-based batch (subList) operations below.
+        List<String> allUserNames = new ArrayList<>(uniqueUserNames);
         
         // Search in batches of 50
         final int BATCH_SIZE = 50;
@@ -534,14 +553,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                         errors.add(error);
                     }
                 }
-                
-            } catch (Exception e) {
-                log.error("Error validating username batch: {}", e.getMessage(), e);
-                exceptionHandler.throwCustomException(ErrorConstants.USERNAME_VALIDATION_FAILED, 
-                    ErrorConstants.USERNAME_VALIDATION_FAILED_MESSAGE, e);
             }
         }
-        
+
         log.info("Username validation completed");
     }
     
@@ -603,7 +617,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         searchBody.put("RequestInfo", requestInfo);
 
         Map<String, Object> individual = new HashMap<>();
-        individual.put("username", usernames);
+        individual.put(field, values);
         searchBody.put("Individual", individual);
 
         // No limit: usernames are unique, so a batch of N usernames returns at most N records.
@@ -644,6 +658,87 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         return foundUsernames;
     }
     
+    /**
+     * Rejects any user row whose active/inactive (usage) value is not exactly one of the allowed values
+     * {Active, Inactive}. Excel list-validation is bypassed on paste/drag-fill, so this server-side check
+     * is the real gate against an out-of-list value in the sole editable column. Blank is left to the
+     * existing "at least one active" / boundary checks. Exact match: every downstream check compares
+     * "Active" case-sensitively, so accepting other casings would pass validation yet count as inactive.
+     */
+    private void validateUsageValues(List<Map<String, Object>> sheetData, List<ValidationError> errors,
+                                     Map<String, String> localizationMap) {
+        if (!config.isUsageValueValidationEnabled()) {
+            return;
+        }
+        for (Map<String, Object> rowData : sheetData) {
+            String usage = ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.USER_USAGE_COLUMN_KEY));
+            if (usage == null || usage.trim().isEmpty()) {
+                continue; // blank is handled by the active-count / boundary checks
+            }
+            String value = usage.trim();
+            if (!value.equals(ValidationConstants.USAGE_ACTIVE)
+                    && !value.equals(ValidationConstants.USAGE_INACTIVE)) {
+                ValidationError error = new ValidationError();
+                error.setRowNumber((Integer) rowData.get("__actualRowNumber__"));
+                error.setColumnName(ProcessingConstants.USER_USAGE_COLUMN_KEY);
+                error.setStatus(ValidationConstants.STATUS_INVALID);
+                error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                        ValidationConstants.HCM_VALIDATION_INVALID_USAGE,
+                        ValidationConstants.DEFAULT_INVALID_USAGE));
+                errors.add(error);
+            }
+        }
+    }
+
+    /**
+     * Rejects any user row whose boundary selection did not resolve to a boundary code. The cascading
+     * boundary dropdowns are bypassed by Excel on paste/drag-fill, and an out-of-list name makes the
+     * VLOOKUP boundary-code formula evaluate to blank - which the campaign-boundary check silently skips.
+     * A row with any non-blank hierarchy-level value but a blank code is therefore not a selection from
+     * the dropdown list. Rows with no boundary selection at all are left to the active-usage checks.
+     */
+    private void validateBoundarySelections(List<Map<String, Object>> sheetData, ProcessResource resource,
+                                            List<ValidationError> errors, Map<String, String> localizationMap) {
+        if (!config.isBoundarySelectionValidationEnabled()) {
+            return;
+        }
+        if (resource.getHierarchyType() == null || resource.getHierarchyType().isEmpty()) {
+            return;
+        }
+        String hierarchyPrefix = resource.getHierarchyType().toUpperCase() + "_";
+        for (Map<String, Object> rowData : sheetData) {
+            String boundaryCode = ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY));
+            if (boundaryCode != null && !boundaryCode.trim().isEmpty()) {
+                continue; // selection resolved; campaign membership is validated separately
+            }
+            if (hasBoundarySelection(rowData, hierarchyPrefix)) {
+                ValidationError error = new ValidationError();
+                error.setRowNumber((Integer) rowData.get("__actualRowNumber__"));
+                error.setStatus(ValidationConstants.STATUS_INVALID);
+                error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                        ValidationConstants.HCM_BOUNDARY_INVALID_SELECTION,
+                        ValidationConstants.DEFAULT_BOUNDARY_INVALID_SELECTION));
+                errors.add(error);
+            }
+        }
+    }
+
+    /** True when any visible hierarchy-level column of the row has a value. */
+    private boolean hasBoundarySelection(Map<String, Object> rowData, String hierarchyPrefix) {
+        for (Map.Entry<String, Object> entry : rowData.entrySet()) {
+            String key = entry.getKey();
+            if (!key.toUpperCase().startsWith(hierarchyPrefix)
+                    || key.endsWith(ProcessingConstants.HELPER_COLUMN_SUFFIX)) {
+                continue;
+            }
+            String value = ExcelUtil.getValueAsString(entry.getValue());
+            if (value != null && !value.trim().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Validate boundary keys for active users
      */

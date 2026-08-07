@@ -11,6 +11,8 @@ Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
 - **Project-facility now returned in responses.** Project search responses can include the linked project-facility object, saving the client a second lookup.
 - **Project search: immediate-children option.** Project `/v1/_search` gained an `includeImmediateChildren` flag (default off). When set, the search returns only a matched project's **direct children** (one level down) instead of the full descendant subtree that `includeDescendants` returns — a lighter call for "show me the projects directly under this one" without pulling the whole tree. Applies to the **v1** search path only.
 - **NPE guarding and cleanup** on the new code paths (facility-by-boundary search), plus a tracer 2.9.2 / OpenTelemetry dependency upgrade shared across the health services.
+- **Cross-entity existence validation is now toggleable — and defaults OFF (ops/QA note).** A new config flag `project.relationship.validation` (default `false`) controls whether **task** and **beneficiary** create/update reject a record whose referenced parent (project / product-variant / beneficiary-subject) cannot be found yet. With the default `false`, those existence checks are **skipped**, so a record is accepted even while its parent is still on the persister queue (offline-first / "unbundled" rollout). Set the flag to `true` to enforce the existence checks. **Regardless of the flag**, two new always-on structural validators (`PtRequiredLinkValidator`, `PbRequiredLinkValidator`, error code `REQUIRED_LINK_MISSING`) still reject records missing a `clientReferenceId` or a beneficiary link (task: `projectBeneficiaryId`/`projectBeneficiaryClientReferenceId`; beneficiary: `beneficiaryId`/`beneficiaryClientReferenceId`) — this prevents orphan / NOT-NULL-violating rows. QA/ops should be aware existence validation is disabled by default on this branch.
+- **Within-batch duplicate `clientReferenceId` no longer drops the whole bulk batch (batch-resilience note).** For task, beneficiary and user-action bulk create, a duplicate `clientReferenceId` inside a single batch used to throw and drop the **entire** batch. Now the first occurrence is kept and each subsequent duplicate is flagged individually as a per-record uniqueness error, so the valid records still persist.
 
 ### Flow: bulk stock-count update (v2.1)
 
@@ -167,7 +169,8 @@ sequenceDiagram
 ## 6. Failure / Retry Handling
 
 - **Async, no batch rollback.** A bulk request returns `202` before persistence. If one record in the batch fails validation in the consumer, it does not roll back the others — check consumer logs and the record's status.
-- **Idempotency** is via `clientReferenceId` — re-submitting the same one should not create a duplicate row.
+- **Idempotency** is via `clientReferenceId` — re-submitting the same one should not create a duplicate row. A duplicate `clientReferenceId` **within a single bulk batch** is now isolated to that one record (flagged as a uniqueness error) instead of dropping the whole batch (see v2.1 note).
+- **Cross-entity existence validation is gated behind `project.relationship.validation` (default `false` = off).** With it off, task/beneficiary records referencing a not-yet-persisted parent are accepted rather than rejected (offline-first). The always-on `REQUIRED_LINK_MISSING` structural checks still reject records missing `clientReferenceId` or a beneficiary link, so no orphan/NOT-NULL-violating rows are written (see v2.1 note).
 - **Optimistic locking** via `rowVersion` protects against concurrent edits on the normal entity-update paths (task, beneficiary, etc.). (See the v2.1 note for the one place this is now relaxed — the user-action path.)
 - **Soft delete** (`isDeleted`) everywhere — nothing is hard-deleted; unique constraints include the delete flag.
 - If the **persister config** for the project topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
@@ -186,8 +189,8 @@ sequenceDiagram
 |---|---|
 | Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 |
-| Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
-| Doc updated | 2026-06-12 |
+| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
+| Doc updated | 2026-07-20 |
 | Maintainers | Health Campaign Services team (CODEOWNERS: `@kavi-egov`, `@sathishp-eGov`) |
 
 ## Pre-commit script

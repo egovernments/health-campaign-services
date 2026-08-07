@@ -1,17 +1,7 @@
 import { getFormattedStringForDebug, logger } from "../logger";
 
-/* 
-TODO: Update configObject with appropriate values.
-This object contains configuration settings for delivery strategies and wait times.
-*/
-
-
 /* TODO: Update the logic to fetch the projecttype master */
 const defaultProjectType: any = {
-  /* 
-    Define default project types with their respective properties.
-    Each project type represents a specific type of campaign.
-    */
   "MR-DN": {
     id: "b1107f0c-7a91-4c76-afc2-a279d8a7b76a",
     name: "configuration for Multi Round Campaigns",
@@ -48,18 +38,15 @@ const defaultProjectType: any = {
   },
 };
 
-/* 
-Convert campaign details to project details enriched with campaign information.
-*/
+/** Returns the campaign's first delivery rule as the project type, falling back to the LLIN-mz default when none exist. */
 export const projectTypeConversion = (
   campaignObject: any = {}
 ) => {
   const deliveryRules = campaignObject.deliveryRules;
   return deliveryRules?.[0] || defaultProjectType?.["LLIN-mz"];
 };
-/* 
-Enrich project details from campaign details.
-*/
+
+/** Builds the health-project create payload from campaign details and the resolved project type. */
 export const enrichProjectDetailsFromCampaignDetails = (
   CampaignDetails: any = {},
   projectTypeObject: any = {}

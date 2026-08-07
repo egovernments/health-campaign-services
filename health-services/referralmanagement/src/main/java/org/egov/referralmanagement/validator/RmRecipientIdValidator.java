@@ -7,6 +7,7 @@ import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.service.UserService;
 import org.egov.common.validator.Validator;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.service.FacilityService;
 import org.egov.referralmanagement.util.ValidatorUtil;
 import org.egov.tracer.model.CustomException;
@@ -36,10 +37,13 @@ import static org.egov.referralmanagement.Constants.STAFF;
 public class RmRecipientIdValidator implements Validator<ReferralBulkRequest, Referral> {
     private final FacilityService facilityService;
     private final UserService userService;
+    private final ReferralManagementConfiguration referralManagementConfiguration;
 
-    public RmRecipientIdValidator(FacilityService facilityService, UserService userService) {
+    public RmRecipientIdValidator(FacilityService facilityService, UserService userService,
+                                  ReferralManagementConfiguration referralManagementConfiguration) {
         this.facilityService = facilityService;
         this.userService = userService;
+        this.referralManagementConfiguration = referralManagementConfiguration;
     }
 
     /**
@@ -82,14 +86,22 @@ public class RmRecipientIdValidator implements Validator<ReferralBulkRequest, Re
         });
 
         List<String> invalidStaffIds = new ArrayList<>(projectStaffUuidList);
-        // fetch valid identifiers and remove it from invalidStaffIds
-        ValidatorUtil.validateAndEnrichStaffIds(tenantId, request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
-
-        // fetch valid facilities and remove it from invalidfacilityIds
         List<String> invalidFacilityIds = new ArrayList<>(facilityIdList);
-        List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIdList, entities, tenantId,
-                errorDetailsMap, request.getRequestInfo());
-        invalidFacilityIds.removeAll(validFacilityIds);
+        // The INVALID_RECIPIENT_TYPE enum check (recipientType switch above) always runs. The staff/facility
+        // EXISTENCE lookups are gated behind the flag: when it is OFF we skip them and treat recipients as
+        // valid (no invalid ids), so a recipient whose user/facility is still propagating is not rejected.
+        if (referralManagementConfiguration.isRelationshipValidation()) {
+            // fetch valid identifiers and remove it from invalidStaffIds
+            ValidatorUtil.validateAndEnrichStaffIds(tenantId, request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
+
+            // fetch valid facilities and remove it from invalidfacilityIds
+            List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIdList, entities, tenantId,
+                    errorDetailsMap, request.getRequestInfo());
+            invalidFacilityIds.removeAll(validFacilityIds);
+        } else {
+            invalidStaffIds.clear();
+            invalidFacilityIds.clear();
+        }
 
         return new Tuple<>(invalidStaffIds, invalidFacilityIds);
     }

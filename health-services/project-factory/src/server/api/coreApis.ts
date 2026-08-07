@@ -1,26 +1,11 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
-// Import necessary types and utilities
 import { BoundaryModels, MDMSModels } from "../models";
 import config from "../config";
 import { defaultheader, httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 
 
-/**
- * Searches MDMS data via the v2 API for specific unique identifiers.
- *
- * @author jagankumar-egov
- * 
- * @param MdmsCriteria - The criteria for the MDMS v2 search, including tenantId and schemaCode.
- * @returns Promise resolving to the MDMS v2 search response containing matched data.
- */
-/**
- * Searches MDMS data using the v2 API with optional caching.
- * 
- * @param criteria - The MDMS criteria used to search.
- * @param cacheEnabled - Enables cache key header if true.
- * @returns A promise resolving to MDMS v2 API response.
- */
+/** Searches MDMS v2, optionally sending a cache-key header so repeated schema lookups are served from Redis. */
 const searchMDMSDataViaV2Api = async (
   criteria: MDMSModels.MDMSv2RequestCriteria,
   cacheEnabled: boolean = false,
@@ -72,23 +57,19 @@ const searchMDMSSchema = async (
   SchemaDefCriteria: MDMSModels.MDMSSchemaRequestCriteria,
   requestInfo?: RequestInfo
 ): Promise<MDMSModels.MDMSSchemaResponse> => {
-  // Construct the request body including schema criteria and default request info
   const requestBody = {
     ...SchemaDefCriteria,
     RequestInfo: requestInfo,
   };
 
-  // Define the API URL for schema retrieval
   const url = config.host.mdmsV2 + config.paths.mdmsSchema;
 
-  // Make an HTTP request with a tenant ID in headers
   const response: MDMSModels.MDMSSchemaResponse = await httpRequest(
     url,
     requestBody,
     { tenantId: SchemaDefCriteria?.SchemaDefCriteria?.tenantId }
   );
 
-  // Return the schema definitions from the response
   return response;
 };
 
@@ -104,23 +85,19 @@ const searchMDMSDataViaV1Api = async (
   MdmsCriteria: MDMSModels.MDMSv1RequestCriteria,
   requestInfo?: RequestInfo
 ): Promise<MDMSModels.MDMSv1Response> => {
-  // Construct the request body with v1 search criteria and default request info
   const requestBody = {
     ...MdmsCriteria,
     RequestInfo: requestInfo,
   };
 
-  // Define the API URL for MDMS v1 search
   const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
 
-  // Make an HTTP request with tenant ID in headers
   const response: MDMSModels.MDMSv1Response = await httpRequest(
     url,
     requestBody,
     { tenantId: MdmsCriteria.MdmsCriteria.tenantId }
   );
 
-  // Return the search result from MDMS v1
   return response;
 };
 
@@ -152,22 +129,18 @@ const searchBoundaryEntity = async (
   offset: number = 0,
   requestInfo?: RequestInfo
 ): Promise<BoundaryModels.BoundaryEntityResponse> => {
-  // Prepare request body with default request information
   const requestBody = {
     RequestInfo: requestInfo,
   };
 
-  // Construct API URL for boundary entity search
   const url = config.host.boundaryHost + config.paths.boundaryServiceSearch;
 
-  // Execute HTTP request with tenant ID, offset, limit, and codes in headers
   const response: BoundaryModels.BoundaryEntityResponse = await httpRequest(
     url,
     requestBody,
     { tenantId, offset, limit, codes }
   );
 
-  // Return the response containing boundary entity data
   return response;
 };
 
@@ -199,7 +172,6 @@ const searchBoundaryRelationshipData = async (
   codes?: string,
   requestInfo?: RequestInfo
 ): Promise<BoundaryModels.BoundaryHierarchyRelationshipResponse> => {
-  // Prepare request body with default request information
   const requestBody = {
     RequestInfo: requestInfo,
   };
@@ -210,17 +182,15 @@ const searchBoundaryRelationshipData = async (
     }),
   };
 
-  // Construct API URL for boundary hierarchy relationship search
   const url = config.host.boundaryHost + config.paths.boundaryRelationship;
   const params = {
     tenantId,
     hierarchyType,
     includeChildren,
     includeParents,
-    ...(codes && { codes }) // Only add `codes` if it's provided
+    ...(codes && { codes })
   };
 
-  // Execute HTTP request with tenant ID, hierarchy type, and inclusion flags in headers
   const response: BoundaryModels.BoundaryHierarchyRelationshipResponse = await httpRequest(
     url,
     requestBody,
@@ -230,7 +200,6 @@ const searchBoundaryRelationshipData = async (
     headers
   );
 
-  // Return the response containing boundary relationship data
   return response;
 };
 
@@ -255,27 +224,24 @@ const searchBoundaryRelationshipDefinition = async (
   BoundaryTypeHierarchySearchCriteria: BoundaryModels.BoundaryHierarchyDefinitionSearchCriteria,
   requestInfo?: RequestInfo
 ): Promise<BoundaryModels.BoundaryHierarchyDefinitionResponse> => {
-  // Prepare request body with search criteria and default request information
   const requestBody = {
     ...BoundaryTypeHierarchySearchCriteria,
     RequestInfo: requestInfo,
   };
 
-  // Construct API URL for boundary hierarchy definition search
   const url = config.host.boundaryHost + config.paths.boundaryHierarchy;
 
-  // Execute HTTP request to fetch boundary hierarchy definitions
   const response: BoundaryModels.BoundaryHierarchyDefinitionResponse = await httpRequest(
     url,
     requestBody,
   );
 
-  // Return the response containing hierarchy definition data
   return response;
 };
 
 
 
+/** Resolves a filestore id to its downloadable URL via egov-filestore. */
 const fetchFileFromFilestore = async (filestoreId: string, tenantId: string) => {
 
   try {
@@ -329,5 +295,4 @@ async function createMdmsData(
   logger.info(`Created data for ${schemaCode} in MDMS for tenant ${tenantId}`);
 }
 
-// Exporting all API functions for MDMS operations
 export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api, searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, fetchFileFromFilestore, createMdmsData };

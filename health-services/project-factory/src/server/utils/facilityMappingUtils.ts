@@ -7,11 +7,13 @@ import { createProjectFacility } from "../api/genericApis";
 import config from "../config";
 import { httpRequest } from "./request";
 
+/** Reconciles facility→project mappings for a campaign by mapping newly-added facilities and demapping removed ones. */
 export async function startFacilityMappingAndDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     await startFacilityMapping(campaignDetails, useruuid, requestInfo);
     await startFacilityDemapping(campaignDetails, useruuid, requestInfo);
 }
 
+/** Creates project-facility links for every mapping row marked toBeMapped and records the resulting mappingId. */
 export async function startFacilityMapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const facilitiesToMap = await getMappingDataRelatedToCampaign("facility", campaignDetails.campaignNumber, campaignDetails?.tenantId, mappingStatuses.toBeMapped);
     if (facilitiesToMap.length === 0) return;
@@ -64,6 +66,7 @@ export async function startFacilityMapping(campaignDetails: any, useruuid: strin
 }
 
 
+/** Deletes project-facility links for every mapping row marked toBeDeMapped, tolerating rows with no live mapping. */
 export async function startFacilityDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
     const facilitiesToDeMap = await getMappingDataRelatedToCampaign("facility", campaignDetails.campaignNumber, campaignDetails?.tenantId, mappingStatuses.toBeDeMapped);
     if (facilitiesToDeMap.length === 0) return;
