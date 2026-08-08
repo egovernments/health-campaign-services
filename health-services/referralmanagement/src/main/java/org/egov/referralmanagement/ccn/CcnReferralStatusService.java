@@ -161,11 +161,12 @@ public class CcnReferralStatusService {
         return status != null && csvToSet(p.getForwardableStatuses()).contains(status.trim().toUpperCase());
     }
 
-    /** Beckn contract status.code SPICE expects for a given HCM referralStatus; defaults to ACTIVE. */
-    public String statusCodeFor(String referralStatus) {
-        if (referralStatus == null) return "ACTIVE";
-        return csvToMap(p.getBackStatusCodeMap())
-                .getOrDefault(referralStatus.trim().toUpperCase(), "ACTIVE");
+    /** CCN {@code contractAttributes.lifecycleState} for a given HCM referralStatus. Reject AND cancel
+     *  both map to CANCELLED (per SPICE); unmapped values pass through unchanged. */
+    public String ccnLifecycleFor(String referralStatus) {
+        if (referralStatus == null || referralStatus.isBlank()) return referralStatus;
+        String s = referralStatus.trim().toUpperCase();
+        return csvToMap(p.getOutboundLifecycleMap()).getOrDefault(s, s);
     }
 
     private static Set<String> csvToSet(String csv) {

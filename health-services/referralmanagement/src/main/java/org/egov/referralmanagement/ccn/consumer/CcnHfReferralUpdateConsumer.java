@@ -94,10 +94,16 @@ public class CcnHfReferralUpdateConsumer {
         }
         String normalized = status.trim().toUpperCase();
         String reason = statusService.readReason(hf);   // e.g. rejection reason (nullable)
+        // Inbound referrals set referralCode = coordinationId (lookup by coordination works). OUTBOUND
+        // referrals carry the app's own referralCode, so fall back to correlating by the HFReferral id.
         CcnReferralLink link = linkRepository.findByCoordinationId(coordinationId, hf.getTenantId());
+        if (link == null) {
+            link = linkRepository.findByHfReferralId(hf.getId(), hf.getTenantId());
+        }
         if (link == null) {
             return;   // unrelated HFReferral — no coordination to push on
         }
+        coordinationId = link.getCoordinationId();   // use the real coordination id from the link
         if (CcnReferralLink.INBOUND.equals(link.getDirection())) {
             // SPICE→HCM referral: worker accept / reject-with-reason / complete → BPP on_update.
             log.info("CCN HFReferral {} (coordinationId={}) inbound status={} → on_update to SPICE",

@@ -178,17 +178,15 @@ public class HealthReferralMapper {
      * is the worker's free-text note, carried on the status descriptor + contractAttributes.
      */
     public ObjectNode update(String txnId, String coordinationId, String spicePatientId,
-                             String statusCode, String lifecycleState, String reason) {
+                             String ccnLifecycleState, String reason) {
         ObjectNode root = om.createObjectNode();
         root.set("context", context("update", txnId));
         ObjectNode contract = root.putObject("message").putObject("contract");
         contract.put("id", coordinationId);
-        ObjectNode status = contract.putObject("status");
-        status.put("code", statusCode);
-        if (reason != null && !reason.isBlank()) {
-            status.putObject("descriptor").put("short_desc", reason);
-        }
-        addCommitments(contract, statusCode);
+        // status.code must be a wire code CCN accepts (only DRAFT/ACTIVE pass) — the real outcome goes
+        // in contractAttributes.lifecycleState. descriptor is not allowed under contract.status.
+        contract.putObject("status").put("code", p.getWireStatusCode());
+        addCommitments(contract, p.getWireStatusCode());
         if (spicePatientId != null && !spicePatientId.isBlank()) {
             ObjectNode patient = contract.putArray("participants").addObject();
             patient.put("id", "participant-patient");
@@ -204,10 +202,18 @@ public class HealthReferralMapper {
         ca.put("@context", p.getHealthReferralCtx());
         ca.put("@type", "hrf:HealthReferral");
         ca.put("coordinationId", coordinationId);
-        ca.put("lifecycleState", lifecycleState);
+        ca.put("lifecycleState", ccnLifecycleState);   // real outcome (ACCEPTED / CANCELLED / COMPLETED)
         if (reason != null && !reason.isBlank()) {
             ca.put("statusReason", reason);
         }
+        // targetCriteria is required by CCN; serviceCategory.code must be in the allowed clinical set.
+        ObjectNode tc = ca.putObject("targetCriteria");
+        ObjectNode sc = tc.putObject("serviceCategory");
+        sc.put("@context", p.getCodedValueCtx());
+        sc.put("@type", "ServiceCategory");
+        sc.put("code", p.getWireServiceCategory());
+        sc.put("display", "Consultation");
+        tc.put("consultationModality", "IN_PERSON");
         return root;
     }
 }
