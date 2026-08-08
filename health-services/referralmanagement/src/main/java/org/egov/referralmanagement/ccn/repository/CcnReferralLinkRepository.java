@@ -65,6 +65,16 @@ public class CcnReferralLinkRepository {
     private static final String SELECT_BY_ID_TMPL =
             "SELECT * FROM %s.ccn_referral_link WHERE coordination_id = :coordinationId";
 
+    private static final String UPDATE_POST_ACK_TMPL =
+            "UPDATE %s.ccn_referral_link SET post_update_ack = :postUpdateAck, last_modified_time = :lastModifiedTime " +
+            "WHERE coordination_id = :coordinationId";
+
+    // Only records a follow-up state once WE have pushed an update (post_update_ack set) — so ordinary
+    // callbacks before any HCM update don't populate it.
+    private static final String UPDATE_POST_STATE_TMPL =
+            "UPDATE %s.ccn_referral_link SET post_update_state = :postUpdateState, last_modified_time = :lastModifiedTime " +
+            "WHERE coordination_id = :coordinationId AND post_update_ack IS NOT NULL";
+
     private final RowMapper<CcnReferralLink> mapper = (rs, i) -> CcnReferralLink.builder()
             .coordinationId(rs.getString("coordination_id"))
             .transactionId(rs.getString("transaction_id"))
@@ -81,6 +91,8 @@ public class CcnReferralLinkRepository {
             .serviceCategory(rs.getString("service_category"))
             .targetBookingRef(rs.getString("target_booking_ref"))
             .lastPayload(rs.getString("last_payload"))
+            .postUpdateAck(rs.getString("post_update_ack"))
+            .postUpdateState(rs.getString("post_update_state"))
             .tenantId(rs.getString("tenant_id"))
             .createdTime(rs.getObject("created_time") == null ? null : rs.getLong("created_time"))
             .lastModifiedTime(rs.getObject("last_modified_time") == null ? null : rs.getLong("last_modified_time"))
@@ -117,6 +129,34 @@ public class CcnReferralLinkRepository {
                 .addValue("lastModifiedTime", l.getLastModifiedTime()));
     }
 
+    /** Store the CCN ACK/NACK response to our update push. Fans out over tenants when tenantId is null. */
+    public int updatePostUpdateAck(String coordinationId, String ack, String tenantId) {
+        MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("coordinationId", coordinationId)
+                .addValue("postUpdateAck", ack)
+                .addValue("lastModifiedTime", System.currentTimeMillis());
+        int total = 0;
+        for (String t : tenantsToTry(tenantId)) {
+            try { total += jdbc.update(schema(UPDATE_POST_ACK_TMPL, t), p); }
+            catch (Exception e) { log.debug("CCN updatePostUpdateAck fanout tenant {} skipped: {}", t, e.getMessage()); }
+        }
+        return total;
+    }
+
+    /** Store SPICE's follow-up lifecycleState (the state it reports after our update). Fans out on null tenant. */
+    public int updatePostUpdateState(String coordinationId, String state, String tenantId) {
+        MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("coordinationId", coordinationId)
+                .addValue("postUpdateState", state)
+                .addValue("lastModifiedTime", System.currentTimeMillis());
+        int total = 0;
+        for (String t : tenantsToTry(tenantId)) {
+            try { total += jdbc.update(schema(UPDATE_POST_STATE_TMPL, t), p); }
+            catch (Exception e) { log.debug("CCN updatePostUpdateState fanout tenant {} skipped: {}", t, e.getMessage()); }
+        }
+        return total;
+    }
+
     /** Update lifecycle. Pass tenantId when known; pass null on outbound callbacks to fan out. */
     public int updateState(String coordinationId, String lifecycleState, String lastAction, long modifiedTime, String tenantId) {
         MapSqlParameterSource p = new MapSqlParameterSource()
@@ -144,6 +184,22 @@ public class CcnReferralLinkRepository {
                 if (!rows.isEmpty()) return rows.get(0);
             } catch (Exception e) {
                 log.debug("CCN findByCoordinationId fanout tenant {} skipped: {}", t, e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    /** Correlate by the originating HFReferral id — needed for OUTBOUND referrals, whose HFReferral
+     *  referralCode is the app's own code (not the coordination_id); their link is keyed by hf_referral_id. */
+    public CcnReferralLink findByHfReferralId(String hfReferralId, String tenantId) {
+        MapSqlParameterSource p = new MapSqlParameterSource("hfReferralId", hfReferralId);
+        String tmpl = "SELECT * FROM %s.ccn_referral_link WHERE hf_referral_id = :hfReferralId ORDER BY last_modified_time DESC";
+        for (String t : tenantsToTry(tenantId)) {
+            try {
+                List<CcnReferralLink> rows = jdbc.query(schema(tmpl, t), p, mapper);
+                if (!rows.isEmpty()) return rows.get(0);
+            } catch (Exception e) {
+                log.debug("CCN findByHfReferralId fanout tenant {} skipped: {}", t, e.getMessage());
             }
         }
         return null;

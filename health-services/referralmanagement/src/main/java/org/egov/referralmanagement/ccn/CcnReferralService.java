@@ -163,16 +163,18 @@ public class CcnReferralService {
         }
         String coordinationId = link.getCoordinationId();
         String spicePatientId = link.getBeneficiaryId();   // the SPICE patientId originally sent
-        String statusCode = statusService.statusCodeFor(status);
+        String ccnLifecycle = statusService.ccnLifecycleFor(status);   // reject & cancel -> CANCELLED
         String txn = link.getTransactionId() != null ? link.getTransactionId() : UUID.randomUUID().toString();
         try {
-            log.info("CCN outbound update: pushing {} ({}={}) to SPICE for coordinationId={}{}",
-                    "update", status, statusCode, coordinationId, reason != null ? " reason=" + reason : "");
-            onix.send("update", mapper.update(txn, coordinationId, spicePatientId, statusCode, status, reason));
+            log.info("CCN outbound update: pushing update (referralStatus={} -> lifecycleState={}) to SPICE for coordinationId={}{}",
+                    status, ccnLifecycle, coordinationId, reason != null ? " reason=" + reason : "");
+            String ack = String.valueOf(onix.send("update", mapper.update(txn, coordinationId, spicePatientId, ccnLifecycle, reason)));
             safeUpdate(coordinationId, status, "update", link.getTenantId());
+            linkRepository.updatePostUpdateAck(coordinationId, ack, link.getTenantId());   // store CCN's ACK/NACK
         } catch (Exception e) {
             // Fire-and-store: SPICE may or may not receive it — never block the CHW's cancel.
             log.error("CCN outbound update failed for coordinationId={}: {}", coordinationId, e.getMessage());
+            linkRepository.updatePostUpdateAck(coordinationId, "NACK: " + e.getMessage(), link.getTenantId());
         }
     }
 

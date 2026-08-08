@@ -45,9 +45,12 @@ class CcnReferralStatusServiceTest {
         assertFalse(svc.isMirroredState("SOMETHING_ELSE"));
         assertTrue(svc.isForwardableStatus("ACCEPTED"));
         assertFalse(svc.isForwardableStatus("RECEIVED"));       // initial state is not pushed back
-        assertEquals("CANCELLED", svc.statusCodeFor("REJECTED"));
-        assertEquals("COMPLETE", svc.statusCodeFor("RESOLVED"));
-        assertEquals("ACTIVE", svc.statusCodeFor("UNKNOWN"));    // default
+        // ccnLifecycleFor: reject & cancel both -> CANCELLED; resolve -> COMPLETED; unknown passes through
+        assertEquals("CANCELLED", svc.ccnLifecycleFor("REJECTED"));
+        assertEquals("CANCELLED", svc.ccnLifecycleFor("CANCELLED"));
+        assertEquals("ACCEPTED", svc.ccnLifecycleFor("ACCEPTED"));
+        assertEquals("COMPLETED", svc.ccnLifecycleFor("RESOLVED"));
+        assertEquals("UNKNOWN", svc.ccnLifecycleFor("UNKNOWN"));  // passthrough
     }
 
     @Test

@@ -143,10 +143,19 @@ public class CcnProperties {
     private String hfUpdateConsumerGroup = "referralmanagement-ccn-hfreferral-status";
     /** Beckn action used to push HCM-initiated (inbound accept/reject/resolve) status changes back to SPICE. */
     private String backAction = "on_update";
-    /** Maps each HCM referralStatus → the Beckn contract {@code status.code} sent to SPICE
-     *  ({@code referralStatus:statusCode}, comma-separated, UPPERCASE). Unmapped defaults to ACTIVE. */
-    private String backStatusCodeMap =
-            "ACCEPTED:ACTIVE,REJECTED:CANCELLED,RESOLVED:COMPLETE,COMPLETED:COMPLETE,CANCELLED:CANCELLED,CLOSED:COMPLETE";
+    /** The Beckn protocol {@code contract.status.code} we put on the wire for an update. CCN's schema
+     *  only accepts {@code DRAFT}/{@code ACTIVE} here (it validates status.code against two contradictory
+     *  enums whose intersection is DRAFT/ACTIVE — verified live), so terminal outcomes CANNOT be sent as
+     *  a status code. The real outcome travels in {@code contractAttributes.lifecycleState} instead. */
+    private String wireStatusCode = "ACTIVE";
+    /** {@code targetCriteria.serviceCategory.code} — CCN requires this and only allows
+     *  ADMISSION/CONSULTATION/INVESTIGATION/PROCEDURE (verified live). */
+    private String wireServiceCategory = "CONSULTATION";
+    /** Maps each HCM referralStatus → the {@code contractAttributes.lifecycleState} value sent to SPICE
+     *  ({@code referralStatus:lifecycleState}, comma-separated, UPPERCASE). Per SPICE: reject AND cancel
+     *  both go out as CANCELLED. Unmapped passes through unchanged. */
+    private String outboundLifecycleMap =
+            "ACCEPTED:ACCEPTED,REJECTED:CANCELLED,CANCELLED:CANCELLED,RESOLVED:COMPLETED,COMPLETED:COMPLETED,CLOSED:COMPLETED";
     /** System user stamped on backend-initiated HFReferral writes (e.g. the SPICE→HCM status mirror).
      *  The status consumer skips push-back for updates made by this user so a mirror never bounces
      *  back to SPICE — only genuine app/worker status changes flow out. */

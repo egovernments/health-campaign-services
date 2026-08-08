@@ -87,7 +87,7 @@ public class CcnBppService {
             case "init"     -> { upsertInbound(coordinationId, txn, bapId, "DRAFT", "init", body, null); dispatch("on_init", mapper.onEcho("on_init", body, "DRAFT", "DRAFT")); }
             case "confirm"  -> onConfirm(coordinationId, txn, bapId, body);
             case "status"   -> dispatch("on_status", mapper.onEcho("on_status", body, currentState(coordinationId), "ACTIVE"));
-            case "update"   -> { upsertInbound(coordinationId, txn, bapId, lifecycleState(body), "update", body, null); dispatch("on_update", mapper.onEcho("on_update", body, lifecycleState(body), "ACTIVE")); }
+            case "update"   -> { upsertInbound(coordinationId, txn, bapId, lifecycleState(body), "update", body, null); linkRepository.updatePostUpdateState(coordinationId, lifecycleState(body), p.getInboundTenantId()); dispatch("on_update", mapper.onEcho("on_update", body, lifecycleState(body), "ACTIVE")); }
             default         -> log.warn("CCN BPP unhandled action {}", action);
         }
     }
@@ -273,19 +273,23 @@ public class CcnBppService {
             return;
         }
         JsonNode lastInbound = parse(link.getLastPayload());
-        String statusCode = statusService.statusCodeFor(lifecycleState);
+        String ccnLifecycle = statusService.ccnLifecycleFor(lifecycleState);   // reject & cancel -> CANCELLED
         String onAction = p.getBackAction();
-        dispatch(onAction, mapper.statusUpdate(lastInbound, coordinationId, lifecycleState, statusCode, onAction, reason));
+        String ack = dispatch(onAction, mapper.statusUpdate(lastInbound, coordinationId, ccnLifecycle, onAction, reason));
         linkRepository.updateState(coordinationId, lifecycleState, "publishResult", System.currentTimeMillis(), p.getInboundTenantId());
-        log.info("CCN BPP pushed {} ({}={}) to SPICE for inbound coordinationId={}{}",
-                onAction, lifecycleState, statusCode, coordinationId, reason != null ? " reason=" + reason : "");
+        linkRepository.updatePostUpdateAck(coordinationId, ack, p.getInboundTenantId());   // store CCN's ACK/NACK
+        log.info("CCN BPP pushed {} (referralStatus={} -> lifecycleState={}) to SPICE for inbound coordinationId={} ack={}{}",
+                onAction, lifecycleState, ccnLifecycle, coordinationId, ack, reason != null ? " reason=" + reason : "");
     }
 
-    private void dispatch(String onAction, JsonNode payload) {
+    /** Dispatch a BPP on_* callback; return the CCN response (ACK/NACK json) or an error marker. */
+    private String dispatch(String onAction, JsonNode payload) {
         try {
-            onix.sendBpp(onAction, payload);
+            JsonNode resp = onix.sendBpp(onAction, payload);
+            return resp == null ? null : resp.toString();
         } catch (Exception e) {
             log.error("CCN BPP dispatch {} failed: {}", onAction, e.getMessage());
+            return "NACK: " + e.getMessage();
         }
     }
 

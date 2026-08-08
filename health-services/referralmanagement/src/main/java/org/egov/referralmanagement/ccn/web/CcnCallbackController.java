@@ -83,6 +83,9 @@ public class CcnCallbackController {
             // outcome next cycle (Accepted/Rejected/Completed/Cancelled). No-op for non-mirrored states
             // and for inbound coordinations. HCM sends nothing back on outbound — it only reflects.
             statusService.mirrorFromSpice(coordinationId, state);
+            // If this callback follows an HCM-initiated update on this coordination, record SPICE's
+            // follow-up state (no-op unless post_update_ack was already set). Fan out over tenants (null).
+            linkRepository.updatePostUpdateState(coordinationId, state, null);
             return ResponseEntity.ok(ack());
         } catch (Exception e) {
             log.error("CCN {} callback error: {}", action, e.getMessage());

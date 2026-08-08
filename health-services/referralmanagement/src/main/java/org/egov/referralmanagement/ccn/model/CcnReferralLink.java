@@ -35,6 +35,10 @@ public class CcnReferralLink {
     private String targetBookingRef;              // escalation link (ADR-0002)
     private String lastPayload;                   // last raw message (audit/replay)
 
+    // ── what CCN returns AFTER an HCM-initiated update (accept/reject/cancel/complete) ──
+    private String postUpdateAck;                 // CCN ACK/NACK(+error) response to our update push
+    private String postUpdateState;               // SPICE's follow-up lifecycleState after our update
+
     private String tenantId;
     private Long createdTime;
     private Long lastModifiedTime;
