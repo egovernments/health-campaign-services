@@ -61,7 +61,11 @@ public class HBoundaryValidator implements Validator<HouseholdBulkRequest, House
         // Filter households with non-null addresses
         List<Household> entitiesWithValidBoundaries = request.getHouseholds().parallelStream()
                 .filter(household -> Objects.nonNull(household.getAddress()))
-                .filter(household -> Objects.nonNull(household.getAddress().getLocality())) // Exclude null locality codes
+                .filter(household -> Objects.nonNull(household.getAddress().getLocality()))
+                // Exclude null locality codes. The code is the grouping key below, and
+                // Collectors.groupingBy throws NullPointerException on a null key, which would
+                // fail the whole batch rather than this one record.
+                .filter(household -> Objects.nonNull(household.getAddress().getLocality().getCode()))
                 .collect(Collectors.toList());
 
         Map<String, List<Household>> tenantIdHouseholdMap = entitiesWithValidBoundaries.stream().collect(Collectors.groupingBy(Household::getTenantId));
