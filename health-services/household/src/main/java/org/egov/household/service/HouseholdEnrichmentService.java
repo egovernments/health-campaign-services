@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichForDelete;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.enrichId;
 import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
@@ -77,15 +78,7 @@ public class HouseholdEnrichmentService {
 
     public void delete(List<Household> households, HouseholdBulkRequest request) {
         log.info("starting delete method for households {}", households);
-        for (Household household : households) {
-            if (household.getIsDeleted()) {
-                log.info("updating audit details for deleted households");
-                AuditDetails auditDetails = getAuditDetailsForUpdate(household.getAuditDetails(),
-                        request.getRequestInfo().getUserInfo().getUuid());
-                household.setAuditDetails(auditDetails);
-                household.setRowVersion(household.getRowVersion() + 1);
-            }
-        }
+        enrichForDelete(households, request.getRequestInfo(), true);
         log.info("completed delete method for households {}", households);
     }
 }

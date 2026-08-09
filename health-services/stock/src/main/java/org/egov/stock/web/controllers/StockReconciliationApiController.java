@@ -51,7 +51,10 @@ public class StockReconciliationApiController {
     }
 
     @RequestMapping(value = "/reconciliation/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<StockReconciliationResponse> stockReconciliationV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @RequestBody StockReconciliationRequest request) {
+    // @Valid was missing here while every other endpoint on this controller has it, so NO payload
+    // constraint was evaluated on this one route — not the clientReferenceId length check, not a
+    // missing facilityId. It is the only endpoint of its kind across these services.
+    public ResponseEntity<StockReconciliationResponse> stockReconciliationV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockReconciliationRequest request) {
         StockReconciliation stock = stockReconciliationService.create(request);
         StockReconciliationResponse response = StockReconciliationResponse.builder()
                 .stockReconciliation(stock)

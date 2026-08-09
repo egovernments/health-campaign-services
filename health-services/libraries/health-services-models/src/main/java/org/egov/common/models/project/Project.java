@@ -64,6 +64,7 @@ public class Project {
     private List<Document> documents = null;
 
     @JsonProperty("address")
+    @Valid
     private Address address = null;
 
     @JsonProperty("startDate")
