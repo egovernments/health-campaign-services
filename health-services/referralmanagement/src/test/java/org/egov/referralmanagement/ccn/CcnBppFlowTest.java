@@ -231,6 +231,9 @@ class CcnBppFlowTest {
         assertEquals("CLOSED", payload.at("/message/contract/commitments/0/status/descriptor/code").asText());
         assertEquals("CANCELLED", payload.at("/message/contract/contractAttributes/lifecycleState").asText());
         assertEquals("coord-in-1", payload.at("/message/contract/contractAttributes/coordinationId").asText());
+        // CCN's Attributes schema requires @context + @type — synthesized contractAttributes must carry them
+        assertFalse(payload.at("/message/contract/contractAttributes/@context").isMissingNode());
+        assertEquals("scoord:ServiceCoordination", payload.at("/message/contract/contractAttributes/@type").asText());
     }
 
     @Test

@@ -86,7 +86,7 @@ public class CcnBppService {
             case "select"   -> { upsertInbound(coordinationId, txn, bapId, "DRAFT", "select", body, null); dispatch("on_select", mapper.onEcho("on_select", body, "DRAFT", "DRAFT")); }
             case "init"     -> { upsertInbound(coordinationId, txn, bapId, "DRAFT", "init", body, null); dispatch("on_init", mapper.onEcho("on_init", body, "DRAFT", "DRAFT")); }
             case "confirm"  -> onConfirm(coordinationId, txn, bapId, body);
-            case "status"   -> { String cs = currentState(coordinationId); dispatch("on_status", mapper.onEcho("on_status", body, cs, statusService.wireStatusCodeFor(cs))); }
+            case "status"   -> dispatch("on_status", mapper.statusUpdate(body, coordinationId, statusService.ccnLifecycleFor(currentState(coordinationId)), "on_status", null));   // full CCN-valid shape (commitments + contractAttributes + targetCriteria)
             case "update"   -> { String ls = lifecycleState(body); upsertInbound(coordinationId, txn, bapId, ls, "update", body, null); linkRepository.updatePostUpdateState(coordinationId, ls, p.getInboundTenantId()); statusService.mirrorFromSpice(coordinationId, ls); dispatch("on_update", mapper.onEcho("on_update", body, ls, statusService.wireStatusCodeFor(ls))); }
             default         -> log.warn("CCN BPP unhandled action {}", action);
         }

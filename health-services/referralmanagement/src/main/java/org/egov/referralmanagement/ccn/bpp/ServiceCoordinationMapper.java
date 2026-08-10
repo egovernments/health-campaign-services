@@ -102,6 +102,10 @@ public class ServiceCoordinationMapper {
             ObjectNode ca = contract.has("contractAttributes") && contract.get("contractAttributes").isObject()
                     ? (ObjectNode) contract.get("contractAttributes")
                     : contract.putObject("contractAttributes");
+            // CCN's Attributes schema REQUIRES @context + @type — a synthesized contractAttributes (bare
+            // status poll had none) must carry them or CCN 400s the on_status ("@context is missing").
+            if (!ca.hasNonNull("@context")) ca.put("@context", p.getServiceCoordinationCtx());
+            if (!ca.hasNonNull("@type")) ca.put("@type", "scoord:ServiceCoordination");
             ca.put("lifecycleState", lifecycleState);
             if (!ca.hasNonNull("coordinationId")) {
                 String cid = contract.path("id").asText(null);
