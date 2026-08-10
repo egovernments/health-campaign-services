@@ -154,7 +154,8 @@ class ProductApiControllerTest {
         ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
 
         assertEquals(1, response.getErrors().size());
-        assertEquals("NotNull.productRequest.product[0].tenantId", response.getErrors().get(0).getCode());
+        // EgovModel.tenantId carries @NotBlank, not @NotNull, so a null tenant reports NotBlank.
+        assertEquals("NotBlank.productRequest.product[0].tenantId", response.getErrors().get(0).getCode());
     }
 
 

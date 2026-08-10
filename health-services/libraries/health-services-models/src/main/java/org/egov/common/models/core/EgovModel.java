@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,6 +23,9 @@ public class EgovModel {
 
     @JsonProperty("id")
     @Size(min = 2, max = 64)
+    // Same hole clientReferenceId had: @Size alone accepts a whitespace-only value. @Pattern skips
+    // nulls, so a create that carries no id yet is unaffected.
+    @Pattern(regexp = ".*\\S.*", message = "id must contain a non-whitespace character")
     protected String id;
 
     @JsonProperty("tenantId")
