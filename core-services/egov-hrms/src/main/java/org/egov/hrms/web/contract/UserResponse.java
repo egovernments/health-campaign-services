@@ -42,6 +42,7 @@ package org.egov.hrms.web.contract;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Builder;
@@ -70,5 +71,31 @@ public class UserResponse {
 	@JsonIgnore
 	@Builder.Default
 	private Long totalCount = 0L;
+
+	/**
+	 * Per-record failure info surfaced by the underlying user backend
+	 * (individual or egov-user). Each entry carries at least
+	 * <code>username</code>, <code>errorCode</code>, and
+	 * <code>errorMessage</code>. Callers correlate by username. Marked
+	 * {@code @JsonIgnore} because callers of the search/create HTTP APIs
+	 * don't need to see this on the wire — it's an in-memory channel to
+	 * propagate failure detail through {@link org.egov.hrms.service.UserService}
+	 * implementations up to {@link org.egov.hrms.service.EmployeeService}.
+	 */
+	@JsonIgnore
+	@Builder.Default
+	private List<Map<String, Object>> errors = new ArrayList<>();
+
+	/**
+	 * Per-username source attribution when this response comes from
+	 * {@link org.egov.hrms.service.UserService#searchByUsernames}: maps
+	 * matching username -> the backend that detected it
+	 * ({@code "individual"} for a direct hit in the individual table,
+	 * {@code "egov-user"} for a hit via the eg_user cross-check when no
+	 * individual row existed). Empty when nothing matched.
+	 */
+	@JsonIgnore
+	@Builder.Default
+	private Map<String, String> sourceByUsername = new java.util.HashMap<>();
 
 }

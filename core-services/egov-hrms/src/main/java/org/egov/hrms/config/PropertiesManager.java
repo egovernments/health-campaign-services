@@ -67,7 +67,10 @@ public class PropertiesManager {
 	
 	@Value("${egov.user.create.endpoint}")
 	public String userCreateEndpoint;
-	
+
+	@Value("${egov.user.create.bulk.endpoint}")
+	public String userCreateBulkEndpoint;
+
 	@Value("${egov.user.update.endpoint}")
 	public String userUpdateEndpoint;
 
@@ -130,6 +133,9 @@ public class PropertiesManager {
 
 	@Value("${egov.individual.create.endpoint}")
 	private String individualCreateEndpoint;
+
+	@Value("${egov.individual.create.bulk.endpoint}")
+	private String individualCreateBulkEndpoint;
 
 	@Value("${egov.individual.update.endpoint}")
 	private String individualUpdateEndpoint;

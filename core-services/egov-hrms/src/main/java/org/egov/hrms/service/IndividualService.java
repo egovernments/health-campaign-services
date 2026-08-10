@@ -5,6 +5,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -19,6 +20,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
+import org.egov.hrms.model.Employee;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
 import org.egov.hrms.web.contract.User;
@@ -39,20 +41,29 @@ public class IndividualService implements UserService {
 
     private final RestCallRepository restCallRepository;
 
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
     @Autowired
     public IndividualService(PropertiesManager propertiesManager,
-                             RestCallRepository restCallRepository) {
+                             RestCallRepository restCallRepository,
+                             com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.propertiesManager = propertiesManager;
         this.restCallRepository = restCallRepository;
+        this.objectMapper = objectMapper;
     }
 
 
     @Override
     public UserResponse createUser(UserRequest userRequest) {
         IndividualRequest request = mapToIndividualRequest(userRequest, null);
+        // synchronous=true asks the individual service to return the fully
+        // enriched individual (id/userId/userUuid) in the response body
+        // instead of queuing it on Kafka. Harmless on endpoints that don't
+        // honour the flag.
         StringBuilder uri = new StringBuilder();
         uri.append(propertiesManager.getIndividualHost());
         uri.append(propertiesManager.getIndividualCreateEndpoint());
+        uri.append("?synchronous=true");
         IndividualResponse response = restCallRepository
                 .fetchResult(uri, request, IndividualResponse.class);
         UserResponse userResponse = null;
@@ -68,12 +79,65 @@ public class IndividualService implements UserService {
         StringBuilder uri = new StringBuilder();
         uri.append(propertiesManager.getIndividualHost());
         uri.append(propertiesManager.getIndividualCreateEndpoint());
+        uri.append("?synchronous=true");
         IndividualResponse response = restCallRepository
           .fetchResult(uri, request, IndividualResponse.class);
         UserResponse userResponse = null;
         if (response != null && response.getIndividual() != null) {
             log.info("response received from individual service");
             userResponse = mapToUserResponse(response);
+        }
+        return userResponse;
+    }
+
+    @Override
+    public UserResponse createUsers(RequestInfo requestInfo, List<Employee> employees) {
+        UserResponse userResponse = new UserResponse();
+        if (employees == null || employees.isEmpty())
+            return userResponse;
+
+        // Build one individual per employee, carrying that employee's locality (first jurisdiction).
+        List<Individual> individuals = new ArrayList<>();
+        for (Employee employee : employees) {
+            String localityCode = (employee.getJurisdictions() != null && !employee.getJurisdictions().isEmpty())
+                    ? employee.getJurisdictions().get(0).getBoundary() : null;
+            UserRequest userRequest = UserRequest.builder()
+                    .requestInfo(requestInfo)
+                    .user(employee.getUser())
+                    .build();
+            individuals.add(mapToIndividual(userRequest, localityCode));
+        }
+
+        // IndividualBulkRequest shape: { "RequestInfo": ..., "Individuals": [...] }. Built as a map to
+        // avoid introducing a new model import. synchronous=true makes the endpoint process inline and
+        // return the created individuals (with id/userId/userUuid) AND a rich per-record Errors array
+        // so we can propagate downstream failure detail up to EmployeeService.
+        Map<String, Object> bulkRequest = new HashMap<>();
+        bulkRequest.put("RequestInfo", requestInfo);
+        bulkRequest.put("Individuals", individuals);
+
+        StringBuilder uri = new StringBuilder();
+        uri.append(propertiesManager.getIndividualHost())
+                .append(propertiesManager.getIndividualCreateBulkEndpoint())
+                .append("?synchronous=true");
+
+        // Read the response as a raw Map so we can pick up both "Individual" (list of created
+        // individuals) and "Errors" (per-record failure detail with fields + code + message).
+        // The individual service emits this shape only when ?synchronous=true is set.
+        Object raw = restCallRepository.fetchResult(uri, bulkRequest);
+        if (raw instanceof Map) {
+            Map<String, Object> respMap = (Map<String, Object>) raw;
+            // Convert Individual list to IndividualBulkResponse for reuse of mapToUserResponse
+            IndividualBulkResponse response = objectMapper.convertValue(respMap, IndividualBulkResponse.class);
+            if (response != null && response.getIndividual() != null && !response.getIndividual().isEmpty()) {
+                log.info("bulk individuals created via individual service");
+                userResponse = mapToUserResponse(response);
+            }
+            // Propagate Errors verbatim so EmployeeService can build a rich rejection message
+            Object errs = respMap.get("Errors");
+            if (errs instanceof java.util.List) {
+                userResponse.setErrors((java.util.List<Map<String, Object>>) errs);
+            }
         }
         return userResponse;
     }
@@ -238,6 +302,94 @@ public class IndividualService implements UserService {
         return userResponse;
     }
 
+    @Override
+    public UserResponse searchByUsernames(RequestInfo requestInfo, List<String> usernames, String tenantId) {
+        UserResponse userResponse = new UserResponse();
+        if (usernames == null || usernames.isEmpty())
+            return userResponse;
+        // De-duplicate; the individual search resolves the whole username list in a single
+        // IN (...) query (see getIndividualResponse which already requests limit=1000).
+        List<String> distinctUsernames = usernames.stream().distinct().collect(Collectors.toList());
+        requestInfo.setCorrelationId(requestInfo.getCorrelationId().concat("-username-hrms"));
+        IndividualSearchRequest request = IndividualSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .individual(IndividualSearch.builder()
+                        .username(distinctUsernames)
+                        .type(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE)
+                        .build())
+                .build();
+        IndividualBulkResponse response = getIndividualResponse(tenantId, request);
+        if (response != null && response.getIndividual() != null && !response.getIndividual().isEmpty()) {
+            log.info("response received from individual service for bulk username search");
+            userResponse = mapToUserResponse(response);
+            // Track: every username hit here came from Individual.
+            if (userResponse.getUser() != null) {
+                for (org.egov.hrms.web.contract.User u : userResponse.getUser()) {
+                    if (!StringUtils.isEmpty(u.getUserName())) {
+                        userResponse.getSourceByUsername().put(u.getUserName(), "individual");
+                    }
+                }
+            }
+        }
+
+        // Cross-check against egov-user directly for legacy employees that have
+        // a row in eg_user but no matching row in `individual`. That situation
+        // arises when the employee was created before HRMS was switched to the
+        // individualService backend, or when the individual-persister lag
+        // dropped a message. Uniqueness is enforced in eg_user regardless of
+        // which backend created the user, so egov-user is the source of truth.
+        try {
+            java.util.Set<String> foundByIndividual = new java.util.HashSet<>();
+            if (userResponse.getUser() != null) {
+                userResponse.getUser().forEach(u -> {
+                    if (!StringUtils.isEmpty(u.getUserName()))
+                        foundByIndividual.add(u.getUserName());
+                });
+            }
+            List<String> remaining = distinctUsernames.stream()
+                    .filter(u -> !foundByIndividual.contains(u))
+                    .collect(Collectors.toList());
+            if (!remaining.isEmpty()) {
+                java.util.List<org.egov.hrms.web.contract.User> merged =
+                        new java.util.ArrayList<>(userResponse.getUser() != null ? userResponse.getUser() : java.util.Collections.emptyList());
+                StringBuilder uri = new StringBuilder();
+                uri.append(propertiesManager.getUserHost()).append(propertiesManager.getUserSearchEndpoint());
+                java.util.Map<String, Object> body = new java.util.HashMap<>();
+                body.put("RequestInfo", requestInfo);
+                body.put("tenantId", tenantId);
+                body.put("userType", HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
+                body.put("userNames", remaining);
+                Object raw = restCallRepository.fetchResult(uri, body);
+                if (raw instanceof java.util.Map) {
+                    Object users = ((java.util.Map<String, Object>) raw).get("user");
+                    if (users instanceof java.util.List) {
+                        for (Object o : (java.util.List<?>) users) {
+                            if (!(o instanceof java.util.Map)) continue;
+                            java.util.Map<String, Object> u = (java.util.Map<String, Object>) o;
+                            String uname = (String) u.get("userName");
+                            if (StringUtils.isEmpty(uname)) continue;
+                            merged.add(org.egov.hrms.web.contract.User.builder()
+                                    .userName(uname)
+                                    .uuid((String) u.get("uuid"))
+                                    .id(u.get("id") != null ? Long.valueOf(String.valueOf(u.get("id"))) : null)
+                                    .tenantId((String) u.get("tenantId"))
+                                    .build());
+                            // Attribute: this username was found via the egov-user cross-check.
+                            userResponse.getSourceByUsername().put(uname, "egov-user");
+                        }
+                        userResponse.setUser(merged);
+                        log.info("cross-checked {} usernames against egov-user, {} additional matches found",
+                                remaining.size(), merged.size() - foundByIndividual.size());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("egov-user cross-check failed during username pre-check (falling back to individual-only view). "
+                    + "exceptionClass={} exceptionMessage={}", e.getClass().getSimpleName(), e.getMessage());
+        }
+        return userResponse;
+    }
+
     private IndividualBulkResponse getIndividualResponse(String tenantId, IndividualSearchRequest individualSearchRequest) {
         return restCallRepository.fetchResult(
                 new StringBuilder(propertiesManager.getIndividualHost()
@@ -266,6 +418,13 @@ public class IndividualService implements UserService {
     }
 
     private static IndividualRequest mapToIndividualRequest(UserRequest userRequest, String localityCode) {
+        return IndividualRequest.builder()
+                .requestInfo(userRequest.getRequestInfo())
+                .individual(mapToIndividual(userRequest, localityCode))
+                .build();
+    }
+
+    private static Individual mapToIndividual(UserRequest userRequest, String localityCode) {
         Individual individual = Individual.builder()
                 .id(userRequest.getUser().getUuid())
                 .userId(userRequest.getUser().getId() != null ?
@@ -323,10 +482,7 @@ public class IndividualService implements UserService {
                 .clientAuditDetails(AuditDetails.builder().createdBy(userRequest.getRequestInfo().getUserInfo().getUuid()).lastModifiedBy(userRequest.getRequestInfo().getUserInfo().getUuid()).build())
                 .rowVersion(userRequest.getUser().getRowVersion())
                 .build();
-        return IndividualRequest.builder()
-                .requestInfo(userRequest.getRequestInfo())
-                .individual(individual)
-                .build();
+        return individual;
     }
 
     private static UserResponse mapToUserResponse(IndividualResponse response) {

@@ -107,21 +107,38 @@ public class IBoundaryValidator implements Validator<IndividualBulkRequest, Indi
 
 
                     individualsWithInvalidBoundaries.forEach(individual -> {
-                        // Create an error object for individuals with invalid boundaries
+                        // Which boundary code(s) on THIS individual were invalid?
+                        String badCodes = individual.getAddress() == null ? "" :
+                                individual.getAddress().stream()
+                                        .filter(a -> a.getLocality() != null && a.getLocality().getCode() != null)
+                                        .map(a -> a.getLocality().getCode())
+                                        .filter(invalidBoundaryCodes::contains)
+                                        .distinct()
+                                        .collect(Collectors.joining(","));
+                        String message = String.format(
+                                "Boundary code(s) [%s] not found in tenant '%s' via boundary-service. "
+                                        + "individualClientRef=%s, individualId=%s. "
+                                        + "Ensure the boundary hierarchy is populated for this tenant.",
+                                badCodes.isEmpty() ? String.join(",", invalidBoundaryCodes) : badCodes,
+                                tenantId,
+                                individual.getClientReferenceId(),
+                                individual.getId());
                         Error error = Error.builder()
-                                .errorMessage("Boundary code does not exist in db")
-                                .errorCode("NON_EXISTENT_ENTITY")
+                                .errorMessage(message)
+                                .errorCode("INDIVIDUAL_BOUNDARY_CODE_NOT_FOUND")
                                 .type(Error.ErrorType.NON_RECOVERABLE)
-                                .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
+                                .exception(new CustomException("INDIVIDUAL_BOUNDARY_CODE_NOT_FOUND", message))
                                 .build();
-                        // Populate error details for the individual
                         populateErrorDetails(individual, error, errorDetailsMap);
                     });
 
                 } catch (Exception e) {
                     log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
-                    // Throw a custom exception if an error occurs during boundary search
-                    throw new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR","Error in while fetching boundaries from Boundary Service : " + e.getMessage());
+                    throw new CustomException("INDIVIDUAL_BOUNDARY_SERVICE_SEARCH_ERROR",
+                            String.format("Failed to reach boundary-service while validating boundaries for tenantId='%s'. "
+                                            + "downstreamExceptionClass=%s downstreamMessage=%s",
+                                    tenantId, e.getClass().getSimpleName(),
+                                    e.getMessage() != null ? e.getMessage() : "(no message)"));
                 }
             }
         });

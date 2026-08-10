@@ -98,7 +98,7 @@ public class EgovEmployeeApplication {
                                       @Value("${egov.user.search.endpoint}") String userSearchEndpoint) {
         if (userServiceQualifier.equalsIgnoreCase("individualService")) {
             log.info("using individual module as user service");
-            return new IndividualService(propertiesManager, restCallRepository);
+            return new IndividualService(propertiesManager, restCallRepository, objectMapper);
         }
         else {
             log.info("using egov-user module as user service");
