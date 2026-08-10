@@ -71,8 +71,8 @@ class CcnStatusFlowIntegrationTest {
         // REAL components
         CcnReferralStatusService statusService = new CcnReferralStatusService(
                 props, hfReferralService, hfReferralRepository, linkRepo);
-        ServiceCoordinationMapper bppMapper = new ServiceCoordinationMapper(props, om);
-        HealthReferralMapper bapMapper = new HealthReferralMapper(props, om);
+        ServiceCoordinationMapper bppMapper = new ServiceCoordinationMapper(props, om, statusService);
+        HealthReferralMapper bapMapper = new HealthReferralMapper(props, om, statusService);
         CcnIdentityResolver identityResolver = mock(CcnIdentityResolver.class);
         CcnBppService bpp = new CcnBppService(props, bppMapper, onix, linkRepo,
                 mock(ReferralManagementService.class), hfReferralService, mock(InboundProjectResolver.class),
@@ -113,13 +113,14 @@ class CcnStatusFlowIntegrationTest {
         assertEquals("on_update", payload.at("/context/action").asText());
         assertEquals("bap.mdtlabs.org", payload.at("/context/bapId").asText());
         assertEquals("2.0.0", payload.at("/context/version").asText());
-        // CCN-verified shape: status.code = ACTIVE (wire), real outcome CANCELLED in lifecycleState,
-        // reason in contractAttributes.statusReason (NOT under status), commitments + targetCriteria present.
+        // CCN displays from status.code: REJECTED -> wire CANCELLED; commitment descriptor CLOSED;
+        // reason in contractAttributes.statusReason (NOT under status); lifecycleState carried too.
         assertEquals("coord-in-1", payload.at("/message/contract/id").asText());
-        assertEquals("ACTIVE", payload.at("/message/contract/status/code").asText());
+        assertEquals("CANCELLED", payload.at("/message/contract/status/code").asText());
         assertTrue(payload.at("/message/contract/status/descriptor").isMissingNode());     // no descriptor under status
         assertTrue(payload.at("/message/contract/commitments").isArray()
                 && payload.at("/message/contract/commitments").size() > 0);                 // required
+        assertEquals("CLOSED", payload.at("/message/contract/commitments/0/status/descriptor/code").asText());
         assertEquals("CANCELLED", payload.at("/message/contract/contractAttributes/lifecycleState").asText());  // REJECTED->CANCELLED
         assertEquals("Patient outside catchment", payload.at("/message/contract/contractAttributes/statusReason").asText());
         assertFalse(payload.at("/message/contract/contractAttributes/targetCriteria/serviceCategory/code").isMissingNode());
@@ -142,7 +143,7 @@ class CcnStatusFlowIntegrationTest {
         JsonNode payload = cap.getValue();
         assertEquals("on_update", payload.at("/context/action").asText());
         assertEquals("sierraleone-hcm-dev.digit.org", payload.at("/context/bppId").asText());   // synthesized from config
-        assertEquals("ACTIVE", payload.at("/message/contract/status/code").asText());
+        assertEquals("CANCELLED", payload.at("/message/contract/status/code").asText());
         assertEquals("CANCELLED", payload.at("/message/contract/contractAttributes/lifecycleState").asText());  // REJECTED->CANCELLED
     }
 
@@ -160,7 +161,7 @@ class CcnStatusFlowIntegrationTest {
         JsonNode payload = cap.getValue();
         assertEquals("update", payload.at("/context/action").asText());
         assertEquals("coord-out-1", payload.at("/message/contract/id").asText());
-        assertEquals("ACTIVE", payload.at("/message/contract/status/code").asText());        // wire code
+        assertEquals("CANCELLED", payload.at("/message/contract/status/code").asText());     // CCN displays from status.code
         assertEquals("CANCELLED", payload.at("/message/contract/contractAttributes/lifecycleState").asText());
         assertFalse(payload.at("/message/contract/contractAttributes/targetCriteria/serviceCategory/code").isMissingNode());
         assertEquals("0550142480970", payload.at("/message/contract/participants/0/participantAttributes/healthIds/0/value").asText());

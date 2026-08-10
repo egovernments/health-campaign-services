@@ -169,6 +169,29 @@ public class CcnReferralStatusService {
         return csvToMap(p.getOutboundLifecycleMap()).getOrDefault(s, s);
     }
 
+    /** Wire {@code contract.status.code} (enum DRAFT/ACTIVE/CANCELLED/COMPLETE) for a given HCM
+     *  referralStatus or CCN lifecycle value. Unmapped → the configured default {@code wireStatusCode}. */
+    public String wireStatusCodeFor(String status) {
+        if (status == null || status.isBlank()) return p.getWireStatusCode();
+        return csvToMap(p.getOutboundStatusCodeMap())
+                .getOrDefault(status.trim().toUpperCase(), p.getWireStatusCode());
+    }
+
+    /** Commitment {@code descriptor.code} (enum DRAFT/ACTIVE/CLOSED) for a wire status.code:
+     *  terminal (CANCELLED/COMPLETE) → CLOSED; DRAFT → DRAFT; everything else → ACTIVE. */
+    public String commitmentDescriptorForWire(String wireStatusCode) {
+        if (wireStatusCode == null || wireStatusCode.isBlank()) return "ACTIVE";
+        String w = wireStatusCode.trim().toUpperCase();
+        if (csvToSet(p.getTerminalWireStatusCodes()).contains(w)) return "CLOSED";
+        return "DRAFT".equals(w) ? "DRAFT" : "ACTIVE";
+    }
+
+    /** Inbound: HCM referralStatus for a wire {@code contract.status.code}, or null if unmapped. */
+    public String referralStatusForWire(String wireStatusCode) {
+        if (wireStatusCode == null || wireStatusCode.isBlank()) return null;
+        return csvToMap(p.getInboundStatusCodeMap()).get(wireStatusCode.trim().toUpperCase());
+    }
+
     private static Set<String> csvToSet(String csv) {
         if (csv == null || csv.isBlank()) return Set.of();
         return Arrays.stream(csv.split(","))

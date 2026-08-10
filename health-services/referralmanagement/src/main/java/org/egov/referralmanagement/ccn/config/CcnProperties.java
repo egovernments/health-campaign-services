@@ -143,11 +143,25 @@ public class CcnProperties {
     private String hfUpdateConsumerGroup = "referralmanagement-ccn-hfreferral-status";
     /** Beckn action used to push HCM-initiated (inbound accept/reject/resolve) status changes back to SPICE. */
     private String backAction = "on_update";
-    /** The Beckn protocol {@code contract.status.code} we put on the wire for an update. CCN's schema
-     *  only accepts {@code DRAFT}/{@code ACTIVE} here (it validates status.code against two contradictory
-     *  enums whose intersection is DRAFT/ACTIVE — verified live), so terminal outcomes CANNOT be sent as
-     *  a status code. The real outcome travels in {@code contractAttributes.lifecycleState} instead. */
+    /** Fallback/default {@code contract.status.code} when a status has no mapping in
+     *  {@link #outboundStatusCodeMap}. NOTE (corrected, verified live): CCN's {@code contract.status.code}
+     *  enum is actually {@code DRAFT, ACTIVE, CANCELLED, COMPLETE} — terminal outcomes CAN be sent here
+     *  (the commitment {@code descriptor.code} is the field limited to {@code DRAFT, ACTIVE, CLOSED}).
+     *  CCN displays the referral from {@code contract.status.code}, so we now map the real outcome into it. */
     private String wireStatusCode = "ACTIVE";
+    /** HCM referralStatus / CCN lifecycle value → wire {@code contract.status.code}
+     *  (enum DRAFT/ACTIVE/CANCELLED/COMPLETE). Comma-separated {@code KEY:VALUE}, UPPERCASE. Covers both
+     *  raw referralStatus (REJECTED/ACCEPTED/…) and already-mapped lifecycle values (CANCELLED/COMPLETED). */
+    private String outboundStatusCodeMap =
+            "RECEIVED:ACTIVE,ACCEPTED:ACTIVE,ACTIVE:ACTIVE,DRAFT:DRAFT,"
+            + "REJECTED:CANCELLED,CANCELLED:CANCELLED,"
+            + "RESOLVED:COMPLETE,COMPLETED:COMPLETE,COMPLETE:COMPLETE,CLOSED:COMPLETE";
+    /** Wire {@code status.code} values that are terminal → commitment {@code descriptor.code} must be
+     *  {@code CLOSED} (its enum is DRAFT/ACTIVE/CLOSED). Non-terminal wire codes map descriptor 1:1. */
+    private String terminalWireStatusCodes = "CANCELLED,COMPLETE";
+    /** Inbound: wire {@code contract.status.code} → the HCM referralStatus stored on the record. */
+    private String inboundStatusCodeMap =
+            "DRAFT:RECEIVED,ACTIVE:RECEIVED,CANCELLED:CANCELLED,COMPLETE:COMPLETED,CLOSED:COMPLETED";
     /** {@code targetCriteria.serviceCategory.code} — CCN requires this and only allows
      *  ADMISSION/CONSULTATION/INVESTIGATION/PROCEDURE (verified live). */
     private String wireServiceCategory = "CONSULTATION";

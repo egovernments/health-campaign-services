@@ -27,7 +27,7 @@ class HealthReferralMapperTest {
         p.setBapUri("https://sierraleone-hcm-dev.digit.org/beckn");
         p.setBppId("bpp.mdtlabs.org");
         p.setBppUri("https://cc.mdtlabs.org/bpp/receiver");
-        mapper = new HealthReferralMapper(p, om);
+        mapper = new HealthReferralMapper(p, om, new CcnReferralStatusService(p, null, null, null));
     }
 
     private Referral sample() {

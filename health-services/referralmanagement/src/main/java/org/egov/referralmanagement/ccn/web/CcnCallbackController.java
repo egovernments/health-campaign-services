@@ -65,7 +65,11 @@ public class CcnCallbackController {
             String coordinationId = firstNonBlank(
                     contract.at("/contractAttributes/coordinationId").asText(null),
                     contract.at("/id").asText(null));
-            String lifecycleState = contract.at("/contractAttributes/lifecycleState").asText(null);
+            // Prefer the wire contract.status.code (CCN/SPICE convey the real state here), mapped to our
+            // referralStatus vocabulary; fall back to contractAttributes.lifecycleState.
+            String mappedFromWire = statusService.referralStatusForWire(contract.at("/status/code").asText(null));
+            String lifecycleState = mappedFromWire != null ? mappedFromWire
+                    : contract.at("/contractAttributes/lifecycleState").asText(null);
 
             if (coordinationId == null) {
                 log.warn("CCN {} callback without coordinationId; ignoring", action);

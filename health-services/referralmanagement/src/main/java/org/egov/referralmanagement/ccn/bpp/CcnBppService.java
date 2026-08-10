@@ -86,8 +86,8 @@ public class CcnBppService {
             case "select"   -> { upsertInbound(coordinationId, txn, bapId, "DRAFT", "select", body, null); dispatch("on_select", mapper.onEcho("on_select", body, "DRAFT", "DRAFT")); }
             case "init"     -> { upsertInbound(coordinationId, txn, bapId, "DRAFT", "init", body, null); dispatch("on_init", mapper.onEcho("on_init", body, "DRAFT", "DRAFT")); }
             case "confirm"  -> onConfirm(coordinationId, txn, bapId, body);
-            case "status"   -> dispatch("on_status", mapper.onEcho("on_status", body, currentState(coordinationId), "ACTIVE"));
-            case "update"   -> { upsertInbound(coordinationId, txn, bapId, lifecycleState(body), "update", body, null); linkRepository.updatePostUpdateState(coordinationId, lifecycleState(body), p.getInboundTenantId()); dispatch("on_update", mapper.onEcho("on_update", body, lifecycleState(body), "ACTIVE")); }
+            case "status"   -> { String cs = currentState(coordinationId); dispatch("on_status", mapper.onEcho("on_status", body, cs, statusService.wireStatusCodeFor(cs))); }
+            case "update"   -> { String ls = lifecycleState(body); upsertInbound(coordinationId, txn, bapId, ls, "update", body, null); linkRepository.updatePostUpdateState(coordinationId, ls, p.getInboundTenantId()); dispatch("on_update", mapper.onEcho("on_update", body, ls, statusService.wireStatusCodeFor(ls))); }
             default         -> log.warn("CCN BPP unhandled action {}", action);
         }
     }
@@ -324,6 +324,10 @@ public class CcnBppService {
         return c != null && !c.isBlank() ? c : b.at("/message/contract/id").asText(null);
     }
     private String lifecycleState(JsonNode b) {
+        // Prefer the wire contract.status.code (what CCN/SPICE use to convey the real state), mapped to
+        // our referralStatus vocabulary; fall back to contractAttributes.lifecycleState, then ACTIVE.
+        String mapped = statusService.referralStatusForWire(b.at("/message/contract/status/code").asText(null));
+        if (mapped != null && !mapped.isBlank()) return mapped;
         String s = b.at("/message/contract/contractAttributes/lifecycleState").asText(null);
         return s != null ? s : "ACTIVE";
     }

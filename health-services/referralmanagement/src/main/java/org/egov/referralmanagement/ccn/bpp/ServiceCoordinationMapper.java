@@ -3,6 +3,7 @@ package org.egov.referralmanagement.ccn.bpp;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.egov.referralmanagement.ccn.CcnReferralStatusService;
 import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -20,10 +21,13 @@ public class ServiceCoordinationMapper {
 
     private final CcnProperties p;
     private final ObjectMapper om;
+    private final CcnReferralStatusService statusService;
 
-    public ServiceCoordinationMapper(CcnProperties p, @Qualifier("objectMapper") ObjectMapper om) {
+    public ServiceCoordinationMapper(CcnProperties p, @Qualifier("objectMapper") ObjectMapper om,
+                                     CcnReferralStatusService statusService) {
         this.p = p;
         this.om = om;
+        this.statusService = statusService;
     }
 
     /** Clone the inbound context, flip to the on_/response action, fresh messageId+timestamp.
@@ -76,9 +80,33 @@ public class ServiceCoordinationMapper {
         root.set("context", responseContext(inbound, onAction));
         ObjectNode contract = inbound.at("/message/contract").isMissingNode()
                 ? om.createObjectNode() : inbound.at("/message/contract").deepCopy();
+        // CCN displays the referral from contract.status.code, so it carries the REAL outcome
+        // (DRAFT/ACTIVE/CANCELLED/COMPLETE). Callers pass the already-mapped wire code.
         contract.putObject("status").put("code", statusCode);
-        if (contract.has("contractAttributes")) {
-            ((ObjectNode) contract.get("contractAttributes")).put("lifecycleState", lifecycleState);
+        // Commitment descriptor.code has its own enum (DRAFT/ACTIVE/CLOSED): force every echoed
+        // commitment to the wire-valid descriptor for this status (terminal → CLOSED).
+        String commitDescriptor = statusService.commitmentDescriptorForWire(statusCode);
+        JsonNode commitments = contract.get("commitments");
+        if (commitments != null && commitments.isArray()) {
+            for (JsonNode cm : commitments) {
+                if (cm.isObject())
+                    ((ObjectNode) cm).putObject("status").putObject("descriptor").put("code", commitDescriptor);
+            }
+        }
+        // Always carry the current lifecycle state so every echo/poll reflects the real outcome
+        // (accepted/rejected/cancelled/completed). A plain `status` poll from CCN arrives with only
+        // {id, commitments} and NO contractAttributes — previously we set lifecycleState only when the
+        // inbound already had that block, so on_status silently dropped the state. Ensure the block
+        // exists and populate coordinationId + lifecycleState.
+        if (lifecycleState != null && !lifecycleState.isBlank()) {
+            ObjectNode ca = contract.has("contractAttributes") && contract.get("contractAttributes").isObject()
+                    ? (ObjectNode) contract.get("contractAttributes")
+                    : contract.putObject("contractAttributes");
+            ca.put("lifecycleState", lifecycleState);
+            if (!ca.hasNonNull("coordinationId")) {
+                String cid = contract.path("id").asText(null);
+                if (cid != null && !cid.isBlank()) ca.put("coordinationId", cid);
+            }
         }
         root.putObject("message").set("contract", contract);
         return root;
@@ -104,8 +132,10 @@ public class ServiceCoordinationMapper {
         root.set("context", responseContext(lastInbound, onAction));
         ObjectNode contract = root.putObject("message").putObject("contract");
         contract.put("id", coordinationId);
-        contract.putObject("status").put("code", p.getWireStatusCode());   // ACTIVE — only value CCN accepts
-        addCommitments(contract, lastInbound);
+        // CCN displays from contract.status.code — put the mapped real outcome here (CANCELLED/COMPLETE/…).
+        String wireStatus = statusService.wireStatusCodeFor(ccnLifecycleState);
+        contract.putObject("status").put("code", wireStatus);
+        addCommitments(contract, statusService.commitmentDescriptorForWire(wireStatus));
         ObjectNode ca = contract.putObject("contractAttributes");
         ca.put("@context", p.getServiceCoordinationCtx());
         ca.put("@type", "scoord:ServiceCoordination");
@@ -118,12 +148,12 @@ public class ServiceCoordinationMapper {
         return root;
     }
 
-    /** Required commitments — always built from config with the wire status code (ACTIVE) and the
-     *  configured resource/offer ids (the exact shape verified to be accepted by CCN). */
-    private void addCommitments(ObjectNode contract, JsonNode lastInbound) {
+    /** Required commitments — always built from config with the given commitment descriptor code
+     *  (enum DRAFT/ACTIVE/CLOSED) and the configured resource/offer ids (verified accepted by CCN). */
+    private void addCommitments(ObjectNode contract, String commitmentDescriptor) {
         ObjectNode cm = contract.putArray("commitments").addObject();
         cm.put("id", "commitment-" + UUID.randomUUID().toString().substring(0, 8));
-        cm.putObject("status").putObject("descriptor").put("code", p.getWireStatusCode());
+        cm.putObject("status").putObject("descriptor").put("code", commitmentDescriptor);
         ObjectNode res = cm.putArray("resources").addObject();
         res.put("id", p.getResourceId());
         res.putObject("quantity").put("count", 1);

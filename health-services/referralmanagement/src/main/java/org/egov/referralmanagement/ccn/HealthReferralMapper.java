@@ -27,10 +27,13 @@ public class HealthReferralMapper {
 
     private final CcnProperties p;
     private final ObjectMapper om;
+    private final CcnReferralStatusService statusService;
 
-    public HealthReferralMapper(CcnProperties p, @Qualifier("objectMapper") ObjectMapper om) {
+    public HealthReferralMapper(CcnProperties p, @Qualifier("objectMapper") ObjectMapper om,
+                                CcnReferralStatusService statusService) {
         this.p = p;
         this.om = om;
+        this.statusService = statusService;
     }
 
     /** SPICE patientId is carried on the referral's beneficiary/individual id (app sets it for reconciled patients). */
@@ -183,10 +186,11 @@ public class HealthReferralMapper {
         root.set("context", context("update", txnId));
         ObjectNode contract = root.putObject("message").putObject("contract");
         contract.put("id", coordinationId);
-        // status.code must be a wire code CCN accepts (only DRAFT/ACTIVE pass) — the real outcome goes
-        // in contractAttributes.lifecycleState. descriptor is not allowed under contract.status.
-        contract.putObject("status").put("code", p.getWireStatusCode());
-        addCommitments(contract, p.getWireStatusCode());
+        // CCN displays from contract.status.code — map the real outcome into it (CANCELLED/COMPLETE/…);
+        // the commitment descriptor uses its own enum (DRAFT/ACTIVE/CLOSED).
+        String wireStatus = statusService.wireStatusCodeFor(ccnLifecycleState);
+        contract.putObject("status").put("code", wireStatus);
+        addCommitments(contract, statusService.commitmentDescriptorForWire(wireStatus));
         if (spicePatientId != null && !spicePatientId.isBlank()) {
             ObjectNode patient = contract.putArray("participants").addObject();
             patient.put("id", "participant-patient");

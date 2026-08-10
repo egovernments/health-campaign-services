@@ -50,7 +50,7 @@ class CcnReferralFlowTest {
         onix = mock(CcnOnixClient.class);
         when(onix.send(anyString(), any(JsonNode.class))).thenReturn(om.createObjectNode().put("status", "ACK"));
         linkRepo = mock(CcnReferralLinkRepository.class);
-        HealthReferralMapper mapper = new HealthReferralMapper(props, om);
+        HealthReferralMapper mapper = new HealthReferralMapper(props, om, new CcnReferralStatusService(props, null, null, null));
         // Real identity resolver; sample() carries the canonical id in additionalFields, so the
         // outbound resolve short-circuits at step 1 and no HCM client is called here.
         CcnIdentityResolver identityResolver =

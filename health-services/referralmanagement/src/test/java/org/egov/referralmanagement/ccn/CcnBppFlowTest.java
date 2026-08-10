@@ -65,7 +65,6 @@ class CcnBppFlowTest {
                 new InboundProjectResolver.Resolution("proj-1", "pb-1", inv.getArgument(0), true));
         // Real identity resolver: reading/writing additionalFields[abhaId] needs no HCM client calls.
         identityResolver = new CcnIdentityResolver(null, mock(ReferralManagementConfiguration.class), props);
-        ServiceCoordinationMapper mapper = new ServiceCoordinationMapper(props, om);
         hfReferralService = mock(HFReferralService.class);
         when(hfReferralService.create(any(HFReferralRequest.class)))
                 .thenAnswer(inv -> {
@@ -75,6 +74,7 @@ class CcnBppFlowTest {
                 });
         CcnReferralStatusService statusService = new CcnReferralStatusService(
                 props, hfReferralService, mock(HFReferralRepository.class), linkRepo);
+        ServiceCoordinationMapper mapper = new ServiceCoordinationMapper(props, om, statusService);
         bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, hfReferralService, resolver, identityResolver, statusService, om);
     }
 
@@ -203,6 +203,31 @@ class CcnBppFlowTest {
         assertEquals("2", af.get("cycle"));                      // hardcoded current cycle
         assertEquals("true", af.get("ccnInbound"));              // loop-guard marker (won't re-forward)
         assertEquals("RECEIVED", af.get("referralStatus"));      // initial status (worker moves to ACCEPTED/…)
+    }
+
+    @Test
+    void statusPollReflectsCurrentLifecycleState() throws Exception {
+        // Live bug: CCN polls `status` with only {id, commitments} (no contractAttributes). The old
+        // onEcho set lifecycleState only if the request already had contractAttributes, so on_status
+        // dropped the real state and always answered ACTIVE. It must now report the link's current state.
+        when(linkRepo.findByCoordinationId(eq("coord-in-1"), any())).thenReturn(
+                CcnReferralLink.builder().coordinationId("coord-in-1").direction(CcnReferralLink.INBOUND)
+                        .lifecycleState("CANCELLED").build());
+        JsonNode statusReq = om.readTree("{\"context\":{\"action\":\"status\",\"bapId\":\"comemr-np-spice-001\","
+                + "\"bppId\":\"sierraleone-hcm-dev.digit.org\",\"transactionId\":\"t1\"},"
+                + "\"message\":{\"contract\":{\"id\":\"coord-in-1\",\"commitments\":[{\"id\":\"c1\"}]}}}");
+
+        bpp.handle("status", statusReq);
+
+        ArgumentCaptor<JsonNode> cap = ArgumentCaptor.forClass(JsonNode.class);
+        verify(onix).sendBpp(eq("on_status"), cap.capture());
+        JsonNode payload = cap.getValue();
+        // CCN displays from status.code — the poll now returns the mapped real state (CANCELLED),
+        // commitment descriptor CLOSED, and lifecycleState carried too.
+        assertEquals("CANCELLED", payload.at("/message/contract/status/code").asText());
+        assertEquals("CLOSED", payload.at("/message/contract/commitments/0/status/descriptor/code").asText());
+        assertEquals("CANCELLED", payload.at("/message/contract/contractAttributes/lifecycleState").asText());
+        assertEquals("coord-in-1", payload.at("/message/contract/contractAttributes/coordinationId").asText());
     }
 
     @Test
