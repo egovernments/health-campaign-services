@@ -59,8 +59,12 @@ public class CcnReferralStatusService {
     // ── outbound mirror (SPICE → HCM) ──────────────────────────────────────────────────────────
 
     /**
-     * Mirror a SPICE-reported lifecycle state onto the linked OUTBOUND HFReferral's referralStatus.
-     * No-op unless the state is in the configured mirrored set and the coordination is OUTBOUND.
+     * Mirror a SPICE-reported lifecycle state onto the linked HFReferral's referralStatus, so the
+     * device/app displays whatever state the network reports — for BOTH directions:
+     *   - OUTBOUND: SPICE reports the outcome on a referral the CHW raised (via on_status callback).
+     *   - INBOUND:  SPICE sends an update on a referral it referred to HCM (via the BPP update handler).
+     * No-op unless the state is in the configured mirrored set and the link has a linked HFReferral.
+     * Written as the system user so the update consumer skips it (never bounces back to SPICE).
      * Fully isolated — any failure is logged, never rethrown (must not break the callback ACK).
      */
     public void mirrorFromSpice(String coordinationId, String spiceState) {
@@ -68,11 +72,10 @@ public class CcnReferralStatusService {
             return;
         }
         try {
-            // Outbound callback carries no tenant — pass null so the repo fans out over configured tenants.
+            // Callback may carry no tenant — pass null so the repo fans out over configured tenants.
             CcnReferralLink link = linkRepository.findByCoordinationId(coordinationId, null);
-            if (link == null || !CcnReferralLink.OUTBOUND.equals(link.getDirection())
-                    || link.getHfReferralId() == null || link.getHfReferralId().isBlank()) {
-                return;   // inbound / unknown / no originating HFReferral to stamp
+            if (link == null || link.getHfReferralId() == null || link.getHfReferralId().isBlank()) {
+                return;   // unknown / no linked HFReferral to stamp
             }
             HFReferral hf = fetchById(link.getHfReferralId(), link.getTenantId());
             if (hf == null) {

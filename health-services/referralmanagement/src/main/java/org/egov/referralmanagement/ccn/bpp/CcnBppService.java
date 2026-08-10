@@ -87,7 +87,7 @@ public class CcnBppService {
             case "init"     -> { upsertInbound(coordinationId, txn, bapId, "DRAFT", "init", body, null); dispatch("on_init", mapper.onEcho("on_init", body, "DRAFT", "DRAFT")); }
             case "confirm"  -> onConfirm(coordinationId, txn, bapId, body);
             case "status"   -> { String cs = currentState(coordinationId); dispatch("on_status", mapper.onEcho("on_status", body, cs, statusService.wireStatusCodeFor(cs))); }
-            case "update"   -> { String ls = lifecycleState(body); upsertInbound(coordinationId, txn, bapId, ls, "update", body, null); linkRepository.updatePostUpdateState(coordinationId, ls, p.getInboundTenantId()); dispatch("on_update", mapper.onEcho("on_update", body, ls, statusService.wireStatusCodeFor(ls))); }
+            case "update"   -> { String ls = lifecycleState(body); upsertInbound(coordinationId, txn, bapId, ls, "update", body, null); linkRepository.updatePostUpdateState(coordinationId, ls, p.getInboundTenantId()); statusService.mirrorFromSpice(coordinationId, ls); dispatch("on_update", mapper.onEcho("on_update", body, ls, statusService.wireStatusCodeFor(ls))); }
             default         -> log.warn("CCN BPP unhandled action {}", action);
         }
     }
@@ -160,9 +160,13 @@ public class CcnBppService {
         fields.add(Field.builder().key("gender").value(p.getInboundHfGender()).build());
         fields.add(Field.builder().key("cycle").value(p.getInboundHfCycle()).build());
         fields.add(Field.builder().key("cycleIndex").value(p.getInboundHfCycle()).build());
-        // Initial referral status — the HF worker moves this to ACCEPTED/REJECTED/RESOLVED, which the
-        // HFReferral-update consumer pushes back to SPICE. Downsyncs to the device so the CHW sees it.
-        fields.add(Field.builder().key(p.getReferralStatusKey()).value(p.getInboundInitialStatus()).build());
+        // Initial referral status — derive it from the incoming contract.status.code so the record
+        // reflects whatever state SPICE sent (a fresh ACTIVE/DRAFT referral maps to RECEIVED); fall back
+        // to the configured default when the code is absent/unmapped. The HF worker then moves it to
+        // ACCEPTED/REJECTED/COMPLETED, which the update consumer pushes back to SPICE. Downsyncs to the device.
+        String incomingStatus = statusService.referralStatusForWire(body.at("/message/contract/status/code").asText(null));
+        if (incomingStatus == null || incomingStatus.isBlank()) incomingStatus = p.getInboundInitialStatus();
+        fields.add(Field.builder().key(p.getReferralStatusKey()).value(incomingStatus).build());
 
         HFReferral hf = HFReferral.builder()
                 .clientReferenceId(UUID.randomUUID().toString())

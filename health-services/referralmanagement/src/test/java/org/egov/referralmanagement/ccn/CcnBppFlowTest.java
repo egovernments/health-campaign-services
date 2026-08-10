@@ -14,6 +14,7 @@ import org.egov.referralmanagement.ccn.config.CcnProperties;
 import org.egov.referralmanagement.ccn.model.CcnReferralLink;
 import org.egov.referralmanagement.ccn.repository.CcnReferralLinkRepository;
 import org.egov.referralmanagement.repository.HFReferralRepository;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.common.models.core.Field;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
@@ -38,6 +39,7 @@ class CcnBppFlowTest {
     private CcnReferralLinkRepository linkRepo;
     private ReferralManagementService referralService;
     private HFReferralService hfReferralService;
+    private HFReferralRepository hfReferralRepository;
     private CcnBppService bpp;
     private CcnIdentityResolver identityResolver;
     private InboundProjectResolver resolver;
@@ -72,8 +74,9 @@ class CcnBppFlowTest {
                     in.setId("hf-created-1");
                     return in;
                 });
+        hfReferralRepository = mock(HFReferralRepository.class);
         CcnReferralStatusService statusService = new CcnReferralStatusService(
-                props, hfReferralService, mock(HFReferralRepository.class), linkRepo);
+                props, hfReferralService, hfReferralRepository, linkRepo);
         ServiceCoordinationMapper mapper = new ServiceCoordinationMapper(props, om, statusService);
         bpp = new CcnBppService(props, mapper, onix, linkRepo, referralService, hfReferralService, resolver, identityResolver, statusService, om);
     }
@@ -228,6 +231,53 @@ class CcnBppFlowTest {
         assertEquals("CLOSED", payload.at("/message/contract/commitments/0/status/descriptor/code").asText());
         assertEquals("CANCELLED", payload.at("/message/contract/contractAttributes/lifecycleState").asText());
         assertEquals("coord-in-1", payload.at("/message/contract/contractAttributes/coordinationId").asText());
+    }
+
+    @Test
+    void inboundConfirmDerivesReferralStatusFromWireStatusCode() throws Exception {
+        // The created HFReferral's referralStatus should reflect the incoming contract.status.code
+        // (wire COMPLETE → HCM COMPLETED), so there's a real state to display; falls back to RECEIVED
+        // when the code is absent (covered by inboundConfirmAlsoCreatesAutofilledHfReferral).
+        props.setInboundHfFacilityId("PF-1");
+        props.setInboundHfProjectId("proj-1");
+        JsonNode body = om.readTree("{\"context\":{\"action\":\"confirm\",\"bapId\":\"comemr-np-spice-001\","
+                + "\"bppId\":\"sierraleone-hcm-dev.digit.org\",\"transactionId\":\"t1\"},"
+                + "\"message\":{\"contract\":{\"id\":\"coord-in-1\",\"status\":{\"code\":\"COMPLETE\"},"
+                + "\"participants\":[{\"participantAttributes\":{\"participantRole\":\"PATIENT\","
+                + "\"healthIds\":[{\"system\":\"ABHA\",\"value\":\"0690003741962\"}]}}]}}}");
+
+        bpp.handle("confirm", body);
+
+        ArgumentCaptor<HFReferralRequest> cap = ArgumentCaptor.forClass(HFReferralRequest.class);
+        verify(hfReferralService).create(cap.capture());
+        Map<String, String> af = cap.getValue().getHfReferral().getAdditionalFields().getFields().stream()
+                .collect(Collectors.toMap(Field::getKey, Field::getValue, (a, b) -> a));
+        assertEquals("COMPLETED", af.get("referralStatus"));   // wire COMPLETE -> HCM COMPLETED
+    }
+
+    @Test
+    void inboundUpdateFromSpiceMirrorsStatusOntoHfReferral() throws Exception {
+        // SPICE sends an update on an inbound referral carrying the state in contract.status.code.
+        // HCM maps it and stamps referralStatus onto the linked HFReferral (system write) so the app
+        // displays it — and the system-write guard stops it bouncing back to SPICE.
+        when(linkRepo.findByCoordinationId(eq("coord-in-1"), any())).thenReturn(
+                CcnReferralLink.builder().coordinationId("coord-in-1").direction(CcnReferralLink.INBOUND)
+                        .hfReferralId("hf-x").tenantId("sl").build());
+        HFReferral existing = HFReferral.builder().id("hf-x").tenantId("sl").referralCode("coord-in-1").build();
+        when(hfReferralRepository.findById(anyString(), anyList(), anyString(), any(Boolean.class)))
+                .thenReturn(SearchResponse.<HFReferral>builder().response(java.util.List.of(existing)).build());
+        JsonNode body = om.readTree("{\"context\":{\"action\":\"update\",\"bapId\":\"comemr-np-spice-001\","
+                + "\"bppId\":\"sierraleone-hcm-dev.digit.org\",\"transactionId\":\"t1\"},"
+                + "\"message\":{\"contract\":{\"id\":\"coord-in-1\",\"status\":{\"code\":\"CANCELLED\"},"
+                + "\"commitments\":[{\"id\":\"c1\"}]}}}");
+
+        bpp.handle("update", body);
+
+        ArgumentCaptor<HFReferralRequest> cap = ArgumentCaptor.forClass(HFReferralRequest.class);
+        verify(hfReferralService).update(cap.capture());
+        Map<String, String> af = cap.getValue().getHfReferral().getAdditionalFields().getFields().stream()
+                .collect(Collectors.toMap(Field::getKey, Field::getValue, (a, b) -> a));
+        assertEquals("CANCELLED", af.get("referralStatus"));   // wire CANCELLED -> HCM CANCELLED, mirrored
     }
 
     @Test
