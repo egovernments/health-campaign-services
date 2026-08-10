@@ -8,6 +8,8 @@ import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.HashMap;
@@ -16,6 +18,11 @@ import java.util.Map;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
+// HouseholdService names this validator in its create and update predicates, but those filter an
+// injected List<Validator<...>>. Without @Component Spring never puts it in that list, so the rule
+// was silently unenforced no matter what household.type.same.validation was set to.
+@Component
+@Order(value = 2)
 public class HCommunityTypeValidator implements Validator<HouseholdBulkRequest, Household> {
     private final HouseholdConfiguration configuration;
 
