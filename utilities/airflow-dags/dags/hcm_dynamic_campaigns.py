@@ -733,7 +733,9 @@ with DAG(
             # Check if first day AND report would cover yesterday's data
             # On first day, only allow if reportEndTime < triggerTime (report covers today)
             # Skip if reportEndTime >= triggerTime (would try to report yesterday before campaign existed)
-            if is_first_day(c, now) and not should_report_today(c, now):
+            # CUSTOM runs are an explicit user-picked date range - the first-day guard is only for
+            # scheduled DAILY/WEEKLY/MONTHLY, so never second-guess a hand-selected range.
+            if frequency.upper() != "CUSTOM" and is_first_day(c, now) and not should_report_today(c, now):
                 reason = "First day and report would cover yesterday (no data exists)"
                 logger.info("  ⏭️ SKIP: %s", reason)
                 push_status_event(
