@@ -278,9 +278,14 @@ class CcnBppFlowTest {
 
         ArgumentCaptor<HFReferralRequest> cap = ArgumentCaptor.forClass(HFReferralRequest.class);
         verify(hfReferralService).update(cap.capture());
-        Map<String, String> af = cap.getValue().getHfReferral().getAdditionalFields().getFields().stream()
+        HFReferral stamped = cap.getValue().getHfReferral();
+        Map<String, String> af = stamped.getAdditionalFields().getFields().stream()
                 .collect(Collectors.toMap(Field::getKey, Field::getValue, (a, b) -> a));
         assertEquals("CANCELLED", af.get("referralStatus"));   // wire CANCELLED -> HCM CANCELLED, mirrored
+        // clientLastModifiedTime must be bumped (by the system user) so the app's offline store re-downloads it
+        assertNotNull(stamped.getClientAuditDetails());
+        assertNotNull(stamped.getClientAuditDetails().getLastModifiedTime());
+        assertEquals(props.getSystemUser(), stamped.getClientAuditDetails().getLastModifiedBy());
     }
 
     @Test

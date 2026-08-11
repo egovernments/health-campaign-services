@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.ccn;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.core.AdditionalFields;
@@ -85,6 +86,15 @@ public class CcnReferralStatusService {
             }
             String status = spiceState.trim().toUpperCase();
             writeStatus(hf, status);
+            // Bump the CLIENT audit so the field app's offline store re-downloads this change. The app
+            // upserts a synced record only when clientLastModifiedTime is NEWER than its local copy; the
+            // server audit alone isn't enough, so without this the mirrored status never surfaces in the app.
+            long now = System.currentTimeMillis();
+            AuditDetails clientAudit = hf.getClientAuditDetails() != null
+                    ? hf.getClientAuditDetails() : AuditDetails.builder().build();
+            clientAudit.setLastModifiedTime(now);
+            clientAudit.setLastModifiedBy(p.getSystemUser());
+            hf.setClientAuditDetails(clientAudit);
             hfReferralService.update(HFReferralRequest.builder()
                     .requestInfo(systemRequestInfo(link.getTenantId()))
                     .hfReferral(hf)
