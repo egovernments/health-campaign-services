@@ -28,7 +28,6 @@ import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Component;
 import org.egov.transformer.models.boundary.*;
 import org.springframework.util.CollectionUtils;
-import org.egov.transformer.utils.CommonUtils;
 
 import java.io.IOException;
 import java.util.*;
@@ -49,7 +48,6 @@ public class ProjectService {
     private final MdmsService mdmsService;
 
     private final TransformerErrorProducer errorProducer;
-    private final CommonUtils commonUtils;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
     private static List<JsonNode> cachedProjectTypes = new ArrayList<>();
@@ -57,13 +55,12 @@ public class ProjectService {
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer, CommonUtils commonUtils) {
+                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.mdmsService = mdmsService;
         this.errorProducer = errorProducer;
-        this.commonUtils = commonUtils;
     }
 
     public Project getProject(String projectId, String tenantId) {
@@ -87,8 +84,29 @@ public class ProjectService {
     public Map<String, String> getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
+        String hierarchyType = getHierarchyTypeFromProject(project);
         return getBoundaryCodeToNameMap(locationCode, tenantId,hierarchyType);
+    }
+
+    /**
+     * Resolves the boundary hierarchy type from the project's additionalDetails, falling back to
+     * the configured default. Kept here rather than in CommonUtils because CommonUtils depends on
+     * ProjectService, and injecting it back would form a circular bean dependency.
+     */
+    public String getHierarchyTypeFromProject(Project project) {
+        try {
+            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+            if (additionalDetails != null && !additionalDetails.isMissingNode()
+                    && additionalDetails.hasNonNull("hierarchyType")) {
+                String hierarchyType = additionalDetails.get("hierarchyType").asText(null);
+                if (StringUtils.isNotBlank(hierarchyType)) {
+                    return hierarchyType;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch hierarchyType from project additionalDetails for projectId: {}", project.getId());
+        }
+        return transformerProperties.getBoundaryHierarchyName();
     }
 
 
