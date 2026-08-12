@@ -100,11 +100,15 @@ public class ProjectService {
                     && additionalDetails.hasNonNull("hierarchyType")) {
                 String hierarchyType = additionalDetails.get("hierarchyType").asText(null);
                 if (StringUtils.isNotBlank(hierarchyType)) {
+                    log.info("hierarchyType resolved from project additionalDetails for projectId: {}, hierarchyType: {}", project.getId(), hierarchyType);
                     return hierarchyType;
                 }
+                log.info("hierarchyType present but blank in project additionalDetails for projectId: {}, falling back to configured default: {}", project.getId(), transformerProperties.getBoundaryHierarchyName());
+            } else {
+                log.info("hierarchyType not present in project additionalDetails for projectId: {}, falling back to configured default: {}", project.getId(), transformerProperties.getBoundaryHierarchyName());
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch hierarchyType from project additionalDetails for projectId: {}", project.getId());
+            log.warn("Failed to fetch hierarchyType from project additionalDetails for projectId: {}, falling back to configured default: {}", project.getId(), transformerProperties.getBoundaryHierarchyName());
         }
         return transformerProperties.getBoundaryHierarchyName();
     }
