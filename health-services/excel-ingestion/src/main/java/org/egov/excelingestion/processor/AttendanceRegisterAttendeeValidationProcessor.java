@@ -181,6 +181,22 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                     usernameToIndividualId, usernameToRoles, attendeeEnrollmentsMap, staffEnrollmentsMap,
                     isWorkerSheet, staffType, multiRegisterAllowedRoles, errors, localizationMap);
 
+            // An upload that enrols nobody has nothing to do. Checked across every sheet because
+            // this processor runs per-sheet and any one of worker/marker/approver may legitimately
+            // be empty on its own — only an entirely empty workbook is an error.
+            if (countAttendeeRows(sheetData) == 0 && !alreadyReportedEmptyWorkbook(resource)
+                    && workbookHasNoAttendeeRows(workbook, resource)) {
+                errors.add(ValidationError.builder()
+                        .rowNumber(ValidationConstants.FIRST_DATA_ROW_NUMBER)
+                        .errorDetails(localizationMap.getOrDefault(
+                                ValidationConstants.LOC_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED,
+                                ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED))
+                        .status(ValidationConstants.STATUS_INVALID)
+                        .build());
+                markEmptyWorkbookReported(resource);
+                log.info("No attendee rows found in any sheet of the workbook, added validation error");
+            }
+
             log.info("Attendee validation completed for sheet {} with {} errors", sheetName, errors.size());
             enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 
@@ -593,6 +609,51 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
+     * The "no attendees anywhere" error describes the workbook, not a sheet, so it is raised on the
+     * first empty attendee sheet only. additionalDetails carries state across sheet invocations in a
+     * run, the same way per-sheet statuses accumulate.
+     */
+    private boolean alreadyReportedEmptyWorkbook(ProcessResource resource) {
+        Map<String, Object> additionalDetails = resource.getAdditionalDetails();
+        return additionalDetails != null
+                && Boolean.TRUE.equals(additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_ATTENDEE_EMPTY_REPORTED));
+    }
+
+    private void markEmptyWorkbookReported(ProcessResource resource) {
+        if (resource.getAdditionalDetails() == null) {
+            resource.setAdditionalDetails(new HashMap<>());
+        }
+        resource.getAdditionalDetails().put(ValidationConstants.ADDITIONAL_DETAILS_ATTENDEE_EMPTY_REPORTED, Boolean.TRUE);
+    }
+
+    /** Count rows carrying a username — a username is what marks a row as an actual enrolment. O(n). */
+    private int countAttendeeRows(List<Map<String, Object>> sheetData) {
+        int count = 0;
+        for (Map<String, Object> row : sheetData) {
+            if (!ExcelUtil.getValueAsString(row.get(COL_USERNAME)).trim().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * True when no sheet in the workbook carries a single attendee row. Only reached when the
+     * current sheet is itself empty, so the common path never pays for this scan.
+     */
+    private boolean workbookHasNoAttendeeRows(Workbook workbook, ProcessResource resource) {
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet other = workbook.getSheetAt(i);
+            List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(
+                    resource.getFileStoreId(), other.getSheetName(), other);
+            if (countAttendeeRows(rows) > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Determine staff type (OWNER for marker, APPROVER for approver sheets).
      * Uses non-localized sheetNameKey from additionalDetails to avoid locale-dependent detection.
      */
@@ -943,6 +1004,11 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
         for (ValidationError error : errors) {
             int excelRowNumber = error.getRowNumber();
             Row row = sheet.getRow(excelRowNumber - 1); // Convert to 0-based index
+            // A sheet-level error targets the first data row, which an empty sheet may not have.
+            // Create it rather than dropping the message.
+            if (row == null) {
+                row = sheet.createRow(excelRowNumber - 1);
+            }
 
             if (row != null) {
                 Cell statusCell = row.getCell(statusColumnIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);

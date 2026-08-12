@@ -129,6 +129,7 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
      * 2. All boundary codes valid
      * 3. Register ID not empty
      * 4. No duplicate Register IDs
+     * 5. Sheet contains at least one register row
      */
     private void validateAttendanceRegisterData(List<Map<String, Object>> sheetData,
                                                ProcessResource resource,
@@ -162,12 +163,16 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         // Track Register IDs for duplicate detection - O(1) lookup
         Set<String> seenRegisterIds = new HashSet<>();
 
+        // Count rows carrying data so an all-blank sheet can be rejected below
+        int dataRowCount = 0;
+
         // Single pass validation - O(n)
         for (Map<String, Object> row : sheetData) {
             // Skip fully empty rows (no boundary, no register ID)
             if (!hasAnyDataInRow(row, boundaryColumnNames)) {
                 continue;
             }
+            dataRowCount++;
 
             int rowNumber = ((Number) row.get("__actualRowNumber__")).intValue();
 
@@ -185,8 +190,10 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                         "Register ID is required when boundary is selected"));
             }
 
-            // Register ID filled but no boundary
-            if (!hasBoundary && hasRegisterId) {
+            // No boundary. The row reached here only because it carries some data, so a row with
+            // neither boundary nor Register ID (e.g. only Event Type filled) is caught here too
+            // rather than falling through every rule and passing silently.
+            if (!hasBoundary) {
                 rowErrors.add(localizationMap.getOrDefault(
                         "HCM_ATTENDANCE_REGISTER_VALIDATION_NO_BOUNDARY",
                         "At least one boundary must be selected for the register"));
@@ -222,6 +229,19 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                         .status(ValidationConstants.STATUS_INVALID)
                         .build());
             }
+        }
+
+        // An upload with no register rows has nothing to create — reject it here rather than
+        // letting it pass and fail later in project-factory on a different screen.
+        if (dataRowCount == 0) {
+            errors.add(ValidationError.builder()
+                    .rowNumber(ValidationConstants.FIRST_DATA_ROW_NUMBER)
+                    .errorDetails(localizationMap.getOrDefault(
+                            ValidationConstants.LOC_ATTENDANCE_REGISTER_ATLEAST_ONE_REQUIRED,
+                            ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_ATLEAST_ONE_REQUIRED))
+                    .status(ValidationConstants.STATUS_INVALID)
+                    .build());
+            log.info("No attendance register rows found in sheet, added validation error");
         }
 
         log.info("Validation completed. Total errors: {}", errors.size());
@@ -377,10 +397,17 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
             Object val = row.get(col);
             if (val != null && !String.valueOf(val).trim().isEmpty()) return true;
         }
-        // Check Register ID
-        Object registerId = row.get("HCM_ATTENDANCE_REGISTER_ID");
-        if (registerId != null && !String.valueOf(registerId).trim().isEmpty()) return true;
-        return false;
+        // Any register column counts as data. Event Type / Sessions are included so a row where the
+        // user filled only those gets the precise per-row error (boundary or Register ID required)
+        // instead of being skipped and reported as an empty sheet.
+        return hasValue(row, ProcessingConstants.REGISTER_ID_COLUMN_KEY)
+                || hasValue(row, ProcessingConstants.REGISTER_EVENT_TYPE_COLUMN_KEY)
+                || hasValue(row, ProcessingConstants.REGISTER_SESSIONS_COLUMN_KEY);
+    }
+
+    private boolean hasValue(Map<String, Object> row, String columnKey) {
+        Object value = row.get(columnKey);
+        return value != null && !String.valueOf(value).trim().isEmpty();
     }
 
     /**
@@ -427,6 +454,11 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         for (ValidationError error : errors) {
             int excelRowNumber = error.getRowNumber();
             Row row = sheet.getRow(excelRowNumber - 1); // Convert to 0-based index
+            // A sheet-level error targets the first data row, which a hand-made file may not have.
+            // Create it rather than dropping the message, leaving the user a file with no reason on it.
+            if (row == null) {
+                row = sheet.createRow(excelRowNumber - 1);
+            }
 
             if (row != null) {
                 // Set status to invalid
