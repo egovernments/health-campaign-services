@@ -518,6 +518,54 @@ class ImmutableJoinServiceTest {
             assertEquals("Real Name", up.get("name"), "attendanceRegisterAttendee type is in join scope -> immutable restored");
         }
 
+        @Test
+        void attendeeUpload_withRegisterReference_doesNotResolveReferenceAsCampaign() {
+            // Attendee uploads send referenceType "attendanceRegister" and a REGISTER id. Resolving that
+            // as a campaign throws CAMPAIGN_NOT_FOUND and blocks every attendee upload, so the lookup
+            // must be skipped entirely for non-campaign references.
+            lenient().when(campaignService.searchCampaignById(anyString(), anyString(), any()))
+                    .thenThrow(new RuntimeException("Campaign not found with ID: register-1"));
+
+            ProcessResource attendee = ProcessResource.builder()
+                    .tenantId(TENANT).type("attendanceRegisterAttendee-validation")
+                    .referenceId(REF).referenceType("attendanceRegister")
+                    .fileStoreId(UPLOAD_FS).build();
+
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, attendee, sheetNameToSchema, null);
+
+            assertEquals("Real Name", up.get("name"), "attendee upload must join without a campaign lookup");
+            verify(campaignService, never()).searchCampaignById(anyString(), anyString(), any());
+        }
+
+        @Test
+        void campaignReference_stillResolvesClonedCampaign() {
+            // The clone fix must keep working for campaign references: the baseline belongs to the
+            // campaign this one was cloned FROM, not to this campaign's own id.
+            when(campaignService.searchCampaignById(anyString(), anyString(), any()))
+                    .thenReturn(CampaignSearchResponse.CampaignDetail.builder()
+                            .id("campaign-2").tenantId(TENANT)
+                            .additionalDetails(CampaignSearchResponse.AdditionalDetails.builder()
+                                    .clonedCampaignId(REF).build())
+                            .build());
+
+            ProcessResource cloned = ProcessResource.builder()
+                    .tenantId(TENANT).type(TYPE).referenceId("campaign-2")
+                    .referenceType("campaign").fileStoreId(UPLOAD_FS).build();
+
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, cloned, sheetNameToSchema, null);
+
+            assertEquals("Real Name", up.get("name"), "cloned campaign baseline must still be accepted");
+            verify(campaignService).searchCampaignById(anyString(), anyString(), any());
+        }
+
         private void removeMetaSheet() {
             uploadedWorkbook.removeSheetAt(uploadedWorkbook.getSheetIndex(GenerationConstants.META_SHEET_NAME));
         }
