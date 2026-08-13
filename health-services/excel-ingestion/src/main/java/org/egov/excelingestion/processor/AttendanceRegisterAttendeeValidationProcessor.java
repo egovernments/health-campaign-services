@@ -181,11 +181,10 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                     usernameToIndividualId, usernameToRoles, attendeeEnrollmentsMap, staffEnrollmentsMap,
                     isWorkerSheet, staffType, multiRegisterAllowedRoles, errors, localizationMap);
 
-            // An upload that enrols nobody has nothing to do. Checked across every sheet because
-            // this processor runs per-sheet and any one of worker/marker/approver may legitimately
-            // be empty on its own — only an entirely empty workbook is an error.
-            if (countAttendeeRows(sheetData) == 0 && !alreadyReportedEmptyWorkbook(resource)
-                    && workbookHasNoAttendeeRows(workbook, resource)) {
+            // The template is pre-filled with every campaign user, so a row without an enrolment date
+            // is a legitimate skip. Only an upload where NO row anywhere carries one enrols nobody.
+            if (countEnrolmentRows(sheetData) == 0 && !alreadyReportedEmptyWorkbook(resource)
+                    && workbookHasNoEnrolments(workbook, resource)) {
                 errors.add(ValidationError.builder()
                         .rowNumber(ValidationConstants.FIRST_DATA_ROW_NUMBER)
                         .errorDetails(localizationMap.getOrDefault(
@@ -194,7 +193,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                         .status(ValidationConstants.STATUS_INVALID)
                         .build());
                 markEmptyWorkbookReported(resource);
-                log.info("No attendee rows found in any sheet of the workbook, added validation error");
+                log.info("No enrolment rows found in any sheet of the workbook, added validation error");
             }
 
             log.info("Attendee validation completed for sheet {} with {} errors", sheetName, errors.size());
@@ -627,10 +626,12 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /** Count rows carrying a username — a username is what marks a row as an actual enrolment. O(n). */
-    private int countAttendeeRows(List<Map<String, Object>> sheetData) {
+    private int countEnrolmentRows(List<Map<String, Object>> sheetData) {
         int count = 0;
         for (Map<String, Object> row : sheetData) {
-            if (!ExcelUtil.getValueAsString(row.get(COL_USERNAME)).trim().isEmpty()) {
+            boolean hasUser = !ExcelUtil.getValueAsString(row.get(COL_USERNAME)).trim().isEmpty();
+            boolean hasEnrolmentDate = !ExcelUtil.getValueAsString(row.get(COL_ENROLLMENT_DATE)).trim().isEmpty();
+            if (hasUser && hasEnrolmentDate) {
                 count++;
             }
         }
@@ -638,15 +639,15 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
-     * True when no sheet in the workbook carries a single attendee row. Only reached when the
+     * True when no sheet in the workbook carries a single enrolment. Only reached when the
      * current sheet is itself empty, so the common path never pays for this scan.
      */
-    private boolean workbookHasNoAttendeeRows(Workbook workbook, ProcessResource resource) {
+    private boolean workbookHasNoEnrolments(Workbook workbook, ProcessResource resource) {
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet other = workbook.getSheetAt(i);
             List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(
                     resource.getFileStoreId(), other.getSheetName(), other);
-            if (countAttendeeRows(rows) > 0) {
+            if (countEnrolmentRows(rows) > 0) {
                 return false;
             }
         }

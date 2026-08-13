@@ -66,7 +66,7 @@ class AttendanceEmptySheetValidationTest {
     private AttendanceRegisterAttendeeValidationProcessor attendeeProcessor;
 
     private Method validateRegisterData;
-    private Method countAttendeeRows;
+    private Method countEnrolmentRows;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -83,9 +83,9 @@ class AttendanceEmptySheetValidationTest {
                 List.class, ProcessResource.class, RequestInfo.class, List.class, Map.class);
         validateRegisterData.setAccessible(true);
 
-        countAttendeeRows = AttendanceRegisterAttendeeValidationProcessor.class.getDeclaredMethod(
-                "countAttendeeRows", List.class);
-        countAttendeeRows.setAccessible(true);
+        countEnrolmentRows = AttendanceRegisterAttendeeValidationProcessor.class.getDeclaredMethod(
+                "countEnrolmentRows", List.class);
+        countEnrolmentRows.setAccessible(true);
 
         when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
                 anyString(), anyString(), anyString(), anyString(), any()))
@@ -189,27 +189,39 @@ class AttendanceEmptySheetValidationTest {
     }
 
     @Test
-    void attendeeRowCountIsZeroForEmptySheet() throws Exception {
-        assertEquals(0, invokeCountAttendeeRows(new ArrayList<>()));
+    void enrolmentCountIsZeroForEmptySheet() throws Exception {
+        assertEquals(0, invokeCountEnrolmentRows(new ArrayList<>()));
     }
 
     @Test
-    void attendeeRowCountIgnoresRowsWithoutAUsername() throws Exception {
+    void enrolmentCountIgnoresRowsWithoutAUsername() throws Exception {
         List<Map<String, Object>> sheetData = List.of(
-                attendeeRow(""),
-                attendeeRow("   "));
+                attendeeRow("", "01-09-2026"),
+                attendeeRow("   ", "01-09-2026"));
 
-        assertEquals(0, invokeCountAttendeeRows(sheetData));
+        assertEquals(0, invokeCountEnrolmentRows(sheetData));
     }
 
     @Test
-    void attendeeRowCountCountsRowsCarryingAUsername() throws Exception {
+    void enrolmentCountIgnoresPreFilledUsersWithNoEnrolmentDate() throws Exception {
+        // The template lists every campaign user, so a row without a date is a legitimate skip and
+        // enrols nobody. An upload made only of these achieves nothing and must be rejected.
         List<Map<String, Object>> sheetData = List.of(
-                attendeeRow("USER_1"),
-                attendeeRow(""),
-                attendeeRow("USER_2"));
+                attendeeRow("USER_1", ""),
+                attendeeRow("USER_2", "   "));
 
-        assertEquals(2, invokeCountAttendeeRows(sheetData));
+        assertEquals(0, invokeCountEnrolmentRows(sheetData));
+    }
+
+    @Test
+    void enrolmentCountCountsOnlyRowsWithAUsernameAndAnEnrolmentDate() throws Exception {
+        List<Map<String, Object>> sheetData = List.of(
+                attendeeRow("USER_1", "01-09-2026"),
+                attendeeRow("USER_2", ""),
+                attendeeRow("", "01-09-2026"),
+                attendeeRow("USER_3", "02-09-2026"));
+
+        assertEquals(2, invokeCountEnrolmentRows(sheetData));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -235,8 +247,8 @@ class AttendanceEmptySheetValidationTest {
         return errors;
     }
 
-    private int invokeCountAttendeeRows(List<Map<String, Object>> sheetData) throws Exception {
-        return (int) countAttendeeRows.invoke(attendeeProcessor, sheetData);
+    private int invokeCountEnrolmentRows(List<Map<String, Object>> sheetData) throws Exception {
+        return (int) countEnrolmentRows.invoke(attendeeProcessor, sheetData);
     }
 
     private boolean invokeAlreadyReported(ProcessResource resource) {
@@ -270,9 +282,10 @@ class AttendanceEmptySheetValidationTest {
         return row;
     }
 
-    private Map<String, Object> attendeeRow(String username) {
+    private Map<String, Object> attendeeRow(String username, String enrolmentDate) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put(ProcessingConstants.USERNAME_COLUMN_KEY, username);
+        row.put(ProcessingConstants.ENROLLMENT_DATE_COLUMN_KEY, enrolmentDate);
         return row;
     }
 

@@ -82,7 +82,7 @@ public class ValidationConstants {
     // Accumulated in additionalDetails across sheet invocations, same as the per-sheet status keys.
     public static final String ADDITIONAL_DETAILS_ATTENDEE_EMPTY_REPORTED = "attendeeEmptyWorkbookReported";
     public static final String LOC_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED = "HCM_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED";
-    public static final String DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED = "At least one user enrollment is required across the worker, marker and approver sheets.";
+    public static final String DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED = "At least one user must have an enrollment date across the worker, marker and approver sheets.";
 
     // Attendance Register Attendee — Truth-table business validation Localization Keys
     public static final String LOC_ATTENDANCE_ENROLLMENT_DATE_REQUIRED = "HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED";
