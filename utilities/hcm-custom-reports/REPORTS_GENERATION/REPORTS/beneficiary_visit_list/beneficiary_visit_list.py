@@ -1,7 +1,6 @@
 import os
 import sys
 import warnings
-import json
 import requests
 import pandas as pd
 import argparse
@@ -39,7 +38,6 @@ ES_INDIVIDUAL_INDEX   = es_index_url("individual-index-v1")
 ES_HHM_V1             = es_index_url("household-member-index-v1")
 ES_STAFF_INDEX        = es_index_url("project-staff-index-v1")
 ES_SCROLL_API         = es_scroll_url()
-DECRYPT_URL           = os.getenv('DECRYPT_URL', 'http://egov-enc-service.egov:8080/egov-enc-service/crypto/v1/_decrypt')
 INDIVIDUAL_HOST       = os.getenv('INDIVIDUAL_HOST', 'http://individual.egov:8080')
 AUTH_TOKEN            = os.getenv('AUTH_TOKEN', '')
 TENANT_ID             = os.getenv('TENANT_ID', '')
@@ -85,22 +83,6 @@ def convert_ts_to_datetime(ts):
         return ""
 
 
-def decrypt_identifier(encrypted_id):
-    try:
-        response = requests.post(
-            DECRYPT_URL,
-            headers={"Content-Type": "application/json"},
-            data=json.dumps(encrypted_id),
-            verify=False,
-            timeout=30,
-        )
-        if response.status_code == 200:
-            return response.text.strip().replace('"', '')
-    except Exception as e:
-        print(f"Decryption error: {e}")
-    return ""
-
-
 def scroll_all(index_url, query):
     scroll_url = f"{index_url}?scroll={SCROLL_TIME}"
     scroll_id = None
@@ -141,6 +123,7 @@ def fetch_project_tasks():
             "Data.additionalDetails.gender", "Data.additionalDetails.ageInMonths",
             "Data.additionalDetails.cycleIndex", "Data.additionalDetails.memberCount",
             "Data.additionalDetails.taskType", "Data.deliveryComments",
+            "Data.additionalDetails.beneficiaryId",
         ]
     }
 
@@ -176,7 +159,9 @@ def fetch_project_tasks():
                 "Product Name":                  data.get("productName", ""),
                 "Cycle Index":                   additional.get("cycleIndex", ""),
                 "Member Count":                  data.get("memberCount", additional.get("memberCount", "")),
-                "Beneficiary ID (Child)":        "",
+                # Already decrypted/plain on the task doc itself - no need for the
+                # individual-index + egov-enc-service decrypt round trip.
+                "Beneficiary ID (Child)":        additional.get("beneficiaryId", ""),
                 "Household Client Reference ID": "",
                 "Household Head Name":           "",
                 "Quantity Administered":         0,
@@ -205,6 +190,12 @@ def fetch_project_tasks():
                       "BENEFICIARY_REFUSED", "BENEFICIARY_ABSENT", "BENEFICIARY_DIED"]:
             ind_id_vs_info[indv_id][status] = "yes"
 
+        # Not every task record for a beneficiary necessarily carries
+        # beneficiaryId (e.g. an early INELIGIBLE record) - backfill from any
+        # later record that does, so the first-seen record isn't the only chance.
+        if not ind_id_vs_info[indv_id]["Beneficiary ID (Child)"] and additional.get("beneficiaryId"):
+            ind_id_vs_info[indv_id]["Beneficiary ID (Child)"] = additional.get("beneficiaryId")
+
     print(f"Fetched {len(ind_id_vs_info)} unique beneficiaries from project-task-index")
 
 
@@ -213,7 +204,7 @@ def enrich_child_info(individual_ids):
     query = {
         "size": USER_BUCKET_SIZE,
         "query": {"terms": {"clientReferenceId.keyword": individual_ids}},
-        "_source": ["clientReferenceId", "name", "identifiers"],
+        "_source": ["clientReferenceId", "name"],
     }
     resp = get_resp(ES_INDIVIDUAL_INDEX, query, True).json()
     return resp.get("hits", {}).get("hits", [])
@@ -426,11 +417,6 @@ for chunk in chunks:
         name_obj = src.get("name", {}) or {}
         full_name = f"{name_obj.get('givenName', '')} {name_obj.get('familyName', '')}".replace("None", "").strip()
         ind_id_vs_info[indv_id]["Child Name"] = full_name
-
-        for ident in src.get("identifiers", []):
-            if ident.get("identifierType") == "UNIQUE_BENEFICIARY_ID":
-                ind_id_vs_info[indv_id]["Beneficiary ID (Child)"] = decrypt_identifier(ident.get("identifierId"))
-                break
 
     child_to_household = fetch_household_links(chunk)
     household_ids = list(child_to_household.values())

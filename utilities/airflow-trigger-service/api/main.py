@@ -30,6 +30,7 @@ import psycopg2
 import psycopg2.extras
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
@@ -242,6 +243,10 @@ TERMINAL_STATUSES = {
     "OUTPUT_NOT_FOUND_FAILED", "ZIP_FAILED", "FILESTORE_UPLOAD_FAILED",
 }
 FAILED_STATUSES = TERMINAL_STATUSES - {"REPORT_COMPLETED", "SKIPPED"}
+# Toggle for /report-status: when false, rows whose latest status is a failure
+# are dropped from the response entirely (as if they don't exist) instead of
+# being returned with isFailed=true.
+RETURN_FAILED_REPORTS = os.getenv("RETURN_FAILED_REPORTS", "true").lower() == "true"
 # Pushed directly by this API (trigger_dag), not by the DAGs/pod - see
 # _insert_triggered_on_ui_rows. Not part of kafka_status.py's/hcm-custom-reports'
 # STATUS_ORDER mirrors since neither of those ever emits it.
@@ -505,7 +510,7 @@ def _fetch_expected_generation_time_seconds(
     return expected_seconds
 
 
-async def _insert_triggered_on_ui_rows(conf: dict, dag_id: str, dag_run_id: str, triggered_dt: datetime) -> None:
+def _insert_triggered_on_ui_rows(conf: dict, dag_id: str, dag_run_id: str, triggered_dt: datetime) -> None:
     """Best-effort bootstrap row so the UI has something to show within milliseconds
     of the click, instead of waiting ~1-1.5 min for Airflow's scheduler to pick up
     the run and for build_payload to push its own TRIGGERED event.
@@ -516,6 +521,10 @@ async def _insert_triggered_on_ui_rows(conf: dict, dag_id: str, dag_run_id: str,
     pipeline exactly as before, and naturally supersedes this row once it arrives
     (higher statusOrder). Never raises - a failure here must not fail the trigger
     itself, since the DAG run has already been created in Airflow by this point.
+
+    Plain def, not async def - this is pure blocking psycopg2 work with no
+    await inside. Called from the async trigger_dag endpoint via
+    run_in_threadpool so it doesn't block the event loop.
     """
     matched_campaigns = conf.get("matched_campaigns")
     if not isinstance(matched_campaigns, list) or not matched_campaigns:
@@ -665,8 +674,11 @@ async def trigger_dag(req: TriggerRequest):
                             c.get("identifierType"), start_dt, end_dt,
                         )
                         c["expectedRows"] = expected_rows
-                        c["expectedGenerationTimeSeconds"] = _fetch_expected_generation_time_seconds(
-                            c.get("tenantId"), c.get("reportName"), c.get("triggerFrequency"), expected_rows
+                        # Sync/blocking DB call - run off the event loop so it can't
+                        # stall other concurrent requests.
+                        c["expectedGenerationTimeSeconds"] = await run_in_threadpool(
+                            _fetch_expected_generation_time_seconds,
+                            c.get("tenantId"), c.get("reportName"), c.get("triggerFrequency"), expected_rows,
                         )
                     except Exception:
                         logger.exception(
@@ -685,7 +697,9 @@ async def trigger_dag(req: TriggerRequest):
     logger.info("Airflow dag_run created: dag_id=%s dag_run_id=%s state=%s", result["dag_id"], result["dag_run_id"], result["state"])
 
     if req.dag_id == "hcm_dynamic_campaigns" and req.conf:
-        await _insert_triggered_on_ui_rows(req.conf, req.dag_id, result["dag_run_id"], triggered_dt)
+        # Sync/blocking DB call - run off the event loop so it can't stall other
+        # concurrent requests.
+        await run_in_threadpool(_insert_triggered_on_ui_rows, req.conf, req.dag_id, result["dag_run_id"], triggered_dt)
 
     return {
         "dag_id": result["dag_id"],
@@ -748,7 +762,7 @@ async def list_task_instances(dag_id: str, dag_run_id: str):
     return tasks
 
 @app.post("/airflow-trigger-api/api/reports-metadata")
-async def search_reports_metadata(req: ReportsMetadataRequest):
+def search_reports_metadata(req: ReportsMetadataRequest):
     logger.info(
         "search_reports_metadata called: tenantId=%s campaignIdentifier=%s reportName=%s triggerFrequency=%s",
         req.tenantId, req.campaignIdentifier, req.reportName, req.triggerFrequency,
@@ -811,7 +825,7 @@ async def search_reports_metadata(req: ReportsMetadataRequest):
 
 
 @app.post("/airflow-trigger-api/api/report-status")
-async def search_report_status(req: ReportStatusRequest):
+def search_report_status(req: ReportStatusRequest):
     """Full lifecycle history / latest-state view - REPORT_STATUS_EVENTS was merged into
     REPORTS_METADATA (one topic, one table going forward), so this now reads from there."""
     logger.info(
@@ -875,10 +889,18 @@ async def search_report_status(req: ReportStatusRequest):
 
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     data = []
+    hidden_failed = 0
     for row in rows:
         row.pop("rn", None)
-        data.append(_enrich_status_row(row, now_ms))
-    logger.info("search_report_status returning %d rows", len(data))
+        enriched = _enrich_status_row(row, now_ms)
+        if not RETURN_FAILED_REPORTS and enriched["isFailed"]:
+            hidden_failed += 1
+            continue
+        data.append(enriched)
+    logger.info(
+        "search_report_status returning %d rows (%d failed rows hidden, RETURN_FAILED_REPORTS=%s)",
+        len(data), hidden_failed, RETURN_FAILED_REPORTS,
+    )
 
     return {
         "ResponseInfo": req.RequestInfo,
@@ -887,7 +909,7 @@ async def search_report_status(req: ReportStatusRequest):
 
 
 @app.post("/airflow-trigger-api/api/reports-in-progress")
-async def reports_in_progress(req: ReportsInProgressRequest):
+def reports_in_progress(req: ReportsInProgressRequest):
     """Latest-status rows that are still in flight (not completed/failed/skipped) -
     drives the 'in progress' cards/badges on the reports UI."""
     logger.info(
@@ -963,7 +985,7 @@ async def reports_in_progress(req: ReportsInProgressRequest):
 
 
 @app.post("/airflow-trigger-api/api/reports-check-existing")
-async def check_existing_custom_report(req: CheckExistingCustomReportRequest):
+def check_existing_custom_report(req: CheckExistingCustomReportRequest):
     """Pre-flight check before triggering a CUSTOM report: is there already a
     completed/in-progress/failed run for this exact campaign+report+date-range?
 
