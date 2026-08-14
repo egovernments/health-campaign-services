@@ -155,12 +155,19 @@ public class ImmutableJoinService {
         // equality check would falsely reject every legitimate upload. The generationId (unguessable,
         // looked up by id + tenant) plus the referenceId match are the identity guarantee.
 
-        CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(
-                resource.getReferenceId(), resource.getTenantId(), requestInfo);
-        String clonedCampaignId = campaign.getAdditionalDetails() == null ? null
-                : campaign.getAdditionalDetails().getClonedCampaignId();
-        log.info("Immutable-baseline join for generationId {}: campaign {} clonedCampaignId {}",
-                generationId, resource.getReferenceId(), clonedCampaignId);
+        // A register reference is not a campaign id, so clone resolution is skipped for it.
+        String clonedCampaignId = null;
+        if (ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER.equals(resource.getReferenceType())) {
+            log.info("Immutable-baseline join for generationId {}: register reference {}, no clone resolution",
+                    generationId, resource.getReferenceId());
+        } else {
+            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(
+                    resource.getReferenceId(), resource.getTenantId(), requestInfo);
+            clonedCampaignId = campaign.getAdditionalDetails() == null ? null
+                    : campaign.getAdditionalDetails().getClonedCampaignId();
+            log.info("Immutable-baseline join for generationId {}: campaign {} clonedCampaignId {}",
+                    generationId, resource.getReferenceId(), clonedCampaignId);
+        }
 
 
 
