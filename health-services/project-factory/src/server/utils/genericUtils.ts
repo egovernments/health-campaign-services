@@ -1386,6 +1386,9 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
 /** Reads campaign-data rows for a type/campaign (optionally filtered by status and uniqueIdentifier), mapped to camelCase. */
 export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string) {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+  // Removed rows are returned here on purpose: callers use this to decide insert-vs-update, and the
+  // persister has no upsert, so hiding a row that physically exists routes it to a duplicate insert.
+  // Download paths filter on the isDeleted / denrollmentDate fields returned below.
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
   if(status) queryString += ` AND status = $3`;
   const arrayStatements = [type, campaignNumber];
@@ -1402,7 +1405,11 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
       data : relatedData?.rows[i]?.data,
       uniqueIdentifier : relatedData?.rows[i]?.uniqueidentifier,
       status : relatedData?.rows[i]?.status,
-      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess
+      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess,
+      isDeleted : relatedData?.rows[i]?.isdeleted === true,
+      denrollmentDate : relatedData?.rows[i]?.denrollmentdate == null
+        ? null
+        : Number(relatedData?.rows[i]?.denrollmentdate)
     })
   }
   return rows;

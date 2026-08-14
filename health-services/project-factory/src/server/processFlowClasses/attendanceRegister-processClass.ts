@@ -195,13 +195,22 @@ export class TemplateClass {
             // Only store the UUID for registers that are valid (not cross-campaign conflicts or boundary-changed)
             const uniqueIdAfterProcess = isInvalid ? null : (serviceCodeToUuidMap.get(serviceCode) || null);
 
+            // This flag only ever mirrors the attendance service, so it is cleared only on positive
+            // evidence from it: a resolved UUID means attendance confirmed the register exists, either
+            // by returning it or by creating it in this run. Anything else keeps the stored value —
+            // "the row wasn't invalid" is not evidence the register is back.
+            const isDeleted = uniqueIdAfterProcess
+                ? false
+                : (existingDataMap.get(serviceCode)?.isDeleted ?? false);
+
             const payload = {
                 campaignNumber,
                 type: "attendanceRegister",
                 uniqueIdentifier: serviceCode,
                 data: processedRow,
                 status: dbStatus,
-                uniqueIdAfterProcess
+                uniqueIdAfterProcess,
+                isDeleted
             };
 
             if (existingDataMap.has(serviceCode)) {

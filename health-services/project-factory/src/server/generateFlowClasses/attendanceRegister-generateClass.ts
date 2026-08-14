@@ -48,7 +48,10 @@ export class TemplateClass {
         const existingRegisterRows = await getRelatedDataWithCampaign(
             "attendanceRegister", campaignDetails.campaignNumber, tenantId, dataRowStatuses.completed
         );
-        const attendanceRegisterData = existingRegisterRows.map((r: any) => r.data || {});
+        // Registers deleted in the attendance service must not be re-offered for download.
+        const attendanceRegisterData = existingRegisterRows
+            .filter((r: any) => !r.isDeleted)
+            .map((r: any) => r.data || {});
         logger.info("Loaded {} existing attendance registers from campaign_data for template", attendanceRegisterData.length);
 
         const sheetMap: SheetMap = {

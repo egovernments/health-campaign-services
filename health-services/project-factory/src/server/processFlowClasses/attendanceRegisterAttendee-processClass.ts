@@ -4,6 +4,7 @@ import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { sheetDataRowStatuses, dataRowStatuses } from "../config/constants";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
+import { attendeeIdentity } from "../utils/attendanceIdentityUtils";
 import { httpRequest } from "../utils/request";
 import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
@@ -234,7 +235,9 @@ export class TemplateClass {
             sheetRows,
             existingAttendeeDataMap,
             campaignNumber,
-            tenantId
+            tenantId,
+            usernameToIndividualId,
+            registerDataMap
         );
 
         // Wait for Kafka persistence (same pattern as user-processClass)
@@ -307,7 +310,9 @@ export class TemplateClass {
         sheetRows: Map<string, any[]>,
         existingDataMap: Map<string, any>,
         campaignNumber: string,
-        tenantId: string
+        tenantId: string,
+        usernameToIndividualId: Map<string, string>,
+        registerDataMap: Map<string, any>
     ): Promise<void> {
         const toSave: any[] = [];
         const toUpdate: any[] = [];
@@ -334,13 +339,43 @@ export class TemplateClass {
                     _sheetName: sheetName
                 };
 
+                // Stamp the attendance-side identity so de-enrolment events, which carry only UUIDs,
+                // can resolve back to this row. Null when the register or individual is unresolved.
+                const registerUuid = registerDataMap.get(registerServiceCode)?.register?.id;
+                const individualId = usernameToIndividualId.get(username);
+                // Fall back to whatever is already stored: HRMS or the register search can fail
+                // transiently, and the persister overwrites this column unconditionally, so a blip
+                // would otherwise erase a good identity and break every later de-enrolment event.
+                const uniqueIdAfterProcess = registerUuid && individualId
+                    ? attendeeIdentity(registerUuid, individualId, sheetType)
+                    : (existingDataMap.get(uniqueIdentifier)?.uniqueIdAfterProcess ?? null);
+
+                // Stamp the de-enrolment date from the sheet directly. The attendance echo event can
+                // arrive before this row exists, so relying on it alone would lose console-driven
+                // de-enrolments. Falls back to the stored value so a re-upload cannot clear a date
+                // recorded from outside the console.
+                const deEnrolmentRaw = row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
+                const storedDenrollmentDate = existingDataMap.get(uniqueIdentifier)?.denrollmentDate ?? null;
+                // Only a row that actually reached the attendance service may set this. A failed or
+                // skipped row keeps whatever is stored, so a date whose API call errored is not made
+                // permanent and can still be corrected by re-uploading.
+                // A blank cell never clears a stored date: an event may have set it between the
+                // register fetch and this write, and de-enrolment is one-way per the truth table.
+                const parsedDenrollmentDate = this.getCellAsString(deEnrolmentRaw)
+                    ? this.parseDateEndOfDay(deEnrolmentRaw)
+                    : null;
+                const denrollmentDate = dbStatus === dataRowStatuses.completed
+                    ? (parsedDenrollmentDate ?? storedDenrollmentDate)
+                    : storedDenrollmentDate;
+
                 const payload = {
                     campaignNumber,
                     type: "attendanceRegisterAttendee",
                     uniqueIdentifier,
                     data: dataToStore,
                     status: dbStatus,
-                    uniqueIdAfterProcess: null
+                    uniqueIdAfterProcess,
+                    denrollmentDate
                 };
 
                 if (existingDataMap.has(uniqueIdentifier)) {

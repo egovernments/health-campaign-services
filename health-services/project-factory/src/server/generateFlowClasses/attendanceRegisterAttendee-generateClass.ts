@@ -19,6 +19,15 @@ const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
 const MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
 const APPROVER_SHEET = "HCM_REGISTER_APPROVER_SHEET";
 
+const DEENROLLMENT_DATE_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
+
+/** dd-MM-yyyy, matching the format the template documents and the upload validator accepts. */
+function formatEpochAsSheetDate(epochMs: number): string {
+    const d = new Date(epochMs);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+}
+
 /**
  * Generate class for Attendance Register Attendee Mapping.
  * Generates 3-sheet Excel prefilled with users filtered by role and boundary.
@@ -73,9 +82,15 @@ export class TemplateClass {
         const storedAttendeeRows = await getRelatedDataWithCampaign(
             "attendanceRegisterAttendee", campaign?.campaignNumber, tenantId, dataRowStatuses.completed
         );
-        const filteredStoredRows = storedAttendeeRows.filter(
-            (r: any) => r.data?._registerServiceCode === registerServiceCode
-        );
+        // A deleted register can be re-created under the same serviceCode, so serviceCode alone would
+        // pull in the previous register's attendees. Rows stamped with a different register UUID belong
+        // to that older register; rows with no stamp predate this and are kept.
+        const currentRegisterUuid: string = register?.id || "";
+        const filteredStoredRows = storedAttendeeRows.filter((r: any) => {
+            if (r.data?._registerServiceCode !== registerServiceCode) return false;
+            if (!currentRegisterUuid || !r.uniqueIdAfterProcess) return true;
+            return String(r.uniqueIdAfterProcess).startsWith(`${currentRegisterUuid}_`);
+        });
 
         if (filteredStoredRows.length > 0) {
             logger.info(`Found ${filteredStoredRows.length} stored attendee rows for register ${registerServiceCode} — using DB data`);
@@ -87,6 +102,11 @@ export class TemplateClass {
                         // Strip internal persistence fields before returning in output
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
                         const { _registerServiceCode, _sheetName: _sn, ...outputRow } = r.data;
+                        // De-enrolled people stay listed — the date is shown rather than hidden. Surfaces
+                        // de-enrolments done outside the console, which never touched the sheet cell.
+                        if (r.denrollmentDate != null) {
+                            outputRow[DEENROLLMENT_DATE_COLUMN] = formatEpochAsSheetDate(r.denrollmentDate);
+                        }
                         return outputRow;
                     });
                 sheetMap[sheetName] = { data: rowsForSheet, dynamicColumns: null };

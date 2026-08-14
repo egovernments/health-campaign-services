@@ -194,6 +194,12 @@ const config = {
     KAFKA_USER_CREATE_BATCH_TOPIC: process.env.KAFKA_USER_CREATE_BATCH_TOPIC || "hcm-user-create-batch",
     KAFKA_MAPPING_BATCH_TOPIC: process.env.KAFKA_MAPPING_BATCH_TOPIC || "hcm-mapping-batch",
     KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: process.env.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC || "hcm-campaign-mark-failed",
+    // Produced by the attendance service, so these must match ITS configured topic names, not ours.
+    // The health vertical suffixes them with "-health"; other environments prefix instead
+    // (e.g. "dev-update-attendee"), so every environment must set these explicitly.
+    KAFKA_ATTENDANCE_REGISTER_DELETE_TOPIC: process.env.KAFKA_ATTENDANCE_REGISTER_DELETE_TOPIC || "delete-attendance-health",
+    KAFKA_ATTENDANCE_ATTENDEE_UPDATE_TOPIC: process.env.KAFKA_ATTENDANCE_ATTENDEE_UPDATE_TOPIC || "update-attendee-health",
+    KAFKA_ATTENDANCE_STAFF_UPDATE_TOPIC: process.env.KAFKA_ATTENDANCE_STAFF_UPDATE_TOPIC || "update-staff-health",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
     KAFKA_NON_CENTRAL_INSTANCE_TOPICS: process.env.KAFKA_NON_CENTRAL_INSTANCE_TOPICS || "egov.core.notification.email",
     KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION: parseInt(process.env.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION || "5242880", 10) || 5242880,
