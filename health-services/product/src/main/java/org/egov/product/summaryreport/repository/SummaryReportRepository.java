@@ -1,5 +1,7 @@
 package org.egov.product.summaryreport.repository;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.utils.MultiStateInstanceUtil;
@@ -110,9 +112,35 @@ public class SummaryReportRepository {
         return result;
     }
 
-    public Map<String, Long> householdsRegisteredByDay(String createdBy, String tenantId,
-                                                        Long startDate, Long endDate) {
-        return countByDay("household", createdBy, tenantId, startDate, endDate);
+    /** One day's household aggregates: registrations plus the occupants recorded across them. */
+    @Getter
+    @AllArgsConstructor
+    public static class HouseholdDayAggregate {
+        private final long householdsRegistered;
+        private final long peopleInHouseholds;
+    }
+
+    /**
+     * Households registered per day together with SUM({@code numberOfMembers}) across those
+     * same households. Both aggregates come from one scan of the same rows, so this costs
+     * no more than the plain count did. {@code numberOfMembers} is nullable, hence COALESCE.
+     */
+    public Map<String, HouseholdDayAggregate> householdsRegisteredByDay(String createdBy, String tenantId,
+                                                                        Long startDate, Long endDate) {
+        String sql = "SELECT " + dayExpr(tenantId) + " AS day, COUNT(*) AS cnt, "
+                + "COALESCE(SUM(numberofmembers), 0) AS members "
+                + "FROM " + SCHEMA_REPLACE_STRING + ".household "
+                + "WHERE createdby = :createdBy "
+                + "AND tenantid = :tenantId "
+                + "AND (isdeleted = false OR isdeleted IS NULL) "
+                + "AND createdtime >= :startDate AND createdtime <= :endDate "
+                + "GROUP BY day";
+        sql = resolveSchema(sql, tenantId);
+        Map<String, HouseholdDayAggregate> result = new HashMap<>();
+        jdbcTemplate.query(sql, baseParams(createdBy, tenantId, startDate, endDate),
+                (RowCallbackHandler) rs -> result.put(rs.getString("day"),
+                        new HouseholdDayAggregate(rs.getLong("cnt"), rs.getLong("members"))));
+        return result;
     }
 
     public Map<String, Long> individualRegisteredByDay(String createdBy, String tenantId,
