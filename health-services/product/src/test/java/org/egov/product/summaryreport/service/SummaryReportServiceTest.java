@@ -4,6 +4,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.product.summaryreport.config.SummaryReportConfiguration;
 import org.egov.product.summaryreport.repository.SummaryReportRepository;
+import org.egov.product.summaryreport.repository.SummaryReportRepository.HouseholdDayAggregate;
 import org.egov.product.summaryreport.web.models.DailyReportSummary;
 import org.egov.product.summaryreport.web.models.SummaryReportSearchCriteria;
 import org.egov.product.summaryreport.web.models.SummaryReportSearchRequest;
@@ -95,9 +96,9 @@ class SummaryReportServiceTest {
     @Test
     @DisplayName("should merge all five metrics by day, ordered ascending, defaulting missing metrics to 0")
     void shouldMergeMetricsByDay() {
-        Map<String, Long> households = new HashMap<>();
-        households.put("2026-07-17", 5L);
-        households.put("2026-07-18", 3L);
+        Map<String, HouseholdDayAggregate> households = new HashMap<>();
+        households.put("2026-07-17", new HouseholdDayAggregate(5L, 23L));
+        households.put("2026-07-18", new HouseholdDayAggregate(3L, 11L));
         when(repository.householdsRegisteredByDay(eq(UUID), eq(TENANT), anyLong(), anyLong())).thenReturn(households);
 
         when(repository.childrenTreatedByDay(eq(UUID), eq(TENANT), anyLong(), anyLong()))
@@ -118,16 +119,20 @@ class SummaryReportServiceTest {
         assertEquals("2026-07-17", d17.getDate());
         assertEquals(UUID, d17.getCreatedBy());
         assertEquals(5L, d17.getHouseholdsRegistered());
+        assertEquals(23L, d17.getPeopleInHouseholds());
         assertEquals(0L, d17.getChildrenTreated());
         assertEquals(0L, d17.getIndividualRegistered());
         assertEquals(2, d17.getStockConsumedMap().size());
         assertEquals(10L, d17.getStockConsumedMap().get("pv-1"));
+        assertEquals(14L, d17.getItnsDistributed(), "itnsDistributed should total every variant");
 
         DailyReportSummary d18 = result.get(1);
         assertEquals("2026-07-18", d18.getDate());
         assertEquals(3L, d18.getHouseholdsRegistered());
+        assertEquals(11L, d18.getPeopleInHouseholds());
         assertEquals(7L, d18.getChildrenTreated());
         assertTrue(d18.getStockConsumedMap().isEmpty());
+        assertEquals(0L, d18.getItnsDistributed(), "a day with no stock should report 0, not null");
     }
 
     @Test
@@ -142,7 +147,7 @@ class SummaryReportServiceTest {
     @DisplayName("should resolve employee from RequestInfo.userInfo.uuid")
     void shouldUseUuidFromRequestInfo() {
         when(repository.householdsRegisteredByDay(eq(UUID), eq(TENANT), anyLong(), anyLong()))
-                .thenReturn(Collections.singletonMap("2026-07-18", 1L));
+                .thenReturn(Collections.singletonMap("2026-07-18", new HouseholdDayAggregate(1L, 4L)));
 
         List<DailyReportSummary> result =
                 summaryReportService.getDailySummary(request(completeRequestInfo(), validCriteria()));
