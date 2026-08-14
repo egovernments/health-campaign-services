@@ -53,9 +53,13 @@ public class SummaryReportService {
         // day -> summary; TreeMap keeps the array ordered by date ascending.
         Map<String, DailyReportSummary> byDay = new TreeMap<>();
 
-        mergeCounts(byDay, createdBy,
-                repository.householdsRegisteredByDay(createdBy, tenantId, startDate, endDate),
-                DailyReportSummary::setHouseholdsRegistered);
+        // Households carry two metrics off one query, so they merge separately from the rest.
+        repository.householdsRegisteredByDay(createdBy, tenantId, startDate, endDate)
+                .forEach((day, aggregate) -> {
+                    DailyReportSummary summary = getOrCreate(byDay, day, createdBy);
+                    summary.setHouseholdsRegistered(aggregate.getHouseholdsRegistered());
+                    summary.setPeopleInHouseholds(aggregate.getPeopleInHouseholds());
+                });
         mergeCounts(byDay, createdBy,
                 repository.individualRegisteredByDay(createdBy, tenantId, startDate, endDate),
                 DailyReportSummary::setIndividualRegistered);
@@ -68,8 +72,12 @@ public class SummaryReportService {
 
         Map<String, Map<String, Long>> stockByDay =
                 repository.stockConsumedByDay(createdBy, tenantId, startDate, endDate);
-        stockByDay.forEach((day, stockMap) ->
-                getOrCreate(byDay, day, createdBy).setStockConsumedMap(stockMap));
+        stockByDay.forEach((day, stockMap) -> {
+            DailyReportSummary summary = getOrCreate(byDay, day, createdBy);
+            summary.setStockConsumedMap(stockMap);
+            // Nets only on this campaign, so every variant in the map counts toward the total.
+            summary.setItnsDistributed(stockMap.values().stream().mapToLong(Long::longValue).sum());
+        });
 
         return new ArrayList<>(byDay.values());
     }

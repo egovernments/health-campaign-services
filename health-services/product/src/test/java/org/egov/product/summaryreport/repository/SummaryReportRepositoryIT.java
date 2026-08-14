@@ -131,6 +131,7 @@ class SummaryReportRepositoryIT {
         List<DailyReportSummary> report = service.getDailySummary(req(tenant, createdBy));
 
         long households = report.stream().mapToLong(DailyReportSummary::getHouseholdsRegistered).sum();
+        long people = report.stream().mapToLong(DailyReportSummary::getPeopleInHouseholds).sum();
         long children = report.stream().mapToLong(DailyReportSummary::getIndividualRegistered).sum();
         long beneficiaries = report.stream().mapToLong(DailyReportSummary::getBeneficiariesRegistered).sum();
         long treated = report.stream().mapToLong(DailyReportSummary::getChildrenTreated).sum();
@@ -138,15 +139,19 @@ class SummaryReportRepositoryIT {
                 .flatMap(d -> d.getStockConsumedMap().values().stream())
                 .mapToLong(Long::longValue).sum();
 
-        System.out.printf("[%s / %s] days=%d households=%d children=%d beneficiaries=%d treated=%d stockQty=%d%n",
-                tenant, createdBy, report.size(), households, children, beneficiaries, treated, stock);
+        System.out.printf("[%s / %s] days=%d households=%d people=%d children=%d beneficiaries=%d treated=%d stockQty=%d%n",
+                tenant, createdBy, report.size(), households, people, children, beneficiaries, treated, stock);
 
         assertEquals(directCount(tenant, "household", createdBy, ""), households, "households");
+        assertEquals(directSum(tenant, "household", "numberofmembers", createdBy, ""), people, "peopleInHouseholds");
         assertEquals(directCount(tenant, "individual", createdBy, ""), children, "children");
         assertEquals(directCount(tenant, "project_beneficiary", createdBy, ""), beneficiaries, "beneficiaries");
         assertEquals(directCount(tenant, "project_task", createdBy,
                 " AND status IN ('ADMINISTRATION_SUCCESS','VISITED') "), treated, "treated");
         assertEquals(directStock(tenant, createdBy), stock, "stockQty");
+        // itnsDistributed is the flattened stockConsumedMap, so the two must never diverge.
+        assertEquals(stock, report.stream().mapToLong(DailyReportSummary::getItnsDistributed).sum(),
+                "itnsDistributed should equal the total of stockConsumedMap");
     }
 
     @Test
