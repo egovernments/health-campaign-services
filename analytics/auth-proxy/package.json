@@ -16,8 +16,6 @@
     "express-http-proxy": "^1.6.2",
     "http-proxy": "^1.18.1",
     "http-proxy-middleware": "^3.0.3",
-    "request": "^2.88.2",
-    "request-promise": "^4.2.6",
     "winston": "^3.13.0"
   }
 }
