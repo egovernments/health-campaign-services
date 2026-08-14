@@ -8,6 +8,7 @@ xlrd>=2.0.1
 requests>=2.31.0
 python-decouple>=3.8
 geopy
+tqdm>=4.70.0
 
 # Google Drive API dependencies
 google-auth>=2.27.0

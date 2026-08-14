@@ -28,7 +28,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url, clear_scroll
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -86,17 +86,22 @@ def convert_ts_to_datetime(ts):
 def scroll_all(index_url, query):
     scroll_url = f"{index_url}?scroll={SCROLL_TIME}"
     scroll_id = None
-    while True:
-        if scroll_id is None:
-            resp = get_resp(scroll_url, query, True).json()
-        else:
-            resp = get_resp(ES_SCROLL_API, {"scroll": SCROLL_TIME, "scroll_id": scroll_id}, True).json()
-        scroll_id = resp.get("_scroll_id", "")
-        hits = resp.get("hits", {}).get("hits", [])
-        if not hits:
-            break
-        for doc in hits:
-            yield doc["_source"]["Data"]
+    try:
+        while True:
+            if scroll_id is None:
+                resp = get_resp(scroll_url, query, True).json()
+            else:
+                resp = get_resp(ES_SCROLL_API, {"scroll": SCROLL_TIME, "scroll_id": scroll_id}, True).json()
+            scroll_id = resp.get("_scroll_id", "")
+            hits = resp.get("hits", {}).get("hits", [])
+            if not hits:
+                break
+            for doc in hits:
+                yield doc["_source"]["Data"]
+    finally:
+        # ES does not free a scroll context when it is exhausted - it lingers for the
+        # whole SCROLL_TIME keep-alive. Release it on break, early exit and error alike.
+        clear_scroll(scroll_id)
 
 
 # === FETCH PROJECT TASK DATA ===
