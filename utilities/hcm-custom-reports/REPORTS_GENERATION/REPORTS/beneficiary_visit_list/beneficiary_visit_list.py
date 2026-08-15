@@ -28,7 +28,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url, clear_scroll
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -86,22 +86,17 @@ def convert_ts_to_datetime(ts):
 def scroll_all(index_url, query):
     scroll_url = f"{index_url}?scroll={SCROLL_TIME}"
     scroll_id = None
-    try:
-        while True:
-            if scroll_id is None:
-                resp = get_resp(scroll_url, query, True).json()
-            else:
-                resp = get_resp(ES_SCROLL_API, {"scroll": SCROLL_TIME, "scroll_id": scroll_id}, True).json()
-            scroll_id = resp.get("_scroll_id", "")
-            hits = resp.get("hits", {}).get("hits", [])
-            if not hits:
-                break
-            for doc in hits:
-                yield doc["_source"]["Data"]
-    finally:
-        # ES does not free a scroll context when it is exhausted - it lingers for the
-        # whole SCROLL_TIME keep-alive. Release it on break, early exit and error alike.
-        clear_scroll(scroll_id)
+    while True:
+        if scroll_id is None:
+            resp = get_resp(scroll_url, query, True).json()
+        else:
+            resp = get_resp(ES_SCROLL_API, {"scroll": SCROLL_TIME, "scroll_id": scroll_id}, True).json()
+        scroll_id = resp.get("_scroll_id", "")
+        hits = resp.get("hits", {}).get("hits", [])
+        if not hits:
+            break
+        for doc in hits:
+            yield doc["_source"]["Data"]
 
 
 # === FETCH PROJECT TASK DATA ===
@@ -129,6 +124,9 @@ def fetch_project_tasks():
             "Data.additionalDetails.cycleIndex", "Data.additionalDetails.memberCount",
             "Data.additionalDetails.taskType", "Data.deliveryComments",
             "Data.additionalDetails.beneficiaryId",
+            # Carries the child's household directly, letting us skip the
+            # child -> household lookup against household-member-index below.
+            "Data.additionalDetails.householdClientReferenceId",
         ]
     }
 
@@ -167,7 +165,7 @@ def fetch_project_tasks():
                 # Already decrypted/plain on the task doc itself - no need for the
                 # individual-index + egov-enc-service decrypt round trip.
                 "Beneficiary ID (Child)":        additional.get("beneficiaryId", ""),
-                "Household Client Reference ID": "",
+                "Household Client Reference ID": additional.get("householdClientReferenceId", "") or "",
                 "Household Head Name":           "",
                 "Quantity Administered":         0,
                 "Redose Quantity Administered":  0,
@@ -200,6 +198,10 @@ def fetch_project_tasks():
         # later record that does, so the first-seen record isn't the only chance.
         if not ind_id_vs_info[indv_id]["Beneficiary ID (Child)"] and additional.get("beneficiaryId"):
             ind_id_vs_info[indv_id]["Beneficiary ID (Child)"] = additional.get("beneficiaryId")
+
+        # Same backfill for the household ref - not every task record carries it.
+        if not ind_id_vs_info[indv_id]["Household Client Reference ID"] and additional.get("householdClientReferenceId"):
+            ind_id_vs_info[indv_id]["Household Client Reference ID"] = additional.get("householdClientReferenceId")
 
     print(f"Fetched {len(ind_id_vs_info)} unique beneficiaries from project-task-index")
 
@@ -412,6 +414,8 @@ chunks = [
     for i in range(0, len(ind_id_vs_info), 1000)
 ]
 
+hh_from_task = 0
+hh_from_lookup = 0
 print(f"Enriching {len(ind_id_vs_info)} beneficiaries in {len(chunks)} chunk(s)...")
 for chunk in chunks:
     enriched = enrich_child_info(chunk)
@@ -423,17 +427,31 @@ for chunk in chunks:
         full_name = f"{name_obj.get('givenName', '')} {name_obj.get('familyName', '')}".replace("None", "").strip()
         ind_id_vs_info[indv_id]["Child Name"] = full_name
 
-    child_to_household = fetch_household_links(chunk)
-    household_ids = list(child_to_household.values())
+    # Most task docs already carry additionalDetails.householdClientReferenceId, so
+    # household-member-index only needs to answer for the ones that don't.
+    missing_hh = [cid for cid in chunk
+                  if not ind_id_vs_info[cid]["Household Client Reference ID"]]
+    hh_from_task += len(chunk) - len(missing_hh)
+    hh_from_lookup += len(missing_hh)
+    if missing_hh:
+        for child_id, hh_id in fetch_household_links(missing_hh).items():
+            if hh_id:
+                ind_id_vs_info[child_id]["Household Client Reference ID"] = hh_id
+
+    household_ids = list({ind_id_vs_info[cid]["Household Client Reference ID"]
+                          for cid in chunk
+                          if ind_id_vs_info[cid]["Household Client Reference ID"]})
     hh_to_head_ref = fetch_household_head_reference_ids(household_ids)
     head_names = fetch_head_names_from_individuals(list(hh_to_head_ref.values()))
 
     for child_id in chunk:
-        hh_id = child_to_household.get(child_id, "")
-        ind_id_vs_info[child_id]["Household Client Reference ID"] = hh_id
+        hh_id = ind_id_vs_info[child_id]["Household Client Reference ID"]
         head_ref = hh_to_head_ref.get(hh_id, "")
         if head_ref:
             ind_id_vs_info[child_id]["Household Head Name"] = head_names.get(head_ref, "")
+
+print(f"Household refs: {hh_from_task} from task additionalDetails, "
+      f"{hh_from_lookup} via household-member-index fallback")
 
 print("Resolving dispensers...")
 resolve_dispensers()

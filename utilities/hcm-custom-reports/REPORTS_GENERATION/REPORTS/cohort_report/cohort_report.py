@@ -3,8 +3,8 @@ import gc
 import json
 import os
 import random
+import re
 import sys
-import threading
 import time
 import warnings
 from collections import defaultdict
@@ -14,7 +14,6 @@ from operator import attrgetter
 
 import requests
 import xlsxwriter
-from requests.adapters import HTTPAdapter
 from tqdm import tqdm
 
 # ============================================================================
@@ -70,23 +69,21 @@ from tqdm import tqdm
 #   * The cyclic GC is frozen after ingest and disabled for the write loop.
 #
 # ---------------------------------------------------------------------------
-# GENTLER ON ELASTICSEARCH
+# ELASTICSEARCH ACCESS - deliberately unchanged from the previous version
 # ---------------------------------------------------------------------------
-# * bool.must -> bool.filter everywhere: no scoring, node-query-cacheable.
-# * "sort": ["_doc"] on the scroll - the documented cheapest scroll order.
-# * "track_total_hits": false - ES stops counting matches it will never report.
-# * Scroll contexts are explicitly DELETEd instead of being left pinned for the
-#   full keep-alive, which held segment readers open on every data node.
-# * Smaller scroll pages (3000, tunable) and a 5m keep-alive.
-# * One pooled keep-alive requests.Session; common_utils.get_resp() uses bare
-#   requests.post(), i.e. a fresh TCP+TLS handshake for every batch.
-# * Shared back-pressure: a 429/503 from any worker parks *all* workers for a
-#   cooldown, so a struggling cluster is not hammered by retries.
-# * The large `identifiers` _source field is only requested for the children
-#   that actually still need the decrypt fallback.
-# * Head-name lookups skip heads already resolved as children.
-# * Query payloads are not echoed to stdout for every batch (get_resp prints
-#   the full 1000-term terms query and the response on every call).
+# All ES calls go through common_utils.get_resp(), the same helper every other
+# report uses, with the same ?scroll=10m keep-alive as before.
+#
+# An earlier revision of this file replaced that with a bespoke HTTP layer
+# (custom retry/backoff, shorter 5m keep-alive, track_total_hits=false, an
+# explicit clear-scroll on exit). That caused two production failures:
+#   1. ES rejects track_total_hits=false in a scroll context outright (HTTP 400).
+#   2. The custom retry window (up to 28 min) far exceeded the 5m keep-alive, so
+#      any transient blip mid-scroll outlived the scroll context and every
+#      subsequent page failed with search_context_missing_exception - losing the
+#      whole scroll after ~846k records.
+# All of that has been reverted. This file now only changes how the fetched data
+# is held in memory and written out - not how it talks to Elasticsearch.
 #
 # ---------------------------------------------------------------------------
 # BEHAVIOUR NOTE
@@ -131,7 +128,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import es_index_url, es_scroll_url
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 try:
@@ -148,9 +145,8 @@ ES_HOUSEHOLD_MEMBER_INDEX = es_index_url("household-member-index-v1")
 ES_SCROLL_API = es_scroll_url()
 DECRYPT_URL = "http://egov-enc-service.egov:8080/egov-enc-service/crypto/v1/_decrypt"
 
-SCROLL_KEEPALIVE = "5m"
-ES_TIMEOUT = 120
-ES_MAX_ATTEMPTS = 12  # a 429 consumes an attempt, so leave headroom for overload
+# Matches the value this report used before: each scroll request refreshes it.
+SCROLL_KEEPALIVE = "10m"
 DECRYPT_CHUNK = 1000
 DECRYPT_FAILED_SENTINEL = "DECRYPT_FAILED"
 
@@ -168,111 +164,10 @@ FLAG_STATUSES = frozenset((
     "BENEFICIARY_REFUSED", "CLOSED_HOUSEHOLD",
 ))
 
-# === SHARED HTTP SESSION ===
-# One pooled session for ES, the scroll API and the enc service. Keep-alive
-# means the TLS handshake is paid once per worker instead of once per request.
+# === SHARED HTTP SESSION (enc-service only) ===
+# Elasticsearch access goes through common_utils.get_resp() - the same helper every
+# other report uses. It retries every non-200 for ~150s and logs each attempt.
 SESSION = requests.Session()
-_adapter = HTTPAdapter(pool_connections=MAX_FETCH_WORKERS + 2,
-                       pool_maxsize=MAX_FETCH_WORKERS + 2,
-                       max_retries=0)
-SESSION.mount("http://", _adapter)
-SESSION.mount("https://", _adapter)
-
-
-def _es_auth_header():
-    """Reuse common_utils' basic-auth header if present, else rebuild from env."""
-    try:
-        from COMMON_UTILS.common_utils import encoded_es_password
-        if encoded_es_password:
-            return encoded_es_password
-    except Exception:
-        pass
-    import base64
-    creds = f"{os.getenv('ELASTIC_USERNAME', '')}:{os.getenv('ELASTIC_PASSWORD', '')}"
-    return "Basic " + base64.b64encode(creds.encode()).decode()
-
-
-ES_HEADERS = {"Content-Type": "application/json", "Authorization": _es_auth_header()}
-
-# === SHARED BACK-PRESSURE ===
-# When any worker sees a 429 / 503 / 502 we park *every* worker for a cooldown.
-# Retrying hard against a cluster that is already shedding load is exactly how a
-# report run turns into a cluster outage.
-_bp_lock = threading.Lock()
-_bp_until = 0.0
-_bp_events = 0
-
-
-def _apply_backpressure(seconds):
-    global _bp_until, _bp_events
-    with _bp_lock:
-        _bp_until = max(_bp_until, time.monotonic() + seconds)
-        _bp_events += 1
-
-
-def _wait_for_backpressure():
-    while True:
-        with _bp_lock:
-            remaining = _bp_until - time.monotonic()
-        if remaining <= 0:
-            return
-        time.sleep(min(remaining, 2.0))
-
-
-def es_post(url, payload, timeout=ES_TIMEOUT, attempts=ES_MAX_ATTEMPTS):
-    """
-    POST to Elasticsearch on the shared session, with jittered exponential
-    backoff and cluster-wide back-pressure. Returns the parsed JSON body.
-
-    Raises on definitive failure rather than returning None, matching
-    common_utils.get_resp()'s fail-loud contract. That is deliberate: if a
-    scroll page or an enrichment batch is lost, the report would silently
-    under-report beneficiaries, and a quietly wrong cohort report is far worse
-    than a failed Airflow task.
-
-    Deliberately does NOT print the payload - get_resp() logs the full query
-    (for these terms lookups, a 1000-element id array) plus the response object
-    on every single call.
-    """
-    last_error = ""
-    for attempt in range(attempts):
-        _wait_for_backpressure()
-        try:
-            resp = SESSION.post(url, data=json.dumps(payload), headers=ES_HEADERS,
-                                verify=False, timeout=timeout)
-            status = resp.status_code
-            if status == 200:
-                try:
-                    return resp.json()
-                except Exception as e:
-                    last_error = f"bad JSON body: {e}"
-                finally:
-                    resp.close()
-            else:
-                last_error = f"HTTP {status}"
-                retry_after = resp.headers.get("Retry-After")
-                resp.close()
-                if status in (429, 502, 503, 504):
-                    # Cluster is shedding load. Park every worker, then retry -
-                    # the shared cooldown IS the wait, so skip the local sleep.
-                    try:
-                        cooldown = float(retry_after) if retry_after else min(2 ** attempt, 30)
-                    except (TypeError, ValueError):
-                        cooldown = min(2 ** attempt, 30)
-                    _apply_backpressure(cooldown)
-                    continue
-                if 400 <= status < 500:
-                    # A rejected query will not fix itself - fail immediately.
-                    raise RuntimeError(
-                        f"Elasticsearch rejected the request ({status}) at {url}: "
-                        f"{resp.text[:500]}")
-        except requests.RequestException as e:
-            last_error = f"{type(e).__name__}: {e}"
-
-        time.sleep(min(2 ** attempt, 30) + random.uniform(0, 1.0))
-
-    raise RuntimeError(f"Elasticsearch request to {url} failed after {attempts} "
-                       f"attempts (last error: {last_error})")
 
 
 def parallel_fetch(batches, fetch_fn, desc):
@@ -459,29 +354,30 @@ def fetch_project_tasks():
     """
     Scroll project-task-index-v1 with the CLI-configured campaign filter.
 
-    Query shape, all chosen to cost ES less:
-      - bool.filter instead of bool.must  -> no scoring, node-query-cacheable
-      - sort by _doc                      -> cheapest possible scroll ordering
-      - track_total_hits false            -> ES stops counting past the page
-      - shorter keep-alive + explicit DELETE of the context when finished
+    Query shape, keep-alive and retry behaviour are exactly as they were before
+    this file was rewritten: bool.must, no sort clause, ?scroll=10m, and
+    common_utils.get_resp() doing the retrying. Only the in-memory handling of
+    the fetched documents below is new.
     """
-    filter_clauses = [
+    must_clauses = [
         {"range": {"Data.@timestamp": {"gte": gteTime, "lte": lteTime}}},
         {"terms": {"Data.administrationStatus.keyword": ADMIN_STATUSES}},
     ]
     if CAMPAIGN_FILTER_FIELD:
-        filter_clauses.append({"term": {CAMPAIGN_FILTER_FIELD: CAMPAIGN_IDENTIFIER}})
+        must_clauses.append({"term": {CAMPAIGN_FILTER_FIELD: CAMPAIGN_IDENTIFIER}})
 
     query = {
         "size": SCROLL_SIZE,
-        "track_total_hits": False,
-        "sort": ["_doc"],
-        "query": {"bool": {"filter": filter_clauses}},
+        "query": {"bool": {"must": must_clauses}},
         "_source": [
             "Data.boundaryHierarchy", "Data.age", "Data.additionalDetails.gender", "Data.individualId",
             "Data.userName", "Data.quantity", "Data.uniqueBeneficiaryID",
             "Data.administrationStatus", "Data.additionalDetails.reAdministered",
             "Data.additionalDetails.beneficiaryId",
+            # Already carries the child's household on the task doc, which lets us
+            # skip the child -> household lookup against household-member-index for
+            # every child that has it (see step 3).
+            "Data.additionalDetails.householdClientReferenceId",
             "Data.taskDates",
             "Data.productName", "Data.additionalDetails.cycleIndex",
         ],
@@ -493,139 +389,128 @@ def fetch_project_tasks():
     empty_dict = {}
 
     print("[Step 1/4] Fetching project-task data...")
-    try:
-        with tqdm(desc="  Scrolling pages", unit=" page", dynamic_ncols=True) as pbar:
-            while True:
-                if scroll_id is None:
-                    resp_json = es_post(scroll_url, query)
-                else:
-                    resp_json = es_post(ES_SCROLL_API,
-                                        {"scroll": SCROLL_KEEPALIVE, "scroll_id": scroll_id})
+    with tqdm(desc="  Scrolling pages", unit=" page", dynamic_ncols=True) as pbar:
+        while True:
+            if scroll_id is None:
+                resp = get_resp(scroll_url, query, True)
+            else:
+                resp = get_resp(ES_SCROLL_API,
+                                {"scroll": SCROLL_KEEPALIVE, "scroll_id": scroll_id}, True)
 
-                if not resp_json:
-                    print("  Warning: Project Task ES returned nothing. Breaking scroll.")
-                    break
+            if not resp:
+                print("  Warning: Project Task ES returned nothing. Breaking scroll.")
+                break
 
-                scroll_id = resp_json.get("_scroll_id", "")
-                hits = resp_json.get("hits", {}).get("hits", [])
-                if not hits:
-                    break
+            try:
+                resp_json = resp.json()
+            except Exception as e:
+                print(f"  Error parsing Project Task response: {e}")
+                break
 
-                for doc in hits:
-                    data = doc["_source"]["Data"]
-                    indv_id = data.get("individualId")
-                    if not indv_id:
-                        continue
+            scroll_id = resp_json.get("_scroll_id", "")
+            hits = resp_json.get("hits", {}).get("hits", [])
+            if not hits:
+                break
 
-                    # One .get per document, and no fresh empty dict allocated
-                    # on every miss.
-                    additional = data.get("additionalDetails") or empty_dict
+            for doc in hits:
+                data = doc["_source"]["Data"]
+                indv_id = data.get("individualId")
+                if not indv_id:
+                    continue
 
-                    child = children.get(indv_id)
-                    if child is None:
-                        boundary = data.get("boundaryHierarchy") or empty_dict
-                        child = Child(
-                            pooled(boundary.get("state", "")),
-                            pooled(boundary.get("lga", "")),
-                            pooled(boundary.get("ward", "")),
-                            pooled(boundary.get("healthFacility", "")),
-                            pooled(data.get("userName", "")),
-                            pooled(additional.get("gender", "")),
-                            pooled(data.get("productName", "")),
-                        )
-                        children[indv_id] = child
+                additional = data.get("additionalDetails") or empty_dict
 
-                    # Beneficiary id is already plaintext on the task doc — take
-                    # the first non-empty one and skip decryption for this child.
-                    if not child.beneficiary_id:
-                        beneficiary_id = additional.get("beneficiaryId")
-                        if beneficiary_id:
-                            child.beneficiary_id = str(beneficiary_id).strip()
+                child = children.get(indv_id)
+                if child is None:
+                    boundary = data.get("boundaryHierarchy") or empty_dict
+                    child = Child(
+                        pooled(boundary.get("state", "")),
+                        pooled(boundary.get("lga", "")),
+                        pooled(boundary.get("ward", "")),
+                        pooled(boundary.get("healthFacility", "")),
+                        pooled(data.get("userName", "")),
+                        pooled(additional.get("gender", "")),
+                        pooled(data.get("productName", "")),
+                    )
+                    children[indv_id] = child
 
-                    task_date = normalize_task_date(data.get("taskDates", ""))
+                # The task doc usually carries the child's household directly, which
+                # saves a whole household-member-index lookup wave in step 3. Backfill
+                # from any later doc that has it, the same way beneficiaryId is handled:
+                # not every task record for a child necessarily carries it.
+                if not child.household_ref:
+                    hh_ref = additional.get("householdClientReferenceId")
+                    if hh_ref:
+                        child.household_ref = str(hh_ref).strip()
 
-                    # Registration date = earliest taskDates across ALL of this
-                    # child's docs (running minimum).
-                    if task_date and (not child.reg_date or task_date < child.reg_date):
-                        child.reg_date = task_date
+                if not child.beneficiary_id:
+                    beneficiary_id = additional.get("beneficiaryId")
+                    if beneficiary_id:
+                        child.beneficiary_id = str(beneficiary_id).strip()
 
-                    cycle_index = additional.get("cycleIndex")
-                    if cycle_index is not None:
-                        label = cycle_label(cycle_index)
-                        if label not in child.cycles:
-                            status = data.get("administrationStatus", "")
-                            quantity = data.get("quantity", 0)
-                            re_administered = additional.get("reAdministered")
-                            is_redose = (re_administered is True or
-                                         (isinstance(re_administered, str) and
-                                          re_administered.lower() == "true"))
-                            child.cycles.append(label)
-                            child.rows.append((
-                                data.get("age", ""),
-                                task_date,
-                                quantity if status == "ADMINISTRATION_SUCCESS" else 0,
-                                quantity if is_redose else 0,
-                            ))
+                task_date = normalize_task_date(data.get("taskDates", ""))
 
-                    status = data.get("administrationStatus", "")
-                    if status in raw_status_counts:
-                        raw_status_counts[status] += 1
-                    if status in FLAG_STATUSES:
-                        if status == "BENEFICIARY_INELIGIBLE":
-                            child.ineligible = "yes"
-                        elif status == "BENEFICIARY_REFERRED":
-                            child.referred = "yes"
-                        elif status == "BENEFICIARY_REFUSED":
-                            child.refused = "yes"
-                        else:
-                            child.closed_household = "yes"
+                if task_date and (not child.reg_date or task_date < child.reg_date):
+                    child.reg_date = task_date
 
-                total_fetched += len(hits)
-                pbar.update(1)
-                pbar.set_postfix({"records": total_fetched})
-                # Drop the page before asking for the next one, so we never hold
-                # two decoded pages at once.
-                del hits, resp_json
-    finally:
-        _clear_scroll(scroll_id)
+                cycle_index = additional.get("cycleIndex")
+                if cycle_index is not None:
+                    label = cycle_label(cycle_index)
+                    if label not in child.cycles:
+                        status = data.get("administrationStatus", "")
+                        quantity = data.get("quantity", 0)
+                        re_administered = additional.get("reAdministered")
+                        is_redose = (re_administered is True or
+                                     (isinstance(re_administered, str) and
+                                      re_administered.lower() == "true"))
+                        child.cycles.append(label)
+                        child.rows.append((
+                            data.get("age", ""),
+                            task_date,
+                            quantity if status == "ADMINISTRATION_SUCCESS" else 0,
+                            quantity if is_redose else 0,
+                        ))
+
+                status = data.get("administrationStatus", "")
+                if status in raw_status_counts:
+                    raw_status_counts[status] += 1
+                if status in FLAG_STATUSES:
+                    if status == "BENEFICIARY_INELIGIBLE":
+                        child.ineligible = "yes"
+                    elif status == "BENEFICIARY_REFERRED":
+                        child.referred = "yes"
+                    elif status == "BENEFICIARY_REFUSED":
+                        child.refused = "yes"
+                    else:
+                        child.closed_household = "yes"
+
+            total_fetched += len(hits)
+            pbar.update(1)
+            pbar.set_postfix({"records": total_fetched})
+            del hits, resp_json
 
     print(f"  Total records fetched   : {total_fetched}")
     print(f"  Unique individuals      : {len(children)}")
     print(f"  Distinct pooled strings : {len(_str_pool)}\n")
 
 
-def _clear_scroll(scroll_id):
-    """
-    Release the scroll context immediately instead of letting it linger for the
-    full keep-alive. An open scroll pins segment readers on every data node it
-    touched; on a busy cluster leaking one per report run is real heap pressure.
-    """
-    if not scroll_id:
-        return
-    try:
-        SESSION.delete(ES_SCROLL_API, data=json.dumps({"scroll_id": [scroll_id]}),
-                       headers=ES_HEADERS, verify=False, timeout=30)
-    except Exception:
-        pass
-
-
 # === STEP 2: ENRICH CHILD DETAILS ===
 def _terms_query(field, values, source, extra_filter=None):
-    filters = [{"terms": {field: values}}]
+    musts = [{"terms": {field: values}}]
     if extra_filter:
-        filters.append(extra_filter)
+        musts.append(extra_filter)
     return {
         "size": len(values),
-        "track_total_hits": False,
-        "query": {"bool": {"filter": filters}},
+        "query": {"bool": {"must": musts}},
         "_source": source,
     }
 
 
 def fetch_child_names_batch(batch):
     """Names only. The `identifiers` array (encrypted blobs) is fetched separately."""
-    body = es_post(ES_INDIVIDUAL_INDEX,
-                   _terms_query("clientReferenceId.keyword", batch, ["clientReferenceId", "name"]))
+    resp = get_resp(ES_INDIVIDUAL_INDEX,
+                    _terms_query("clientReferenceId.keyword", batch, ["clientReferenceId", "name"]), True)
+    body = resp.json() if resp else None
     if not body:
         return {}
     out = {}
@@ -639,8 +524,9 @@ def fetch_child_names_batch(batch):
 
 def fetch_identifiers_batch(batch):
     """Only for children still missing a plaintext beneficiaryId."""
-    body = es_post(ES_INDIVIDUAL_INDEX,
-                   _terms_query("clientReferenceId.keyword", batch, ["clientReferenceId", "identifiers"]))
+    resp = get_resp(ES_INDIVIDUAL_INDEX,
+                    _terms_query("clientReferenceId.keyword", batch, ["clientReferenceId", "identifiers"]), True)
+    body = resp.json() if resp else None
     if not body:
         return {}
     out = {}
@@ -657,10 +543,11 @@ def fetch_identifiers_batch(batch):
 
 # === STEP 3: HOUSEHOLD LINKS / HEADS ===
 def fetch_household_link_batch(batch):
-    body = es_post(ES_HOUSEHOLD_MEMBER_INDEX, _terms_query(
+    resp = get_resp(ES_HOUSEHOLD_MEMBER_INDEX, _terms_query(
         "Data.householdMember.individualClientReferenceId.keyword", batch,
         ["Data.householdMember.householdClientReferenceId",
-         "Data.householdMember.individualClientReferenceId"]))
+         "Data.householdMember.individualClientReferenceId"]), True)
+    body = resp.json() if resp else None
     if not body:
         return {}
     out = {}
@@ -673,11 +560,12 @@ def fetch_household_link_batch(batch):
 
 
 def fetch_household_head_batch(batch):
-    body = es_post(ES_HOUSEHOLD_MEMBER_INDEX, _terms_query(
+    resp = get_resp(ES_HOUSEHOLD_MEMBER_INDEX, _terms_query(
         "Data.householdMember.householdClientReferenceId.keyword", batch,
         ["Data.householdMember.householdClientReferenceId",
          "Data.householdMember.individualClientReferenceId"],
-        extra_filter={"term": {"Data.householdMember.isHeadOfHousehold": True}}))
+        extra_filter={"term": {"Data.householdMember.isHeadOfHousehold": True}}), True)
+    body = resp.json() if resp else None
     if not body:
         return {}
     out = {}
@@ -767,8 +655,20 @@ DETAILED_HEADER = [
 # and if a future xlsxwriter changes these internals the capability probe below
 # falls back to the stock class entirely.
 try:
-    from xlsxwriter.utility import preserve_whitespace, xl_rowcol_to_cell_fast
+    from xlsxwriter.utility import xl_rowcol_to_cell_fast
     from xlsxwriter.worksheet import Worksheet as _XlsxWorksheet
+
+    # Do NOT import xlsxwriter's whitespace helper by name: it is public
+    # `preserve_whitespace` up to 3.2.x and private `_preserve_whitespace` from
+    # 3.2.9 on, so pinning to either name silently disables this whole fast path
+    # on the other version (which is exactly what happened in the built image,
+    # where requirements.txt's unpinned `xlsxwriter>=3.1.2` resolved to 3.2.9).
+    # It is two regexes, identical in both versions - own it here instead.
+    _RE_LEADING_WS = re.compile(r"^\s")
+    _RE_TRAILING_WS = re.compile(r"\s$")
+
+    def preserve_whitespace(string):
+        return bool(_RE_LEADING_WS.search(string) or _RE_TRAILING_WS.search(string))
 
 
     class FastWorksheet(_XlsxWorksheet):
@@ -907,8 +807,26 @@ print(f"  Beneficiary IDs resolved: {ids_resolved}/{total_children}\n")
 
 # --- Step 3 -----------------------------------------------------------------
 print("[Step 3/4] Fetching household links + head names...")
-child_to_household = merged_batches(all_individuals, fetch_household_link_batch, "  HH link batches")
-household_ids = list(set(child_to_household.values()))
+
+# child -> household comes off the task doc for most children (captured in step 1),
+# so household-member-index only has to answer for the stragglers. Same result,
+# far fewer terms queries against that index.
+from_task = sum(1 for c in children.values() if c.household_ref)
+needs_hh_lookup = [cid for cid, c in children.items() if not c.household_ref]
+print(f"  Household refs from task additionalDetails: {from_task}/{total_children}"
+      f"  (falling back to household-member-index for {len(needs_hh_lookup)})")
+
+if needs_hh_lookup:
+    fallback_links = merged_batches(needs_hh_lookup, fetch_household_link_batch,
+                                    "  HH link batches (fallback)")
+    for child_id, hh_id in fallback_links.items():
+        child = children.get(child_id)
+        if child is not None and hh_id:
+            child.household_ref = hh_id
+    del fallback_links
+del needs_hh_lookup
+
+household_ids = list({c.household_ref for c in children.values() if c.household_ref})
 hh_to_head_ref = merged_batches(household_ids, fetch_household_head_batch, "  HH head-ref batches")
 del household_ids
 
@@ -932,9 +850,8 @@ del to_lookup, already_known
 
 heads_filled = 0
 for child_id, child in children.items():
-    hh_id = child_to_household.get(child_id, "")
-    child.household_ref = hh_id
-    head_ref = hh_to_head_ref.get(hh_id, "")
+    # household_ref is already set - from the task doc, or from the fallback above.
+    head_ref = hh_to_head_ref.get(child.household_ref, "")
     if head_ref:
         name = head_names.get(head_ref, "")
         if name:
@@ -944,7 +861,7 @@ for child_id, child in children.items():
             heads_filled += 1
 
 print(f"  Household head names filled: {heads_filled}/{total_children}\n")
-del child_to_household, hh_to_head_ref, head_names, all_individuals
+del hh_to_head_ref, head_names, all_individuals
 
 # --- Step 4 -----------------------------------------------------------------
 print("[Step 4/4] Streaming per-child rows straight into Excel...")
@@ -1062,11 +979,6 @@ for label, miss in (("Child Name", missing_child_name),
 decrypt_failed = sum(1 for v in decrypted_map.values() if v == DECRYPT_FAILED_SENTINEL)
 if decrypt_failed:
     print(f"  {'Beneficiary IDs (decrypt failed)':<30}: {decrypt_failed:>7}")
-
-if _bp_events:
-    print(f"\n  NOTE: Elasticsearch signalled overload {_bp_events} time(s); "
-          f"workers backed off automatically. Consider lowering --max_workers "
-          f"or --scroll_size for this cluster.")
 
 print("\n" + "=" * 80)
 print(f"Total children in cohort : {total_children}")

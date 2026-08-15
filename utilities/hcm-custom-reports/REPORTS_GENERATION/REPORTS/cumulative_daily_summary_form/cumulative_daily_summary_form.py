@@ -28,7 +28,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url, clear_scroll
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -466,29 +466,24 @@ def fetch_referral_metrics_for_hf(hf_info):
     }
     scroll_url = ES_HF_REFERRAL_INDEX + "?scroll=5m"
     scroll_id = None
-    try:
-        while True:
-            if scroll_id is None:
-                resp = get_resp(scroll_url, scroll_query, True).json()
-            else:
-                resp = get_resp(ES_SCROLL_API, {"scroll": "5m", "scroll_id": scroll_id}, True).json()
-            scroll_id = resp.get("_scroll_id", "")
-            hits = resp.get("hits", {}).get("hits", [])
-            if not hits:
-                break
-            for doc in hits:
-                data = doc["_source"]["Data"]
-                key = (data.get("userName", ""), data.get("taskDates", ""))
-                client_audit = data.get("hfReferral", {}).get("clientAuditDetails", {})
-                created_by = client_audit.get("createdBy", "")
-                last_modified_by = client_audit.get("lastModifiedBy", "")
-                if created_by and last_modified_by and created_by != last_modified_by:
-                    if key in result:
-                        result[key]["ref_went_hf"] += 1
-    finally:
-        # ES holds the scroll context for the full keep-alive even after the scroll is
-        # exhausted - release it explicitly on every exit path (break/return/exception).
-        clear_scroll(scroll_id)
+    while True:
+        if scroll_id is None:
+            resp = get_resp(scroll_url, scroll_query, True).json()
+        else:
+            resp = get_resp(ES_SCROLL_API, {"scroll": "5m", "scroll_id": scroll_id}, True).json()
+        scroll_id = resp.get("_scroll_id", "")
+        hits = resp.get("hits", {}).get("hits", [])
+        if not hits:
+            break
+        for doc in hits:
+            data = doc["_source"]["Data"]
+            key = (data.get("userName", ""), data.get("taskDates", ""))
+            client_audit = data.get("hfReferral", {}).get("clientAuditDetails", {})
+            created_by = client_audit.get("createdBy", "")
+            last_modified_by = client_audit.get("lastModifiedBy", "")
+            if created_by and last_modified_by and created_by != last_modified_by:
+                if key in result:
+                    result[key]["ref_went_hf"] += 1
 
     return result
 

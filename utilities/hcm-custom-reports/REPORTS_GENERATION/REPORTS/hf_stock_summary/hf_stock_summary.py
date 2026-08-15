@@ -27,7 +27,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 sys.path.append(file_path)
 
 from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from REPORTS_GENERATION.COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url, clear_scroll
+from REPORTS_GENERATION.COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -83,23 +83,18 @@ def scroll_all(index_url, query):
     scroll_url = f"{index_url}?scroll={SCROLL_TIME}"
     scroll_id = None
 
-    try:
-        while True:
-            if scroll_id is None:
-                resp = get_resp(scroll_url, query, True).json()
-            else:
-                resp = get_resp(ES_SCROLL_API, {"scroll": SCROLL_TIME, "scroll_id": scroll_id}, True).json()
+    while True:
+        if scroll_id is None:
+            resp = get_resp(scroll_url, query, True).json()
+        else:
+            resp = get_resp(ES_SCROLL_API, {"scroll": SCROLL_TIME, "scroll_id": scroll_id}, True).json()
 
-            scroll_id = resp.get("_scroll_id", "")
-            hits = resp.get("hits", {}).get("hits", [])
-            if not hits:
-                break
-            for doc in hits:
-                yield doc["_source"]["Data"]
-    finally:
-        # ES holds the scroll context until the keep-alive expires, not when the
-        # scroll is exhausted - release it on break/abandoned-generator/exception.
-        clear_scroll(scroll_id)
+        scroll_id = resp.get("_scroll_id", "")
+        hits = resp.get("hits", {}).get("hits", [])
+        if not hits:
+            break
+        for doc in hits:
+            yield doc["_source"]["Data"]
 
 
 def base_query(extra_must_clauses, source_fields):

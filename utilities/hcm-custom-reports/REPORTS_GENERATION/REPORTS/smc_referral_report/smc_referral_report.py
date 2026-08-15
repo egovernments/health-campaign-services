@@ -26,7 +26,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url, clear_scroll
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
@@ -77,53 +77,48 @@ def fetch_referral_records():
     scroll_url = ES_HF_REFERRAL_INDEX + "?scroll=10m"
     scroll_id = None
 
-    try:
-        while True:
-            if scroll_id is None:
-                resp = get_resp(scroll_url, query, True).json()
-            else:
-                resp = get_resp(ES_SCROLL_API, {"scroll": "10m", "scroll_id": scroll_id}, True).json()
+    while True:
+        if scroll_id is None:
+            resp = get_resp(scroll_url, query, True).json()
+        else:
+            resp = get_resp(ES_SCROLL_API, {"scroll": "10m", "scroll_id": scroll_id}, True).json()
 
-            scroll_id = resp.get("_scroll_id", "")
-            hits = resp.get("hits", {}).get("hits", [])
-            if not hits:
-                break
+        scroll_id = resp.get("_scroll_id", "")
+        hits = resp.get("hits", {}).get("hits", [])
+        if not hits:
+            break
 
-            for doc in hits:
-                data = doc["_source"]["Data"]
-                boundary = data.get("boundaryHierarchy", {})
-                additional_details = data.get("additionalDetails", {})
-                hf_referral = data.get("hfReferral", {})
+        for doc in hits:
+            data = doc["_source"]["Data"]
+            boundary = data.get("boundaryHierarchy", {})
+            additional_details = data.get("additionalDetails", {})
+            hf_referral = data.get("hfReferral", {})
 
-                # Extract nameOfReferral from additionalFields key-value array
-                member_id = hf_referral.get("beneficiaryId", "")
-                for field in hf_referral.get("additionalFields", {}).get("fields", []):
-                    if field.get("key") == "nameOfReferral":
-                        member_id = field.get("value", "")
-                        break
+            # Extract nameOfReferral from additionalFields key-value array
+            member_id = hf_referral.get("beneficiaryId", "")
+            for field in hf_referral.get("additionalFields", {}).get("fields", []):
+                if field.get("key") == "nameOfReferral":
+                    member_id = field.get("value", "")
+                    break
 
-                # Determine seenAtHF: YES if record was modified by a different user (i.e. HF staff updated it)
-                client_audit = hf_referral.get("clientAuditDetails", {})
-                created_by = client_audit.get("createdBy", "")
-                last_modified_by = client_audit.get("lastModifiedBy", "")
-                seen_at_hf = "YES" if (created_by and last_modified_by and created_by != last_modified_by) else "NO"
+            # Determine seenAtHF: YES if record was modified by a different user (i.e. HF staff updated it)
+            client_audit = hf_referral.get("clientAuditDetails", {})
+            created_by = client_audit.get("createdBy", "")
+            last_modified_by = client_audit.get("lastModifiedBy", "")
+            seen_at_hf = "YES" if (created_by and last_modified_by and created_by != last_modified_by) else "NO"
 
-                rows.append({
-                    "Country": boundary.get("country", ""),
-                    "State": boundary.get("state", ""),
-                    "LGA": boundary.get("lga", ""),
-                    "Ward": boundary.get("ward", ""),
-                    "HF": boundary.get("healthFacility", ""),
-                    "Settlement": boundary.get("community", ""),
-                    "memberId": member_id,
-                    "Cycle": additional_details.get("cycleIndex", ""),
-                    "isReferred": "YES",
-                    "seenAtHF": seen_at_hf,
-                })
-    # ES keeps the scroll context pinned until the keep-alive expires, even once
-    # the scroll is exhausted - release it on break / return / exception alike.
-    finally:
-        clear_scroll(scroll_id)
+            rows.append({
+                "Country": boundary.get("country", ""),
+                "State": boundary.get("state", ""),
+                "LGA": boundary.get("lga", ""),
+                "Ward": boundary.get("ward", ""),
+                "HF": boundary.get("healthFacility", ""),
+                "Settlement": boundary.get("community", ""),
+                "memberId": member_id,
+                "Cycle": additional_details.get("cycleIndex", ""),
+                "isReferred": "YES",
+                "seenAtHF": seen_at_hf,
+            })
 
     return rows
 

@@ -322,7 +322,19 @@ def _enrich_status_row(row: dict, now_ms: int) -> dict:
 # ChartApiConfig.json. Each config's aggrQuery already encodes the specific
 # aggregation (cardinality/count/filter) appropriate for that report - this API
 # only needs to know which chart to call and where to read the number back from.
-REPORT_ESTIMATE_CHART_KEYS = {
+#
+# A report absent from this map gets no expectedRows, and therefore no
+# expectedGenerationTimeSeconds on the UI - dashboard-analytics is not called at
+# all for it (see _fetch_expected_rows). So adding the *_estimate entry to
+# ChartApiConfig.json is only half the wiring; the report must appear here too.
+#
+# Overridable in full via the REPORT_ESTIMATE_CHART_KEYS env var (JSON object),
+# so a new report's estimate can be wired up by editing values.yaml instead of
+# shipping a new image. NOTE: the env value REPLACES this map wholesale rather
+# than merging into it - same semantics as CUSTOM_REPORT_RETRY_COOLDOWN_OVERRIDES
+# below - so it must list every report that should have an estimate, not just the
+# new one. A malformed value falls back to these defaults and logs.
+DEFAULT_REPORT_ESTIMATE_CHART_KEYS: dict[str, str] = {
     "user_sync_status": "user_sync_status_estimate",
     "spaq_approved_hf": "spaq_approved_hf_estimate",
     "hf_stock_summary": "hf_stock_summary_estimate",
@@ -330,7 +342,22 @@ REPORT_ESTIMATE_CHART_KEYS = {
     "beneficiary_visit_list": "beneficiary_visit_list_estimate",
     "daily_hf_summary_report": "daily_hf_summary_report_estimate",
     "cumulative_daily_summary_form": "cumulative_daily_summary_form_estimate",
+    "cohort_report": "cohort_report_estimate",
 }
+try:
+    REPORT_ESTIMATE_CHART_KEYS = (
+        json.loads(os.environ["REPORT_ESTIMATE_CHART_KEYS"])
+        if os.getenv("REPORT_ESTIMATE_CHART_KEYS")
+        else DEFAULT_REPORT_ESTIMATE_CHART_KEYS
+    )
+except (json.JSONDecodeError, TypeError):
+    logger.exception("Invalid REPORT_ESTIMATE_CHART_KEYS - using defaults")
+    REPORT_ESTIMATE_CHART_KEYS = DEFAULT_REPORT_ESTIMATE_CHART_KEYS
+
+logger.info(
+    "Report estimate charts enabled for: %s",
+    ", ".join(sorted(REPORT_ESTIMATE_CHART_KEYS)) or "(none)",
+)
 ESTIMATE_RESULT_KEY = "estimatedCount"  # matches the "select" key in every *_estimate chart config
 EXPECTED_GENERATION_TIME_BUFFER_SECONDS = 180  # 3 min
 EXPECTED_GENERATION_TIME_DEFAULT_SECONDS = 600  # 10 min, used when no historical data exists yet
