@@ -259,11 +259,7 @@ export class TemplateClass {
         for (const name of SHEET_NAMES) {
             const rowsForSheet = filteredRows
                 .filter((r: any) => r.data._sheetName === name)
-                .map((r: any) => {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { _registerServiceCode, _sheetName, ...outputRow } = r.data;
-                    return outputRow;
-                });
+                .map((r: any) => this.toOutputRow(r));
             // Fall back to in-memory sheetRows if nothing stored yet (should not happen after persistence+wait)
             sheetMap[name] = {
                 data: rowsForSheet.length > 0 ? rowsForSheet : (sheetRows.get(name) || []),
@@ -271,6 +267,20 @@ export class TemplateClass {
             };
         }
         return sheetMap;
+    }
+
+    /**
+     * One processed-file row from a stored attendee row: internal fields stripped, and the synced
+     * de-enrolment date surfaced so a removal done outside the console is visible here too.
+     */
+    private static toOutputRow(storedRow: any): any {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _registerServiceCode, _sheetName, ...outputRow } = storedRow.data;
+        if (storedRow.denrollmentDate != null) {
+            outputRow["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] =
+                this.formatEpochAsDate(storedRow.denrollmentDate);
+        }
+        return outputRow;
     }
 
     /**

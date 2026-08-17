@@ -200,12 +200,7 @@ public class GenerationService {
                     .tenantId(tenantId)
                     .referenceIds(Arrays.asList(referenceId))
                     .types(Arrays.asList(type))
-                    .statuses(Arrays.asList(
-                            GenerationConstants.STATUS_QUEUED,
-                            GenerationConstants.STATUS_PENDING,
-                            GenerationConstants.STATUS_IN_PROGRESS,
-                            GenerationConstants.STATUS_COMPLETED,
-                            GenerationConstants.STATUS_FAILED))
+                    .statuses(GenerationConstants.LIVE_STATUSES)
                     .build();
 
             List<GenerateResource> existing = generatedFileRepository.search(criteria);
@@ -216,26 +211,42 @@ public class GenerationService {
             log.info("Expiring {} prior generation records for referenceId={} type={}",
                     existing.size(), referenceId, type);
 
-            long now = System.currentTimeMillis();
             // The new resource carries the modifier on auditDetails (the top-level field is
             // never populated on _init), so resolve from there to avoid stamping null.
             String modifiedBy = newGenerateResource.getAuditDetails() != null
                     ? newGenerateResource.getAuditDetails().getLastModifiedBy()
                     : newGenerateResource.getLastModifiedBy();
-            for (GenerateResource record : existing) {
-                record.setStatus(GenerationConstants.STATUS_EXPIRED);
-                record.setLastModifiedTime(now);
-                record.setLastModifiedBy(modifiedBy);
-                if (record.getAuditDetails() != null) {
-                    record.getAuditDetails().setLastModifiedTime(now);
-                    record.getAuditDetails().setLastModifiedBy(modifiedBy);
-                }
-                producer.push(tenantId, kafkaTopicConfig.getGenerationUpdateTopic(), record);
-                log.info("Expired generation record id={}", record.getId());
-            }
+            expireRecords(tenantId, existing, modifiedBy);
         } catch (Exception e) {
             // Expiring prior records is best-effort; a new run is still safe to proceed.
             log.error("Error expiring previous records: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * Marks the given records expired on the update topic. Shared by _init (retry supersedes the
+     * prior run) and by the attendance sync (the template's underlying data changed), so both go
+     * through one definition of "expired" instead of writing the status from two places.
+     */
+    public int expireRecords(String tenantId, List<GenerateResource> records, String modifiedBy) {
+        if (records == null || records.isEmpty()) {
+            return 0;
+        }
+
+        long now = System.currentTimeMillis();
+        int expired = 0;
+        for (GenerateResource record : records) {
+            record.setStatus(GenerationConstants.STATUS_EXPIRED);
+            record.setLastModifiedTime(now);
+            record.setLastModifiedBy(modifiedBy);
+            if (record.getAuditDetails() != null) {
+                record.getAuditDetails().setLastModifiedTime(now);
+                record.getAuditDetails().setLastModifiedBy(modifiedBy);
+            }
+            producer.push(tenantId, kafkaTopicConfig.getGenerationUpdateTopic(), record);
+            log.info("Expired generation record id={}", record.getId());
+            expired++;
+        }
+        return expired;
     }
 }

@@ -10,6 +10,10 @@ public class GenerationConstants {
     public static final String STATUS_FAILED = "failed";
     public static final String STATUS_EXPIRED = "expired";
 
+    // Statuses a search or download can still serve, i.e. everything expiry has to sweep
+    public static final java.util.List<String> LIVE_STATUSES = java.util.List.of(
+            STATUS_QUEUED, STATUS_PENDING, STATUS_IN_PROGRESS, STATUS_COMPLETED, STATUS_FAILED);
+
     // Generation types
     public static final String TYPE_MICROPLAN = "microplan";
     public static final String TYPE_PROJECT = "project";

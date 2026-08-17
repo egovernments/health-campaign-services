@@ -129,7 +129,7 @@ export class TemplateClass {
             .filter(({ result }: any) => !result.serviceCode)
             .map(({ processed }: any) => processed);
 
-        const outputData = [...allRows.map((r: any) => r.data), ...unpersistableRows];
+        const outputData = TemplateClass.buildOutputData(allRows, unpersistableRows);
         if (unpersistableRows.length > 0) {
             logger.info(`Appended ${unpersistableRows.length} unpersistable INVALID rows to output`);
         }
@@ -146,6 +146,18 @@ export class TemplateClass {
 
         logger.info(`SheetMap generated for attendance register processing`);
         return sheetMap;
+    }
+
+    /**
+     * Rows of the processed file: every register the campaign still has, plus the rows that could not
+     * be persisted. Registers deleted in the attendance service are dropped — the console serves this
+     * file as the current register list after an upload, so a deleted one would come straight back.
+     */
+    private static buildOutputData(allRows: any[], unpersistableRows: any[]): any[] {
+        return [
+            ...allRows.filter((r: any) => !r.isDeleted).map((r: any) => r.data),
+            ...unpersistableRows
+        ];
     }
 
     /**

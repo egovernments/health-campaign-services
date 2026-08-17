@@ -675,3 +675,58 @@ describe("parseDateEndOfDay", () => {
         expect(parseDateEndOfDay("not-a-date")).toBeNull();
     });
 });
+
+// ─── Processed-file output ───────────────────────────────────────────────────
+
+describe("toOutputRow", () => {
+    const DEENROLLMENT_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
+    // 13-08-2026 00:00 UTC
+    const SYNCED_DEENROL_EPOCH = 1786579200000;
+
+    const toOutputRow = (storedRow: unknown) => (TemplateClass as any).toOutputRow(storedRow);
+
+    beforeEach(() => { mockServerTimezone.value = "UTC"; });
+
+    it("strips the internal persistence fields", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", _registerServiceCode: "REG-001", _sheetName: "HCM_REGISTER_WORKER_SHEET" },
+        });
+
+        expect(row).toEqual({ UserName: "USR-1" });
+    });
+
+    it("shows the synced de-enrolment date", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", _registerServiceCode: "REG-001", _sheetName: "HCM_REGISTER_WORKER_SHEET" },
+            denrollmentDate: SYNCED_DEENROL_EPOCH,
+        });
+
+        expect(row[DEENROLLMENT_COLUMN]).toBe("13/08/2026");
+    });
+
+    it("overwrites a stale sheet value with the synced date", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", [DEENROLLMENT_COLUMN]: "01/01/2026" },
+            denrollmentDate: SYNCED_DEENROL_EPOCH,
+        });
+
+        expect(row[DEENROLLMENT_COLUMN]).toBe("13/08/2026");
+    });
+
+    it("leaves the stored value alone when nothing has been synced", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", [DEENROLLMENT_COLUMN]: "20/08/2026" },
+            denrollmentDate: null,
+        });
+
+        expect(row[DEENROLLMENT_COLUMN]).toBe("20/08/2026");
+    });
+
+    it("formats the synced date in the configured app timezone", () => {
+        mockServerTimezone.value = "Asia/Kolkata";
+
+        const row = toOutputRow({ data: { UserName: "USR-1" }, denrollmentDate: SYNCED_DEENROL_EPOCH });
+
+        expect(row[DEENROLLMENT_COLUMN]).toBe("13/08/2026");
+    });
+});

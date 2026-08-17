@@ -1810,6 +1810,10 @@ export async function searchCampaignData(searchParams: {
     uniqueIdentifier: row?.uniqueidentifier,
     status: row?.status,
     uniqueIdAfterProcess: row?.uniqueidafterprocess,
+    // Attendance sync state — excel-ingestion generates the attendance templates and reads these
+    // rows over this API, so a deletion/de-enrolment is invisible to it unless both are returned.
+    isDeleted: row?.isdeleted ?? false,
+    denrollmentDate: row?.denrollmentdate ?? null,
     createdBy: row?.createdby,
     createdTime: row?.createdtime,
     lastModifiedBy: row?.lastmodifiedby,

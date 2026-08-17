@@ -7,6 +7,7 @@ import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { logger } from "../utils/logger";
 import { processStatuses, allProcesses, dataRowStatuses } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
+import { formatEpochAsSheetDate } from "../utils/attendanceIdentityUtils";
 import { httpRequest } from "../utils/request";
 import config from "../config";
 
@@ -20,13 +21,6 @@ const MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
 const APPROVER_SHEET = "HCM_REGISTER_APPROVER_SHEET";
 
 const DEENROLLMENT_DATE_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
-
-/** dd-MM-yyyy, matching the format the template documents and the upload validator accepts. */
-function formatEpochAsSheetDate(epochMs: number): string {
-    const d = new Date(epochMs);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
-}
 
 /**
  * Generate class for Attendance Register Attendee Mapping.
