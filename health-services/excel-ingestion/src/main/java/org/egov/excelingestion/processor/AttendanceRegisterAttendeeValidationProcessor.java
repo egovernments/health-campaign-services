@@ -183,17 +183,32 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
 
             // The template is pre-filled with every campaign user, so a row without an enrolment date
             // is a legitimate skip. Only an upload where NO row anywhere carries one enrols nobody.
-            if (countEnrolmentRows(sheetData) == 0 && !alreadyReportedEmptyWorkbook(resource)
-                    && workbookHasNoEnrolments(workbook, resource)) {
+            // Raised on every sheet the user filled in, since each is a place needing a date. Only when
+            // the workbook names nobody at all does it fall back to a single message on the first sheet.
+            boolean sheetHasPeople = countRowsWithUser(sheetData) > 0;
+            boolean firstReportForEmptyWorkbook = !sheetHasPeople
+                    && !alreadyReportedEmptyWorkbook(resource)
+                    && workbookHasNoRowsAtAll(workbook, resource);
+            if (countEnrolmentRows(sheetData) == 0 && workbookHasNoEnrolments(workbook, resource)
+                    && (sheetHasPeople || firstReportForEmptyWorkbook)) {
+                // Nobody in the workbook at all is a different problem from people missing a date,
+                // and pointing at the date column would send the user looking for the wrong thing.
+                String message = sheetHasPeople
+                        ? localizationMap.getOrDefault(
+                                ValidationConstants.LOC_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED,
+                                ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED)
+                        : localizationMap.getOrDefault(
+                                ValidationConstants.LOC_ATTENDANCE_ATTENDEE_NO_USERS,
+                                ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_NO_USERS);
                 errors.add(ValidationError.builder()
                         .rowNumber(ValidationConstants.FIRST_DATA_ROW_NUMBER)
-                        .errorDetails(localizationMap.getOrDefault(
-                                ValidationConstants.LOC_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED,
-                                ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED))
+                        .errorDetails(message)
                         .status(ValidationConstants.STATUS_INVALID)
                         .build());
-                markEmptyWorkbookReported(resource);
-                log.info("No enrolment rows found in any sheet of the workbook, added validation error");
+                if (!sheetHasPeople) {
+                    markEmptyWorkbookReported(resource);
+                }
+                log.info("No enrolment date anywhere in the workbook, flagged sheet {}", sheetName);
             }
 
             log.info("Attendee validation completed for sheet {} with {} errors", sheetName, errors.size());
@@ -636,6 +651,33 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             }
         }
         return count;
+    }
+
+    /** Rows naming a person, whether or not they carry an enrolment date. O(n). */
+    private int countRowsWithUser(List<Map<String, Object>> sheetData) {
+        int count = 0;
+        for (Map<String, Object> row : sheetData) {
+            if (!ExcelUtil.getValueAsString(row.get(COL_USERNAME)).trim().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * True when the workbook names nobody at all. Only then is there no filled-in sheet to attach the
+     * error to, so it goes on whichever sheet is processed first.
+     */
+    private boolean workbookHasNoRowsAtAll(Workbook workbook, ProcessResource resource) {
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet other = workbook.getSheetAt(i);
+            List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(
+                    resource.getFileStoreId(), other.getSheetName(), other);
+            if (countRowsWithUser(rows) > 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

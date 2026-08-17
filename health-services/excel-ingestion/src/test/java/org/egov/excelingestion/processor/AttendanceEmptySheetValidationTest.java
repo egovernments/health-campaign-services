@@ -179,6 +179,14 @@ class AttendanceEmptySheetValidationTest {
     // ── Attendee sheets ───────────────────────────────────────────────────
 
     @Test
+    void errorGoesOnTheSheetTheUserFilledIn() throws Exception {
+        // Worker sheet empty, one dateless person on the marker sheet. The message is about that
+        // person, so it must not land on the empty worker sheet.
+        assertEquals(0, invokeCountRowsWithUser(new ArrayList<>()));
+        assertEquals(1, invokeCountRowsWithUser(List.of(attendeeRow("USR-206325", ""))));
+    }
+
+    @Test
     void emptyWorkbookErrorIsRaisedOnlyOnceAcrossSheets() {
         ProcessResource resource = ProcessResource.builder().id("resource-1").tenantId("demo").build();
 
@@ -245,6 +253,13 @@ class AttendanceEmptySheetValidationTest {
         validateRegisterData.invoke(registerProcessor, sheetData, resource,
                 RequestInfo.builder().build(), errors, localisationMap);
         return errors;
+    }
+
+    private int invokeCountRowsWithUser(List<Map<String, Object>> sheetData) throws Exception {
+        Method m = AttendanceRegisterAttendeeValidationProcessor.class
+                .getDeclaredMethod("countRowsWithUser", List.class);
+        m.setAccessible(true);
+        return (int) m.invoke(attendeeProcessor, sheetData);
     }
 
     private int invokeCountEnrolmentRows(List<Map<String, Object>> sheetData) throws Exception {
