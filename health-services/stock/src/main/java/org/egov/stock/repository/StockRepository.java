@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +42,8 @@ public class StockRepository extends GenericRepository<Stock> {
             return super.findWithCount(searchObject, limit, offset, tenantId, lastChangedSince, includeDeleted);
         }
 
-        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING, paramsMap);
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE");
@@ -54,7 +56,6 @@ public class StockRepository extends GenericRepository<Stock> {
         }
         query += "AND lastModifiedBy!=:lastModifiedByFilter ";
         query += "ORDER BY id ASC";
-        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
