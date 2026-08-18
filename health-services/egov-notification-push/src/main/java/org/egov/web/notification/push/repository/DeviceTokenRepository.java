@@ -69,9 +69,12 @@ public class DeviceTokenRepository {
 				facilityId, tenantId, schema, query);
 		Map<String, Object> params = Collections.singletonMap("facilityId", facilityId);
 		try {
-			return namedParameterJdbcTemplate.query(query, params, rowMapper);
+			List<DeviceToken> result = namedParameterJdbcTemplate.query(query, params, rowMapper);
+			log.info("PUSH_DB fetchTokensByFacilityId facilityId={} tenantId={} schema={} rows={}",
+					facilityId, tenantId, schema, result.size());
+			return result;
 		} catch (Exception e) {
-			log.error("Error while fetching device tokens by facilityId: ", e);
+			log.error("PUSH_DB_ERROR fetchTokensByFacilityId facilityId={} tenantId={}: ", facilityId, tenantId, e);
 			return Collections.emptyList();
 		}
 	}
@@ -104,10 +107,14 @@ public class DeviceTokenRepository {
 			params.put("rolePattern" + i, "%" + roles.get(i) + "%");
 		}
 		try {
-			return namedParameterJdbcTemplate.query(
+			List<DeviceToken> result = namedParameterJdbcTemplate.query(
 					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRoles(schema, roles.size()), params, rowMapper);
+			log.info("PUSH_DB fetchTokensByFacilityIdAndRoles facilityId={} roles={} tenantId={} schema={} rows={}",
+					facilityId, roles, tenantId, schema, result.size());
+			return result;
 		} catch (Exception e) {
-			log.error("Error while fetching device tokens by facilityId and roles: ", e);
+			log.error("PUSH_DB_ERROR fetchTokensByFacilityIdAndRoles facilityId={} roles={} tenantId={}: ",
+					facilityId, roles, tenantId, e);
 			return Collections.emptyList();
 		}
 	}

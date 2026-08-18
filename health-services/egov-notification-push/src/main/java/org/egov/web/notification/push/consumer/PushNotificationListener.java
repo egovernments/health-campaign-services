@@ -33,7 +33,9 @@ public class PushNotificationListener {
     public void processPushNotification(HashMap<String, Object> consumerRecord) {
         try {
             PushNotificationRequest request = objectMapper.convertValue(consumerRecord, PushNotificationRequest.class);
-            log.info("Received push notification request for tenant: {}", request.getTenantId());
+            log.info("PUSH_TRACE received title={} tenantId={} facilityId={} roles={} data={}",
+                    request.getTitle(), request.getTenantId(), request.getFacilityId(),
+                    request.getRecipientRoles(), request.getData());
 
             // If facilityId is present and deviceTokens are absent,
             // resolve device tokens from DB using facilityId and recipientRoles
@@ -54,8 +56,8 @@ public class PushNotificationListener {
                 }
 
                 if (tokens == null || tokens.isEmpty()) {
-                    log.warn("No device tokens found for facilityId: {}, roles: {}. Skipping push notification.",
-                            facilityId, roles);
+                    log.warn("PUSH_SKIP reason=NO_TOKENS facilityId={} roles={} tenantId={} title={} data={}",
+                            facilityId, roles, tenantId, request.getTitle(), request.getData());
                     return;
                 }
 
@@ -63,13 +65,17 @@ public class PushNotificationListener {
                         .map(DeviceToken::getDeviceToken)
                         .collect(Collectors.toList());
                 request.setDeviceTokens(resolvedTokens);
-                log.info("Resolved {} device token(s) for facilityId: {}, roles: {}",
-                        resolvedTokens.size(), facilityId, roles);
+                log.info("PUSH_TRACE resolved count={} facilityId={} roles={} users={} data={}",
+                        resolvedTokens.size(), facilityId, roles,
+                        tokens.stream().map(t -> t.getUserId() + ":" + t.getUserRoles()).collect(Collectors.toList()),
+                        request.getData());
             }
 
             pushNotificationService.sendPushNotification(request);
         } catch (Exception e) {
-            log.error("Error processing push notification message: ", e);
+            log.error("PUSH_FAIL title={} tenantId={} facilityId={} data={}: {}",
+                    consumerRecord.get("title"), consumerRecord.get("tenantId"),
+                    consumerRecord.get("facilityId"), consumerRecord.get("data"), e.getMessage(), e);
         }
     }
 

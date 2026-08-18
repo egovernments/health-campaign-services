@@ -85,6 +85,15 @@ public class DeviceTokenService {
 				.deviceTokens(expandedTokens)
 				.build();
 		String tenantId = deviceTokens.get(0).getTenantId();
+		for (DeviceToken t : expandedTokens) {
+			log.info("PUSH_REGISTER user={} tenantId={} facilityId={} roles={} tokenSuffix={}",
+					t.getUserId(), t.getTenantId(), t.getFacilityId(), t.getUserRoles(),
+					tokenSuffix(t.getDeviceToken()));
+		}
+		if (userRoles == null || userRoles.isBlank()) {
+			log.warn("PUSH_REGISTER_NO_ROLES user={} tenantId={} rows={} — userroles will be stored NULL and role-filtered notifications will never match these rows",
+					userUuid, tenantId, expandedTokens.size());
+		}
 		producer.push(tenantId, properties.getSaveDeviceTokenTopic(), request);
 
 		// Return original tokens with facilityIds intact
@@ -125,6 +134,10 @@ public class DeviceTokenService {
 				.deviceTokens(expandedTokens)
 				.build();
 		String tenantId = deviceTokens.get(0).getTenantId();
+		for (DeviceToken t : expandedTokens) {
+			log.info("PUSH_DELETE user={} tenantId={} facilityId={} tokenSuffix={}",
+					t.getUserId(), t.getTenantId(), t.getFacilityId(), tokenSuffix(t.getDeviceToken()));
+		}
 		producer.push(tenantId, properties.getDeleteDeviceTokenTopic(), request);
 	}
 
@@ -146,7 +159,17 @@ public class DeviceTokenService {
 				.build();
 		String tenantId = deviceTokens.get(0).getTenantId();
 		producer.push(tenantId, properties.getUnregisterDeviceTokenTopic(), request);
-		log.info("Published unregister request for {} device token(s) for user {}", deviceTokens.size(), userUuid);
+		for (DeviceToken t : deviceTokens) {
+			log.info("PUSH_UNREGISTER user={} tenantId={} tokenSuffix={} — deletes ALL facility rows for this user+token",
+					t.getUserId(), t.getTenantId(), tokenSuffix(t.getDeviceToken()));
+		}
+	}
+
+	static String tokenSuffix(String deviceToken) {
+		if (deviceToken == null) {
+			return "null";
+		}
+		return deviceToken.length() <= 12 ? deviceToken : "..." + deviceToken.substring(deviceToken.length() - 12);
 	}
 
 	public List<DeviceToken> getActiveTokensForUsers(List<String> userIds, String tenantId) {

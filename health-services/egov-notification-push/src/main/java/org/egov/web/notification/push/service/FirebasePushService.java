@@ -40,7 +40,8 @@ public class FirebasePushService implements PushNotificationService {
     public void sendPushNotification(PushNotificationRequest request) {
         List<String> tokens = request.getDeviceTokens();
         if (tokens == null || tokens.isEmpty()) {
-            log.warn("No device tokens provided, skipping push notification");
+            log.warn("PUSH_SKIP reason=NO_TOKENS_IN_REQUEST title={} facilityId={} data={}",
+                    request.getTitle(), request.getFacilityId(), request.getData());
             return;
         }
 
@@ -67,9 +68,13 @@ public class FirebasePushService implements PushNotificationService {
             }
 
             String response = firebaseMessaging.send(builder.build());
-            log.info("Successfully sent single push notification: {}", response);
+            log.info("PUSH_FCM_OK single messageId={} tokenSuffix={} title={} data={}",
+                    response, DeviceTokenService.tokenSuffix(token), request.getTitle(), request.getData());
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send push notification to token {}: {}", token, e.getMessage());
+            log.error("PUSH_FCM_FAIL single tokenSuffix={} errorCode={} title={} data={}: {}",
+                    DeviceTokenService.tokenSuffix(token),
+                    e.getMessagingErrorCode() != null ? e.getMessagingErrorCode().name() : "UNKNOWN",
+                    request.getTitle(), request.getData(), e.getMessage());
             handleMessagingError(e, token, request.getTenantId());
         }
     }
@@ -108,12 +113,20 @@ public class FirebasePushService implements PushNotificationService {
                     handleBatchFailures(response.getResponses(), chunks.get(i), request.getTenantId());
                 }
             }
-            log.info("Multicast batch sent: {} success, {} failure", success, failure);
+            if (failure > 0) {
+                log.warn("PUSH_FCM_PARTIAL multicast success={} failure={} title={} facilityId={} data={}",
+                        success, failure, request.getTitle(), request.getFacilityId(), request.getData());
+            } else {
+                log.info("PUSH_FCM_OK multicast success={} title={} facilityId={} data={}",
+                        success, request.getTitle(), request.getFacilityId(), request.getData());
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("Interrupted while sending multicast push notification: {}", e.getMessage());
+            log.error("PUSH_FCM_FAIL multicast interrupted title={} data={}: {}",
+                    request.getTitle(), request.getData(), e.getMessage());
         } catch (Exception e) {
-            log.error("Failed to send multicast push notification: {}", e.getMessage());
+            log.error("PUSH_FCM_FAIL multicast title={} facilityId={} data={}: {}",
+                    request.getTitle(), request.getFacilityId(), request.getData(), e.getMessage(), e);
         }
     }
 
@@ -126,7 +139,9 @@ public class FirebasePushService implements PushNotificationService {
                         && ErrorConstants.FCM_ERROR_UNREGISTERED.equals(ex.getMessagingErrorCode().name())) {
                     unregisteredTokens.add(tokens.get(i));
                 }
-                log.warn("Failed to send to token {}: {}", tokens.get(i),
+                log.warn("PUSH_FCM_TOKEN_FAIL tokenSuffix={} errorCode={}: {}",
+                        DeviceTokenService.tokenSuffix(tokens.get(i)),
+                        ex != null && ex.getMessagingErrorCode() != null ? ex.getMessagingErrorCode().name() : "UNKNOWN",
                         ex != null ? ex.getMessage() : "unknown error");
             }
         }
