@@ -105,12 +105,6 @@ public class ProcessingConstants {
     public static final String ADDITIONAL_DETAILS_REGISTER_ID = "registerId";
     public static final String ADDITIONAL_DETAILS_CLONED_CAMPAIGN_ID = "clonedCampaignId";
 
-    // project-factory campaign_data row keys for stored attendee rows (written by its process class)
-    public static final String CAMPAIGN_DATA_KEY = "data";
-    public static final String CAMPAIGN_DATA_UNIQUE_ID_AFTER_PROCESS_KEY = "uniqueIdAfterProcess";
-    public static final String STORED_REGISTER_SERVICE_CODE_KEY = "_registerServiceCode";
-    public static final String STORED_SHEET_NAME_KEY = "_sheetName";
-
     // Attendance Register API Response Keys
     public static final String ATTENDANCE_REGISTER_RESPONSE_KEY = "attendanceRegister";
     public static final String ATTENDANCE_REGISTER_CAMPAIGN_ID_KEY = "campaignId";

@@ -223,12 +223,8 @@ public class GenerationService {
         }
     }
 
-    /**
-     * Marks the given records expired on the update topic. Shared by _init (retry supersedes the
-     * prior run) and by the attendance sync (the template's underlying data changed), so both go
-     * through one definition of "expired" instead of writing the status from two places.
-     */
-    public int expireRecords(String tenantId, List<GenerateResource> records, String modifiedBy) {
+    /** One definition of "expired", so the status is never written from two places. */
+    private int expireRecords(String tenantId, List<GenerateResource> records, String modifiedBy) {
         if (records == null || records.isEmpty()) {
             return 0;
         }

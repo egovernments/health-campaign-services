@@ -20,8 +20,6 @@ import org.egov.excelingestion.util.RequestInfoUtil;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -63,12 +61,6 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
     private static final int MAX_MULTISELECT_COLUMNS = 5;
     private static final int BULK_DECRYPT_BATCH_SIZE = 500;
-
-    // Separator in the attendee identity project-factory stamps: <registerId>_<individualId>_<sheetType>
-    private static final String IDENTITY_SEPARATOR = "_";
-
-    // Date format the attendee template documents and the upload validator accepts
-    private static final DateTimeFormatter SHEET_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private final MDMSService mdmsService;
     private final MDMSConfigService mdmsConfigService;
@@ -148,18 +140,10 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         log.info("Filtered {} users for sheet {}", filteredUsers.size(), sheetName);
 
-        // 8. Overlay what was already processed for this register, so a regenerated sheet keeps the
-        // enrolment the user entered and shows de-enrolments recorded outside the console.
-        // Skipped for an empty sheet so it does not pay for a campaign-wide search it cannot use.
-        Map<String, StoredAttendee> storedAttendees = filteredUsers.isEmpty()
-                ? Collections.emptyMap()
-                : fetchStoredAttendees(campaignNumber, registerDetails.serviceCode, registerId,
-                        sheetName, tenantId, requestInfo);
-
-        // 9. Decrypt credentials and build data rows
+        // 8. Decrypt credentials and build data rows
         List<Map<String, Object>> dataRows = buildDataRows(
                 filteredUsers, registerDetails.serviceCode, localizationMap, requestInfo,
-                WORKER_SHEET.equals(sheetName), storedAttendees);
+                WORKER_SHEET.equals(sheetName));
 
         return SheetGenerationResult.builder()
                 .columnDefs(columnDefs)
@@ -528,105 +512,12 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     }
 
     /**
-     * Attendee state project-factory already holds for this register: the row as it was processed,
-     * plus the de-enrolment date it syncs from the attendance service.
-     */
-    private static class StoredAttendee {
-        final Map<String, Object> data;
-        final Long denrollmentDate;
-
-        StoredAttendee(Map<String, Object> data, Long denrollmentDate) {
-            this.data = data;
-            this.denrollmentDate = denrollmentDate;
-        }
-    }
-
-    /**
-     * Load this register's already-processed attendee rows, keyed by username. Without this a
-     * regenerated sheet comes back with blank dates, so a de-enrolled person reads as enrollable
-     * again and the enrolment the user typed is lost.
-     */
-    private Map<String, StoredAttendee> fetchStoredAttendees(
-            String campaignNumber, String registerServiceCode, String registerId, String sheetName,
-            String tenantId, RequestInfo requestInfo) {
-
-        List<Map<String, Object>> storedRows = campaignService.searchCampaignDataByType(
-                ProcessingConstants.ATTENDANCE_REGISTER_ATTENDEE_TYPE, ProcessingConstants.STATUS_COMPLETED,
-                campaignNumber, tenantId, requestInfo);
-
-        Map<String, StoredAttendee> byUsername = new HashMap<>();
-        for (Map<String, Object> storedRow : storedRows) {
-            Map<String, Object> data = asMap(storedRow.get(ProcessingConstants.CAMPAIGN_DATA_KEY));
-            if (data == null) continue;
-
-            if (!registerServiceCode.equals(getStringValue(data, ProcessingConstants.STORED_REGISTER_SERVICE_CODE_KEY))
-                    || !sheetName.equals(getStringValue(data, ProcessingConstants.STORED_SHEET_NAME_KEY))) {
-                continue;
-            }
-
-            // A deleted register can be re-created under the same serviceCode, so rows stamped with a
-            // different register id belong to the older one. Unstamped rows predate the stamp, so keep them.
-            String storedIdentity = getStringValue(storedRow, ProcessingConstants.CAMPAIGN_DATA_UNIQUE_ID_AFTER_PROCESS_KEY);
-            if (!registerId.isEmpty() && !storedIdentity.isEmpty()
-                    && !storedIdentity.startsWith(registerId + IDENTITY_SEPARATOR)) {
-                continue;
-            }
-
-            String userName = getStringValue(data, ProcessingConstants.USERNAME_COLUMN_KEY);
-            if (userName.isEmpty()) continue;
-
-            byUsername.put(userName, new StoredAttendee(data, asEpochMillis(
-                    storedRow.get(ProcessingConstants.DEENROLLMENT_DATE_KEY))));
-        }
-
-        log.info("Loaded {} stored attendee row(s) for register {} sheet {}",
-                byUsername.size(), registerServiceCode, sheetName);
-        return byUsername;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> asMap(Object value) {
-        return value instanceof Map ? (Map<String, Object>) value : null;
-    }
-
-    /** BIGINT reaches us as a string over project-factory's API, so a number alone is not enough. */
-    private Long asEpochMillis(Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        if (value instanceof String) {
-            try {
-                return Long.parseLong(((String) value).trim());
-            } catch (NumberFormatException e) {
-                log.warn("Ignoring unparseable de-enrolment date '{}'", value);
-                return null;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * De-enrolment date to show: the synced epoch wins, since it also covers de-enrolments done
-     * outside the console, which never touched the sheet cell.
-     */
-    private String resolveDeEnrolmentDate(StoredAttendee stored) {
-        if (stored.denrollmentDate != null && stored.denrollmentDate > 0) {
-            // Same zone the upload-side date checks use, so a generated date and a validated date agree.
-            return Instant.ofEpochMilli(stored.denrollmentDate)
-                    .atZone(config.getServerZoneId())
-                    .toLocalDate()
-                    .format(SHEET_DATE_FORMAT);
-        }
-        return getStringValue(stored.data, ProcessingConstants.DEENROLLMENT_DATE_COLUMN_KEY);
-    }
-
-    /**
      * Build data rows from filtered users with decrypted credentials
      */
     private List<Map<String, Object>> buildDataRows(
             List<Map<String, Object>> filteredUsers, String registerServiceCode,
             Map<String, String> localizationMap, RequestInfo requestInfo,
-            boolean includeTeamCode, Map<String, StoredAttendee> storedAttendees) {
+            boolean includeTeamCode) {
 
         if (filteredUsers.isEmpty()) return Collections.emptyList();
 
@@ -661,31 +552,24 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
             String encryptedPassword = getStringValue(rawData, "Password");
             List<String> roleCodes = getRoleCodes(rawData);
 
-            String userName = decryptedMap.getOrDefault(encryptedUserName, encryptedUserName);
-
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("HCM_ADMIN_CONSOLE_USER_WORKER_ID",
                     getStringValue(rawData, "HCM_ADMIN_CONSOLE_USER_WORKER_ID"));
             row.put("HCM_ADMIN_CONSOLE_USER_NAME",
                     getStringValue(rawData, "HCM_ADMIN_CONSOLE_USER_NAME"));
-            row.put(ProcessingConstants.USERNAME_COLUMN_KEY, userName);
+            row.put("UserName", decryptedMap.getOrDefault(encryptedUserName, encryptedUserName));
             row.put("Password", decryptedMap.getOrDefault(encryptedPassword, encryptedPassword));
             row.put("HCM_ADMIN_CONSOLE_USER_ROLE", String.join(", ", roleCodes));
             row.put("HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
                     getStringValueOrLocalized(rawData, "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
                             boundaryCode, localizationMap));
             row.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", boundaryCode);
-            row.put(ProcessingConstants.REGISTER_ID_COLUMN_KEY, registerServiceCode);
-
-            StoredAttendee stored = storedAttendees.get(userName);
-            row.put(ProcessingConstants.ENROLLMENT_DATE_COLUMN_KEY, stored == null ? ""
-                    : getStringValue(stored.data, ProcessingConstants.ENROLLMENT_DATE_COLUMN_KEY));
-            row.put(ProcessingConstants.DEENROLLMENT_DATE_COLUMN_KEY, stored == null ? ""
-                    : resolveDeEnrolmentDate(stored));
+            row.put("HCM_ATTENDANCE_REGISTER_ID", registerServiceCode);
+            row.put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", "");
+            row.put("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE", "");
 
             if (includeTeamCode) {
-                row.put(ProcessingConstants.TEAM_CODE_COLUMN_KEY, stored == null ? ""
-                        : getStringValue(stored.data, ProcessingConstants.TEAM_CODE_COLUMN_KEY));
+                row.put("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE", "");
             }
 
             dataRows.add(row);

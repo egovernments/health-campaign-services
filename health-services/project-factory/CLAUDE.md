@@ -290,7 +290,9 @@ Never change existing phase numbers or `dependsOn` chains.
 
 ### Attendance sync state is a cross-service contract
 
-`campaign_data.isDeleted` / `denrollmentDate` (written by the attendance consumers in `attendanceSyncUtils.ts`) are consumed **outside this service**: excel-ingestion generates the attendance templates and reads these rows over `data/campaign/_search`, so both columns are part of that API's response shape (`searchCampaignData`) — never drop them from the row mapper. Every path that emits an attendance sheet must honour them: the generate classes, and the process classes' output file (`buildOutputData` drops deleted registers, `toOutputRow` surfaces the synced de-enrolment date). Sheet dates use `formatEpochAsSheetDate` (`attendanceIdentityUtils.ts`) in `config.appTimezone`, matching excel-ingestion's `app.timezone` — not the pod's zone.
+`campaign_data.isDeleted` / `denrollmentDate` are written by the attendance consumers in `attendanceSyncUtils.ts` and read back on every path that emits an attendance sheet: the generate classes, the process classes' output file (`buildOutputData` drops deleted registers, `toOutputRow` surfaces the synced de-enrolment date) and the on-read refresh in `attendanceSheetUtils.ts`. They are also part of `data/campaign/_search`'s response shape (`searchCampaignData`) — `denrollmentDate` is BIGINT, which node-postgres returns as a string, so both readers coerce it to a number. Sheet dates use `formatEpochAsSheetDate` (`attendanceIdentityUtils.ts`) in `config.appTimezone`, not the pod's zone.
+
+**Attendance templates deliberately carry no enrolment state.** The generated template is for adding people; pre-filling dates locks those cells under the immutable-baseline join, so state belongs in the "current …" files only. Nothing invalidates a template when enrolments change, and that is intentional.
 
 ### Current-register file is refreshed on read, never on the Kafka path
 
