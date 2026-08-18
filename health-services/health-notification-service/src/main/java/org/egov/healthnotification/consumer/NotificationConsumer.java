@@ -93,9 +93,10 @@ public class NotificationConsumer {
                     }
                 } catch (Exception e) {
                     failureCount++;
-                    String recordId = record.path("id").asText("unknown");
-                    log.error("Failed to process record id={} from topic={}: {}",
-                            recordId, topic, e.getMessage(), e);
+                    log.error("NOTIF_FAIL recordId={} clientRefId={} topic={}: {}",
+                            record.path("id").asText("unknown"),
+                            record.path("clientReferenceId").asText("unknown"),
+                            topic, e.getMessage(), e);
                 }
             }
 
@@ -125,7 +126,12 @@ public class NotificationConsumer {
                 return hfReferralAdapter.buildNotificationEvents(record, topic);
 
             default:
-                log.warn("Unknown schema: {} in record from topic: {}. Skipping.", schema, topic);
+                log.warn("NOTIF_SKIP reason=UNKNOWN_SCHEMA schema='{}' recordId={} clientRefId={} tenantId={} hasAdditionalFields={} topic={}",
+                        schema, record.path("id").asText("unknown"),
+                        record.path("clientReferenceId").asText("unknown"),
+                        record.path("tenantId").asText("unknown"),
+                        !record.path("additionalFields").isMissingNode() && !record.path("additionalFields").isNull(),
+                        topic);
                 return List.of();
         }
     }

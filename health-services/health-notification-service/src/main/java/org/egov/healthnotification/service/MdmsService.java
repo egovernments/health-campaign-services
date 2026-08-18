@@ -65,8 +65,9 @@ public class MdmsService {
 
             loadAndCacheMdmsNotificationConfigs(tenantId);
 
-            log.info("MDMS notification config cache initialized successfully with {} entries",
-                    mdmsNotificationConfigCache.size());
+            log.info("MDMS_CACHE_INIT pod={} entries={} keys={}",
+                    System.getenv("HOSTNAME"), mdmsNotificationConfigCache.size(),
+                    mdmsNotificationConfigCache.keySet());
 
         } catch (Exception e) {
             log.error("Error initializing MDMS cache on startup. " +
@@ -97,9 +98,11 @@ public class MdmsService {
                 if (config.getData() != null && config.getData().has("campaignType")) {
                     String campaignType = config.getData().get("campaignType").asText();
                     String cacheKey = buildCacheKey(tenantId, campaignType);
-                    mdmsNotificationConfigCache.put(cacheKey, config);
+                    MdmsV2Data previous = mdmsNotificationConfigCache.put(cacheKey, config);
                     cachedCount++;
-                    log.debug("Cached MDMS config for campaignType: {}", campaignType);
+                    log.info("MDMS_CACHE_PUT key={} docId={} uniqueIdentifier={} isActive={} overwroteDocId={}",
+                            cacheKey, config.getId(), config.getUniqueIdentifier(), config.getIsActive(),
+                            previous != null ? previous.getId() : null);
                 }
             }
 
@@ -278,16 +281,22 @@ public class MdmsService {
 
         // Try to get from cache first
         if (mdmsNotificationConfigCache.containsKey(cacheKey)) {
-            log.debug("Fetching MDMS notification config from cache for projectType: {}", projectType);
-            return mdmsNotificationConfigCache.get(cacheKey);
+            MdmsV2Data cached = mdmsNotificationConfigCache.get(cacheKey);
+            log.info("MDMS_CACHE_HIT key={} pod={} docId={} isActive={}",
+                    cacheKey, System.getenv("HOSTNAME"),
+                    cached != null ? cached.getId() : null,
+                    cached != null ? cached.getIsActive() : null);
+            return cached;
         }
 
         // If not in cache, fetch from API
-        log.info("MDMS notification config not found in cache for projectType: {}, fetching from API", projectType);
+        log.info("MDMS_CACHE_MISS key={} pod={} fetching from API", cacheKey, System.getenv("HOSTNAME"));
         MdmsV2Data notificationConfig = fetchNotificationConfigFromApi(projectType, tenantId);
 
         // Cache the fetched config
         mdmsNotificationConfigCache.put(cacheKey, notificationConfig);
+        log.info("MDMS_CACHE_PUT key={} pod={} docId={} isActive={} source=on-demand",
+                cacheKey, System.getenv("HOSTNAME"), notificationConfig.getId(), notificationConfig.getIsActive());
 
         return notificationConfig;
     }

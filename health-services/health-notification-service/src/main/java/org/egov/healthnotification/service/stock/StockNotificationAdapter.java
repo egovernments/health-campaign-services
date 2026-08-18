@@ -61,7 +61,8 @@ public class StockNotificationAdapter {
         // Extract stockEntryType from additionalFields — this drives the event type
         String stockEntryType = getAdditionalFieldValue(stock, Constants.ADDITIONAL_FIELD_STOCK_ENTRY_TYPE);
         if (stockEntryType == null || stockEntryType.isBlank()) {
-            log.info("No stockEntryType in additionalFields for stock id={}. Skipping.", stock.getId());
+            log.warn("NOTIF_SKIP reason=NO_STOCK_ENTRY_TYPE stockId={} clientRefId={} tenantId={} topic={}",
+                    stock.getId(), stock.getClientReferenceId(), tenantId, topic);
             return events;
         }
 
@@ -70,32 +71,36 @@ public class StockNotificationAdapter {
 
         String eventType = mapToEventType(stockEntryType, stockStatus);
         if (eventType == null) {
-            log.info("No mapping for stockEntryType={}, status={} for stock id={}. Skipping.",
-                    stockEntryType, stockStatus, stock.getId());
+            log.warn("NOTIF_SKIP reason=NO_EVENT_TYPE_MAPPING stockEntryType={} status={} stockId={} clientRefId={} tenantId={}",
+                    stockEntryType, stockStatus, stock.getId(), stock.getClientReferenceId(), tenantId);
             return events;
         }
 
-        log.info("Stock id={}: stockEntryType={}, status={} → eventType={}",
-                stock.getId(), stockEntryType, stockStatus, eventType);
+        log.info("NOTIF_TRACE stockId={} clientRefId={} tenantId={} stockEntryType={} status={} eventType={} senderId={} senderType={} receiverId={} receiverType={}",
+                stock.getId(), stock.getClientReferenceId(), tenantId, stockEntryType, stockStatus, eventType,
+                stock.getSenderId(), stock.getSenderType(), stock.getReceiverId(), stock.getReceiverType());
 
         // Fetch MDMS config using campaignType "PUSH-NOTIFICATION"
         MdmsV2Data notificationConfig = fetchNotificationConfig(tenantId);
         if (notificationConfig == null) {
-            log.info("No MDMS notification config found for push notifications. tenantId={}", tenantId);
+            log.warn("NOTIF_SKIP reason=NO_MDMS_CONFIG tenantId={} stockId={} clientRefId={} eventType={}",
+                    tenantId, stock.getId(), stock.getClientReferenceId(), eventType);
             return events;
         }
 
         // Find the matching event config from MDMS
         JsonNode eventConfig = findEventConfig(notificationConfig, eventType);
         if (eventConfig == null) {
-            log.info("No enabled event config found for eventType={}", eventType);
+            log.warn("NOTIF_SKIP reason=EVENT_NOT_ENABLED eventType={} stockId={} clientRefId={} tenantId={}",
+                    eventType, stock.getId(), stock.getClientReferenceId(), tenantId);
             return events;
         }
 
         // Extract templateCode from scheduledNotifications[0]
         String templateCode = extractTemplateCode(eventConfig);
         if (templateCode == null || templateCode.isBlank()) {
-            log.warn("No templateCode found for eventType={}. Skipping.", eventType);
+            log.warn("NOTIF_SKIP reason=NO_TEMPLATE_CODE eventType={} stockId={} clientRefId={} tenantId={}",
+                    eventType, stock.getId(), stock.getClientReferenceId(), tenantId);
             return events;
         }
 
@@ -120,10 +125,15 @@ public class StockNotificationAdapter {
         if (recipientFacilityId != null && !recipientFacilityId.isBlank()) {
             events.add(buildEvent(stock, eventType, tenantId, templateCode,
                     locale, recipientFacilityId, recipientRoles, placeholders, navigationData, title));
+        } else {
+            log.warn("NOTIF_SKIP reason=NO_RECIPIENT stockEntryType={} status={} senderId={} senderType={} receiverId={} receiverType={} stockId={} clientRefId={}",
+                    stockEntryType, stockStatus, stock.getSenderId(), stock.getSenderType(),
+                    stock.getReceiverId(), stock.getReceiverType(), stock.getId(), stock.getClientReferenceId());
         }
 
-        log.info("Built {} notification event(s) for stock id={}, eventType={}",
-                events.size(), stock.getId(), eventType);
+        log.info("NOTIF_TRACE built={} stockId={} clientRefId={} eventType={} recipientFacilityId={} recipientRoles={} templateCode={} locale={}",
+                events.size(), stock.getId(), stock.getClientReferenceId(), eventType,
+                recipientFacilityId, recipientRoles, templateCode, locale);
         return events;
     }
 
@@ -399,6 +409,12 @@ public class StockNotificationAdapter {
         String mrnNumber = getAdditionalFieldValue(stock, Constants.ADDITIONAL_FIELD_MRN_NUMBER);
         data.put("transactionRef", mrnNumber != null ? mrnNumber :
                 (stock.getClientReferenceId() != null ? stock.getClientReferenceId() : stock.getId()));
+        if (stock.getId() != null) {
+            data.put("entityId", stock.getId());
+        }
+        if (stock.getClientReferenceId() != null) {
+            data.put("clientReferenceId", stock.getClientReferenceId());
+        }
 
         switch (eventType) {
             case Constants.EVENT_TYPE_STOCK_ISSUE:

@@ -51,12 +51,12 @@ public class PushNotificationService {
                                       String tenantId,
                                       Map<String, String> data) {
         if (!Boolean.TRUE.equals(properties.getPushNotificationEnabled())) {
-            log.info("Push notifications are disabled. Skipping push for title: {}", title);
+            log.warn("NOTIF_SKIP reason=PUSH_DISABLED title={} data={}", title, data);
             return;
         }
 
         if (facilityId == null || facilityId.isBlank()) {
-            log.warn("No facilityId provided for push notification. Skipping. title={}", title);
+            log.warn("NOTIF_SKIP reason=NO_FACILITY_ID title={} data={}", title, data);
             return;
         }
 
@@ -73,12 +73,12 @@ public class PushNotificationService {
                 pushRequest.put("data", data);
             }
 
-            log.info("Pushing notification to topic: {}, title={}, facilityId={}, recipientRoles={}, tenantId={}",
-                    properties.getPushNotificationTopic(), title, facilityId, recipientRoles, tenantId);
+            log.info("NOTIF_PUBLISH topic={} title={} facilityId={} recipientRoles={} tenantId={} data={}",
+                    properties.getPushNotificationTopic(), title, facilityId, recipientRoles, tenantId, data);
 
             producer.push(properties.getPushNotificationTopic(), pushRequest);
 
-            log.info("Push notification sent to Kafka. title={}, facilityId={}", title, facilityId);
+            log.info("NOTIF_PUBLISHED title={} facilityId={} data={}", title, facilityId, data);
 
         } catch (Exception e) {
             log.error("Failed to push notification to Kafka. title={}, facilityId={}: {}",
