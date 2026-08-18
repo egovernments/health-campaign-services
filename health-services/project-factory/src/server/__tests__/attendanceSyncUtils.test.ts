@@ -2,6 +2,11 @@ jest.mock('../utils/logger', () => ({
     logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
+// genericUtils pulls in the Kafka producer at module load; only the campaign lookup is needed here.
+jest.mock('../utils/genericUtils', () => ({
+    getCampaignIdsByCampaignNumber: jest.fn().mockResolvedValue(['campaign-1']),
+}));
+
 jest.mock('../utils/db', () => ({
     executeQuery: jest.fn(),
     getTableName: jest.fn((table: string, tenantId: string) => `${tenantId.split('.')[0]}.${table}`),
@@ -52,7 +57,7 @@ describe('handleAttendanceRegisterDelete', () => {
             expect(query).toContain('SET isDeleted = true');
             expect(query).toContain('type = $1');
             expect(query).toContain('uniqueIdAfterProcess = ANY($2)');
-            expect(query).not.toContain('campaignNumber');
+            expect(query).not.toContain('campaignNumber =');   // not used as a filter; RETURNING is fine
             expect(values).toEqual(['attendanceRegister', ['reg-1']]);
         });
 
@@ -225,5 +230,34 @@ describe('failure isolation across tenants', () => {
         await expect(handleAttendanceRegisterDelete({
             attendanceRegister: [register('reg-1', 'dev'), register('reg-2', 'mz')],
         })).resolves.toBeUndefined();
+    });
+});
+
+describe('expiring the generated template', () => {
+    afterEach(() => jest.clearAllMocks());
+
+    it('expires the register template for campaigns whose rows were flagged', async () => {
+        // Flagging the row is not enough: a download serves the last completed template, so without
+        // this the deleted register keeps appearing until something else triggers regeneration.
+        mockExecuteQuery
+            .mockResolvedValueOnce({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] })
+            .mockResolvedValueOnce({ rowCount: 1 });
+
+        await handleAttendanceRegisterDelete({ attendanceRegister: [register('reg-1')] });
+
+        expect(mockExecuteQuery).toHaveBeenCalledTimes(2);
+        const [expireQuery, expireValues] = mockExecuteQuery.mock.calls[1];
+        expect(expireQuery).toContain('eg_cm_generated_resource_details');
+        expect(expireQuery).toContain('SET status = $1');
+        expect(expireValues[0]).toBe('expired');
+        expect(expireValues[1]).toBe('attendanceRegister');
+    });
+
+    it('does not attempt expiry when no row was flagged', async () => {
+        mockExecuteQuery.mockResolvedValue({ rowCount: 0, rows: [] });
+
+        await handleAttendanceRegisterDelete({ attendanceRegister: [register('reg-1')] });
+
+        expect(mockExecuteQuery).toHaveBeenCalledTimes(1);
     });
 });
