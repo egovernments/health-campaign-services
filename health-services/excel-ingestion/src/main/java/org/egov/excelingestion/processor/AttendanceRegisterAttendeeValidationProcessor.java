@@ -185,12 +185,14 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // is a legitimate skip. Only an upload where NO row anywhere carries one enrols nobody.
             // Raised on every sheet the user filled in, since each is a place needing a date. Only when
             // the workbook names nobody at all does it fall back to a single message on the first sheet.
+            // Gated on the cheap per-sheet count first: a populated upload must not pay for the
+            // workbook-wide scans, which only matter once this sheet has no enrolment at all.
+            if (countEnrolmentRows(sheetData) == 0 && workbookHasNoEnrolments(workbook, resource)) {
             boolean sheetHasPeople = countRowsWithUser(sheetData) > 0;
             boolean firstReportForEmptyWorkbook = !sheetHasPeople
                     && !alreadyReportedEmptyWorkbook(resource)
                     && workbookHasNoRowsAtAll(workbook, resource);
-            if (countEnrolmentRows(sheetData) == 0 && workbookHasNoEnrolments(workbook, resource)
-                    && (sheetHasPeople || firstReportForEmptyWorkbook)) {
+            if (sheetHasPeople || firstReportForEmptyWorkbook) {
                 // Nobody in the workbook at all is a different problem from people missing a date,
                 // and pointing at the date column would send the user looking for the wrong thing.
                 String message = sheetHasPeople
@@ -209,6 +211,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                     markEmptyWorkbookReported(resource);
                 }
                 log.info("No enrolment date anywhere in the workbook, flagged sheet {}", sheetName);
+            }
             }
 
             log.info("Attendee validation completed for sheet {} with {} errors", sheetName, errors.size());

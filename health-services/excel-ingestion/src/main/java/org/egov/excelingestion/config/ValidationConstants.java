@@ -81,6 +81,9 @@ public class ValidationConstants {
     // Marker so the workbook-wide "no attendees" error is raised once, not once per attendee sheet.
     // Accumulated in additionalDetails across sheet invocations, same as the per-sheet status keys.
     public static final String ADDITIONAL_DETAILS_ATTENDEE_EMPTY_REPORTED = "attendeeEmptyWorkbookReported";
+    // Raised when the workbook names nobody at all — a different problem from people lacking a date.
+    public static final String LOC_ATTENDANCE_ATTENDEE_NO_USERS = "HCM_ATTENDANCE_ATTENDEE_NO_USERS";
+    public static final String DEFAULT_ATTENDANCE_ATTENDEE_NO_USERS = "No users found in the sheets. Add at least one user with an enrollment date across the worker, marker and approver sheets.";
     public static final String LOC_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED = "HCM_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED";
     public static final String DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED = "At least one user must have an enrollment date across the worker, marker and approver sheets.";
 
