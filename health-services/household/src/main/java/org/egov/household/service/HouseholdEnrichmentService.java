@@ -4,6 +4,7 @@ import org.egov.common.contract.models.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Address;
 import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseHoldType;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.household.config.HouseholdConfiguration;
@@ -37,6 +38,8 @@ public class HouseholdEnrichmentService {
     public void create(List<Household> households, HouseholdBulkRequest request) throws Exception {
         log.info("starting create method for households");
 
+        defaultHouseholdType(households);
+
         log.info("generating IDs for households using IdGenService");
         List<String> idList =  idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(households),
@@ -59,6 +62,8 @@ public class HouseholdEnrichmentService {
 
     public void update(List<Household> households, HouseholdBulkRequest request) {
         log.info("starting update method for households");
+
+        defaultHouseholdType(households);
         log.info("filtering households that have addresses without IDs");
         List<Address> addresses = households.stream().map(Household::getAddress)
                 .filter(Objects::nonNull).filter(address ->  address.getId() == null).collect(Collectors.toList());
@@ -73,6 +78,12 @@ public class HouseholdEnrichmentService {
         enrichForUpdate(hMap, request);
         log.info("completed update method for households {}", households);
 
+    }
+
+    private void defaultHouseholdType(List<Household> households) {
+        households.stream()
+                .filter(household -> Objects.isNull(household.getHouseholdType()))
+                .forEach(household -> household.setHouseholdType(HouseHoldType.FAMILY));
     }
 
     public void delete(List<Household> households, HouseholdBulkRequest request) {
