@@ -12,7 +12,8 @@ on:
   schedule:
     - cron: '45 1 * * 4'
   push:
-    branches: [ "master" ]
+    # TODO: remove the scorecard fix branch before merging to master.
+    branches: [ "master", "master-scorecard-secuity-fix" ]
 
   workflow_dispatch:
 
@@ -24,7 +25,8 @@ jobs:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     # `publish_results: true` only works when run from the default branch. conditional can be removed if disabled.
-    if: github.event.repository.default_branch == github.ref_name || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    # TODO: remove the scorecard fix branch from this condition before merging to master.
+    if: github.event.repository.default_branch == github.ref_name || github.ref_name == 'master-scorecard-secuity-fix' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     permissions:
       # Needed to upload the results to code-scanning dashboard.
       security-events: write
@@ -55,7 +57,12 @@ jobs:
           # For private repositories:
           #   - `publish_results` will always be set to `false`, regardless
           #     of the value entered here.
-          publish_results: true
+          # Publishing only works from the default branch; on any other branch
+          # the action fails if this is true. Evaluates to true on master, so
+          # behaviour there is unchanged.
+          # TODO: revert to a plain `publish_results: true` once the scorecard
+          # fix branch is merged.
+          publish_results: ${{ github.event.repository.default_branch == github.ref_name }}
 
           # (Optional) Uncomment file_mode if you have a .gitattributes with files marked export-ignore
           # file_mode: git
