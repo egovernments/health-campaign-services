@@ -236,3 +236,43 @@ export async function forEachSheetDataPage(
 
     return processed;
 }
+
+/**
+ * Supersedes a register's attendee template after an upload changed who is enrolled. The console
+ * downloads the last completed generation, and nothing else invalidates it — an upload would
+ * otherwise keep handing users a sheet from before their own changes. _init expires the prior record
+ * and regenerates, and is fire-and-forget: a failed refresh must never fail the upload.
+ */
+export async function refreshAttendeeTemplate(
+    tenantId: string,
+    registerId: string,
+    campaignId: string,
+    campaignName: string,
+    hierarchyType: string,
+    locale: string,
+    requestInfo: any
+): Promise<void> {
+    try {
+        await httpRequest(
+            `${config.host.excelIngestionHost}${config.paths.excelIngestionGenerate}`,
+            {
+                RequestInfo: requestInfo,
+                GenerateResource: {
+                    tenantId,
+                    type: "attendanceRegisterAttendee",
+                    hierarchyType,
+                    locale,
+                    referenceId: registerId,
+                    referenceType: "attendanceRegister",
+                    additionalDetails: { campaignId, campaignName }
+                }
+            },
+            undefined,
+            'post',
+            undefined
+        );
+        logger.info(`Requested attendee template refresh for register ${registerId}`);
+    } catch (error: any) {
+        logger.error(`Could not refresh attendee template for register ${registerId}: ${error?.message}`);
+    }
+}
