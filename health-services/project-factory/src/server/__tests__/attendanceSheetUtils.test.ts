@@ -35,7 +35,9 @@ jest.mock('../utils/excelUtils', () => ({ getExcelWorkbookFromFileURL: jest.fn()
 import * as ExcelJS from 'exceljs';
 import {
     removeDeletedRegisterRows,
+    stampDeEnrolmentDates,
     markRegisterSheetRefreshPending,
+    markAttendeeSheetRefreshPending,
     completeOwedRegisterSheetRefresh,
 } from '../utils/attendanceSheetUtils';
 import { getCampaignIdsByCampaignNumber, getRelatedDataWithCampaign } from '../utils/genericUtils';
@@ -416,5 +418,97 @@ describe('a download landing while the rewrite runs elsewhere', () => {
         const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [claimedRow()] as any);
 
         expect(refreshed.get('res-1')).toBe('processed-3');
+    });
+});
+
+describe('stampDeEnrolmentDates', () => {
+    const WORKER = 'HCM_REGISTER_WORKER_SHEET';
+    const MARKER = 'HCM_REGISTER_MARKER_SHEET';
+    const KEYS = ['UserName', 'HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE', 'HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE'];
+
+    function attendeeWorkbook(sheets: Record<string, { user: string; deenrol?: string }[]>) {
+        const workbook = new ExcelJS.Workbook();
+        for (const [name, rows] of Object.entries(sheets)) {
+            const sheet = workbook.addWorksheet(name);
+            sheet.getRow(1).values = KEYS;
+            sheet.getRow(2).values = ['UserName', 'Enrolment Date', 'De-enrolment Date'];
+            rows.forEach((r, i) => { sheet.getRow(3 + i).values = [r.user, '19-08-2026', r.deenrol ?? null]; });
+        }
+        return workbook;
+    }
+
+    const cell = (workbook: ExcelJS.Workbook, sheet: string, row: number) =>
+        workbook.getWorksheet(sheet)!.getRow(row).getCell(3).value;
+
+    it('stamps the date for the de-enrolled person only', () => {
+        const workbook = attendeeWorkbook({ [WORKER]: [{ user: 'USR-1' }, { user: 'USR-2' }] });
+
+        expect(stampDeEnrolmentDates(workbook, new Map([[`${WORKER}_USR-2`, '20-08-2026']]))).toBe(1);
+        expect(cell(workbook, WORKER, 3)).toBeNull();
+        expect(cell(workbook, WORKER, 4)).toBe('20-08-2026');
+    });
+
+    it('keys by sheet as well as user, so one person on two sheets is not confused', () => {
+        const workbook = attendeeWorkbook({ [WORKER]: [{ user: 'USR-1' }], [MARKER]: [{ user: 'USR-1' }] });
+
+        stampDeEnrolmentDates(workbook, new Map([[`${MARKER}_USR-1`, '20-08-2026']]));
+
+        expect(cell(workbook, WORKER, 3)).toBeNull();
+        expect(cell(workbook, MARKER, 3)).toBe('20-08-2026');
+    });
+
+    it('reports nothing changed when the date is already there, so no file is re-uploaded', () => {
+        const workbook = attendeeWorkbook({ [WORKER]: [{ user: 'USR-1', deenrol: '20-08-2026' }] });
+
+        expect(stampDeEnrolmentDates(workbook, new Map([[`${WORKER}_USR-1`, '20-08-2026']]))).toBe(0);
+    });
+
+    it('overwrites a date that no longer matches what was synced', () => {
+        const workbook = attendeeWorkbook({ [WORKER]: [{ user: 'USR-1', deenrol: '01-01-2026' }] });
+
+        expect(stampDeEnrolmentDates(workbook, new Map([[`${WORKER}_USR-1`, '20-08-2026']]))).toBe(1);
+        expect(cell(workbook, WORKER, 3)).toBe('20-08-2026');
+    });
+
+    it('leaves a sheet without the expected columns alone', () => {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('_h_Meta_h_');
+        sheet.getRow(1).values = ['something-else'];
+
+        expect(stampDeEnrolmentDates(workbook, new Map([[`_h_Meta_h__USR-1`, '20-08-2026']]))).toBe(0);
+    });
+
+    it('ignores people in the file who have no synced date', () => {
+        const workbook = attendeeWorkbook({ [WORKER]: [{ user: 'USR-1' }, { user: 'USR-2' }] });
+
+        expect(stampDeEnrolmentDates(workbook, new Map())).toBe(0);
+    });
+});
+
+describe('markAttendeeSheetRefreshPending', () => {
+    const TENANT = 'dev' as any;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.mocked(executeQuery).mockImplementation(async (query: string) => {
+            if (query.includes('parentResourceId')) return { rows: [{ id: 'att-res-1' }] } as any;
+            return { rowCount: 1, rows: [] } as any;
+        });
+    });
+
+    it('marks the attendee resource of each register, found by its parent', async () => {
+        await markAttendeeSheetRefreshPending(TENANT, ['reg-1', 'reg-2']);
+
+        const lookups = jest.mocked(executeQuery).mock.calls.filter(([q]) => String(q).includes('parentResourceId'));
+        expect(lookups).toHaveLength(2);
+        const marks = jest.mocked(executeQuery).mock.calls.filter(([q]) => String(q).includes('jsonb_set'));
+        expect(marks).toHaveLength(2);
+        expect(String(marks[0][1]?.[1])).toContain('"pending"');
+    });
+
+    it('marks a register only once when several of its people are de-enrolled', async () => {
+        await markAttendeeSheetRefreshPending(TENANT, ['reg-1', 'reg-1', 'reg-1']);
+
+        expect(jest.mocked(executeQuery).mock.calls.filter(([q]) => String(q).includes('jsonb_set'))).toHaveLength(1);
     });
 });

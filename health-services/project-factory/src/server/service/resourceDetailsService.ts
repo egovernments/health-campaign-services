@@ -182,7 +182,7 @@ export async function updateResourceDetail(
 
 // Kept local so the read path can test for an owed register-sheet refresh without importing the
 // refresh module (and its Excel/filestore dependencies) on every search.
-const REGISTER_RESOURCE_TYPE = "attendanceRegister";
+const ATTENDANCE_SHEET_TYPES = ["attendanceRegister", "attendanceRegisterAttendee"];
 const ATTENDANCE_REFRESH_KEY = "attendanceRefresh";
 
 /**
@@ -220,7 +220,7 @@ export async function searchResourceDetails(
  * plumbing that every other caller of this service has no use for.
  */
 async function respondWithRefreshedRegisterFile(tenantId: string, rows: ResourceDetailRow[]): Promise<any[]> {
-  const owed = rows.some((row) => row?.type === REGISTER_RESOURCE_TYPE
+  const owed = rows.some((row) => ATTENDANCE_SHEET_TYPES.includes(row?.type)
     && (row?.additionaldetails || {})[ATTENDANCE_REFRESH_KEY]);
 
   if (!owed) return rows.map(toResourceDetailsResponse);

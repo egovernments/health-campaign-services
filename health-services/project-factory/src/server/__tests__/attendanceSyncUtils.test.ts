@@ -9,6 +9,7 @@ jest.mock('../utils/genericUtils', () => ({
 
 jest.mock('../utils/attendanceSheetUtils', () => ({
     markRegisterSheetRefreshPending: jest.fn(),
+    markAttendeeSheetRefreshPending: jest.fn(),
 }));
 
 jest.mock('../utils/db', () => ({
@@ -23,10 +24,11 @@ import {
 } from '../utils/attendanceSyncUtils';
 import { executeQuery } from '../utils/db';
 import { logger } from '../utils/logger';
-import { markRegisterSheetRefreshPending } from '../utils/attendanceSheetUtils';
+import { markRegisterSheetRefreshPending, markAttendeeSheetRefreshPending } from '../utils/attendanceSheetUtils';
 
 const mockExecuteQuery = jest.mocked(executeQuery);
 const mockMarkPending = jest.mocked(markRegisterSheetRefreshPending);
+const mockMarkAttendeePending = jest.mocked(markAttendeeSheetRefreshPending);
 
 const register = (id: string, tenantId = 'dev') => ({ id, tenantId, isDeleted: true, status: 'INACTIVE' });
 
@@ -292,7 +294,7 @@ describe('marking the file the console serves as out of date', () => {
             .rejects.toThrow();
     });
 
-    it('does not mark on a de-enrolment: the attendee sheet keeps de-enrolled people listed', async () => {
+    it('does not mark the register file on a de-enrolment: no register was deleted', async () => {
         mockExecuteQuery.mockResolvedValue({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] });
 
         await handleAttendanceAttendeeDeEnrolment({
@@ -300,5 +302,37 @@ describe('marking the file the console serves as out of date', () => {
         });
 
         expect(mockMarkPending).not.toHaveBeenCalled();
+    });
+
+    it('marks the current-attendees file of every register whose people were de-enrolled', async () => {
+        mockExecuteQuery.mockResolvedValue({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] });
+
+        await handleAttendanceAttendeeDeEnrolment({
+            attendees: [
+                { tenantId: 'dev', registerId: 'reg-1', individualId: 'ind-1', denrollmentDate: 1755000000000 },
+                { tenantId: 'dev', registerId: 'reg-2', individualId: 'ind-2', denrollmentDate: 1755000000000 },
+                { tenantId: 'dev', registerId: 'reg-1', individualId: 'ind-3', denrollmentDate: 1755000000000 },
+            ],
+        });
+
+        expect(mockMarkAttendeePending).toHaveBeenCalledWith('dev', ['reg-1', 'reg-2']);
+    });
+
+    it('does not mark anything when the entries are tag edits without a date', async () => {
+        await handleAttendanceAttendeeDeEnrolment({
+            attendees: [{ tenantId: 'dev', registerId: 'reg-1', individualId: 'ind-1' }],
+        });
+
+        expect(mockMarkAttendeePending).not.toHaveBeenCalled();
+    });
+
+    it('marks the register of a de-enrolled staff member too', async () => {
+        mockExecuteQuery.mockResolvedValue({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] });
+
+        await handleAttendanceStaffDeEnrolment({
+            staff: [{ tenantId: 'dev', registerId: 'reg-9', userId: 'usr-1', staffType: 'APPROVER', denrollmentDate: 1755000000000 }],
+        });
+
+        expect(mockMarkAttendeePending).toHaveBeenCalledWith('dev', ['reg-9']);
     });
 });

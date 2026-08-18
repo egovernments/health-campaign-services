@@ -103,6 +103,31 @@ class AttendanceRegisterAttendeeStoredStateTest {
     }
 
     @Test
+    void syncedDateArrivingAsAStringIsStillStamped() throws Exception {
+        // project-factory returns the BIGINT column as a string, so a number check alone drops it
+        Map<String, Object> stored = storedRow(SERVICE_CODE, WORKER_SHEET, REGISTER_ID + "_ind-1_worker",
+                "01-08-2026", "", "", null);
+        stored.put(ProcessingConstants.DEENROLLMENT_DATE_KEY, String.valueOf(DEENROL_EPOCH));
+        stub(List.of(stored));
+
+        Map<String, Object> row = buildRow(WORKER_SHEET, true);
+
+        assertEquals(DEENROL_SHEET_DATE, row.get(ProcessingConstants.DEENROLLMENT_DATE_COLUMN_KEY));
+    }
+
+    @Test
+    void unparseableSyncedDateFallsBackToTheStoredCell() throws Exception {
+        Map<String, Object> stored = storedRow(SERVICE_CODE, WORKER_SHEET, REGISTER_ID + "_ind-1_worker",
+                "01-08-2026", "20-08-2026", "", null);
+        stored.put(ProcessingConstants.DEENROLLMENT_DATE_KEY, "not-an-epoch");
+        stub(List.of(stored));
+
+        Map<String, Object> row = buildRow(WORKER_SHEET, true);
+
+        assertEquals("20-08-2026", row.get(ProcessingConstants.DEENROLLMENT_DATE_COLUMN_KEY));
+    }
+
+    @Test
     void withoutSyncedDate_theStoredSheetValueIsKept() throws Exception {
         stub(List.of(storedRow(SERVICE_CODE, WORKER_SHEET, REGISTER_ID + "_ind-1_worker",
                 "01-08-2026", "20-08-2026", "", null)));

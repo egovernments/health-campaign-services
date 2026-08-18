@@ -28,6 +28,23 @@ describe('searchCampaignData attendance sync fields', () => {
         );
     }
 
+    it('returns denrollmentDate as a number even though BIGINT arrives as a string', async () => {
+        // node-postgres hands back int8 as a string; consumers (excel-ingestion) compare it numerically
+        stubRow({
+            id: 'row-3',
+            campaignnumber: 'CMP-001',
+            type: 'attendanceRegisterAttendee',
+            data: {},
+            status: 'completed',
+            isdeleted: false,
+            denrollmentdate: '1787226402157',
+        });
+
+        const result = await searchCampaignData({ tenantId: 'mz', type: 'attendanceRegisterAttendee' });
+
+        expect(result.data[0].denrollmentDate).toBe(1787226402157);
+    });
+
     it('returns isDeleted and denrollmentDate from the row', async () => {
         stubRow({
             id: 'row-1',

@@ -1812,8 +1812,10 @@ export async function searchCampaignData(searchParams: {
     uniqueIdAfterProcess: row?.uniqueidafterprocess,
     // Attendance sync state — excel-ingestion generates the attendance templates and reads these
     // rows over this API, so a deletion/de-enrolment is invisible to it unless both are returned.
-    isDeleted: row?.isdeleted ?? false,
-    denrollmentDate: row?.denrollmentdate ?? null,
+    // denrollmentDate is BIGINT, which node-postgres hands back as a string: send it as the number
+    // consumers expect, matching getRelatedDataWithCampaign.
+    isDeleted: row?.isdeleted === true,
+    denrollmentDate: row?.denrollmentdate == null ? null : Number(row.denrollmentdate),
     createdBy: row?.createdby,
     createdTime: row?.createdtime,
     lastModifiedBy: row?.lastmodifiedby,

@@ -589,8 +589,20 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
         return value instanceof Map ? (Map<String, Object>) value : null;
     }
 
+    /** BIGINT reaches us as a string over project-factory's API, so a number alone is not enough. */
     private Long asEpochMillis(Object value) {
-        return value instanceof Number ? ((Number) value).longValue() : null;
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Long.parseLong(((String) value).trim());
+            } catch (NumberFormatException e) {
+                log.warn("Ignoring unparseable de-enrolment date '{}'", value);
+                return null;
+            }
+        }
+        return null;
     }
 
     /**

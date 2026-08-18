@@ -2,6 +2,7 @@ import config from "../config";
 import { logger } from "./logger";
 import { executeQuery, getTableName } from "./db";
 import { getCampaignIdsByCampaignNumber, getRelatedDataWithCampaign } from "./genericUtils";
+import { formatEpochAsSheetDate } from "./attendanceIdentityUtils";
 import { searchResourceDetailsFromDB, getResourceDetailById, ResourceDetailRow } from "./resourceDetailsUtils";
 import { createAndUploadFileWithOutRequest } from "../api/genericApis";
 import { fetchFileFromFilestore } from "../api/coreApis";
@@ -9,11 +10,15 @@ import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { TenantId } from "../config/models/brandedTypes";
 
 const REGISTER_RESOURCE_TYPE = "attendanceRegister";
+const ATTENDEE_RESOURCE_TYPE = "attendanceRegisterAttendee";
 const REGISTER_ID_KEY = "HCM_ATTENDANCE_REGISTER_ID";
+const USERNAME_KEY = "UserName";
+const DEENROLMENT_DATE_KEY = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
 
 // Row 1 carries the unlocalized column keys, row 2 the localized header the user sees.
 const KEY_ROW = 1;
 const FIRST_DATA_ROW = 3;
+const IDENTITY_SEPARATOR = "_";
 
 /** additionalDetails key holding the refresh state, so the UI can poll it like any other progress. */
 const REFRESH_STATE_KEY = "attendanceRefresh";
@@ -46,7 +51,7 @@ export async function completeOwedRegisterSheetRefresh(
     const waitDeadline = Date.now() + config.attendanceRegister.sheetRefreshWaitMs;
 
     for (const row of rows) {
-        if (row?.type !== REGISTER_RESOURCE_TYPE || !hasRefreshMarker(row)) continue;
+        if (!isAttendanceSheetType(row?.type) || !hasRefreshMarker(row)) continue;
         try {
             const outcome = await claimAndRefresh(tenantId, row, waitDeadline);
             // Withhold the file unless this call knows it is correct: handing over a sheet that still
@@ -59,6 +64,10 @@ export async function completeOwedRegisterSheetRefresh(
         }
     }
     return refreshed;
+}
+
+function isAttendanceSheetType(type: string | undefined): boolean {
+    return type === REGISTER_RESOURCE_TYPE || type === ATTENDEE_RESOURCE_TYPE;
 }
 
 /**
@@ -106,7 +115,9 @@ async function rewriteUnderClaim(
     processedFileStoreId: string
 ): Promise<string | null> {
     try {
-        const newFileStoreId = await rewriteWithoutDeletedRegisters(tenantId, resource, processedFileStoreId);
+        const newFileStoreId = resource.type === ATTENDEE_RESOURCE_TYPE
+            ? await rewriteWithSyncedDeEnrolments(tenantId, resource, processedFileStoreId)
+            : await rewriteWithoutDeletedRegisters(tenantId, resource, processedFileStoreId);
         await finishRefresh(tenantId, resource.id, newFileStoreId);
         // No rewrite needed means the existing file was already correct, so it stays servable.
         return newFileStoreId ?? processedFileStoreId;
@@ -146,6 +157,114 @@ async function waitForRefreshToLand(
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Flags the current-attendees file of the registers whose enrolments changed. One attendee resource
+ * exists per register (parentResourceId is the register), so the marker lands exactly where needed.
+ */
+export async function markAttendeeSheetRefreshPending(tenantId: TenantId, registerIds: string[]): Promise<void> {
+    for (const registerId of new Set(registerIds)) {
+        for (const resource of await findAttendeeResources(tenantId, registerId)) {
+            await setRefreshState(tenantId, resource.id, { state: REFRESH_PENDING, at: Date.now() });
+        }
+    }
+}
+
+/** Attendee resources are keyed by their register rather than by campaign, which the event carries. */
+async function findAttendeeResources(tenantId: TenantId, registerId: string): Promise<ResourceDetailRow[]> {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+    const query = `SELECT * FROM ${tableName}
+                   WHERE tenantId = $1 AND type = $2 AND parentResourceId = $3 AND isActive = true`;
+    const result = await executeQuery(query, [tenantId, ATTENDEE_RESOURCE_TYPE, registerId]);
+    return result?.rows || [];
+}
+
+/**
+ * Stamps the synced de-enrolment date onto the current-attendees file. De-enrolled people stay
+ * listed — the date is what the console has to show — so rows are annotated, never removed.
+ */
+async function rewriteWithSyncedDeEnrolments(
+    tenantId: TenantId,
+    resource: ResourceDetailRow,
+    processedFileStoreId: string
+): Promise<string | null> {
+    const registerId = resource.parentresourceid;
+    if (!registerId) return null; // nothing identifies which register's people these are
+
+    const deEnrolmentDates = await syncedDeEnrolmentDates(tenantId, resource.campaignid, registerId);
+    if (deEnrolmentDates.size === 0) return null;
+
+    const fileUrl = await fetchFileFromFilestore(processedFileStoreId, tenantId);
+    const workbook: any = await getExcelWorkbookFromFileURL(fileUrl);
+
+    const stamped = stampDeEnrolmentDates(workbook, deEnrolmentDates);
+    if (stamped === 0) {
+        logger.info(`ATTENDANCE SHEET :: resource ${resource.id} — current-attendees file already up to date`);
+        return null;
+    }
+
+    const uploaded = await createAndUploadFileWithOutRequest(workbook, tenantId);
+    const newFileStoreId = uploaded?.[0]?.fileStoreId;
+    if (!newFileStoreId) {
+        throw new Error(`ATTENDANCE SHEET :: resource ${resource.id} — refreshed file upload returned no fileStoreId`);
+    }
+
+    logger.info(
+        `ATTENDANCE SHEET :: resource ${resource.id} — stamped ${stamped} de-enrolment date(s) into the ` +
+        `current-attendees file, new fileStoreId ${newFileStoreId}`
+    );
+    return newFileStoreId;
+}
+
+/** Keyed by sheet and username, since the same person can sit on different sheets of one register. */
+async function syncedDeEnrolmentDates(
+    tenantId: TenantId,
+    campaignId: string,
+    registerId: string
+): Promise<Map<string, string>> {
+    const { campaignNumber } = await getCampaignNumberOf(campaignId, tenantId);
+    const dates = new Map<string, string>();
+    if (!campaignNumber) return dates;
+
+    const rows = await getRelatedDataWithCampaign(ATTENDEE_RESOURCE_TYPE, campaignNumber, tenantId);
+    for (const row of rows) {
+        if (row?.denrollmentDate == null) continue;
+        // Rows of other registers share the campaign, so the stamped identity decides ownership
+        const identity = row?.uniqueIdAfterProcess ? String(row.uniqueIdAfterProcess) : "";
+        if (!identity.startsWith(`${registerId}${IDENTITY_SEPARATOR}`)) continue;
+
+        const data = row?.data || {};
+        const userName = data[USERNAME_KEY] ? String(data[USERNAME_KEY]).trim() : "";
+        const sheetName = data._sheetName ? String(data._sheetName).trim() : "";
+        if (!userName || !sheetName) continue;
+        dates.set(`${sheetName}${IDENTITY_SEPARATOR}${userName}`, formatEpochAsSheetDate(Number(row.denrollmentDate)));
+    }
+    return dates;
+}
+
+/** Returns how many cells changed, so an already-correct file is not re-uploaded for nothing. */
+export function stampDeEnrolmentDates(workbook: any, deEnrolmentDates: Map<string, string>): number {
+    let stamped = 0;
+    for (const worksheet of workbook?.worksheets || []) {
+        const keyRow = worksheet.getRow(KEY_ROW);
+        const columnCount = keyRow?.cellCount || 0;
+        const userNameColumn = columnIndexOfKey(keyRow, columnCount, USERNAME_KEY);
+        const deEnrolmentColumn = columnIndexOfKey(keyRow, columnCount, DEENROLMENT_DATE_KEY);
+        if (!userNameColumn || !deEnrolmentColumn) continue;
+
+        for (let rowNumber = FIRST_DATA_ROW; rowNumber <= worksheet.rowCount; rowNumber++) {
+            const row = worksheet.getRow(rowNumber);
+            const userName = cellText(row.getCell(userNameColumn));
+            if (!userName) continue;
+
+            const date = deEnrolmentDates.get(`${worksheet.name}${IDENTITY_SEPARATOR}${userName}`);
+            if (!date || cellText(row.getCell(deEnrolmentColumn)) === date) continue;
+            row.getCell(deEnrolmentColumn).value = date;
+            stamped++;
+        }
+    }
+    return stamped;
 }
 
 async function rewriteWithoutDeletedRegisters(

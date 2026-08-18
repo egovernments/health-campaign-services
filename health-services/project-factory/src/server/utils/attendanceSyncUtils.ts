@@ -1,7 +1,7 @@
 import config from "../config";
 import { logger } from "./logger";
 import { executeQuery, getTableName } from "./db";
-import { markRegisterSheetRefreshPending } from "./attendanceSheetUtils";
+import { markAttendeeSheetRefreshPending, markRegisterSheetRefreshPending } from "./attendanceSheetUtils";
 import { AttendanceRegisterId, TenantId } from "../config/models/brandedTypes";
 import { attendeeIdentity } from "./attendanceIdentityUtils";
 
@@ -101,6 +101,8 @@ async function applyDeEnrolments(
 
     // Group by (tenant, date) so one bulk de-enrolment is a single UPDATE
     const byKey = new Map<string, { tenantId: TenantId; denrollmentDate: number; identities: string[] }>();
+    // Registers whose current-attendees file now shows a stale enrolment state
+    const registersByTenant = new Map<string, Set<string>>();
 
     for (const entry of entries as any[]) {
         const denrollmentDate = Number(entry?.denrollmentDate);
@@ -116,6 +118,8 @@ async function applyDeEnrolments(
         }
 
         const identity = attendeeIdentity(registerId, personId, sheetTypeOf(entry));
+        if (!registersByTenant.has(tenantId)) registersByTenant.set(tenantId, new Set());
+        registersByTenant.get(tenantId)!.add(registerId);
         const key = `${tenantId}::${denrollmentDate}`;
         const existing = byKey.get(key);
         if (existing) existing.identities.push(identity);
@@ -147,6 +151,12 @@ async function applyDeEnrolments(
             );
         }
     }, "ATTENDANCE DEENROL");
+
+    // The console serves the current-attendees file from the last upload, so the recorded date has to
+    // reach that file too. Only the debt is recorded here; the download that needs it does the work.
+    for (const [tenantId, registerIds] of registersByTenant) {
+        await markAttendeeSheetRefreshPending(tenantId as TenantId, Array.from(registerIds));
+    }
 }
 
 /** Group by tenant so each group is one parameterised UPDATE rather than one per register. O(n). */
