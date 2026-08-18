@@ -1,8 +1,7 @@
 import config from "../config";
 import { logger } from "./logger";
-import { generatedResourceStatuses } from "../config/constants";
 import { executeQuery, getTableName } from "./db";
-import { getCampaignIdsByCampaignNumber } from "./genericUtils";
+import { markRegisterSheetRefreshPending } from "./attendanceSheetUtils";
 import { AttendanceRegisterId, TenantId } from "../config/models/brandedTypes";
 import { attendeeIdentity } from "./attendanceIdentityUtils";
 
@@ -137,7 +136,6 @@ async function applyDeEnrolments(
         const result = await executeQuery(query,
             [group.denrollmentDate, ATTENDANCE_REGISTER_ATTENDEE_TYPE, group.identities]);
         const matched = result?.rowCount ?? 0;
-        await expireGeneratedTemplates(group.tenantId, campaignNumbersOf(result), ATTENDANCE_REGISTER_ATTENDEE_TYPE);
         logger.info(
             `ATTENDANCE DEENROL :: tenant ${group.tenantId} — recorded de-enrolment on ${matched} of ` +
             `${group.identities.length} ${label} row(s)`
@@ -189,7 +187,6 @@ async function markRegistersDeleted(group: DeletedRegisterGroup): Promise<void> 
 
     const result = await executeQuery(query, [ATTENDANCE_REGISTER_TYPE, group.registerIds]);
     const matched = result?.rowCount ?? 0;
-    await expireGeneratedTemplates(group.tenantId, campaignNumbersOf(result), ATTENDANCE_REGISTER_TYPE);
     logger.info(
         `ATTENDANCE DELETE :: tenant ${group.tenantId} — marked ${matched} of ` +
         `${group.registerIds.length} register row(s) deleted`
@@ -203,43 +200,17 @@ async function markRegistersDeleted(group: DeletedRegisterGroup): Promise<void> 
             `had no campaign_data row to mark: ${group.registerIds.join(", ")}`
         );
     }
+
+    // The console serves a snapshot file written at upload time, so the flag above is not enough on
+    // its own — the deleted rows have to come out of that file too. Only the debt is recorded here;
+    // the rewrite runs on the download that needs it, keeping file I/O off the listener thread.
+    for (const campaignNumber of campaignNumbersOf(result)) {
+        await markRegisterSheetRefreshPending(group.tenantId, campaignNumber);
+    }
 }
 
 /** Distinct campaignNumbers touched by an UPDATE ... RETURNING campaignNumber. */
 function campaignNumbersOf(result: any): string[] {
     const rows: any[] = result?.rows || [];
     return Array.from(new Set(rows.map((r) => r?.campaignnumber).filter(Boolean)));
-}
-
-/**
- * Expire the generated template for the affected campaigns. Flagging the row is not enough on its
- * own: a download serves the last completed template, so without this the change only appears after
- * something else happens to trigger regeneration.
- */
-async function expireGeneratedTemplates(
-    tenantId: TenantId,
-    campaignNumbers: string[],
-    type: string
-): Promise<void> {
-    if (campaignNumbers.length === 0) return;
-
-    const campaignIds: string[] = [];
-    for (const campaignNumber of campaignNumbers) {
-        campaignIds.push(...await getCampaignIdsByCampaignNumber(campaignNumber, tenantId));
-    }
-    if (campaignIds.length === 0) {
-        logger.warn(`ATTENDANCE SYNC :: no campaignId resolved for ${campaignNumbers.join(", ")}, template not expired`);
-        return;
-    }
-
-    const tableName = getTableName(config?.DB_CONFIG?.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME, tenantId);
-    const query = `UPDATE ${tableName}
-                   SET status = $1
-                   WHERE type = $2 AND campaignId = ANY($3) AND status <> $1`;
-    const result = await executeQuery(query,
-        [generatedResourceStatuses.expired, type, Array.from(new Set(campaignIds))]);
-    logger.info(
-        `ATTENDANCE SYNC :: expired ${result?.rowCount ?? 0} generated '${type}' template(s) ` +
-        `for campaign(s) ${campaignNumbers.join(", ")} so the next download rebuilds`
-    );
 }

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -49,9 +50,7 @@ class AttendanceTemplateSyncServiceTest {
     @Test
     void registerDelete_expiresTheRegistersLiveTemplates() throws Exception {
         GenerateResource live = record("gen-1");
-        when(generatedFileRepository.search(any(GenerationSearchCriteria.class)))
-                .thenReturn(List.of(live))
-                .thenReturn(Collections.emptyList());
+        when(generatedFileRepository.search(any(GenerationSearchCriteria.class))).thenReturn(List.of(live));
 
         service.handleRegisterDeletes(List.of(deletedRegister(REGISTER_ID, TENANT)));
 
@@ -61,38 +60,21 @@ class AttendanceTemplateSyncServiceTest {
     }
 
     @Test
-    void registerDelete_searchesBothReferenceAndAdditionalDetailsShapes() throws Exception {
+    void registerDelete_searchesTheRegisterScopedTemplates() throws Exception {
         when(generatedFileRepository.search(any(GenerationSearchCriteria.class)))
                 .thenReturn(Collections.emptyList());
 
         service.handleRegisterDeletes(List.of(deletedRegister(REGISTER_ID, TENANT)));
 
         ArgumentCaptor<GenerationSearchCriteria> captor = ArgumentCaptor.forClass(GenerationSearchCriteria.class);
-        verify(generatedFileRepository, times(2)).search(captor.capture());
+        verify(generatedFileRepository, times(1)).search(captor.capture());
 
-        GenerationSearchCriteria byReference = captor.getAllValues().get(0);
-        assertEquals(List.of(REGISTER_ID), byReference.getReferenceIds());
-        assertEquals(List.of(ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER), byReference.getReferenceTypes());
-        assertEquals(GenerationConstants.LIVE_STATUSES, byReference.getStatuses());
-
-        GenerationSearchCriteria byAdditionalDetails = captor.getAllValues().get(1);
-        assertEquals(Map.of(ProcessingConstants.ADDITIONAL_DETAILS_REGISTER_ID, REGISTER_ID),
-                byAdditionalDetails.getAdditionalDetails());
-        assertTrue(byAdditionalDetails.getTypes()
-                .contains(ProcessingConstants.ATTENDANCE_REGISTER_ATTENDEE_TYPE));
-    }
-
-    @Test
-    void registerDelete_dedupesRecordsMatchedByBothShapes() throws Exception {
-        when(generatedFileRepository.search(any(GenerationSearchCriteria.class)))
-                .thenReturn(List.of(record("gen-1")))
-                .thenReturn(List.of(record("gen-1")));
-
-        service.handleRegisterDeletes(List.of(deletedRegister(REGISTER_ID, TENANT)));
-
-        ArgumentCaptor<List<GenerateResource>> captor = ArgumentCaptor.forClass(List.class);
-        verify(generationService).expireRecords(eq(TENANT), captor.capture(), anyString());
-        assertEquals(1, captor.getValue().size());
+        GenerationSearchCriteria criteria = captor.getValue();
+        assertEquals(List.of(REGISTER_ID), criteria.getReferenceIds());
+        assertEquals(List.of(ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER), criteria.getReferenceTypes());
+        assertEquals(GenerationConstants.LIVE_STATUSES, criteria.getStatuses());
+        // Type is deliberately unconstrained so any per-register template is swept
+        assertNull(criteria.getTypes());
     }
 
     @Test
@@ -122,9 +104,7 @@ class AttendanceTemplateSyncServiceTest {
 
     @Test
     void deEnrolment_expiresTheRegistersTemplate() throws Exception {
-        when(generatedFileRepository.search(any(GenerationSearchCriteria.class)))
-                .thenReturn(List.of(record("gen-1")))
-                .thenReturn(Collections.emptyList());
+        when(generatedFileRepository.search(any(GenerationSearchCriteria.class))).thenReturn(List.of(record("gen-1")));
 
         service.handleDeEnrolments(List.of(enrolment(REGISTER_ID, TENANT, 1755000000000L)), "attendee");
 
@@ -155,17 +135,15 @@ class AttendanceTemplateSyncServiceTest {
                 enrolment(REGISTER_ID, TENANT, 1755000000000L),
                 enrolment(REGISTER_ID, TENANT, 1755000000000L)), "attendee");
 
-        // Two searches (one per shape) for the single distinct register, not per entry
-        verify(generatedFileRepository, times(2)).search(any());
+        // One search for the single distinct register, not one per entry
+        verify(generatedFileRepository, times(1)).search(any());
     }
 
     @Test
     void deEnrolments_acrossTenants_expireIndependently() throws Exception {
         when(generatedFileRepository.search(any(GenerationSearchCriteria.class)))
                 .thenReturn(List.of(record("gen-1")))
-                .thenReturn(Collections.emptyList())
-                .thenReturn(List.of(record("gen-2", OTHER_TENANT)))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(List.of(record("gen-2", OTHER_TENANT)));
 
         service.handleDeEnrolments(List.of(
                 enrolment(REGISTER_ID, TENANT, 1755000000000L),
@@ -186,8 +164,7 @@ class AttendanceTemplateSyncServiceTest {
     void searchFailureForOneTenant_expiresTheOtherThenRethrows() throws Exception {
         when(generatedFileRepository.search(any(GenerationSearchCriteria.class)))
                 .thenThrow(new RuntimeException("db down"))
-                .thenReturn(List.of(record("gen-2", OTHER_TENANT)))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(List.of(record("gen-2", OTHER_TENANT)));
 
         // Rethrown so the listener does not commit an event whose template is still being served
         assertThrows(IllegalStateException.class, () -> service.handleDeEnrolments(List.of(
@@ -201,8 +178,7 @@ class AttendanceTemplateSyncServiceTest {
     @Test
     void expiryFailure_isRethrownSoTheEventIsRetried() throws Exception {
         when(generatedFileRepository.search(any(GenerationSearchCriteria.class)))
-                .thenReturn(List.of(record("gen-1")))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(List.of(record("gen-1")));
         when(generationService.expireRecords(anyString(), any(), anyString()))
                 .thenThrow(new RuntimeException("kafka down"));
 

@@ -154,6 +154,12 @@ const config = {
     registerPersistBatchSize: process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE, 10) : 100,
 
     registerApiBatchSize: process.env.ATTENDANCE_REGISTER_API_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_API_BATCH_SIZE, 10) : 100,
+    // How long a claimed current-register refresh may run before another reader may take it over
+    sheetRefreshLeaseMs: process.env.ATTENDANCE_SHEET_REFRESH_LEASE_MS ? parseInt(process.env.ATTENDANCE_SHEET_REFRESH_LEASE_MS, 10) : 120000,
+    // How long a download may wait for a refresh already running elsewhere, so it is never handed a
+    // sheet that still lists a deleted register
+    sheetRefreshWaitMs: process.env.ATTENDANCE_SHEET_REFRESH_WAIT_MS ? parseInt(process.env.ATTENDANCE_SHEET_REFRESH_WAIT_MS, 10) : 15000,
+    sheetRefreshPollMs: process.env.ATTENDANCE_SHEET_REFRESH_POLL_MS ? parseInt(process.env.ATTENDANCE_SHEET_REFRESH_POLL_MS, 10) : 500,
   },
       // HRMS configuration
     hrms: {

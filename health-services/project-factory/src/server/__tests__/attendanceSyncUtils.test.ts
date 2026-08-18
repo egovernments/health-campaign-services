@@ -7,6 +7,10 @@ jest.mock('../utils/genericUtils', () => ({
     getCampaignIdsByCampaignNumber: jest.fn().mockResolvedValue(['campaign-1']),
 }));
 
+jest.mock('../utils/attendanceSheetUtils', () => ({
+    markRegisterSheetRefreshPending: jest.fn(),
+}));
+
 jest.mock('../utils/db', () => ({
     executeQuery: jest.fn(),
     getTableName: jest.fn((table: string, tenantId: string) => `${tenantId.split('.')[0]}.${table}`),
@@ -19,8 +23,10 @@ import {
 } from '../utils/attendanceSyncUtils';
 import { executeQuery } from '../utils/db';
 import { logger } from '../utils/logger';
+import { markRegisterSheetRefreshPending } from '../utils/attendanceSheetUtils';
 
 const mockExecuteQuery = jest.mocked(executeQuery);
+const mockMarkPending = jest.mocked(markRegisterSheetRefreshPending);
 
 const register = (id: string, tenantId = 'dev') => ({ id, tenantId, isDeleted: true, status: 'INACTIVE' });
 
@@ -233,31 +239,66 @@ describe('failure isolation across tenants', () => {
     });
 });
 
-describe('expiring the generated template', () => {
+describe('marking the file the console serves as out of date', () => {
     afterEach(() => jest.clearAllMocks());
 
-    it('expires the register template for campaigns whose rows were flagged', async () => {
-        // Flagging the row is not enough: a download serves the last completed template, so without
-        // this the deleted register keeps appearing until something else triggers regeneration.
-        mockExecuteQuery
-            .mockResolvedValueOnce({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] })
-            .mockResolvedValueOnce({ rowCount: 1 });
+    it('marks every campaign whose rows were flagged', async () => {
+        // Flagging the row is not enough: the console serves a snapshot file written at upload time.
+        mockExecuteQuery.mockResolvedValueOnce({
+            rowCount: 2,
+            rows: [{ campaignnumber: 'CMP-1' }, { campaignnumber: 'CMP-2' }],
+        });
 
         await handleAttendanceRegisterDelete({ attendanceRegister: [register('reg-1')] });
 
-        expect(mockExecuteQuery).toHaveBeenCalledTimes(2);
-        const [expireQuery, expireValues] = mockExecuteQuery.mock.calls[1];
-        expect(expireQuery).toContain('eg_cm_generated_resource_details');
-        expect(expireQuery).toContain('SET status = $1');
-        expect(expireValues[0]).toBe('expired');
-        expect(expireValues[1]).toBe('attendanceRegister');
+        expect(mockMarkPending).toHaveBeenCalledTimes(2);
+        expect(mockMarkPending).toHaveBeenCalledWith('dev', 'CMP-1');
+        expect(mockMarkPending).toHaveBeenCalledWith('dev', 'CMP-2');
     });
 
-    it('does not attempt expiry when no row was flagged', async () => {
+    it('marks once per campaign even when several registers share it', async () => {
+        mockExecuteQuery.mockResolvedValueOnce({
+            rowCount: 2,
+            rows: [{ campaignnumber: 'CMP-1' }, { campaignnumber: 'CMP-1' }],
+        });
+
+        await handleAttendanceRegisterDelete({ attendanceRegister: [register('reg-1'), register('reg-2')] });
+
+        expect(mockMarkPending).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not mark when no row was flagged', async () => {
         mockExecuteQuery.mockResolvedValue({ rowCount: 0, rows: [] });
 
         await handleAttendanceRegisterDelete({ attendanceRegister: [register('reg-1')] });
 
+        expect(mockMarkPending).not.toHaveBeenCalled();
+    });
+
+    it('does no file work on the listener thread — the download does that', async () => {
+        mockExecuteQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] });
+
+        await handleAttendanceRegisterDelete({ attendanceRegister: [register('reg-1')] });
+
+        // Only the campaign_data update ran; no filestore or workbook call is reachable from here
         expect(mockExecuteQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces a marking failure instead of reporting a clean delete', async () => {
+        mockExecuteQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] });
+        mockMarkPending.mockRejectedValueOnce(new Error('db down'));
+
+        await expect(handleAttendanceRegisterDelete({ attendanceRegister: [register('reg-1')] }))
+            .rejects.toThrow();
+    });
+
+    it('does not mark on a de-enrolment: the attendee sheet keeps de-enrolled people listed', async () => {
+        mockExecuteQuery.mockResolvedValue({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] });
+
+        await handleAttendanceAttendeeDeEnrolment({
+            attendees: [{ tenantId: 'dev', registerId: 'reg-1', individualId: 'ind-1', denrollmentDate: 1755000000000 }],
+        });
+
+        expect(mockMarkPending).not.toHaveBeenCalled();
     });
 });

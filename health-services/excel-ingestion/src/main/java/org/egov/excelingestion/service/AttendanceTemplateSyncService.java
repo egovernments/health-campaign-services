@@ -30,10 +30,6 @@ public class AttendanceTemplateSyncService {
     private static final String LOG_PREFIX = "ATTENDANCE TEMPLATE SYNC ::";
     private static final String SYSTEM_MODIFIER = "excel-ingestion-attendance-sync";
 
-    private static final List<String> ATTENDANCE_TYPES = List.of(
-            ProcessingConstants.ATTENDANCE_REGISTER_TYPE,
-            ProcessingConstants.ATTENDANCE_REGISTER_ATTENDEE_TYPE);
-
     private final GeneratedFileRepository generatedFileRepository;
     private final GenerationService generationService;
 
@@ -124,46 +120,29 @@ public class AttendanceTemplateSyncService {
     }
 
     private int expireForTenant(String tenantId, Set<String> registerIds) throws InvalidTenantIdException {
-        // Dedupe by record id: a record can match both shapes below when referenceId is the register
-        // and additionalDetails repeats it.
-        Map<String, GenerateResource> live = new LinkedHashMap<>();
+        List<GenerateResource> live = new ArrayList<>();
         for (String registerId : registerIds) {
-            for (GenerateResource record : findLiveTemplates(tenantId, registerId)) {
-                live.put(record.getId(), record);
-            }
+            live.addAll(findLiveTemplates(tenantId, registerId));
         }
         if (live.isEmpty()) {
             return 0;
         }
-        return generationService.expireRecords(tenantId, new ArrayList<>(live.values()), SYSTEM_MODIFIER);
+        return generationService.expireRecords(tenantId, live, SYSTEM_MODIFIER);
     }
 
     /**
-     * A register-scoped template is keyed either by referenceId (referenceType attendanceRegister)
-     * or by additionalDetails.registerId on a campaign-referenced record — both shapes are accepted
-     * on generation, so both are searched here.
+     * A register-scoped template carries the register as its referenceId. Type is left unconstrained
+     * so any template generated per register is swept, not just the attendee sheet.
      */
     private List<GenerateResource> findLiveTemplates(String tenantId, String registerId) throws InvalidTenantIdException {
-        List<GenerateResource> byReference = generatedFileRepository.search(
+        List<GenerateResource> found = generatedFileRepository.search(
                 GenerationSearchCriteria.builder()
                         .tenantId(tenantId)
                         .referenceIds(List.of(registerId))
                         .referenceTypes(List.of(ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER))
                         .statuses(GenerationConstants.LIVE_STATUSES)
                         .build());
-
-        List<GenerateResource> byAdditionalDetails = generatedFileRepository.search(
-                GenerationSearchCriteria.builder()
-                        .tenantId(tenantId)
-                        .types(ATTENDANCE_TYPES)
-                        .additionalDetails(Map.of(ProcessingConstants.ADDITIONAL_DETAILS_REGISTER_ID, registerId))
-                        .statuses(GenerationConstants.LIVE_STATUSES)
-                        .build());
-
-        List<GenerateResource> all = new ArrayList<>();
-        if (byReference != null) all.addAll(byReference);
-        if (byAdditionalDetails != null) all.addAll(byAdditionalDetails);
-        return all.isEmpty() ? Collections.emptyList() : all;
+        return found == null ? Collections.emptyList() : found;
     }
 
     private String trim(String value) {

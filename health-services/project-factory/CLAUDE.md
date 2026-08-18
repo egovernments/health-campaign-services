@@ -288,6 +288,21 @@ All five steps required atomically in one PR:
 
 Never change existing phase numbers or `dependsOn` chains.
 
+### Attendance sync state is a cross-service contract
+
+`campaign_data.isDeleted` / `denrollmentDate` (written by the attendance consumers in `attendanceSyncUtils.ts`) are consumed **outside this service**: excel-ingestion generates the attendance templates and reads these rows over `data/campaign/_search`, so both columns are part of that API's response shape (`searchCampaignData`) — never drop them from the row mapper. Every path that emits an attendance sheet must honour them: the generate classes, and the process classes' output file (`buildOutputData` drops deleted registers, `toOutputRow` surfaces the synced de-enrolment date). Sheet dates use `formatEpochAsSheetDate` (`attendanceIdentityUtils.ts`) in `config.appTimezone`, matching excel-ingestion's `app.timezone` — not the pod's zone.
+
+### Current-register file is refreshed on read, never on the Kafka path
+
+The console downloads the current register list from `resource_details.processedFileStoreId` — a snapshot of `campaign_data` written when the file was last uploaded, so a register deleted afterwards would keep appearing. `attendanceSheetUtils.ts` fixes that on demand:
+
+- the delete handler only **marks** it (`additionalDetails.attendanceRefresh = {state: pending}`); no filestore or workbook work runs on a Kafka listener thread
+- `searchResourceDetails` completes the work when a marked row is read, and returns the new `processedFileStoreId` in that same response, so a download is never handed a sheet listing a deleted register
+- one worker per file: the claim moves `pending → inProgress{at}` in a single conditional UPDATE, and an `inProgress` older than `sheetRefreshLeaseMs` may be taken over, so a crash cannot strand the marker
+- a reader that loses the claim waits up to `sheetRefreshWaitMs` for the winner, then **withholds** the file rather than serving a stale one
+- the marker lives in `additionalDetails`, never in `status`: `hasAnyCreatingResource` treats `creating` as "campaign busy" and would block unrelated add/update operations
+- rows are rewritten in place (values moved up, leftovers blanked) rather than spliced, because this path does not reload the schema to re-apply per-row validations
+
 ### Shared-across-family resource resolution
 
 Child (and nested-child) campaigns inherit the parent's `campaignNumber` (`campaignUtils.ts:1065`) but get a distinct `campaignId`. `eg_cm_resource_details` is keyed by `campaignid`, so a search by a descendant's id misses rows held under an ancestor. Resource types whose underlying entity is `campaignNumber`-scoped (currently `attendanceRegister`, `attendanceRegisterAttendee`) set `sharedAcrossCampaignFamily: true` in `resourceTypeRegistry.ts`. When **every** searched type is shared, `searchResourceDetails` resolves `campaignNumber` (`getCampaignStatusFromDB`) → all family `campaignId`s (`getCampaignIdsByCampaignNumber`) → queries `campaignid = ANY(...)` newest-first, dedupe by `(type, parentResourceId)`. Read-side only — the API contract is unchanged (internal `campaignIds` field, not on the zod schema). Write-path parent validation (`createResourceDetail`) stays `campaignId`-scoped.

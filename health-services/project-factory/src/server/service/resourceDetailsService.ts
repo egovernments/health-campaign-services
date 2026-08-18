@@ -180,6 +180,11 @@ export async function updateResourceDetail(
   return newResource;
 }
 
+// Kept local so the read path can test for an owed register-sheet refresh without importing the
+// refresh module (and its Excel/filestore dependencies) on every search.
+const REGISTER_RESOURCE_TYPE = "attendanceRegister";
+const ATTENDANCE_REFRESH_KEY = "attendanceRefresh";
+
 /**
  * Search resource details with pagination.
  */
@@ -201,9 +206,34 @@ export async function searchResourceDetails(
   ]);
 
   return {
-    ResourceDetails: rows.map(toResourceDetailsResponse),
+    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId, rows),
     TotalCount: total
   };
+}
+
+/**
+ * A register file owing a refresh is finished here, so the id handed back never points at a sheet
+ * still listing a deleted register. Rows already claimed elsewhere keep their in-progress marker for
+ * the caller to poll, exactly like an upload in flight.
+ *
+ * The refresh module is imported only when a row actually owes one: it pulls in filestore and Excel
+ * plumbing that every other caller of this service has no use for.
+ */
+async function respondWithRefreshedRegisterFile(tenantId: string, rows: ResourceDetailRow[]): Promise<any[]> {
+  const owed = rows.some((row) => row?.type === REGISTER_RESOURCE_TYPE
+    && (row?.additionaldetails || {})[ATTENDANCE_REFRESH_KEY]);
+
+  if (!owed) return rows.map(toResourceDetailsResponse);
+
+  const { completeOwedRegisterSheetRefresh } = await import("../utils/attendanceSheetUtils");
+  const refreshed = await completeOwedRegisterSheetRefresh(tenantId as any, rows);
+  return rows.map((row) => {
+    const response = toResourceDetailsResponse(row);
+    if (!refreshed.has(row.id)) return response;
+    // null means the file is known to be out of date: withhold it rather than serve a sheet that
+    // still lists a deleted register. The marker stays set, so the next download retries.
+    return { ...response, processedFileStoreId: refreshed.get(row.id) ?? null };
+  });
 }
 
 /**
@@ -241,7 +271,7 @@ async function searchResourceDetailsAcrossCampaignFamily(
   const paged = pagination?.limit ? deduped.slice(offset, offset + pagination.limit) : deduped.slice(offset);
 
   return {
-    ResourceDetails: paged.map(toResourceDetailsResponse),
+    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId, paged),
     TotalCount: deduped.length
   };
 }
