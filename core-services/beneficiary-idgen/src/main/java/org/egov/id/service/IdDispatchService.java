@@ -6,6 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.idgen.*;
@@ -137,7 +138,12 @@ public class IdDispatchService {
         long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, true, true);
         long fetchCount = Math.min(remainingCount, count);
 
-        List<IdRecord> idRecordsToDispatch = idRepo.fetchUnassigned(tenantId, userUuid, (int) fetchCount);
+        List<IdRecord> idRecordsToDispatch;
+        try {
+            idRecordsToDispatch = idRepo.fetchUnassigned(tenantId, userUuid, (int) fetchCount);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
+        }
 
         if (idRecordsToDispatch.isEmpty()) {
             log.error("No IDs available in the database for tenantId: {}, requested count: {}", tenantId, fetchCount);
@@ -176,15 +182,20 @@ public class IdDispatchService {
         log.trace("Fetching dispatched IDs for userUuid={}, deviceUuid={}, tenantId={}", userUuid, deviceUuid, tenantId);
 
         // Query transaction logs for all IDs dispatched to the user/device today or total
-        Tuple<List<IdTransactionLog>, Long> idTransactionLogs = idRepo.selectIDsForUserDevice(
-                tenantId,
-                deviceUuid,
-                userUuid,
-                IdStatus.DISPATCHED,
-                limit,
-                offset,
-                restrictToday
-        );
+        Tuple<List<IdTransactionLog>, Long> idTransactionLogs;
+        try {
+            idTransactionLogs = idRepo.selectIDsForUserDevice(
+                    tenantId,
+                    deviceUuid,
+                    userUuid,
+                    IdStatus.DISPATCHED,
+                    limit,
+                    offset,
+                    restrictToday
+            );
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
+        }
         log.debug("Fetched {} transaction logs for userUuid={}, deviceUuid={}", idTransactionLogs.getX().size(), userUuid, deviceUuid);
 
         // Extract unique ID strings from the transaction logs
@@ -199,7 +210,12 @@ public class IdDispatchService {
         }
 
         // Map the extracted IDs back to IdRecord objects from DB dispatched or assigned
-        List<IdRecord> records = idRepo.findByIDsAndStatus(ids, null, tenantId);
+        List<IdRecord> records;
+        try {
+            records = idRepo.findByIDsAndStatus(ids, null, tenantId);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
+        }
         log.debug("Mapped {} ID(s) to IdRecord(s) from DB", records.size());
 
         // Normalize additional fields on the fetched records before returning
@@ -226,11 +242,16 @@ public class IdDispatchService {
                 idPoolSearch.getIdList() != null ? idPoolSearch.getIdList().size() : 0);
 
         // Query the database repository for ID records matching the provided ID list, status, and tenant ID
-        List<IdRecord> records = idRepo.findByIDsAndStatus(
-                idPoolSearch.getIdList(),
-                idPoolSearch.getStatus(),
-                idPoolSearch.getTenantId()
-        );
+        List<IdRecord> records;
+        try {
+            records = idRepo.findByIDsAndStatus(
+                    idPoolSearch.getIdList(),
+                    idPoolSearch.getStatus(),
+                    idPoolSearch.getTenantId()
+            );
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
+        }
 
         // Log the number of records found matching the search criteria
         log.debug("Found {} ID records matching the criteria.", records.size());
@@ -287,7 +308,7 @@ public class IdDispatchService {
         Map<String, Object> payloadToUpdateTransactionLog = buildTransactionLogPayload(
                 selected, userUuid, deviceUuid, deviceInfo, tenantId, IdStatus.DISPATCHED.name());
         log.debug("Pushing dispatch logs for {} IDs to Kafka topic: {}", selected.size(), propertiesManager.getSaveIdDispatchLogTopic());
-        idGenProducer.push(propertiesManager.getSaveIdDispatchLogTopic(), payloadToUpdateTransactionLog);
+        idGenProducer.push(tenantId, propertiesManager.getSaveIdDispatchLogTopic(), payloadToUpdateTransactionLog);
     }
 
 
@@ -408,10 +429,11 @@ public class IdDispatchService {
                 enrichmentService.update(validIdRecords, request);
 
                 // Step 3: Push enriched records to Kafka for further async processing
+                String tenantId = validIdRecords.get(0).getTenantId();
                 Map<String, Object> payload = new HashMap<>();
                 payload.put("idPool", validIdRecords);
                 log.info("Pushing enriched records to Kafka topic: {}", propertiesManager.getUpdateIdPoolStatusTopic());
-                idGenProducer.push(propertiesManager.getUpdateIdPoolStatusTopic(), payload);
+                idGenProducer.push(tenantId, propertiesManager.getUpdateIdPoolStatusTopic(), payload);
 
                 // Step 4: Prepare user UUID for logging
                 String userUuid;
@@ -424,11 +446,11 @@ public class IdDispatchService {
 
                 // Step 5: Prepare and push transaction log to Kafka
                 Map<String, Object> payloadToUpdateTransactionLog = buildTransactionLogPayload(
-                        validIdRecords, userUuid, SYSTEM_UPDATED, "", validIdRecords.get(0).getTenantId(),
+                        validIdRecords, userUuid, SYSTEM_UPDATED, "", tenantId,
                         null
                 );
                 log.info("Pushing transaction logs to Kafka topic: {}", propertiesManager.getSaveIdDispatchLogTopic());
-                idGenProducer.push(propertiesManager.getSaveIdDispatchLogTopic(), payloadToUpdateTransactionLog);
+                idGenProducer.push(tenantId, propertiesManager.getSaveIdDispatchLogTopic(), payloadToUpdateTransactionLog);
             }
         } catch (Exception exception) {
             // Handle unexpected runtime exceptions
