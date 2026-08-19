@@ -4,6 +4,7 @@ import { SheetMap } from "../models/SheetMap";
 import { searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import config from "../config";
+import { getPersistenceWaitTime } from "../utils/persistenceWaitUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { dataRowStatuses, mappingStatuses } from "../config/constants";
@@ -67,7 +68,7 @@ export class TemplateClass {
             const batch = mappingDatasToBePersisted.slice(i, i + batchSize);
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, resourceDetails?.tenantId);
         }
-        let waitTime = Math.max(5000, mappingDatasToBePersisted?.length * 8);
+        let waitTime = getPersistenceWaitTime(mappingDatasToBePersisted?.length ?? 0);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
     }
@@ -532,7 +533,7 @@ export class TemplateClass {
             const batch = datas.slice(i, i + BATCH_SIZE);
             await produceModifiedMessages({ datas: batch }, topic, tenantId);
         }
-        const waitTime = Math.max(5000, datas.length * 8);
+        const waitTime = getPersistenceWaitTime(datas.length);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
     }

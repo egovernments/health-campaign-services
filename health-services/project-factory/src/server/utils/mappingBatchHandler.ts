@@ -5,6 +5,7 @@ import { mappingStatuses } from '../config/constants';
 import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
+import { getPersistenceWaitTime } from './persistenceWaitUtils';
 import { httpRequest } from './request';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { getCurrentMappingGeneration } from './mappingGenerationUtils';
@@ -188,7 +189,7 @@ async function persistInBatches(datas: any[], topic: string, tenantId: string, s
     if (skipWait) {
         return;
     }
-    const waitTime = Math.max(5000, datas.length * 8);
+    const waitTime = getPersistenceWaitTime(datas.length);
     logger.info(`Waiting for ${waitTime} ms for persistence...`);
     await new Promise((res) => setTimeout(res, waitTime));
 }

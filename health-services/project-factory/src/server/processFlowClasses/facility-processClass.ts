@@ -9,6 +9,7 @@ import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
+import { getPersistenceWaitTime } from "../utils/persistenceWaitUtils";
 import { httpRequest } from "../utils/request";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { executeQuery, getTableName } from "../utils/db";
@@ -45,7 +46,7 @@ export class TemplateClass {
         const newFacilities = await this.extractNewFacilities(updatedSheetData, campaign.campaignNumber, resourceDetails);
         await this.persistInBatches(newFacilities, config?.kafka?.KAFKA_SAVE_SHEET_DATA_TOPIC, resourceDetails?.tenantId);
 
-        const waitTime = Math.max(5000, newFacilities.length * 8);
+        const waitTime = getPersistenceWaitTime(newFacilities.length);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
 
@@ -216,7 +217,7 @@ export class TemplateClass {
             }
 
             await this.persistInBatches(successfullyCreatedFacilities, config?.kafka?.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails?.tenantId);
-            const waitTime = Math.max(5000, successfullyCreatedFacilities?.length * 8);
+            const waitTime = getPersistenceWaitTime(successfullyCreatedFacilities?.length ?? 0);
             logger.info(`Waiting for ${waitTime} ms for persistence...`);
             await new Promise((res) => setTimeout(res, waitTime));
         }

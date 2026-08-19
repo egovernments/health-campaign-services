@@ -7,6 +7,7 @@ import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign, getRelated
 import { dataRowStatuses, mappingStatuses, sheetDataRowStatuses, usageColumnStatus, campaignDataRowFields, userDataFields, userCredentialFields, errorCodes } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
+import { getPersistenceWaitTime } from "../utils/persistenceWaitUtils";
 import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
 import { httpRequest } from "../utils/request";
@@ -49,7 +50,7 @@ export class TemplateClass {
 
         await this.processBoundaryChanges(userSheetData, existingUsersForCampaign, newUsers, campaign.campaignNumber, resourceDetails);
 
-        const waitTime = Math.max(5000, newUsers.length * 8);
+        const waitTime = getPersistenceWaitTime(newUsers.length);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
 
@@ -678,7 +679,7 @@ export class TemplateClass {
             await this.finalizeUserBatchWorkers(buffered, resourceDetails);
         }
 
-        const waitTime = Math.max(5000, transformedUsers.length * 8);
+        const waitTime = getPersistenceWaitTime(transformedUsers.length);
         logger.info(`Waiting for ${waitTime} ms for persistence of created users...`);
         await new Promise((res) => setTimeout(res, waitTime));
     }
