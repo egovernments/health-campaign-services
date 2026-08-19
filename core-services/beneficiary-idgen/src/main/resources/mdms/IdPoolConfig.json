@@ -1,0 +1,13 @@
+{
+  "tenantId": "ch",
+  "moduleName": "beneficiary-idgen",
+  "IdPoolConfig": [
+    {
+      "tenantId": "ch",
+      "seqCode": "id.pool.number",
+      "paddingLength": 12,
+      "isActive": true
+    }
+  ]
+}
+

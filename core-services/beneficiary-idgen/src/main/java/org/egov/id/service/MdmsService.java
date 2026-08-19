@@ -6,6 +6,9 @@ import java.util.*;
 import lombok.extern.log4j.Log4j2;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
+import org.egov.id.config.PropertiesManager;
+import org.egov.id.model.DispatchLimitConfig;
+import org.egov.id.model.IdPoolConfig;
 import org.egov.mdms.model.MasterDetail;
 import org.egov.mdms.model.MdmsCriteria;
 import org.egov.mdms.model.MdmsCriteriaReq;
@@ -25,6 +28,9 @@ public class MdmsService {
 
     @Autowired
     MdmsClientService mdmsClientService;
+
+    @Autowired
+    PropertiesManager propertiesManager;
 
     // 'tenants' & 'citymodule' are the JSON files inside the folder 'tenant'.
     private static final String tenantMaster = "tenants";
@@ -92,6 +98,137 @@ public class MdmsService {
             throw new CustomException("PARSING ERROR", "Failed to get formatid from MDMS");
         }
         return idFormat;
+    }
+
+    public Optional<DispatchLimitConfig> getDispatchLimitConfig(RequestInfo requestInfo, String tenantId) {
+        validateTenantIdForMdmsFilter(tenantId);
+        String module = propertiesManager.getMdmsDispatchLimitModule();
+        String master = propertiesManager.getMdmsDispatchLimitMaster();
+        String filter = "[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]";
+        Optional<Map<String, Object>> configDataOpt = getFirstMdmsRecord(requestInfo, tenantId, module, master, filter);
+        if (configDataOpt.isEmpty()) {
+            log.debug("No dispatch limit config found in MDMS for tenantId={}", tenantId);
+            return Optional.empty();
+        }
+
+        Map<String, Object> configData = configDataOpt.get();
+        DocumentContext documentContext = JsonPath.parse(configData);
+
+        boolean perDayEnabled = readBooleanField(documentContext, "perDayEnabled", propertiesManager.isDispatchLimitUserDevicePerDayEnabled());
+        int totalLimit = readIntField(documentContext, "totalLimit", propertiesManager.getDispatchLimitUserDeviceTotal());
+        int perDayLimit = readIntField(documentContext, "perDayLimit", propertiesManager.getDispatchLimitUserDevicePerDay());
+        int perDayExpireDays = readIntField(documentContext, "perDayExpireDays", propertiesManager.getDispatchUsageUserDevicePerDayExpireDays());
+        int totalExpireDays = readIntField(documentContext, "totalExpireDays", propertiesManager.getDispatchUsageUserDeviceTotalExpireDays());
+        boolean restrictToTodayEnabled = readBooleanField(documentContext, "restrictToTodayEnabled", propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
+
+        return Optional.of(DispatchLimitConfig.builder()
+                .perDayEnabled(perDayEnabled)
+                .totalLimit(totalLimit)
+                .perDayLimit(perDayLimit)
+                .perDayExpireDays(perDayExpireDays)
+                .totalExpireDays(totalExpireDays)
+                .restrictToTodayEnabled(restrictToTodayEnabled)
+                .build());
+    }
+
+    public Optional<IdPoolConfig> getIdPoolConfig(RequestInfo requestInfo, String tenantId) {
+        validateTenantIdForMdmsFilter(tenantId);
+        String module = propertiesManager.getMdmsIdPoolModule();
+        if (module == null || module.isBlank()) {
+            module = "beneficiary-idgen";
+        }
+        String master = propertiesManager.getMdmsIdPoolMaster();
+        if (master == null || master.isBlank()) {
+            master = "IdPoolConfig";
+        }
+        String filter = "[?(@.tenantId=='" + tenantId + "' && (@.isActive==true || @.isActive==null))]";
+        Optional<Map<String, Object>> configDataOpt = getFirstMdmsRecord(requestInfo, tenantId, module, master, filter);
+        if (configDataOpt.isEmpty()) {
+            log.debug("No id pool config found in MDMS for tenantId={}", tenantId);
+            return Optional.empty();
+        }
+
+        Map<String, Object> configData = configDataOpt.get();
+        DocumentContext documentContext = JsonPath.parse(configData);
+
+        String seqCode = readStringField(documentContext, "seqCode", propertiesManager.getDefaultIdPoolConfig().getSeqCode());
+        int paddingLength = readIntField(documentContext, "paddingLength", propertiesManager.getDefaultIdPoolConfig().getPaddingLength());
+
+        return Optional.of(IdPoolConfig.builder()
+                .seqCode(seqCode)
+                .paddingLength(paddingLength)
+                .build());
+    }
+
+    private void validateTenantIdForMdmsFilter(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new CustomException("INVALID_TENANT_ID", "TenantId cannot be null/blank");
+        }
+        if (!tenantId.matches("^[A-Za-z0-9._-]+$")) {
+            throw new CustomException("INVALID_TENANT_ID", "TenantId contains unsafe characters");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Optional<Map<String, Object>> getFirstMdmsRecord(
+            RequestInfo requestInfo,
+            String tenantId,
+            String module,
+            String master,
+            String filter
+    ) {
+        MasterDetail masterDetail = MasterDetail.builder()
+                .name(master)
+                .filter(filter)
+                .build();
+
+        Map<String, List<MasterDetail>> masterDetails = new HashMap<>();
+        masterDetails.put(module, Collections.singletonList(masterDetail));
+
+        MdmsResponse mdmsResponse = getMasterData(requestInfo, tenantId, masterDetails);
+        if (mdmsResponse == null
+                || mdmsResponse.getMdmsRes() == null
+                || !mdmsResponse.getMdmsRes().containsKey(module)
+                || mdmsResponse.getMdmsRes().get(module) == null
+                || !mdmsResponse.getMdmsRes().get(module).containsKey(master)
+                || mdmsResponse.getMdmsRes().get(module).get(master) == null
+                || mdmsResponse.getMdmsRes().get(module).get(master).isEmpty()
+                || mdmsResponse.getMdmsRes().get(module).get(master).get(0) == null) {
+            return Optional.empty();
+        }
+
+        Object record = mdmsResponse.getMdmsRes().get(module).get(master).get(0);
+        if (!(record instanceof Map)) {
+            return Optional.empty();
+        }
+        return Optional.of((Map<String, Object>) record);
+    }
+
+    private String readStringField(DocumentContext documentContext, String field, String defaultValue) {
+        try {
+            String value = documentContext.read("$." + field);
+            return value != null ? value : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    private boolean readBooleanField(DocumentContext documentContext, String field, boolean defaultValue) {
+        try {
+            Boolean value = documentContext.read("$." + field);
+            return value != null ? value : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    private int readIntField(DocumentContext documentContext, String field, int defaultValue) {
+        try {
+            Number value = documentContext.read("$." + field);
+            return value != null ? value.intValue() : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
     }
 
     /**
