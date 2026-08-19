@@ -1,11 +1,10 @@
-import { NextFunction, Request, Response } from "express"; // Importing necessary modules from Express
+import { NextFunction, Request, Response } from "express";
 
-// Defining a middleware function that wraps async route handlers
+/** Wraps an async route handler so rejected promises reach Express's error middleware instead of hanging the request. */
 const asyncMiddleware = (fn: (req: Request, res: Response, next: NextFunction) => any) =>
   (req: Request, res: Response, next: NextFunction) => {
-    // Wrapping the asynchronous route handler in a Promise to handle errors
     Promise.resolve(fn(req, res, next))
-      .catch(next); // Catching any errors and passing them to the error handling middleware
+      .catch(next);
   };
 
-export default asyncMiddleware; // Exporting the async middleware function for use in Express routes
+export default asyncMiddleware;

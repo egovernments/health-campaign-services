@@ -14,6 +14,7 @@ import { httpRequest } from "../utils/request";
 import { fetchProjectsWithBoundaryCodeAndReferenceId } from "../utils/onGoingCampaignUpdateUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 
+/** Process class for boundary targets — persists boundary/mapping rows and creates/updates one project per boundary in parent-before-child order. */
 export class TemplateClass {
     static async process(
         resourceDetails: any,
@@ -73,21 +74,17 @@ export class TemplateClass {
 
     private static extractMappingDataFromSheets(boundaries: any[], type: string, campaignDetails: any): any[] {
         logger.info("Extracting mapping data from sheets...");
-        // Initialize sets for unique boundary codes and product variant IDs
         const boundaryCodes = new Set();
         const allSheetMappingResourceData: any[] = [];
 
-        // Extract boundary codes
         for (const boundary of boundaries) {
             if (boundary?.code) {
                 boundaryCodes.add(boundary.code);
             }
         }
 
-        // Convert Set to array
         const boundaryCodesArray = Array.from(boundaryCodes);
 
-        // Extract product variant IDs from cycleData
         const setOfAllProductVariantIds = new Set();
         const deliveryRules = campaignDetails?.deliveryRules;
         if (deliveryRules && Array.isArray(deliveryRules) && deliveryRules.length > 0) {
@@ -95,13 +92,13 @@ export class TemplateClass {
                 const products = deliveryRule?.resources;
                 if (products) {
                     for (const product of products) {
-                        setOfAllProductVariantIds.add(product?.productVariantId); // Add pvar ID to the Set
+                        setOfAllProductVariantIds.add(product?.productVariantId);
                     }
                 }
             }
         }
 
-        // Create mapping data for each combination of product variant ID and boundary code
+        // One mapping row per (product variant, boundary) combination
         const productVariantIds = Array.from(setOfAllProductVariantIds);
         for (let i = 0; i < productVariantIds.length; i++) {
             const productVariantId = productVariantIds[i];
@@ -481,14 +478,12 @@ export class TemplateClass {
         const codeToTarget: Record<string, Record<string, number>> = {};
         const rootBoundaryCode = boundaries.find((b: any) => !b.parent)?.code;
 
-        // Step 1: Build parent → children map
         for (const b of boundaries) {
             if(!b.parent) continue;
             if (!codeToChildren[b.parent]) codeToChildren[b.parent] = [];
             codeToChildren[b.parent].push(b.code);
         }
 
-        // Step 2: Initialize data for leaf nodes
         for (const d of datas) {
             const code = d.HCM_ADMIN_CONSOLE_BOUNDARY_CODE;
             codeToTarget[code] = {};
@@ -500,7 +495,7 @@ export class TemplateClass {
             }
         }
 
-        // Step 3: DFS function to aggregate children's data
+        // Roll each boundary's targets up to include the sum of all its descendants' targets
         const dfs = (code: string): Record<string, number> => {
             const result: Record<string, number> = { ...(codeToTarget[code] || {}) };
 
@@ -515,10 +510,9 @@ export class TemplateClass {
             return result;
         };
 
-        // Step 4: DFS traversal
         dfs(rootBoundaryCode);
 
-        // Step 5: Convert aggregated map back to datas array
+        // Append aggregated parent rows that were not present in the input datas
         for (const code in codeToTarget) {
             if (!datas.find(d => d.HCM_ADMIN_CONSOLE_BOUNDARY_CODE === code)) {
                 datas.push({

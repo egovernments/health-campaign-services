@@ -103,9 +103,6 @@ public class EmployeeService {
 	@Autowired
 	private ObjectMapper objectMapper;
 
-	@Autowired
-	private IndividualService individualService;
-
 	/**
 	 * Service method for create employee. Does following:
 	 * 1. Sets ids to all the objects using idgen service.
@@ -122,12 +119,15 @@ public class EmployeeService {
 		String tenantId = employeeRequest.getEmployees().stream().findAny().get().getTenantId();
 		Map<String, String> pwdMap = new HashMap<>();
 		idGenService.setIds(employeeRequest);
-		employeeRequest.getEmployees().stream().forEach(employee -> {
-			// Enriching the employee object with required parameters
+		// Enrich every employee (and its user) first, then create all users in a single bulk call.
+		employeeRequest.getEmployees().forEach(employee -> {
 			enrichCreateRequest(tenantId, employee, requestInfo);
-			createUser(employee, requestInfo);
-			pwdMap.put(employee.getUuid(), employee.getUser().getPassword());
+			enrichUser(employee);
 		});
+		createUsers(employeeRequest.getEmployees(), requestInfo);
+		// Passwords are keyed by the employee uuid, which is only populated after user creation.
+		employeeRequest.getEmployees().forEach(employee ->
+				pwdMap.put(employee.getUuid(), employee.getUser().getPassword()));
 		hrmsProducer.push(propertiesManager.getHrmsEmailNotifTopic(), employeeRequest);
 
 		// Setting password as null after sending employeeRequest to email notification topic to send email.
@@ -266,35 +266,77 @@ public class EmployeeService {
 	
 	
 	/**
-	 * Creates user by making call to egov-user.
-	 * 
-	 * @param employee
+	 * Creates the users for all employees in a single bulk call (works for both the egov-user and
+	 * individual backends via {@link UserService#createUsers}) and maps each created user back onto
+	 * its employee, correlating by username (employee code). Replaces the earlier per-employee create.
+	 *
+	 * @param employees   the employees whose users (already enriched) are to be created
 	 * @param requestInfo
 	 */
-	private void createUser(Employee employee, RequestInfo requestInfo) {
-		enrichUser(employee);
-		UserRequest request = UserRequest.builder().requestInfo(requestInfo).user(employee.getUser()).build();
+	private void createUsers(List<Employee> employees, RequestInfo requestInfo) {
 		try {
-			UserResponse response;
-			if(userService instanceof IndividualService) {
-				String localityCode = (employee.getJurisdictions()!=null && !employee.getJurisdictions().isEmpty())? employee.getJurisdictions().get(0).getBoundary() : null;
-				response = individualService.createUserByLocality(request, localityCode);
-			}
-			else{
-				response = userService.createUser(request);
-			}
-			User user = response.getUser().get(0);
-			employee.setId(UUID.fromString(user.getUuid()).getMostSignificantBits());
-			employee.setUuid(user.getUuid());
-			employee.getUser().setId(user.getId());
-			employee.getUser().setUuid(user.getUuid());
-			employee.getUser().setUserServiceUuid(user.getUserServiceUuid());
-		}catch(Exception e) {
-			log.error("Exception while creating user: ",e);
-			log.error("request: "+request);
-			throw new CustomException(ErrorConstants.HRMS_USER_CREATION_FAILED_CODE, ErrorConstants.HRMS_USER_CREATION_FAILED_MSG);
-		}
+			UserResponse response = userService.createUsers(requestInfo, employees);
 
+			// Correlate created users back to employees by username (unique per tenant)
+			Map<String, User> createdByUsername = new HashMap<>();
+			if (response != null && !CollectionUtils.isEmpty(response.getUser())) {
+				response.getUser().forEach(user -> {
+					if (!StringUtils.isEmpty(user.getUserName()) && user.getUuid() != null)
+						createdByUsername.put(user.getUserName(), user);
+				});
+			}
+			// Correlate downstream per-user errors by username so we can surface them verbatim
+			Map<String, Map<String, Object>> downstreamErrByUsername = new HashMap<>();
+			if (response != null && !CollectionUtils.isEmpty(response.getErrors())) {
+				for (Map<String, Object> err : response.getErrors()) {
+					Object uname = err.get("username");
+					if (uname != null) downstreamErrByUsername.put(String.valueOf(uname), err);
+				}
+			}
+
+			List<String> failureLines = new java.util.ArrayList<>();
+			for (Employee employee : employees) {
+				String uname = employee.getUser() != null ? employee.getUser().getUserName() : null;
+				User createdUser = createdByUsername.get(uname);
+				if (createdUser != null && createdUser.getUuid() != null) {
+					employee.setId(UUID.fromString(createdUser.getUuid()).getMostSignificantBits());
+					employee.setUuid(createdUser.getUuid());
+					employee.getUser().setId(createdUser.getId());
+					employee.getUser().setUuid(createdUser.getUuid());
+					employee.getUser().setUserServiceUuid(createdUser.getUserServiceUuid());
+					continue;
+				}
+				// Failure path — build a specific line naming this employee + downstream reason
+				Map<String, Object> downstreamErr = uname == null ? null : downstreamErrByUsername.get(uname);
+				String mob = employee.getUser() != null ? employee.getUser().getMobileNumber() : null;
+				String downstreamCode = downstreamErr != null ? String.valueOf(downstreamErr.get("errorCode")) : "UNKNOWN";
+				String downstreamMsg = downstreamErr != null ? String.valueOf(downstreamErr.get("errorMessage"))
+						: "no per-record error info returned by downstream individual/user service";
+				failureLines.add(String.format(
+						"[employee code='%s' userName='%s' mobileNumber='%s'] downstreamCode=%s downstreamMessage=%s",
+						employee.getCode(), uname, mob, downstreamCode, downstreamMsg));
+			}
+			if (!failureLines.isEmpty()) {
+				String detail = String.format(
+						"User creation failed for %d of %d employee(s). Failures:%n  - %s",
+						failureLines.size(), employees.size(),
+						String.join(System.lineSeparator() + "  - ", failureLines));
+				throw new CustomException("HRMS_EMPLOYEE_CREATE_USER_NOT_CREATED", detail);
+			}
+		} catch (CustomException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("Exception while creating users in bulk: ", e);
+			String detail = String.format(
+					"HRMS_EMPLOYEE_CREATE_USER_SERVICE_TRANSPORT_ERROR: downstream call to user/individual service failed. "
+							+ "exceptionClass=%s, exceptionMessage=%s. "
+							+ "Employee count in this batch=%d. "
+							+ "Check egov-user / individual service reachability and logs.",
+					e.getClass().getSimpleName(),
+					e.getMessage() != null ? e.getMessage() : "(no message)",
+					employees.size());
+			throw new CustomException("HRMS_EMPLOYEE_CREATE_USER_SERVICE_TRANSPORT_ERROR", detail);
+		}
 	}
 
 	/**
@@ -453,7 +495,17 @@ public class EmployeeService {
 		}catch(Exception e) {
 			log.error("Exception while updating user: ",e);
 			log.error("request: "+request);
-			throw new CustomException(ErrorConstants.HRMS_USER_UPDATION_FAILED_CODE, ErrorConstants.HRMS_USER_UPDATION_FAILED_MSG);
+			String uname = employee.getUser() != null ? employee.getUser().getUserName() : null;
+			String mob = employee.getUser() != null ? employee.getUser().getMobileNumber() : null;
+			String uuid = employee.getUser() != null ? employee.getUser().getUuid() : null;
+			String detail = String.format(
+					"User update failed for [employee code='%s' userName='%s' mobileNumber='%s' userUuid='%s']. "
+							+ "downstreamExceptionClass=%s downstreamMessage=%s. "
+							+ "Check that the user still exists in egov-user and that the update payload is valid.",
+					employee.getCode(), uname, mob, uuid,
+					e.getClass().getSimpleName(),
+					e.getMessage() != null ? e.getMessage() : "(no message)");
+			throw new CustomException("HRMS_EMPLOYEE_UPDATE_USER_SERVICE_ERROR", detail);
 		}
 
 	}

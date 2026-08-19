@@ -144,6 +144,7 @@ sequenceDiagram
 
 - **Async, no batch rollback.** A bulk request returns `202` before persistence. If one record in the batch fails validation in the consumer, it does not roll back the others — check consumer logs and the record's status.
 - **Idempotency** is via `clientReferenceId` — re-submitting the same one should not create a duplicate row.
+- **A duplicate `clientReferenceId` within the same bulk request no longer fails the whole batch.** Previously a within-batch duplicate crashed the existent-entity validator and dropped the **entire** bulk batch (losing unrelated valid records). Now the first occurrence is kept, each subsequent duplicate is rejected individually as a uniqueness error, and the remaining valid records still persist. Applies to both the stock and stock-reconciliation bulk-create paths.
 - **Optimistic locking** via `rowVersion` protects against concurrent edits on the normal transfer-update path. (See the v2.1 note above for the one place this is now relaxed.)
 - **Soft delete** (`isDeleted`) everywhere — nothing is hard-deleted; unique constraints include the delete flag.
 - If the **persister config** for the stock topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
@@ -163,8 +164,8 @@ sequenceDiagram
 |---|-----------------------------------------------------------------------------------|
 | Release | **v2.1**                                                                          |
 | Stack | Spring Boot 3.2.2 / Java 17                                                       |
-| Shared libs | `health-services-common` 1.1.5-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
-| Doc updated | 2026-06-12                                                                        |
+| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
+| Doc updated | 2026-07-20                                                                        |
 | Maintainers | Health Campaign Services team (CODEOWNERS: `@kavi-egov`, `@sathishp-eGov`)        |
 
 ## Pre-commit script

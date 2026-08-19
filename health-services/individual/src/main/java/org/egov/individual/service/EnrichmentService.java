@@ -15,6 +15,7 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.Skill;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.config.IndividualProperties;
+import org.egov.individual.util.IndividualIdGenUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
@@ -39,11 +40,15 @@ public class EnrichmentService {
 
     private final IndividualProperties properties;
 
+    private final IndividualIdGenUtil individualIdGenUtil;
+
     @Autowired
     public EnrichmentService(IdGenService idGenService,
-                             IndividualProperties properties) {
+                             IndividualProperties properties,
+                             IndividualIdGenUtil individualIdGenUtil) {
         this.idGenService = idGenService;
         this.properties = properties;
+        this.individualIdGenUtil = individualIdGenUtil;
     }
 
     public void create(List<Individual> validIndividuals, IndividualBulkRequest request) {
@@ -53,7 +58,9 @@ public class EnrichmentService {
         //fetch the root tenantId if it is in state.city format
         final String tenantId = getTenantId(validIndividuals).split("\\.")[0];
         log.info("generating id for individuals");
-        List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
+        // Single idgen call carrying count = number of individuals, instead of fanning out to
+        // one IdRequest per individual (which made idgen do a redundant MDMS format lookup per id).
+        List<String> indIdList = individualIdGenUtil.getIdList(request.getRequestInfo(),
                 tenantId, properties.getIndividualId(),
                 null, validIndividuals.size());
         log.info("enriching individuals");

@@ -12,14 +12,14 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 type RowData = Record<string, any>;
 
 interface FieldDescriptor {
-    path: string;                        // e.g. "$.user.roles[*].code"
+    path: string;                        // JSONPath into output, e.g. "$.user.roles[*].code"
     source?: {
         header: string;                    // sheet column name
         transform?: {
             mapping: Record<string, string>;
         };
     };
-    splitBy?: string;                    // for arrays: delimiter
+    splitBy?: string;                    // array delimiter
     value?: string | number;             // constant or template "${metadata.xxx}"
 }
 
@@ -32,6 +32,7 @@ interface TransformConfig {
     reverseTransformBulk?: string;
 }
 
+/** Config-driven mapper between flat sheet rows and nested service payloads (and back), with named pre/post transform hooks. */
 export class DataTransformer {
     private cfg: TransformConfig;
     private hooks: Record<string, Function>;
@@ -42,7 +43,6 @@ export class DataTransformer {
             transformEmployee: this.transformEmployee.bind(this),
             transformBulkEmployee: this.transformBulkEmployee.bind(this),
             transformBulkFacility: this.transformBulkFacility.bind(this),
-            // reverse hooks if needed
         };
     }
 
@@ -62,13 +62,12 @@ export class DataTransformer {
     private transformSingle(row: RowData): any {
         const out: any = {};
 
-        // 1) non-array fields
         for (const desc of this.cfg.fields.filter(d => !d.path.includes("[*]"))) {
             const val = this.resolveField(desc, row);
             this.assignByPath(out, desc.path, val);
         }
 
-        // 2) array-of-objects fields
+        // Array-of-objects fields: group descriptors by base path, then zip parallel source columns row-wise
         const arrayDescriptors = this.cfg.fields
             .filter(d => d.path.includes("[*]"))
             .map(d => {
@@ -85,7 +84,6 @@ export class DataTransformer {
             const columns: Record<string, string[]> = {};
             let maxLen = 0;
 
-            // split each source column
             for (const { prop, desc } of items) {
                 if (desc.source?.header) {
                     const raw = (row[desc.source.header] ?? "").toString();
@@ -119,7 +117,6 @@ export class DataTransformer {
             this.assignByPath(out, `${base}[*]`, arrOut);
         }
 
-        // 3) optional single‐row hook
         if (this.cfg.transFormSingle) {
             return this.hooks[this.cfg.transFormSingle](out, this.cfg);
         }
@@ -128,17 +125,15 @@ export class DataTransformer {
 
     /** Compute a single field value from rowData */
     private resolveField(desc: FieldDescriptor, row: RowData): any {
-        // 1. constant/template
         if (desc.value !== undefined) {
             return this.resolveTemplate(desc.value.toString());
         }
 
-        // 2. from sheet column
         if (desc.source) {
             const cell = row[desc.source.header];
             const raw = (cell === undefined || cell === "") ? null : cell;
 
-            // if no cell, give mapping a crack at default
+            // Empty cell: still run the mapping so a "%default%" entry can supply a value
             if (raw == null) {
                 if (desc.source.transform?.mapping) {
                     return this.applyMapping(desc.source.transform.mapping, raw);
@@ -146,12 +141,10 @@ export class DataTransformer {
                 return null;
             }
 
-            // apply mapping (handles non-null via map or default)
             const withMapping = desc.source.transform
                 ? this.applyMapping(desc.source.transform.mapping, raw)
                 : raw;
 
-            // split arrays
             if (desc.path.includes("[*]")) {
                 return (withMapping as string)
                     .split(desc.splitBy ?? ",")
@@ -282,8 +275,6 @@ export class DataTransformer {
         return current;
     }
 
-    // ========== YOUR EXISTING HOOKS ==========
-
     private transformEmployee(data: any, cfg: TransformConfig): any {
         data.status = "ACTIVE";
         if (cfg.metadata?.hierarchy) {
@@ -309,18 +300,16 @@ export class DataTransformer {
         const map = getBoundaryCodeAndBoundaryTypeMapping(resp.TenantBoundary[0].boundary);
 
         for (const item of data) {
-            // set boundaryType
             if (item.jurisdictions) {
                 for (const j of item.jurisdictions) {
                     j.boundaryType = map[j.boundary];
                 }
             }
-            // password logic
             item.user.password = config.user.userPasswordAutoGenerate
                 ? generateUserPassword()
                 : config.user.userDefaultPassword;
 
-            // username/id
+            // Fall back to an IDGen-generated username when the sheet leaves it blank
             const userName = item?.user?.userName ? String(item?.user?.userName)?.trim() : null;
             item.user.userName = userName;
             if (!item.user.userName) {

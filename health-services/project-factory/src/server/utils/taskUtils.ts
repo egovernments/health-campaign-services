@@ -15,6 +15,7 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { createAndUploadFileWithOutRequest } from "../api/genericApis";
 import config from "../config";
 
+/** Kafka handler: runs the process class for one campaign task, uploads the annotated file, and persists process/resource status (idempotent under redelivery). */
 export async function handleTaskForCampaign(messageObject: any) {
     const taskStartTime = Date.now();
     try {
@@ -40,7 +41,6 @@ export async function handleTaskForCampaign(messageObject: any) {
             throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `Resource type not found for process ${processName}`);
         }
         const resource = getResorceViaResourceType(CampaignDetails, resourceType);
-        // Support both camelCase (table-enriched) and lowercase (request-body legacy)
         const resolvedFileStoreId = resource?.filestoreId;
         if (!resolvedFileStoreId) {
             logger.error(`FileStoreId not found for resource type ${resourceType}`);
@@ -60,10 +60,8 @@ export async function handleTaskForCampaign(messageObject: any) {
         const fileUrl = await fetchFileFromFilestore(resourceDetails?.fileStoreId, resourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
 
-        // Try to extract locale from workbook metadata
+        // Graceful fallback: use campaign locale or default locale if workbook metadata is missing
         let locale: string = getLocaleFromWorkbook(workBook) || "";
-
-        // Graceful fallback: use campaign locale or default locale if metadata missing
         if (!locale) {
             logger.warn(`Locale metadata not found in workbook for resource type ${resourceType}. Using fallback locale.`);
             locale = CampaignDetails?.additionalDetails?.locale
@@ -123,7 +121,6 @@ export async function handleTaskForCampaign(messageObject: any) {
         );
 
         task.status = processStatuses.completed;
-        // Add audit details for update
         const currentTime = Date.now();
         task.auditDetails = {
             createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,
@@ -136,7 +133,6 @@ export async function handleTaskForCampaign(messageObject: any) {
     } catch (error) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
-        // Add audit details for failed status update
         const currentTime = Date.now();
         task.auditDetails = {
             createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,

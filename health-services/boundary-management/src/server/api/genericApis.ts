@@ -337,6 +337,18 @@ async function createExcelSheet(data: any, headers: any) {
   return rows;
 }
 
+// Zero-width / bidirectional / format marks (e.g. U+200E LEFT-TO-RIGHT MARK) are INVISIBLE and carry no
+// meaning in a boundary name, but they ride in on copy-paste from Ajami/RTL sources. Left in place they
+// (a) fail the name-character validator and (b) corrupt derived codes, localisation keys and re-upload
+// name matching. We strip them here at the single shared sheet-parse point (used by both validation and
+// the codegen/localisation processing path) so every consumer sees the clean value. This is one linear
+// pass over string cells during a parse that already visits every cell -> negligible cost.
+// U+200B–200F (ZWSP..RLM), U+202A–202E (bidi embeddings/overrides), U+2060–2064 (word-joiner etc.),
+// U+FEFF (ZWNBSP/BOM), U+00AD (soft hyphen). Written as escapes so the source stays free of invisibles.
+const INVISIBLE_MARKS_REGEX = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\u00AD]/g;
+const stripInvisibleMarks = (v: any) =>
+  typeof v === "string" ? v.replace(INVISIBLE_MARKS_REGEX, "") : v;
+
 function getSheetDataFromWorksheet(worksheet: any) {
   var sheetData: any[][] = [];
 
@@ -358,40 +370,42 @@ function getSheetDataFromWorksheet(worksheet: any) {
 
 // Helper function to extract raw cell value
 function getRawCellValue(cell: any) {
+  let value: any;
   if (cell.value && typeof cell.value === 'object') {
     if ('richText' in cell.value) {
       // Handle rich text
-      return cell.value.richText.map((rt: any) => rt.text).join('');
+      value = cell.value.richText.map((rt: any) => rt.text).join('');
     }
     else if ('hyperlink' in cell.value) {
-      if (cell?.value?.text?.richText?.length > 0) {
-        return cell.value.text.richText.map((t: any) => t.text).join('');
-      }
-      else {
-        return cell.value.text;
-      }
+      value = (cell?.value?.text?.richText?.length > 0)
+        ? cell.value.text.richText.map((t: any) => t.text).join('')
+        : cell.value.text;
     }
     else if ('formula' in cell.value) {
       // Get the result of the formula
-      return cell.value.result;
+      value = cell.value.result;
     }
     else if ('sharedFormula' in cell.value) {
       // Get the result of the shared formula
-      return cell.value.result;
+      value = cell.value.result;
     }
     else if ('error' in cell.value) {
       // Get the error value
-      return cell.value.error;
+      value = cell.value.error;
     } else if (cell.value instanceof Date) {
       // Handle date values
-      return cell.value.toISOString();
+      value = cell.value.toISOString();
     }
     else {
       // Return as-is for other object types
-      return cell.value;
+      value = cell.value;
     }
+  } else {
+    value = cell.value; // plain strings, numbers, etc.
   }
-  return cell.value; // Return raw value for plain strings, numbers, etc.
+  // Strip invisible bidi/zero-width/format marks from string cell values at this single shared parse
+  // point (used by both validation and the codegen/localisation path) so no consumer ever sees them.
+  return stripInvisibleMarks(value);
 }
 
 /**
@@ -899,7 +913,30 @@ function generateElementCode(sequence: any, parentElement: any, parentBoundaryCo
       const nameSuffix = "_" + sanitize(parentElement?.value);
       let parentBoundaryCodeTrimmed: string;
       if (parentElement?.value && nameSuffix.length > 1 && sanitizedParentCode.endsWith(nameSuffix)) {
+        // Parent code carries the parent's FULL name -> strip it, leaving the numeric-path prefix.
         parentBoundaryCodeTrimmed = sanitizedParentCode.slice(0, sanitizedParentCode.length - nameSuffix.length);
+      } else if (parentElement?.value && nameSuffix.length > 1) {
+        const sanitizedName = sanitize(parentElement.value);
+        const longestNamePrefixTrim = (code: string) => {
+          let matchLen = sanitizedName.length;
+          while (matchLen > 0 && !code.endsWith("_" + sanitizedName.slice(0, matchLen))) {
+            matchLen--;
+          }
+          return matchLen > 0 ? code.slice(0, code.length - (matchLen + 1)) : null;
+        };
+        let trimmed = longestNamePrefixTrim(sanitizedParentCode);
+        if (trimmed === null) {
+          const deSuffixed = sanitizedParentCode.replace(/_\d+$/, "");
+          if (deSuffixed !== sanitizedParentCode) trimmed = longestNamePrefixTrim(deSuffixed);
+        }
+        if (trimmed !== null) {
+          parentBoundaryCodeTrimmed = trimmed;
+        } else {
+          // Parent code genuinely does not encode the name (e.g. user-supplied manual codes): keep the
+          // old last-'_' trim.
+          const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
+          parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+        }
       } else {
         const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
         parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
@@ -995,5 +1032,5 @@ async function createAndUploadFile(
 
 export{getSheetData,getAutoGeneratedBoundaryCodesHandler,createBoundaryEntities,createBoundaryRelationship
     ,createExcelSheet , createAndUploadFile ,getBoundarySheetData ,getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement
-    ,createBulkBoundaryRelationships
+    ,createBulkBoundaryRelationships ,stripInvisibleMarks
 };

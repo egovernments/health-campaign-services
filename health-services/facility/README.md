@@ -132,8 +132,8 @@ sequenceDiagram
 |---|---|
 | Release | **v2.1** |
 | Stack | Spring Boot 3.2.2 / Java 17 (module version `1.2.1`) |
-| Shared libs | `health-services-common` 1.1.3-SNAPSHOT, `health-services-models` 1.0.30-SNAPSHOT |
-| Doc updated | 2026-06-12 |
+| Shared libs | `health-services-common` 1.1.6-SNAPSHOT, `health-services-models` 1.0.35-SNAPSHOT |
+| Doc updated | 2026-07-20 |
 | Maintainers | Health Campaign Services team (CODEOWNERS: `@kavi-egov`, `@sathishp-eGov`) |
 
 ## Pre-commit script

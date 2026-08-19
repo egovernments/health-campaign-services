@@ -31,6 +31,22 @@ const config = {
     resetCache: process.env.RESET_CACHE,
     redisPort: process.env.REDIS_PORT || "6379",
   },
+  // Heartbeat + reconciler for boundary "process"/create runs abandoned by a pod restart.
+  // The create runs as a detached in-process promise (boundaryApis.ts processCreate, no await); a
+  // mid-run pod restart leaves the resource stuck at data-accepted forever and the UI polls it
+  // indefinitely. While a create runs we tick lastModifiedTime (heartbeat, metadata only); a sweep
+  // then marks a resource 'failed' once its ticks stop for stalenessMs (the owning pod died). A live
+  // run keeps ticking, so it is never false-failed regardless of TOTAL run time — even a long 50k
+  // create ticks every heartbeatMs through the (awaited) relationship fan-out and slow-persister
+  // drain. stalenessMs therefore need only exceed the longest SYNCHRONOUS codegen burst (which blocks
+  // the event loop and can delay a tick), NOT the whole run; the 10 min default is a large safety
+  // margin for 50k+/slow pods. A truly dead run is marked failed ~stalenessMs after its pod died.
+  orphanReconcile: {
+    enabled: process.env.BOUNDARY_ORPHAN_RECONCILE_ENABLED !== "false", // default ON
+    heartbeatMs: parseInt(process.env.BOUNDARY_RESOURCE_HEARTBEAT_MS || "30000"),      // tick every 30s
+    stalenessMs: parseInt(process.env.BOUNDARY_ORPHAN_STALENESS_MS || "600000"),       // fail after ~10 min of no tick (20x heartbeat; safe for 50k+/slow pods)
+    sweepIntervalMs: parseInt(process.env.BOUNDARY_ORPHAN_SWEEP_INTERVAL_MS || "60000"), // sweep every 60s
+  },
   kafka: {
     // Kafka topics
     KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC || "create-processed-boundary-management",

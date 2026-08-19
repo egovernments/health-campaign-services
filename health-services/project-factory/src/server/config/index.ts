@@ -1,192 +1,166 @@
-// Defining the HOST variable
 const HOST = process.env.EGOV_HOST ||
   "https://unified-dev.digit.org/";
-// Checking if HOST is set, if not, exiting the process
 if (!HOST) {
   console.log("You need to set the HOST variable");
   process.exit(1);
 }
 
-// Configuration object containing various environment variables
+// Application configuration
 const config = {
   batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 100,
   cacheTime: 300,
   isProduction: process.env ? true : false,
-  token: "", // add default token if core services are not port forwarded
+  token: "",
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
-  // isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
   appTimezone: process.env.APP_TIMEZONE || "UTC",
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   isEnvironmentCentralInstance: process.env.IS_ENVIRONMENT_CENTRAL_INSTANCE === "true",
-  kafkaConsumerTopicPrefix: process.env.KAFKA_CONSUMER_TOPIC_PREFIX || "", // explicit override; when empty the consumer regex is derived from centralInstanceTenantIds
-  centralInstanceTenantIds: process.env.CENTRAL_INSTANCE_TENANT_IDS || "", // comma-separated tenant ids (e.g. "ba,oy,ko"); single source for startup topic creation + consumer regex in central instance
+  kafkaConsumerTopicPrefix: process.env.KAFKA_CONSUMER_TOPIC_PREFIX || "",
+  centralInstanceTenantIds: process.env.CENTRAL_INSTANCE_TENANT_IDS || "",
   masterNameForSplitBoundariesOn: "HierarchySchema",
   basesecret: process.env.BASE_SECRET,
-  boundary: {
+      // Boundary configuration
+    boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
     boundaryCodeMandatoryForMicroplanFacility: process.env.BOUNDARY_CODE_HEADER_NAME_FACILITY_MICROPLAN || "HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN",
     boundaryCodeOld: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",
     boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-    // default configurable number of data of boundary type on which generate different tabs
+
     numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
-    // Batch size for persisting boundary mapping data to Kafka.
+
     mappingPersistBatchSize: process.env.BOUNDARY_MAPPING_PERSIST_BATCH_SIZE ? parseInt(process.env.BOUNDARY_MAPPING_PERSIST_BATCH_SIZE, 10) : 100,
-    // Batch size for the generic boundary-data persistInBatches helper.
+
     persistBatchSize: process.env.BOUNDARY_PERSIST_BATCH_SIZE ? parseInt(process.env.BOUNDARY_PERSIST_BATCH_SIZE, 10) : 100,
-    // Delay (ms) between attempts in tryTriggerGenerateIfBoundariesSynced when polling the DB to confirm the persister committed the campaign boundaries.
     syncRetryDelayMs: process.env.BOUNDARY_SYNC_RETRY_DELAY_MS ? parseInt(process.env.BOUNDARY_SYNC_RETRY_DELAY_MS, 10) : 4000,
   },
-  project: {
-    // Number of projects created in parallel per hierarchy-level batch (legacy per-boundary path).
+      // Project configuration
+    project: {
+
     creationBatchSize: process.env.PROJECT_CREATION_BATCH_SIZE ? parseInt(process.env.PROJECT_CREATION_BATCH_SIZE, 10) : 100,
-    // Projects per /project/v1/_create call (the endpoint takes a Projects[] array and returns
-    // them with ids synchronously). 0 disables bulk and keeps the legacy per-boundary create path.
     bulkCreateChunkSize: process.env.PROJECT_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.PROJECT_BULK_CREATE_CHUNK_SIZE, 10) : 0,
-    // Parallel bulk-create calls within a single hierarchy level.
+
     bulkCreateConcurrency: process.env.PROJECT_BULK_CREATE_CONCURRENCY ? parseInt(process.env.PROJECT_BULK_CREATE_CONCURRENCY, 10) : 5,
-    // Page size for the one-shot adopt search (existing projects by campaignNumber/referenceID).
+
     searchPageSize: process.env.PROJECT_SEARCH_PAGE_SIZE ? parseInt(process.env.PROJECT_SEARCH_PAGE_SIZE, 10) : 100,
-    // Read-after-write confirm of a just-created parent project before its children are created:
-    // poll attempts and interval (ms). A project/_create returns the id from enrichment but the row
-    // is persisted asynchronously (persister → DB); under a large project-create burst that write can
-    // lag, so the window must tolerate it or the parent confirm throws PROJECT_CONFIRMATION_FAILED and
-    // hard-fails the campaign even though the project persisted moments later.
     confirmRetries: process.env.PROJECT_CONFIRM_RETRIES ? parseInt(process.env.PROJECT_CONFIRM_RETRIES, 10) : 15,
     confirmPollIntervalMs: process.env.PROJECT_CONFIRM_POLL_INTERVAL_MS ? parseInt(process.env.PROJECT_CONFIRM_POLL_INTERVAL_MS, 10) : 2000,
-    // Throttle the bulk project-create burst: pause this many ms after each concurrency wave of chunk
-    // creates so the async persister/DB write queue can drain instead of being flooded (which is what
-    // makes the parent confirm lag in the first place). 0 = no pacing (unchanged); tune up under load.
     createPaceDelayMs: process.env.PROJECT_CREATE_PACE_DELAY_MS ? parseInt(process.env.PROJECT_CREATE_PACE_DELAY_MS, 10) : 0,
   },
-  facility: {
+      // Facility configuration
+    facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
     facilityCodeColumn: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
     facilityType: "facility",
-    // Batch size for persisting facility data to Kafka.
+
     persistBatchSize: process.env.FACILITY_PERSIST_BATCH_SIZE ? parseInt(process.env.FACILITY_PERSIST_BATCH_SIZE, 10) : 100,
-    // Batch size for creating facilities via the facility service API.
+
     creationBatchSize: process.env.FACILITY_CREATION_BATCH_SIZE ? parseInt(process.env.FACILITY_CREATION_BATCH_SIZE, 10) : 100,
-    // Batch size for facility-create batches dispatched to Kafka.
+
     kafkaCreateBatchSize: process.env.FACILITY_KAFKA_CREATE_BATCH_SIZE ? parseInt(process.env.FACILITY_KAFKA_CREATE_BATCH_SIZE, 10) : 30,
-    // Chunk size for facility-id search calls.
+
     searchBatchSize: process.env.FACILITY_SEARCH_BATCH_SIZE ? parseInt(process.env.FACILITY_SEARCH_BATCH_SIZE, 10) : 50,
   },
-  user: {
+      // User configuration
+    user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE === "true",
     phoneNumberLength: process.env.PHONE_NUMBER_LENGTH ? parseInt(process.env.PHONE_NUMBER_LENGTH, 10) : 10,
-    // Batch size for persisting user mapping/demapping data to Kafka.
+
     mappingPersistBatchSize: process.env.USER_MAPPING_PERSIST_BATCH_SIZE ? parseInt(process.env.USER_MAPPING_PERSIST_BATCH_SIZE, 10) : 100,
-    // Batch size for the generic user persistInBatches Kafka helper.
+
     persistBatchSize: process.env.USER_PERSIST_BATCH_SIZE ? parseInt(process.env.USER_PERSIST_BATCH_SIZE, 10) : 100,
-    // Batch size for creating users (HRMS employees + workers) from table data.
+
     creationBatchSize: process.env.USER_CREATION_BATCH_SIZE ? parseInt(process.env.USER_CREATION_BATCH_SIZE, 10) : 100,
-    // Batch size for user-create batches dispatched to Kafka.
+
     kafkaCreateBatchSize: process.env.USER_KAFKA_CREATE_BATCH_SIZE ? parseInt(process.env.USER_KAFKA_CREATE_BATCH_SIZE, 10) : 20,
-    // Producer pacing for user-create batches: pause kafkaProduceWindowDelayMs after every
-    // kafkaProduceWindowSize batches so the topic fills gradually instead of dumping every
-    // batch at once. Delay defaults to 0 (no pacing) — behavior unchanged until tuned.
     kafkaProduceWindowSize: process.env.USER_KAFKA_PRODUCE_WINDOW_SIZE ? parseInt(process.env.USER_KAFKA_PRODUCE_WINDOW_SIZE, 10) : 100,
     kafkaProduceWindowDelayMs: process.env.USER_KAFKA_PRODUCE_WINDOW_DELAY_MS ? parseInt(process.env.USER_KAFKA_PRODUCE_WINDOW_DELAY_MS, 10) : 0,
-    // Max concurrent per-user HRMS creates in the bulk-create fallback path.
-    // Bounded to avoid a thundering herd that exhausts the downstream DB pool.
     hrmsFallbackConcurrency: process.env.USER_HRMS_FALLBACK_CONCURRENCY ? parseInt(process.env.USER_HRMS_FALLBACK_CONCURRENCY, 10) : 5,
-    // Retries + exponential backoff base (ms) for transient per-user HRMS create failures.
+
     hrmsFallbackMaxRetries: process.env.USER_HRMS_FALLBACK_MAX_RETRIES ? parseInt(process.env.USER_HRMS_FALLBACK_MAX_RETRIES, 10) : 2,
     hrmsFallbackBackoffMs: process.env.USER_HRMS_FALLBACK_BACKOFF_MS ? parseInt(process.env.USER_HRMS_FALLBACK_BACKOFF_MS, 10) : 500,
-    // Throttle pause (ms) between per-user fallback concurrency windows.
+
     hrmsFallbackWindowDelayMs: process.env.USER_HRMS_FALLBACK_WINDOW_DELAY_MS ? parseInt(process.env.USER_HRMS_FALLBACK_WINDOW_DELAY_MS, 10) : 200,
     KAFKA_CONSUMER_MAX_CONCURRENT: process.env.KAFKA_CONSUMER_MAX_CONCURRENT ? parseInt(process.env.KAFKA_CONSUMER_MAX_CONCURRENT, 10) : 5,
-    // Chunk size for user search-by-mobile-number calls.
+
     searchBatchSize: process.env.USER_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_SEARCH_BATCH_SIZE, 10) : 50,
-    // Max number of user search-by-mobile-number batch requests fired concurrently.
+
     searchConcurrency: process.env.USER_SEARCH_CONCURRENCY ? parseInt(process.env.USER_SEARCH_CONCURRENCY, 10) : 10,
-    // Chunk size for individual-id lookups during user validation.
+
     validationSearchBatchSize: process.env.USER_VALIDATION_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_VALIDATION_SEARCH_BATCH_SIZE, 10) : 50,
-    // Chunk size for individual-service search-by-phone-number calls during validation/retry.
+
     individualSearchBatchSize: process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE, 10) : 50,
-    // Read-after-write consistency wait before worker-registry create: poll interval (ms) and
-    // max attempts to confirm just-created individuals are searchable, avoiding the
-    // INDIVIDUAL_NOT_FOUND race from worker/v1/bulk/_create (HRMS create → worker bulk create).
     individualConsistencyPollIntervalMs: process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS, 10) : 2000,
     individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 5,
-    // Worker-registry creation lags individual creation by this many batches in the in-process
-    // create loop: worker create for batch N runs only after batch N+lag's individuals are created,
-    // hiding individual persist/index latency behind subsequent batches so the consistency gate
-    // (waitForIndividualsSearchable) rarely has to wait or defer. 0 = create workers inline (no lag).
     workerCreateBatchLag: process.env.USER_WORKER_CREATE_BATCH_LAG ? parseInt(process.env.USER_WORKER_CREATE_BATCH_LAG, 10) : 2,
   },
-  workerRegistry: {
-    // Chunk size for worker-id lookups during user validation.
+      // Worker registry configuration
+    workerRegistry: {
+
     searchBatchSize: process.env.WORKER_REGISTRY_SEARCH_BATCH_SIZE ? parseInt(process.env.WORKER_REGISTRY_SEARCH_BATCH_SIZE, 10) : 50,
-    // Batch size for worker-registry search + create/update of completed users.
+
     updateBatchSize: process.env.WORKER_REGISTRY_UPDATE_BATCH_SIZE ? parseInt(process.env.WORKER_REGISTRY_UPDATE_BATCH_SIZE, 10) : 100,
   },
-  mapping: {
-    // Batch size for facility/user mapping batches dispatched to Kafka.
+      // Mapping configuration
+    mapping: {
+
     kafkaBatchSize: process.env.MAPPING_KAFKA_BATCH_SIZE ? parseInt(process.env.MAPPING_KAFKA_BATCH_SIZE, 10) : 30,
-    // Batch size for the mappingBatchHandler persistInBatches Kafka helper.
+
     persistBatchSize: process.env.MAPPING_PERSIST_BATCH_SIZE ? parseInt(process.env.MAPPING_PERSIST_BATCH_SIZE, 10) : 100,
-    // Max distinct projectIds per project-resource/facility/staff search call in the adopt-existing pre-pass.
     projectSearchChunkSize: process.env.MAPPING_PROJECT_SEARCH_CHUNK_SIZE ? parseInt(process.env.MAPPING_PROJECT_SEARCH_CHUNK_SIZE, 10) : 100,
-    // Page size for paginated pre-pass searches (health-project caps at 200).
+
     searchPageSize: process.env.MAPPING_SEARCH_PAGE_SIZE ? parseInt(process.env.MAPPING_SEARCH_PAGE_SIZE, 10) : 100,
-    // Parallel create-call window inside a mapping batch.
+
     createConcurrency: process.env.MAPPING_CREATE_CONCURRENCY ? parseInt(process.env.MAPPING_CREATE_CONCURRENCY, 10) : 10,
-    // Number of mappings sent per bulk project-staff/facility/resource create call.
-    // 0 disables bulk and falls back to the per-row create path (behavior unchanged).
     bulkCreateChunkSize: process.env.MAPPING_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.MAPPING_BULK_CREATE_CHUNK_SIZE, 10) : 100,
-    // Per-type gate for STAFF (user) mapping bulk create. Even when bulkCreateChunkSize > 0,
-    // staff stays on the synchronous per-row path unless STAFF_MAPPING_BULK=1 — the async staff
-    // bulk create is unreliable in some project-service builds, while facility/resource bulk are fine.
     staffBulkEnabled: process.env.STAFF_MAPPING_BULK === "1" || process.env.STAFF_MAPPING_BULK === "true",
-    // Confirm-by-search after async bulk create: poll interval (ms) and max attempts to
-    // find the just-created project mappings (server generates ids async, so PF must search
-    // to record the real mappingId). Unconfirmed rows stay toBeMapped for the reconciler to retry.
     bulkConfirmPollIntervalMs: process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS ? parseInt(process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS, 10) : 2000,
     bulkConfirmMaxAttempts: process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS ? parseInt(process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS, 10) : 5,
-    // Retry budget per mapping row before it is terminally failed.
+
     maxRetries: process.env.MAPPING_MAX_RETRY_COUNT ? parseInt(process.env.MAPPING_MAX_RETRY_COUNT, 10) : 3,
-    // Max reconcile cycles before the campaign is failed with precise counts.
+
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
-    // Stall window: a reconcile observe phase ends when resolved count makes no progress for this long.
+
     reconcileStallTimeoutMs: process.env.MAPPING_RECONCILE_STALL_TIMEOUT_MS ? parseInt(process.env.MAPPING_RECONCILE_STALL_TIMEOUT_MS, 10) : 300000,
   },
-  resource: {
-    // Chunk size for resource-activity messages produced to Kafka.
+      // Resource configuration
+    resource: {
+
     activityBatchSize: process.env.RESOURCE_ACTIVITY_BATCH_SIZE ? parseInt(process.env.RESOURCE_ACTIVITY_BATCH_SIZE, 10) : 10,
   },
   productVariant: {
-    // Chunk size for product-variant search calls.
+
     searchBatchSize: process.env.PRODUCT_VARIANT_SEARCH_BATCH_SIZE ? parseInt(process.env.PRODUCT_VARIANT_SEARCH_BATCH_SIZE, 10) : 100,
   },
   sheetData: {
-    // Batch size for the generic sheet-data persistDataInBatches helper.
+
     persistBatchSize: process.env.SHEET_DATA_PERSIST_BATCH_SIZE ? parseInt(process.env.SHEET_DATA_PERSIST_BATCH_SIZE, 10) : 100,
   },
-  attendanceRegister: {
+      // Attendance configuration
+    attendanceRegister: {
     defaultEventType: process.env.ATTENDANCE_REGISTER_DEFAULT_EVENT_TYPE || "Training",
     defaultSessions: process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS ? parseInt(process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS, 10) : 1,
     batchSize: process.env.ATTENDANCE_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_BATCH_SIZE, 10) : 50,
     serviceCodeParallelSearchLimit: process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT, 10) : 50,
     attendeeSearchPageSize: process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE, 10) : 100,
     staffSearchPageSize: process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE, 10) : 100,
-    // Batch size for persisting attendee sheet data to Kafka.
+
     attendeePersistBatchSize: process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE, 10) : 100,
-    // Batch size for persisting attendance-register sheet data to Kafka.
+
     registerPersistBatchSize: process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE, 10) : 100,
-    // Batch size for creating/updating attendance registers via the attendance service API.
+
     registerApiBatchSize: process.env.ATTENDANCE_REGISTER_API_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_API_BATCH_SIZE, 10) : 100,
   },
-  hrms: {
+      // HRMS configuration
+    hrms: {
     hrmsParallelSearchLimit: process.env.HRMS_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.HRMS_PARALLEL_SEARCH_LIMIT, 10) : 100,
-    // Chunk size for HRMS employee search-by-uuid calls.
+
     searchByUuidBatchSize: process.env.HRMS_SEARCH_BY_UUID_BATCH_SIZE ? parseInt(process.env.HRMS_SEARCH_BY_UUID_BATCH_SIZE, 10) : 50,
-    // Chunk size for HRMS employee search-by-username calls.
+
     searchByUsernameBatchSize: process.env.HRMS_SEARCH_BY_USERNAME_BATCH_SIZE ? parseInt(process.env.HRMS_SEARCH_BY_USERNAME_BATCH_SIZE, 10) : 50,
   },
   cacheValues: {
@@ -194,9 +168,9 @@ const config = {
     resetCache: process.env.RESET_CACHE,
     redisPort: process.env.REDIS_PORT || "6379",
   },
-  kafka: {
+      // Kafka configuration
+    kafka: {
     CONSUMER_GROUP_ID: process.env.KAFKA_CONSUMER_GROUP_ID || "project-factory",
-    // Kafka topics
     KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "save-project-campaign-details",
     KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "update-project-campaign-details",
     KAFKA_CREATE_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC || "create-resource-details",
@@ -222,24 +196,14 @@ const config = {
     KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: process.env.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC || "hcm-campaign-mark-failed",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
     KAFKA_NON_CENTRAL_INSTANCE_TOPICS: process.env.KAFKA_NON_CENTRAL_INSTANCE_TOPICS || "egov.core.notification.email",
-    // Kafka message size / compression tuning.
-    // Producer side: KafkaJS has no client-side max request size; GZIP compression keeps large
-    // campaign-detail payloads (up to ~35k boundaries) small. The hard ceiling is the broker's
-    // `message.max.bytes` / topic `max.message.bytes` (infra config) — must be raised there.
-    // Consumer side: maxBytesPerPartition must be large enough to fetch those messages.
-    KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION: parseInt(process.env.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION || "5242880", 10) || 5242880, // 5 MB
+    KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION: parseInt(process.env.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION || "5242880", 10) || 5242880,
     KAFKA_PRODUCER_COMPRESSION_ENABLED: (process.env.KAFKA_PRODUCER_COMPRESSION_ENABLED || "true").toLowerCase() !== "false",
-    // Topics that carry full CampaignDetails (complete boundaries array, up to 35k entries) are
-    // created/updated with max.message.bytes=4MB + compression.type=gzip to prevent produce failures
-    // on large campaigns. Overridable via env var.
     KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES: parseInt(process.env.KAFKA_TOPIC_LARGE_MESSAGE_MAX_BYTES || "4194304", 10),
-    // Client retries must tolerate the brief leadership election that follows bulk topic creation
-    // (governs cluster metadata used by admin createTopics and consumer subscribe).
     KAFKA_CONSUMER_RETRIES: parseInt(process.env.KAFKA_CONSUMER_RETRIES || "10", 10) || 10,
   },
 
-  // Database configuration
-  DB_CONFIG: {
+      // Database configuration
+    DB_CONFIG: {
     DB_SCHEMA: process.env.DB_SCHEMA || "egov",
     DB_USER: process.env.DB_USER || "postgres",
     DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
@@ -253,8 +217,8 @@ const config = {
     DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_generated_resource_details",
     DB_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_resource_details"
   },
-  // Application configuration
-  app: {
+      // Application settings
+    app: {
     port: parseInt(process.env.APP_PORT || "8080") || 8080,
     host: HOST,
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
@@ -268,13 +232,13 @@ const config = {
     localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
     localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "30000"),
     localizationChunkSizeForBoundaryCreation: parseInt(process.env.LOCALIZATION_CHUNK_SIZE_FOR_BOUNDARY_CREATION || "2000"),
-    // Chunk size for upserting localization messages per locale.
+
     messageChunkSize: process.env.LOCALIZATION_MESSAGE_CHUNK_SIZE ? parseInt(process.env.LOCALIZATION_MESSAGE_CHUNK_SIZE, 10) : 100,
   },
 
-  host: {
+      // External service hosts
+    host: {
     serverHost: HOST,
-    // Kafka broker host
     KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
     redisHost: process.env.REDIS_HOST || "localhost",
     mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
@@ -295,9 +259,10 @@ const config = {
     censusServiceHost: process.env.EGOV_CENSUS_HOST || "https://unified-dev.digit.org/",
     workerRegistryHost: process.env.EGOV_WORKER_REGISTRY_HOST || "https://unified-dev.digit.org/",
     attendanceHost: process.env.EGOV_ATTENDANCE_HOST || "https://unified-dev.digit.org/",
+    serviceRequestHost: process.env.EGOV_SERVICE_REQUEST_HOST || "https://unified-dev.digit.org/"
   },
-  // Paths for different services
-  paths: {
+      // API endpoint paths
+    paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
     filestorefetch: "filestore/v1/files/url",
     mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "egov-mdms-service/v2/_search",
@@ -356,10 +321,11 @@ const config = {
     attendanceStaffCreate: process.env.ATTENDANCE_STAFF_CREATE_PATH || "health-attendance/staff/v1/_create",
     attendanceStaffDelete: process.env.ATTENDANCE_STAFF_DELETE_PATH || "health-attendance/staff/v1/_delete",
     attendanceStaffSearch: process.env.ATTENDANCE_STAFF_SEARCH_PATH || "health-attendance/staff/v1/_search",
+    serviceDefinitionSearch: process.env.EGOV_SERVICE_DEFINITION_SEARCH_PATH || "health-service-request/service/definition/v1/_search",
+    serviceDefinitionCreate: process.env.EGOV_SERVICE_DEFINITION_CREATE_PATH || "health-service-request/service/definition/v1/_create",
   },
-  // Values configuration
-  values: {
-    //module name
+      // General application values
+    values: {
     skipParentProjectConfirmation: process.env.SKIP_PARENT_PROJECT_CONFIRMATION === "true",
     unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "5010",
     unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "26",
@@ -379,25 +345,20 @@ const config = {
     },
     notCreateUserIfAlreadyThere: process.env.NOT_CREATE_USER_IF_ALREADY_THERE === "true",
     maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4",
-    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" /* can be retry if there is any error for which default retry can be set */,
+    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" ,
     latLongColumns: process.env.LAT_LONG_SUBSTRINGS || "HCM_ADMIN_CONSOLE_FACILITY_LATITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_FACILITY_LONGITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_TARGET_LAT_OPT,HCM_ADMIN_CONSOLE_TARGET_LONG_OPT",
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true",
   },
   resourceCreationConfig: {
     maxAttemptsForResourceCreationOrMapping: Number(process.env.MAX_RESOURCE_CREATION_ATTEMPTS || 200),
-    // wait time between each polling attempt in milliseconds (default: 60 sec)
+
     waitTimeOfEachAttemptOfResourceCreationOrMappping: Number(process.env.WAIT_TIME_OF_EACH_ATTEMPT_MS || 40000),
   },
-  excelIngestion: {
-    // Page size for paginated sheet-data reads from the excel-ingestion service.
+      // Excel ingestion configuration
+    excelIngestion: {
+
     sheetFetchPageSize: process.env.EXCEL_INGESTION_PAGE_SIZE ? parseInt(process.env.EXCEL_INGESTION_PAGE_SIZE, 10) : 2000,
-    // Stall timeout (ms): how long to keep waiting for the ingestion persister
-    // WITHOUT the persisted row count increasing. As long as rows keep landing the
-    // wait continues; it only fails once progress stalls for this long. Default 2 min.
     persistenceStallTimeoutMs: process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS, 10) : 120000,
-    // Interval (ms) between persistence-count polls. 10s — persisting thousands of
-    // rows is slow, so polling every second only adds needless count-query load.
-    // Shared by the ingestion gate and the background boundary/user persistence polls.
     persistencePollIntervalMs: process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS, 10) : 10000,
   }
 };

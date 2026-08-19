@@ -32,6 +32,8 @@ import org.egov.individual.repository.rowmapper.SkillRowMapper;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
@@ -104,7 +106,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         Long totalCount = constructTotalCountCTEAndReturnResult(individualQuery, paramMap, this.namedParameterJdbcTemplate);
         List<Individual> individuals = this.namedParameterJdbcTemplate
                 .query(individualQuery, paramMap, this.rowMapper);
-        enrichIndividuals(individuals, includeDeleted);
+        enrichIndividualsInBulk(individuals, includeDeleted);
         objFound.addAll(individuals);
         putInCache(objFound);
         return SearchResponse.<Individual>builder().totalCount(totalCount).response(objFound).build();
@@ -134,9 +136,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             String queryWithoutLimit = query.replace("ORDER BY createdtime DESC LIMIT :limit OFFSET :offset", "");
             Long totalCount = constructTotalCountCTEAndReturnResult(queryWithoutLimit, paramsMap, this.namedParameterJdbcTemplate);
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
-            if (!individuals.isEmpty()) {
-                enrichIndividuals(individuals, includeDeleted);
-            }
+            enrichIndividualsInBulk(individuals, includeDeleted);
             return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
         } else {
             Map<String, Object> identifierParamMap = new HashMap<>();
@@ -159,29 +159,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 }
                 List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                         paramsMap, this.rowMapper);
-                if (!individuals.isEmpty()) {
-                    individuals.forEach(individual -> {
-                        individual.setIdentifiers(identifiers);
-                        List<Address> addresses = null;
-                        // Fetch the addresses for each individual
-                        // catch the InvalidTenantIdException and throw a custom exception
-                        try {
-                            addresses = getAddressForIndividual( tenantId, individual.getId(), includeDeleted);
-                        } catch (InvalidTenantIdException e) {
-                            throw new CustomException( INVALID_TENANT_ID , INVALID_TENANT_ID_MSG);
-                        }
-                        individual.setAddress(addresses);
-                        Map<String, Object> indServerGenIdParamMap = new HashMap<>();
-                        indServerGenIdParamMap.put("individualId", individual.getId());
-                        indServerGenIdParamMap.put("isDeleted", includeDeleted);
-                        // catch the InvalidTenantIdException and throw a custom exception
-                        try {
-                            enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
-                        } catch (InvalidTenantIdException e) {
-                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
-                        }
-                    });
-                }
+                // Bulk enrichment: address + identifiers + skills fetched by the whole id set (3 queries),
+                // replacing the per-individual N+1. Identifiers are now the individual's full set (by id),
+                // consistent with the non-identifier search paths. Empty list is a no-op inside the method.
+                enrichIndividualsInBulk(individuals, includeDeleted);
                 return SearchResponse.<Individual>builder().response(individuals).build();
             }
             return SearchResponse.<Individual>builder().build();
@@ -225,26 +206,8 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 query = query + "LIMIT :limit OFFSET :offset";
                 List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                         paramsMap, this.rowMapper);
-                if (!individuals.isEmpty()) {
-                    individuals.forEach(individual -> {
-                        individual.setIdentifiers(identifiers);
-                        List<Address> addresses = null;
-                        try {
-                            addresses = getAddressForIndividual(tenantId, individual.getId(), includeDeleted);
-                        } catch (InvalidTenantIdException e) {
-                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
-                        }
-                        individual.setAddress(addresses);
-                        Map<String, Object> indServerGenIdParamMap = new HashMap<>();
-                        indServerGenIdParamMap.put("individualId", individual.getId());
-                        indServerGenIdParamMap.put("isDeleted", includeDeleted);
-                        try {
-                            enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
-                        } catch (InvalidTenantIdException e) {
-                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
-                        }
-                    });
-                }
+                // Bulk enrichment (proximity + identifier path): 3 set-based queries instead of per-row N+1.
+                enrichIndividualsInBulk(individuals, includeDeleted);
                 return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
             }
         } else {
@@ -263,9 +226,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "LIMIT :limit OFFSET :offset";
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                     paramsMap, this.rowMapper);
-            if (!individuals.isEmpty()) {
-                enrichIndividuals(individuals, includeDeleted);
-            }
+            enrichIndividualsInBulk(individuals, includeDeleted);
             return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
         }
         return SearchResponse.<Individual>builder().build();
@@ -432,6 +393,113 @@ public class IndividualRepository extends GenericRepository<Individual> {
         addressQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(addressQuery, tenantId);
         return this.namedParameterJdbcTemplate
                 .query(addressQuery, indServerGenIdParamMap, new AddressRowMapper());
+    }
+
+    /**
+     * Bulk variant of {@link #getAddressForIndividual}: fetches the latest address per (individual, type)
+     * for ALL given individualIds in a single query, grouped by individualId. Central-instance safe
+     * (schema placeholder resolved via multiStateInstanceUtil for the tenant).
+     */
+    private Map<String, List<Address>> getAddressForIndividuals(String tenantId, List<String> individualIds, Boolean includeDeleted) throws InvalidTenantIdException {
+        if (individualIds == null || individualIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.addressId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted" +
+                " FROM (" +
+                "    SELECT individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, " +
+                "           ROW_NUMBER() OVER (PARTITION BY individualId, type ORDER BY lastModifiedTime DESC) AS rn" +
+                "    FROM %s.individual_address" +
+                "    WHERE individualId IN (:individualIds)" +
+                " ) AS ia" +
+                " JOIN %s.address AS a ON ia.addressId = a.id" +
+                " WHERE ia.rn = 1 ", includeDeleted, "ia");
+        addressQuery = String.format(addressQuery, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("individualIds", individualIds);
+        addressQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(addressQuery, tenantId);
+        return queryGroupedByIndividualId(addressQuery, paramMap, new AddressRowMapper());
+    }
+
+    /**
+     * Bulk variant of the per-individual identifier lookup in {@link #enrichIndividuals}: fetches identifiers
+     * for ALL given individualIds in one query, grouped by individualId. Central-instance safe.
+     */
+    private Map<String, List<Identifier>> getIdentifiersForIndividuals(String tenantId, List<String> individualIds, Boolean includeDeleted) throws InvalidTenantIdException {
+        if (individualIds == null || individualIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        String identifierQuery = getQuery("SELECT * FROM %s.individual_identifier ii WHERE ii.individualId IN (:individualIds) ", includeDeleted, "ii");
+        identifierQuery = String.format(identifierQuery, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("individualIds", individualIds);
+        identifierQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(identifierQuery, tenantId);
+        return queryGroupedByIndividualId(identifierQuery, paramMap, new IdentifierRowMapper());
+    }
+
+    /**
+     * Bulk variant of {@link #enrichSkills}: fetches skills for ALL given individualIds in one query,
+     * grouped by individualId. Central-instance safe.
+     */
+    private Map<String, List<Skill>> getSkillsForIndividuals(String tenantId, List<String> individualIds, Boolean includeDeleted) throws InvalidTenantIdException {
+        if (individualIds == null || individualIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        String skillQuery = getQuery("SELECT * FROM %s.individual_skill WHERE individualId IN (:individualIds) ", includeDeleted);
+        skillQuery = String.format(skillQuery, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("individualIds", individualIds);
+        skillQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(skillQuery, tenantId);
+        return queryGroupedByIndividualId(skillQuery, paramMap, new SkillRowMapper());
+    }
+
+    /**
+     * Runs a query whose result set exposes an "individualId" column and groups the rows (mapped via the
+     * supplied RowMapper) by that column — so one round-trip hydrates many individuals at once, replacing
+     * the per-individual N+1 lookups.
+     */
+    private <T> Map<String, List<T>> queryGroupedByIndividualId(String query, Map<String, Object> paramMap, RowMapper<T> rowMapper) {
+        return this.namedParameterJdbcTemplate.query(query, paramMap,
+                (ResultSetExtractor<Map<String, List<T>>>) rs -> {
+                    Map<String, List<T>> grouped = new HashMap<>();
+                    int rowNum = 0;
+                    while (rs.next()) {
+                        String individualId = rs.getString("individualId");
+                        T mapped = rowMapper.mapRow(rs, rowNum++);
+                        grouped.computeIfAbsent(individualId, k -> new ArrayList<>()).add(mapped);
+                    }
+                    return grouped;
+                });
+    }
+
+    /**
+     * Bulk enrichment: collects all individualIds from the list and hydrates address, identifiers and
+     * skills for the whole batch in exactly 3 queries (one per sub-table), then stitches the grouped
+     * results back onto each Individual. Drop-in replacement for the per-individual N+1 in
+     * {@link #enrichIndividuals}. Central-instance safe (tenant resolved from the individuals).
+     */
+    private void enrichIndividualsInBulk(List<Individual> individuals, Boolean includeDeleted) {
+        if (individuals == null || individuals.isEmpty()) {
+            return;
+        }
+        String tenantId = CommonUtils.getTenantId(individuals);
+        List<String> individualIds = individuals.stream()
+                .map(Individual::getId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        try {
+            Map<String, List<Address>> addressMap = getAddressForIndividuals(tenantId, individualIds, includeDeleted);
+            Map<String, List<Identifier>> identifierMap = getIdentifiersForIndividuals(tenantId, individualIds, includeDeleted);
+            Map<String, List<Skill>> skillMap = getSkillsForIndividuals(tenantId, individualIds, includeDeleted);
+            individuals.forEach(individual -> {
+                String id = individual.getId();
+                individual.setAddress(addressMap.getOrDefault(id, new ArrayList<>()));
+                individual.setIdentifiers(identifierMap.getOrDefault(id, new ArrayList<>()));
+                individual.setSkills(skillMap.getOrDefault(id, new ArrayList<>()));
+            });
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+        }
     }
 
     private void enrichIndividuals(List<Individual> individuals, Boolean includeDeleted) {

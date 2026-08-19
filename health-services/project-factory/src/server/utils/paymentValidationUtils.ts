@@ -7,6 +7,7 @@ const BANK_ACCOUNT_PATTERN = /^[0-9]{10}$/;
 const BANK_CODE_PATTERN = /^$|^[0-9]{3}$|^[0-9]{9}$/;
 export const ALPHANUMERIC_PATTERN = /^[A-Za-z0-9]{1,35}$/;
 
+/** Validates worker payment fields per provider (BANK requires payee/beneficiary/account, MTN requires phone/payee); returns collected errors. */
 export function validatePaymentFields(workerData: {
     paymentProvider?: string;
     payeeName?: string;

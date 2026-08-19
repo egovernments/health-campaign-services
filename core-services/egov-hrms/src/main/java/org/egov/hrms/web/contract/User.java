@@ -2,18 +2,17 @@ package org.egov.hrms.web.contract;
 
 import java.util.List;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.egov.hrms.model.Role;
 import org.egov.hrms.model.enums.GuardianRelation;
 import org.springframework.validation.annotation.Validated;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -66,7 +65,6 @@ public class User {
     @JsonProperty("gender")
     private String gender;
 
-    @Pattern(regexp = "^[0-9]{9,10}$", message = "MobileNumber should be either 9 or 10 digit number")
     @JsonProperty("mobileNumber")
     private String mobileNumber;
 

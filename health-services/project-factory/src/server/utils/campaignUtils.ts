@@ -10,7 +10,6 @@ import {
 import {
   getCampaignNumber,
   createAndUploadFile,
-  // getMDMSV1Data,
   getTargetSheetDataAfterCode,
   callMdmsTypeSchema,
   getSheetDataFromWorksheet,
@@ -67,7 +66,6 @@ import {
   validateBoundaryOfResouces
 } from "../validators/campaignValidators";
 import {
-  // findColumnByHeader,
   getExcelWorkbookFromFileURL,
   getNewExcelWorkbook,
   lockTargetFields,
@@ -94,6 +92,7 @@ import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
 import { createMdmsData, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { createServiceDefinition, searchServiceDefinitions } from "../api/serviceRequestApis";
 import {
   fetchFacilityData,
   fetchTargetData,
@@ -128,13 +127,11 @@ function findAndChangeColumns(worksheet: any, columns: any) {
   firstRow.eachCell((cell: any, colNumber: number) => {
     if (cell.value === "#status#") {
       columns.statusColumn = cell.address.replace(/\d+/g, "");
-      // Set the cell color to green
       cell.fill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: "CCCC00" },
       };
-      // Delete status column cells in subsequent rows
       worksheet.eachRow((row: any, rowIndex: number) => {
         if (rowIndex > 1) {
           const statusCell = row.getCell(colNumber);
@@ -144,13 +141,11 @@ function findAndChangeColumns(worksheet: any, columns: any) {
     }
     if (cell.value === "#errorDetails#") {
       columns.errorDetailsColumn = cell.address.replace(/\d+/g, "");
-      // Set the cell color to green
       cell.fill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: "CCCC00" },
       };
-      // Delete error details column cells in subsequent rows
       worksheet.eachRow((row: any, rowIndex: number) => {
         if (rowIndex > 1) {
           const errorDetailsCell = row.getCell(colNumber);
@@ -251,14 +246,12 @@ function enrichErrors(
       );
       uniqueIdentifierCell.value = columnName;
 
-      // Set the cell color to green
       uniqueIdentifierCell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "ff9248" }, // Green color
+        fgColor: { argb: "ff9248" },
       };
       uniqueIdentifierCell.font = { bold: true };
-      // Hide the unique identifier column
       worksheet.getColumn(
         createAndSearchConfig?.uniqueIdentifierColumn
       ).hidden = true;
@@ -328,26 +321,14 @@ function deterMineLastColumnAndEnrichUserDetails(
     passwordColumn = "M";
   }
 
-  // const foundUsernameColumn = findColumnByHeader("UserName", worksheet);
-  // const foundPasswordColumn = findColumnByHeader("Password", worksheet);
-
-  // if (foundUsernameColumn) {
-  //   usernameColumn = foundUsernameColumn;
-  // }
-  // if (foundPasswordColumn) {
-  //   passwordColumn = foundPasswordColumn;
-  // }
-
-  // Populate username and password columns if data is provided
   if (userNameAndPassword) {
-    // Set headers with formatting
     const setCellHeader = (cell: string) => {
       worksheet.getCell(cell).value =
         cell === usernameColumn + "1" ? "UserName" : "Password";
       worksheet.getCell(cell).fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "ff9248" }, // Green color
+        fgColor: { argb: "ff9248" },
       };
       worksheet.getCell(cell).font = { bold: true };
       const columnLetter = cell.replace(/\d+$/, "");
@@ -357,7 +338,6 @@ function deterMineLastColumnAndEnrichUserDetails(
     setCellHeader(usernameColumn + "1");
     setCellHeader(passwordColumn + "1");
 
-    // Set values
     userNameAndPassword.forEach((data) => {
       const rowIndex = data.rowNumber;
       worksheet.getCell(`${usernameColumn}${rowIndex}`).value = data.userName;
@@ -371,7 +351,7 @@ function deterMineLastColumnAndEnrichUserDetails(
 function adjustRef(worksheet: any, lastColumn: any) {
   const range = getSheetDataFromWorksheet(worksheet).filter(
     (row: any) => row
-  ).length; // Get the number of used rows
+  ).length;
   worksheet.views = [
     { state: "frozen", ySplit: 1, topLeftCell: "A2", activeCell: "A2" },
   ];
@@ -397,7 +377,6 @@ function processErrorData(
   const worksheet = workbook.getWorksheet(sheetName);
   var errorData = request.body.sheetErrorDetails;
   const userNameAndPassword = request.body.userNameAndPassword;
-  // Determine the last column to set the worksheet ref
   const lastColumn = deterMineLastColumnAndEnrichUserDetails(
     worksheet,
     userNameAndPassword,
@@ -423,7 +402,6 @@ function processErrorData(
     ? request?.body?.additionalDetailsErrors.concat(additionalDetailsErrors)
     : additionalDetailsErrors;
 
-  // Adjust the worksheet ref to include the last column
   adjustRef(worksheet, lastColumn);
   updateFontNameToRoboto(worksheet);
 
@@ -436,11 +414,9 @@ function mergeErrors(errorData: any) {
   errorData.forEach((item: any) => {
     const { rowNumber, sheetName, status, errorDetails, ...rest } = item;
 
-    // If the rowNumber already exists, merge the errorDetails
     if (errorMap[rowNumber]) {
       errorMap[rowNumber].errorDetails += "; " + errorDetails;
     } else {
-      // If not, add a new entry
       errorMap[rowNumber] = {
         rowNumber,
         sheetName,
@@ -451,7 +427,6 @@ function mergeErrors(errorData: any) {
     }
   });
 
-  // Convert the errorMap back into an array
   return Object.values(errorMap);
 }
 
@@ -558,7 +533,6 @@ async function updateStatusFile(
   );
   await hideMultiSelectMainColumns(worksheet, request, localizationMap);
 
-  // Set column widths
   const columnWidths = Array(12).fill({ width: 30 });
   columnWidths.forEach((colWidth, index) => {
     if (worksheet.getColumn(index + 1)) {
@@ -567,7 +541,6 @@ async function updateStatusFile(
   });
   if (isLockSheetNeeded) lockSheet(request, workbook);
   const responseData = await createAndUploadFile(workbook, request);
-
   logger.info("File updated successfully:" + JSON.stringify(responseData));
   if (responseData?.[0]?.fileStoreId) {
     request.body.ResourceDetails.processedFileStoreId =
@@ -605,6 +578,7 @@ async function hideMultiSelectMainColumns(
   }
 }
 
+/** Fetch the MDMS type schema for facility/user, picking the microplan variant when applicable. */
 export async function getSchema(tenantId: string, isUpdate: boolean, type: string, isSourceMicroplan: boolean) {
   if (type === "facility" || type === "user") {
     return isSourceMicroplan
@@ -815,7 +789,6 @@ function setTenantIdAndSegregate(
   return processedData;
 }
 
-// Original function divided into two parts
 async function convertToTypeData(
   request: any,
   dataFromSheet: any[],
@@ -952,7 +925,6 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     boundaries: requestBody?.CampaignDetails?.boundaries || [],
   };
   requestBody.CampaignDetails.status = campaignStatuses?.failed;
-  // requestBody.CampaignDetails.isActive = false;
   requestBody.CampaignDetails.projectType =
     requestBody?.CampaignDetails?.projectType || null;
   requestBody.CampaignDetails.hierarchyType =
@@ -990,6 +962,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   delete requestBody.CampaignDetails.campaignDetails;
 }
 
+/** Persist a resource-task failure: record the error and reactivate the parent, without failing an already-inprogress campaign. */
 export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, requestInfo: RequestInfo, error: any) {
   const RequestInfo = requestInfo || {};
   const useruuid: string = RequestInfo?.userInfo?.uuid as string;
@@ -1023,7 +996,6 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
     boundaries: campaignDetails?.boundaries || [],
   };
   const currTime = Date.now();
-  // requestBody.CampaignDetails.isActive = false;
   campaignDetails.auditDetails = {
     createdBy: useruuid,
     createdTime: currTime,
@@ -1066,8 +1038,9 @@ async function enrichAndPersistCampaignForCreate(
         request.body.parentCampaign?.campaignNumber;
       request.body.CampaignDetails.campaignName =
         request.body.parentCampaign?.campaignName;
-      request.body.CampaignDetails.isActive = true; // Set isActive to true for child campaigns
+      request.body.CampaignDetails.isActive = true;
     }
+    processClonedChecklist(request?.body?.CampaignDetails, request?.body?.RequestInfo)
     processAppConfig(request?.body?.CampaignDetails, request?.body?.RequestInfo);
   }
   request.body.CampaignDetails.campaignDetails = {
@@ -1125,7 +1098,52 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
     logger.error("Error while processing app config", error);
   }
 }
+async function processClonedChecklist(campaignDetails: any, RequestInfo: any) {
+  try {
+    if (!campaignDetails?.parentId) {
+      if (campaignDetails?.additionalDetails?.cloneFrom) {
+        // Clone the checklist from parent campaign
+        const clonedChecklists = await fetchCloneChecklist(
+          campaignDetails?.projectType,
+          campaignDetails?.additionalDetails?.cloneFrom,
+          campaignDetails?.tenantId,
+          RequestInfo
+        );
 
+        if (clonedChecklists.length) {
+          // Creation of cloned checklist
+          await createClonedChecklist(
+            clonedChecklists,
+            campaignDetails?.campaignName,
+            campaignDetails?.tenantId,
+            RequestInfo
+          );
+
+          // Upsert localisation for cloned checklist
+          const [locales, localisation] = await Promise.all([
+            getLocalesFromStateInfo(campaignDetails?.tenantId),
+            Localisation.getInstance(),
+          ]);
+
+          await upsertChecklistLocalization(
+            campaignDetails?.campaignNumber,
+            campaignDetails?.campaignName,
+            campaignDetails?.additionalDetails?.cloneFrom,
+            campaignDetails?.tenantId,
+            locales,
+            localisation,
+            RequestInfo
+          );
+        }
+      }
+    }
+  } catch (error) {
+    logger.warn("Error while processing cloned checklist", error);
+  }
+}
+
+
+/** Flow-2 create persist: mark campaign inprogress/started and deactivate the parent once a child goes inprogress. */
 export async function enrichAndPersistCampaignForCreateViaFlow2(
   campaignDetails: any,
   RequestInfo: any,
@@ -1181,14 +1199,6 @@ async function enrichAndPersistCampaignForUpdate(
   firstPersist: boolean = false
 ) {
   const action = request?.body?.CampaignDetails?.action;
-  // const boundaries = request?.body?.boundariesCombined;
-  // const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
-  // callGenerateIfBoundariesOrCampaignTypeDiffer(request);
-  // if (existingCampaignDetails) {
-  //   if (areBoundariesSame(existingCampaignDetails?.boundaries, boundaries)) {
-  //     updateTargetColumnsIfDeliveryConditionsDifferForSMC(request);
-  //   }
-  // }
   const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
   var updatedInnerCampaignDetails = {};
   enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails);
@@ -1240,7 +1250,6 @@ async function enrichAndPersistCampaignForUpdate(
     config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
     request?.body?.CampaignDetails?.tenantId
   );
-  // delete request.body.ExistingCampaignDetails;
   delete request.body.CampaignDetails.campaignDetails;
 }
 
@@ -1265,72 +1274,6 @@ async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string,
   );
 }
 
-// function getCreateResourceIds(resources: any[]) {
-//   return resources
-//     .filter(
-//       (resource: any) =>
-//         typeof resource.createResourceId === "string" &&
-//         resource.createResourceId.trim() !== ""
-//     )
-//     .map((resource: any) => {
-//       const resourceId = resource.createResourceId;
-//       return resourceId;
-//     });
-// }
-
-// async function persistForCampaignProjectMapping(
-//   request: any,
-//   createResourceDetailsIds: any,
-//   localizationMap?: any
-// ) {
-//   if (createResourceDetailsIds && request?.body?.CampaignDetails?.projectId) {
-//     var requestBody: any = {
-//       RequestInfo: request?.body?.RequestInfo,
-//       Campaign: {},
-//     };
-//     if (request?.body?.ExistingCampaignDetails) {
-//       delete request.body.ExistingCampaignDetails;
-//     }
-//     requestBody.Campaign.id = request?.body?.CampaignDetails?.id;
-//     // requestBody.Campaign.newlyCreatedBoundaryProjectMap =
-//     //   request?.body?.newlyCreatedBoundaryProjectMap;
-//     requestBody.Campaign.hierarchyType =
-//       request?.body?.CampaignDetails?.hierarchyType;
-//     requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId;
-//     requestBody.Campaign.campaignName =
-//       request?.body?.CampaignDetails?.campaignName;
-//     requestBody.Campaign.boundaryCode =
-//       request?.body?.CampaignDetails?.boundaryCode;
-//     requestBody.Campaign.startDate = request?.body?.CampaignDetails?.startDate;
-//     requestBody.Campaign.endDate = request?.body?.CampaignDetails?.endDate;
-//     requestBody.Campaign.projectType =
-//       request?.body?.CampaignDetails?.projectType;
-//     requestBody.Campaign.additionalDetails =
-//       request?.body?.CampaignDetails?.additionalDetails;
-//     requestBody.Campaign.deliveryRules =
-//       request?.body?.CampaignDetails?.deliveryRules;
-//     requestBody.Campaign.rootProjectId =
-//       request?.body?.CampaignDetails?.projectId;
-//     requestBody.Campaign.resourceDetailsIds = createResourceDetailsIds;
-//     requestBody.CampaignDetails = request?.body?.CampaignDetails;
-//     requestBody.parentCampaign = request?.body?.parentCampaign;
-//     var updatedInnerCampaignDetails = {};
-//     enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails);
-//     requestBody.CampaignDetails = request?.body?.CampaignDetails;
-//     requestBody.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
-//     // requestBody.localizationMap = localizationMap
-//     logger.info("Persisting CampaignProjectMapping...");
-//     logger.debug(
-//       `CampaignProjectMapping: ${getFormattedStringForDebug(requestBody)}`
-//     );
-//     await produceModifiedMessages(
-//       requestBody,
-//       config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
-//       request?.body?.CampaignDetails?.tenantId
-//     );
-//   }
-// }
-
 function removeBoundariesFromRequest(request: any) {
   const boundaries = request?.body?.CampaignDetails?.boundaries;
   if (boundaries && Array.isArray(boundaries) && boundaries?.length > 0) {
@@ -1352,43 +1295,7 @@ async function enrichAndPersistProjectCampaignForFirst(
   } else if (actionInUrl == "update") {
     await enrichAndPersistCampaignForUpdate(request, firstPersist);
   }
-  // if (request?.body?.parentCampaign?.isActive) {
-  //   await makeParentInactiveOrActive(request?.body, false);
-  // }
 }
-
-// async function enrichAndPersistProjectCampaignRequest(
-//   request: any,
-//   actionInUrl: any,
-//   firstPersist: boolean = false,
-//   localizationMap?: any
-// ) {
-//   var createResourceDetailsIds: any[] = [];
-//   if (
-//     request?.body?.CampaignDetails?.resources &&
-//     Array.isArray(request?.body?.CampaignDetails?.resources) &&
-//     request?.body?.CampaignDetails?.resources?.length > 0 &&
-//     request?.body?.CampaignDetails?.action == "create"
-//   ) {
-//     createResourceDetailsIds = getCreateResourceIds(
-//       request?.body?.CampaignDetails?.resources
-//     );
-//   }
-//   // removeBoundariesFromRequest(request);
-//   if (actionInUrl == "create") {
-//     await enrichAndPersistCampaignForCreate(request, firstPersist);
-//   } else if (actionInUrl == "update") {
-//     await enrichAndPersistCampaignForUpdate(request, firstPersist);
-//   }
-//   if (request?.body?.CampaignDetails?.action == "create") {
-//     await persistForCampaignProjectMapping(
-//       request,
-//       createResourceDetailsIds,
-//       localizationMap
-//     );
-//   }
-// }
-
 
 async function getTotalCount(campaignDetails: any) {
   const { tenantId, ids, ...searchFields } = campaignDetails;
@@ -1478,7 +1385,6 @@ async function getTotalCount(campaignDetails: any) {
 }
 
 async function searchProjectCampaignResourcData(campaignDetails: any, request?: any) {
-  // const CampaignDetails = request.body.CampaignDetails;
   const { tenantId, pagination, ids, ...searchFields } = campaignDetails;
   const queryData = buildSearchQuery(tenantId, pagination, ids, searchFields);
   const totalCount = await getTotalCount(campaignDetails);
@@ -1629,14 +1535,12 @@ function buildSearchQuery(
 
   const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
 
-  // Base query
   let query = `
     SELECT *
     FROM ${tableName}
     WHERE tenantId = $1
   `;
 
-  // Add ID filter or default to isActive=true
   if (ids && ids.length > 0) {
     const idParams = ids.map((_, i) => `$${index + i}`);
     query += ` AND id IN (${idParams.join(", ")})`;
@@ -1646,7 +1550,6 @@ function buildSearchQuery(
     query += ` AND isActive = true`;
   }
 
-  // Add status filter
   const status = searchFields?.status;
   if (status) {
     const statusArray = Array.isArray(status) ? status : [status];
@@ -1656,12 +1559,10 @@ function buildSearchQuery(
     index += statusArray.length;
   }
 
-  // Append other conditions
   if (conditions.length > 0) {
     query += ` AND ${conditions.join(" AND ")}`;
   }
 
-  // Add pagination
   if (pagination) {
     query += "\n";
     if (pagination.sortBy) {
@@ -1704,41 +1605,34 @@ function buildWhereClauseForDataSearch(SearchCriteria: any): {
   let conditions = [];
   let values = [];
 
-  // Check for id
   if (id && id.length > 0) {
     conditions.push(`id = ANY($${values.length + 1})`);
     values.push(id);
   }
 
-  // Check for tenantId
   if (tenantId) {
     conditions.push(`tenantId = $${values.length + 1}`);
     values.push(tenantId);
   }
 
-  // Check for type
   if (type) {
     conditions.push(`type = $${values.length + 1}`);
     values.push(type);
   }
 
-  // Check for status
   if (status) {
     conditions.push(`status = $${values.length + 1}`);
     values.push(status);
   }
 
-  // Check for hierarchyType
   if (hierarchyType) {
     conditions.push(`hierarchyType = $${values.length + 1}`);
     values.push(hierarchyType);
   }
 
-  // Build the WHERE clause
   const whereClause =
     conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  // Return the query and values array
   const tableName = getTableName(config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
   return {
     query: `
@@ -1770,41 +1664,35 @@ function mapBoundariesParent(boundaryResponse: any, request: any, parent: any) {
 function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
   if (!boundaryResponses || !codesTargetMapping) return;
 
-  // Helper function to map individual boundaries
+  // Roll leaf targets up to each ancestor by summing children.
   const mapBoundary = (boundary: any) => {
     if (!boundary.children || boundary.children.length === 0) {
-      // If no children, simply return the target value object or default to empty object
       const targetValue = codesTargetMapping[boundary.code];
       return targetValue || {};
     }
 
-    // Initialize a new object to accumulate total target values from children
     let totalTargetValue: any = {};
 
-    // Iterate through each child and accumulate their target values
     for (const child of boundary.children) {
       const childTargetValue = mapBoundary(child);
 
-      // Accumulate the child target values into the total target value
       for (const key in childTargetValue) {
         if (childTargetValue.hasOwnProperty(key)) {
-          // Initialize key in totalTargetValue if it doesn't exist
           totalTargetValue[key] = (totalTargetValue[key] || 0) + childTargetValue[key];
         }
       }
     }
 
-    // Store the accumulated total target value for the current boundary
     codesTargetMapping[boundary.code] = totalTargetValue;
     return totalTargetValue;
   };
 
-  // Map each boundary response
   for (const boundaryResponse of boundaryResponses) {
     mapBoundary(boundaryResponse);
   }
 }
 
+/** Walk the boundary tree adding any missing nodes (with parent links) to `boundaries`, respecting includeAllChildren. */
 export async function populateBoundariesRecursively(
   boundaryResponse: any,
   boundaries: any,
@@ -1941,7 +1829,6 @@ async function addBoundaries(
 }
 
 async function addBoundariesForData(request: any, CampaignDetails: any) {
-  // var { boundaries } = CampaignDetails;
   var boundaries = await getBoundariesFromCampaignSearchResponse(
     request,
     CampaignDetails
@@ -2014,11 +1901,10 @@ function reorderBoundariesWithParentFirst(
 
   logger.info(`Started processing ${boundaries.length} boundaries...`);
 
-  // Step 1: Build the graph and calculate in-degrees
   boundaries.forEach((boundary) => {
     const code = boundary.code;
     boundaryGraph.set(code, []);
-    inDegree.set(code, 0); // Initialize in-degree for each boundary
+    inDegree.set(code, 0);
   });
 
   boundaries.forEach((boundary) => {
@@ -2026,8 +1912,8 @@ function reorderBoundariesWithParentFirst(
     const parentCode = boundaryProjectMapping[code]?.parent;
 
     if (parentCode) {
-      boundaryGraph.get(parentCode).push(code); // Parent points to child
-      inDegree.set(code, inDegree.get(code) + 1); // Increment in-degree of child
+      boundaryGraph.get(parentCode).push(code);
+      inDegree.set(code, inDegree.get(code) + 1);
     }
   });
 
@@ -2038,11 +1924,10 @@ function reorderBoundariesWithParentFirst(
     ).toFixed(2)} seconds.`
   );
 
-  // Step 2: Perform topological sort using Kahn's Algorithm
+  // Topological sort (Kahn's Algorithm) so parents always precede children.
   const queue: any = [];
   const sortedBoundaries = [];
 
-  // Enqueue nodes with 0 in-degree
   boundaries.forEach((boundary) => {
     if (inDegree.get(boundary.code) === 0) {
       queue.push(boundary);
@@ -2055,7 +1940,6 @@ function reorderBoundariesWithParentFirst(
     sortedBoundaries.push(currentBoundary);
     nodesProcessed++;
 
-    // Log progress periodically
     if (nodesProcessed % 500 === 0) {
       const elapsed = (Date.now() - startTime) / 1000;
       const avgTimePerBoundary = elapsed / nodesProcessed;
@@ -2078,7 +1962,7 @@ function reorderBoundariesWithParentFirst(
     });
   }
 
-  // Check for cycles (remaining nodes with non-zero in-degree)
+  // Fewer sorted than input means a cycle left some nodes with non-zero in-degree.
   if (sortedBoundaries.length !== boundaries.length) {
     throw new Error(
       "Cycle detected in the boundary-parent relationships. Reordering failed."
@@ -2100,14 +1984,10 @@ async function reorderBoundariesOfDataAndValidate(
   localizationMap?: any
 ) {
   if (request?.body?.ResourceDetails?.campaignId) {
-    // const searchBody = {
-    //   RequestInfo: request?.body?.RequestInfo,
     const CampaignDetails = {
       ids: [request?.body?.ResourceDetails?.campaignId],
       tenantId: request?.body?.ResourceDetails?.tenantId,
     }
-    // };
-    // const req: any = replicateRequest(request, searchBody);
     const response = await searchProjectTypeCampaignService(CampaignDetails);
     if (response?.CampaignDetails?.[0]) {
       const CampaignDetails = response?.CampaignDetails?.[0];
@@ -2133,7 +2013,6 @@ async function reorderBoundariesOfDataAndValidate(
 }
 
 async function reorderBoundaries(request: any, localizationMap?: any) {
-  // var { boundaries } = request?.body?.CampaignDetails;
   var boundaries = request?.body?.boundariesCombined;
   const rootBoundary = getRootBoundaryCode(boundaries);
   request.body.boundaryProjectMapping = {};
@@ -2221,53 +2100,6 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
   return request.body.boundariesCombined;
 }
 
-// function convertToProjectsArray(Projects: any, currentArray: any = []) {
-//   for (const project of Projects) {
-//     const descendants = project?.descendants;
-//     delete project?.descendants;
-//     currentArray.push(project);
-//     if (descendants && Array.isArray(descendants) && descendants?.length > 0) {
-//       convertToProjectsArray(descendants, currentArray);
-//     }
-//   }
-//   return currentArray;
-// }
-
-// async function getRelatedProjects(request: any) {
-//   const { projectId, tenantId } = request?.body?.CampaignDetails;
-//   const projectSearchBody = {
-//     RequestInfo: request?.body?.RequestInfo,
-//     Projects: [
-//       {
-//         id: projectId,
-//         tenantId: tenantId,
-//       },
-//     ],
-//   };
-//   const projectSearchParams = {
-//     tenantId: tenantId,
-//     offset: 0,
-//     limit: 1,
-//     includeDescendants: true,
-//   };
-//   logger.info("Project search params " + JSON.stringify(projectSearchParams));
-//   const projectSearchResponse = await httpRequest(
-//     config?.host?.projectHost + config?.paths?.projectSearch,
-//     projectSearchBody,
-//     projectSearchParams
-//   );
-//   if (
-//     projectSearchResponse?.Project &&
-//     Array.isArray(projectSearchResponse?.Project) &&
-//     projectSearchResponse?.Project?.length > 0
-//   ) {
-//     return convertToProjectsArray(projectSearchResponse?.Project);
-//   } else {
-//     throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR");
-//     return [];
-//   }
-// }
-
 async function getCodesTarget(request: any, localizationMap?: any) {
   let boundaryCodesWhoseTargetsHasToBeUpdated: any = [];
   const { tenantId, resources } = request?.body?.CampaignDetails;
@@ -2298,16 +2130,12 @@ async function getCodesTarget(request: any, localizationMap?: any) {
       localizationMap
     );
     const boundaryTargetMapping: any = {};
-    // Iterate through each key in targetData
     for (const key in targetData) {
-      // Iterate through each entry in the array under the current key
       targetData[key].forEach((entry: any) => {
-        // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
         if (
           entry[codeColumnName] !== undefined &&
           entry["Target at the Selected Boundary level"] !== undefined
         ) {
-          // Add the mapping to the boundaryTargetMapping object
           boundaryTargetMapping[entry[codeColumnName]] =
             entry["Target at the Selected Boundary level"];
           if (
@@ -2337,9 +2165,8 @@ function isUnfiedTemplateCamapign(campaignDetails: any): boolean {
   if (!campaignDetails?.resources || !Array.isArray(campaignDetails.resources)) {
     throw new Error('Campaign resources not found or invalid');
   }
-  
-  // Check if any resource has type "unified-console-resources"
-  return campaignDetails.resources.some((resource: any) => 
+
+  return campaignDetails.resources.some((resource: any) =>
     resource?.type === "unified-console-resources"
   );
 }
@@ -2348,12 +2175,10 @@ function isUnfiedTemplateCamapign(campaignDetails: any): boolean {
  * Process unified template campaign by calling excel-ingestion process API
  */
 async function processUnifiedTemplateCampaign(request: any): Promise<void> {
-  // For unified template campaigns, call excel-ingestion process API
   const campaignDetails = request?.body?.CampaignDetails;
   const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
   const emailId = request?.body?.RequestInfo?.userInfo?.emailId || null;
-  
-  // Find the unified-console-resources resource to get filestoreId
+
   const unifiedResource = campaignDetails.resources.find((resource: CampaignResource) =>
     resource?.type === "unified-console-resources"
   );
@@ -2364,7 +2189,6 @@ async function processUnifiedTemplateCampaign(request: any): Promise<void> {
 
   logger.info(`Calling excel-ingestion process API for unified campaign: ${campaignDetails.campaignNumber}`);
 
-  // Call excel-ingestion process API
   const processRequestBody = {
     RequestInfo: {
       apiId: "project-factory",
@@ -2423,10 +2247,8 @@ async function processRegularCampaign(request: any): Promise<void> {
     campaignDetails?.auditDetails?.createdBy;
   const requestInfo = request?.body?.RequestInfo;
 
-  // Prepare DB setup synchronously
   await prepareProcessesInDb(campaignNumber, tenantId, useruuid);
 
-  // Initialize resource statuses for all resource types present in campaign
   const resources = campaignDetails?.resources || [];
   for (const resource of resources) {
     if (resource?.type) {
@@ -2453,12 +2275,6 @@ async function processRegularCampaign(request: any): Promise<void> {
   logger.info(`Started async background flow for campaign: ${campaignNumber}`);
 }
 
-/**
- * Search parent's eg_cm_resource_details for unified-console-resources and create
- * a new toCreate entry for the child campaign.
- * If child's campaignDetails.resources already has a unified-console-resources entry
- * with a filestoreId, that overrides the parent's filestoreId.
- */
 /**
  * Wait for the child campaign row to appear in the DB (persisted via Kafka persister).
  * This must complete before copying resources so the FK from resource_details → campaign is valid.
@@ -2502,14 +2318,7 @@ async function copyResourcesFromParentToChildInDB(
   const tableName = getTableName(config.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
   const now = Date.now();
 
-  // Step 1: Deactivate existing resources on child for idempotency.
-  // Covers both toCreate (old rows) and completed (rows from a prior copy run).
-  // await executeQuery(
-  //   `UPDATE ${tableName} SET isactive = false, lastmodifiedby = $1, lastmodifiedtime = $2 WHERE campaignid = $3 AND tenantid = $4 AND status = $5 AND isactive = true`,
-  //   [userUuid, now, childCampaignId, tenantId, resourceStatuses.toCreate]
-  // );
-
-  // Step 2: Bulk INSERT SELECT — single SQL for all resource types, handles 10k-20k+ rows efficiently.
+  // Bulk INSERT SELECT — single SQL for all resource types, handles 10k-20k+ rows efficiently.
   // status, filestoreid, and processedfilestoreid are all copied directly from the parent row.
   await executeQuery(
     `INSERT INTO ${tableName} (id, tenantid, campaignid, type, parentresourceid, filestoreid, processedfilestoreid, filename, status, action, isactive, hierarchytype, additionaldetails, createdby, lastmodifiedby, createdtime, lastmodifiedtime)
@@ -2521,7 +2330,7 @@ async function copyResourcesFromParentToChildInDB(
 
   logger.info(`Bulk copied completed resources from parent campaign ${parentCampaignId} to child campaign ${childCampaignId} in DB.`);
 
-  // Step 3: Override filestoreId in DB for types provided in CampaignDetails.resources
+  // Override filestoreId in DB for types explicitly provided in CampaignDetails.resources
   const childResources: any[] = campaignDetails?.resources || [];
   for (const resource of childResources) {
     if (!resource?.type || !resource?.filestoreId) continue;
@@ -2532,7 +2341,7 @@ async function copyResourcesFromParentToChildInDB(
     logger.info(`Overrode filestoreId for type=${resource.type} on child campaign ${childCampaignId}.`);
   }
 
-  // Step 4: Read back unified-console-resources and sync filestoreId into in-memory resources
+  // Read back unified-console-resources and sync filestoreId into in-memory resources
   // so processUnifiedTemplateCampaign can read it from campaignDetails.resources
   const unifiedRows = await searchResourceDetailsFromDB({
     tenantId,
@@ -2602,6 +2411,10 @@ async function borrowUnifiedSheetFromCloneCampaign(campaignDetails: any): Promis
   return true;
 }
 
+/**
+ * Post-persist entry point: routes a created campaign to the unified-template or regular
+ * resource-creation flow, copying parent resources first for child campaigns.
+ */
 export async function processAfterPersistNew(request: any, actionInUrl: any) {
   try {
     if (request?.body?.CampaignDetails?.action == "create") {
@@ -2609,12 +2422,8 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
 
       if (campaignDetails?.parentId) {
-        // Any child campaign (all resource types):
-        // 1. Wait for child campaign row to be persisted in eg_cm_campaign_details
-        // 2. Copy ALL completed resources from parent directly in DB (INSERT SELECT, handles 10k-20k+)
-        //    — only on initial create, not on subsequent updates
-        // 3. Override filestoreId for types in CampaignDetails.resources, read back unified filestoreId
-        // 4. Route to unified or regular process based on campaign type
+        // Child campaign: wait for its row to persist, then copy parent's completed resources
+        // in DB (INSERT SELECT) — only on initial create, not on subsequent updates.
         if (actionInUrl === "create") {
           await waitForCampaignToBePersisted(campaignDetails.id, campaignDetails.tenantId);
           await copyResourcesFromParentToChildInDB(campaignDetails, userUuid);
@@ -2695,7 +2504,6 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
       }
       if (status == generatedResourceStatuses.completed) {
         logger.info(`User credential generation completed successfully.`);
-        // Mark process as completed in DB
         const currentTime = Date.now();
         task.status = processStatuses.completed;
         task.auditDetails = {
@@ -2723,7 +2531,6 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
   const phase1Configs = getResourceConfigsByPhase(1);
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
 
-  // Produce Kafka messages for each Phase 1 resource type
   for (const cfg of phase1Configs) {
     const task = allCurrentProcesses.find((process: any) => process?.processName == cfg.processName);
     if (task && task?.status == processStatuses.pending) {
@@ -2737,7 +2544,6 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
     }
   }
 
-  // Poll for Phase 1 completion
   let allTaskCompleted = false;
   let anyTaskFailed = false;
   let attempts = 0;
@@ -2749,7 +2555,6 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
     logger.info(`Waiting ${waitTimeOfEachAttemptOfResourceCreationOrMappping / 1000}s before polling resource statuses...`);
     await new Promise(resolve => setTimeout(resolve, waitTimeOfEachAttemptOfResourceCreationOrMappping));
 
-    // Poll each Phase 1 process
     for (const cfg of phase1Configs) {
       const taskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, cfg.processName);
       taskStatusMap[cfg.processName] = taskArray[0];
@@ -2772,7 +2577,6 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
 
   logger.info(`⏱️ Total time taken for resource creation: ${totalTimeInSeconds}s (~${totalTimeInMinutes} minutes)`);
 
-  // Update resource statuses based on Phase 1 results
   for (const cfg of phase1Configs) {
     const status = taskStatusMap[cfg.processName]?.status;
     if (status == processStatuses.completed) {
@@ -2843,7 +2647,6 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
 
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
 
-  // Trigger Phase 2 resources with met dependencies
   for (const cfg of applicableConfigs) {
     if (!hasDependenciesMet(cfg.type, completedProcessNames)) {
       logger.warn(`Phase 2 resource ${cfg.type} dependencies not met. Skipping.`);
@@ -2863,7 +2666,6 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
     }
   }
 
-  // Poll for Phase 2 completion
   let allCompleted = false;
   let anyFailed = false;
   let attempts = 0;
@@ -2893,7 +2695,6 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
   const totalTimeTakenInMs = Date.now() - startTime;
   logger.info(`⏱️ Phase 2 resource creation took: ${(totalTimeTakenInMs / 1000).toFixed(2)}s`);
 
-  // Update resource statuses based on Phase 2 results
   for (const cfg of applicableConfigs) {
     const status = taskStatusMap[cfg.processName]?.status;
     if (status == processStatuses.completed) {
@@ -3183,6 +2984,9 @@ async function processAndInsertModules(
   }
 }
 
+/**
+ * Provision the app-config MDMS modules and their localisations for a new campaign from its type template.
+ */
 export async function createAppConfig(
   tenantId: string,
   campaignNumber: string,
@@ -3231,6 +3035,9 @@ export async function createAppConfig(
   }
 }
 
+/**
+ * Copy the app-config MDMS modules and localisations from an existing campaign into a new one.
+ */
 export async function createAppConfigFromClone(
   tenantId: string,
   newCampaignNumber: string,
@@ -3338,6 +3145,139 @@ async function getLocalizedHierarchy(request: any, localizationMap: any) {
   return resultHierarchy;
 }
 
+function generateChecklistKeys(
+  mdmsData: any,
+  cloneFromCampaignNumber: string
+): string[] {
+  if (!Array.isArray(mdmsData)) return [];
+
+  const checklistArray = mdmsData
+    .filter((item: any) => item?.data?.checklistType && item?.data?.role)
+    .map((item: any) => {
+      return `${cloneFromCampaignNumber}.${item.data.checklistType}.${item.data.role}`;
+    });
+
+  return checklistArray;
+}
+
+function sanitizeServiceDefinitions(serviceDefinitions: any[]): any[] {
+  return serviceDefinitions.map((def: any) => {
+    const { id, auditDetails, ...rest } = def;
+    return rest;
+  });
+}
+
+
+async function upsertChecklistLocalization(
+  newCampaignNumber: string,
+  newCampaignName: string,
+  cloneFromCampaignNumber: string,
+  tenantId: string,
+  locales: string[],
+  localisation: any,
+  RequestInfo: any
+): Promise<void> {
+  const cloneModule = `hcm-checklist-${cloneFromCampaignNumber}`;
+  const newModule = `hcm-checklist-${newCampaignNumber}`;
+  const chunkSize = 100;
+
+  for (const locale of locales) {
+    let messages: any[] = [];
+    try {
+      messages = await localisation.getLocalizationResponseMessages(cloneModule, locale, tenantId);
+    } catch (e: any) {
+      logger.error(`upsertChecklistLocalization: failed to fetch localization for ${cloneModule} (${locale}): ${e?.message}`);
+      continue;
+    }
+
+    // Step 1: Replace the campaign name prefix in each code with newCampaignName
+    const updatedMessages = messages.map((entry: any) => {
+      const dotIndex = (entry.code as string).indexOf(".");
+      const newCode = dotIndex !== -1
+        ? `${newCampaignName}${(entry.code as string).slice(dotIndex)}`
+        : entry.code;
+      return { ...entry, code: newCode, module: newModule, locale };
+    });
+
+    // Step 2: Upsert to new module in chunks
+    for (let i = 0; i < updatedMessages.length; i += chunkSize) {
+      const chunk = updatedMessages.slice(i, i + chunkSize);
+      await localisation.createLocalisation(chunk, tenantId, RequestInfo);
+      logger.info(`upsertChecklistLocalization: upserted ${chunk.length} messages to ${newModule} (${locale}) — chunk ${Math.floor(i / chunkSize) + 1}`);
+    }
+  }
+}
+
+async function createClonedChecklist(
+  clonedServiceDefinitions: any[],
+  newCampaignName: string,
+  tenantId: string,
+  RequestInfo: any
+): Promise<void> {
+  if (!clonedServiceDefinitions.length) return;
+
+  for (const def of clonedServiceDefinitions) {
+    const oldCode: string = def.code;
+    const dotIndex = oldCode.indexOf(".");
+    const newCode = dotIndex !== -1
+      ? `${newCampaignName}${oldCode.slice(dotIndex)}`
+      : oldCode;
+    const newDef = { ...def, code: newCode };
+    await createServiceDefinition(tenantId, newDef, RequestInfo);
+    logger.info(`createClonedChecklist: created service definition ${newCode}`);
+  }
+}
+
+async function fetchCloneChecklist(
+  projectType: string,
+  cloneFromCampaignNumber: string,
+  tenantId: string,
+  RequestInfo: any
+): Promise<any[]> {
+  // Step 1: Fetch checklist templates from MDMS v2 filtered by campaignType
+  logger.info(`fetchCloneChecklist: fetching MDMS checklist templates for projectType=${projectType}, tenant=${tenantId}`);
+  const mdmsCriteria = {
+    tenantId,
+    schemaCode: "HCM-ADMIN-CONSOLE.ChecklistTemplates",
+    filters: {
+      campaignType: projectType,
+    },
+  };
+  const mdmsResponse: any = await searchMDMSDataViaV2Api({ MdmsCriteria: mdmsCriteria }, false, RequestInfo);
+  const mdmsData = mdmsResponse?.mdms || [];
+  if (!mdmsData.length) {
+    logger.warn(`fetchCloneChecklist: no MDMS checklist templates found for projectType=${projectType}, skipping further steps`);
+    return [];
+  }
+
+  //search the campaign name for the cloneFromCampaignNumber to generate the checklist keys
+  const campaignSearchResponse = await searchProjectTypeCampaignService({ tenantId, campaignNumber: cloneFromCampaignNumber });
+  const cloneFromCampaignName: string = campaignSearchResponse?.CampaignDetails?.[0]?.campaignName;
+  if (!cloneFromCampaignName) {
+    logger.warn(`fetchCloneChecklist: could not resolve campaignName for campaignNumber=${cloneFromCampaignNumber}`);
+    return [];
+  }
+
+  // Step 3: Generate checklist keys using the resolved campaign name
+  logger.info(`fetchCloneChecklist: generating checklist keys from ${mdmsData.length} MDMS records for campaignName=${cloneFromCampaignName}`);
+  const checklistKeys: string[] = generateChecklistKeys(mdmsData, cloneFromCampaignName);
+
+  if (!checklistKeys.length) {
+    logger.warn(`fetchCloneChecklist: no checklist keys generated for projectType=${projectType}, campaignName=${cloneFromCampaignName}`);
+    return [];
+  }
+
+  // Step 4: Search service definitions using the generated checklist keys
+  logger.info(`fetchCloneChecklist: searching service definitions for ${checklistKeys.length} keys`);
+  const serviceDefinitions = await searchServiceDefinitions(tenantId, checklistKeys, true, RequestInfo);
+
+  // Step 5: Strip top-level id and auditDetails from each service definition
+  const sanitized = sanitizeServiceDefinitions(serviceDefinitions);
+
+  logger.info(`fetchCloneChecklist: found ${sanitized.length} service definitions`);
+  return sanitized;
+}
+
 async function appendSheetsToWorkbook(
   request: any,
   boundaryData: any[],
@@ -3376,13 +3316,11 @@ async function appendSheetsToWorkbook(
     );
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-    // const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
     const mainSheet = workbook.addWorksheet(
       getLocalizedName(getBoundaryTabName(), localizationMap)
     );
     const columnWidths = Array(12).fill(30);
     mainSheet.columns = columnWidths.map((width) => ({ width }));
-    // mainSheetData.forEach(row => mainSheet.addRow(row));
     addDataToSheet(
       request,
       mainSheet,
@@ -3585,16 +3523,13 @@ function modifyFilteredData(
   differentTabsBasedOnLevel: any,
   localizationMap?: any
 ): any {
-  // Retrieve the localized version of the target boundary code if a localization map is provided
   const desiredBoundaryCode = getLocalizedName(
     targetBoundaryCode,
     localizationMap
   );
-  // Filter the district data to include only rows where the boundary code matches the desired one
   const modifiedFilteredData = districtDataFiltered.filter((row: any) => {
     return row[differentTabsBasedOnLevel] == desiredBoundaryCode;
   });
-  // Return the filtered data
   return modifiedFilteredData;
 }
 
@@ -3605,15 +3540,6 @@ async function generateFilteredBoundaryData(
   const rootBoundary: any = (FiltersFromCampaignId?.Filters?.boundaries).filter(
     (boundary: any) => boundary.isRoot
   );
-  // const params = {
-  //   ...request?.query,
-  //   includeChildren: true,
-  //   codes: rootBoundary?.[0]?.code,
-  // };
-  // const boundaryDataFromRootOnwards = await getBoundaryRelationshipData(
-  //   request,
-  //   params
-  // );
   const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.query?.tenantId, request?.query?.hierarchyType, true, true, true, rootBoundary?.[0]?.code);
   const boundaryDataFromRootOnwards = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   logger.info(`filtering the boundaries`);
@@ -3627,7 +3553,7 @@ async function generateFilteredBoundaryData(
 
 function filterBoundaries(boundaryData: any[], filters: any): any {
   function filterRecursive(boundary: any): any {
-    const boundaryFilters = filters && filters.boundaries; // Accessing boundaries array from filters object
+    const boundaryFilters = filters && filters.boundaries;
     const filter = boundaryFilters?.find(
       (f: any) =>
         f.code === boundary.code && f.boundaryType === boundary.boundaryType
@@ -3642,12 +3568,10 @@ function filterBoundaries(boundaryData: any[], filters: any): any {
 
     if (!boundary.children.length) {
       if (!filter.includeAllChildren) {
-        // throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary cannot have includeAllChildren filter false if it does not have any children");
         logger.warn(
           "Boundary cannot have includeAllChildren filter false if it does not have any children"
         );
       }
-      // If boundary has no children and includeAllChildren is true, return as is
       return {
         ...boundary,
         children: [],
@@ -3655,7 +3579,6 @@ function filterBoundaries(boundaryData: any[], filters: any): any {
     }
 
     if (filter.includeAllChildren) {
-      // If includeAllChildren is true, return boundary with all children
       return {
         ...boundary,
         children: boundary.children.map(filterRecursive),
@@ -3682,23 +3605,18 @@ function filterBoundaries(boundaryData: any[], filters: any): any {
 }
 
 function generateHierarchy(boundaries: any[]) {
-  // Create an object to store boundary types and their parents
   const parentMap: any = {};
 
-  // Populate the object with boundary types and their parents
   for (const boundary of boundaries) {
     parentMap[boundary.boundaryType] = boundary.parentBoundaryType;
   }
 
-  // Traverse the hierarchy to generate the hierarchy list
   const hierarchyList = [];
   for (const boundaryType in parentMap) {
     if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
       const parentBoundaryType = parentMap[boundaryType];
       if (parentBoundaryType === null) {
-        // This boundary type has no parent, add it to the hierarchy list
         hierarchyList.push(boundaryType);
-        // Traverse its children recursively
         traverseChildren(boundaryType, parentMap, hierarchyList);
       }
     }
@@ -3711,9 +3629,7 @@ function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
     if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
       const parentBoundaryType = parentMap[boundaryType];
       if (parentBoundaryType === parent) {
-        // This boundary type has the current parent, add it to the hierarchy list
         hierarchyList.push(boundaryType);
-        // Traverse its children recursively
         traverseChildren(boundaryType, parentMap, hierarchyList);
       }
     }
@@ -3733,51 +3649,46 @@ function createBoundaryMap(
 }
 
 
+/**
+ * Compute parent- and current-level target totals per boundary row from MDMS beneficiary config.
+ */
 export async function processDataForTargetCalculation(request: any, jsonData: any, codeColumnName: string, localizationMap?: any) {
-  // Retrieve targetConfigs from MDMS
   const targetConfigs = await searchMDMS([request?.body?.CampaignDetails?.projectType], "HCM-ADMIN-CONSOLE.targetConfigs", request?.body?.RequestInfo);
 
-  // Process each row of the sheet data
   const resultantData = jsonData.map((row: any) => {
 
-    // Initialize an object to hold row-specific data
     let rowData: any = { [codeColumnName]: row[codeColumnName] };
 
-    // Add placeholder fields for Parent Target and Current Target data
     rowData['Parent Target at the Selected Boundary level'] = {};
     rowData['Target at the Selected Boundary level'] = {};
     const beneficiaries = targetConfigs?.mdms?.[0]?.data?.beneficiaries;
-    // Calculate the parent target values
     calculateTargetsAtParentLevel(request, row, rowData, beneficiaries, localizationMap);
-    // Calculate the current target values
     calculateTargetsAtCurrentLevel(row, rowData, beneficiaries, localizationMap);
 
     // Return the processed row data
     return rowData;
-  }).filter(Boolean); // Remove any null entries from the map (i.e., skip the header row)
+  }).filter(Boolean); // skip the header row (null entries)
 
   return resultantData;
 }
 
+/**
+ * Sum each beneficiary's parent-campaign target columns (the "(OLD)" columns) into rowData.
+ */
 export function calculateTargetsAtParentLevel(request: any, row: any, rowData: any, beneficiaries: any, localizationMap?: any) {
-  // Check if a parent campaign exists in the request body
   if (request?.body?.parentCampaign) {
-    // Loop through the beneficiaries for the specified campaign type
     if (Array.isArray(beneficiaries) && beneficiaries?.length > 0) {
       for (const beneficiary of beneficiaries) {
         const beneficiaryType = beneficiary?.beneficiaryType;
         const columns = beneficiary?.columns;
         let totalParentValue = 0;
 
-        // Loop through each column to calculate the total parent value
         for (const col of columns) {
-          // Get the parent value from the column and add it if it's an integer
           const parentValue = row[`${getLocalizedName(col, localizationMap)}(OLD)`];
           if (typeof parentValue === 'number' && Number.isInteger(parentValue)) {
             totalParentValue += parentValue;
           }
         }
-        // Assign the total parent value to the corresponding beneficiary type
         rowData['Parent Target at the Selected Boundary level'][beneficiaryType] = totalParentValue;
       }
     }
@@ -3787,22 +3698,22 @@ export function calculateTargetsAtParentLevel(request: any, row: any, rowData: a
   }
 }
 
+/**
+ * Sum each beneficiary's current-campaign target columns into rowData.
+ */
 export function calculateTargetsAtCurrentLevel(row: any, rowData: any, beneficiaries: any, localizationMap?: any) {
-  // Loop through the beneficiaries again to calculate the current target values
   if (Array.isArray(beneficiaries) && beneficiaries?.length > 0) {
     for (const beneficiary of beneficiaries) {
       const beneficiaryType = beneficiary?.beneficiaryType;
       const columns = beneficiary?.columns;
       let totalCurrentValue = 0;
 
-      // Loop through each column to calculate the total current value
       for (const col of columns) {
         const currentValue = row[getLocalizedName(col, localizationMap)];
         if (typeof currentValue === 'number' && Number.isInteger(currentValue)) {
           totalCurrentValue += currentValue;
         }
       }
-      // Assign the total current value to the corresponding beneficiary type
       rowData['Target at the Selected Boundary level'][beneficiaryType] = totalCurrentValue;
     }
   }
@@ -3845,7 +3756,6 @@ async function convertSheetToDifferentTabs(
   localizationMap?: any,
   fileUrl?: any
 ) {
-  // create different tabs on the level of hierarchy we want to
   const updatedWorkbook = await appendSheetsToWorkbook(
     request,
     boundaryData,
@@ -3853,7 +3763,6 @@ async function convertSheetToDifferentTabs(
     localizationMap,
     fileUrl
   );
-  // upload the excel and generate file store id
   const boundaryDetails = await createAndUploadFile(updatedWorkbook, request);
   return boundaryDetails;
 }
@@ -3903,13 +3812,10 @@ async function getTargetBoundariesRelatedToCampaignId(
 ) {
   let CampaignDetailsNew: any;
   if (request?.body?.ResourceDetails?.campaignId) {
-    // const searchBody = {
-    //   RequestInfo: request?.body?.RequestInfo,
     const CampaignDetails = {
       ids: [request?.body?.ResourceDetails?.campaignId],
       tenantId: request?.body?.ResourceDetails?.tenantId,
     }
-    // const req: any = replicateRequest(request, searchBody);
     const response = await searchProjectTypeCampaignService(CampaignDetails);
     if (response?.CampaignDetails?.[0]) {
       CampaignDetailsNew = response?.CampaignDetails?.[0];
@@ -3976,10 +3882,8 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (
         `Campaign Type ${campaignType} has not any columns configured in schema`
       );
     }
-    // Extract columns from the response
     const columnsForGivenCampaignId = mdmsResponse?.columns;
 
-    // Get localized headers based on the column names
     const headerColumnsAfterHierarchy = getLocalizedHeaders(
       columnsForGivenCampaignId,
       localizationMap
@@ -4163,7 +4067,6 @@ function createIdRequests(employees: any[]): any[] {
 async function createUniqueUserNameViaIdGen(idRequests: any, requestInfo?: RequestInfo) {
   const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
   try {
-    // Make HTTP request to ID generation service
     const result = await httpRequest(
       idgenurl,
       { RequestInfo: requestInfo, idRequests },
@@ -4173,13 +4076,10 @@ async function createUniqueUserNameViaIdGen(idRequests: any, requestInfo?: Reque
       undefined
     );
 
-    // Return null if ID generation fails
     return result;
   } catch (error: any) {
-    // Log the error
     logger.error(`Error during ID generation: ${error.message}`);
 
-    // Throw a custom error
     throwError(
       "ID_GENERATION",
       500,
@@ -4208,7 +4108,6 @@ async function processFetchMicroPlan(request: any) {
 
     const fetchOperations: Promise<void>[] = [];
 
-    // Add fetch operations conditionally
     if (filteredResources.length === 0 || filteredResources.every((obj: any) => obj?.type !== "facility")) {
       fetchOperations.push(fetchFacilityData(request, localizationMap));
     }
@@ -4219,7 +4118,6 @@ async function processFetchMicroPlan(request: any) {
       fetchOperations.push(fetchUserData(request, localizationMap));
     }
 
-    // Run all fetch operations in parallel
     await Promise.all(fetchOperations);
 
     logger.info("Updating campaign object after successful fetch microplan...");
@@ -4244,8 +4142,8 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
   const searchedCamapignObject = searchedCampaignResponse?.CampaignDetails;
   if (Array.isArray(searchedCamapignObject) && searchedCamapignObject.length > 0) {
     const newRequestBody = {
-      RequestInfo: request.body.RequestInfo, // Retain the original RequestInfo
-      CampaignDetails: searchedCamapignObject?.[0] // campaigndetails from search response
+      RequestInfo: request.body.RequestInfo,
+      CampaignDetails: searchedCamapignObject?.[0]
     };
     const req: any = replicateRequest(request, newRequestBody)
     logger.info("Updating the received campaign object, source & its key");
@@ -4267,6 +4165,9 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
   }
 }
 
+/**
+ * Recursively build a flat map of boundary code to boundary type across the boundary tree.
+ */
 export function getBoundaryCodeAndBoundaryTypeMapping(boundaries: any, currentMapping: any = {}) {
   for (const boundary of boundaries) {
     currentMapping[boundary.code] = boundary.boundaryType;
@@ -4277,6 +4178,9 @@ export function getBoundaryCodeAndBoundaryTypeMapping(boundaries: any, currentMa
   return currentMapping;
 }
 
+/**
+ * Validate uploaded usernames for allowed-character format and flag duplicate usernames as INVALID rows.
+ */
 export function validateUsernamesFormat(data: any[], localizationMap: any) {
   if (!data?.length) return [];
 
@@ -4290,7 +4194,6 @@ export function validateUsernamesFormat(data: any[], localizationMap: any) {
     const rowNumber = item?.["!row#number!"];
     const username = item[userNameColumn];
 
-    // Check format validity
     const isValid = /^[A-Za-z][A-Za-z0-9-]*$/.test(username);
     if (username && !isValid) {
       errors.push({
@@ -4301,7 +4204,6 @@ export function validateUsernamesFormat(data: any[], localizationMap: any) {
       });
     }
 
-    // Collect row numbers for duplicates
     if (username) {
       if (!usernameMap.has(username)) {
         usernameMap.set(username, []);
@@ -4310,7 +4212,6 @@ export function validateUsernamesFormat(data: any[], localizationMap: any) {
     }
   });
 
-  // Now identify duplicates and push those to errors
   usernameMap.forEach((rows, username) => {
     if (rows.length > 1) {
       rows.forEach((rowNumber) => {
@@ -4327,6 +4228,9 @@ export function validateUsernamesFormat(data: any[], localizationMap: any) {
   return errors;
 }
 
+/**
+ * Return whether the campaign was created from a microplan source (checked directly in DB).
+ */
 export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: string) {
   try {
     const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
@@ -4341,6 +4245,9 @@ export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: stri
   }
 }
 
+/**
+ * Fetch a campaign by tenantId + campaignId, throwing typed errors when inputs are missing or none is found.
+ */
 export async function validateAndFetchCampaign(request: any) {
   const { tenantId, campaignId } = request.body.CampaignDetails;
   if (!tenantId || !campaignId) {
@@ -4361,6 +4268,9 @@ export async function validateAndFetchCampaign(request: any) {
   return campaignResponse.CampaignDetails[0];
 }
 
+/**
+ * Mark a campaign cancelled/inactive and produce the update message to persist the cancellation.
+ */
 export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requestInfo: RequestInfo, request: any) {
   const tenantId = request.body.CampaignDetails.tenantId;
   campaignToUpdate.isActive = false;

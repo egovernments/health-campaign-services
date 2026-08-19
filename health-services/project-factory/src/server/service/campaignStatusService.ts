@@ -31,20 +31,20 @@ interface CampaignStatusResponse {
     processes: ProcessRow[];
 }
 
+/** Aggregates per-type status counts from the mapping and campaign-data tables plus process rows for a campaign. */
 async function getCampaignStatusService(
-    campaignNumber: string, 
+    campaignNumber: string,
     tenantId: string,
     request?: any
 ): Promise<CampaignStatusResponse> {
     try {
         logger.info(`Fetching campaign status for campaign: ${campaignNumber}, tenant: ${tenantId}`);
 
-        // Get table names with tenant schema
         const mappingTableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
         const campaignDataTableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
         const processTableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME, tenantId);
 
-        // 1. Mapping Data Query (no tenantid column in this table)
+        // Queried by campaignnumber — these tables have no tenantid column.
         const mappingQuery = `
             SELECT type, status, COUNT(status) AS status_count
             FROM ${mappingTableName}
@@ -53,7 +53,6 @@ async function getCampaignStatusService(
         `;
         const mappingResult = await executeQuery(mappingQuery, [campaignNumber]);
 
-        // 2. Campaign Data Query (no tenantid column in this table)
         const campaignQuery = `
             SELECT type, status, COUNT(status) AS status_count
             FROM ${campaignDataTableName}
@@ -62,7 +61,6 @@ async function getCampaignStatusService(
         `;
         const campaignResult = await executeQuery(campaignQuery, [campaignNumber]);
 
-        // 3. Process Data Query (no tenantid column in this table)
         const processQuery = `
             SELECT processname, status, createdby, lastmodifiedby, createdtime, lastmodifiedtime
             FROM ${processTableName}
@@ -70,10 +68,8 @@ async function getCampaignStatusService(
         `;
         const processResult = await executeQuery(processQuery, [campaignNumber]);
 
-        // Transform results
         const summary: Record<string, Record<string, number>> = {};
 
-        // Process mapping data
         mappingResult.rows.forEach((row: MappingRow) => {
             if (!summary[row.type]) {
                 summary[row.type] = {};
@@ -81,7 +77,6 @@ async function getCampaignStatusService(
             summary[row.type][row.status] = parseInt(row.status_count, 10);
         });
 
-        // Process campaign data
         campaignResult.rows.forEach((row: CampaignRow) => {
             if (!summary[row.type]) {
                 summary[row.type] = {};
@@ -89,7 +84,6 @@ async function getCampaignStatusService(
             summary[row.type][row.status] = parseInt(row.status_count, 10);
         });
 
-        // Transform process rows to include audit details
         const processesWithAudit = processResult.rows.map((row: any) => ({
             processname: row.processname,
             status: row.status,

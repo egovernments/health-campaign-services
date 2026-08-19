@@ -50,6 +50,12 @@ public class HRMSConstants {
 	public static final String HRMS_USER_SEARCH_CRITERA_MOBILENO = "mobileNumber";
 	public static final String HRMS_USER_SEARCH_CRITERA_NAME = "name";
 	public static final String HRMS_USER_SEARCH_CRITERA_USERNAME = "UserName";
+	// Bulk search: list of usernames sent to egov-user (userNames) / individual (username IN clause)
+	public static final String HRMS_USER_SEARCH_CRITERA_USERNAMES = "userNames";
+	// egov-user caps external search results at its default page size; keep bulk batches within it
+	public static final int HRMS_USER_BULK_SEARCH_BATCH_SIZE = 50;
+	// egov-user bulk create (/users/v2/_create) caps the batch at egov.user.bulk.max (default 100)
+	public static final int HRMS_USER_BULK_CREATE_BATCH_SIZE = 100;
 	public static final String HRMS_USER_SERACH_CRITERIA_USERTYPE = "EMPLOYEE";
 	public static final String HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE = "userType";
 

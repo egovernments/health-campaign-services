@@ -76,7 +76,8 @@ export function selectReconcilableUserRows(
 }
 
 /**
- * Handle user batch creation from Kafka message
+ * Kafka handler for one user batch: idempotently creates HRMS users (adopting existing ones), then gates and
+ * creates worker-registry records, marking per-row status. Failures here are non-blocking for the campaign.
  */
 export async function handleUserBatch(messageObject: UserBatchMessage): Promise<void> {
     try {
@@ -94,14 +95,13 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             throw new Error(`User batch ${batchNumber}/${totalBatches} missing requestInfo.userInfo — cannot generate usernames via IDGen`);
         }
 
-        // Get unique identifiers from user data keys (phone numbers)
+        // userData is keyed by phone number
         const uniqueIdentifiers = Object.keys(userData);
 
         logger.info(`=== USER BATCH PROCESSING STARTED ===`);
         logger.info(`Processing user batch ${batchNumber}/${totalBatches}: ${uniqueIdentifiers.length} users`);
         logger.info(`Campaign: ${campaignNumber}, Tenant: ${tenantId}`);
-        
-        // Get campaign details for transformation
+
         const campaignResponse = await searchProjectTypeCampaignService({
             tenantId,
             ids: [campaignId]
@@ -170,7 +170,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             }
         });
 
-        // Transform user data from campaign records — only for users needing creation
+        // Transform only the rows that need creation (existing users already handled above)
         const userRowDatas = phoneNumbersNeedingCreation.map(uniqueIdentifier => {
             const campaignRecord = userData[uniqueIdentifier];
             return campaignRecord?.data;
@@ -188,10 +188,9 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 
         logger.info(`Transformed ${transformedUsers.length} users (${uniqueIdentifiers.length - phoneNumbersNeedingCreation.length} already existed)`);
 
-        // Create only new users via HRMS API
         const createResult = await createUsersViaHrmsApi(transformedUsers, useruuid, messageObject.requestInfo);
 
-        // Check for per-user failures from HRMS fallback
+        // Per-user failures from the HRMS per-user fallback are handed back via a global (see createUsersViaHrmsApi)
         const failedHrmsUsers: Record<string, string> = (global as any).__hrmsFailedUsers || {};
         delete (global as any).__hrmsFailedUsers;
 
@@ -211,10 +210,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             phoneToTransformedUser.set(phone, transformedUsers[i]);
         });
 
-        // Build worker data for worker registry integration
         const workerDataList: WorkerData[] = [];
 
-        // Process results and update campaign data
         let successCount = 0;
         let failureCount = 0;
         const updatedUsers: CampaignRecord[] = [];
@@ -230,7 +227,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             const wasRetry = campaignRecord.status === dataRowStatuses.failed;
 
             if (hrmsError) {
-                // Failure - mark row as failed with HRMS error
                 campaignRecord.status = dataRowStatuses.failed;
                 campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
                 campaignRecord.data[campaignDataRowFields.errorDetails] = hrmsError;
@@ -238,7 +234,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 failureCount++;
                 logger.warn(`HRMS create failed for phone ${phoneNumber}${wasRetry ? ' (retry=true)' : ''}: ${hrmsError}`);
             } else if (serviceUuid) {
-                // Success - user created
                 campaignRecord.status = dataRowStatuses.completed;
                 const userName = transformedUser?.user?.userName;
                 const password = transformedUser?.user?.password;
@@ -259,7 +254,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     logger.info(`HRMS create succeeded on retry for phone ${phoneNumber}: serviceUuid ${serviceUuid}`);
                 }
 
-                // Collect worker data from campaign record
                 if (individualId) {
                     const recordData = campaignRecord.data;
                     workerDataList.push({
@@ -291,7 +285,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             }
         });
 
-        // Create/update workers in worker registry and capture worker IDs
         if (workerDataList.length > 0) {
             // Build individualId → campaignRecords map (multiple phones can map to same individualId)
             const individualIdToRecords = new Map<string, CampaignRecord[]>();
@@ -391,7 +384,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 );
                 logger.info(`Updated ${updatedUsers.length} users in campaign data via persister`);
             } catch (kafkaError) {
-                // System error: Kafka publish failed
                 logger.error(`Kafka publish failed while updating user batch results. Sending campaign failure message.`);
                 const systemError = new Error(`Failed to persist user batch results: ${kafkaError instanceof Error ? kafkaError.message : String(kafkaError)}`);
                 await sendCampaignFailureMessage(campaignId, tenantId, systemError);

@@ -7,6 +7,7 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
@@ -18,6 +19,7 @@ import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
+import org.egov.excelingestion.web.models.CampaignSearchResponse;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -56,6 +58,7 @@ public class ImmutableJoinService {
     private final ObjectMapper objectMapper;
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
+    private final CampaignService campaignService;
 
     private static final String MULTISELECT_MARKER = "_MULTISELECT_";
 
@@ -73,7 +76,8 @@ public class ImmutableJoinService {
                                 SchemaColumnDefUtil schemaColumnDefUtil,
                                 ObjectMapper objectMapper,
                                 CustomExceptionHandler exceptionHandler,
-                                ExcelIngestionConfig config) {
+                                ExcelIngestionConfig config,
+                                CampaignService campaignService) {
         this.generatedFileRepository = generatedFileRepository;
         this.fileStoreService = fileStoreService;
         this.excelUtil = excelUtil;
@@ -81,6 +85,7 @@ public class ImmutableJoinService {
         this.objectMapper = objectMapper;
         this.exceptionHandler = exceptionHandler;
         this.config = config;
+        this.campaignService = campaignService;
     }
 
     /**
@@ -89,22 +94,27 @@ public class ImmutableJoinService {
      * authoritative data. No-op for legacy/protected files (no embedded generationId).
      *
      * @param sheetNameToSchema visible sheet name -> its MDMS schema map (resolved by the caller)
+     * @param requestInfo the caller's RequestInfo, used to authenticate the campaign search
      * @return per visible sheet, the set of "always-immutable" columns that were reconstructed from the
      *         baseline onto existing rows. Downstream validation uses this to skip re-validating cells it
      *         did not let the user change. Empty map when the feature is inactive / legacy / no-op.
      */
     public Map<String, Set<String>> applyImmutableBaseline(Workbook uploadedWorkbook, ProcessResource resource,
-                                       Map<String, Map<String, Object>> sheetNameToSchema) {
-        return applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, new ArrayList<>(), null);
+                                       Map<String, Map<String, Object>> sheetNameToSchema,
+                                       RequestInfo requestInfo) {
+        return applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, requestInfo,
+                new ArrayList<>(), null);
     }
 
     /**
-     * As {@link #applyImmutableBaseline(Workbook, ProcessResource, Map)} but also appends a non-failing
-     * WARNING to {@code warningsOut} for every locked cell whose uploaded value differed from the baseline
-     * (a user edit to a server-managed cell that was reverted), localized via {@code localizationMap}.
+     * As {@link #applyImmutableBaseline(Workbook, ProcessResource, Map, RequestInfo)} but also appends a
+     * non-failing WARNING to {@code warningsOut} for every locked cell whose uploaded value differed from
+     * the baseline (a user edit to a server-managed cell that was reverted), localized via
+     * {@code localizationMap}.
      */
     public Map<String, Set<String>> applyImmutableBaseline(Workbook uploadedWorkbook, ProcessResource resource,
                                        Map<String, Map<String, Object>> sheetNameToSchema,
+                                       RequestInfo requestInfo,
                                        List<ValidationError> warningsOut, Map<String, String> localizationMap) {
         // Scope: only the join-mode template families (unified-console, attendanceRegister,
         // attendanceRegisterAttendee) use join-mode. Any other type is processed as before, with no
@@ -144,7 +154,33 @@ public class ImmutableJoinService {
         // the processing type (e.g. "unified-console-validation"/"-parse") differ by design, so an
         // equality check would falsely reject every legitimate upload. The generationId (unguessable,
         // looked up by id + tenant) plus the referenceId match are the identity guarantee.
-        if (!equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
+
+        // A register reference is not a campaign id, so clone resolution is skipped for it.
+        String clonedCampaignId = null;
+        if (ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER.equals(resource.getReferenceType())) {
+            log.info("Immutable-baseline join for generationId {}: register reference {}, no clone resolution",
+                    generationId, resource.getReferenceId());
+        } else {
+            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(
+                    resource.getReferenceId(), resource.getTenantId(), requestInfo);
+            clonedCampaignId = campaign.getAdditionalDetails() == null ? null
+                    : campaign.getAdditionalDetails().getClonedCampaignId();
+            log.info("Immutable-baseline join for generationId {}: campaign {} clonedCampaignId {}",
+                    generationId, resource.getReferenceId(), clonedCampaignId);
+        }
+
+
+
+        // A cloned campaign inherits its parent's generated template, so the baseline legitimately belongs
+        // to the campaign this one was cloned FROM. Match against that id instead; otherwise the baseline
+        // must belong to this campaign itself.
+        if (clonedCampaignId != null && !clonedCampaignId.trim().isEmpty()) {
+            if (!equalsNullSafe(baselineGen.getReferenceId(), clonedCampaignId)) {
+                exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
+                        ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
+                return Collections.emptyMap();
+            }
+        } else if (!equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
                     ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
             return Collections.emptyMap();
