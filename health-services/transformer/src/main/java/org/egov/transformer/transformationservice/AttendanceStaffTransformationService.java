@@ -31,19 +31,19 @@ public class AttendanceStaffTransformationService {
     private final Producer producer;
     private final UserService userService;
     private final BoundaryService boundaryService;
-
     private final CommonUtils commonUtils;
-
+    private final ProjectService projectService;
     private final AttendanceRegisterService attendanceRegisterService;
     private final IndividualService individualService;
 
-    public AttendanceStaffTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, IndividualService individualService) {
+    public AttendanceStaffTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, ProjectService projectService1, IndividualService individualService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
+        this.projectService = projectService1;
         this.individualService = individualService;
     }
 
@@ -103,7 +103,7 @@ public class AttendanceStaffTransformationService {
             BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyByCodeOrProjectId(individual.getUserUuid(), staff.getTenantId());
             attendanceStaffIndexV1.setBoundaryHierarchyCode(boundaryHierarchyResult.getBoundaryHierarchyCode());
             attendanceStaffIndexV1.setBoundaryHierarchy(boundaryHierarchyResult.getBoundaryHierarchy());
-            commonUtils.addProjectDetailsForUserIdAndTenantId(attendanceStaffIndexV1,
+            projectService.addProjectDetailsForUserIdAndTenantId(attendanceStaffIndexV1,
                     individual.getUserUuid(),
                     staff.getTenantId());
         }
@@ -152,7 +152,7 @@ public class AttendanceStaffTransformationService {
     private BoundaryHierarchyResult getBoundaryHierarchyByCodeOrProjectId(String createdBy, String tenantId) {
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
 
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(createdBy,tenantId);
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(createdBy,tenantId);
         if (ObjectUtils.isNotEmpty(projectInfo) && StringUtils.isNotEmpty(projectInfo.getProjectId())) {
             String projectId = projectInfo.getProjectId();
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);

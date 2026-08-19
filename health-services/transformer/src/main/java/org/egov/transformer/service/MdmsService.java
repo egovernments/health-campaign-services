@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.mdms.*;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
+import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,18 +32,21 @@ public class MdmsService {
     private final ServiceRequestClient restRepo;
     private final String mdmsHost;
     private final String mdmsUrl;
+    private final ObjectMapper objectMapper;
     private final TransformerProperties transformerProperties;
-    private static Map<String, String> transformerLocalizations = new HashMap<>();
-    private static Map<String, String> transformerElasticIndexLabelsMap = new HashMap<>();
+    private static Map<String, String> transformerLocalizations = new ConcurrentHashMap<>();
+    private static Map<String, String> transformerElasticIndexLabelsMap = new ConcurrentHashMap<>();
     private static Map<String, HashMap<String, Integer>> mdmsProjectStaffRolesRankCache = new ConcurrentHashMap<>();
+    private static List<JsonNode> cachedProjectTypes = new ArrayList<>();
 
     @Autowired
     public MdmsService(ServiceRequestClient restRepo,
                        @Value("${egov.mdms.host}") String mdmsHost,
-                       @Value("${egov.mdms.search.endpoint}") String mdmsUrl, TransformerProperties transformerProperties) {
+                       @Value("${egov.mdms.search.endpoint}") String mdmsUrl, ObjectMapper objectMapper, TransformerProperties transformerProperties) {
         this.restRepo = restRepo;
         this.mdmsHost = mdmsHost;
         this.mdmsUrl = mdmsUrl;
+        this.objectMapper = objectMapper;
         this.transformerProperties = transformerProperties;
     }
 
@@ -147,7 +153,7 @@ public class MdmsService {
     }
 
     private String fetchIndexLabelsFromMdms(String label, String tenantId) {
-        JSONArray transformerElasticIndexLabelsArray = new JSONArray();
+        JSONArray transformerElasticIndexLabelsArray;
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
@@ -168,5 +174,52 @@ public class MdmsService {
         return transformerElasticIndexLabelsMap.getOrDefault(label, label);
     }
 
+    public JsonNode fetchProjectTypes(String tenantId, String filter, String projectTypeId) {
 
+        JsonNode requiredProjectType = cachedProjectTypes.stream()
+                .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
+                .findFirst()
+                .orElse(null);
+
+        if (requiredProjectType != null) {
+            log.info("Fetched projectType from cache {}", projectTypeId);
+            return requiredProjectType;
+        }
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
+            List<JsonNode> projectTypes = convertToProjectTypeJsonNodeList(response);
+            cachedProjectTypes.addAll(projectTypes);
+            return projectTypes.stream()
+                    .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
+                    .findFirst()
+                    .orElseGet(() -> objectMapper.createObjectNode());
+//            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
+//            return requiredProjectType;
+        } catch (IOException e) {
+            return objectMapper.createObjectNode();
+//            throw new RuntimeException(e);
+        }
+    }
+
+    public List<JsonNode> convertToProjectTypeJsonNodeList(JsonNode jsonNode) throws IOException {
+        JsonNode projectTypesNode = jsonNode.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
+        return objectMapper.readValue(projectTypesNode.traverse(), new TypeReference<List<JsonNode>>() {
+        });
+    }
+
+    JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,
+                               String moduleName, String filter) {
+        MdmsCriteriaReq serviceRegistry = getMdmsRequest(requestInfo, tenantId, name, moduleName, filter);
+        try {
+            return fetchConfig(serviceRegistry, JsonNode.class).get(MDMS_RESPONSE);
+        } catch (Exception e) {
+            log.error("Error while fetching mdms config for module: {}, name: {}, Exception: {}", moduleName, name, ExceptionUtils.getStackTrace(e));
+            // no emit here: the exception propagates to the consumer, which records a single
+            // error with the correct source topic and original payload.
+            throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching mdms config");
+        }
+    }
 }

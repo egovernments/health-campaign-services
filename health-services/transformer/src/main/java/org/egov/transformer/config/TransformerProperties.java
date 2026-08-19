@@ -189,7 +189,7 @@ public class TransformerProperties {
     @Value("${egov.localization.statelevel}")
     private Boolean isLocalizationStateLevel;
 
-    @Value("${egov.localization.module.name:rainmaker-boundary-admin}")
+    @Value("${egov.localization.module.name:hcm-boundary-}")
     private String localizationModuleName;
 
     @Value("${egov.localization.locale.code:en_MZ}")

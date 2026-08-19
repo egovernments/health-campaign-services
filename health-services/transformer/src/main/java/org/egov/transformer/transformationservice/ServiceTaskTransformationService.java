@@ -5,10 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
@@ -74,16 +73,13 @@ public class ServiceTaskTransformationService {
         }
         Map<String, String> boundaryHierarchy;
         Map<String, String> boundaryHierarchyCode;
-        Project project = projectService.getProject(projectId, tenantId);
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
-        String projectType = project.getProjectType();
-        String projectTypeId = project.getProjectTypeId();
+        ProjectInfo projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
         JsonNode serviceAdditionalFields = service.getAdditionalFields();
         String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(serviceAdditionalFields, serviceAdditionalDetails);
         List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalFields(serviceAdditionalFields, serviceAdditionalDetails);
         if (localityCode != null) {
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarchyType);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId, projectInfo.getHierarchyType());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
@@ -93,19 +89,12 @@ public class ServiceTaskTransformationService {
         }
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, service.getAuditDetails().getCreatedTime());
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectInfo.getProjectTypeId(), service.getAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if(serviceAdditionalDetails != null && serviceAdditionalDetails.isObject()) {
             additionalDetails = (ObjectNode) serviceAdditionalDetails;
         }
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
-
-        String campaignId = null;
-        if (StringUtils.isNotBlank(project.getReferenceID())) {
-            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
-                    project.getTenantId(), true, project.getReferenceID()
-            );
-        }
 
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                 .id(service.getId())
@@ -130,9 +119,7 @@ public class ServiceTaskTransformationService {
                 .additionalDetails(additionalDetails)
                 .geoPoint(geoPoint)
                 .build();
-        serviceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName(),hierarchyType);
-        serviceIndexV1.setCampaignNumber(project.getReferenceID());
-        serviceIndexV1.setCampaignId(campaignId);
+        serviceIndexV1.setProjectInfo(projectId, projectInfo);
         return serviceIndexV1;
     }
 }

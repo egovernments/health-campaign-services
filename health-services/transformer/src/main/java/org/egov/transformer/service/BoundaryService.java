@@ -9,20 +9,24 @@ import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.boundary.*;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Component;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.util.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.tracer.model.CustomException;
-import org.egov.transformer.utils.CommonUtils;
 
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.*;
 
-import static org.egov.transformer.Constants.LOCALIZATION_CODES_JSONPATH;
+import static org.egov.transformer.Constants.BOUNDARY_LOCALIZATION_PREWARM_FAILED;
+import static org.egov.transformer.Constants.LOCALIZATION_MESSAGE;
+import static org.egov.transformer.Constants.LOCALIZATION_MESSAGES_JSONPATH;
+import static org.egov.transformer.Constants.LOCALIZATION_MESSAGE_CODE;
 
 @Component
 @Slf4j
@@ -33,35 +37,43 @@ public class BoundaryService {
     private final MdmsService mdmsService;
     private final ProjectService projectService;
     private final TransformerErrorProducer errorProducer;
-    private final CommonUtils commonUtils;
     private static Map<String, String> boundaryCodeVsLocalizedName = new ConcurrentHashMap<>();
+    private static Map<String, String> projectIdBoundaryCodeCache = new ConcurrentHashMap<>();
 
-    private static List<EnrichedBoundary> cachedEnrichedBoundaries = null;
+    private static Map<String, List<EnrichedBoundary>> cachedEnrichedBoundaries = new ConcurrentHashMap<>();
 
-    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService, TransformerErrorProducer errorProducer,CommonUtils commonUtils) {
+    private static final Set<String> prewarmedLocalizationModules = ConcurrentHashMap.newKeySet();
+
+    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.mdmsService = mdmsService;
         this.projectService = projectService;
         this.errorProducer = errorProducer;
-        this.commonUtils = commonUtils;
     }
 
-    public BoundaryHierarchyResult getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId,String hierarchyType) {
+    public BoundaryHierarchyResult getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId, String hierarchyType) {
         if (localityCode == null) {
             return null;
         }
         // Fetch both localized and non-localized boundary data
-        BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId,hierarchyType);
-
+        BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId, hierarchyType);
         return applyTransformerElasticIndexLabels(boundaryResult, tenantId);
     }
 
     public BoundaryHierarchyResult getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
+        if (projectIdBoundaryCodeCache.containsKey(projectId)) {
+            ProjectInfo projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
+            return getBoundaryCodeToNameMap(projectIdBoundaryCodeCache.get(projectId), tenantId, projectInfo.getHierarchyType());
+        }
         Project project = projectService.getProject(projectId, tenantId);
+        if (project == null) {
+            return new BoundaryHierarchyResult();
+        }
         String locationCode = project.getAddress().getBoundary();
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
-        return getBoundaryCodeToNameMap(locationCode, tenantId,hierarchyType);
+        projectIdBoundaryCodeCache.put(projectId, locationCode);
+        String hierarchyType = projectService.getHierarchyTypeFromProject(project);
+        return getBoundaryCodeToNameMap(locationCode, tenantId, hierarchyType);
     }
 
     public BoundaryHierarchyResult getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
@@ -70,21 +82,21 @@ public class BoundaryService {
     }
 
 
-    public BoundaryHierarchyResult getBoundaryCodeToNameMap(String locationCode, String tenantId,String hierarchyType) {
+    public BoundaryHierarchyResult getBoundaryCodeToNameMap(String locationCode, String tenantId, String hierarchyType) {
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
                 .build();
 
         // Fetch boundaries
-        List<EnrichedBoundary> boundaries = fetchBoundaryData(locationCode, tenantId,hierarchyType);
+        List<EnrichedBoundary> boundaries = fetchBoundaryData(locationCode, tenantId, hierarchyType);
 
         // Create and return BoundaryHierarchyResult
-        return createBoundaryHierarchyResult(boundaries, tenantId, requestInfo);
+        return createBoundaryHierarchyResult(boundaries, tenantId, requestInfo, hierarchyType);
     }
 
-    public BoundaryHierarchyResult createBoundaryHierarchyResult(List<EnrichedBoundary> boundaries, String tenantId, RequestInfo requestInfo) {
+    public BoundaryHierarchyResult createBoundaryHierarchyResult(List<EnrichedBoundary> boundaries, String tenantId, RequestInfo requestInfo, String hierarchyType) {
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
-        Map<String, String> boundaryMapToLocalizedNameMap = getBoundaryCodeToLocalizedNameMap(boundaries, requestInfo, tenantId);
+        Map<String, String> boundaryMapToLocalizedNameMap = getBoundaryCodeToLocalizedNameMap(boundaries, requestInfo, tenantId, hierarchyType);
 
         Map<String, String> boundaryCodeToLocalizationCodeMap = boundaries.stream()
                 .collect(Collectors.toMap(
@@ -136,11 +148,12 @@ public class BoundaryService {
     }
 
 
-    public List<EnrichedBoundary> fetchBoundaryData(String locationCode, String tenantId,String hierarchyType) {
+    public List<EnrichedBoundary> fetchBoundaryData(String locationCode, String tenantId, String hierarchyType) {
         List<EnrichedBoundary> finalEnrichedBoundary;
-        if (cachedEnrichedBoundaries != null && !cachedEnrichedBoundaries.isEmpty()) {
+        List<EnrichedBoundary> cachedBoundariesForHierarchy = cachedEnrichedBoundaries.get(hierarchyType);
+        if (!CollectionUtils.isEmpty(cachedBoundariesForHierarchy)) {
             log.info("Fetching boundary info from cached boundary for code: {}", locationCode);
-            finalEnrichedBoundary = getEnrichedBoundaryPath(cachedEnrichedBoundaries, locationCode);
+            finalEnrichedBoundary = getEnrichedBoundaryPath(cachedBoundariesForHierarchy, locationCode);
             if (finalEnrichedBoundary != null && !finalEnrichedBoundary.isEmpty()) {
                 return finalEnrichedBoundary;
             }
@@ -165,7 +178,7 @@ public class BoundaryService {
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
         try {
             // Fetch boundary details from the service
-            log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}", tenantId, locationCode);
+            log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}, hierarchyType: {}", tenantId, locationCode, hierarchyType);
             BoundarySearchResponse boundarySearchResponse = serviceRequestClient.fetchResult(
                     uri,
                     boundaryRequest,
@@ -177,10 +190,10 @@ public class BoundaryService {
                     .filter(hierarchyRelation -> !CollectionUtils.isEmpty(hierarchyRelation.getBoundary()))
                     .flatMap(hierarchyRelation -> hierarchyRelation.getBoundary().stream())
                     .collect(Collectors.toList());
-            cachedEnrichedBoundaries = enrichedBoundaries;
-            log.info("Cached boundary object");
+            cachedEnrichedBoundaries.put(hierarchyType, enrichedBoundaries);
+            log.info("Cached boundary object for hierarchy type: {}", hierarchyType);
+            prewarmBoundaryLocalizations(enrichedBoundaries, requestInfo, tenantId, hierarchyType);
             boundaries = getEnrichedBoundaryPath(enrichedBoundaries, locationCode);
-//            getAllBoundaryCodes(enrichedBoundaries, boundaries);
 
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
@@ -194,20 +207,20 @@ public class BoundaryService {
     }
 
     private Map<String, String> getBoundaryCodeToLocalizedNameMap(
-            List<EnrichedBoundary> boundaries, RequestInfo requestInfo, String tenantId) {
+            List<EnrichedBoundary> boundaries, RequestInfo requestInfo, String tenantId, String hierarchyType) {
 
         Map<String, String> boundaryMap = new HashMap<>();
 
         for (EnrichedBoundary boundary : boundaries) {
             String boundaryCode = boundary.getCode();
-            String boundaryName = getLocalizedBoundaryName(boundaryCode, requestInfo, tenantId);
+            String boundaryName = getLocalizedBoundaryName(boundaryCode, requestInfo, tenantId, hierarchyType);
 
             boundaryMap.put(boundary.getBoundaryType(), boundaryName);
         }
         return boundaryMap;
     }
 
-    private String getLocalizedBoundaryName(String boundaryCode, RequestInfo requestInfo, String tenantId) {
+    private String getLocalizedBoundaryName(String boundaryCode, RequestInfo requestInfo, String tenantId, String hierarchyType) {
         String cachedName = boundaryCodeVsLocalizedName.get(boundaryCode);
 
         if (cachedName != null) {
@@ -215,7 +228,7 @@ public class BoundaryService {
             return cachedName;
         }
 
-        String fetchedName = getBoundaryNameFromLocalisationService(boundaryCode, requestInfo, tenantId);
+        String fetchedName = getBoundaryNameFromLocalisationService(boundaryCode, requestInfo, tenantId, hierarchyType);
         if (fetchedName == null) {
             fetchedName = boundaryCode.substring(boundaryCode.lastIndexOf('_') + 1);
         } else {
@@ -226,28 +239,121 @@ public class BoundaryService {
         return fetchedName;
     }
 
-    private String getBoundaryNameFromLocalisationService(String boundaryCode, RequestInfo requestInfo, String tenantId) {
+    private String getBoundaryNameFromLocalisationService(String boundaryCode, RequestInfo requestInfo, String tenantId, String hierarchyType) {
         StringBuilder uri = new StringBuilder();
-        RequestInfoWrapper requestInfoWrapper = new RequestInfoWrapper();
-        requestInfoWrapper.setRequestInfo(requestInfo);
-        uri.append(transformerProperties.getLocalizationHost()).append(transformerProperties.getLocalizationContextPath())
-                .append(transformerProperties.getLocalizationSearchEndpoint())
-                .append("?tenantId=" + tenantId)
-                .append("&module=" + transformerProperties.getLocalizationModuleName())
-                .append("&locale=" + transformerProperties.getLocalizationLocaleCode())
+        RequestInfoWrapper requestInfoWrapper = requestInfoWrapperOf(requestInfo);
+        uri.append(getLocalizationSearchUri(tenantId, hierarchyType))
                 .append("&codes=" + boundaryCode);
-        List<String> codes = null;
         List<String> messages = null;
-        Object result = null;
         try {
-            result = serviceRequestClient.fetchResult(uri, requestInfoWrapper, Map.class);
-            codes = JsonPath.read(result, LOCALIZATION_CODES_JSONPATH);
+            Object result = serviceRequestClient.fetchResult(uri, requestInfoWrapper, Map.class);
             messages = JsonPath.read(result, Constants.LOCALIZATION_MSGS_JSONPATH);
         } catch (Exception e) {
             log.error("Exception while fetching from localization: {}", ExceptionUtils.getStackTrace(e));
             errorProducer.sendToErrorTopic(requestInfoWrapper, null, e);
         }
         return CollectionUtils.isEmpty(messages) ? null : messages.get(0);
+    }
+
+    /**
+     * Fetches every message in the hierarchy's localization module in a single call and caches the subset
+     * whose code belongs to the fetched boundary tree. Runs at most once per tenant + module + locale:
+     * whichever thread gets there first does the fetch, and every other thread carries on with the
+     * per-code lookup instead of waiting on it. Never throws - {@link #getLocalizedBoundaryName} stays
+     * the fallback for anything the module did not return.
+     */
+    private void prewarmBoundaryLocalizations(List<EnrichedBoundary> enrichedBoundaries, RequestInfo requestInfo,
+                                              String tenantId, String hierarchyType) {
+        String cacheKey = tenantId + "|" + getLocalizationModule(hierarchyType)
+                + "|" + transformerProperties.getLocalizationLocaleCode();
+
+        // Only the thread that claims the key prewarms; the rest return straight away.
+        if (!prewarmedLocalizationModules.add(cacheKey)) {
+            return;
+        }
+
+        try {
+            List<EnrichedBoundary> allBoundaries = new ArrayList<>();
+            getAllBoundaryCodes(enrichedBoundaries, allBoundaries);
+            Set<String> boundaryCodes = allBoundaries.stream()
+                    .map(EnrichedBoundary::getCode)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            if (boundaryCodes.isEmpty()) {
+                prewarmedLocalizationModules.remove(cacheKey);
+                log.info("No boundary codes found in hierarchy: {}. Skipping localization prewarm.", hierarchyType);
+                return;
+            }
+
+            // Only the filtered map crosses back from this call, so the full module response is
+            // unreachable - and collectable - from here on.
+            Map<String, String> boundaryCodeVsName = fetchModuleLocalizations(boundaryCodes, requestInfoWrapperOf(requestInfo), tenantId, hierarchyType);
+            boundaryCodeVsLocalizedName.putAll(boundaryCodeVsName);
+            log.info("Prewarmed localizations for cacheKey: {}, boundary codes in hierarchy: {}, cached: {}",
+                    cacheKey, boundaryCodes.size(), boundaryCodeVsName.size());
+        } catch (Exception e) {
+            // Let a later record retry the prewarm; until then the per-code lookup keeps working.
+            prewarmedLocalizationModules.remove(cacheKey);
+            log.error("Exception while prewarming localizations for cacheKey: {}. Falling back to per-code lookup, {}",
+                    cacheKey, ExceptionUtils.getStackTrace(e));
+            // The record itself still indexes via the per-code fallback, so this is not a failed record.
+            // Emitted only to make the outage visible: the payload names the prewarm so its deterministic
+            // id cannot collide with a genuinely failed record's doc from the same source topic.
+            errorProducer.sendToErrorTopic(BOUNDARY_LOCALIZATION_PREWARM_FAILED + cacheKey, null, e);
+        }
+    }
+
+    /**
+     * Searches localization without a codes filter, which returns every message in the module for the
+     * tenant and locale, and keeps only the messages that map to one of the given boundary codes.
+     */
+    private Map<String, String> fetchModuleLocalizations(Set<String> boundaryCodes, RequestInfoWrapper requestInfoWrapper,
+                                                         String tenantId, String hierarchyType) throws Exception {
+        StringBuilder uri = new StringBuilder(getLocalizationSearchUri(tenantId, hierarchyType));
+        log.info("Prewarming boundary localizations, URI: {}", uri);
+
+        Object result = serviceRequestClient.fetchResult(uri, requestInfoWrapper, Map.class);
+        // Read the messages array itself rather than zipping $.messages.*.code against
+        // $.messages.*.message: a wildcard skips entries missing a key, which would shift the two
+        // lists out of step and cache a name against the wrong code.
+        List<Map<String, Object>> messages = JsonPath.read(result, LOCALIZATION_MESSAGES_JSONPATH);
+
+        Map<String, String> boundaryCodeVsName = new HashMap<>();
+        if (CollectionUtils.isEmpty(messages)) {
+            return boundaryCodeVsName;
+        }
+        for (Map<String, Object> message : messages) {
+            Object code = message.get(LOCALIZATION_MESSAGE_CODE);
+            Object localizedName = message.get(LOCALIZATION_MESSAGE);
+            if (code != null && localizedName != null && boundaryCodes.contains(code.toString())) {
+                boundaryCodeVsName.put(code.toString(), localizedName.toString());
+            }
+        }
+        log.info("Localization module returned {} messages, {} matched boundary codes in hierarchy: {}",
+                messages.size(), boundaryCodeVsName.size(), hierarchyType);
+        return boundaryCodeVsName;
+    }
+
+    private String getLocalizationSearchUri(String tenantId, String hierarchyType) {
+        return transformerProperties.getLocalizationHost() + transformerProperties.getLocalizationContextPath()
+                + transformerProperties.getLocalizationSearchEndpoint()
+                + "?tenantId=" + tenantId
+                + "&module=" + getLocalizationModule(hierarchyType)
+                + "&locale=" + transformerProperties.getLocalizationLocaleCode();
+    }
+
+    private String getLocalizationModule(String hierarchyType) {
+        // Locale.ROOT keeps the module name stable regardless of the JVM default locale.
+        String hierarchy = StringUtils.isBlank(hierarchyType)
+                ? transformerProperties.getBoundaryHierarchyName() : hierarchyType;
+        return transformerProperties.getLocalizationModuleName() + hierarchy.toLowerCase(Locale.ROOT);
+    }
+
+    private RequestInfoWrapper requestInfoWrapperOf(RequestInfo requestInfo) {
+        RequestInfoWrapper requestInfoWrapper = new RequestInfoWrapper();
+        requestInfoWrapper.setRequestInfo(requestInfo);
+        return requestInfoWrapper;
     }
 
     private void getAllBoundaryCodes(List<EnrichedBoundary> enrichedBoundaries, List<EnrichedBoundary> boundaries) {

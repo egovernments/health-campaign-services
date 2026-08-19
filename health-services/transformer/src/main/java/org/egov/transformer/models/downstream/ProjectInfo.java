@@ -33,4 +33,22 @@ public class ProjectInfo {
         this.projectName = projectName;
         this.hierarchyType = hierarchyType;
     }
+
+    /**
+     * Copies every project field from an already resolved ProjectInfo.
+     */
+    public void setProjectInfo(ProjectInfo projectInfo) {
+        setProjectInfo(projectInfo.getProjectId(), projectInfo);
+    }
+
+    /**
+     * Copies every project field from an already resolved ProjectInfo, but keeps projectId explicit for
+     * indexes keyed on the id the record referenced rather than the resolved project's own id.
+     */
+    public void setProjectInfo(String projectId, ProjectInfo projectInfo) {
+        setProjectInfo(projectId, projectInfo.getProjectType(), projectInfo.getProjectTypeId(),
+                projectInfo.getProjectName(), projectInfo.getHierarchyType());
+        this.campaignNumber = projectInfo.getCampaignNumber();
+        this.campaignId = projectInfo.getCampaignId();
+    }
 }

@@ -6,28 +6,16 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
-import org.egov.transformer.models.downstream.ProjectInfo;
-import org.egov.transformer.service.ProjectFactoryService;
-import org.egov.transformer.service.ProjectService;
+import org.egov.transformer.service.MdmsService;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
-import org.apache.commons.lang3.ObjectUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 
@@ -36,18 +24,13 @@ import static org.egov.transformer.Constants.*;
 public class CommonUtils {
 
     private final TransformerProperties properties;
-    private final ProjectService projectService;
     private final ObjectMapper objectMapper;
-    private final ProjectFactoryService projectFactoryService;
-    private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
-    private static Map<String, ProjectInfo> userIdVsProjectInfoCache = new ConcurrentHashMap<>();
-    private static Map<String, ArrayNode> projectIdVsCycleInfoCache = new ConcurrentHashMap<>();
+    private final MdmsService mdmsService;
 
-    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService, ProjectFactoryService projectFactoryService) {
+    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, MdmsService mdmsService) {
         this.properties = properties;
-        this.projectService = projectService;
         this.objectMapper = objectMapper;
-        this.projectFactoryService = projectFactoryService;
+        this.mdmsService = mdmsService;
     }
 
     public List<String> getProjectDatesList(Long startDateEpoch, Long endDateEpoch) {
@@ -182,123 +165,16 @@ public class CommonUtils {
         return years * 12 + months;
     }
 
-    public JsonNode getBoundaryHierarchy(String tenantId, String projectTypeId, Map<String, String> boundaryLabelToNameMap) {
-        if (boundaryLabelToNameMap == null || boundaryLabelToNameMap.isEmpty()) {
-            return null;
-        }
-        List<JsonNode> boundaryLevelVsLabel = null;
-        ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
-        try {
-            String cacheKey = (projectTypeId != null) ? tenantId + HYPHEN + projectTypeId : tenantId;
-            if (boundaryLevelVsLabelCache.containsKey(cacheKey)) {
-                boundaryLevelVsLabel = boundaryLevelVsLabelCache.get(cacheKey);
-                log.info("Fetching boundaryLevelVsLabel from cache for projectTypeId: {}", projectTypeId);
-            } else {
-                JsonNode mdmsBoundaryData = (projectTypeId != null) ? projectService.fetchBoundaryData(tenantId, null, projectTypeId) :
-                        projectService.fetchBoundaryDataByTenant(tenantId, null);
-                boundaryLevelVsLabel = StreamSupport
-                        .stream(mdmsBoundaryData.get(BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
-                boundaryLevelVsLabelCache.put(cacheKey, boundaryLevelVsLabel);
-            }
-        } catch (Exception e) {
-            log.error("Error while fetching boundaryHierarchy for projectTypeId: {}, Error: {}", projectTypeId, ExceptionUtils.getStackTrace(e));
-            log.info("RETURNING BOUNDARY_LABEL_TO_NAME_MAP as BOUNDARY_HIERARCHY: {}", boundaryLabelToNameMap);
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryDataByTenant(tenantId, null);
-            if (mdmsBoundaryData != null && mdmsBoundaryData.has(BOUNDARY_HIERARCHY)) {
-                boundaryLevelVsLabel = StreamSupport
-                        .stream(mdmsBoundaryData.get(BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
-            }
-        }
-        if (boundaryLevelVsLabel == null) {
-            return null;
-        }
-        boundaryLevelVsLabel.forEach(node -> {
-            if (node.get(LEVEL).asInt() > 1) {
-                boundaryHierarchy.put(node.get(INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(LABEL).asText()) == null ? null : boundaryLabelToNameMap.get(node.get(LABEL).asText()));
-            }
-        });
-        return boundaryHierarchy;
-    }
-
-
-    public String fetchCycleIndexFromProjectAdditionalDetails(String tenantId, String projectId, String projectTypeId, Long createdTime) {
-        ArrayNode cachedCycles = projectIdVsCycleInfoCache.get(projectId);
-        if (cachedCycles != null) {
-            return findCycleIndex(cachedCycles, createdTime);
-        }
-
-        Project project = projectService.getProject(projectId, tenantId);
-        if (project == null) {
-            return null;
-        }
-
-        JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
-        if (additionalDetails == null || additionalDetails.isMissingNode()) {
-            return null;
-        }
-
-        JsonNode projectTypeNode = additionalDetails.path("projectType");
-        if (projectTypeNode.isMissingNode() || projectTypeNode.isNull()) {
-            return fetchCycleIndexFromTime(tenantId, projectTypeId, createdTime);
-        }
-
-        ArrayNode campCycles = objectMapper.createArrayNode();
-        JsonNode cyclesNode = projectTypeNode.path("cycles");
-
-        if (!cyclesNode.isArray() || cyclesNode.isEmpty()) {
-            projectIdVsCycleInfoCache.put(projectId, campCycles);
-            return null;
-        }
-
-        for (JsonNode cycle : cyclesNode) {
-            if (!cycle.has("id") || !cycle.has("startDate") || !cycle.has("endDate")) {
-                continue;
-            }
-
-            ObjectNode normalized = objectMapper.createObjectNode();
-            normalized.put("id", cycle.path("id").asInt(0));
-            normalized.put(START_DATE, cycle.path("startDate").asLong(0));
-            normalized.put(END_DATE, cycle.path("endDate").asLong(0));
-
-            campCycles.add(normalized);
-        }
-
-        if (campCycles.isEmpty()) {
-            return null;
-        }
-        projectIdVsCycleInfoCache.put(projectId, campCycles);
-        return findCycleIndex(campCycles, createdTime);
-    }
-
-    public String getHierarchyTypeFromProject(Project project) {
-        try {
-            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
-            if (additionalDetails != null && !additionalDetails.isMissingNode()
-                    && additionalDetails.hasNonNull("hierarchyType")) {
-                String hierarchyType = additionalDetails.get("hierarchyType").asText(null);
-                if (StringUtils.isNotBlank(hierarchyType)) {
-                    log.info("hierarchyType resolved from project additionalDetails for projectId: {}, hierarchyType: {}", project.getId(), hierarchyType);
-                    return hierarchyType;
-                }
-                log.info("hierarchyType present but blank in project additionalDetails for projectId: {}, falling back to configured default: {}", project.getId(), properties.getBoundaryHierarchyName());
-            } else {
-                log.info("hierarchyType not present in project additionalDetails for projectId: {}, falling back to configured default: {}", project.getId(), properties.getBoundaryHierarchyName());
-            }
-        } catch (Exception e) {
-            log.warn("Failed to fetch hierarchyType from project additionalDetails for projectId: {}, falling back to configured default: {}", project.getId(), properties.getBoundaryHierarchyName());
-        }
-        return properties.getBoundaryHierarchyName();
-    }
-
     public String fetchCycleIndexFromTime(String tenantId, String projectTypeId, Long createdTime) {
-        JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
+        JsonNode projectType = mdmsService.fetchProjectTypes(tenantId, null, projectTypeId);
         if (projectType.has(CYCLES)) {
             ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
             return findCycleIndex(cycles, createdTime);
         }
         return null;
     }
-    private String findCycleIndex(ArrayNode cycles, Long createdTime) {
+
+    public String findCycleIndex(ArrayNode cycles, Long createdTime) {
         if (cycles == null || cycles.isEmpty()) {
             return null;
         }
@@ -323,28 +199,6 @@ public class CommonUtils {
         return null;
     }
 
-    //TODO move below cycle fetching logic to mdmsService
-    public String fetchCycleIndex(String tenantId, String projectId, AuditDetails auditDetails) {
-        Long createdTime = auditDetails.getCreatedTime();
-        JsonNode projectType = projectService.fetchProjectTypeFromProject(tenantId, projectId);
-        if (projectType != null && projectType.has(CYCLES)) {
-            ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
-
-            for (int i = 0; i < cycles.size(); i++) {
-                JsonNode currentCycle = cycles.get(i);
-                if (currentCycle.has(START_DATE) && currentCycle.has(END_DATE)) {
-                    Long startDate = currentCycle.get(START_DATE).asLong();
-                    Long endDate = currentCycle.get(END_DATE).asLong();
-                    if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
-                        return String.format("%02d", currentCycle.get(ID).asInt());
-                    }
-                }
-            }
-            return null;
-        }
-        return null;
-    }
-
     private boolean isWithinCycle(Long createdTime, Long startDate, Long endDate) {
         log.info("createdTime is {}", createdTime);
         log.info("startDate is {} and endDate is {}", startDate, endDate);
@@ -364,62 +218,4 @@ public class CommonUtils {
         return false;
     }
 
-    public ProjectInfo projectDetailsFromUserId(String userId, String tenantId){
-        if (userIdVsProjectInfoCache.containsKey(userId)) {
-            return userIdVsProjectInfoCache.get(userId);
-        }
-
-        List<String> userIds = new ArrayList<>(Arrays.asList(userId));
-        ProjectInfo projectInfo = new ProjectInfo();
-        List<ProjectStaff> projectStaffList = projectService.searchProjectStaff(userIds, tenantId);
-        ProjectStaff projectStaff = !CollectionUtils.isEmpty(projectStaffList) ? projectStaffList.get(0) : null;
-
-        if (ObjectUtils.isNotEmpty(projectStaff)) {
-            Project project = projectService.getProject(projectStaff.getProjectId(), tenantId);
-            String hierarchyType = getHierarchyTypeFromProject(project);
-            if (ObjectUtils.isNotEmpty(project)) {
-                String campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
-                projectInfo.setProjectTypeId(project.getProjectTypeId());
-                projectInfo.setProjectId(projectStaff.getProjectId());
-                projectInfo.setProjectType(project.getProjectType());
-                projectInfo.setProjectName(project.getName());
-                projectInfo.setCampaignNumber(project.getReferenceID());
-                projectInfo.setCampaignId(campaignId);
-                projectInfo.setHierarchyType(hierarchyType);
-                userIdVsProjectInfoCache.put(userId, projectInfo);
-            }
-        }
-
-        return projectInfo;
-    }
-
-    public void addProjectDetailsForUserIdAndTenantId(ProjectInfo projectInfo, String userId, String tenantId) {
-        ProjectInfo projectDetails = projectDetailsFromUserId(userId, tenantId);
-        if(ObjectUtils.isNotEmpty(projectDetails)) {
-            projectInfo.setProjectId(projectDetails.getProjectId());
-            projectInfo.setProjectTypeId(projectDetails.getProjectTypeId());
-            projectInfo.setProjectType(projectDetails.getProjectType());
-            projectInfo.setProjectName(projectDetails.getProjectName());
-            projectInfo.setCampaignNumber(projectDetails.getCampaignNumber());
-            projectInfo.setCampaignId(projectDetails.getCampaignId());
-        }
-    }
-
-//    public ObjectNode additionalFieldsToDetails(List<Object> fields) {
-//        ObjectNode additionalDetails = objectMapper.createObjectNode();
-//
-//        try {
-//            for (Object field : fields) {
-//                Method getKey = field.getClass().getMethod("getKey");
-//                Method getValue = field.getClass().getMethod("getValue");
-//                String key = (String) getKey.invoke(field);
-//                String value = (String) getValue.invoke(field);
-//                additionalDetails.put(key, value);
-//            }
-//        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-//            log.info("Error in additionalDetails fetch from additionalFields : " + ExceptionUtils.getStackTrace(e));
-//            return null;
-//        }
-//        return additionalDetails;
-//    }
 }

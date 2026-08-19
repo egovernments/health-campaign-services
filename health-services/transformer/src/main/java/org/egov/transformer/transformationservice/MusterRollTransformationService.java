@@ -11,10 +11,9 @@ import org.egov.transformer.models.downstream.MusterRollIndexV1;
 import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.musterRoll.MusterRoll;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.BillService;
 import org.egov.transformer.service.BoundaryService;
+import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
-import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -31,16 +30,15 @@ public class MusterRollTransformationService {
     private final Producer producer;
     private final UserService userService;
     private final BoundaryService boundaryService;
+    private final ProjectService projectService;
 
-    private final CommonUtils commonUtils;
 
-
-    public MusterRollTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils) {
+    public MusterRollTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
-        this.commonUtils = commonUtils;
+        this.projectService = projectService;
     }
 
     public void transform(MusterRoll musterRoll) {
@@ -59,7 +57,7 @@ public class MusterRollTransformationService {
 
         String tenantId = musterRoll.getTenantId();
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(musterRoll.getAuditDetails().getCreatedBy(), tenantId);
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(musterRoll.getAuditDetails().getCreatedBy(), tenantId);
         if (ObjectUtils.isNotEmpty(projectInfo) && StringUtils.isNotEmpty(projectInfo.getProjectId())) {
             String projectId = projectInfo.getProjectId();
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
@@ -131,7 +129,7 @@ public class MusterRollTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .build();
 
-        commonUtils.addProjectDetailsForUserIdAndTenantId(
+        projectService.addProjectDetailsForUserIdAndTenantId(
                 index,
                 musterRoll.getAuditDetails().getLastModifiedBy(),
                 musterRoll.getTenantId()

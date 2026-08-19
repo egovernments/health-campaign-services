@@ -83,7 +83,7 @@ public class SideEffectTransformationService {
                     task.getAddress().getLocality().getCode() != null) ?
                     task.getAddress().getLocality().getCode() :
                     null;
-            ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(sideEffect.getClientAuditDetails().getLastModifiedBy(), tenantId);
+            ProjectInfo projectInfo = projectService.projectDetailsFromUserId(sideEffect.getClientAuditDetails().getLastModifiedBy(), tenantId);
             BoundaryHierarchyResult boundaryHierarchyResult = localityCode != null ? boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId, projectInfo.getHierarchyType()) :
                     boundaryService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -121,7 +121,7 @@ public class SideEffectTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(sideEffect.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        commonUtils.addProjectDetailsForUserIdAndTenantId(sideEffectsIndexV1,
+        projectService.addProjectDetailsForUserIdAndTenantId(sideEffectsIndexV1,
                 sideEffect.getClientAuditDetails().getLastModifiedBy(),
                 sideEffect.getTenantId());
         return sideEffectsIndexV1;

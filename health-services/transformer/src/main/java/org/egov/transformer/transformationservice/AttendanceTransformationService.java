@@ -2,15 +2,11 @@ package org.egov.transformer.transformationservice;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.Name;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.attendance.AttendanceLog;
 import org.egov.transformer.models.attendance.AttendanceRegister;
-import org.egov.transformer.models.attendance.IndividualEntry;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.AttendanceLogIndexV1;
-import org.egov.transformer.models.downstream.AttendanceRegisterIndexV1;
 import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.AttendanceRegisterService;
@@ -39,19 +35,19 @@ public class AttendanceTransformationService {
     private final Producer producer;
     private final UserService userService;
     private final BoundaryService boundaryService;
-
     private final CommonUtils commonUtils;
-
+    private final ProjectService projectService;
     private final AttendanceRegisterService attendanceRegisterService;
     private final IndividualService individualService;
 
-    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, IndividualService individualService) {
+    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, ProjectService projectService1, IndividualService individualService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
+        this.projectService = projectService1;
         this.individualService = individualService;
     }
 
@@ -106,7 +102,7 @@ public class AttendanceTransformationService {
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .build();
-        commonUtils.addProjectDetailsForUserIdAndTenantId(attendanceLogIndexV1,
+        projectService.addProjectDetailsForUserIdAndTenantId(attendanceLogIndexV1,
                 attendanceLog.getAuditDetails().getLastModifiedBy(),
                 attendanceLog.getTenantId());
         return attendanceLogIndexV1;
@@ -115,7 +111,7 @@ public class AttendanceTransformationService {
 
     private BoundaryHierarchyResult getBoundaryHierarchyByCodeOrProjectId(JsonNode additionalDetails, String createdBy, String tenantId) {
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(createdBy,tenantId);
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(createdBy,tenantId);
         String boundaryCode = commonUtils.getLocalityCodeFromAdditionalFields(null, additionalDetails);
         if (StringUtils.isNotEmpty(boundaryCode)) {
             boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId,projectInfo.getHierarchyType());

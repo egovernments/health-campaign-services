@@ -98,7 +98,7 @@ public class ProjectStaffTransformationService {
                 .isDeleted(projectStaff.getIsDeleted())
                 .additionalFields(projectStaff.getAdditionalFields())
                 .build();
-        projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName(), commonUtils.getHierarchyTypeFromProject(project));
+        projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName(), projectService.getHierarchyTypeFromProject(project));
         projectStaffIndexV1.setCampaignNumber(project.getReferenceID());
         projectStaffIndexV1.setCampaignId(campaignId);
         return projectStaffIndexV1;

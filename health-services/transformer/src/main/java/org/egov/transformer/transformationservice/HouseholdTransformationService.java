@@ -35,9 +35,8 @@ public class HouseholdTransformationService {
     private final ProjectService projectService;
     private final HouseholdService householdService;
     private final BoundaryService boundaryService;
-    private final DeviceTokenService deviceTokenService;
 
-    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService, BoundaryService boundaryService, DeviceTokenService deviceTokenService) {
+    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -46,7 +45,6 @@ public class HouseholdTransformationService {
         this.projectService = projectService;
         this.householdService = householdService;
         this.boundaryService = boundaryService;
-        this.deviceTokenService = deviceTokenService;
     }
 
     public void transform(List<Household> householdList) {
@@ -67,13 +65,13 @@ public class HouseholdTransformationService {
         householdService.searchHousehold(household.getClientReferenceId(), household.getTenantId());
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());
 
         String localityCode;
         if (household.getAddress() != null
                 && household.getAddress().getLocality() != null
                 && household.getAddress().getLocality().getCode() != null) {
             localityCode = household.getAddress().getLocality().getCode();
-            ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId(), projectInfo.getHierarchyType());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
@@ -108,11 +106,9 @@ public class HouseholdTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(syncedTimeStamp)
                 .build();
-        commonUtils.addProjectDetailsForUserIdAndTenantId(householdIndexV1,
-                household.getClientAuditDetails().getLastModifiedBy(),
-                household.getTenantId());
+        householdIndexV1.setProjectInfo(projectInfo);
 
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(household.getTenantId(), householdIndexV1.getProjectId(), householdIndexV1.getProjectTypeId(), household.getClientAuditDetails().getCreatedTime());
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(household.getTenantId(), householdIndexV1.getProjectId(), householdIndexV1.getProjectTypeId(), household.getClientAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         householdIndexV1.setAdditionalDetails(additionalDetails);
         return householdIndexV1;

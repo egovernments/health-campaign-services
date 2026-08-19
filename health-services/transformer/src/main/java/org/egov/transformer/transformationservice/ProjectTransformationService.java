@@ -68,7 +68,7 @@ public class ProjectTransformationService {
 
     private List<ProjectIndexV1> transform(Project project) {
         String localityCode;
-        String hierarhyType = commonUtils.getHierarchyTypeFromProject(project);
+        String hierarhyType = projectService.getHierarchyTypeFromProject(project);
         if (project.getAddress() != null) {
             localityCode = project.getAddress().getBoundary() != null ?
                     project.getAddress().getBoundary() :
@@ -128,6 +128,7 @@ public class ProjectTransformationService {
                         }
                     }
 
+//                    TODO getProducts from projectAdditionalDetails instead of mdms projecttype
                     List<String> productVariants = projectService.getProducts(tenantId, project.getProjectTypeId());
                     String productVariantName = String.join(COMMA, productService.getProductVariantNames(productVariants, project.getTenantId()));
                     String productVariant = null;

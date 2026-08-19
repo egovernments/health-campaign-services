@@ -3,15 +3,13 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
-import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.transformer.config.TransformerProperties;
 
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.downstream.ReferralIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
@@ -81,21 +79,14 @@ public class ReferralTransformationService {
         Map<String, String> boundaryHierarchyCode = new HashMap<>();
 
         String projectId = null;
-        String projectType = null;
-        String projectTypeId = null;
-        String projectName = null;
-        String referenceId = null;
         String hierarchyType = "";
+        ProjectInfo projectInfo = new ProjectInfo();
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             projectId = projectBeneficiary.getProjectId();
-            Project project = projectService.getProject(projectId, tenantId);
-            hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
-            projectTypeId = project.getProjectTypeId();
-            projectType = project.getProjectType();
-            projectName = project.getName();
-            referenceId = project.getReferenceID();
+            projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
+            hierarchyType = projectInfo.getHierarchyType();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId,hierarchyType);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -114,7 +105,7 @@ public class ReferralTransformationService {
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getAuditDetails().getCreatedBy());
 
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, referral.getClientAuditDetails().getCreatedTime());
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectInfo.getProjectTypeId(), referral.getClientAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
@@ -122,10 +113,6 @@ public class ReferralTransformationService {
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
         }
 
-        String campaignId = null;
-        if (StringUtils.isNotBlank(referenceId)) {
-            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(referral.getTenantId(), true, referenceId);
-        }
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())
@@ -144,9 +131,7 @@ public class ReferralTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(referral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, projectName,hierarchyType);
-        referralIndexV1.setCampaignNumber(referenceId);
-        referralIndexV1.setCampaignId(campaignId);
+        referralIndexV1.setProjectInfo(projectInfo);
         return referralIndexV1;
     }
 }
