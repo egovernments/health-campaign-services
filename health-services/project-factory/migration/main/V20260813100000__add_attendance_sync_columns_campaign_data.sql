@@ -14,6 +14,18 @@ ALTER TABLE eg_cm_campaign_data
 ALTER TABLE eg_cm_campaign_data
     ADD COLUMN IF NOT EXISTS denrollmentDate BIGINT;
 
--- Both attendance events identify their row by (type, uniqueIdAfterProcess) with no campaign scope.
-CREATE INDEX IF NOT EXISTS idx_eg_cm_campaign_data_unique_id_after_process
-    ON eg_cm_campaign_data (type, uniqueIdAfterProcess);
+-- Both attendance events identify their row by (type, uniqueIdAfterProcess) with no campaign scope,
+-- which the primary key (campaignNumber, uniqueIdentifier, type) cannot serve.
+--
+-- Partial on purpose. user/facility/boundary rows also populate uniqueIdAfterProcess and are written
+-- in bulk during campaign creation, but are never looked up this way; excluding them keeps those
+-- inserts maintaining a single index, and shrinks the build to the attendance slice so it does not
+-- block writes while it runs.
+--
+-- Renamed from idx_eg_cm_campaign_data_unique_id_after_process, the full-table version of this index:
+-- CREATE INDEX IF NOT EXISTS matches on name alone, so the old name would have kept the full index.
+-- Only dev ever ran that version; drop it there by hand.
+CREATE INDEX IF NOT EXISTS idx_eg_cm_campaign_data_attendance_identity
+    ON eg_cm_campaign_data (type, uniqueIdAfterProcess)
+    WHERE type IN ('attendanceRegister', 'attendanceRegisterAttendee')
+      AND uniqueIdAfterProcess IS NOT NULL;

@@ -188,30 +188,30 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // Gated on the cheap per-sheet count first: a populated upload must not pay for the
             // workbook-wide scans, which only matter once this sheet has no enrolment at all.
             if (countEnrolmentRows(sheetData) == 0 && workbookHasNoEnrolments(workbook, resource)) {
-            boolean sheetHasPeople = countRowsWithUser(sheetData) > 0;
-            boolean firstReportForEmptyWorkbook = !sheetHasPeople
-                    && !alreadyReportedEmptyWorkbook(resource)
-                    && workbookHasNoRowsAtAll(workbook, resource);
-            if (sheetHasPeople || firstReportForEmptyWorkbook) {
-                // Nobody in the workbook at all is a different problem from people missing a date,
-                // and pointing at the date column would send the user looking for the wrong thing.
-                String message = sheetHasPeople
-                        ? localizationMap.getOrDefault(
-                                ValidationConstants.LOC_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED,
-                                ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED)
-                        : localizationMap.getOrDefault(
-                                ValidationConstants.LOC_ATTENDANCE_ATTENDEE_NO_USERS,
-                                ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_NO_USERS);
-                errors.add(ValidationError.builder()
-                        .rowNumber(ValidationConstants.FIRST_DATA_ROW_NUMBER)
-                        .errorDetails(message)
-                        .status(ValidationConstants.STATUS_INVALID)
-                        .build());
-                if (!sheetHasPeople) {
-                    markEmptyWorkbookReported(resource);
+                boolean sheetHasPeople = countRowsWithUser(sheetData) > 0;
+                boolean firstReportForEmptyWorkbook = !sheetHasPeople
+                        && !alreadyReportedEmptyWorkbook(resource)
+                        && workbookHasNoRowsAtAll(workbook, resource);
+                if (sheetHasPeople || firstReportForEmptyWorkbook) {
+                    // Nobody in the workbook at all is a different problem from people missing a date,
+                    // and pointing at the date column would send the user looking for the wrong thing.
+                    String message = sheetHasPeople
+                            ? getLocalizedMessage(localizationMap,
+                                    ValidationConstants.LOC_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED,
+                                    ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED)
+                            : getLocalizedMessage(localizationMap,
+                                    ValidationConstants.LOC_ATTENDANCE_ATTENDEE_NO_USERS,
+                                    ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_NO_USERS);
+                    errors.add(ValidationError.builder()
+                            .rowNumber(ValidationConstants.FIRST_DATA_ROW_NUMBER)
+                            .errorDetails(message)
+                            .status(ValidationConstants.STATUS_INVALID)
+                            .build());
+                    if (!sheetHasPeople) {
+                        markEmptyWorkbookReported(resource);
+                    }
+                    log.info("No enrolment date anywhere in the workbook, flagged sheet {}", sheetName);
                 }
-                log.info("No enrolment date anywhere in the workbook, flagged sheet {}", sheetName);
-            }
             }
 
             log.info("Attendee validation completed for sheet {} with {} errors", sheetName, errors.size());

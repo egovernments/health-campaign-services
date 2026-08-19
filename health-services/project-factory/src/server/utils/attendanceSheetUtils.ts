@@ -1,3 +1,4 @@
+import * as ExcelJS from "exceljs";
 import config from "../config";
 import { logger } from "./logger";
 import { executeQuery, getTableName } from "./db";
@@ -8,6 +9,7 @@ import { createAndUploadFileWithOutRequest } from "../api/genericApis";
 import { fetchFileFromFilestore } from "../api/coreApis";
 import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { TenantId } from "../config/models/brandedTypes";
+import { attendanceSheetRefresh } from "../config/constants";
 
 const REGISTER_RESOURCE_TYPE = "attendanceRegister";
 const ATTENDEE_RESOURCE_TYPE = "attendanceRegisterAttendee";
@@ -21,9 +23,30 @@ const FIRST_DATA_ROW = 3;
 const IDENTITY_SEPARATOR = "_";
 
 /** additionalDetails key holding the refresh state, so the UI can poll it like any other progress. */
-const REFRESH_STATE_KEY = "attendanceRefresh";
-const REFRESH_PENDING = "pending";
-const REFRESH_IN_PROGRESS = "inProgress";
+const REFRESH_STATE_KEY = attendanceSheetRefresh.additionalDetailsKey;
+const REFRESH_PENDING = attendanceSheetRefresh.statePending;
+const REFRESH_IN_PROGRESS = attendanceSheetRefresh.stateInProgress;
+
+/** What is written under that key: the state plus when it was set, which the lease rule compares against. */
+interface RefreshMarker {
+    state: string;
+    at: number;
+}
+
+/** Why a read did or did not hand over a file — logged per row so a stuck lease is greppable. */
+type RefreshOutcome =
+    | "refreshed"
+    | "refreshedElsewhere"
+    | "alreadyCorrect"
+    | "nothingToRefresh"
+    | "stillRunning"
+    | "waitedOut"
+    | "failed";
+
+interface RefreshResult {
+    fileStoreId: string | null;
+    outcome: RefreshOutcome;
+}
 
 /**
  * Flags the current-register file as out of date. Recorded before the rewrite is attempted so the
@@ -52,18 +75,32 @@ export async function completeOwedRegisterSheetRefresh(
 
     for (const row of rows) {
         if (!isAttendanceSheetType(row?.type) || !hasRefreshMarker(row)) continue;
+        const startedAt = Date.now();
         try {
-            const outcome = await claimAndRefresh(tenantId, row, waitDeadline);
+            const result = await claimAndRefresh(tenantId, row, waitDeadline);
             // Withhold the file unless this call knows it is correct: handing over a sheet that still
             // lists a deleted register is worse than a download that does nothing and can be retried.
-            refreshed.set(row.id, outcome.fileStoreId);
+            refreshed.set(row.id, result.fileStoreId);
+            logRefreshOutcome(row.id, result.outcome, startedAt);
         } catch (error) {
             // A search must still answer; the flag stays set so the next read retries.
             logger.error(`ATTENDANCE SHEET :: read-path refresh failed for resource ${row.id}: ${String(error)}`);
+            logRefreshOutcome(row.id, "failed", startedAt);
             refreshed.set(row.id, null);
         }
     }
     return refreshed;
+}
+
+/**
+ * One line per owed file, since this work now sits inside a search: the outcome shows how often a
+ * download is withheld and the duration shows what the caller paid for it, without a metrics stack.
+ */
+function logRefreshOutcome(resourceId: string, outcome: RefreshOutcome, startedAt: number): void {
+    logger.info(
+        `ATTENDANCE SHEET :: refresh outcome resource=${resourceId} outcome=${outcome} ` +
+        `durationMs=${Date.now() - startedAt}`
+    );
 }
 
 function isAttendanceSheetType(type: string | undefined): boolean {
@@ -76,7 +113,17 @@ function isAttendanceSheetType(type: string | undefined): boolean {
  * settled by the claim statement rather than read here — one place owns the lease rule.
  */
 function hasRefreshMarker(row: ResourceDetailRow): boolean {
-    return Boolean((row.additionaldetails || {})[REFRESH_STATE_KEY]);
+    return Boolean(readRefreshMarker(row));
+}
+
+/** additionalDetails is free-form JSON, so the marker is read through one place instead of inline casts. */
+function readRefreshMarker(row: ResourceDetailRow | null): unknown {
+    return row?.additionaldetails?.[REFRESH_STATE_KEY];
+}
+
+function refreshStateOf(marker: unknown): string {
+    if (typeof marker !== "object" || marker === null || !("state" in marker)) return "";
+    return String(marker.state);
 }
 
 /**
@@ -88,39 +135,41 @@ async function claimAndRefresh(
     tenantId: TenantId,
     resource: ResourceDetailRow,
     waitDeadline: number
-): Promise<{ fileStoreId: string | null }> {
+): Promise<RefreshResult> {
     const processedFileStoreId = resource?.processedfilestoreid;
     if (!processedFileStoreId) {
         // Nothing has been served for this campaign yet (no completed upload), so there is nothing to
         // correct. Drop the marker, or it would sit there for good and read as a refresh never ending.
         await finishRefresh(tenantId, resource.id, null);
-        return { fileStoreId: null };
+        return { fileStoreId: null, outcome: "nothingToRefresh" };
     }
 
     // Two passes at most: the wait can end with the work handed back as pending, which this claims.
     for (let attempt = 0; attempt < 2; attempt++) {
         if (await claimRefresh(tenantId, resource.id)) {
-            return { fileStoreId: await rewriteUnderClaim(tenantId, resource, processedFileStoreId) };
+            return rewriteUnderClaim(tenantId, resource, processedFileStoreId);
         }
-        const outcome = await waitForRefreshToLand(tenantId, resource.id, waitDeadline);
-        if (outcome.settled) return { fileStoreId: outcome.fileStoreId };
-        if (!outcome.owedAgain) return { fileStoreId: null }; // still running elsewhere
+        const landed = await waitForRefreshToLand(tenantId, resource.id, waitDeadline);
+        if (landed.settled) return { fileStoreId: landed.fileStoreId, outcome: "refreshedElsewhere" };
+        if (!landed.owedAgain) return { fileStoreId: null, outcome: "stillRunning" };
     }
-    return { fileStoreId: null };
+    return { fileStoreId: null, outcome: "waitedOut" };
 }
 
 async function rewriteUnderClaim(
     tenantId: TenantId,
     resource: ResourceDetailRow,
     processedFileStoreId: string
-): Promise<string | null> {
+): Promise<RefreshResult> {
     try {
         const newFileStoreId = resource.type === ATTENDEE_RESOURCE_TYPE
             ? await rewriteWithSyncedDeEnrolments(tenantId, resource, processedFileStoreId)
             : await rewriteWithoutDeletedRegisters(tenantId, resource, processedFileStoreId);
         await finishRefresh(tenantId, resource.id, newFileStoreId);
         // No rewrite needed means the existing file was already correct, so it stays servable.
-        return newFileStoreId ?? processedFileStoreId;
+        return newFileStoreId
+            ? { fileStoreId: newFileStoreId, outcome: "refreshed" }
+            : { fileStoreId: processedFileStoreId, outcome: "alreadyCorrect" };
     } catch (error) {
         // Hand the claim back so the next read retries instead of the lease having to expire.
         await setRefreshState(tenantId, resource.id, { state: REFRESH_PENDING, at: Date.now() });
@@ -141,12 +190,12 @@ async function waitForRefreshToLand(
     while (Date.now() < deadline) {
         await sleep(config.attendanceRegister.sheetRefreshPollMs);
         const row = await getResourceDetailById(resourceId, tenantId);
-        const refresh = (row?.additionaldetails || {})[REFRESH_STATE_KEY];
+        const marker = readRefreshMarker(row);
 
-        if (!refresh) {
+        if (!marker) {
             return { settled: true, owedAgain: false, fileStoreId: row?.processedfilestoreid || null };
         }
-        if (refresh.state === REFRESH_PENDING) {
+        if (refreshStateOf(marker) === REFRESH_PENDING) {
             return { settled: false, owedAgain: true, fileStoreId: null };
         }
     }
@@ -196,7 +245,7 @@ async function rewriteWithSyncedDeEnrolments(
     if (deEnrolmentDates.size === 0) return null;
 
     const fileUrl = await fetchFileFromFilestore(processedFileStoreId, tenantId);
-    const workbook: any = await getExcelWorkbookFromFileURL(fileUrl);
+    const workbook = await getExcelWorkbookFromFileURL(fileUrl);
 
     const stamped = stampDeEnrolmentDates(workbook, deEnrolmentDates);
     if (stamped === 0) {
@@ -204,11 +253,7 @@ async function rewriteWithSyncedDeEnrolments(
         return null;
     }
 
-    const uploaded = await createAndUploadFileWithOutRequest(workbook, tenantId);
-    const newFileStoreId = uploaded?.[0]?.fileStoreId;
-    if (!newFileStoreId) {
-        throw new Error(`ATTENDANCE SHEET :: resource ${resource.id} — refreshed file upload returned no fileStoreId`);
-    }
+    const newFileStoreId = await uploadRefreshedWorkbook(workbook, tenantId, resource.id);
 
     logger.info(
         `ATTENDANCE SHEET :: resource ${resource.id} — stamped ${stamped} de-enrolment date(s) into the ` +
@@ -244,7 +289,7 @@ async function syncedDeEnrolmentDates(
 }
 
 /** Returns how many cells changed, so an already-correct file is not re-uploaded for nothing. */
-export function stampDeEnrolmentDates(workbook: any, deEnrolmentDates: Map<string, string>): number {
+export function stampDeEnrolmentDates(workbook: ExcelJS.Workbook, deEnrolmentDates: Map<string, string>): number {
     let stamped = 0;
     for (const worksheet of workbook?.worksheets || []) {
         const keyRow = worksheet.getRow(KEY_ROW);
@@ -276,7 +321,7 @@ async function rewriteWithoutDeletedRegisters(
     if (deletedServiceCodes.size === 0) return null;
 
     const fileUrl = await fetchFileFromFilestore(processedFileStoreId, tenantId);
-    const workbook: any = await getExcelWorkbookFromFileURL(fileUrl);
+    const workbook = await getExcelWorkbookFromFileURL(fileUrl);
 
     const removed = removeDeletedRegisterRows(workbook, deletedServiceCodes);
     if (removed === 0) {
@@ -284,11 +329,7 @@ async function rewriteWithoutDeletedRegisters(
         return null;
     }
 
-    const uploaded = await createAndUploadFileWithOutRequest(workbook, tenantId);
-    const newFileStoreId = uploaded?.[0]?.fileStoreId;
-    if (!newFileStoreId) {
-        throw new Error(`ATTENDANCE SHEET :: resource ${resource.id} — refreshed file upload returned no fileStoreId`);
-    }
+    const newFileStoreId = await uploadRefreshedWorkbook(workbook, tenantId, resource.id);
 
     logger.info(
         `ATTENDANCE SHEET :: resource ${resource.id} — removed ${removed} deleted register row(s), ` +
@@ -297,19 +338,37 @@ async function rewriteWithoutDeletedRegisters(
     return newFileStoreId;
 }
 
+/** The refresh is only useful if it yields an id to repoint at, so a missing one is an error, not a null. */
+async function uploadRefreshedWorkbook(
+    workbook: ExcelJS.Workbook,
+    tenantId: TenantId,
+    resourceId: string
+): Promise<string> {
+    const uploaded = await createAndUploadFileWithOutRequest(workbook, tenantId);
+    const fileStoreId: unknown = uploaded?.[0]?.fileStoreId;
+    if (typeof fileStoreId !== "string" || !fileStoreId) {
+        throw new Error(`ATTENDANCE SHEET :: resource ${resourceId} — refreshed file upload returned no fileStoreId`);
+    }
+    return fileStoreId;
+}
+
 /** Deleted registers are read from the current DB state, never from the event, so no delete is lost. */
 async function deletedRegisterServiceCodes(tenantId: TenantId, campaignId: string): Promise<Set<string>> {
     const { campaignNumber } = await getCampaignNumberOf(campaignId, tenantId);
     if (!campaignNumber) return new Set();
     const rows = await getRelatedDataWithCampaign(REGISTER_RESOURCE_TYPE, campaignNumber, tenantId);
     return new Set<string>(
-        rows.filter((row: any) => row?.isDeleted && row?.uniqueIdentifier).map((row: any) => String(row.uniqueIdentifier))
+        rows.filter((row) => row?.isDeleted && row?.uniqueIdentifier).map((row) => String(row.uniqueIdentifier))
     );
 }
 
+/** Scoped by tenant as well as id: outside a central instance every tenant shares this table. */
 async function getCampaignNumberOf(campaignId: string, tenantId: TenantId): Promise<{ campaignNumber: string | null }> {
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
-    const result = await executeQuery(`SELECT campaignNumber FROM ${tableName} WHERE id = $1 LIMIT 1`, [campaignId]);
+    const result = await executeQuery(
+        `SELECT campaignNumber FROM ${tableName} WHERE id = $1 AND tenantId = $2 LIMIT 1`,
+        [campaignId, tenantId]
+    );
     return { campaignNumber: result?.rows?.[0]?.campaignnumber || null };
 }
 
@@ -324,7 +383,7 @@ async function findRegisterResources(tenantId: TenantId, campaignNumber: string)
         campaignIds,
         type: [REGISTER_RESOURCE_TYPE],
         isActive: true
-    } as any);
+    });
 }
 
 /** Only one caller wins: pending (or an expired claim) becomes inProgress in a single statement. */
@@ -352,20 +411,27 @@ async function claimRefresh(tenantId: TenantId, resourceId: string): Promise<boo
  */
 async function finishRefresh(tenantId: TenantId, resourceId: string, newFileStoreId: string | null): Promise<void> {
     const tableName = getTableName(config?.DB_CONFIG?.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
-    const values: any[] = [`{${REFRESH_STATE_KEY}}`, resourceId, Date.now()];
+    const values: (string | number)[] = [`{${REFRESH_STATE_KEY}}`, resourceId, Date.now(), REFRESH_STATE_KEY, REFRESH_IN_PROGRESS];
     let setFileStoreId = "";
     if (newFileStoreId) {
-        setFileStoreId = `, processedFileStoreId = $4`;
+        setFileStoreId = `, processedFileStoreId = $6`;
         values.push(newFileStoreId);
     }
+    // The marker is dropped only while it still reads inProgress. A delete that arrived during the
+    // rewrite set it back to pending, and clearing that would lose the deletion; the file pointer is
+    // still moved, because the file this produced is newer than the one it replaced either way.
     const query = `UPDATE ${tableName}
-                   SET additionalDetails = COALESCE(additionalDetails, '{}'::jsonb) #- $1,
+                   SET additionalDetails = CASE
+                           WHEN additionalDetails -> $4 ->> 'state' = $5
+                               THEN COALESCE(additionalDetails, '{}'::jsonb) #- $1
+                           ELSE additionalDetails
+                       END,
                        lastModifiedTime = $3${setFileStoreId}
                    WHERE id = $2`;
     await executeQuery(query, values);
 }
 
-async function setRefreshState(tenantId: TenantId, resourceId: string, state: Record<string, any>): Promise<void> {
+async function setRefreshState(tenantId: TenantId, resourceId: string, state: RefreshMarker): Promise<void> {
     const tableName = getTableName(config?.DB_CONFIG?.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
     const query = `UPDATE ${tableName}
                    SET additionalDetails = jsonb_set(COALESCE(additionalDetails, '{}'::jsonb), $1, $2::jsonb, true)
@@ -378,7 +444,7 @@ async function setRefreshState(tenantId: TenantId, resourceId: string, state: Re
  * are moved rather than rows spliced, so each row keeps the validation already sitting on it — the
  * cascades are row-relative, and this path does not reload the schema to re-apply them.
  */
-export function removeDeletedRegisterRows(workbook: any, deletedServiceCodes: Set<string>): number {
+export function removeDeletedRegisterRows(workbook: ExcelJS.Workbook, deletedServiceCodes: Set<string>): number {
     const worksheet = findRegisterListSheet(workbook);
     if (!worksheet) return 0;
 
@@ -387,7 +453,7 @@ export function removeDeletedRegisterRows(workbook: any, deletedServiceCodes: Se
     const registerIdColumn = columnIndexOfKey(keyRow, columnCount, REGISTER_ID_KEY);
     if (!registerIdColumn) return 0;
 
-    const dataRows: { registerId: string; values: any[] }[] = [];
+    const dataRows: { registerId: string; values: ExcelJS.CellValue[] }[] = [];
     let lastDataRow = FIRST_DATA_ROW - 1;
     for (let rowNumber = FIRST_DATA_ROW; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
@@ -412,7 +478,7 @@ export function removeDeletedRegisterRows(workbook: any, deletedServiceCodes: Se
 }
 
 /** Located by its key row rather than its name, which is localized per environment. */
-function findRegisterListSheet(workbook: any): any {
+function findRegisterListSheet(workbook: ExcelJS.Workbook): ExcelJS.Worksheet | null {
     for (const worksheet of workbook?.worksheets || []) {
         const keyRow = worksheet.getRow(KEY_ROW);
         if (columnIndexOfKey(keyRow, keyRow?.cellCount || 0, REGISTER_ID_KEY)) return worksheet;
@@ -420,7 +486,7 @@ function findRegisterListSheet(workbook: any): any {
     return null;
 }
 
-function columnIndexOfKey(keyRow: any, columnCount: number, key: string): number {
+function columnIndexOfKey(keyRow: ExcelJS.Row, columnCount: number, key: string): number {
     for (let column = 1; column <= columnCount; column++) {
         if (cellText(keyRow.getCell(column)) === key) return column;
     }
@@ -428,27 +494,28 @@ function columnIndexOfKey(keyRow: any, columnCount: number, key: string): number
 }
 
 /** A formula is read as its last computed value: copied to another row its references would be wrong. */
-function readRowValues(row: any, columnCount: number): any[] {
-    const values: any[] = [];
+function readRowValues(row: ExcelJS.Row, columnCount: number): ExcelJS.CellValue[] {
+    const values: ExcelJS.CellValue[] = [];
     for (let column = 1; column <= columnCount; column++) {
         const value = row.getCell(column).value;
-        values.push(value && typeof value === "object" && "formula" in value ? (value as any).result ?? null : value);
+        values.push(value && typeof value === "object" && "formula" in value ? value.result ?? null : value);
     }
     return values;
 }
 
-function writeRowValues(row: any, values: any[], columnCount: number): void {
+function writeRowValues(row: ExcelJS.Row, values: ExcelJS.CellValue[], columnCount: number): void {
     for (let column = 1; column <= columnCount; column++) {
         row.getCell(column).value = values[column - 1] ?? null;
     }
 }
 
-function cellText(cell: any): string {
+function cellText(cell: ExcelJS.Cell): string {
     const value = cell?.value;
     if (value === null || value === undefined) return "";
     if (typeof value === "object") {
-        const resolved = (value as any).result ?? (value as any).text ?? "";
-        return String(resolved).trim();
+        if ("result" in value && value.result != null) return String(value.result).trim();
+        if ("text" in value && value.text != null) return String(value.text).trim();
+        return "";
     }
     return String(value).trim();
 }

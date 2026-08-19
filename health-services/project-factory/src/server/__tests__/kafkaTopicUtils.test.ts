@@ -1,4 +1,4 @@
-import { getTopicName, getConsumerTopicPattern, stripTopicPrefix, validateConsumerTopicPrefix, parseTenantIds, getStartupTopicsToCreate, getEffectiveConsumerPrefix } from '../utils/kafkaTopicUtils';
+import { getTopicName, getConsumerTopicPattern, stripTopicPrefix, validateConsumerTopicPrefix, parseTenantIds, getStartupTopicsToCreate, getStartupTenantIds, getEffectiveConsumerPrefix } from '../utils/kafkaTopicUtils';
 
 jest.mock('../config', () => ({
   default: {
@@ -305,6 +305,70 @@ describe('kafkaTopicUtils', () => {
       (config as any).centralInstanceTenantIds = 'ko,ba';
       const result = getStartupTopicsToCreate(['hcm-processing-result', 'start-admin-console-task']);
       expect(result).toEqual(['hcm-processing-result', 'start-admin-console-task']);
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // Creation and subscription must agree — a topic the regex cannot match
+  // leaves the handler idle with no error anywhere.
+  // -------------------------------------------------------------------
+
+  describe('startup topics vs the consumer subscription', () => {
+    const matchesSubscription = (topic: string, baseTopic: string): boolean => {
+      const pattern = getConsumerTopicPattern(baseTopic);
+      return pattern instanceof RegExp ? pattern.test(topic) : pattern === topic;
+    };
+
+    it('creates the topics the explicit prefix subscribes to, even with no tenant list', () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).kafkaConsumerTopicPrefix = '(ba|ke)-';
+      (config as any).centralInstanceTenantIds = '';
+
+      const created = getStartupTopicsToCreate(['delete-attendance-health']);
+
+      expect(created).toEqual(['ba-delete-attendance-health', 'ke-delete-attendance-health']);
+      created.forEach(topic => expect(matchesSubscription(topic, 'delete-attendance-health')).toBe(true));
+    });
+
+    it('follows the explicit prefix when it disagrees with the tenant list, since the consumer does', () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).kafkaConsumerTopicPrefix = '(ba)-';
+      (config as any).centralInstanceTenantIds = 'ko,ba';
+
+      const created = getStartupTopicsToCreate(['update-attendee-health']);
+
+      expect(created).toEqual(['ba-update-attendee-health']);
+      created.forEach(topic => expect(matchesSubscription(topic, 'update-attendee-health')).toBe(true));
+    });
+
+    it('reads a single-tenant prefix too', () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).kafkaConsumerTopicPrefix = 'ba-';
+
+      expect(getStartupTenantIds()).toEqual(['ba']);
+    });
+
+    it('falls back to the tenant list when no explicit prefix is set', () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).centralInstanceTenantIds = 'ko,ba';
+
+      expect(getStartupTenantIds()).toEqual(['ko', 'ba']);
+    });
+
+    it('rejects a prefix no tenant can be read from, instead of creating unmatchable topics', () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).kafkaConsumerTopicPrefix = '[a-z]{2}-';
+      (config as any).centralInstanceTenantIds = '';
+
+      expect(() => validateConsumerTopicPrefix()).toThrow(/cannot be expanded into tenant ids/);
+    });
+
+    it('accepts an unreadable prefix as long as the tenant list names the topics to create', () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).kafkaConsumerTopicPrefix = '[a-z]{2}-';
+      (config as any).centralInstanceTenantIds = 'ko,ba';
+
+      expect(() => validateConsumerTopicPrefix()).not.toThrow();
     });
   });
 });

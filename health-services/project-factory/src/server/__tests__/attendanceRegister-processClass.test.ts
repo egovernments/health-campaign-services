@@ -43,9 +43,16 @@ jest.mock('../api/coreApis', () => ({
 }));
 
 import { TemplateClass } from "../processFlowClasses/attendanceRegister-processClass";
+import { CampaignDataRow } from "../config/models/campaignDataRow";
+import { SheetRow } from "../models/SheetMap";
 
-const buildOutputData = (allRows: unknown[], unpersistableRows: unknown[] = []) =>
-    (TemplateClass as any).buildOutputData(allRows, unpersistableRows);
+// buildOutputData is private, so the test reaches it through a view that still checks its signature.
+const templateInternals = TemplateClass as unknown as {
+    buildOutputData: (allRows: Partial<CampaignDataRow>[], unpersistableRows: SheetRow[]) => SheetRow[];
+};
+
+const buildOutputData = (allRows: Partial<CampaignDataRow>[], unpersistableRows: SheetRow[] = []) =>
+    templateInternals.buildOutputData(allRows, unpersistableRows);
 
 describe("buildOutputData", () => {
     it("drops registers deleted in the attendance service", () => {

@@ -2,12 +2,11 @@ import config from "../config";
 import { logger } from "./logger";
 import { executeQuery, getTableName } from "./db";
 import { markAttendeeSheetRefreshPending, markRegisterSheetRefreshPending } from "./attendanceSheetUtils";
-import { AttendanceRegisterId, TenantId } from "../config/models/brandedTypes";
-import { attendeeIdentity } from "./attendanceIdentityUtils";
+import { AttendanceRegisterId, IndividualId, TenantId } from "../config/models/brandedTypes";
+import { attendeeIdentity, attendeeSheetTypes, AttendeeSheetType } from "./attendanceIdentityUtils";
 
 const ATTENDANCE_REGISTER_TYPE = "attendanceRegister";
 const ATTENDANCE_REGISTER_ATTENDEE_TYPE = "attendanceRegisterAttendee";
-const WORKER_SHEET_TYPE = "worker";
 const STAFF_TYPE_APPROVER = "APPROVER";
 
 
@@ -25,9 +24,9 @@ interface DeletedRegisterGroup {
  * templates stop offering them. Registers deleted before this consumer shipped are not
  * retroactively corrected — only deletions observed from here on.
  */
-export async function handleAttendanceRegisterDelete(messageObject: any): Promise<void> {
-    const registers: unknown = messageObject?.attendanceRegister;
-    if (!Array.isArray(registers) || registers.length === 0) {
+export async function handleAttendanceRegisterDelete(messageObject: unknown): Promise<void> {
+    const registers = arrayField(messageObject, "attendanceRegister");
+    if (registers.length === 0) {
         logger.warn("ATTENDANCE DELETE :: message carried no attendanceRegister entries, skipping");
         return;
     }
@@ -44,7 +43,7 @@ export async function handleAttendanceRegisterDelete(messageObject: any): Promis
 /**
  * Run every group even if one fails, so a transient error on one tenant does not skip the rest.
  * The listener catches and commits the offset regardless, so the rethrow only surfaces the failure
- * in logs — a failed group is NOT redelivered and that deletion/de-enrolment is lost.
+ * in logs — a group that fails every attempt is NOT redelivered and that change is lost.
  */
 async function runPerGroup<T>(
     groups: T[],
@@ -54,7 +53,7 @@ async function runPerGroup<T>(
     const failures: unknown[] = [];
     for (const group of groups) {
         try {
-            await apply(group);
+            await applyWithRetries(group, apply, logPrefix);
         } catch (error) {
             failures.push(error);
             logger.error(`${logPrefix} :: group failed, continuing with the rest: ${String(error)}`);
@@ -66,35 +65,80 @@ async function runPerGroup<T>(
 }
 
 /**
+ * Retried because this is the only chance the event gets: the offset commits even on a throw, so a
+ * deadlock or a dropped connection would otherwise lose the deletion outright. Both updates are
+ * idempotent (a flag and a date, keyed by identity), so a partly-applied attempt is safe to repeat.
+ */
+async function applyWithRetries<T>(
+    group: T,
+    apply: (group: T) => Promise<void>,
+    logPrefix: string
+): Promise<void> {
+    const attempts = Math.max(1, config.attendanceRegister.syncGroupAttempts);
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            await apply(group);
+            return;
+        } catch (error) {
+            if (attempt === attempts) throw error;
+            logger.warn(`${logPrefix} :: attempt ${attempt} of ${attempts} failed, retrying: ${String(error)}`);
+            await sleep(config.attendanceRegister.syncGroupRetryDelayMs * attempt);
+        }
+    }
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * Record de-enrolments from the attendance service against the rows this service created, so
  * downloads can drop people once the date passes. Attendees are keyed by individualId, staff by
  * userId, and both by staff/sheet type. Entries without a de-enrolment date are ignored — the same
  * topic also carries tag edits, which must not remove anyone.
  */
-export async function handleAttendanceAttendeeDeEnrolment(messageObject: any): Promise<void> {
-    await applyDeEnrolments(messageObject?.attendees, "attendee",
-        (entry) => typeof entry?.individualId === "string" ? entry.individualId.trim() : "",
-        () => WORKER_SHEET_TYPE);
+export async function handleAttendanceAttendeeDeEnrolment(messageObject: unknown): Promise<void> {
+    await applyDeEnrolments(arrayField(messageObject, "attendees"), "attendee",
+        (entry) => trimmedString(entry.individualId),
+        () => attendeeSheetTypes.worker);
 }
 
-export async function handleAttendanceStaffDeEnrolment(messageObject: any): Promise<void> {
-    await applyDeEnrolments(messageObject?.staff, "staff",
-        (entry) => typeof entry?.userId === "string" ? entry.userId.trim() : "",
-        (entry) => staffSheetType(entry?.staffType));
+export async function handleAttendanceStaffDeEnrolment(messageObject: unknown): Promise<void> {
+    await applyDeEnrolments(arrayField(messageObject, "staff"), "staff",
+        (entry) => trimmedString(entry.userId),
+        (entry) => staffSheetType(entry.staffType));
+}
+
+/** Kafka payloads arrive untyped, so every field these consumers read is narrowed through one of these. */
+function arrayField(message: unknown, key: string): unknown[] {
+    const value = asRecord(message)?.[key];
+    return Array.isArray(value) ? value : [];
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null;
+}
+
+function trimmedString(value: unknown): string {
+    return typeof value === "string" ? value.trim() : "";
 }
 
 /** Attendance staff types map onto the marker/approver sheets the rows were stored under. */
-function staffSheetType(staffType: unknown): string {
-    return String(staffType ?? "").toUpperCase() === STAFF_TYPE_APPROVER ? "approver" : "marker";
+function staffSheetType(staffType: unknown): AttendeeSheetType {
+    return String(staffType ?? "").toUpperCase() === STAFF_TYPE_APPROVER
+        ? attendeeSheetTypes.approver
+        : attendeeSheetTypes.marker;
 }
 
 async function applyDeEnrolments(
-    entries: unknown,
+    entries: unknown[],
     label: string,
-    personIdOf: (entry: any) => string,
-    sheetTypeOf: (entry: any) => string
+    personIdOf: (entry: Record<string, unknown>) => string,
+    sheetTypeOf: (entry: Record<string, unknown>) => AttendeeSheetType
 ): Promise<void> {
-    if (!Array.isArray(entries) || entries.length === 0) {
+    if (entries.length === 0) {
         logger.warn(`ATTENDANCE DEENROL :: ${label} message carried no entries, skipping`);
         return;
     }
@@ -104,20 +148,27 @@ async function applyDeEnrolments(
     // Registers whose current-attendees file now shows a stale enrolment state
     const registersByTenant = new Map<string, Set<string>>();
 
-    for (const entry of entries as any[]) {
-        const denrollmentDate = Number(entry?.denrollmentDate);
+    for (const rawEntry of entries) {
+        const entry = asRecord(rawEntry);
+        if (!entry) continue;
+        const denrollmentDate = Number(entry.denrollmentDate);
         // No date means this is a tag edit on the shared topic, not a de-enrolment
         if (!Number.isFinite(denrollmentDate) || denrollmentDate <= 0) continue;
 
-        const tenantId = typeof entry?.tenantId === "string" ? entry.tenantId.trim() : "";
-        const registerId = typeof entry?.registerId === "string" ? entry.registerId.trim() : "";
+        const tenantId = trimmedString(entry.tenantId);
+        const registerId = trimmedString(entry.registerId);
         const personId = personIdOf(entry);
         if (!tenantId || !registerId || !personId) {
             logger.warn(`ATTENDANCE DEENROL :: skipping ${label} entry missing tenantId/registerId/personId`);
             continue;
         }
 
-        const identity = attendeeIdentity(registerId, personId, sheetTypeOf(entry));
+        // Branded at the Kafka boundary: both values were just checked to be non-empty strings
+        const identity = attendeeIdentity(
+            registerId as AttendanceRegisterId,
+            personId as IndividualId,
+            sheetTypeOf(entry)
+        );
         if (!registersByTenant.has(tenantId)) registersByTenant.set(tenantId, new Set());
         registersByTenant.get(tenantId)!.add(registerId);
         const key = `${tenantId}::${denrollmentDate}`;
@@ -137,9 +188,17 @@ async function applyDeEnrolments(
                        SET denrollmentDate = $1
                        WHERE type = $2 AND uniqueIdAfterProcess = ANY($3)
                        RETURNING campaignNumber`;
-        const result = await executeQuery(query,
-            [group.denrollmentDate, ATTENDANCE_REGISTER_ATTENDEE_TYPE, group.identities]);
-        const matched = result?.rowCount ?? 0;
+
+        // Chunked: a bulk de-enrolment can carry thousands of identities, and one statement holding
+        // them all locks campaign_data for as long as it runs.
+        const batchSize = config.attendanceRegister.deEnrolmentUpdateBatchSize;
+        let matched = 0;
+        for (let i = 0; i < group.identities.length; i += batchSize) {
+            const batch = group.identities.slice(i, i + batchSize);
+            const result = await executeQuery(query,
+                [group.denrollmentDate, ATTENDANCE_REGISTER_ATTENDEE_TYPE, batch]);
+            matched += result?.rowCount ?? 0;
+        }
         logger.info(
             `ATTENDANCE DEENROL :: tenant ${group.tenantId} — recorded de-enrolment on ${matched} of ` +
             `${group.identities.length} ${label} row(s)`
@@ -164,9 +223,9 @@ function groupDeletedRegisters(registers: unknown[]): DeletedRegisterGroup[] {
     const byTenant = new Map<string, DeletedRegisterGroup>();
 
     for (const entry of registers) {
-        const register = entry as Record<string, unknown>;
-        const id = typeof register?.id === "string" ? register.id.trim() : "";
-        const tenantId = typeof register?.tenantId === "string" ? register.tenantId.trim() : "";
+        const register = asRecord(entry);
+        const id = trimmedString(register?.id);
+        const tenantId = trimmedString(register?.tenantId);
 
         if (!id || !tenantId) {
             logger.warn(`ATTENDANCE DELETE :: skipping entry missing id/tenantId (id=${id || "n/a"})`);
@@ -220,7 +279,10 @@ async function markRegistersDeleted(group: DeletedRegisterGroup): Promise<void> 
 }
 
 /** Distinct campaignNumbers touched by an UPDATE ... RETURNING campaignNumber. */
-function campaignNumbersOf(result: any): string[] {
-    const rows: any[] = result?.rows || [];
-    return Array.from(new Set(rows.map((r) => r?.campaignnumber).filter(Boolean)));
+function campaignNumbersOf(result: unknown): string[] {
+    const rows = arrayField(result, "rows");
+    const campaignNumbers = rows
+        .map((row) => trimmedString(asRecord(row)?.campaignnumber))
+        .filter(Boolean);
+    return Array.from(new Set(campaignNumbers));
 }

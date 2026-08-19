@@ -27,6 +27,26 @@ const DEENROLLMENT_DATE_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
  * Generates 3-sheet Excel prefilled with users filtered by role and boundary.
  */
 export class TemplateClass {
+    /**
+     * Rows belonging to the register being generated. A deleted register can be re-created under the
+     * same serviceCode, so the register UUID stamped at processing time is what decides ownership.
+     * Unstamped rows predate that stamp, so they are trusted only while nothing here carries one —
+     * otherwise they could be the dead register's attendees.
+     */
+    static storedRowsForRegister<T extends { data?: Record<string, unknown>; uniqueIdAfterProcess?: string | null }>(
+        rows: T[],
+        registerServiceCode: string,
+        currentRegisterUuid: string
+    ): T[] {
+        const rowsForServiceCode = rows.filter((row) => row.data?._registerServiceCode === registerServiceCode);
+        if (!currentRegisterUuid) return rowsForServiceCode;
+
+        const anyStamped = rowsForServiceCode.some((row) => Boolean(row.uniqueIdAfterProcess));
+        return rowsForServiceCode.filter((row) => row.uniqueIdAfterProcess
+            ? String(row.uniqueIdAfterProcess).startsWith(`${currentRegisterUuid}_`)
+            : !anyStamped);
+    }
+
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating attendance register attendee template...");
 
@@ -76,15 +96,8 @@ export class TemplateClass {
         const storedAttendeeRows = await getRelatedDataWithCampaign(
             "attendanceRegisterAttendee", campaign?.campaignNumber, tenantId, dataRowStatuses.completed
         );
-        // A deleted register can be re-created under the same serviceCode, so serviceCode alone would
-        // pull in the previous register's attendees. Rows stamped with a different register UUID belong
-        // to that older register; rows with no stamp predate this and are kept.
         const currentRegisterUuid: string = register?.id || "";
-        const filteredStoredRows = storedAttendeeRows.filter((r: any) => {
-            if (r.data?._registerServiceCode !== registerServiceCode) return false;
-            if (!currentRegisterUuid || !r.uniqueIdAfterProcess) return true;
-            return String(r.uniqueIdAfterProcess).startsWith(`${currentRegisterUuid}_`);
-        });
+        const filteredStoredRows = this.storedRowsForRegister(storedAttendeeRows, registerServiceCode, currentRegisterUuid);
 
         if (filteredStoredRows.length > 0) {
             logger.info(`Found ${filteredStoredRows.length} stored attendee rows for register ${registerServiceCode} — using DB data`);

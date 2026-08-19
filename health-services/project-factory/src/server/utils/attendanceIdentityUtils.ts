@@ -1,14 +1,24 @@
 import config from "../config";
+import { AttendanceRegisterId, IndividualId } from "../config/models/brandedTypes";
 
 /**
- * Identity stamped on an attendee campaign_data row, shared by the write path and the de-enrolment
- * consumer. De-enrolment events carry only UUIDs while the row's own key is
- * serviceCode_username_sheetType, so this is the only value both sides can build.
- *
- * Kept free of DB/Kafka imports on purpose: the process class imports it, and pulling in the DB pool
- * at module load would break every test that does not mock the database.
+ * The sheet slugs the identity is keyed by. Declared here rather than per file because the upload
+ * path writes them and the de-enrolment consumer rebuilds them: if the two drift, no event matches.
  */
-export function attendeeIdentity(registerUuid: string, individualId: string, sheetType: string): string {
+export const attendeeSheetTypes = {
+    worker: "worker",
+    marker: "marker",
+    approver: "approver",
+} as const;
+
+export type AttendeeSheetType = (typeof attendeeSheetTypes)[keyof typeof attendeeSheetTypes];
+
+/** The only attendee key both the write path and the de-enrolment consumer can build: events carry UUIDs, the row key does not. */
+export function attendeeIdentity(
+    registerUuid: AttendanceRegisterId,
+    individualId: IndividualId,
+    sheetType: AttendeeSheetType
+): string {
     return `${registerUuid}_${individualId}_${sheetType}`;
 }
 

@@ -4,7 +4,9 @@ import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { sheetDataRowStatuses, dataRowStatuses } from "../config/constants";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
-import { attendeeIdentity } from "../utils/attendanceIdentityUtils";
+import { attendeeIdentity, attendeeSheetTypes, AttendeeSheetType } from "../utils/attendanceIdentityUtils";
+import { AttendanceRegisterId, IndividualId } from "../config/models/brandedTypes";
+import { CampaignDataRow } from "../config/models/campaignDataRow";
 import { httpRequest } from "../utils/request";
 import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
@@ -28,10 +30,10 @@ const EXCEL_SERIAL_THRESHOLD = 100_000_000; // Below = Excel serial, above = epo
 const ISO_DATE_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}/; // Matches YYYY-MM-DD start
 
 /** Maps sheet name constant to a short slug used in uniqueIdentifier and _sheetName */
-function sheetTypeOf(sheetName: string): string {
-    if (sheetName === WORKER_SHEET) return "worker";
-    if (sheetName === MARKER_SHEET) return "marker";
-    return "approver";
+function sheetTypeOf(sheetName: string): AttendeeSheetType {
+    if (sheetName === WORKER_SHEET) return attendeeSheetTypes.worker;
+    if (sheetName === MARKER_SHEET) return attendeeSheetTypes.marker;
+    return attendeeSheetTypes.approver;
 }
 
 /**
@@ -300,9 +302,9 @@ export class TemplateClass {
      * Returns a Map<uniqueIdentifier, existingRow> for all stored attendanceRegisterAttendee
      * rows for this campaign — used to decide SAVE vs UPDATE Kafka topic.
      */
-    private static async buildExistingAttendeeDataMap(campaignNumber: string, tenantId: string): Promise<Map<string, any>> {
+    private static async buildExistingAttendeeDataMap(campaignNumber: string, tenantId: string): Promise<Map<string, CampaignDataRow>> {
         const rows = await getRelatedDataWithCampaign("attendanceRegisterAttendee", campaignNumber, tenantId);
-        const map = new Map<string, any>();
+        const map = new Map<string, CampaignDataRow>();
         for (const row of rows) {
             map.set(row.uniqueIdentifier, row);
         }
@@ -318,7 +320,7 @@ export class TemplateClass {
      */
     private static async persistAttendeesToCampaignData(
         sheetRows: Map<string, any[]>,
-        existingDataMap: Map<string, any>,
+        existingDataMap: Map<string, CampaignDataRow>,
         campaignNumber: string,
         tenantId: string,
         usernameToIndividualId: Map<string, string>,
@@ -357,7 +359,7 @@ export class TemplateClass {
                 // transiently, and the persister overwrites this column unconditionally, so a blip
                 // would otherwise erase a good identity and break every later de-enrolment event.
                 const uniqueIdAfterProcess = registerUuid && individualId
-                    ? attendeeIdentity(registerUuid, individualId, sheetType)
+                    ? attendeeIdentity(registerUuid as AttendanceRegisterId, individualId as IndividualId, sheetType)
                     : (existingDataMap.get(uniqueIdentifier)?.uniqueIdAfterProcess ?? null);
 
                 // Stamp the de-enrolment date from the sheet directly. The attendance echo event can

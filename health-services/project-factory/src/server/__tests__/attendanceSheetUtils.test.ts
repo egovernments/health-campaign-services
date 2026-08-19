@@ -46,6 +46,8 @@ import { createAndUploadFileWithOutRequest } from '../api/genericApis';
 import { fetchFileFromFilestore } from '../api/coreApis';
 import { getExcelWorkbookFromFileURL } from '../utils/excelUtils';
 import { executeQuery } from '../utils/db';
+import { logger } from '../utils/logger';
+import config from '../config';
 
 const KEYS = [
     'HCM_ADMIN_CONSOLE_BOUNDARY_CODE',
@@ -244,7 +246,7 @@ describe('refresh orchestration', () => {
 
             expect(queriesMatching('RETURNING id')).toHaveLength(1);   // the claim
             expect(createAndUploadFileWithOutRequest).toHaveBeenCalled();
-            const finish = queriesMatching('processedFileStoreId = $4');
+            const finish = queriesMatching('processedFileStoreId = $6');
             expect(finish).toHaveLength(1);
             expect(finish[0][1]).toContain('processed-2');
             expect(refreshed.get('res-1')).toBe('processed-2');
@@ -258,7 +260,7 @@ describe('refresh orchestration', () => {
             const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [owed()] as any);
 
             expect(createAndUploadFileWithOutRequest).not.toHaveBeenCalled();
-            expect(queriesMatching('processedFileStoreId = $4')).toHaveLength(0);
+            expect(queriesMatching('processedFileStoreId = $6')).toHaveLength(0);
             expect(queriesMatching('#-')).toHaveLength(1);          // flag cleared
             expect(refreshed.get('res-1')).toBe('processed-1');     // already correct, so servable
         });
@@ -274,6 +276,26 @@ describe('refresh orchestration', () => {
             expect(queriesMatching('RETURNING id')).toHaveLength(0);  // nothing to claim
             expect(queriesMatching('#-')).toHaveLength(1);            // marker cleared
             expect(refreshed.get('res-1')).toBeNull();
+        });
+
+        it('scopes the campaign lookup by tenant, not by id alone', async () => {
+            await completeOwedRegisterSheetRefresh(TENANT, [owed()] as any);
+
+            const lookup = queriesMatching('SELECT campaignNumber');
+            expect(lookup).toHaveLength(1);
+            expect(String(lookup[0][0])).toContain('tenantId = $2');
+            expect(lookup[0][1]).toEqual(['campaign-1', TENANT]);
+        });
+
+        it('clears the marker only while the claim is still held, so a delete mid-rewrite survives', async () => {
+            await completeOwedRegisterSheetRefresh(TENANT, [owed()] as any);
+
+            const finish = queriesMatching('#-');
+            expect(finish).toHaveLength(1);
+            const [query, values] = finish[0];
+            // Guarded by the state, so a marker set back to pending by a new delete is left alone
+            expect(String(query)).toContain("-> $4 ->> 'state' = $5");
+            expect(values).toContain('inProgress');
         });
 
         it('withholds the file and hands the claim back when the rewrite fails', async () => {
@@ -319,6 +341,21 @@ describe('refresh orchestration', () => {
             expect(createAndUploadFileWithOutRequest).not.toHaveBeenCalled();
         });
 
+        it('claims with a lease predicate, so an abandoned claim can be taken over', async () => {
+            await completeOwedRegisterSheetRefresh(TENANT, [pendingRow()] as any);
+
+            const claim = queriesMatching('RETURNING id');
+            expect(claim).toHaveLength(1);
+            const [query, values] = claim[0];
+            // pending OR an inProgress older than the lease — the rule lives in SQL, so assert it here
+            expect(String(query)).toContain("-> $4 ->> 'state' = $5");
+            expect(String(query)).toContain("COALESCE((additionalDetails -> $4 ->> 'at')::bigint, 0) < $7");
+            expect(values).toContain('pending');
+            expect(values).toContain('inProgress');
+            // $7 is "now minus the lease", so it must be in the past
+            expect(Number((values as any[])[6])).toBeLessThan(Date.now());
+        });
+
         it('takes over a claim whose owner died, so the flag cannot stick', async () => {
             const abandoned = row({
                 additionaldetails: { attendanceRefresh: { state: 'inProgress', at: 1 } },
@@ -344,6 +381,22 @@ describe('refresh orchestration', () => {
 
             expect(refreshed.get('res-1')).toBeNull();
         });
+
+        it('reports the outcome and the time the search paid for it', async () => {
+            await completeOwedRegisterSheetRefresh(TENANT, [pendingRow()] as any);
+
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.stringMatching(/refresh outcome resource=res-1 outcome=refreshed durationMs=\d+/)
+            );
+        });
+
+        it('reports a failed refresh as its own outcome, not as a refresh', async () => {
+            jest.mocked(fetchFileFromFilestore).mockRejectedValue(new Error('filestore down'));
+
+            await completeOwedRegisterSheetRefresh(TENANT, [pendingRow()] as any);
+
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('outcome=failed'));
+        });
     });
 });
 
@@ -363,6 +416,8 @@ describe('a download landing while the rewrite runs elsewhere', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        // The wait sleeps between polls, so the clock is driven here instead of by the CI runner
+        jest.useFakeTimers();
         // The claim is always lost: another worker owns this refresh
         jest.mocked(executeQuery).mockImplementation(async (query: string) => {
             if (query.includes('RETURNING id')) return { rowCount: 0, rows: [] } as any;
@@ -370,12 +425,21 @@ describe('a download landing while the rewrite runs elsewhere', () => {
         });
     });
 
+    afterEach(() => jest.useRealTimers());
+
+    /** Runs the whole wait budget forward, so the number of polls does not depend on wall-clock time. */
+    const settle = async <T>(pending: Promise<T>): Promise<T> => {
+        const { sheetRefreshWaitMs, sheetRefreshPollMs } = config.attendanceRegister;
+        await jest.advanceTimersByTimeAsync(sheetRefreshWaitMs + sheetRefreshPollMs);
+        return pending;
+    };
+
     it('waits for the other worker and answers with the file it produced', async () => {
         jest.mocked(getResourceDetailById)
             .mockResolvedValueOnce({ ...claimedRow() } as any)                                   // still running
             .mockResolvedValueOnce({ ...claimedRow(), additionaldetails: {}, processedfilestoreid: 'processed-2' } as any);
 
-        const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [claimedRow()] as any);
+        const refreshed = await settle(completeOwedRegisterSheetRefresh(TENANT, [claimedRow()] as any));
 
         expect(refreshed.get('res-1')).toBe('processed-2');
         expect(fetchFileFromFilestore).not.toHaveBeenCalled(); // never rewrote it twice
@@ -384,9 +448,10 @@ describe('a download landing while the rewrite runs elsewhere', () => {
     it('withholds the stale file when the wait runs out', async () => {
         jest.mocked(getResourceDetailById).mockResolvedValue(claimedRow() as any);
 
-        const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [claimedRow()] as any);
+        const refreshed = await settle(completeOwedRegisterSheetRefresh(TENANT, [claimedRow()] as any));
 
         expect(refreshed.get('res-1')).toBeNull();
+        expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('outcome=stillRunning'));
     });
 
     it('takes the work over when the other worker hands it back as pending', async () => {
@@ -415,7 +480,7 @@ describe('a download landing while the rewrite runs elsewhere', () => {
         );
         jest.mocked(createAndUploadFileWithOutRequest).mockResolvedValue([{ fileStoreId: 'processed-3' }] as any);
 
-        const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [claimedRow()] as any);
+        const refreshed = await settle(completeOwedRegisterSheetRefresh(TENANT, [claimedRow()] as any));
 
         expect(refreshed.get('res-1')).toBe('processed-3');
     });

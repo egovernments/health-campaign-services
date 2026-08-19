@@ -236,7 +236,7 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         if (dataRowCount == 0) {
             errors.add(ValidationError.builder()
                     .rowNumber(ValidationConstants.FIRST_DATA_ROW_NUMBER)
-                    .errorDetails(localizationMap.getOrDefault(
+                    .errorDetails(localizedOrDefault(localizationMap,
                             ValidationConstants.LOC_ATTENDANCE_REGISTER_ATLEAST_ONE_REQUIRED,
                             ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_ATLEAST_ONE_REQUIRED))
                     .status(ValidationConstants.STATUS_INVALID)
@@ -472,5 +472,10 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                 log.debug("Added validation errors to row {}: {}", excelRowNumber, error.getErrorDetails());
             }
         }
+    }
+
+    /** A null localization map must not turn a validation message into a NullPointerException. */
+    private String localizedOrDefault(Map<String, String> localizationMap, String key, String defaultMessage) {
+        return localizationMap == null ? defaultMessage : localizationMap.getOrDefault(key, defaultMessage);
     }
 }

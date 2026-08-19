@@ -150,6 +150,8 @@ const config = {
     staffSearchPageSize: process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE, 10) : 100,
 
     attendeePersistBatchSize: process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE, 10) : 100,
+    // Identities per de-enrolment UPDATE, so one bulk event cannot become a single huge statement
+    deEnrolmentUpdateBatchSize: process.env.ATTENDANCE_DEENROLMENT_UPDATE_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_DEENROLMENT_UPDATE_BATCH_SIZE, 10) : 100,
 
     registerPersistBatchSize: process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE, 10) : 100,
 
@@ -160,6 +162,10 @@ const config = {
     // sheet that still lists a deleted register
     sheetRefreshWaitMs: process.env.ATTENDANCE_SHEET_REFRESH_WAIT_MS ? parseInt(process.env.ATTENDANCE_SHEET_REFRESH_WAIT_MS, 10) : 15000,
     sheetRefreshPollMs: process.env.ATTENDANCE_SHEET_REFRESH_POLL_MS ? parseInt(process.env.ATTENDANCE_SHEET_REFRESH_POLL_MS, 10) : 500,
+    // Attempts per sync group: the offset commits even when the handler throws, so a transient DB
+    // error has to be retried here or the deletion/de-enrolment is lost
+    syncGroupAttempts: process.env.ATTENDANCE_SYNC_GROUP_ATTEMPTS ? parseInt(process.env.ATTENDANCE_SYNC_GROUP_ATTEMPTS, 10) : 3,
+    syncGroupRetryDelayMs: process.env.ATTENDANCE_SYNC_GROUP_RETRY_DELAY_MS ? parseInt(process.env.ATTENDANCE_SYNC_GROUP_RETRY_DELAY_MS, 10) : 1000,
   },
       // HRMS configuration
     hrms: {

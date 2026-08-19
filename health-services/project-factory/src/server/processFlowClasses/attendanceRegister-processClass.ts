@@ -1,6 +1,6 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
-import { SheetMap } from "../models/SheetMap";
+import { SheetMap, SheetRow } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { sheetDataRowStatuses, dataRowStatuses } from "../config/constants";
@@ -10,6 +10,7 @@ import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
+import { CampaignDataRow } from "../config/models/campaignDataRow";
 
 /**
  * Process class for Attendance Register creation — idempotently creates/updates registers
@@ -153,9 +154,12 @@ export class TemplateClass {
      * be persisted. Registers deleted in the attendance service are dropped — the console serves this
      * file as the current register list after an upload, so a deleted one would come straight back.
      */
-    private static buildOutputData(allRows: any[], unpersistableRows: any[]): any[] {
+    private static buildOutputData(
+        allRows: Partial<CampaignDataRow>[],
+        unpersistableRows: SheetRow[]
+    ): SheetRow[] {
         return [
-            ...allRows.filter((r: any) => !r.isDeleted).map((r: any) => r.data),
+            ...allRows.filter((row) => !row.isDeleted).map((row) => row.data ?? {}),
             ...unpersistableRows
         ];
     }

@@ -680,12 +680,17 @@ describe("parseDateEndOfDay", () => {
 
 describe("toOutputRow", () => {
     const DEENROLLMENT_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
-    // 13-08-2026 00:00 UTC
-    const SYNCED_DEENROL_EPOCH = 1786579200000;
+    // 12-08-2026 20:00 UTC, which is already 13-08 in Asia/Kolkata: the same epoch has to read as a
+    // different calendar day per zone, or the zone assertion below would prove nothing.
+    const SYNCED_DEENROL_EPOCH = Date.UTC(2026, 7, 12, 20, 0);
 
     const toOutputRow = (storedRow: unknown) => (TemplateClass as any).toOutputRow(storedRow);
 
-    beforeEach(() => { mockServerTimezone.value = "UTC"; });
+    beforeEach(() => {
+        // The formatter is memoised on the class, so the zone under test applies only once it is cleared
+        (TemplateClass as any).tzFormatter = null;
+        mockServerTimezone.value = "UTC";
+    });
 
     it("strips the internal persistence fields", () => {
         const row = toOutputRow({
@@ -701,7 +706,7 @@ describe("toOutputRow", () => {
             denrollmentDate: SYNCED_DEENROL_EPOCH,
         });
 
-        expect(row[DEENROLLMENT_COLUMN]).toBe("13/08/2026");
+        expect(row[DEENROLLMENT_COLUMN]).toBe("12/08/2026");
     });
 
     it("overwrites a stale sheet value with the synced date", () => {
@@ -710,7 +715,7 @@ describe("toOutputRow", () => {
             denrollmentDate: SYNCED_DEENROL_EPOCH,
         });
 
-        expect(row[DEENROLLMENT_COLUMN]).toBe("13/08/2026");
+        expect(row[DEENROLLMENT_COLUMN]).toBe("12/08/2026");
     });
 
     it("leaves the stored value alone when nothing has been synced", () => {
@@ -722,11 +727,13 @@ describe("toOutputRow", () => {
         expect(row[DEENROLLMENT_COLUMN]).toBe("20/08/2026");
     });
 
-    it("formats the synced date in the configured app timezone", () => {
+    it("formats the synced date in the configured app timezone, not the pod's", () => {
         mockServerTimezone.value = "Asia/Kolkata";
+        (TemplateClass as any).tzFormatter = null;
 
         const row = toOutputRow({ data: { UserName: "USR-1" }, denrollmentDate: SYNCED_DEENROL_EPOCH });
 
+        // 20:00 UTC on the 12th is 01:30 on the 13th in Kolkata
         expect(row[DEENROLLMENT_COLUMN]).toBe("13/08/2026");
     });
 });

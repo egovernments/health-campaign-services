@@ -15,7 +15,8 @@ import {
 } from "../utils/resourceDetailsUtils";
 import { executeQuery, getTableName } from "../utils/db";
 import { getResourceConfigOrDefault, isRegisteredType, isSharedAcrossCampaignFamily } from "../config/resourceTypeRegistry";
-import { campaignStatuses, resourceStatuses } from "../config/constants";
+import { attendanceSheetRefresh, campaignStatuses, resourceStatuses } from "../config/constants";
+import { TenantId } from "../config/models/brandedTypes";
 import { ResourceDetailsCreateInput } from "../config/models/resourceDetailsCreateSchema";
 import { ResourceDetailsUpdateInput } from "../config/models/resourceDetailsUpdateSchema";
 import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
@@ -180,11 +181,6 @@ export async function updateResourceDetail(
   return newResource;
 }
 
-// Kept local so the read path can test for an owed register-sheet refresh without importing the
-// refresh module (and its Excel/filestore dependencies) on every search.
-const ATTENDANCE_SHEET_TYPES = ["attendanceRegister", "attendanceRegisterAttendee"];
-const ATTENDANCE_REFRESH_KEY = "attendanceRefresh";
-
 /**
  * Search resource details with pagination.
  */
@@ -206,7 +202,7 @@ export async function searchResourceDetails(
   ]);
 
   return {
-    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId, rows),
+    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId as TenantId, rows),
     TotalCount: total
   };
 }
@@ -219,14 +215,14 @@ export async function searchResourceDetails(
  * The refresh module is imported only when a row actually owes one: it pulls in filestore and Excel
  * plumbing that every other caller of this service has no use for.
  */
-async function respondWithRefreshedRegisterFile(tenantId: string, rows: ResourceDetailRow[]): Promise<any[]> {
-  const owed = rows.some((row) => ATTENDANCE_SHEET_TYPES.includes(row?.type)
-    && (row?.additionaldetails || {})[ATTENDANCE_REFRESH_KEY]);
+async function respondWithRefreshedRegisterFile(tenantId: TenantId, rows: ResourceDetailRow[]): Promise<any[]> {
+  const owed = rows.some((row) => attendanceSheetRefresh.resourceTypes.includes(row?.type)
+    && (row?.additionaldetails || {})[attendanceSheetRefresh.additionalDetailsKey]);
 
   if (!owed) return rows.map(toResourceDetailsResponse);
 
   const { completeOwedRegisterSheetRefresh } = await import("../utils/attendanceSheetUtils");
-  const refreshed = await completeOwedRegisterSheetRefresh(tenantId as any, rows);
+  const refreshed = await completeOwedRegisterSheetRefresh(tenantId, rows);
   return rows.map((row) => {
     const response = toResourceDetailsResponse(row);
     if (!refreshed.has(row.id)) return response;
@@ -271,7 +267,7 @@ async function searchResourceDetailsAcrossCampaignFamily(
   const paged = pagination?.limit ? deduped.slice(offset, offset + pagination.limit) : deduped.slice(offset);
 
   return {
-    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId, paged),
+    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId as TenantId, paged),
     TotalCount: deduped.length
   };
 }

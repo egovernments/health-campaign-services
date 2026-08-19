@@ -22,6 +22,7 @@ import {
     handleAttendanceAttendeeDeEnrolment,
     handleAttendanceStaffDeEnrolment,
 } from '../utils/attendanceSyncUtils';
+import config from '../config';
 import { executeQuery } from '../utils/db';
 import { logger } from '../utils/logger';
 import { markRegisterSheetRefreshPending, markAttendeeSheetRefreshPending } from '../utils/attendanceSheetUtils';
@@ -31,6 +32,10 @@ const mockMarkPending = jest.mocked(markRegisterSheetRefreshPending);
 const mockMarkAttendeePending = jest.mocked(markAttendeeSheetRefreshPending);
 
 const register = (id: string, tenantId = 'dev') => ({ id, tenantId, isDeleted: true, status: 'INACTIVE' });
+
+// Retries are exercised without their backoff, so the suite never waits on wall-clock time.
+config.attendanceRegister.syncGroupAttempts = 2;
+config.attendanceRegister.syncGroupRetryDelayMs = 0;
 
 describe('handleAttendanceRegisterDelete', () => {
     afterEach(() => jest.clearAllMocks());
@@ -189,7 +194,22 @@ describe('de-enrolment consumers', () => {
             expect(mockExecuteQuery.mock.calls[0][1][2]).toEqual(['reg-1_usr-1_approver']);
         });
 
-        it('groups a bulk de-enrolment sharing one date into a single update', async () => {
+        it('splits a bulk de-enrolment into batches so one statement cannot hold thousands of ids', async () => {
+        mockExecuteQuery.mockResolvedValue({ rowCount: 100, rows: [{ campaignnumber: 'CMP-1' }] });
+        const attendees = Array.from({ length: 250 }, (_, i) => ({
+            tenantId: 'dev', registerId: 'reg-1', individualId: `ind-${i}`, denrollmentDate: 1755000000000,
+        }));
+
+        await handleAttendanceAttendeeDeEnrolment({ attendees });
+
+        // 250 identities at a batch size of 100 → 3 updates, not one
+        const updates = mockExecuteQuery.mock.calls.filter(([q]) => String(q).includes('SET denrollmentDate'));
+        expect(updates).toHaveLength(3);
+        expect((updates[0][1] as any[])[2]).toHaveLength(100);
+        expect((updates[2][1] as any[])[2]).toHaveLength(50);
+    });
+
+    it('groups a bulk de-enrolment sharing one date into a single update', async () => {
             mockExecuteQuery.mockResolvedValue({ rowCount: 2 });
 
             await handleAttendanceAttendeeDeEnrolment({
@@ -218,9 +238,10 @@ describe('de-enrolment consumers', () => {
 describe('failure isolation across tenants', () => {
     afterEach(() => jest.clearAllMocks());
 
-    it('still processes later tenants when one tenant update fails, then rethrows', async () => {
+    it('still processes later tenants when one tenant update fails every attempt, then rethrows', async () => {
         // The consumer commits the offset regardless, so swallowing the error would lose the event.
         mockExecuteQuery
+            .mockRejectedValueOnce(new Error('connection reset'))
             .mockRejectedValueOnce(new Error('connection reset'))
             .mockResolvedValueOnce({ rowCount: 1 });
 
@@ -228,8 +249,22 @@ describe('failure isolation across tenants', () => {
             attendanceRegister: [register('reg-1', 'dev'), register('reg-2', 'mz')],
         })).rejects.toThrow(/1 of 2 group\(s\) failed/);
 
-        expect(mockExecuteQuery).toHaveBeenCalledTimes(2);
+        // Two attempts on the failing tenant, then the second tenant is still processed
+        expect(mockExecuteQuery).toHaveBeenCalledTimes(3);
         expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('continuing with the rest'));
+    });
+
+    it('does not report a group that succeeds on retry as a failure', async () => {
+        mockExecuteQuery
+            .mockRejectedValueOnce(new Error('deadlock detected'))
+            .mockResolvedValueOnce({ rowCount: 1 });
+
+        await expect(handleAttendanceRegisterDelete({
+            attendanceRegister: [register('reg-1', 'dev')],
+        })).resolves.toBeUndefined();
+
+        expect(mockExecuteQuery).toHaveBeenCalledTimes(2);
+        expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('retrying'));
     });
 
     it('does not throw when every group succeeds', async () => {
@@ -287,8 +322,8 @@ describe('marking the file the console serves as out of date', () => {
     });
 
     it('surfaces a marking failure instead of reporting a clean delete', async () => {
-        mockExecuteQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] });
-        mockMarkPending.mockRejectedValueOnce(new Error('db down'));
+        mockExecuteQuery.mockResolvedValue({ rowCount: 1, rows: [{ campaignnumber: 'CMP-1' }] });
+        mockMarkPending.mockRejectedValue(new Error('db down'));
 
         await expect(handleAttendanceRegisterDelete({ attendanceRegister: [register('reg-1')] }))
             .rejects.toThrow();

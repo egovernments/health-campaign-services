@@ -20,8 +20,8 @@ export function parseTenantIds(raw: string): string[] {
 }
 
 /**
- * Returns the configured central-instance tenant ids (single source of truth
- * for startup topic creation and the consumer subscription regex).
+ * Returns the configured central-instance tenant ids, which drive the consumer subscription regex
+ * unless an explicit KAFKA_CONSUMER_TOPIC_PREFIX overrides it (see getStartupTenantIds).
  */
 export function getCentralInstanceTenantIds(): string[] {
     return parseTenantIds(config.centralInstanceTenantIds);
@@ -70,6 +70,26 @@ export function getEffectiveConsumerPrefix(): string {
 }
 
 /**
+ * Tenants whose prefixed topics must exist before the consumer subscribes. Read from the effective
+ * consumer prefix first, because an explicit KAFKA_CONSUMER_TOPIC_PREFIX overrides the tenant list
+ * on the consumer side: creating topics the subscription cannot match leaves every handler idle,
+ * since a KafkaJS regex subscription only ever matches topics that already exist.
+ */
+export function getStartupTenantIds(): string[] {
+    const fromPrefix = tenantIdsFromPrefixPattern(config.kafkaConsumerTopicPrefix);
+    if (fromPrefix.length > 0) return fromPrefix;
+    return getCentralInstanceTenantIds();
+}
+
+/** Reads "(ba|ke|cg)-" or "ba-" back into its tenant ids; anything more exotic yields none. */
+function tenantIdsFromPrefixPattern(prefix: string): string[] {
+    if (!prefix) return [];
+    const match = prefix.match(/^\(?([A-Za-z0-9_.|-]+?)\)?-$/);
+    if (!match) return [];
+    return parseTenantIds(match[1].replace(/\|/g, ','));
+}
+
+/**
  * Expands the base topics into the concrete topics that must exist before the
  * consumer subscribes. In central instance each base topic is created per tenant
  * (`<tenant>-<base>`), except non-central topics which stay bare. In non-central
@@ -79,7 +99,7 @@ export function getStartupTopicsToCreate(baseTopics: string[]): string[] {
     if (!config.isEnvironmentCentralInstance) {
         return baseTopics;
     }
-    const tenants = getCentralInstanceTenantIds();
+    const tenants = getStartupTenantIds();
     const nonCentral = getNonCentralTopics();
     const seen = new Set<string>();
     const result: string[] = [];
@@ -132,16 +152,27 @@ export function stripTopicPrefix(topic: string): string {
 
 /**
  * Validates that a consumer prefix can be resolved when central instance is enabled —
- * either via explicit KAFKA_CONSUMER_TOPIC_PREFIX or CENTRAL_INSTANCE_TENANT_IDS.
+ * either via explicit KAFKA_CONSUMER_TOPIC_PREFIX or CENTRAL_INSTANCE_TENANT_IDS — and that the
+ * tenants behind it can be enumerated, since the topics have to be created before subscribing.
  * Should be called at service startup.
- * @throws Error if central instance is enabled but neither is set
+ * @throws Error if central instance is enabled and the two cannot be reconciled
  */
 export function validateConsumerTopicPrefix(): void {
-    if (config.isEnvironmentCentralInstance && !getEffectiveConsumerPrefix()) {
+    if (!config.isEnvironmentCentralInstance) return;
+    if (!getEffectiveConsumerPrefix()) {
         throw new Error(
             'CENTRAL_INSTANCE_TENANT_IDS (or KAFKA_CONSUMER_TOPIC_PREFIX) must be set when ' +
             'IS_ENVIRONMENT_CENTRAL_INSTANCE is true. ' +
             'Example: CENTRAL_INSTANCE_TENANT_IDS="ba,ke,cg" or KAFKA_CONSUMER_TOPIC_PREFIX="(ba|ke|cg)-".'
+        );
+    }
+    // A prefix nothing can be enumerated from would create bare topics that the subscription regex
+    // never matches, so every handler would sit idle with no error anywhere.
+    if (getStartupTenantIds().length === 0) {
+        throw new Error(
+            `KAFKA_CONSUMER_TOPIC_PREFIX "${config.kafkaConsumerTopicPrefix}" cannot be expanded into ` +
+            'tenant ids, so the topics to create cannot be derived. Set CENTRAL_INSTANCE_TENANT_IDS, ' +
+            'or use a prefix of the form "(ba|ke|cg)-".'
         );
     }
 }

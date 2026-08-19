@@ -91,8 +91,9 @@ All tenants share one DB schema (`config.DB_CONFIG.DB_SCHEMA`) and unprefixed Ka
 - Always use `kafkaTopicUtils.ts` for produce/subscribe — never build topic names inline.
 - Always use `getTableName(config.DB_CONFIG.DB_*_TABLE_NAME, tenantId)` — never inline schema strings.
 - `tenantId` must be typed as `TenantId` (branded) and passed explicitly — never read from module-level state.
-- **`CENTRAL_INSTANCE_TENANT_IDS`** (comma-separated, e.g. `ba,oy,ko`) is the single source of truth for central-instance Kafka: it drives both startup topic creation (`getStartupTopicsToCreate`) and the consumer subscription regex (`getEffectiveConsumerPrefix`), so the two can never drift. Parsing trims whitespace and ignores empty/extra commas.
+- **`CENTRAL_INSTANCE_TENANT_IDS`** (comma-separated, e.g. `ba,oy,ko`) drives the consumer subscription regex (`getEffectiveConsumerPrefix`). Parsing trims whitespace and ignores empty/extra commas.
 - `KAFKA_CONSUMER_TOPIC_PREFIX` is an explicit override of the derived regex (back-compat); when set it wins over `CENTRAL_INSTANCE_TENANT_IDS`. Startup fails fast if central instance is on and neither is set.
+- **Topic creation follows whichever of the two the consumer actually subscribes with** (`getStartupTenantIds`): an explicit prefix is read back into its tenant ids (`(ba|ke)-` → `ba,ke`) and used for creation, so the created topics can never be ones the regex will not match — a KafkaJS regex subscription only matches topics that exist at subscribe time, and a mismatch leaves every handler idle with no error anywhere. Startup also fails fast when the prefix cannot be expanded into tenant ids and no tenant list is set.
 
 ---
 
@@ -294,6 +295,12 @@ Never change existing phase numbers or `dependsOn` chains.
 
 **Attendance templates deliberately carry no enrolment state.** The generated template is for adding people; pre-filling dates locks those cells under the immutable-baseline join, so state belongs in the "current …" files only. Nothing invalidates a template when enrolments change, and that is intentional.
 
+Every campaign_data reader returns one shape — `CampaignDataRow` (`config/models/campaignDataRow.ts`), plus `CampaignDataApiRow` for `data/campaign/_search`. Add a field there rather than re-mapping columns per caller.
+
+**A register re-created under a deleted register's serviceCode must not inherit its attendees.** `attendanceRegisterAttendee-generateClass.storedRowsForRegister` keeps rows stamped with the current register UUID, and trusts unstamped rows only while nothing for that serviceCode is stamped (campaigns older than the stamp still generate). The stamp itself is `attendeeIdentity` (`attendanceIdentityUtils.ts`), which also owns the `worker`/`marker`/`approver` slugs — the upload path writes them and the de-enrolment consumer rebuilds them, so they live in one place.
+
+The Kafka handlers retry each group `config.attendanceRegister.syncGroupAttempts` times: the listener commits the offset even when a handler throws, so a transient DB error would otherwise lose that deletion outright. Both updates are idempotent, so a repeat is safe.
+
 ### Current-register file is refreshed on read, never on the Kafka path
 
 The console downloads the current register list from `resource_details.processedFileStoreId` — a snapshot of `campaign_data` written when the file was last uploaded, so a register deleted afterwards would keep appearing. `attendanceSheetUtils.ts` fixes that on demand:
@@ -301,9 +308,10 @@ The console downloads the current register list from `resource_details.processed
 - the delete handler only **marks** it (`additionalDetails.attendanceRefresh = {state: pending}`); no filestore or workbook work runs on a Kafka listener thread
 - `searchResourceDetails` completes the work when a marked row is read, and returns the new `processedFileStoreId` in that same response, so a download is never handed a sheet listing a deleted register
 - one worker per file: the claim moves `pending → inProgress{at}` in a single conditional UPDATE, and an `inProgress` older than `sheetRefreshLeaseMs` may be taken over, so a crash cannot strand the marker
-- a reader that loses the claim waits up to `sheetRefreshWaitMs` for the winner, then **withholds** the file rather than serving a stale one
+- a reader that loses the claim waits for the winner, then **withholds** the file rather than serving a stale one. `sheetRefreshWaitMs` is one budget for the whole response, shared by every owed row, so several stale files cannot add up to a very slow search
 - the marker lives in `additionalDetails`, never in `status`: `hasAnyCreatingResource` treats `creating` as "campaign busy" and would block unrelated add/update operations
 - rows are rewritten in place (values moved up, leftovers blanked) rather than spliced, because this path does not reload the schema to re-apply per-row validations
+- each owed row logs `refresh outcome resource=… outcome=… durationMs=…` (`refreshed`, `refreshedElsewhere`, `alreadyCorrect`, `nothingToRefresh`, `stillRunning`, `waitedOut`, `failed`) — this work sits inside a search, so the withheld rate and the latency it adds have to be visible without a metrics stack
 
 ### Shared-across-family resource resolution
 

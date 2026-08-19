@@ -7,11 +7,20 @@ jest.mock('../config', () => ({
     __esModule: true,
 }));
 
-import { attendeeIdentity, formatEpochAsSheetDate } from "../utils/attendanceIdentityUtils";
+import { attendeeIdentity, attendeeSheetTypes, formatEpochAsSheetDate } from "../utils/attendanceIdentityUtils";
+import { AttendanceRegisterId, IndividualId } from "../config/models/brandedTypes";
+
+const REGISTER = "reg-1" as AttendanceRegisterId;
+const INDIVIDUAL = "ind-1" as IndividualId;
 
 describe("attendeeIdentity", () => {
     it("joins register uuid, individual id and sheet type", () => {
-        expect(attendeeIdentity("reg-1", "ind-1", "worker")).toBe("reg-1_ind-1_worker");
+        expect(attendeeIdentity(REGISTER, INDIVIDUAL, attendeeSheetTypes.worker)).toBe("reg-1_ind-1_worker");
+    });
+
+    it("keys the same person separately per sheet, since one person can sit on two", () => {
+        expect(attendeeIdentity(REGISTER, INDIVIDUAL, attendeeSheetTypes.marker))
+            .not.toBe(attendeeIdentity(REGISTER, INDIVIDUAL, attendeeSheetTypes.approver));
     });
 });
 

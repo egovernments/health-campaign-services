@@ -19,3 +19,5 @@ export type TenantId = Brand<string, "TenantId">;
 export type CampaignNumber = Brand<string, "CampaignNumber">;
 
 export type AttendanceRegisterId = Brand<string, "AttendanceRegisterId">;
+
+export type IndividualId = Brand<string, "IndividualId">;

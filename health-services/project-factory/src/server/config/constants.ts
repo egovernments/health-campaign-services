@@ -377,3 +377,14 @@ export const getErrorCodes = (module: string, key: string): Error => {
         message: message
     }
 }
+
+/**
+ * Attendance sheet refresh state. Shared because the read path in resourceDetailsService decides
+ * whether a refresh runs at all, and attendanceSheetUtils writes it — the two must not drift.
+ */
+export const attendanceSheetRefresh = {
+    additionalDetailsKey: "attendanceRefresh",
+    statePending: "pending",
+    stateInProgress: "inProgress",
+    resourceTypes: ["attendanceRegister", "attendanceRegisterAttendee"],
+};

@@ -15,6 +15,12 @@ import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ValidationError;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,8 +41,10 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /**
@@ -49,6 +57,8 @@ import static org.mockito.Mockito.when;
 class AttendanceEmptySheetValidationTest {
 
     private static final String BOUNDARY_COLUMN = "NIGERIA_VILLAGE";
+    private static final String WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
+    private static final String MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
     private static final String CAMPAIGN_BOUNDARY_CODE = "VILLAGE_001";
 
     @Mock private ValidationService validationService;
@@ -96,6 +106,8 @@ class AttendanceEmptySheetValidationTest {
         when(config.getAttendanceRegisterSearchBatchSize()).thenReturn(50);
         when(config.getAttendanceRegisterSearchParallelCalls()).thenReturn(1);
         when(config.getAttendanceRegisterSearchUrl()).thenReturn("http://localhost/attendance/v1/_search");
+        // A zero window size makes the HRMS lookup loop never advance
+        when(config.getHrmsEmployeeSearchParallelCalls()).thenReturn(1);
     }
 
     // ── Register sheet ────────────────────────────────────────────────────
@@ -184,6 +196,34 @@ class AttendanceEmptySheetValidationTest {
         // person, so it must not land on the empty worker sheet.
         assertEquals(0, invokeCountRowsWithUser(new ArrayList<>()));
         assertEquals(1, invokeCountRowsWithUser(List.of(attendeeRow("USR-206325", ""))));
+    }
+
+    @Test
+    void processWorkbookWritesTheErrorOnlyOnTheSheetTheUserFilledIn() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet workerSheet = createAttendeeSheet(workbook, WORKER_SHEET);
+        Sheet markerSheet = createAttendeeSheet(workbook, MARKER_SHEET);
+
+        // Worker sheet has nobody; the marker sheet names one person with no enrolment date
+        when(excelUtil.convertSheetToMapListCached(any(), eq(WORKER_SHEET), any()))
+                .thenReturn(new ArrayList<>());
+        when(excelUtil.convertSheetToMapListCached(any(), eq(MARKER_SHEET), any()))
+                .thenReturn(List.of(attendeeRow("USR-206325", "", 3)));
+        when(validationService.addValidationColumns(any(), any()))
+                .thenAnswer(invocation -> appendValidationColumns(invocation.getArgument(0)));
+
+        // One resource across both sheets, as the real per-sheet processing does
+        ProcessResource resource = ProcessResource.builder()
+                .id("resource-1").referenceId("campaign-1").tenantId("demo").fileStoreId("file-1").build();
+        RequestInfo requestInfo = RequestInfo.builder().build();
+
+        attendeeProcessor.processWorkbook(workbook, WORKER_SHEET, resource, requestInfo, new HashMap<>());
+        attendeeProcessor.processWorkbook(workbook, MARKER_SHEET, resource, requestInfo, new HashMap<>());
+
+        assertFalse(mentionsAtLeastOneRequired(workerSheet),
+                "the empty worker sheet must not be told a person there is missing a date");
+        assertTrue(mentionsAtLeastOneRequired(markerSheet),
+                "the sheet the user filled in is where the missing date has to be fixed");
     }
 
     @Test
@@ -288,12 +328,43 @@ class AttendanceEmptySheetValidationTest {
         }
     }
 
+    /** Header row only, which is what a generated attendee sheet with no typed rows looks like. */
+    private Sheet createAttendeeSheet(Workbook workbook, String sheetName) {
+        Sheet sheet = workbook.createSheet(sheetName);
+        Row header = sheet.createRow(0);
+        header.createCell(0).setCellValue(ProcessingConstants.USERNAME_COLUMN_KEY);
+        header.createCell(1).setCellValue(ProcessingConstants.ENROLLMENT_DATE_COLUMN_KEY);
+        return sheet;
+    }
+
+    /** Stands in for ValidationService, which appends the status and error columns to the sheet. */
+    private ValidationColumnInfo appendValidationColumns(Sheet sheet) {
+        Row header = sheet.getRow(0);
+        int statusColumn = header.getLastCellNum();
+        header.createCell(statusColumn).setCellValue(ValidationConstants.STATUS_COLUMN_NAME);
+        header.createCell(statusColumn + 1).setCellValue(ValidationConstants.ERROR_DETAILS_COLUMN_NAME);
+        return new ValidationColumnInfo(statusColumn, statusColumn + 1);
+    }
+
+    private boolean mentionsAtLeastOneRequired(Sheet sheet) {
+        for (Row row : sheet) {
+            for (Cell cell : row) {
+                String value = ExcelUtil.getCellValueAsString(cell);
+                if (value != null
+                        && value.contains(ValidationConstants.DEFAULT_ATTENDANCE_ATTENDEE_ATLEAST_ONE_REQUIRED)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private Map<String, Object> registerRow(String boundaryCode, String registerId, int rowNumber) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put(BOUNDARY_COLUMN, boundaryCode);
         row.put(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, boundaryCode);
         row.put(ProcessingConstants.REGISTER_ID_COLUMN_KEY, registerId);
-        row.put("__actualRowNumber__", rowNumber);
+        row.put(ProcessingConstants.ACTUAL_ROW_NUMBER_KEY, rowNumber);
         return row;
     }
 
@@ -301,6 +372,13 @@ class AttendanceEmptySheetValidationTest {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put(ProcessingConstants.USERNAME_COLUMN_KEY, username);
         row.put(ProcessingConstants.ENROLLMENT_DATE_COLUMN_KEY, enrolmentDate);
+        return row;
+    }
+
+    /** The per-row validation reads the sheet row number, which the real converter always sets. */
+    private Map<String, Object> attendeeRow(String username, String enrolmentDate, int rowNumber) {
+        Map<String, Object> row = attendeeRow(username, enrolmentDate);
+        row.put(ProcessingConstants.ACTUAL_ROW_NUMBER_KEY, rowNumber);
         return row;
     }
 
