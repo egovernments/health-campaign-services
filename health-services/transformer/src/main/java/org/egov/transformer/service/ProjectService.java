@@ -7,12 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.jayway.jsonpath.JsonPath;
-import digit.models.coremodels.RequestInfoWrapper;
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -21,17 +15,17 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.project.*;
 import org.egov.tracer.model.CustomException;
-import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.producer.TransformerErrorProducer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.egov.transformer.models.boundary.*;
 import org.springframework.util.CollectionUtils;
 
-import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.egov.transformer.Constants.*;
 
@@ -40,33 +34,35 @@ import static org.egov.transformer.Constants.*;
 public class ProjectService {
 
     private final TransformerProperties transformerProperties;
-
     private final ServiceRequestClient serviceRequestClient;
-
     private final ObjectMapper objectMapper;
-
     private final MdmsService mdmsService;
-
     private final TransformerErrorProducer errorProducer;
+    private final ProjectFactoryService projectFactoryService;
+    private final CommonUtils commonUtils;
 
-    private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
-    private static List<JsonNode> cachedProjectTypes = new ArrayList<>();
+    private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new ConcurrentHashMap<>();
+    private static Map<String, ProjectInfo> projectIdVsProjectInfoCache = new ConcurrentHashMap<>();
+    private static Map<String, String> userIdVsProjectIdCache = new ConcurrentHashMap<>();
+    private static Map<String, ArrayNode> projectIdVsCycleInfoCache = new ConcurrentHashMap<>();
 
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer) {
+                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer, ProjectFactoryService projectFactoryService, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.mdmsService = mdmsService;
         this.errorProducer = errorProducer;
+        this.projectFactoryService = projectFactoryService;
+        this.commonUtils = commonUtils;
     }
 
     public Project getProject(String projectId, String tenantId) {
         List<Project> projects = searchProject(projectId, tenantId);
         Project project = null;
-        if (!projects.isEmpty()) {
+        if (projects != null && !projects.isEmpty()) {
             project = projects.get(0);
         }
         return project;
@@ -81,18 +77,88 @@ public class ProjectService {
         return project;
     }
 
-    public Map<String, String> getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
+    public String fetchCycleIndexFromProjectAdditionalDetails(String tenantId, String projectId, String projectTypeId, Long createdTime) {
+        ArrayNode cachedCycles = projectIdVsCycleInfoCache.get(projectId);
+        if (cachedCycles != null) {
+            return commonUtils.findCycleIndex(cachedCycles, createdTime);
+        }
+
         Project project = getProject(projectId, tenantId);
-        String locationCode = project.getAddress().getBoundary();
-        String hierarchyType = getHierarchyTypeFromProject(project);
-        return getBoundaryCodeToNameMap(locationCode, tenantId,hierarchyType);
+        if (project == null) {
+            return null;
+        }
+
+        JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+        if (additionalDetails == null || additionalDetails.isMissingNode()) {
+            return null;
+        }
+
+        JsonNode projectTypeNode = additionalDetails.path("projectType");
+        if (projectTypeNode.isMissingNode() || projectTypeNode.isNull()) {
+            return commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, createdTime);
+        }
+
+        ArrayNode campCycles = objectMapper.createArrayNode();
+        JsonNode cyclesNode = projectTypeNode.path("cycles");
+
+        if (!cyclesNode.isArray() || cyclesNode.isEmpty()) {
+            projectIdVsCycleInfoCache.put(projectId, campCycles);
+            return null;
+        }
+
+        for (JsonNode cycle : cyclesNode) {
+            if (!cycle.has("id") || !cycle.has("startDate") || !cycle.has("endDate")) {
+                continue;
+            }
+
+            ObjectNode normalized = objectMapper.createObjectNode();
+            normalized.put("id", cycle.path("id").asInt(0));
+            normalized.put(START_DATE, cycle.path("startDate").asLong(0));
+            normalized.put(END_DATE, cycle.path("endDate").asLong(0));
+
+            campCycles.add(normalized);
+        }
+
+        if (campCycles.isEmpty()) {
+            return null;
+        }
+        projectIdVsCycleInfoCache.put(projectId, campCycles);
+        return commonUtils.findCycleIndex(campCycles, createdTime);
     }
 
-    /**
-     * Resolves the boundary hierarchy type from the project's additionalDetails, falling back to
-     * the configured default. Kept here rather than in CommonUtils because CommonUtils depends on
-     * ProjectService, and injecting it back would form a circular bean dependency.
-     */
+    public ProjectInfo getProjectInfoByProjectId(String projectId, String tenantId) {
+        ProjectInfo cachedProjectInfo = projectIdVsProjectInfoCache.get(projectId);
+        if (cachedProjectInfo != null) {
+            log.info("Fetched ProjectInfo from cache for project id: {}", projectId);
+            if (cachedProjectInfo.getCampaignId() == null
+                    && StringUtils.isNotBlank(cachedProjectInfo.getCampaignNumber())) {
+                cachedProjectInfo.setCampaignId(projectFactoryService.getCampaignIdFromCampaignNumber(
+                        tenantId, true, cachedProjectInfo.getCampaignNumber()));
+            }
+            return cachedProjectInfo;
+        }
+
+        Project project = getProject(projectId, tenantId);
+        if (project == null) {
+            log.info("No project found for project id: {}. Not caching.", projectId);
+            return new ProjectInfo();
+        }
+
+        ProjectInfo projectInfo = new ProjectInfo();
+        projectInfo.setProjectType(project.getProjectType());
+        projectInfo.setProjectTypeId(project.getProjectTypeId());
+        projectInfo.setProjectId(project.getId());
+        projectInfo.setProjectName(project.getName());
+        projectInfo.setCampaignNumber(project.getReferenceID());
+        projectInfo.setHierarchyType(getHierarchyTypeFromProject(project));
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            projectInfo.setCampaignId(projectFactoryService.getCampaignIdFromCampaignNumber(
+                    tenantId, true, project.getReferenceID()));
+        }
+        projectIdVsProjectInfoCache.put(projectId, projectInfo);
+        return projectInfo;
+    }
+
     public String getHierarchyTypeFromProject(Project project) {
         try {
             JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
@@ -111,108 +177,6 @@ public class ProjectService {
             log.warn("Failed to fetch hierarchyType from project additionalDetails for projectId: {}, falling back to configured default: {}", project.getId(), transformerProperties.getBoundaryHierarchyName());
         }
         return transformerProperties.getBoundaryHierarchyName();
-    }
-
-
-    public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId,String hierarchyType) {
-        List<EnrichedBoundary> boundaries = new ArrayList<>();
-        RequestInfo requestInfo = RequestInfo.builder()
-                .authToken(transformerProperties.getBoundaryV2AuthToken())
-                .build();
-        BoundaryRelationshipRequest  boundaryRequest = BoundaryRelationshipRequest.builder()
-                .requestInfo(requestInfo).build();
-        StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
-                + transformerProperties.getBoundaryRelationshipSearchUrl()
-                + "?includeParents=true&includeChildren=false&tenantId=" + tenantId
-                + "&hierarchyType=" + hierarchyType
-//                + "&boundaryType=" + transformerProperties.getBoundaryType()
-                + "&codes=" + locationCode);
-        log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
-        try {
-            // Fetch boundary details from the service
-            log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}", tenantId, locationCode);
-            BoundarySearchResponse boundarySearchResponse = serviceRequestClient.fetchResult(
-                    uri,
-                    boundaryRequest,
-                    BoundarySearchResponse.class
-            );
-            log.debug("Boundary Relationship details fetched successfully for tenantId: {}", tenantId);
-
-            List<EnrichedBoundary> enrichedBoundaries = boundarySearchResponse.getTenantBoundary().stream()
-                    .filter(hierarchyRelation -> !CollectionUtils.isEmpty(hierarchyRelation.getBoundary()))
-                    .flatMap(hierarchyRelation -> hierarchyRelation.getBoundary().stream())
-                    .collect(Collectors.toList());
-
-            getAllBoundaryCodes(enrichedBoundaries, boundaries);
-
-        } catch (Exception e) {
-            log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
-            // Do not emit an error record here: the exception propagates to the consumer,
-            // which pushes a single error record with the correct source topic and the
-            // original payload. Emitting here would produce a duplicate record with topic=null.
-            throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
-        }
-
-        Map<String, String> boundaryMap = new HashMap<>();
-
-        boundaryMap =  boundaries.stream()
-                .collect(Collectors.toMap(
-                        EnrichedBoundary::getBoundaryType,
-                        boundary -> {
-                            String boundaryName = getBoundaryNameFromLocalisationService(boundary.getCode(), requestInfo, tenantId);
-                            if(boundaryName == null) {
-                                boundaryName = boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1);
-                            }
-                            return boundaryName;
-                        }
-                ));
-        return boundaryMap;
-    }
-
-    private String getBoundaryNameFromLocalisationService(String boundaryCode, RequestInfo requestInfo, String tenantId) {
-        StringBuilder uri = new StringBuilder();
-        RequestInfoWrapper requestInfoWrapper = new RequestInfoWrapper();
-        requestInfoWrapper.setRequestInfo(requestInfo);
-        uri.append(transformerProperties.getLocalizationHost()).append(transformerProperties.getLocalizationContextPath())
-                .append(transformerProperties.getLocalizationSearchEndpoint())
-                .append("?tenantId=" + tenantId)
-                .append("&module=" + transformerProperties.getLocalizationModuleName())
-                .append("&locale=" + transformerProperties.getLocalizationLocaleCode())
-                .append("&codes=" + boundaryCode);
-        List<String> codes = null;
-        List<String> messages = null;
-        Object result = null;
-        try {
-            result = serviceRequestClient.fetchResult(uri, requestInfoWrapper, Map.class);
-            codes = JsonPath.read(result, LOCALIZATION_CODES_JSONPATH);
-            messages = JsonPath.read(result, Constants.LOCALIZATION_MSGS_JSONPATH);
-        } catch (Exception e) {
-            log.error("Exception while fetching from localization: {}", ExceptionUtils.getStackTrace(e));
-        }
-        return CollectionUtils.isEmpty(messages) ? null : messages.get(0);
-    }
-
-    private void getAllBoundaryCodes(List<EnrichedBoundary> enrichedBoundaries, List<EnrichedBoundary> boundaries) {
-        if (enrichedBoundaries == null || enrichedBoundaries.isEmpty()) {
-            return;
-        }
-
-        for (EnrichedBoundary root : enrichedBoundaries) {
-            if (root != null) {
-                Deque<EnrichedBoundary> stack = new ArrayDeque<>();
-                stack.push(root);
-
-                while (!stack.isEmpty()) {
-                    EnrichedBoundary current = stack.pop();
-                    if (current != null) {
-                        boundaries.add(current);
-                        if (current.getChildren() != null) {
-                            stack.addAll(current.getChildren());
-                        }
-                    }
-                }
-            }
-        }
     }
 
     private List<Project> searchProjectByName(String projectName, String tenantId) {
@@ -314,6 +278,37 @@ public class ProjectService {
         return response.getProjectBeneficiaries();
     }
 
+    public ProjectInfo projectDetailsFromUserId(String userId, String tenantId){
+        if (userIdVsProjectIdCache.containsKey(userId)) {
+            return getProjectInfoByProjectId(userIdVsProjectIdCache.get(userId), tenantId);
+        }
+
+        List<String> userIds = new ArrayList<>(Collections.singletonList(userId));
+        ProjectInfo projectInfo = new ProjectInfo();
+        List<ProjectStaff> projectStaffList = searchProjectStaff(userIds, tenantId);
+        ProjectStaff projectStaff = !CollectionUtils.isEmpty(projectStaffList) ? projectStaffList.get(0) : null;
+
+        if (ObjectUtils.isNotEmpty(projectStaff)) {
+            projectInfo = getProjectInfoByProjectId(projectStaff.getProjectId(), tenantId);
+            userIdVsProjectIdCache.put(userId, projectStaff.getProjectId());
+        }
+        return projectInfo;
+    }
+
+    public void addProjectDetailsForUserIdAndTenantId(ProjectInfo projectInfo, String userId, String tenantId) {
+        ProjectInfo projectDetails = projectDetailsFromUserId(userId, tenantId);
+        if(ObjectUtils.isNotEmpty(projectDetails)) {
+            projectInfo.setProjectId(projectDetails.getProjectId());
+            projectInfo.setProjectTypeId(projectDetails.getProjectTypeId());
+            projectInfo.setProjectType(projectDetails.getProjectType());
+            projectInfo.setProjectName(projectDetails.getProjectName());
+            projectInfo.setCampaignNumber(projectDetails.getCampaignNumber());
+            projectInfo.setCampaignId(projectDetails.getCampaignId());
+            projectInfo.setHierarchyType(projectDetails.getHierarchyType());
+        }
+    }
+
+//    TODO getProducts from projectAdditionalDetails instead of mdms projectType
     public List<String> getProducts(String tenantId, String projectTypeId) {
         String filter = "$[?(@.id == '" + projectTypeId + "')].resources.*.productVariantId";
 
@@ -321,7 +316,7 @@ public class ProjectService {
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
 
-        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+        JsonNode response = mdmsService.fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                 transformerProperties.getMdmsModule(), filter);
         JsonNode projectTypesNode = response.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
         return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<String>>() {
@@ -337,7 +332,7 @@ public class ProjectService {
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
         try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+            JsonNode response = mdmsService.fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                     transformerProperties.getMdmsModule(), filter);
 
             if (response != null && response.has(transformerProperties.getMdmsModule())) {
@@ -345,7 +340,7 @@ public class ProjectService {
                         .get(transformerProperties.getMdmsModule())
                         .withArray(PROJECT_TYPES);
 
-                if (projectBeneficiaryTypeNode != null && projectBeneficiaryTypeNode.isArray() && projectBeneficiaryTypeNode.size() > 0) {
+                if (projectBeneficiaryTypeNode != null && projectBeneficiaryTypeNode.isArray() && !projectBeneficiaryTypeNode.isEmpty()) {
                     String projectBeneficiaryType = projectBeneficiaryTypeNode.get(0).asText();
                     projectTypeIdVsProjectBeneficiaryCache.put(projectTypeId, projectBeneficiaryType);
                     return projectBeneficiaryType;
@@ -356,119 +351,6 @@ public class ProjectService {
             errorProducer.sendToErrorTopic(projectTypeId, null, exception);
         }
         return null;
-    }
-
-    public JsonNode fetchProjectTypes(String tenantId, String filter, String projectTypeId) {
-
-        JsonNode requiredProjectType = cachedProjectTypes.stream()
-                .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
-                .findFirst()
-                .orElse(null);
-
-        if (requiredProjectType != null) {
-            log.info("Fetched projectType from cache {}", projectTypeId);
-            return requiredProjectType;
-        }
-        RequestInfo requestInfo = RequestInfo.builder()
-                .userInfo(User.builder().uuid("transformer-uuid").build())
-                .build();
-        try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
-            List<JsonNode> projectTypes = convertToProjectTypeJsonNodeList(response);
-            cachedProjectTypes.addAll(projectTypes);
-            return projectTypes.stream()
-                    .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
-                    .findFirst()
-                    .orElseGet(() -> objectMapper.createObjectNode());
-//            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
-//            return requiredProjectType;
-        } catch (IOException e) {
-            return objectMapper.createObjectNode();
-//            throw new RuntimeException(e);
-        }
-    }
-    private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,
-                                       String moduleName, String filter) {
-        MdmsCriteriaReq serviceRegistry = getMdmsRequest(requestInfo, tenantId, name, moduleName, filter);
-        try {
-            return mdmsService.fetchConfig(serviceRegistry, JsonNode.class).get(MDMS_RESPONSE);
-        } catch (Exception e) {
-            log.error("Error while fetching mdms config for module: {}, name: {}, Exception: {}", moduleName, name, ExceptionUtils.getStackTrace(e));
-            // no emit here: the exception propagates to the consumer, which records a single
-            // error with the correct source topic and original payload.
-            throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching mdms config");
-        }
-    }
-
-    public JsonNode fetchBoundaryData(String tenantId, String filter, String projectTypeId) {
-        List<JsonNode> projectTypes = new ArrayList<>();
-        RequestInfo requestInfo = RequestInfo.builder()
-                .userInfo(User.builder().uuid("transformer-uuid").build())
-                .build();
-        try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
-                    transformerProperties.getMdmsModule(), filter);
-            projectTypes = convertToProjectTypeJsonNodeList(response);
-            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
-            return requiredProjectType.get(Constants.BOUNDARY_DATA);
-        } catch (IOException e) {
-            log.error("Error while fetching boundary data for projectTypeId: {}, Exception: {}", projectTypeId, ExceptionUtils.getStackTrace(e));
-            // no emit here: the exception propagates to the consumer, which records a single
-            // error with the correct source topic and original payload.
-            throw new RuntimeException(e);
-        }
-
-    }
-
-    public JsonNode fetchBoundaryDataByTenant(String tenantId, String filter) {
-        List<JsonNode> projectTypes = new ArrayList<>();
-        RequestInfo requestInfo = RequestInfo.builder()
-                .userInfo(User.builder().uuid("transformer-uuid").build())
-                .build();
-        try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
-                    transformerProperties.getMdmsModule(), filter);
-            projectTypes = convertToProjectTypeJsonNodeList(response);
-            for (JsonNode projectType : projectTypes) {
-                JsonNode boundaryData = projectType.get(Constants.BOUNDARY_DATA);
-                if (boundaryData != null) {
-                    return boundaryData;
-                }
-            }
-            return null;
-        } catch (IOException e) {
-            log.error("Error while fetching boundary data for tenantId: {}, Exception: {}", tenantId, ExceptionUtils.getStackTrace(e));
-            // no emit here: the exception propagates to the consumer, which records a single
-            // error with the correct source topic and original payload.
-            throw new RuntimeException(e);
-        }
-
-    }
-
-
-    public JsonNode fetchProjectTypeFromProject(String tenantId, String projectId) {
-        JsonNode requiredProjectType = null;
-        if (StringUtils.isBlank(projectId)) {
-            return requiredProjectType;
-        }
-        Project project = getProject(projectId, tenantId);
-        if (ObjectUtils.isNotEmpty(project)) {
-            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
-            if (additionalDetails != null && !additionalDetails.isEmpty() && additionalDetails.has(PROJECT_TYPE)) {
-                requiredProjectType = additionalDetails.get(PROJECT_TYPE);
-            }
-        }
-        return requiredProjectType;
-    }
-
-    public JsonNode fetchProjectAdditionalDetails(String tenantId, String projectId) {
-
-        JsonNode additionalDetails = null;
-        JsonNode requiredProjectType = fetchProjectTypeFromProject(tenantId, projectId);
-        if (requiredProjectType != null && requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
-            additionalDetails = extractProjectCycleAndDoseIndexes(requiredProjectType);
-        }
-        return additionalDetails;
     }
 
     public JsonNode fetchProjectAdditionalDetails(Project project) {
@@ -514,36 +396,22 @@ public class ProjectService {
         }
     }
 
-    private List<JsonNode> convertToProjectTypeJsonNodeList(JsonNode jsonNode) throws IOException {
-        JsonNode projectTypesNode = jsonNode.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
-        return objectMapper.readValue(projectTypesNode.traverse(), new TypeReference<List<JsonNode>>() {
-        });
-    }
-
-    private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
-                                           String moduleName, String filter) {
-        MasterDetail masterDetail = new MasterDetail();
-        masterDetail.setName(masterName);
-        if (filter != null && !filter.isEmpty()) {
-            masterDetail.setFilter(filter);
+    public String getProjectIdFromStaff(String userId, String tenantId) {
+        if (userIdVsProjectIdCache.containsKey(userId)) {
+            return userIdVsProjectIdCache.get(userId);
         }
-        List<MasterDetail> masterDetailList = new ArrayList<>();
-        masterDetailList.add(masterDetail);
-        ModuleDetail moduleDetail = new ModuleDetail();
-        moduleDetail.setMasterDetails(masterDetailList);
-        moduleDetail.setModuleName(moduleName);
-        List<ModuleDetail> moduleDetailList = new ArrayList<>();
-        moduleDetailList.add(moduleDetail);
-        MdmsCriteria mdmsCriteria = new MdmsCriteria();
-        mdmsCriteria.setTenantId(tenantId.split("\\.")[0]);
-        mdmsCriteria.setModuleDetails(moduleDetailList);
-        MdmsCriteriaReq mdmsCriteriaReq = new MdmsCriteriaReq();
-        mdmsCriteriaReq.setMdmsCriteria(mdmsCriteria);
-        mdmsCriteriaReq.setRequestInfo(requestInfo);
-        return mdmsCriteriaReq;
-    }
 
-    public List<ProjectStaff> searchProjectStaff(List<String> userId, String tenantId) {
+        List<String> userIds = new ArrayList<>(Collections.singletonList(userId));
+        List<ProjectStaff> projectStaffList = searchProjectStaff(userIds, tenantId);
+        ProjectStaff projectStaff = !CollectionUtils.isEmpty(projectStaffList) ? projectStaffList.get(0) : null;
+
+        if (ObjectUtils.isNotEmpty(projectStaff)) {
+            userIdVsProjectIdCache.put(userId, projectStaff.getProjectId());
+            return projectStaff.getProjectId();
+        }
+        return null;
+    }
+    private List<ProjectStaff> searchProjectStaff(List<String> userId, String tenantId) {
         ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
                 .requestInfo(RequestInfo.builder()
                         .userInfo(User.builder()
@@ -570,29 +438,5 @@ public class ProjectService {
             return null;
         }
     }
-
-    public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId,String hierarchyType) {
-        if (localityCode == null) {
-            return null;
-        }
-        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMap(localityCode, tenantId,hierarchyType);
-        Map<String, String> boundaryHierarchy = new HashMap<>();
-
-        boundaryLabelToNameMap.forEach((label, value) -> {
-            boundaryHierarchy.put(mdmsService.getMDMSTransformerElasticIndexLabels(label, tenantId), value);
-        });
-        return boundaryHierarchy;
-    }
-
-    public Map<String, String> getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
-        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMapByProjectId(projectId, tenantId);
-        Map<String, String> boundaryHierarchy = new HashMap<>();
-
-        boundaryLabelToNameMap.forEach((label, value) -> {
-            boundaryHierarchy.put(mdmsService.getMDMSTransformerElasticIndexLabels(label, tenantId), value);
-        });
-        return boundaryHierarchy;
-    }
-
 
 }

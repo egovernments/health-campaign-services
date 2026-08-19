@@ -4,14 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
-import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.downstream.StockReconciliationIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
@@ -79,14 +77,13 @@ public class StockReconciliationTransformationService {
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
         String localityCode = null;
         String projectId = stockReconciliation.getReferenceId();
-        Project project = projectService.getProject(projectId, tenantId);
-        String hierarchy = commonUtils.getHierarchyTypeFromProject(project);
+        ProjectInfo projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
 
         if (facility != null && facility.getAddress() != null &&
                 facility.getAddress().getLocality() != null &&
                 facility.getAddress().getLocality().getCode() != null) {
             localityCode = facility.getAddress().getLocality().getCode();
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarchy);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId, projectInfo.getHierarchyType());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else if (stockReconciliation.getReferenceIdType().equals(PROJECT)) {
@@ -99,17 +96,12 @@ public class StockReconciliationTransformationService {
                 && !CollectionUtils.isEmpty(stockReconciliation.getAdditionalFields().getFields())) {
             additionalDetails = additionalFieldsToDetails(stockReconciliation.getAdditionalFields().getFields());
         }
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, project.getProjectTypeId(), stockReconciliation.getAuditDetails().getCreatedTime());
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectInfo.getProjectTypeId(), stockReconciliation.getAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
         String productName = String.join(COMMA, productService.getProductVariantNames(Collections.singletonList(stockReconciliation.getProductVariantId()), tenantId));
-
-        String campaignId = null;
-        if  (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
-            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
-        }
 
         StockReconciliationIndexV1 stockReconciliationIndexV1 = StockReconciliationIndexV1.builder()
                 .stockReconciliation(stockReconciliation)
@@ -130,9 +122,7 @@ public class StockReconciliationTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(stockReconciliation.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime()))
                 .build();
-        stockReconciliationIndexV1.setProjectInfo(projectId, project.getProjectType(), project.getProjectTypeId(), project.getName(),hierarchy);
-        stockReconciliationIndexV1.setCampaignNumber(project.getReferenceID());
-        stockReconciliationIndexV1.setCampaignId(campaignId);
+        stockReconciliationIndexV1.setProjectInfo(projectId, projectInfo);
         return stockReconciliationIndexV1;
     }
 

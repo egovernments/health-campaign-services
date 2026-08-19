@@ -5,10 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.core.Field;
-import org.egov.common.models.project.Project;
 import org.egov.common.models.project.useraction.UserAction;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
@@ -84,11 +81,8 @@ public class UserActionTransformationService {
         String tenantId = userAction.getTenantId();
         String projectId = userAction.getProjectId();
 
-        Project project = projectService.getProject(projectId, tenantId);
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
-
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(userAction.getAuditDetails().getCreatedBy(),tenantId);
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(userAction.getBoundaryCode(), tenantId,hierarchyType);
+        ProjectInfo projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
+        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(userAction.getBoundaryCode(), tenantId, projectInfo.getHierarchyType());
 
         // Create geoPoint from latitude and longitude
         Double[] geoPoint = null;
@@ -105,25 +99,16 @@ public class UserActionTransformationService {
             }
         }
 
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, project.getProjectTypeId(), userAction.getAuditDetails().getCreatedTime());
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectInfo.getProjectTypeId(), userAction.getAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         Map<String, String> userInfoMap = userService.getUserInfo(userAction.getTenantId(), userAction.getClientAuditDetails().getCreatedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(userAction.getAuditDetails().getLastModifiedTime());
 
-        String campaignId = null;
-        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
-            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
-                    project.getTenantId(), true, project.getReferenceID()
-            );
-        }
-
         UserActionIndexV1 userActionIndex = UserActionIndexV1.builder()
                 .userAction(userAction)
                 .id(userAction.getId())
                 .projectId(projectId)
-                .projectType(projectInfo.getProjectType())
-                .projectTypeId(projectInfo.getProjectTypeId())
                 .additionalDetails(additionalDetails)
                 .boundaryHierarchy(boundaryHierarchyResult.getBoundaryHierarchy())
                 .boundaryHierarchyCode(boundaryHierarchyResult.getBoundaryHierarchyCode())
@@ -136,9 +121,7 @@ public class UserActionTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(userAction.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(userAction.getAuditDetails().getLastModifiedTime()))
                 .build();
-        userActionIndex.setProjectInfo(projectId, project.getProjectType(), projectInfo.getProjectTypeId(), project.getName(),hierarchyType);
-        userActionIndex.setCampaignNumber(project.getReferenceID());
-        userActionIndex.setCampaignId(campaignId);
+        userActionIndex.setProjectInfo(projectInfo);
         log.info("Successfully transformed UserAction with id: {}", userAction.getId());
         return userActionIndex;
     }

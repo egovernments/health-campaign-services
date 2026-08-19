@@ -29,15 +29,17 @@ public class DeviceTokenTransformationService {
     private final UserService userService;
     private final BoundaryService boundaryService;
     private final CommonUtils commonUtils;
+    private final ProjectService projectService;
     private final ObjectMapper objectMapper;
 
 
-    public DeviceTokenTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+    public DeviceTokenTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, ProjectService projectService, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
         this.commonUtils = commonUtils;
+        this.projectService = projectService;
         this.objectMapper = objectMapper;
     }
 
@@ -55,7 +57,7 @@ public class DeviceTokenTransformationService {
     public DeviceTokenIndexV1 transform(DeviceToken deviceToken) {
         String tenantId = deviceToken.getTenantId();
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(deviceToken.getUserId(),tenantId);
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(deviceToken.getUserId(),tenantId);
         if (ObjectUtils.isNotEmpty(projectInfo) && StringUtils.isNotEmpty(projectInfo.getProjectId())) {
             String projectId = projectInfo.getProjectId();
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
@@ -72,12 +74,9 @@ public class DeviceTokenTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(deviceToken.getAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(deviceToken.getAuditDetails().getLastModifiedTime()))
                 .build();
-        deviceTokenIndexV1.setProjectInfo(projectInfo.getProjectId(), projectInfo.getProjectType(),
-                projectInfo.getProjectTypeId(), projectInfo.getProjectName(), projectInfo.getHierarchyType());
-        deviceTokenIndexV1.setCampaignNumber(projectInfo.getCampaignNumber());
-        deviceTokenIndexV1.setCampaignId(projectInfo.getCampaignId());
+        deviceTokenIndexV1.setProjectInfo(projectInfo);
 
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, deviceTokenIndexV1.getProjectId(), deviceTokenIndexV1.getProjectTypeId(), deviceToken.getAuditDetails().getCreatedTime());
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(tenantId, deviceTokenIndexV1.getProjectId(), deviceTokenIndexV1.getProjectTypeId(), deviceToken.getAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         deviceTokenIndexV1.setAdditionalDetails(additionalDetails);

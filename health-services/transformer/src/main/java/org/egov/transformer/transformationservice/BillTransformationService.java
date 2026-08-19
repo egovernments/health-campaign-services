@@ -28,17 +28,16 @@ public class BillTransformationService {
     private final UserService userService;
     private final BoundaryService boundaryService;
     private final BillService billService;
+    private final ProjectService projectService;
 
-    private final CommonUtils commonUtils;
 
-
-    public BillTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, BillService billService, CommonUtils commonUtils) {
+    public BillTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, BillService billService, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
         this.billService = billService;
-        this.commonUtils = commonUtils;
+        this.projectService = projectService;
     }
 
     public void transform(Bill bill) {
@@ -74,10 +73,11 @@ public class BillTransformationService {
     }
     public BillIndexV1 transformBill(Bill bill, Map<String, Object> wfStatusInfo) {
         String localityCode = bill.getLocalityCode();
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(bill.getAuditDetails().getCreatedBy(),bill.getTenantId());
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(bill.getAuditDetails().getCreatedBy(),bill.getTenantId());
         String hierarchyType = projectInfo.getHierarchyType();
 
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, bill.getTenantId(),hierarchyType);
+        BoundaryHierarchyResult boundaryHierarchyResult;
+        boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, bill.getTenantId(),hierarchyType);
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
         Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
 
@@ -92,14 +92,14 @@ public class BillTransformationService {
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .build();
-        commonUtils.addProjectDetailsForUserIdAndTenantId(billIndexV1,
+        projectService.addProjectDetailsForUserIdAndTenantId(billIndexV1,
                 bill.getAuditDetails().getLastModifiedBy(),
                 bill.getTenantId());
         return billIndexV1;
     }
 
     public List<BillDetailIndexV1> transformBillDetails(List<BillDetail> billDetails, Map<String, Object> wfStatusInfo, String localityCode) {
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(billDetails.get(0).getAuditDetails().getCreatedBy(),billDetails.get(0).getTenantId());
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(billDetails.get(0).getAuditDetails().getCreatedBy(),billDetails.get(0).getTenantId());
         String hierarchyType = projectInfo.getHierarchyType();
 
         BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, billDetails.get(0).getTenantId(),hierarchyType);
@@ -185,7 +185,7 @@ public class BillTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .build();
 
-        commonUtils.addProjectDetailsForUserIdAndTenantId(
+        projectService.addProjectDetailsForUserIdAndTenantId(
                 index,
                 billDetail.getAuditDetails().getLastModifiedBy(),
                 billDetail.getTenantId()

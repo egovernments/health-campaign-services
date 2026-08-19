@@ -34,19 +34,19 @@ public class AttendeeTransformationService {
     private final Producer producer;
     private final UserService userService;
     private final BoundaryService boundaryService;
-
     private final CommonUtils commonUtils;
-
+    private final ProjectService projectService;
     private final AttendanceRegisterService attendanceRegisterService;
     private final IndividualService individualService;
 
-    public AttendeeTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, IndividualService individualService) {
+    public AttendeeTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, ProjectService projectService1, IndividualService individualService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
+        this.projectService = projectService1;
         this.individualService = individualService;
     }
 
@@ -106,7 +106,7 @@ public class AttendeeTransformationService {
             BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyByCodeOrProjectId((JsonNode) attendee.getAdditionalDetails(), individual.getUserUuid(), attendee.getTenantId());
             attendeeIndexV1.setBoundaryHierarchyCode(boundaryHierarchyResult.getBoundaryHierarchyCode());
             attendeeIndexV1.setBoundaryHierarchy(boundaryHierarchyResult.getBoundaryHierarchy());
-            commonUtils.addProjectDetailsForUserIdAndTenantId(attendeeIndexV1,
+            projectService.addProjectDetailsForUserIdAndTenantId(attendeeIndexV1,
                     individual.getUserUuid(),
                     attendee.getTenantId());
         }
@@ -154,7 +154,7 @@ public class AttendeeTransformationService {
 
     private BoundaryHierarchyResult getBoundaryHierarchyByCodeOrProjectId(JsonNode additionalDetails, String createdBy, String tenantId) {
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(createdBy,tenantId);
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(createdBy,tenantId);
         String boundaryCode = commonUtils.getLocalityCodeFromAdditionalFields(null, additionalDetails);
         if (StringUtils.isNotEmpty(boundaryCode)) {
             boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId,projectInfo.getHierarchyType());

@@ -4,17 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.AdditionalFields;
-import org.egov.common.models.project.Project;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.downstream.HfReferralIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.BoundaryService;
-import org.egov.transformer.service.ProjectFactoryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
@@ -34,7 +31,6 @@ public class HfReferralTransformationService {
     private final UserService userService;
     private final ProjectService projectService;
     private final BoundaryService boundaryService;
-    private final ProjectFactoryService projectFactoryService;
 
     private final CommonUtils commonUtils;
 
@@ -42,13 +38,12 @@ public class HfReferralTransformationService {
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(AGE_IN_MONTHS));
 
     public HfReferralTransformationService(TransformerProperties transformerProperties,
-                                           Producer producer, UserService userService, ProjectService projectService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+                                           Producer producer, UserService userService, ProjectService projectService, BoundaryService boundaryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.projectService = projectService;
         this.boundaryService = boundaryService;
-        this.projectFactoryService = projectFactoryService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
     }
@@ -68,32 +63,24 @@ public class HfReferralTransformationService {
     public HfReferralIndexV1 transform(HFReferral hfReferral) {
         String tenantId = hfReferral.getTenantId();
         String projectId = hfReferral.getProjectId();
-        Project project = projectService.getProject(projectId, tenantId);
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
-        String projectTypeId = project.getProjectTypeId();
-        String projectType = project.getProjectType();
+        ProjectInfo projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
         AdditionalFields additionalFields = hfReferral.getAdditionalFields();
         String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(additionalFields);
         BoundaryHierarchyResult boundaryHierarchyResult = null;
         if(localityCode != null) {
-            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarchyType);
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId, projectInfo.getHierarchyType());
         } else {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         }
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, hfReferral.getClientAuditDetails().getCreatedBy());
 
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, hfReferral.getClientAuditDetails().getCreatedTime());
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectInfo.getProjectTypeId(), hfReferral.getClientAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         AdditionalFields hfReferralAdditionalFields = hfReferral.getAdditionalFields();
         addAdditionalDetails(hfReferralAdditionalFields, additionalDetails);
-
-        String campaignId = null;
-        if  (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
-            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
-        }
 
         HfReferralIndexV1 hfReferralIndexV1 = HfReferralIndexV1.builder()
                 .hfReferral(hfReferral)
@@ -106,9 +93,7 @@ public class HfReferralTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(hfReferral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        hfReferralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName(),hierarchyType);
-        hfReferralIndexV1.setCampaignNumber(project.getReferenceID());
-        hfReferralIndexV1.setCampaignId(campaignId);
+        hfReferralIndexV1.setProjectInfo(projectId, projectInfo);
 
         return hfReferralIndexV1;
     }

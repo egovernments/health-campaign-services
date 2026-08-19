@@ -15,22 +15,14 @@ import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
-import static org.egov.transformer.Constants.*;
 
 @Service
 @Slf4j
 public class DeviceTokenService {
 
     private final TransformerProperties properties;
-
     private final ServiceRequestClient serviceRequestClient;
-
-    private static final Map<String, Facility> facilityMap = new ConcurrentHashMap<>();
-
     private final ObjectMapper objectMapper;
-
     private final TransformerErrorProducer errorProducer;
 
     public DeviceTokenService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper, TransformerErrorProducer errorProducer) {
@@ -38,16 +30,6 @@ public class DeviceTokenService {
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.errorProducer = errorProducer;
-    }
-
-    public void updateFacilitiesInCache(List<Facility> facilities) {
-        facilities.forEach(facility -> facilityMap.put(facility.getId(), facility));
-    }
-
-    public Facility findFacilityById(String facilityId, String tenantId) {
-
-        return facilityMap.containsKey(facilityId) ?
-                facilityMap.get(facilityId) : searchFacility(facilityId, tenantId);
     }
 
     public DeviceToken searchDeviceToken(String userId, String tenantId) {
@@ -76,64 +58,4 @@ public class DeviceTokenService {
         }
     }
 
-    private Facility searchFacility(String facilityId, String tenantId) {
-
-        FacilitySearchRequest facilitySearchRequest = FacilitySearchRequest.builder()
-                .facility(FacilitySearch.builder().id(Collections.singletonList(facilityId)).build())
-                .requestInfo(RequestInfo.builder().
-                        userInfo(User.builder()
-                                .uuid("transformer-uuid")
-                                .build())
-                        .build())
-                .build();
-
-        try {
-            JsonNode response = serviceRequestClient.fetchResult(
-                    new StringBuilder(properties.getFacilityHost()
-                            + properties.getFacilitySearchUrl()
-                            + "?limit=1"
-                            + "&offset=0&tenantId=" + tenantId),
-                    facilitySearchRequest,
-                    JsonNode.class);
-            List<Facility> facilities = Arrays.asList(objectMapper.convertValue(response.get("Facilities"), Facility[].class));
-            updateFacilitiesInCache(facilities);
-            return facilities.isEmpty() ? null : facilities.get(0);
-        } catch (Exception e) {
-            log.error("error while fetching facility {}", ExceptionUtils.getStackTrace(e));
-            errorProducer.sendToErrorTopic(facilitySearchRequest, null, e);
-            return null;
-        }
-    }
-
-    public Long getFacilityTarget(Facility facility) {
-        AdditionalFields facilityAdditionalFields = facility.getAdditionalFields();
-        if (facilityAdditionalFields != null) {
-            List<Field> fields = facilityAdditionalFields.getFields();
-            Optional<Field> field = fields.stream().filter(field1 -> FACILITY_TARGET_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
-            if (field.isPresent() && field.get().getValue() != null) {
-                return Long.valueOf(field.get().getValue());
-            }
-        }
-        return null;
-    }
-
-    public String getFacilityLevel(Facility facility) {
-        String facilityUsage = facility.getUsage();
-        if (facilityUsage != null) {
-            return WAREHOUSE.equalsIgnoreCase(facilityUsage) ?
-                    (facility.getIsPermanent() ? DISTRICT_WAREHOUSE : SATELLITE_WAREHOUSE) : null;
-        }
-        return null;
-    }
-    public String getType(String transactingFacilityType, Facility transactingFacility) {
-        AdditionalFields transactingFacilityAdditionalFields = transactingFacility.getAdditionalFields();
-        if (transactingFacilityAdditionalFields != null) {
-            List<Field> fields = transactingFacilityAdditionalFields.getFields();
-            Optional<Field> field = fields.stream().filter(field1 -> TYPE_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
-            if (field.isPresent() && field.get().getValue() != null) {
-                transactingFacilityType = field.get().getValue();
-            }
-        }
-        return transactingFacilityType;
-    }
 }

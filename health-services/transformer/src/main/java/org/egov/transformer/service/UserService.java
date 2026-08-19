@@ -118,7 +118,7 @@ public class UserService {
         String roleByRank = null;
         int minValue = Integer.MAX_VALUE;
 
-        if (userRoles.size() > 0) {
+        if (!userRoles.isEmpty()) {
             for (String element : userRoles) {
                 if (projectStaffRolesMap.containsKey(element)) {
                     int value = projectStaffRolesMap.get(element);
@@ -161,11 +161,14 @@ public class UserService {
             retryCount++;
         }
         Map<String, String> userMap = new HashMap<>();
-        userMap.put(ID, userId);
-        userMap.put(ROLE, getStaffRole(tenantId, users));
-        userMap.put(USERNAME, users.get(0).getUserName());
-        userIdVsUserInfoCache.put(userId, userMap);
-
+        if (!users.isEmpty()) {
+            userMap.put(USERNAME, users.get(0).getUserName());
+            userMap.put(NAME, users.get(0).getName());
+            userMap.put(ROLE, getStaffRole(tenantId, users));
+            userMap.put(ID, String.valueOf(users.get(0).getId()));
+            userMap.put(CITY, users.get(0).getCorrespondenceAddress());
+            userIdVsUserInfoCache.put(userId, userMap);
+        }
         return users;
     }
 }

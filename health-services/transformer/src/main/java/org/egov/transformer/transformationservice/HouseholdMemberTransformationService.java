@@ -72,7 +72,7 @@ public class HouseholdMemberTransformationService {
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
         Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(householdMember.getAuditDetails().getCreatedBy(),householdMember.getTenantId());
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(householdMember.getAuditDetails().getCreatedBy(),householdMember.getTenantId());
         String hierarchyType = projectInfo.getHierarchyType();
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
@@ -124,10 +124,8 @@ public class HouseholdMemberTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
                 .build();
-        commonUtils.addProjectDetailsForUserIdAndTenantId(householdMemberIndexV1,
-                householdMember.getClientAuditDetails().getLastModifiedBy(),
-                householdMember.getTenantId());
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(householdMember.getTenantId(), householdMemberIndexV1.getProjectId(), householdMemberIndexV1.getProjectTypeId(), householdMember.getClientAuditDetails().getCreatedTime());
+        householdMemberIndexV1.setProjectInfo(projectInfo);
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(householdMember.getTenantId(), householdMemberIndexV1.getProjectId(), householdMemberIndexV1.getProjectTypeId(), householdMember.getClientAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         householdMemberIndexV1.setAdditionalDetails(additionalDetails);
         return householdMemberIndexV1;

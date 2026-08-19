@@ -11,6 +11,7 @@ import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.BillService;
 import org.egov.transformer.service.BoundaryService;
+import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -29,17 +30,15 @@ public class BillReportTransformationService {
     private final UserService userService;
     private final BoundaryService boundaryService;
     private final BillService billService;
+    private final ProjectService projectService;
 
-    private final CommonUtils commonUtils;
-
-
-    public BillReportTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, BillService billService, CommonUtils commonUtils) {
+    public BillReportTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, BillService billService, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
         this.billService = billService;
-        this.commonUtils = commonUtils;
+        this.projectService = projectService;
     }
 
     public void transform(BillReport billReport) {
@@ -73,7 +72,7 @@ public class BillReportTransformationService {
         Map<String, String> userInfoMap = userService.getUserInfo(billReport.getTenantId(), createdBy);
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
 
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(createdBy, billReport.getTenantId());
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(createdBy, billReport.getTenantId());
         if (ObjectUtils.isNotEmpty(projectInfo) && StringUtils.isNotEmpty(projectInfo.getProjectId())) {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectInfo.getProjectId(), billReport.getTenantId());
         }
@@ -87,7 +86,7 @@ public class BillReportTransformationService {
                 .boundaryHierarchy(boundaryHierarchyResult.getBoundaryHierarchy())
                 .boundaryHierarchyCode(boundaryHierarchyResult.getBoundaryHierarchyCode())
                 .build();
-        commonUtils.addProjectDetailsForUserIdAndTenantId(billReportIndexV1, lastModifiedBy, billReport.getTenantId());
+        projectService.addProjectDetailsForUserIdAndTenantId(billReportIndexV1, lastModifiedBy, billReport.getTenantId());
         return billReportIndexV1;
     }
 

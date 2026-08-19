@@ -11,6 +11,7 @@ import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
@@ -86,11 +87,10 @@ public class ProjectTaskTransformationService {
         Map<String, String> boundaryHierarchyCode;
         String tenantId = task.getTenantId();
         String localityCode;
-        Project project = projectService.getProject(task.getProjectId(), tenantId);
-        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
+        ProjectInfo projectInfo = projectService.getProjectInfoByProjectId(task.getProjectId(), tenantId);
         if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             localityCode = task.getAddress().getLocality().getCode();
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId(),hierarchyType);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId(), projectInfo.getHierarchyType());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
@@ -99,7 +99,7 @@ public class ProjectTaskTransformationService {
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
-        String projectTypeId = project.getProjectTypeId();
+        String projectTypeId = projectInfo.getProjectTypeId();
 
         AdditionalFields taskAdditionalFields = task.getAdditionalFields();
 
@@ -140,23 +140,17 @@ public class ProjectTaskTransformationService {
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
         return constructedTask.getResources().stream().map(r ->
-                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, userInfoMap, localityCode, project)
+                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, userInfoMap, localityCode, projectInfo)
         ).collect(Collectors.toList());
     }
 
     private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, Map<String, String> boundaryHierarchyCode, String tenantId,
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType,
-                                                               Map<String, String> userInfoMap, String localityCode, Project project) {
+                                                               Map<String, String> userInfoMap, String localityCode, ProjectInfo projectInfo) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
         List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
-        String projectTypeId = project.getProjectTypeId();
-        String campaignId = null;
-        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
-            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
-                    project.getTenantId(), true, project.getReferenceID()
-            );
-        }
+        String projectTypeId = projectInfo.getProjectTypeId();
 
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                 .id(taskResource.getId())
@@ -199,15 +193,13 @@ public class ProjectTaskTransformationService {
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .build();
-        projectTaskIndexV1.setProjectInfo(task.getId(), project.getProjectType(), projectTypeId, project.getName(), commonUtils.getHierarchyTypeFromProject(project));
-        projectTaskIndexV1.setCampaignNumber(project.getReferenceID());
-        projectTaskIndexV1.setCampaignId(campaignId);
+        projectTaskIndexV1.setProjectInfo(projectInfo);
 
         //adding to additional details  from additionalFields in task and task resource
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (task.getAdditionalFields() != null) {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
-            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, project.getId(), projectTypeId);
+            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectInfo.getProjectId(), projectTypeId);
         }
 //        enrichWithCampaignSpecificFields(additionalDetails, beneficiaryInfo);
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
@@ -272,7 +264,7 @@ public class ProjectTaskTransformationService {
             additionalDetails.put(CYCLE_INDEX, formatCycleIndex(additionalDetails.get(CYCLE_INDEX).asText()));
             return;
         }
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, auditDetails.getCreatedTime());
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, auditDetails.getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
     }
 

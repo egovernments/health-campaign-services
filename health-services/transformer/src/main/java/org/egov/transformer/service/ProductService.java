@@ -12,8 +12,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 @Component
@@ -26,7 +27,7 @@ public class ProductService {
 
     private final TransformerErrorProducer errorProducer;
 
-    private static HashMap<String, String> productVariantVsNameCache = new HashMap<>();
+    private static final Map<String, String> productVariantVsNameCache = new ConcurrentHashMap<>();
 
 
     public ProductService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, TransformerErrorProducer errorProducer) {

@@ -94,8 +94,8 @@ public class PGRTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                 .localityCode(localityCode)
                 .build();
-        commonUtils.addProjectDetailsForUserIdAndTenantId(pgrIndex, service.getAuditDetails().getLastModifiedBy(), tenantId);
-        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(service.getTenantId(), pgrIndex.getProjectId(), pgrIndex.getProjectTypeId(), service.getAuditDetails().getCreatedTime());
+        projectService.addProjectDetailsForUserIdAndTenantId(pgrIndex, service.getAuditDetails().getLastModifiedBy(), tenantId);
+        String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(service.getTenantId(), pgrIndex.getProjectId(), pgrIndex.getProjectTypeId(), service.getAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         pgrIndex.setAdditionalDetails(additionalDetails);
