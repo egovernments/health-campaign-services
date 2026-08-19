@@ -44,6 +44,10 @@ public class Service {
     private String serviceCode = null;
 
     @SafeHtml
+    @JsonProperty("hierarchyType")
+    private String hierarchyType = null;
+
+    @SafeHtml
     @JsonProperty("serviceRequestId")
     private String serviceRequestId = null;
 

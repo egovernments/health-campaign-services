@@ -7,7 +7,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.PGRIndex;
-import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.pgr.Service;
 import org.egov.transformer.models.pgr.Address;
 import org.egov.transformer.models.pgr.Boundary;
@@ -66,8 +65,7 @@ public class PGRTransformationService {
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
         String tenantId = service.getTenantId();
-        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(service.getAuditDetails().getCreatedBy(),service.getTenantId());
-        String hierarchyType = projectInfo.getHierarchyType();
+        String hierarchyType = service.getHierarchyType();
         String localityCode = null;
         Optional<String> localityCodeOptional = Optional.ofNullable(service)
                 .map(Service::getAddress)
