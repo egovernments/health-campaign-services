@@ -51,7 +51,8 @@ class BoundaryHierarchySheetGeneratorTest {
         org.egov.excelingestion.util.ColumnDefMaker columnDefMaker = new org.egov.excelingestion.util.ColumnDefMaker();
         org.egov.excelingestion.util.SchemaColumnDefUtil schemaColumnDefUtil = new org.egov.excelingestion.util.SchemaColumnDefUtil(columnDefMaker, exceptionHandler);
         generator = new BoundaryHierarchySheetGenerator(
-            boundaryService, boundaryUtil, mdmsService, campaignService, exceptionHandler, schemaColumnDefUtil
+            boundaryService, boundaryUtil, mdmsService, campaignService, exceptionHandler, schemaColumnDefUtil,
+            new org.egov.excelingestion.util.DynamicTargetSchemaUtil()
         );
     }
     
