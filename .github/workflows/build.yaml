@@ -29,6 +29,7 @@ on:
           - health-attendance
           - error-handler
           - dashboard-analytics
+          - inbox
           - stock
           - stock-java-17
           - egov-survey-services
