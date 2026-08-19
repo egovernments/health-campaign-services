@@ -2,7 +2,7 @@ import * as ExcelJS from "exceljs";
 import config from "../config";
 import { logger } from "./logger";
 import { executeQuery, getTableName } from "./db";
-import { getCampaignIdsByCampaignNumber, getRelatedDataWithCampaign } from "./genericUtils";
+import { getCampaignIdsByCampaignNumber, getLocalizedMessagesHandlerViaLocale, getRelatedDataWithCampaign } from "./genericUtils";
 import { formatEpochAsSheetDate } from "./attendanceIdentityUtils";
 import { searchResourceDetailsFromDB, getResourceDetailById, ResourceDetailRow } from "./resourceDetailsUtils";
 import { createAndUploadFileWithOutRequest } from "../api/genericApis";
@@ -239,11 +239,14 @@ async function rewriteWithSyncedDeEnrolments(
     const registerId = resource.parentresourceid;
     if (!registerId) return null; // nothing identifies which register's people these are
 
-    const deEnrolmentDates = await syncedDeEnrolmentDates(tenantId, resource.campaignid, registerId);
-    if (deEnrolmentDates.size === 0) return null;
-
     const fileUrl = await fetchFileFromFilestore(processedFileStoreId, tenantId);
     const workbook = await getExcelWorkbookFromFileURL(fileUrl);
+
+    // Sheet names in the file are localized, the stored rows name their sheet by key, so the map has to
+    // be built in the locale the file was written in — which the file itself carries.
+    const localizationMap = await sheetNameLocalization(workbook, tenantId);
+    const deEnrolmentDates = await syncedDeEnrolmentDates(tenantId, resource.campaignid, registerId, localizationMap);
+    if (deEnrolmentDates.size === 0) return null;
 
     const stamped = stampDeEnrolmentDates(workbook, deEnrolmentDates);
     if (stamped === 0) {
@@ -260,11 +263,38 @@ async function rewriteWithSyncedDeEnrolments(
     return newFileStoreId;
 }
 
+/** Same fallback as the sheet writer's getLocalizedName, without pulling its module's redis/HTTP setup in. */
+function localizedSheetName(sheetKey: string, localizationMap: Record<string, string>): string {
+    const localized = localizationMap?.[sheetKey];
+    return localized && localized.trim() !== "" ? localized : sheetKey;
+}
+
+/**
+ * The locale a generated file was written in, taken from its own `locale#campaignId` keywords so the
+ * sheet names resolve exactly as they did at write time. Falls back to the configured default.
+ */
+async function sheetNameLocalization(
+    workbook: ExcelJS.Workbook,
+    tenantId: TenantId
+): Promise<Record<string, string>> {
+    const keywords = typeof workbook?.keywords === "string" ? workbook.keywords : "";
+    const locale = keywords.includes("#") ? keywords.split("#")[0] : config.localisation.defaultLocale;
+    try {
+        return await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
+    } catch (error) {
+        // An unreachable localization service must not block the refresh: the raw keys still match a
+        // file written before those keys were localized.
+        logger.warn(`ATTENDANCE SHEET :: could not resolve localization for locale ${locale}: ${String(error)}`);
+        return {};
+    }
+}
+
 /** Keyed by sheet and username, since the same person can sit on different sheets of one register. */
 async function syncedDeEnrolmentDates(
     tenantId: TenantId,
     campaignId: string,
-    registerId: string
+    registerId: string,
+    localizationMap: Record<string, string>
 ): Promise<Map<string, string>> {
     const { campaignNumber } = await getCampaignNumberOf(campaignId, tenantId);
     const dates = new Map<string, string>();
@@ -279,9 +309,14 @@ async function syncedDeEnrolmentDates(
 
         const data = row?.data || {};
         const userName = data[USERNAME_KEY] ? String(data[USERNAME_KEY]).trim() : "";
-        const sheetName = data._sheetName ? String(data._sheetName).trim() : "";
-        if (!userName || !sheetName) continue;
-        dates.set(`${sheetName}${IDENTITY_SEPARATOR}${userName}`, formatEpochAsSheetDate(Number(row.denrollmentDate)));
+        const sheetKey = data._sheetName ? String(data._sheetName).trim() : "";
+        if (!userName || !sheetKey) continue;
+
+        const date = formatEpochAsSheetDate(Number(row.denrollmentDate));
+        // Both names are registered: the localized one matches a current file, the key matches one
+        // written before that key had a translation.
+        dates.set(`${localizedSheetName(sheetKey, localizationMap)}${IDENTITY_SEPARATOR}${userName}`, date);
+        dates.set(`${sheetKey}${IDENTITY_SEPARATOR}${userName}`, date);
     }
     return dates;
 }

@@ -22,6 +22,7 @@ jest.mock('../utils/logger', () => ({
 jest.mock('../utils/genericUtils', () => ({
     getRelatedDataWithCampaign: jest.fn(),
     getCampaignIdsByCampaignNumber: jest.fn(),
+    getLocalizedMessagesHandlerViaLocale: jest.fn().mockResolvedValue({}),
 }));
 
 jest.mock('../utils/resourceDetailsUtils', () => ({
@@ -40,7 +41,7 @@ import {
     markAttendeeSheetRefreshPending,
     completeOwedRegisterSheetRefresh,
 } from '../utils/attendanceSheetUtils';
-import { getCampaignIdsByCampaignNumber, getRelatedDataWithCampaign } from '../utils/genericUtils';
+import { getCampaignIdsByCampaignNumber, getLocalizedMessagesHandlerViaLocale, getRelatedDataWithCampaign } from '../utils/genericUtils';
 import { searchResourceDetailsFromDB, getResourceDetailById } from '../utils/resourceDetailsUtils';
 import { createAndUploadFileWithOutRequest } from '../api/genericApis';
 import { fetchFileFromFilestore } from '../api/coreApis';
@@ -486,6 +487,80 @@ describe('a download landing while the rewrite runs elsewhere', () => {
         const refreshed = await settle(completeOwedRegisterSheetRefresh(TENANT, [claimedRow()] as any));
 
         expect(refreshed.get('res-1')).toBe('processed-3');
+    });
+});
+
+describe('the current-attendees refresh when sheet names are localized', () => {
+    const TENANT = 'dev' as any;
+    const WORKER_KEY = 'HCM_REGISTER_WORKER_SHEET';
+    const LOCALIZED_WORKER = 'Frontline Workers';
+    const KEYS = ['UserName', 'HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE', 'HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE'];
+
+    // The file names its sheets in the campaign's locale, while the stored row names its sheet by key
+    const fileWithLocalizedSheet = (sheetName: string) => {
+        const workbook = new ExcelJS.Workbook();
+        workbook.keywords = 'en_IN#campaign-1';
+        const sheet = workbook.addWorksheet(sheetName);
+        sheet.getRow(1).values = KEYS;
+        sheet.getRow(2).values = ['UserName', 'Enrolment Date', 'De-enrolment Date'];
+        sheet.getRow(3).values = ['USR-1', '19-08-2026', null];
+        return workbook;
+    };
+
+    const attendeeRow = () => ({
+        id: 'res-1',
+        type: 'attendanceRegisterAttendee',
+        campaignid: 'campaign-1',
+        parentresourceid: 'REG-UUID-1',
+        status: 'completed',
+        processedfilestoreid: 'processed-1',
+        additionaldetails: { attendanceRefresh: { state: 'pending', at: 1 } },
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.mocked(getRelatedDataWithCampaign).mockResolvedValue([
+            {
+                uniqueIdAfterProcess: 'REG-UUID-1_ind-1_worker',
+                denrollmentDate: 1755000000000,
+                data: { UserName: 'USR-1', _sheetName: WORKER_KEY },
+            },
+        ] as any);
+        jest.mocked(fetchFileFromFilestore).mockResolvedValue('http://filestore/processed-1' as any);
+        jest.mocked(createAndUploadFileWithOutRequest).mockResolvedValue([{ fileStoreId: 'processed-2' }] as any);
+        jest.mocked(executeQuery).mockImplementation(async (query: string) => {
+            if (query.includes('SELECT campaignNumber')) return { rows: [{ campaignnumber: 'CMP-1' }] } as any;
+            if (query.includes('RETURNING id')) return { rowCount: 1, rows: [{ id: 'res-1' }] } as any;
+            return { rowCount: 1, rows: [] } as any;
+        });
+    });
+
+    it('stamps the date on a sheet whose name is localized, not the raw key', async () => {
+        jest.mocked(getLocalizedMessagesHandlerViaLocale).mockResolvedValue({ [WORKER_KEY]: LOCALIZED_WORKER } as any);
+        jest.mocked(getExcelWorkbookFromFileURL).mockResolvedValue(fileWithLocalizedSheet(LOCALIZED_WORKER) as any);
+
+        const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [attendeeRow()] as any);
+
+        expect(refreshed.get('res-1')).toBe('processed-2');
+        expect(createAndUploadFileWithOutRequest).toHaveBeenCalled();
+    });
+
+    it('resolves the locale the file was written in, not the configured default', async () => {
+        jest.mocked(getLocalizedMessagesHandlerViaLocale).mockResolvedValue({} as any);
+        jest.mocked(getExcelWorkbookFromFileURL).mockResolvedValue(fileWithLocalizedSheet(WORKER_KEY) as any);
+
+        await completeOwedRegisterSheetRefresh(TENANT, [attendeeRow()] as any);
+
+        expect(getLocalizedMessagesHandlerViaLocale).toHaveBeenCalledWith('en_IN', TENANT);
+    });
+
+    it('still matches a file written before those sheet keys were localized', async () => {
+        jest.mocked(getLocalizedMessagesHandlerViaLocale).mockResolvedValue({} as any);
+        jest.mocked(getExcelWorkbookFromFileURL).mockResolvedValue(fileWithLocalizedSheet(WORKER_KEY) as any);
+
+        const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [attendeeRow()] as any);
+
+        expect(refreshed.get('res-1')).toBe('processed-2');
     });
 });
 
