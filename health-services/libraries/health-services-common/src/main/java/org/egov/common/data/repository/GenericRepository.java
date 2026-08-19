@@ -256,8 +256,8 @@ public abstract class GenericRepository<T> {
             return;
         }
 
-        cacheByKey(objects, "clientReferenceId");
-        // cacheByKey(objects, "id");
+        cacheByKey(objects, ReflectionUtils.findMethod(getObjClass(objects), "getClientReferenceId") != null
+                ? "clientReferenceId" : "id");
     }
 
     /**
