@@ -10,6 +10,7 @@ import { fetchFileFromFilestore } from "../api/coreApis";
 import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { TenantId } from "../config/models/brandedTypes";
 import { attendanceSheetRefresh } from "../config/constants";
+import { sleep } from "./timeUtils";
 
 const REGISTER_RESOURCE_TYPE = "attendanceRegister";
 const ATTENDEE_RESOURCE_TYPE = "attendanceRegisterAttendee";
@@ -139,8 +140,9 @@ async function claimAndRefresh(
     const processedFileStoreId = resource?.processedfilestoreid;
     if (!processedFileStoreId) {
         // Nothing has been served for this campaign yet (no completed upload), so there is nothing to
-        // correct. Drop the marker, or it would sit there for good and read as a refresh never ending.
-        await finishRefresh(tenantId, resource.id, null);
+        // correct. Cleared unconditionally: no claim was taken here, so the state still reads pending
+        // and finishRefresh — which only drops an inProgress marker — would leave it set for good.
+        await clearRefreshMarker(tenantId, resource.id);
         return { fileStoreId: null, outcome: "nothingToRefresh" };
     }
 
@@ -202,10 +204,6 @@ async function waitForRefreshToLand(
 
     logger.warn(`ATTENDANCE SHEET :: resource ${resourceId} — refresh still running at the wait deadline, reported in progress`);
     return { settled: false, owedAgain: false, fileStoreId: null };
-}
-
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -429,6 +427,16 @@ async function finishRefresh(tenantId: TenantId, resourceId: string, newFileStor
                        lastModifiedTime = $3${setFileStoreId}
                    WHERE id = $2`;
     await executeQuery(query, values);
+}
+
+/** Drops the marker whatever state it is in, for the paths that never claimed it. */
+async function clearRefreshMarker(tenantId: TenantId, resourceId: string): Promise<void> {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+    const query = `UPDATE ${tableName}
+                   SET additionalDetails = COALESCE(additionalDetails, '{}'::jsonb) #- $1,
+                       lastModifiedTime = $3
+                   WHERE id = $2`;
+    await executeQuery(query, [`{${REFRESH_STATE_KEY}}`, resourceId, Date.now()]);
 }
 
 async function setRefreshState(tenantId: TenantId, resourceId: string, state: RefreshMarker): Promise<void> {

@@ -168,11 +168,36 @@ export function validateConsumerTopicPrefix(): void {
     }
     // A prefix nothing can be enumerated from would create bare topics that the subscription regex
     // never matches, so every handler would sit idle with no error anywhere.
-    if (getStartupTenantIds().length === 0) {
+    const tenants = getStartupTenantIds();
+    if (tenants.length === 0) {
         throw new Error(
             `KAFKA_CONSUMER_TOPIC_PREFIX "${config.kafkaConsumerTopicPrefix}" cannot be expanded into ` +
             'tenant ids, so the topics to create cannot be derived. Set CENTRAL_INSTANCE_TENANT_IDS, ' +
             'or use a prefix of the form "(ba|ke|cg)-".'
+        );
+    }
+
+    // Enumerating the tenants is not enough — each one has to produce a topic the subscription regex
+    // actually matches. `[a-z]{2}-` with a tenant of `bihar` creates bihar-<topic> and subscribes to
+    // two-letter prefixes only, so the topics exist and are never read.
+    const unmatched = tenants.filter((tenant) => !prefixMatches(tenant));
+    if (unmatched.length > 0) {
+        throw new Error(
+            `KAFKA_CONSUMER_TOPIC_PREFIX "${config.kafkaConsumerTopicPrefix}" does not match tenant(s) ` +
+            `${unmatched.join(", ")}, so their topics would be created but never consumed. ` +
+            'Align KAFKA_CONSUMER_TOPIC_PREFIX with CENTRAL_INSTANCE_TENANT_IDS.'
+        );
+    }
+}
+
+/** Whether the consumer's prefix pattern matches the one this tenant's topics are created with. */
+function prefixMatches(tenantId: string): boolean {
+    const prefix = getEffectiveConsumerPrefix();
+    try {
+        return new RegExp(`^${prefix}`).test(`${tenantId}-`);
+    } catch (error) {
+        throw new Error(
+            `KAFKA_CONSUMER_TOPIC_PREFIX "${prefix}" is not a valid pattern: ${String(error)}`
         );
     }
 }

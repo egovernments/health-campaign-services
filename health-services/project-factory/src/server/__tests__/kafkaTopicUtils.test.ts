@@ -370,5 +370,13 @@ describe('kafkaTopicUtils', () => {
 
       expect(() => validateConsumerTopicPrefix()).not.toThrow();
     });
+
+    it('rejects a fallback tenant the prefix cannot match, whose topics would never be consumed', () => {
+      (config as any).isEnvironmentCentralInstance = true;
+      (config as any).kafkaConsumerTopicPrefix = '[a-z]{2}-';
+      (config as any).centralInstanceTenantIds = 'bihar';
+
+      expect(() => validateConsumerTopicPrefix()).toThrow(/does not match tenant\(s\) bihar/);
+    });
   });
 });

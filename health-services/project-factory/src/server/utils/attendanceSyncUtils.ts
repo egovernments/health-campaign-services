@@ -4,6 +4,7 @@ import { executeQuery, getTableName } from "./db";
 import { markAttendeeSheetRefreshPending, markRegisterSheetRefreshPending } from "./attendanceSheetUtils";
 import { AttendanceRegisterId, IndividualId, TenantId } from "../config/models/brandedTypes";
 import { attendeeIdentity, attendeeSheetTypes, AttendeeSheetType } from "./attendanceIdentityUtils";
+import { sleep } from "./timeUtils";
 
 const ATTENDANCE_REGISTER_TYPE = "attendanceRegister";
 const ATTENDANCE_REGISTER_ATTENDEE_TYPE = "attendanceRegisterAttendee";
@@ -85,10 +86,6 @@ async function applyWithRetries<T>(
             await sleep(config.attendanceRegister.syncGroupRetryDelayMs * attempt);
         }
     }
-}
-
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

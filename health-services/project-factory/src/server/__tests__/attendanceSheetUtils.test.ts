@@ -274,7 +274,10 @@ describe('refresh orchestration', () => {
             const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [noFile] as any);
 
             expect(queriesMatching('RETURNING id')).toHaveLength(0);  // nothing to claim
-            expect(queriesMatching('#-')).toHaveLength(1);            // marker cleared
+            const cleared = queriesMatching('#-');
+            expect(cleared).toHaveLength(1);
+            // Unguarded on purpose: the state here is still pending, so a claim-state CASE would keep it
+            expect(String(cleared[0][0])).not.toContain('CASE');
             expect(refreshed.get('res-1')).toBeNull();
         });
 

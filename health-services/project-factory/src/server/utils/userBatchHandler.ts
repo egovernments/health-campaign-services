@@ -3,6 +3,7 @@ import { logger } from './logger';
 import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses, campaignDataRowFields, userDataFields, userCredentialFields, errorCodes } from '../config/constants';
+import { sleep } from './timeUtils';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
@@ -581,11 +582,6 @@ async function createUsersViaHrmsApi(
         logger.error("HRMS employee creation failed :: " + (error?.stack || error?.message || error));
         throw new Error(`HRMS API failed: ${error.message || error}`);
     }
-}
-
-/** Promise-based delay used for fallback throttling and backoff. */
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

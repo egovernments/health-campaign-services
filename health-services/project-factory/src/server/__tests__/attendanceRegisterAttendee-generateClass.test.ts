@@ -26,14 +26,21 @@ import { TemplateClass } from '../generateFlowClasses/attendanceRegisterAttendee
 const SERVICE_CODE = 'MZ_01_REG';
 const CURRENT_UUID = 'reg-uuid-new';
 
-const storedRow = (overrides: Record<string, unknown> = {}) => ({
+// The fields the filter reads back from campaign_data
+interface StoredRow {
+    data: Record<string, unknown>;
+    uniqueIdAfterProcess: string | null;
+    denrollmentDate: number | null;
+}
+
+const storedRow = (overrides: Partial<StoredRow> = {}): StoredRow => ({
     data: { _registerServiceCode: SERVICE_CODE, _sheetName: 'HCM_REGISTER_WORKER_SHEET', UserName: 'user-1' },
-    uniqueIdAfterProcess: null as string | null,
-    denrollmentDate: null as number | null,
+    uniqueIdAfterProcess: null,
+    denrollmentDate: null,
     ...overrides,
 });
 
-const rowsFor = (rows: any[], uuid = CURRENT_UUID) =>
+const rowsFor = (rows: StoredRow[], uuid = CURRENT_UUID) =>
     TemplateClass.storedRowsForRegister(rows, SERVICE_CODE, uuid);
 
 describe('storedRowsForRegister', () => {

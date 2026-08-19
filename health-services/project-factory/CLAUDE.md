@@ -299,7 +299,7 @@ Every campaign_data reader returns one shape — `CampaignDataRow` (`config/mode
 
 **A register re-created under a deleted register's serviceCode must not inherit its attendees.** `attendanceRegisterAttendee-generateClass.storedRowsForRegister` keeps rows stamped with the current register UUID, and trusts unstamped rows only while nothing for that serviceCode is stamped (campaigns older than the stamp still generate). The stamp itself is `attendeeIdentity` (`attendanceIdentityUtils.ts`), which also owns the `worker`/`marker`/`approver` slugs — the upload path writes them and the de-enrolment consumer rebuilds them, so they live in one place.
 
-The Kafka handlers retry each group `config.attendanceRegister.syncGroupAttempts` times: the listener commits the offset even when a handler throws, so a transient DB error would otherwise lose that deletion outright. Both updates are idempotent, so a repeat is safe.
+The Kafka handlers retry each group `config.attendanceRegister.syncGroupAttempts` times: `processMessageKJS` swallows a handler error and `eachMessage` then returns normally, so the offset commits and the event is never redelivered — a transient DB error would otherwise lose that deletion outright. Both updates are idempotent, so a repeat is safe.
 
 ### Current-register file is refreshed on read, never on the Kafka path
 
