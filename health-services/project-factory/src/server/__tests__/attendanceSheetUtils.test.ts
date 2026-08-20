@@ -302,6 +302,33 @@ describe('refresh orchestration', () => {
             expect(values).toContain('inProgress');
         });
 
+        it('withholds and leaves the row alone when its claim was superseded mid-rewrite', async () => {
+            // The finish matches nothing: someone else owns the claim now
+            jest.mocked(executeQuery).mockImplementation(async (query: string) => {
+                if (String(query).includes('SELECT campaignNumber')) return { rows: [{ campaignnumber: CAMPAIGN_NUMBER }] } as any;
+                if (String(query).includes('RETURNING id')) return { rowCount: 1, rows: [{ id: 'res-1' }] } as any;
+                if (String(query).includes('#-')) return { rowCount: 0, rows: [] } as any;
+                return { rowCount: 1, rows: [] } as any;
+            });
+
+            const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [owed()] as any);
+
+            // The file this run produced is not known to be the newest, so it is not served
+            expect(refreshed.get('res-1')).toBeNull();
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('outcome=supersededDuringRewrite'));
+        });
+
+        it('guards the file pointer with the claim, not just the marker', async () => {
+            await completeOwedRegisterSheetRefresh(TENANT, [owed()] as any);
+
+            const [query] = queriesMatching('processedFileStoreId = $7')[0];
+            // Both the clear and the repoint sit behind the same claim predicate
+            expect(String(query)).toContain("WHERE id = $2");
+            expect(String(query)).toContain("-> $4 ->> 'state' = $5");
+            expect(String(query)).toContain("-> $4 ->> 'at')::bigint, 0) = $6");
+            expect(String(query)).not.toContain('CASE');
+        });
+
         it('clears only its own claim, so a claim taken since is left running', async () => {
             await completeOwedRegisterSheetRefresh(TENANT, [owed()] as any);
 
@@ -394,6 +421,25 @@ describe('refresh orchestration', () => {
             const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [pendingRow()] as any);
 
             expect(refreshed.get('res-1')).toBeNull();
+        });
+
+        it('stops rewriting once the response budget is spent, leaving the rest owed', async () => {
+            const owedRows = [pendingRow(), pendingRow({ id: 'res-2' }), pendingRow({ id: 'res-3' })];
+            // The first rewrite consumes the whole budget
+            jest.mocked(fetchFileFromFilestore).mockImplementation(async () => {
+                jest.advanceTimersByTime(config.attendanceRegister.sheetRefreshWaitMs + 1);
+                return 'http://filestore/processed-1' as any;
+            });
+            jest.useFakeTimers();
+
+            const refreshed = await completeOwedRegisterSheetRefresh(TENANT, owedRows as any);
+
+            expect(refreshed.get('res-2')).toBeNull();
+            expect(refreshed.get('res-3')).toBeNull();
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('outcome=budgetExhausted'));
+            // Only the first row's file was fetched; the rest were not started
+            expect(fetchFileFromFilestore).toHaveBeenCalledTimes(1);
+            jest.useRealTimers();
         });
 
         it('reports the outcome and the time the search paid for it', async () => {

@@ -301,6 +301,25 @@ Every campaign_data reader returns one shape — `CampaignDataRow` (`config/mode
 
 The Kafka handlers retry each group `config.attendanceRegister.syncGroupAttempts` times: `processMessageKJS` swallows a handler error and `eachMessage` then returns normally, so the offset commits and the event is never redelivered — a transient DB error would otherwise lose that deletion outright. Both updates are idempotent, so a repeat is safe.
 
+### Deploy order for the attendance sync
+
+`campaign_data.isDeleted` is referenced by the **shared** sheet-data persister maps
+(`configs/health/egov-persister/project-factory-persister.yml`, `save-sheet-data` / `update-sheet-data`,
+both `isTransaction: true`), which every resource type writes through. Order is therefore mandatory:
+
+1. **DB migration** (`V20260820140000` — adds `isDeleted`, creates the partial index)
+2. **persister config reload**
+3. **service pods**
+
+Get it wrong and the failure is not attendance-scoped: a persister that references `isdeleted` before
+the column exists raises `42703` and rolls back the whole batch, so boundary, user, facility and target
+uploads fail alongside attendance. In the other direction — new pods against an old config — the field
+is silently dropped and the feature is simply inert, with no error anywhere.
+
+The persister config is branch-specific per environment, so confirm which branch each cluster renders
+from before rolling; an environment fed from a branch without the change runs the new service against
+the old mapping.
+
 ### Current-register file is refreshed on read, never on the Kafka path
 
 The console downloads the current register list from `resource_details.processedFileStoreId` — a snapshot of `campaign_data` written when the file was last uploaded, so a register deleted afterwards would keep appearing. `attendanceSheetUtils.ts` fixes that on demand:

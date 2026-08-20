@@ -168,6 +168,8 @@ describe('de-enrolment consumers', () => {
 
             const [query, values] = mockExecuteQuery.mock.calls[0];
             expect(query).toContain('jsonb_set(COALESCE(data');
+            // A null date must not be able to blank the whole row's data
+            expect(query).toContain("COALESCE(to_jsonb($2::bigint), 'null'::jsonb)");
             expect(query).not.toContain('_isDeleted');
             expect(values[0]).toBe('{_denrollmentDate}');
             expect(values[1]).toBe(FUTURE);
@@ -204,10 +206,12 @@ describe('de-enrolment consumers', () => {
         await handleAttendanceAttendeeDeEnrolment({ attendees });
 
         // 250 identities at a batch size of 100 → 3 updates, not one
-        const updates = mockExecuteQuery.mock.calls.filter(([, v]) => (v as any[])?.[0] === '{_denrollmentDate}');
+        const identitiesOf = (values: unknown): unknown[] => (values as unknown[])[3] as unknown[];
+        const updates = mockExecuteQuery.mock.calls
+            .filter(([, v]) => (v as unknown[])?.[0] === '{_denrollmentDate}');
         expect(updates).toHaveLength(3);
-        expect((updates[0][1] as any[])[3]).toHaveLength(100);
-        expect((updates[2][1] as any[])[3]).toHaveLength(50);
+        expect(identitiesOf(updates[0][1])).toHaveLength(100);
+        expect(identitiesOf(updates[2][1])).toHaveLength(50);
     });
 
     it('groups a bulk de-enrolment sharing one date into a single update', async () => {

@@ -54,6 +54,28 @@ const templateInternals = TemplateClass as unknown as {
 const buildOutputData = (allRows: Partial<CampaignDataRow>[], unpersistableRows: SheetRow[] = []) =>
     templateInternals.buildOutputData(allRows, unpersistableRows);
 
+describe("isDeletedInAttendance", () => {
+    const internals = TemplateClass as unknown as {
+        isDeletedInAttendance: (register: { status?: string; isDeleted?: boolean }) => boolean;
+    };
+
+    it("reads INACTIVE as gone, since the register search has no status filter", () => {
+        expect(internals.isDeletedInAttendance({ status: "INACTIVE" })).toBe(true);
+    });
+
+    it("reads the flag as gone too", () => {
+        expect(internals.isDeletedInAttendance({ isDeleted: true })).toBe(true);
+    });
+
+    it("treats an active register as live", () => {
+        expect(internals.isDeletedInAttendance({ status: "ACTIVE", isDeleted: false })).toBe(false);
+    });
+
+    it("treats a register with neither signal as live", () => {
+        expect(internals.isDeletedInAttendance({})).toBe(false);
+    });
+});
+
 describe("buildOutputData", () => {
     it("drops registers deleted in the attendance service", () => {
         const rows = [

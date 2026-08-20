@@ -183,9 +183,12 @@ async function applyDeEnrolments(
     await runPerGroup(Array.from(byKey.values()), async (group) => {
         const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, group.tenantId);
         // Written into the row's own data: only attendance rows carry this, so campaign_data keeps no
-        // column for it. jsonb_set needs an object to work on, hence the COALESCE.
+        // column for it. Both COALESCEs are load-bearing — jsonb_set needs an object to work on, and
+        // it is strict, so a null date would replace the whole row's data with NULL rather than the
+        // one key. The caller already rejects a missing date; this makes that harmless either way.
         const query = `UPDATE ${tableName}
-                       SET data = jsonb_set(COALESCE(data, '{}'::jsonb), $1, to_jsonb($2::bigint), true)
+                       SET data = jsonb_set(COALESCE(data, '{}'::jsonb), $1,
+                                            COALESCE(to_jsonb($2::bigint), 'null'::jsonb), true)
                        WHERE type = $3 AND uniqueIdAfterProcess = ANY($4)
                        RETURNING campaignNumber`;
 

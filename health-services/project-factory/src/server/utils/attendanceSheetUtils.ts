@@ -41,7 +41,9 @@ type RefreshOutcome =
     | "alreadyCorrect"
     | "nothingToRefresh"
     | "stillRunning"
+    | "supersededDuringRewrite"
     | "waitedOut"
+    | "budgetExhausted"
     | "failed";
 
 interface RefreshResult {
@@ -77,6 +79,14 @@ export async function completeOwedRegisterSheetRefresh(
     for (const row of rows) {
         if (!isAttendanceSheetType(row?.type) || !hasRefreshMarker(row)) continue;
         const startedAt = Date.now();
+        // The budget bounds the rewrites too, not just the waiting: one search can own many marked
+        // files, and each rewrite is a filestore round-trip plus a workbook parse on this thread.
+        // The marker stays set, so whatever is left is picked up by the next read.
+        if (startedAt >= waitDeadline) {
+            refreshed.set(row.id, null);
+            logRefreshOutcome(row.id, "budgetExhausted", startedAt);
+            continue;
+        }
         try {
             const result = await claimAndRefresh(tenantId, row, waitDeadline);
             // Withhold the file unless this call knows it is correct: handing over a sheet that still
@@ -169,7 +179,10 @@ async function rewriteUnderClaim(
         const newFileStoreId = resource.type === ATTENDEE_RESOURCE_TYPE
             ? await rewriteWithSyncedDeEnrolments(tenantId, resource, processedFileStoreId)
             : await rewriteWithoutDeletedRegisters(tenantId, resource, processedFileStoreId);
-        await finishRefresh(tenantId, resource.id, newFileStoreId, claimedAt);
+        const applied = await finishRefresh(tenantId, resource.id, newFileStoreId, claimedAt);
+        // Superseded means a delete arrived mid-rewrite, or another reader took the work over: this
+        // file is not known to be the newest, and the marker left in place will have it redone.
+        if (!applied) return { fileStoreId: null, outcome: "supersededDuringRewrite" };
         // No rewrite needed means the existing file was already correct, so it stays servable.
         return newFileStoreId
             ? { fileStoreId: newFileStoreId, outcome: "refreshed" }
@@ -453,7 +466,7 @@ async function finishRefresh(
     resourceId: string,
     newFileStoreId: string | null,
     claimedAt: number
-): Promise<void> {
+): Promise<boolean> {
     const tableName = getTableName(config?.DB_CONFIG?.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
     const values: (string | number)[] = [
         `{${REFRESH_STATE_KEY}}`, resourceId, Date.now(), REFRESH_STATE_KEY, REFRESH_IN_PROGRESS, claimedAt
@@ -463,20 +476,25 @@ async function finishRefresh(
         setFileStoreId = `, processedFileStoreId = $7`;
         values.push(newFileStoreId);
     }
-    // The marker is dropped only while it is still this caller's claim, matched on the timestamp the
-    // claim was taken with: a delete during the rewrite set it back to pending, and another reader may
-    // then have claimed it. Clearing either would lose that work. The file pointer is still moved,
-    // because the file this produced is newer than the one it replaced either way.
+    // Both writes are guarded by the claim this caller took, matched on its timestamp. A delete that
+    // arrived mid-rewrite, or another reader that took the work over, must keep its marker AND keep
+    // its file: repointing the row at the file this run produced could replace a newer one, and
+    // nothing would retrigger because the marker had already been cleared.
     const query = `UPDATE ${tableName}
-                   SET additionalDetails = CASE
-                           WHEN additionalDetails -> $4 ->> 'state' = $5
-                               AND COALESCE((additionalDetails -> $4 ->> 'at')::bigint, 0) = $6
-                               THEN COALESCE(additionalDetails, '{}'::jsonb) #- $1
-                           ELSE additionalDetails
-                       END,
+                   SET additionalDetails = COALESCE(additionalDetails, '{}'::jsonb) #- $1,
                        lastModifiedTime = $3${setFileStoreId}
-                   WHERE id = $2`;
-    await executeQuery(query, values);
+                   WHERE id = $2
+                     AND additionalDetails -> $4 ->> 'state' = $5
+                     AND COALESCE((additionalDetails -> $4 ->> 'at')::bigint, 0) = $6`;
+    const result = await executeQuery(query, values);
+    const applied = (result?.rowCount ?? 0) > 0;
+    if (!applied) {
+        logger.warn(
+            `ATTENDANCE SHEET :: resource ${resourceId} — claim was superseded during the rewrite, ` +
+            `marker and file left for the current owner`
+        );
+    }
+    return applied;
 }
 
 /** Drops the marker whatever state it is in, for the paths that never claimed it. */

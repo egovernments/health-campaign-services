@@ -1415,9 +1415,10 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
   return rows;
 }
 
-/** The synced de-enrolment date as a number: JSON may carry it as either a number or a string. */
-function attendanceSyncedDate(data: any): number | null {
-  const stored = data?.[attendanceSyncDataKeys.denrollmentDate];
+/** The synced de-enrolment date as a number: JSONB may carry it as either a number or a string. */
+function attendanceSyncedDate(data: unknown): number | null {
+  if (typeof data !== "object" || data === null) return null;
+  const stored = (data as Record<string, unknown>)[attendanceSyncDataKeys.denrollmentDate];
   if (stored == null || stored === "") return null;
   const asNumber = Number(stored);
   return Number.isFinite(asNumber) ? asNumber : null;

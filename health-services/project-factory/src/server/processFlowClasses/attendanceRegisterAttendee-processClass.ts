@@ -368,7 +368,16 @@ export class TemplateClass {
                 // de-enrolments. Falls back to the stored value so a re-upload cannot clear a date
                 // recorded from outside the console.
                 const deEnrolmentRaw = row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
-                const storedDenrollmentDate = existingDataMap.get(uniqueIdentifier)?.denrollmentDate ?? null;
+                // The row key is serviceCode-based, so a register deleted and recreated under the same
+                // serviceCode lands on the same row. Its stamp names the register the date belongs to:
+                // when that is a different register, the date is the dead one's and must not carry over.
+                const storedRow = existingDataMap.get(uniqueIdentifier);
+                const storedStamp = String(storedRow?.uniqueIdAfterProcess ?? "");
+                const storedIsAnotherRegisters = Boolean(registerUuid) && storedStamp !== ""
+                    && !storedStamp.startsWith(`${registerUuid}_`);
+                const storedDenrollmentDate = storedIsAnotherRegisters
+                    ? null
+                    : (storedRow?.denrollmentDate ?? null);
                 // Only a row that actually reached the attendance service may set this. A failed or
                 // skipped row keeps whatever is stored, so a date whose API call errored is not made
                 // permanent and can still be corrected by re-uploading.
