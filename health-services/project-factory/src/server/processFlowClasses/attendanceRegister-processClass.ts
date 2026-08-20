@@ -159,7 +159,7 @@ export class TemplateClass {
         unpersistableRows: SheetRow[]
     ): SheetRow[] {
         return [
-            ...allRows.filter((row) => !row.isDeleted).map((row) => row.data ?? {}),
+            ...allRows.filter((row) => !row.isDeleted).map((row) => (row.data ?? {}) as SheetRow),
             ...unpersistableRows
         ];
     }

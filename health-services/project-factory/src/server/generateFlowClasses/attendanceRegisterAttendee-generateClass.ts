@@ -108,7 +108,7 @@ export class TemplateClass {
                     .map((r: any) => {
                         // Strip internal persistence fields before returning in output
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { _registerServiceCode, _sheetName: _sn, ...outputRow } = r.data;
+                        const { _registerServiceCode, _sheetName: _sn, _denrollmentDate, ...outputRow } = r.data;
                         // De-enrolled people stay listed — the date is shown rather than hidden. Surfaces
                         // de-enrolments done outside the console, which never touched the sheet cell.
                         if (r.denrollmentDate != null) {

@@ -34,10 +34,9 @@ describe('searchCampaignData attendance sync fields', () => {
             id: 'row-3',
             campaignnumber: 'CMP-001',
             type: 'attendanceRegisterAttendee',
-            data: {},
+            // JSON may carry the epoch as a string, and consumers compare it numerically
+            data: { _denrollmentDate: '1787226402157' },
             status: 'completed',
-            isdeleted: false,
-            denrollmentdate: '1787226402157',
         });
 
         const result = await searchCampaignData({ tenantId: 'mz', type: 'attendanceRegisterAttendee' });
@@ -50,12 +49,11 @@ describe('searchCampaignData attendance sync fields', () => {
             id: 'row-1',
             campaignnumber: 'CMP-001',
             type: 'attendanceRegisterAttendee',
-            data: { UserName: 'USR-1' },
+            data: { UserName: 'USR-1', _denrollmentDate: 1786579200000 },
             uniqueidentifier: 'REG-001_USR-1_worker',
             uniqueidafterprocess: 'register-uuid-1_ind-1_worker',
             status: 'completed',
             isdeleted: true,
-            denrollmentdate: 1786579200000,
         });
 
         const result = await searchCampaignData({ tenantId: 'mz', type: 'attendanceRegisterAttendee' });
@@ -65,15 +63,13 @@ describe('searchCampaignData attendance sync fields', () => {
         expect(result.data[0].uniqueIdAfterProcess).toBe('register-uuid-1_ind-1_worker');
     });
 
-    it('defaults isDeleted to false and denrollmentDate to null when the columns are unset', async () => {
+    it('defaults isDeleted to false and denrollmentDate to null when the row carries neither', async () => {
         stubRow({
             id: 'row-2',
             campaignnumber: 'CMP-001',
             type: 'attendanceRegisterAttendee',
             data: {},
             status: 'completed',
-            isdeleted: null,
-            denrollmentdate: null,
         });
 
         const result = await searchCampaignData({ tenantId: 'mz', type: 'attendanceRegisterAttendee' });

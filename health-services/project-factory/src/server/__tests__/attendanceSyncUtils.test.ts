@@ -167,11 +167,12 @@ describe('de-enrolment consumers', () => {
             });
 
             const [query, values] = mockExecuteQuery.mock.calls[0];
-            expect(query).toContain('SET denrollmentDate = $1');
-            expect(query).not.toContain('isDeleted');
-            expect(values[0]).toBe(FUTURE);
-            expect(values[1]).toBe('attendanceRegisterAttendee');
-            expect(values[2]).toEqual(['reg-1_ind-1_worker']);
+            expect(query).toContain('jsonb_set(COALESCE(data');
+            expect(query).not.toContain('_isDeleted');
+            expect(values[0]).toBe('{_denrollmentDate}');
+            expect(values[1]).toBe(FUTURE);
+            expect(values[2]).toBe('attendanceRegisterAttendee');
+            expect(values[3]).toEqual(['reg-1_ind-1_worker']);
         });
 
         it('keys staff by userId and maps staff type onto the marker sheet', async () => {
@@ -181,7 +182,7 @@ describe('de-enrolment consumers', () => {
                 staff: [{ tenantId: 'dev', registerId: 'reg-1', userId: 'usr-1', staffType: 'OWNER', denrollmentDate: FUTURE }],
             });
 
-            expect(mockExecuteQuery.mock.calls[0][1][2]).toEqual(['reg-1_usr-1_marker']);
+            expect(mockExecuteQuery.mock.calls[0][1][3]).toEqual(['reg-1_usr-1_marker']);
         });
 
         it('maps APPROVER staff onto the approver sheet', async () => {
@@ -191,7 +192,7 @@ describe('de-enrolment consumers', () => {
                 staff: [{ tenantId: 'dev', registerId: 'reg-1', userId: 'usr-1', staffType: 'APPROVER', denrollmentDate: FUTURE }],
             });
 
-            expect(mockExecuteQuery.mock.calls[0][1][2]).toEqual(['reg-1_usr-1_approver']);
+            expect(mockExecuteQuery.mock.calls[0][1][3]).toEqual(['reg-1_usr-1_approver']);
         });
 
         it('splits a bulk de-enrolment into batches so one statement cannot hold thousands of ids', async () => {
@@ -203,10 +204,10 @@ describe('de-enrolment consumers', () => {
         await handleAttendanceAttendeeDeEnrolment({ attendees });
 
         // 250 identities at a batch size of 100 → 3 updates, not one
-        const updates = mockExecuteQuery.mock.calls.filter(([q]) => String(q).includes('SET denrollmentDate'));
+        const updates = mockExecuteQuery.mock.calls.filter(([, v]) => (v as any[])?.[0] === '{_denrollmentDate}');
         expect(updates).toHaveLength(3);
-        expect((updates[0][1] as any[])[2]).toHaveLength(100);
-        expect((updates[2][1] as any[])[2]).toHaveLength(50);
+        expect((updates[0][1] as any[])[3]).toHaveLength(100);
+        expect((updates[2][1] as any[])[3]).toHaveLength(50);
     });
 
     it('groups a bulk de-enrolment sharing one date into a single update', async () => {
@@ -220,7 +221,7 @@ describe('de-enrolment consumers', () => {
             });
 
             expect(mockExecuteQuery).toHaveBeenCalledTimes(1);
-            expect(mockExecuteQuery.mock.calls[0][1][2]).toEqual(['reg-1_ind-1_worker', 'reg-1_ind-2_worker']);
+            expect(mockExecuteQuery.mock.calls[0][1][3]).toEqual(['reg-1_ind-1_worker', 'reg-1_ind-2_worker']);
         });
 
         it('warns when a row was not found, so pre-existing attendees are visible as unmatched', async () => {

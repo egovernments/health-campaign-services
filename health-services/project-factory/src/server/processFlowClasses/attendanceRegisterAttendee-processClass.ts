@@ -7,6 +7,7 @@ import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils"
 import { attendeeIdentity, attendeeSheetTypes, AttendeeSheetType } from "../utils/attendanceIdentityUtils";
 import { AttendanceRegisterId, IndividualId } from "../config/models/brandedTypes";
 import { CampaignDataRow } from "../config/models/campaignDataRow";
+import { attendanceSyncDataKeys } from "../config/constants";
 import { httpRequest } from "../utils/request";
 import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
@@ -277,7 +278,7 @@ export class TemplateClass {
      */
     private static toOutputRow(storedRow: any): any {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { _registerServiceCode, _sheetName, ...outputRow } = storedRow.data;
+        const { _registerServiceCode, _sheetName, _denrollmentDate, ...outputRow } = storedRow.data;
         if (storedRow.denrollmentDate != null) {
             outputRow["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] =
                 this.formatEpochAsDate(storedRow.denrollmentDate);
@@ -384,10 +385,11 @@ export class TemplateClass {
                     campaignNumber,
                     type: "attendanceRegisterAttendee",
                     uniqueIdentifier,
-                    data: dataToStore,
+                    // The date rides inside data, and every write carries the merged value, so a
+                    // re-upload cannot drop a date recorded from outside the console.
+                    data: { ...dataToStore, [attendanceSyncDataKeys.denrollmentDate]: denrollmentDate },
                     status: dbStatus,
-                    uniqueIdAfterProcess,
-                    denrollmentDate
+                    uniqueIdAfterProcess
                 };
 
                 if (existingDataMap.has(uniqueIdentifier)) {

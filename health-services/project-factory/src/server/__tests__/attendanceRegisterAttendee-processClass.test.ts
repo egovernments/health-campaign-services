@@ -700,6 +700,16 @@ describe("toOutputRow", () => {
         expect(row).toEqual({ UserName: "USR-1" });
     });
 
+    it("keeps the synced date out of the sheet as a raw field, showing it in its own column", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", _sheetName: "HCM_REGISTER_WORKER_SHEET", _denrollmentDate: SYNCED_DEENROL_EPOCH },
+            denrollmentDate: SYNCED_DEENROL_EPOCH,
+        });
+
+        expect(row._denrollmentDate).toBeUndefined();
+        expect(row[DEENROLLMENT_COLUMN]).toBe("12/08/2026");
+    });
+
     it("shows the synced de-enrolment date", () => {
         const row = toOutputRow({
             data: { UserName: "USR-1", _registerServiceCode: "REG-001", _sheetName: "HCM_REGISTER_WORKER_SHEET" },

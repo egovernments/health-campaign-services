@@ -4,6 +4,7 @@ import { executeQuery, getTableName } from "./db";
 import { markAttendeeSheetRefreshPending, markRegisterSheetRefreshPending } from "./attendanceSheetUtils";
 import { AttendanceRegisterId, IndividualId, TenantId } from "../config/models/brandedTypes";
 import { attendeeIdentity, attendeeSheetTypes, AttendeeSheetType } from "./attendanceIdentityUtils";
+import { attendanceSyncDataKeys } from "../config/constants";
 import { sleep } from "./timeUtils";
 
 const ATTENDANCE_REGISTER_TYPE = "attendanceRegister";
@@ -181,9 +182,11 @@ async function applyDeEnrolments(
 
     await runPerGroup(Array.from(byKey.values()), async (group) => {
         const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, group.tenantId);
+        // Written into the row's own data: only attendance rows carry this, so campaign_data keeps no
+        // column for it. jsonb_set needs an object to work on, hence the COALESCE.
         const query = `UPDATE ${tableName}
-                       SET denrollmentDate = $1
-                       WHERE type = $2 AND uniqueIdAfterProcess = ANY($3)
+                       SET data = jsonb_set(COALESCE(data, '{}'::jsonb), $1, to_jsonb($2::bigint), true)
+                       WHERE type = $3 AND uniqueIdAfterProcess = ANY($4)
                        RETURNING campaignNumber`;
 
         // Chunked: a bulk de-enrolment can carry thousands of identities, and one statement holding
@@ -192,8 +195,10 @@ async function applyDeEnrolments(
         let matched = 0;
         for (let i = 0; i < group.identities.length; i += batchSize) {
             const batch = group.identities.slice(i, i + batchSize);
-            const result = await executeQuery(query,
-                [group.denrollmentDate, ATTENDANCE_REGISTER_ATTENDEE_TYPE, batch]);
+            const result = await executeQuery(query, [
+                `{${attendanceSyncDataKeys.denrollmentDate}}`, group.denrollmentDate,
+                ATTENDANCE_REGISTER_ATTENDEE_TYPE, batch
+            ]);
             matched += result?.rowCount ?? 0;
         }
         logger.info(

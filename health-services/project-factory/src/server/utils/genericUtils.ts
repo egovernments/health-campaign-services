@@ -14,6 +14,7 @@ import { generatedResourceTransformer } from "./transforms/searchResponseConstru
 import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
 import { getProcessNamesForResourceTypes } from "../config/resourceTypeRegistry";
 import { CampaignDataApiRow, CampaignDataRow } from "../config/models/campaignDataRow";
+import { attendanceSyncDataKeys } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -1408,12 +1409,18 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
       status : relatedData?.rows[i]?.status,
       uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess,
       isDeleted : relatedData?.rows[i]?.isdeleted === true,
-      denrollmentDate : relatedData?.rows[i]?.denrollmentdate == null
-        ? null
-        : Number(relatedData?.rows[i]?.denrollmentdate)
+      denrollmentDate : attendanceSyncedDate(relatedData?.rows[i]?.data)
     })
   }
   return rows;
+}
+
+/** The synced de-enrolment date as a number: JSON may carry it as either a number or a string. */
+function attendanceSyncedDate(data: any): number | null {
+  const stored = data?.[attendanceSyncDataKeys.denrollmentDate];
+  if (stored == null || stored === "") return null;
+  const asNumber = Number(stored);
+  return Number.isFinite(asNumber) ? asNumber : null;
 }
 
 /** Hard-deletes failed/invalid campaign-data rows before re-validation so a retry starts from a clean slate. */
@@ -1811,12 +1818,10 @@ export async function searchCampaignData(searchParams: {
     uniqueIdentifier: row?.uniqueidentifier,
     status: row?.status,
     uniqueIdAfterProcess: row?.uniqueidafterprocess,
-    // Attendance sync state — excel-ingestion generates the attendance templates and reads these
-    // rows over this API, so a deletion/de-enrolment is invisible to it unless both are returned.
-    // denrollmentDate is BIGINT, which node-postgres hands back as a string: send it as the number
-    // consumers expect, matching getRelatedDataWithCampaign.
+    // isDeleted is the table's own soft-delete column; the de-enrolment date lives inside data,
+    // since only attendees have one — surfaced here as a field either way.
     isDeleted: row?.isdeleted === true,
-    denrollmentDate: row?.denrollmentdate == null ? null : Number(row.denrollmentdate),
+    denrollmentDate: attendanceSyncedDate(row?.data),
     createdBy: row?.createdby,
     createdTime: row?.createdtime,
     lastModifiedBy: row?.lastmodifiedby,
