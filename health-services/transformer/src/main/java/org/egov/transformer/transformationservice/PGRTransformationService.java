@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.PGRIndex;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.pgr.Service;
 import org.egov.transformer.models.pgr.Address;
 import org.egov.transformer.models.pgr.Boundary;
@@ -62,21 +63,19 @@ public class PGRTransformationService {
     }
 
     private PGRIndex transform(Service service) {
-        Map<String, String> boundaryHierarchy = null;
-        Map<String, String> boundaryHierarchyCode = null;
         String tenantId = service.getTenantId();
-        String hierarchyType = service.getHierarchyType();
-        String localityCode = null;
-        Optional<String> localityCodeOptional = Optional.ofNullable(service)
-                .map(Service::getAddress)
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(service.getAuditDetails().getCreatedBy(), tenantId);
+        String hierarchyType = StringUtils.isBlank(service.getHierarchyType())
+                ? projectInfo.getHierarchyType() : service.getHierarchyType();
+        String localityCode = Optional.ofNullable(service.getAddress())
                 .map(Address::getLocality)
-                .map(Boundary::getCode);
-        if (localityCodeOptional.isPresent()) {
-            localityCode = localityCodeOptional.get();
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarchyType);
-            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
-            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
-        }
+                .map(Boundary::getCode)
+                .map(this::extractLeafLocalityCode)
+                .orElse(null);
+
+        BoundaryHierarchyResult boundaryHierarchyResult = resolveBoundaryHierarchy(localityCode, projectInfo, tenantId, hierarchyType);
+        Map<String, String> boundaryHierarchy = boundaryHierarchyResult == null ? null : boundaryHierarchyResult.getBoundaryHierarchy();
+        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult == null ? null : boundaryHierarchyResult.getBoundaryHierarchyCode();
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, service.getAuditDetails().getCreatedBy());
 
         service.setAddress(null); //explicitly setting it to null as it is not needed
@@ -94,13 +93,39 @@ public class PGRTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                 .localityCode(localityCode)
                 .build();
-        projectService.addProjectDetailsForUserIdAndTenantId(pgrIndex, service.getAuditDetails().getLastModifiedBy(), tenantId);
+        pgrIndex.setProjectInfo(projectInfo);
         String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(service.getTenantId(), pgrIndex.getProjectId(), pgrIndex.getProjectTypeId(), service.getAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         pgrIndex.setAdditionalDetails(additionalDetails);
 
         return pgrIndex;
+    }
+
+    /**
+     * Resolves the boundary hierarchy from the complaint's own locality when it has one, otherwise from
+     * the project of the user who raised it. Returns null when neither is available - the creator has no
+     * project staff mapping, so there is no boundary to index against.
+     */
+    private BoundaryHierarchyResult resolveBoundaryHierarchy(String localityCode, ProjectInfo projectInfo,
+                                                             String tenantId, String hierarchyType) {
+        if (localityCode != null) {
+            return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId, hierarchyType);
+        }
+        if (projectInfo.getProjectId() != null) {
+            return boundaryService.getBoundaryHierarchyWithProjectId(projectInfo.getProjectId(), tenantId);
+        }
+        log.info("No locality code on the service and no project resolved for its creator. Skipping boundary hierarchy.");
+        return null;
+    }
+
+    /**
+     * Locality codes arrive dot-qualified (for example "MZ.CITY.WARD"); only the trailing segment is a
+     * boundary code.
+     */
+    private String extractLeafLocalityCode(String qualifiedLocalityCode) {
+        String[] parts = qualifiedLocalityCode.split("\\.");
+        return parts.length == 0 ? qualifiedLocalityCode : parts[parts.length - 1];
     }
 
 }
