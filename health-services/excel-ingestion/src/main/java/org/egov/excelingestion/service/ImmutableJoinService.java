@@ -171,16 +171,12 @@ public class ImmutableJoinService {
 
 
 
-        // A cloned campaign inherits its parent's generated template, so the baseline legitimately belongs
-        // to the campaign this one was cloned FROM. Match against that id instead; otherwise the baseline
-        // must belong to this campaign itself.
-        if (clonedCampaignId != null && !clonedCampaignId.trim().isEmpty()) {
-            if (!equalsNullSafe(baselineGen.getReferenceId(), clonedCampaignId)) {
-                exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
-                        ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
-                return Collections.emptyMap();
-            }
-        } else if (!equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
+        if (equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
+            log.info("Upload sheet is belong to the campaign itself");
+        } else if (clonedCampaignId != null && !clonedCampaignId.trim().isEmpty()
+                && equalsNullSafe(baselineGen.getReferenceId(), clonedCampaignId.trim())) {
+            log.info("Upload sheet is belong to the cloned campaign ");
+        } else {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
                     ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
             return Collections.emptyMap();
