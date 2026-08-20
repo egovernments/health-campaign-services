@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -170,8 +172,16 @@ public class TransformerProperties {
     @Value("${egov.boundary.relationship.search.url}")
     private String boundaryRelationshipSearchUrl;
 
+    @Value("${transformer.producer.push.batch.size:100}")
+    private Integer producerPushBatchSize;
+
     @Value("${egov.boundary.hierarchy.name}")
     private String boundaryHierarchyName;
+
+    // Every hierarchy type a boundary code may live under, in the order they should be probed when the
+    // hierarchy type cannot be resolved from the record. Falls back to the single configured default.
+    @Value("${egov.boundary.hierarchy.types:${egov.boundary.hierarchy.name}}")
+    private List<String> boundaryHierarchyTypes;
 
     @Value("${egov.boundary.v2.auth.token}")
     private String boundaryV2AuthToken;

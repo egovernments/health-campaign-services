@@ -78,6 +78,10 @@ public class ProjectService {
     }
 
     public String fetchCycleIndexFromProjectAdditionalDetails(String tenantId, String projectId, String projectTypeId, Long createdTime) {
+        if (projectId == null && projectTypeId == null) {
+            return null;
+        }
+
         ArrayNode cachedCycles = projectIdVsCycleInfoCache.get(projectId);
         if (cachedCycles != null) {
             return commonUtils.findCycleIndex(cachedCycles, createdTime);
