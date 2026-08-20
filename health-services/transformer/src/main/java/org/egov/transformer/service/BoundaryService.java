@@ -54,11 +54,67 @@ public class BoundaryService {
 
     public BoundaryHierarchyResult getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId, String hierarchyType) {
         if (localityCode == null) {
-            return null;
+            return new BoundaryHierarchyResult();
+        }
+        String resolvedHierarchyType = StringUtils.isBlank(hierarchyType)
+                ? resolveHierarchyTypeForCode(localityCode, tenantId) : hierarchyType;
+        if (resolvedHierarchyType == null) {
+            return new BoundaryHierarchyResult();
         }
         // Fetch both localized and non-localized boundary data
-        BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId, hierarchyType);
+        BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId, resolvedHierarchyType);
         return applyTransformerElasticIndexLabels(boundaryResult, tenantId);
+    }
+
+    /**
+     * Finds which of the configured hierarchy types contains the given locality code, for records that
+     * carry no hierarchy type of their own. Candidates are probed in configured order and the first hit
+     * wins - the remaining ones are not looked at. Trees already in memory are checked first, so only a
+     * hierarchy that has never been fetched costs a call to the boundary service.
+     */
+    private String resolveHierarchyTypeForCode(String locationCode, String tenantId) {
+        List<String> candidateHierarchyTypes = transformerProperties.getBoundaryHierarchyTypes();
+        if (CollectionUtils.isEmpty(candidateHierarchyTypes)) {
+            log.warn("No boundary hierarchy types configured. Cannot resolve locality code: {}", locationCode);
+            return null;
+        }
+
+        // First pass: trees already in memory, so a resolvable code never hits the boundary service.
+        for (String candidate : candidateHierarchyTypes) {
+            if (cachedHierarchyContainsCode(candidate, locationCode)) {
+                log.info("Resolved hierarchyType {} for locality code {}", candidate, locationCode);
+                return candidate;
+            }
+        }
+
+        // Second pass: pull in any hierarchy not fetched yet, then re-check it. Once every candidate is
+        // cached this loop is a no-op, so an unresolvable code never refetches.
+        for (String candidate : candidateHierarchyTypes) {
+            if (!CollectionUtils.isEmpty(cachedEnrichedBoundaries.get(candidate))) {
+                continue;
+            }
+            try {
+                loadBoundaryTree(tenantId, candidate);
+            } catch (Exception e) {
+                log.error("Could not load boundary tree for hierarchy type: {} while resolving locality code: {}, {}",
+                        candidate, locationCode, ExceptionUtils.getStackTrace(e));
+                continue;
+            }
+            if (cachedHierarchyContainsCode(candidate, locationCode)) {
+                log.info("Resolved hierarchyType {} for locality code {} after loading its tree", candidate, locationCode);
+                return candidate;
+            }
+        }
+
+        log.warn("Locality code {} is not present in any configured hierarchy type: {}", locationCode, candidateHierarchyTypes);
+        return null;
+    }
+
+    /** Whether an already cached hierarchy tree contains the code. Never calls the boundary service. */
+    private boolean cachedHierarchyContainsCode(String hierarchyType, String locationCode) {
+        List<EnrichedBoundary> cachedTree = cachedEnrichedBoundaries.get(hierarchyType);
+        return !CollectionUtils.isEmpty(cachedTree)
+                && !CollectionUtils.isEmpty(getEnrichedBoundaryPath(cachedTree, locationCode));
     }
 
     public BoundaryHierarchyResult getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
@@ -149,20 +205,30 @@ public class BoundaryService {
 
 
     public List<EnrichedBoundary> fetchBoundaryData(String locationCode, String tenantId, String hierarchyType) {
-        List<EnrichedBoundary> finalEnrichedBoundary;
-        List<EnrichedBoundary> cachedBoundariesForHierarchy = cachedEnrichedBoundaries.get(hierarchyType);
+        // Guard the cache lookup below: ConcurrentHashMap rejects null keys, so a caller that could not
+        // resolve a hierarchy type would otherwise fail with an NPE rather than fall back.
+        String hierarchy = StringUtils.isBlank(hierarchyType)
+                ? transformerProperties.getBoundaryHierarchyName() : hierarchyType;
+
+        List<EnrichedBoundary> cachedBoundariesForHierarchy = cachedEnrichedBoundaries.get(hierarchy);
         if (!CollectionUtils.isEmpty(cachedBoundariesForHierarchy)) {
-            log.info("Fetching boundary info from cached boundary for code: {}", locationCode);
-            finalEnrichedBoundary = getEnrichedBoundaryPath(cachedBoundariesForHierarchy, locationCode);
-            if (finalEnrichedBoundary != null && !finalEnrichedBoundary.isEmpty()) {
+            log.debug("Fetching boundary info from cached boundary for code: {}", locationCode);
+            List<EnrichedBoundary> finalEnrichedBoundary = getEnrichedBoundaryPath(cachedBoundariesForHierarchy, locationCode);
+            if (!CollectionUtils.isEmpty(finalEnrichedBoundary)) {
                 return finalEnrichedBoundary;
             }
         }
 
         log.info("Could not fetch boundary info from cached tree. Fetching from service for locationCode: {}", locationCode);
+        return getEnrichedBoundaryPath(loadBoundaryTree(tenantId, hierarchy), locationCode);
+    }
 
-
-        List<EnrichedBoundary> boundaries;
+    /**
+     * Fetches a hierarchy's full boundary tree, caches it, and prewarms its localizations. Kept separate
+     * from {@link #fetchBoundaryData} so the hierarchy probe can load a tree without also triggering the
+     * "code not found, refetch" path.
+     */
+    private List<EnrichedBoundary> loadBoundaryTree(String tenantId, String hierarchyType) {
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
                 .userInfo(User.builder().uuid("transformer-uui").tenantId(tenantId).build())
@@ -173,12 +239,10 @@ public class BoundaryService {
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
                 + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
                 + "&hierarchyType=" + hierarchyType
-//                + "&codes=" + locationCode
         );
-        log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
+        log.info("Fetching boundary relationships, URI: {}", uri);
         try {
-            // Fetch boundary details from the service
-            log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}, hierarchyType: {}", tenantId, locationCode, hierarchyType);
+            log.debug("Fetching boundary relation details for tenantId: {}, hierarchyType: {}", tenantId, hierarchyType);
             BoundarySearchResponse boundarySearchResponse = serviceRequestClient.fetchResult(
                     uri,
                     boundaryRequest,
@@ -193,7 +257,7 @@ public class BoundaryService {
             cachedEnrichedBoundaries.put(hierarchyType, enrichedBoundaries);
             log.info("Cached boundary object for hierarchy type: {}", hierarchyType);
             prewarmBoundaryLocalizations(enrichedBoundaries, requestInfo, tenantId, hierarchyType);
-            boundaries = getEnrichedBoundaryPath(enrichedBoundaries, locationCode);
+            return enrichedBoundaries;
 
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
@@ -202,8 +266,6 @@ public class BoundaryService {
             // original payload. Emitting here would produce a duplicate record with topic=null.
             throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }
-
-        return boundaries;
     }
 
     private Map<String, String> getBoundaryCodeToLocalizedNameMap(

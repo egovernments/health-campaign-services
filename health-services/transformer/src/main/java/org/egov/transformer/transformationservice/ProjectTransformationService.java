@@ -63,7 +63,7 @@ public class ProjectTransformationService {
         log.info("transformation success for PROJECT id's {}", projectIndexV1List.stream()
                 .map(ProjectIndexV1::getId)
                 .collect(Collectors.toList()));
-        producer.push(topic, projectIndexV1List);
+        producer.pushInBatches(topic, projectIndexV1List);
     }
 
     private List<ProjectIndexV1> transform(Project project) {
