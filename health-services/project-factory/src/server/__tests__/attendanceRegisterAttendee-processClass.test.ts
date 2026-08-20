@@ -678,29 +678,22 @@ describe("parseDateEndOfDay", () => {
 
 // ─── Processed-file output ───────────────────────────────────────────────────
 
-describe("a register recreated under the same serviceCode", () => {
-    // The row key is serviceCode-based, so the recreated register lands on the dead register's row.
-    // Its stamp names the register the stored date belongs to.
-    const storedDateCarriesOver = (registerUuid: string, storedStamp: string): boolean => {
-        const stamp = String(storedStamp ?? "");
-        const isAnotherRegisters = Boolean(registerUuid) && stamp !== "" && !stamp.startsWith(`${registerUuid}_`);
-        return !isAnotherRegisters;
-    };
-
-    it("does not carry over a date stamped by a different register", () => {
-        expect(storedDateCarriesOver("reg-new", "reg-old_ind-1_worker")).toBe(false);
+describe("storedDateBelongsToRegister", () => {
+    // The row key is serviceCode-based, so a recreated register lands on the dead register's row
+    it("rejects a date stamped by a different register", () => {
+        expect(TemplateClass.storedDateBelongsToRegister("reg-old_ind-1_worker", "reg-new")).toBe(false);
     });
 
-    it("carries over its own date, so a blank cell cannot clear a synced one", () => {
-        expect(storedDateCarriesOver("reg-new", "reg-new_ind-1_worker")).toBe(true);
+    it("accepts its own date, so a blank cell cannot clear a synced one", () => {
+        expect(TemplateClass.storedDateBelongsToRegister("reg-new_ind-1_worker", "reg-new")).toBe(true);
     });
 
-    it("keeps the stored date when this run could not resolve the register", () => {
-        expect(storedDateCarriesOver("", "reg-old_ind-1_worker")).toBe(true);
+    it("accepts when this run could not resolve the register", () => {
+        expect(TemplateClass.storedDateBelongsToRegister("reg-old_ind-1_worker", "")).toBe(true);
     });
 
-    it("keeps the stored date when the row was never stamped", () => {
-        expect(storedDateCarriesOver("reg-new", "")).toBe(true);
+    it("accepts when the row was never stamped", () => {
+        expect(TemplateClass.storedDateBelongsToRegister("", "reg-new")).toBe(true);
     });
 });
 

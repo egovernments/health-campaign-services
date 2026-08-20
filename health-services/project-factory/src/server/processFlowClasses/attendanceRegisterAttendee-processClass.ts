@@ -45,6 +45,18 @@ function sheetTypeOf(sheetName: string): AttendeeSheetType {
  * `${registerServiceCode}_${username}_${sheetType}` and re-fetches to build SheetMap.
  */
 export class TemplateClass {
+    /**
+     * Whether a stored de-enrolment date belongs to the register being processed. The row key is
+     * serviceCode-based, so a register deleted and recreated under the same serviceCode lands on the
+     * same row; the stamp it was saved with names the register the date came from. Unknowable cases
+     * (this run resolved no register, or the row was never stamped) count as belonging, so a
+     * transient failure cannot clear a date recorded elsewhere.
+     */
+    static storedDateBelongsToRegister(storedStamp: string, registerUuid: string): boolean {
+        if (!registerUuid || storedStamp === "") return true;
+        return storedStamp.startsWith(`${registerUuid}_`);
+    }
+
     static async process(
         resourceDetails: any,
         wholeSheetData: any,
@@ -372,12 +384,9 @@ export class TemplateClass {
                 // serviceCode lands on the same row. Its stamp names the register the date belongs to:
                 // when that is a different register, the date is the dead one's and must not carry over.
                 const storedRow = existingDataMap.get(uniqueIdentifier);
-                const storedStamp = String(storedRow?.uniqueIdAfterProcess ?? "");
-                const storedIsAnotherRegisters = Boolean(registerUuid) && storedStamp !== ""
-                    && !storedStamp.startsWith(`${registerUuid}_`);
-                const storedDenrollmentDate = storedIsAnotherRegisters
-                    ? null
-                    : (storedRow?.denrollmentDate ?? null);
+                const storedDenrollmentDate = TemplateClass.storedDateBelongsToRegister(
+                    String(storedRow?.uniqueIdAfterProcess ?? ""), String(registerUuid ?? "")
+                ) ? (storedRow?.denrollmentDate ?? null) : null;
                 // Only a row that actually reached the attendance service may set this. A failed or
                 // skipped row keeps whatever is stored, so a date whose API call errored is not made
                 // permanent and can still be corrected by re-uploading.
