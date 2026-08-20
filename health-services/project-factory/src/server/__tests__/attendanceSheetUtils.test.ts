@@ -247,7 +247,7 @@ describe('refresh orchestration', () => {
 
             expect(queriesMatching('RETURNING id')).toHaveLength(1);   // the claim
             expect(createAndUploadFileWithOutRequest).toHaveBeenCalled();
-            const finish = queriesMatching('processedFileStoreId = $6');
+            const finish = queriesMatching('processedFileStoreId = $7');
             expect(finish).toHaveLength(1);
             expect(finish[0][1]).toContain('processed-2');
             expect(refreshed.get('res-1')).toBe('processed-2');
@@ -261,7 +261,7 @@ describe('refresh orchestration', () => {
             const refreshed = await completeOwedRegisterSheetRefresh(TENANT, [owed()] as any);
 
             expect(createAndUploadFileWithOutRequest).not.toHaveBeenCalled();
-            expect(queriesMatching('processedFileStoreId = $6')).toHaveLength(0);
+            expect(queriesMatching('processedFileStoreId = $7')).toHaveLength(0);
             expect(queriesMatching('#-')).toHaveLength(1);          // flag cleared
             expect(refreshed.get('res-1')).toBe('processed-1');     // already correct, so servable
         });
@@ -300,6 +300,16 @@ describe('refresh orchestration', () => {
             // Guarded by the state, so a marker set back to pending by a new delete is left alone
             expect(String(query)).toContain("-> $4 ->> 'state' = $5");
             expect(values).toContain('inProgress');
+        });
+
+        it('clears only its own claim, so a claim taken since is left running', async () => {
+            await completeOwedRegisterSheetRefresh(TENANT, [owed()] as any);
+
+            const claimedAt = JSON.parse(String(queriesMatching('RETURNING id')[0][1]?.[1])).at;
+            const [query, values] = queriesMatching('#-')[0];
+            // Matched on the timestamp the claim was taken with, not just on the state
+            expect(String(query)).toContain("-> $4 ->> 'at')::bigint, 0) = $6");
+            expect(values).toContain(claimedAt);
         });
 
         it('withholds the file and hands the claim back when the rewrite fails', async () => {

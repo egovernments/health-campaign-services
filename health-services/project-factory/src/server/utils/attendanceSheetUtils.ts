@@ -148,8 +148,9 @@ async function claimAndRefresh(
 
     // Two passes at most: the wait can end with the work handed back as pending, which this claims.
     for (let attempt = 0; attempt < 2; attempt++) {
-        if (await claimRefresh(tenantId, resource.id)) {
-            return rewriteUnderClaim(tenantId, resource, processedFileStoreId);
+        const claimedAt = await claimRefresh(tenantId, resource.id);
+        if (claimedAt !== null) {
+            return rewriteUnderClaim(tenantId, resource, processedFileStoreId, claimedAt);
         }
         const landed = await waitForRefreshToLand(tenantId, resource.id, waitDeadline);
         if (landed.settled) return { fileStoreId: landed.fileStoreId, outcome: "refreshedElsewhere" };
@@ -161,13 +162,14 @@ async function claimAndRefresh(
 async function rewriteUnderClaim(
     tenantId: TenantId,
     resource: ResourceDetailRow,
-    processedFileStoreId: string
+    processedFileStoreId: string,
+    claimedAt: number
 ): Promise<RefreshResult> {
     try {
         const newFileStoreId = resource.type === ATTENDEE_RESOURCE_TYPE
             ? await rewriteWithSyncedDeEnrolments(tenantId, resource, processedFileStoreId)
             : await rewriteWithoutDeletedRegisters(tenantId, resource, processedFileStoreId);
-        await finishRefresh(tenantId, resource.id, newFileStoreId);
+        await finishRefresh(tenantId, resource.id, newFileStoreId, claimedAt);
         // No rewrite needed means the existing file was already correct, so it stays servable.
         return newFileStoreId
             ? { fileStoreId: newFileStoreId, outcome: "refreshed" }
@@ -419,10 +421,14 @@ async function findRegisterResources(tenantId: TenantId, campaignNumber: string)
     });
 }
 
-/** Only one caller wins: pending (or an expired claim) becomes inProgress in a single statement. */
-async function claimRefresh(tenantId: TenantId, resourceId: string): Promise<boolean> {
+/**
+ * Only one caller wins: pending (or an expired claim) becomes inProgress in a single statement.
+ * Returns the claim's timestamp, which the finish uses to prove the claim is still the one it took.
+ */
+async function claimRefresh(tenantId: TenantId, resourceId: string): Promise<number | null> {
     const tableName = getTableName(config?.DB_CONFIG?.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
-    const claim = JSON.stringify({ state: REFRESH_IN_PROGRESS, at: Date.now() });
+    const claimedAt = Date.now();
+    const claim = JSON.stringify({ state: REFRESH_IN_PROGRESS, at: claimedAt });
     const staleBefore = Date.now() - config.attendanceRegister.sheetRefreshLeaseMs;
     const query = `UPDATE ${tableName}
                    SET additionalDetails = jsonb_set(COALESCE(additionalDetails, '{}'::jsonb), $1, $2::jsonb, true)
@@ -435,27 +441,36 @@ async function claimRefresh(tenantId: TenantId, resourceId: string): Promise<boo
         `{${REFRESH_STATE_KEY}}`, claim, resourceId, REFRESH_STATE_KEY,
         REFRESH_PENDING, REFRESH_IN_PROGRESS, staleBefore
     ]);
-    return (result?.rowCount ?? 0) > 0;
+    return (result?.rowCount ?? 0) > 0 ? claimedAt : null;
 }
 
 /**
  * Clears the flag and repoints the resource in one statement. Written directly rather than through
  * the persister: the read that triggered this has to see the new file id in the same request.
  */
-async function finishRefresh(tenantId: TenantId, resourceId: string, newFileStoreId: string | null): Promise<void> {
+async function finishRefresh(
+    tenantId: TenantId,
+    resourceId: string,
+    newFileStoreId: string | null,
+    claimedAt: number
+): Promise<void> {
     const tableName = getTableName(config?.DB_CONFIG?.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
-    const values: (string | number)[] = [`{${REFRESH_STATE_KEY}}`, resourceId, Date.now(), REFRESH_STATE_KEY, REFRESH_IN_PROGRESS];
+    const values: (string | number)[] = [
+        `{${REFRESH_STATE_KEY}}`, resourceId, Date.now(), REFRESH_STATE_KEY, REFRESH_IN_PROGRESS, claimedAt
+    ];
     let setFileStoreId = "";
     if (newFileStoreId) {
-        setFileStoreId = `, processedFileStoreId = $6`;
+        setFileStoreId = `, processedFileStoreId = $7`;
         values.push(newFileStoreId);
     }
-    // The marker is dropped only while it still reads inProgress. A delete that arrived during the
-    // rewrite set it back to pending, and clearing that would lose the deletion; the file pointer is
-    // still moved, because the file this produced is newer than the one it replaced either way.
+    // The marker is dropped only while it is still this caller's claim, matched on the timestamp the
+    // claim was taken with: a delete during the rewrite set it back to pending, and another reader may
+    // then have claimed it. Clearing either would lose that work. The file pointer is still moved,
+    // because the file this produced is newer than the one it replaced either way.
     const query = `UPDATE ${tableName}
                    SET additionalDetails = CASE
                            WHEN additionalDetails -> $4 ->> 'state' = $5
+                               AND COALESCE((additionalDetails -> $4 ->> 'at')::bigint, 0) = $6
                                THEN COALESCE(additionalDetails, '{}'::jsonb) #- $1
                            ELSE additionalDetails
                        END,
