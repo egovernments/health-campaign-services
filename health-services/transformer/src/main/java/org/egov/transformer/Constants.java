@@ -110,8 +110,10 @@ public interface Constants {
     String ADDITIONAL_FIELDS_FIELDS_VALUE_KEY = "value";
 
     String PROJECT_TYPE = "projectType";
+    String RESOURCES = "resources";
 
     String REDIS_CACHE_PREFIX = "transformer:";
+    String PROJECT_DETAILS_CACHE_KEY_PREFIX = "project-details:";
     String ES_FIELD_ACTIVE = "active";
 
     String ES_FIELD_EFFECTIVE_DATE = "effectiveDate";

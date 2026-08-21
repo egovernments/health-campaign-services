@@ -41,8 +41,7 @@ public class ProductService {
         List<String> productNames = new ArrayList<>();
 
         productVariantIds.forEach(productVariantId -> {
-            if (productVariantVsNameCache != null && productVariantVsNameCache.containsKey(productVariantId)) {
-                log.info("Fetching Product Variant Name for the id: {} from transformer cache", productVariantId);
+            if (productVariantVsNameCache.containsKey(productVariantId)) {
                 productNames.add(productVariantVsNameCache.get(productVariantId));
             } else {
                 productNames.add(fetchProductVariantNameFromService(productVariantId, tenantId));

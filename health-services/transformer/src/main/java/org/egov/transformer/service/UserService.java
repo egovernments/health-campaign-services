@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
 
@@ -41,6 +42,26 @@ public class UserService {
         this.errorProducer = errorProducer;
     }
 
+    public void preWarmUserInfo(Collection<String> userIds, String tenantId) {
+        List<String> nonExistentUserInfoIds = userIds.stream()
+                .filter(userId -> !userIdVsUserInfoCache.containsKey(userId))
+                .collect(Collectors.toList());
+
+        if (!nonExistentUserInfoIds.isEmpty()) {
+            List<UserSearchResponseContent> users = fetchUsers(nonExistentUserInfoIds, tenantId);
+            if (!users.isEmpty()) {
+                for  (UserSearchResponseContent user : users) {
+                    Map<String, String> userMap = new HashMap<>();
+                    userMap.put(USERNAME, user.getUserName());
+                    userMap.put(NAME, user.getName());
+                    userMap.put(ROLE, getStaffRole(tenantId, Collections.singletonList(user)));
+                    userMap.put(ID, String.valueOf(user.getId()));
+                    userMap.put(CITY, user.getCorrespondenceAddress());
+                    userIdVsUserInfoCache.put(user.getUuid(), userMap);
+                }
+            }
+        }
+    }
 
     public Map<String, String> getUserInfo(String tenantId, String userId) {
         List<UserSearchResponseContent> users;
@@ -50,13 +71,12 @@ public class UserService {
         String role;
 
         if (userIdVsUserInfoCache.containsKey(userId)) {
-            log.info("fetching from userIdVsUserInfoCache for userId: " + userId);
             userDetailsMap = userIdVsUserInfoCache.get(userId);
             return userDetailsMap;
         } else {
             users = getUsers(tenantId, userId);
             if (users.isEmpty()) {
-                log.info("unable to fetch users for userId: " + userId);
+                log.info("unable to fetch users for userId: {}", userId);
                 userMap.put(USERNAME, userId);
                 userMap.put(NAME, null);
                 userMap.put(ROLE, null);
@@ -101,7 +121,28 @@ public class UserService {
         return new ArrayList<>();
     }
 
-
+    public List<UserSearchResponseContent> fetchUsers(List<String> userIds, String tenantId) {
+        UserSearchRequest searchRequest = new UserSearchRequest();
+        searchRequest.setTenantId(tenantId);
+        searchRequest.setUuid(userIds);
+        try {
+            UserSearchResponse response = restRepo.fetchResult(
+                    new StringBuilder(host + searchUrl),
+                    searchRequest,
+                    UserSearchResponse.class
+            );
+            List<UserSearchResponseContent> responseContent = response.getUserSearchResponseContent();
+            if (responseContent != null && !responseContent.isEmpty()) {
+                return responseContent;
+            } else {
+                return new ArrayList<>();
+            }
+        } catch (Exception e) {
+            log.error("Exception while searching users : {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(searchRequest, null, e);
+        }
+        return new ArrayList<>();
+    }
 
     public String getStaffRole(String tenantId, List<UserSearchResponseContent> users) {
 

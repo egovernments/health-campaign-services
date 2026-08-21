@@ -62,7 +62,6 @@ public class HouseholdTransformationService {
     }
 
     private HouseholdIndexV1 transform(Household household) {
-        householdService.searchHousehold(household.getClientReferenceId(), household.getTenantId());
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
         ProjectInfo projectInfo = projectService.projectDetailsFromUserId(household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());

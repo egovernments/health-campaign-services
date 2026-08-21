@@ -175,6 +175,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.push.batch.size:100}")
     private Integer producerPushBatchSize;
 
+    @Value("${transformer.project.details.cache.ttl.minutes:5}")
+    private Long projectDetailsCacheTtlMinutes;
+
     @Value("${egov.boundary.hierarchy.name}")
     private String boundaryHierarchyName;
 

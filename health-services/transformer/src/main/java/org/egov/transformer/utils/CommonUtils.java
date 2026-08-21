@@ -12,9 +12,13 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.service.MdmsService;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static org.egov.transformer.Constants.*;
@@ -27,10 +31,42 @@ public class CommonUtils {
     private final ObjectMapper objectMapper;
     private final MdmsService mdmsService;
 
+    // DateTimeFormatter is immutable and thread safe, unlike SimpleDateFormat, so these are built once
+    // and shared across every consumer thread instead of being allocated per call.
+    private static final DateTimeFormatter DATE_PATTERN = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter TIMESTAMP_PATTERN = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+
+    private DateTimeFormatter dateFormatter;
+    private DateTimeFormatter timeStampFormatter;
+
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, MdmsService mdmsService) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.mdmsService = mdmsService;
+    }
+
+    /**
+     * Binds the configured time zone into the formatters once, at startup, rather than resolving it on
+     * every call. Surrounding quotes are tolerated because the property is quoted in some environments.
+     */
+    @PostConstruct
+    void initDateFormatters() {
+        String configuredTimeZone = properties.getTimeZone();
+        String sanitizedTimeZone = configuredTimeZone == null ? "" : configuredTimeZone.replace("\"", "").trim();
+        ZoneId zoneId;
+        try {
+            zoneId = ZoneId.of(sanitizedTimeZone);
+        } catch (Exception e) {
+            // Matches the previous behaviour: TimeZone.getTimeZone silently fell back to GMT here.
+            log.error("Invalid configured timeZone: {}. Falling back to UTC.", configuredTimeZone);
+            zoneId = ZoneOffset.UTC;
+        }
+        if (!sanitizedTimeZone.equals(configuredTimeZone)) {
+            log.warn("Configured timeZone {} contained quotes or whitespace. Resolved to zone: {}", configuredTimeZone, zoneId);
+        }
+        dateFormatter = DATE_PATTERN.withZone(zoneId);
+        timeStampFormatter = TIMESTAMP_PATTERN.withZone(zoneId);
+        log.info("Date formatters initialised with zone: {}", zoneId);
     }
 
     public List<String> getProjectDatesList(Long startDateEpoch, Long endDateEpoch) {
@@ -42,33 +78,23 @@ public class CommonUtils {
     }
 
     public String getDateFromEpoch(long epochTime) {
-        String dateFromEpoch = "";
-        String timeZone = properties.getTimeZone();
         try {
-            Date date = new Date(epochTime);
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            dateFormat.setTimeZone(java.util.TimeZone.getTimeZone(timeZone));
-            dateFromEpoch = dateFormat.format(date);
+            return dateFormatter.format(Instant.ofEpochMilli(epochTime));
         } catch (Exception e) {
             log.error("EpochTime to be transformed :" + epochTime);
             log.error("Exception while transforming epochTime to date: {}", ExceptionUtils.getStackTrace(e));
+            return "";
         }
-        return dateFromEpoch;
     }
 
     public String getTimeStampFromEpoch(long epochTime) {
-        String timeStamp = "";
-        String timeZone = properties.getTimeZone();
         try {
-            Date date = new Date(epochTime);
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-            dateFormat.setTimeZone(java.util.TimeZone.getTimeZone(timeZone));
-            timeStamp = dateFormat.format(date);
+            return timeStampFormatter.format(Instant.ofEpochMilli(epochTime));
         } catch (Exception e) {
             log.error("EpochTime to be transformed :" + epochTime);
             log.error("Exception while transforming epochTime to timestamp: {}", ExceptionUtils.getStackTrace(e));
+            return "";
         }
-        return timeStamp;
     }
 
     public List<Double> getGeoPoint(Object address) {
@@ -200,8 +226,6 @@ public class CommonUtils {
     }
 
     private boolean isWithinCycle(Long createdTime, Long startDate, Long endDate) {
-        log.info("createdTime is {}", createdTime);
-        log.info("startDate is {} and endDate is {}", startDate, endDate);
         return createdTime >= startDate && createdTime <= endDate;
     }
 

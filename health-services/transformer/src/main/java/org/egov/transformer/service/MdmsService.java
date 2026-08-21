@@ -80,7 +80,6 @@ public class MdmsService {
             MdmsResponse mdmsResponse = fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
             transformerLocalizationsArray = mdmsResponse.getMdmsRes().get(transformerProperties.getTransformerLocalizationsMdmsModule())
                     .get(TRANSFORMER_LOCALIZATIONS);
-            ObjectMapper objectMapper = new ObjectMapper();
             transformerLocalizationsArray.forEach(item -> {
                 Map map = objectMapper.convertValue(item, new TypeReference<Map>() {
                 });
@@ -112,7 +111,6 @@ public class MdmsService {
             log.error("Exception while fetching mdms roles: {}", ExceptionUtils.getStackTrace(e));
             return projectStaffRolesRankingMap;
         }
-        ObjectMapper objectMapper = new ObjectMapper();
         projectStaffRolesArray.forEach(role -> {
             LinkedHashMap map = objectMapper.convertValue(role, new TypeReference<LinkedHashMap>() {
             });
@@ -162,7 +160,6 @@ public class MdmsService {
             MdmsResponse mdmsResponse = fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
             transformerElasticIndexLabelsArray = mdmsResponse.getMdmsRes().get(transformerProperties.getTransformerElasticIndexLabelsMdmsModule())
                     .get(TRANSFORMER_ELASTIC_INDEX_LABELS);
-            ObjectMapper objectMapper = new ObjectMapper();
             transformerElasticIndexLabelsArray.forEach(item -> {
                 Map map = objectMapper.convertValue(item, new TypeReference<Map>() {
                 });
@@ -182,7 +179,6 @@ public class MdmsService {
                 .orElse(null);
 
         if (requiredProjectType != null) {
-            log.info("Fetched projectType from cache {}", projectTypeId);
             return requiredProjectType;
         }
         RequestInfo requestInfo = RequestInfo.builder()

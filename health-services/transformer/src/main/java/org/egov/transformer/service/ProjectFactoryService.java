@@ -1,6 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -24,16 +23,14 @@ public class ProjectFactoryService {
 
     private final ServiceRequestClient serviceRequestClient;
 
-    private final ObjectMapper objectMapper;
 
     private final TransformerCacheService cacheService;
 
     private final TransformerErrorProducer errorProducer;
 
-    public ProjectFactoryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper, TransformerCacheService cacheService, TransformerErrorProducer errorProducer) {
+    public ProjectFactoryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, TransformerCacheService cacheService, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
-        this.objectMapper = objectMapper;
         this.cacheService = cacheService;
         this.errorProducer = errorProducer;
     }

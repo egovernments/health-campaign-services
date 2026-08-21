@@ -19,6 +19,7 @@ import org.egov.transformer.service.ProjectFactoryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,6 +39,12 @@ public class ProjectTransformationService {
     private final BoundaryService boundaryService;
     private final ProjectFactoryService projectFactoryService;
     private final TransformerErrorProducer errorProducer;
+
+    private static final Set<String> TARGET_FIELDS_TO_CHECK = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            BENEFICIARY_TYPE,
+            TOTAL_NO_CHECK,
+            TARGET_NO_CHECK
+    )));
 
     public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
@@ -60,7 +67,9 @@ public class ProjectTransformationService {
                 .map(this::transform)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
-        log.info("transformation success for PROJECT id's {}", projectIndexV1List.stream()
+        log.info("transformation success for {} PROJECT records producing {} index records",
+                projectList.size(), projectIndexV1List.size());
+        log.debug("transformed PROJECT index id's {}", projectIndexV1List.stream()
                 .map(ProjectIndexV1::getId)
                 .collect(Collectors.toList()));
         producer.pushInBatches(topic, projectIndexV1List);
@@ -68,7 +77,10 @@ public class ProjectTransformationService {
 
     private List<ProjectIndexV1> transform(Project project) {
         String localityCode;
-        String hierarhyType = projectService.getHierarchyTypeFromProject(project);
+        // Converted once and threaded through: hierarchy type, cycle details and product resources all read
+        // from this same tree, which was previously rebuilt for each of them.
+        JsonNode projectAdditionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+        String hierarhyType = projectService.getHierarchyTypeFromProject(project, projectAdditionalDetails);
         if (project.getAddress() != null) {
             localityCode = project.getAddress().getBoundary() != null ?
                     project.getAddress().getBoundary() :
@@ -78,25 +90,25 @@ public class ProjectTransformationService {
         } else {
             localityCode = null;
         }
-        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(localityCode, project.getTenantId(),hierarhyType);
+        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(localityCode, project.getTenantId(), hierarhyType);
 
-        Map<String, String> boundaryHierarchy = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchy() : null;
-        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchyCode() : null;
+        Map<String, String> boundaryHierarchy =  boundaryHierarchyResult.getBoundaryHierarchy();
+        Map<String, String> boundaryHierarchyCode =  boundaryHierarchyResult.getBoundaryHierarchyCode();
 
         String tenantId = project.getTenantId();
         String projectTypeId = project.getProjectTypeId();
-        List<Target> targets = project.getTargets();
-        Set<String> fieldsToCheck = new HashSet<>(Arrays.asList(
-                BENEFICIARY_TYPE,
-                TOTAL_NO_CHECK,
-                TARGET_NO_CHECK
-        ));
-        if (targets == null || targets.isEmpty()) {
+        if (CollectionUtils.isEmpty(project.getTargets())) {
             return Collections.emptyList();
         }
-        isValidTargetsAdditionalDetails(project, targets, FIELD_TARGET, fieldsToCheck, BENEFICIARY_TYPE);
+        // A new list rather than mutating project.getTargets(): appending to the payload's own list would
+        // duplicate targets on any re-transform of the same Project instance.
+        List<Target> targets = new ArrayList<>(project.getTargets());
 
-        JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(project);
+//        Commenting as we are not using it now
+//        targets.addAll(extraTargetsFromAdditionalDetails(projectAdditionalDetails, targets, FIELD_TARGET,
+//                TARGET_FIELDS_TO_CHECK, BENEFICIARY_TYPE));
+
+        JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(projectAdditionalDetails);
 
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(tenantId, projectTypeId);
 
@@ -109,31 +121,32 @@ public class ProjectTransformationService {
             campaignId = null;
         }
 
+        // Everything below is identical for every target of this project, so it is resolved once here
+        // instead of inside the loop. getProducts in particular was one MDMS call per target.
+        List<String> productVariants = projectService.getProducts(tenantId, projectTypeId, projectAdditionalDetails);
+        String productVariantName = String.join(COMMA, productService.getProductVariantNames(productVariants, tenantId));
+        String productVariant = CollectionUtils.isEmpty(productVariants) ? null : String.join(COMMA, productVariants);
+        Long startDate = project.getStartDate();
+        Long endDate = project.getEndDate();
+        List<String> taskDates = startDate == null || endDate == null
+                ? Collections.emptyList() : commonUtils.getProjectDatesList(startDate, endDate);
+        String targetNumberType = transformerProperties.getProjectTargetNumberType();
+        Integer campaignDurationInDays = null;
+        if (PROJECT_TARGET_NUMBER_TYPE_OVERALL.equals(targetNumberType) && startDate != null && endDate != null) {
+            campaignDurationInDays = (int) ((endDate - startDate) / DAY_MILLIS);
+        }
+        final Integer projectCampaignDurationInDays = campaignDurationInDays;
+
 
         return targets.stream().map(r -> {
-                    Long startDate = project.getStartDate();
-                    Long endDate = project.getEndDate();
                     Integer targetNo = r.getTargetNo();
-                    Integer campaignDurationInDays = null;
                     Integer targetPerDay = null;
-                    Long milliSecForOneDay = (long) (24 * 60 * 60 * 1000);
-                    if(transformerProperties.getProjectTargetNumberType().equals(PROJECT_TARGET_NUMBER_TYPE_PER_DAY)) {
+                    if (PROJECT_TARGET_NUMBER_TYPE_PER_DAY.equals(targetNumberType)) {
                         targetPerDay = targetNo;
-                    } else if (transformerProperties.getProjectTargetNumberType().equals(PROJECT_TARGET_NUMBER_TYPE_OVERALL)){
-                        if (startDate != null && endDate != null) {
-                            campaignDurationInDays = (int) ((endDate - startDate) / milliSecForOneDay);
-                            if (targetNo != null && campaignDurationInDays > 0) {
-                                targetPerDay = targetNo / campaignDurationInDays;
-                            }
-                        }
-                    }
-
-//                    TODO getProducts from projectAdditionalDetails instead of mdms projecttype
-                    List<String> productVariants = projectService.getProducts(tenantId, project.getProjectTypeId());
-                    String productVariantName = String.join(COMMA, productService.getProductVariantNames(productVariants, project.getTenantId()));
-                    String productVariant = null;
-                    if (productVariants != null && !productVariants.isEmpty()) {
-                        productVariant = String.join(COMMA, productVariants);
+                    } else if (PROJECT_TARGET_NUMBER_TYPE_OVERALL.equals(targetNumberType)
+                            && targetNo != null && projectCampaignDurationInDays != null
+                            && projectCampaignDurationInDays > 0) {
+                        targetPerDay = targetNo / projectCampaignDurationInDays;
                     }
                     if (r.getId() == null) {
                         r.setId(project.getId() + HYPHEN + r.getBeneficiaryType());
@@ -144,14 +157,14 @@ public class ProjectTransformationService {
                             .projectBeneficiaryType(projectBeneficiaryType)
                             .overallTarget(targetNo)
                             .targetPerDay(targetPerDay)
-                            .campaignDurationInDays(campaignDurationInDays)
-                            .startDate(project.getStartDate())
-                            .endDate(project.getEndDate())
+                            .campaignDurationInDays(projectCampaignDurationInDays)
+                            .startDate(startDate)
+                            .endDate(endDate)
                             .productVariant(productVariant)
                             .productName(productVariantName)
                             .targetType(r.getBeneficiaryType())
                             .tenantId(tenantId)
-                            .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
+                            .taskDates(taskDates)
                             .subProjectType(project.getProjectSubType())
                             .localityCode(localityCode)
                             .createdTime(project.getAuditDetails().getCreatedTime())
@@ -170,40 +183,44 @@ public class ProjectTransformationService {
         ).collect(Collectors.toList());
     }
 
-    private void isValidTargetsAdditionalDetails(Project project, List<Target> targets, String fieldTarget, Set<String> fieldsToCheck, String beneficiaryType) {
-        if (project.getAdditionalDetails() != null) {
-            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
-            Set<String> beneficiaryTypes = targets.stream().map(Target::getBeneficiaryType).collect(Collectors.toSet());
-            if (additionalDetails.hasNonNull(fieldTarget)) {
-                JsonNode targetArray = additionalDetails.get(fieldTarget);
-                if (targetArray.isArray() && !targetArray.isEmpty()) {
-                    targetArray.forEach(target -> {
-                        Iterator<String> fieldIterator = target.fieldNames();
-                        Iterable<String> iterable = () -> fieldIterator;
-                        Set<String> actualList = StreamSupport
-                                .stream(iterable.spliterator(), false)
-                                .collect(Collectors.toSet());
-                        if (actualList.containsAll(fieldsToCheck)) {
-                            if (!beneficiaryTypes.contains(target.get(beneficiaryType).asText())) {
-                                try {
-                                    targets.add(objectMapper.treeToValue(target, Target.class));
-
-                                } catch (JsonProcessingException e) {
-                                    log.error("target object : " + target + " could not be processed {}", ExceptionUtils.getStackTrace(e));
-                                    errorProducer.sendToErrorTopic(target, null, e);
-                                }
-                            }
-                        }
-                    });
-                }
+    /**
+     * Targets declared in additionalDetails that are not already among the project's own targets. Returns
+     * them instead of appending to the caller's list, so the incoming payload is never mutated.
+     */
+    private List<Target> extraTargetsFromAdditionalDetails(JsonNode projectAdditionalDetails, List<Target> targets,
+                                                           String fieldTarget, Set<String> fieldsToCheck,
+                                                           String beneficiaryType) {
+        List<Target> extraTargets = new ArrayList<>();
+        if (projectAdditionalDetails == null || !projectAdditionalDetails.hasNonNull(fieldTarget)) {
+            return extraTargets;
+        }
+        JsonNode targetArray = projectAdditionalDetails.get(fieldTarget);
+        if (!targetArray.isArray() || targetArray.isEmpty()) {
+            return extraTargets;
+        }
+        Set<String> beneficiaryTypes = targets.stream().map(Target::getBeneficiaryType).collect(Collectors.toSet());
+        for (JsonNode target : targetArray) {
+            Iterator<String> fieldIterator = target.fieldNames();
+            Iterable<String> iterable = () -> fieldIterator;
+            Set<String> actualFields = StreamSupport.stream(iterable.spliterator(), false).collect(Collectors.toSet());
+            if (!actualFields.containsAll(fieldsToCheck)
+                    || beneficiaryTypes.contains(target.get(beneficiaryType).asText())) {
+                continue;
+            }
+            try {
+                extraTargets.add(objectMapper.treeToValue(target, Target.class));
+            } catch (JsonProcessingException e) {
+                log.error("target object : " + target + " could not be processed {}", ExceptionUtils.getStackTrace(e));
+                errorProducer.sendToErrorTopic(target, null, e);
             }
         }
+        return extraTargets;
     }
 
     private BoundaryHierarchyResult getBoundaryHierarchyResult(String localityCode, String tenantId,String hierarhyType) {
         if (localityCode != null) {
             return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarhyType);
         }
-        return null;
+        return new BoundaryHierarchyResult();
     }
 }

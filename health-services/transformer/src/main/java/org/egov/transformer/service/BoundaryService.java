@@ -286,7 +286,6 @@ public class BoundaryService {
         String cachedName = boundaryCodeVsLocalizedName.get(boundaryCode);
 
         if (cachedName != null) {
-            log.info("Fetched localization for code: {} from cache", boundaryCode);
             return cachedName;
         }
 

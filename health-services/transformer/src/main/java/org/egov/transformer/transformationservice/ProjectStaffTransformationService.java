@@ -2,11 +2,11 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
+import org.egov.transformer.models.downstream.ProjectDetails;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.downstream.ProjectStaffIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.BoundaryService;
@@ -15,10 +15,11 @@ import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+
 
 import static org.egov.transformer.Constants.*;
 import static org.egov.transformer.Constants.CITY;
@@ -45,11 +46,27 @@ public class ProjectStaffTransformationService {
     }
 
     public void transform(List<ProjectStaff> projectStaffList) {
+        if (CollectionUtils.isEmpty(projectStaffList)) {
+            return;
+        }
         log.info("transforming for STAFF id's {}", projectStaffList.stream()
                 .map(ProjectStaff::getId).collect(Collectors.toList()));
+
+        String tenantId = projectStaffList.get(0).getTenantId();
+
+        Set<String> userIds = projectStaffList.stream().map(ProjectStaff::getUserId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        userService.preWarmUserInfo(userIds, tenantId);
+
+        Set<String> projectIds = projectStaffList.stream().map(ProjectStaff::getProjectId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        // Served from the short lived Redis cache where possible; only uncached projects are searched, and
+        // that same search warms the ProjectInfo cache the record loop below uses.
+        Map<String, ProjectDetails> projectDetailsById = projectService.getProjectDetails(projectIds, tenantId);
+
         String topic = transformerProperties.getTransformerProducerBulkProjectStaffIndexV1Topic();
         List<ProjectStaffIndexV1> projectStaffIndexV1List = projectStaffList.stream()
-                .map(this::transform)
+                .map(projectStaff -> transform(projectStaff, projectDetailsById))
                 .collect(Collectors.toList());
         log.info("transformation success for STAFF id's {}", projectStaffIndexV1List.stream()
                 .map(ProjectStaffIndexV1::getId)
@@ -57,30 +74,21 @@ public class ProjectStaffTransformationService {
         producer.push(topic, projectStaffIndexV1List);
     }
 
-    private ProjectStaffIndexV1 transform(ProjectStaff projectStaff) {
+    private ProjectStaffIndexV1 transform(ProjectStaff projectStaff, Map<String, ProjectDetails> projectDetailsById) {
         String tenantId = projectStaff.getTenantId();
         String projectId = projectStaff.getProjectId();
-        Project project = projectService.getProject(projectId, tenantId);
-        String projectTypeId = project.getProjectTypeId();
-        String localityCode;
-        if (project.getAddress() != null) {
-            localityCode = project.getAddress().getBoundary() != null ?
-                    project.getAddress().getBoundary() :
-                    project.getAddress().getLocality() != null ?
-                            project.getAddress().getLocality().getCode() :
-                            null;
-        } else {
-            localityCode = null;
-        }
-        String campaignId = null;
-        if (StringUtils.isNotBlank(project.getReferenceID())) {
-            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
-                    project.getTenantId(), true, project.getReferenceID()
-            );
-        }
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+        ProjectInfo projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
+        // EMPTY rather than null, so a project the search did not return cannot NPE the whole record.
+        ProjectDetails projectDetails = projectDetailsById.getOrDefault(projectId, ProjectDetails.EMPTY);
+        String localityCode = projectDetails.getLocalityCode();
+
+        // Resolving straight from the locality code skips the project lookup the by-project-id path does.
+        BoundaryHierarchyResult boundaryHierarchyResult = localityCode != null
+                ? boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId, projectInfo.getHierarchyType())
+                : boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
-        JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(project);
+        JsonNode additionalDetails = projectDetails.getAdditionalDetails();
         ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                 .id(projectStaff.getId())
                 .userId(projectStaff.getUserId())
@@ -88,7 +96,7 @@ public class ProjectStaffTransformationService {
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
-                .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
+                .taskDates(projectDetails.getTaskDates())
                 .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                 .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                 .additionalDetails(additionalDetails)
@@ -98,9 +106,7 @@ public class ProjectStaffTransformationService {
                 .isDeleted(projectStaff.getIsDeleted())
                 .additionalFields(projectStaff.getAdditionalFields())
                 .build();
-        projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName(), projectService.getHierarchyTypeFromProject(project));
-        projectStaffIndexV1.setCampaignNumber(project.getReferenceID());
-        projectStaffIndexV1.setCampaignId(campaignId);
+        projectStaffIndexV1.setProjectInfo(projectInfo);
         return projectStaffIndexV1;
     }
 }

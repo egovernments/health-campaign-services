@@ -17,6 +17,7 @@ import org.egov.common.models.project.*;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.models.downstream.ProjectDetails;
 import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.utils.CommonUtils;
@@ -26,6 +27,8 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
 
@@ -40,16 +43,19 @@ public class ProjectService {
     private final TransformerErrorProducer errorProducer;
     private final ProjectFactoryService projectFactoryService;
     private final CommonUtils commonUtils;
+    private final TransformerCacheService cacheService;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new ConcurrentHashMap<>();
     private static Map<String, ProjectInfo> projectIdVsProjectInfoCache = new ConcurrentHashMap<>();
     private static Map<String, String> userIdVsProjectIdCache = new ConcurrentHashMap<>();
     private static Map<String, ArrayNode> projectIdVsCycleInfoCache = new ConcurrentHashMap<>();
+    private static final Map<String, List<String>> projectTypeIdVsProductsCache = new ConcurrentHashMap<>();
 
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer, ProjectFactoryService projectFactoryService, CommonUtils commonUtils) {
+                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer, ProjectFactoryService projectFactoryService, CommonUtils commonUtils,
+                          TransformerCacheService cacheService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
@@ -57,6 +63,7 @@ public class ProjectService {
         this.errorProducer = errorProducer;
         this.projectFactoryService = projectFactoryService;
         this.commonUtils = commonUtils;
+        this.cacheService = cacheService;
     }
 
     public Project getProject(String projectId, String tenantId) {
@@ -133,7 +140,6 @@ public class ProjectService {
     public ProjectInfo getProjectInfoByProjectId(String projectId, String tenantId) {
         ProjectInfo cachedProjectInfo = projectIdVsProjectInfoCache.get(projectId);
         if (cachedProjectInfo != null) {
-            log.info("Fetched ProjectInfo from cache for project id: {}", projectId);
             if (cachedProjectInfo.getCampaignId() == null
                     && StringUtils.isNotBlank(cachedProjectInfo.getCampaignNumber())) {
                 cachedProjectInfo.setCampaignId(projectFactoryService.getCampaignIdFromCampaignNumber(
@@ -148,6 +154,12 @@ public class ProjectService {
             return new ProjectInfo();
         }
 
+        ProjectInfo projectInfo = buildProjectInfo(project, tenantId);
+        projectIdVsProjectInfoCache.put(projectId, projectInfo);
+        return projectInfo;
+    }
+
+    private ProjectInfo buildProjectInfo(Project project, String tenantId) {
         ProjectInfo projectInfo = new ProjectInfo();
         projectInfo.setProjectType(project.getProjectType());
         projectInfo.setProjectTypeId(project.getProjectTypeId());
@@ -159,13 +171,124 @@ public class ProjectService {
             projectInfo.setCampaignId(projectFactoryService.getCampaignIdFromCampaignNumber(
                     tenantId, true, project.getReferenceID()));
         }
-        projectIdVsProjectInfoCache.put(projectId, projectInfo);
         return projectInfo;
     }
 
-    public String getHierarchyTypeFromProject(Project project) {
+    /**
+     * Resolves the extra project fields an index needs beyond ProjectInfo, preferring the short lived Redis
+     * cache and searching only what is missing. A project is searched when either cache is cold - the Redis
+     * details cache, or the in-memory ProjectInfo cache that callers use per record - so one search covers
+     * both and neither is left half warm.
+     */
+    public Map<String, ProjectDetails> getProjectDetails(Collection<String> projectIds, String tenantId) {
+        if (CollectionUtils.isEmpty(projectIds)) {
+            return new HashMap<>();
+        }
+        Map<String, ProjectDetails> projectDetailsById =
+                cacheService.multiGet(projectIds, tenantId, PROJECT_DETAILS_CACHE_KEY_PREFIX, ProjectDetails.class);
+
+        Set<String> projectIdsToSearch = projectIds.stream()
+                .filter(projectId -> !projectDetailsById.containsKey(projectId)
+                        || !projectIdVsProjectInfoCache.containsKey(projectId))
+                .collect(Collectors.toSet());
+        if (projectIdsToSearch.isEmpty()) {
+            log.debug("Project details served entirely from cache for {} project ids", projectIds.size());
+            return projectDetailsById;
+        }
+
+        Map<String, Project> projects = fetchProjects(projectIdsToSearch, tenantId);
+        projects.forEach((projectId, project) -> {
+            if (!projectIdVsProjectInfoCache.containsKey(projectId)) {
+                projectIdVsProjectInfoCache.put(projectId, buildProjectInfo(project, tenantId));
+            }
+            if (!projectDetailsById.containsKey(projectId)) {
+                ProjectDetails projectDetails = buildProjectDetails(project);
+                projectDetailsById.put(projectId, projectDetails);
+                cacheService.put(PROJECT_DETAILS_CACHE_KEY_PREFIX + projectId, tenantId, projectDetails,
+                        transformerProperties.getProjectDetailsCacheTtlMinutes(), TimeUnit.MINUTES);
+            }
+        });
+
+        Set<String> notFoundProjectIds = projectIdsToSearch.stream()
+                .filter(projectId -> !projects.containsKey(projectId))
+                .collect(Collectors.toSet());
+        if (!notFoundProjectIds.isEmpty()) {
+            log.warn("Project search returned nothing for {} of {} searched project ids: {}",
+                    notFoundProjectIds.size(), projectIdsToSearch.size(), notFoundProjectIds);
+        }
+        return projectDetailsById;
+    }
+
+    private ProjectDetails buildProjectDetails(Project project) {
+        return ProjectDetails.builder()
+                .localityCode(resolveLocalityCode(project))
+                .additionalDetails(fetchProjectAdditionalDetails(project))
+                .taskDates(resolveTaskDates(project))
+                .build();
+    }
+
+    private String resolveLocalityCode(Project project) {
+        if (project.getAddress() == null) {
+            return null;
+        }
+        if (project.getAddress().getBoundary() != null) {
+            return project.getAddress().getBoundary();
+        }
+        return project.getAddress().getLocality() != null ? project.getAddress().getLocality().getCode() : null;
+    }
+
+    private List<String> resolveTaskDates(Project project) {
+        // getProjectDatesList unboxes both bounds into long, so a project without dates would NPE here and
+        // take the whole batch with it.
+        if (project.getStartDate() == null || project.getEndDate() == null) {
+            log.info("Project {} has no start or end date. Indexing with no task dates.", project.getId());
+            return Collections.emptyList();
+        }
+        return commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate());
+    }
+
+    /** Searches all the given project ids in a single call, keyed by project id. */
+    public Map<String, Project> fetchProjects(Collection<String> projectIds, String tenantId) {
+        if (CollectionUtils.isEmpty(projectIds)) {
+            return new HashMap<>();
+        }
+        ProjectRequest request = ProjectRequest.builder()
+                .requestInfo(RequestInfo.builder()
+                        .userInfo(User.builder().uuid("transformer-uuid").build())
+                        .build())
+                .projects(projectIds.stream()
+                        .map(projectId -> Project.builder().id(projectId).tenantId(tenantId).build())
+                        .collect(Collectors.toList()))
+                .build();
         try {
-            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            ProjectResponse response = serviceRequestClient.fetchResult(uri, request, ProjectResponse.class);
+            if (response == null || CollectionUtils.isEmpty(response.getProject())) {
+                log.info("Project search returned nothing for {} project ids", projectIds.size());
+                return new HashMap<>();
+            }
+            return response.getProject().stream()
+                    .filter(project -> project.getId() != null)
+                    .collect(Collectors.toMap(Project::getId, project -> project, (first, duplicate) -> first));
+        } catch (Exception e) {
+            log.error("error while bulk fetching projects for ids {}, Exception: {}", projectIds, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
+            return new HashMap<>();
+        }
+    }
+
+    public String getHierarchyTypeFromProject(Project project) {
+        return getHierarchyTypeFromProject(project, objectMapper.valueToTree(project.getAdditionalDetails()));
+    }
+
+    /** Overload for callers that already converted additionalDetails, so the tree is built once. */
+    public String getHierarchyTypeFromProject(Project project, JsonNode additionalDetails) {
+        try {
             if (additionalDetails != null && !additionalDetails.isMissingNode()
                     && additionalDetails.hasNonNull("hierarchyType")) {
                 String hierarchyType = additionalDetails.get("hierarchyType").asText(null);
@@ -313,7 +436,42 @@ public class ProjectService {
     }
 
 //    TODO getProducts from projectAdditionalDetails instead of mdms projectType
+    /**
+     * Product variant ids for a project, taken from its own additionalDetails when present and only falling
+     * back to MDMS otherwise. The project carries the same resources list MDMS would return, so reading it
+     * locally avoids a network call per project entirely.
+     */
+    public List<String> getProducts(String tenantId, String projectTypeId, JsonNode projectAdditionalDetails) {
+        List<String> productVariantIds = extractProductVariantIds(projectAdditionalDetails);
+        if (!productVariantIds.isEmpty()) {
+            return productVariantIds;
+        }
+        return getProducts(tenantId, projectTypeId);
+    }
+
+    private List<String> extractProductVariantIds(JsonNode projectAdditionalDetails) {
+        if (projectAdditionalDetails == null || !projectAdditionalDetails.hasNonNull(PROJECT_TYPE)) {
+            return Collections.emptyList();
+        }
+        JsonNode resources = projectAdditionalDetails.get(PROJECT_TYPE).get(RESOURCES);
+        if (resources == null || !resources.isArray()) {
+            return Collections.emptyList();
+        }
+        List<String> productVariantIds = new ArrayList<>();
+        for (JsonNode resource : resources) {
+            if (resource.hasNonNull(PRODUCT_VARIANT_ID)) {
+                productVariantIds.add(resource.get(PRODUCT_VARIANT_ID).asText());
+            }
+        }
+        return productVariantIds;
+    }
+
     public List<String> getProducts(String tenantId, String projectTypeId) {
+        String cacheKey = tenantId + "|" + projectTypeId;
+        List<String> cachedProducts = projectTypeIdVsProductsCache.get(cacheKey);
+        if (cachedProducts != null) {
+            return cachedProducts;
+        }
         String filter = "$[?(@.id == '" + projectTypeId + "')].resources.*.productVariantId";
 
         RequestInfo requestInfo = RequestInfo.builder()
@@ -323,8 +481,10 @@ public class ProjectService {
         JsonNode response = mdmsService.fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                 transformerProperties.getMdmsModule(), filter);
         JsonNode projectTypesNode = response.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
-        return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<String>>() {
+        List<String> products = objectMapper.convertValue(projectTypesNode, new TypeReference<List<String>>() {
         });
+        projectTypeIdVsProductsCache.put(cacheKey, products == null ? Collections.emptyList() : products);
+        return projectTypeIdVsProductsCache.get(cacheKey);
     }
 
     public String getProjectBeneficiaryType(String tenantId, String projectTypeId) {
@@ -358,7 +518,11 @@ public class ProjectService {
     }
 
     public JsonNode fetchProjectAdditionalDetails(Project project) {
-        JsonNode projectAdditionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+        return fetchProjectAdditionalDetails(objectMapper.valueToTree(project.getAdditionalDetails()));
+    }
+
+    /** Overload for callers that already converted additionalDetails, so the tree is built once. */
+    public JsonNode fetchProjectAdditionalDetails(JsonNode projectAdditionalDetails) {
         if (projectAdditionalDetails == null || projectAdditionalDetails.isEmpty() || !projectAdditionalDetails.has(PROJECT_TYPE)) {
             return null;
         }
