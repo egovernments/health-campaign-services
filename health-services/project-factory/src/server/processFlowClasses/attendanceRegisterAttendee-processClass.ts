@@ -54,14 +54,7 @@ export class TemplateClass {
         return typeof value === "string" && value.trim() !== "" ? (value as IndividualId) : null;
     }
 
-    /**
-     * Whether a stored de-enrolment date belongs to the row being written. The row key is
-     * serviceCode+username based, while the stamp names the register AND the individual, so both can
-     * move under a stable key: a register recreated under the same serviceCode, or a username HRMS now
-     * resolves to a different individual. Matched in full for that reason. Unknowable cases (this run
-     * resolved no identity, or the row was never stamped) count as belonging, so a transient HRMS or
-     * register-search failure cannot clear a date recorded elsewhere.
-     */
+    /** Both the register and the individual can move under a stable row key, so the stamp is matched in full. */
     static storedDateBelongsToIdentity(storedStamp: string, expectedIdentity: string | null): boolean {
         if (!expectedIdentity || storedStamp === "") return true;
         return storedStamp === expectedIdentity;
@@ -387,14 +380,8 @@ export class TemplateClass {
                 const uniqueIdAfterProcess = expectedIdentity
                     ?? (existingDataMap.get(uniqueIdentifier)?.uniqueIdAfterProcess ?? null);
 
-                // Stamp the de-enrolment date from the sheet directly. The attendance echo event can
-                // arrive before this row exists, so relying on it alone would lose console-driven
-                // de-enrolments. Falls back to the stored value so a re-upload cannot clear a date
-                // recorded from outside the console.
+                // The echo event can arrive before this row exists, so the sheet value is stamped directly
                 const deEnrolmentRaw = row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
-                // The row key is serviceCode-based, so a register deleted and recreated under the same
-                // serviceCode lands on the same row. Its stamp names the register the date belongs to:
-                // when that is a different register, the date is the dead one's and must not carry over.
                 const storedRow = existingDataMap.get(uniqueIdentifier);
                 const storedDenrollmentDate = TemplateClass.storedDateBelongsToIdentity(
                     String(storedRow?.uniqueIdAfterProcess ?? ""), expectedIdentity
@@ -415,8 +402,7 @@ export class TemplateClass {
                     campaignNumber,
                     type: "attendanceRegisterAttendee",
                     uniqueIdentifier,
-                    // The date rides inside data, and every write carries the merged value, so a
-                    // re-upload cannot drop a date recorded from outside the console.
+                    // Every write carries the merged date, so a re-upload cannot drop one recorded elsewhere
                     data: { ...dataToStore, [attendanceSyncDataKeys.denrollmentDate]: denrollmentDate },
                     status: dbStatus,
                     uniqueIdAfterProcess

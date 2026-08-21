@@ -696,7 +696,6 @@ describe("persisting the de-enrolment date for a recreated register", () => {
         ) => Promise<void>;
     };
 
-    // One row for a person whose stored row was written by whichever register the stamp names
     const persistWithStoredStamp = async (storedStamp: string) => {
         const uniqueIdentifier = "REG-001_USR-1_worker";
         await persistInternals.persistAttendeesToCampaignData(
@@ -735,8 +734,6 @@ describe("persisting the de-enrolment date for a recreated register", () => {
     });
 
     it("clears a date stamped for a different individual under the same register", async () => {
-        // The row key is username-based, so a username HRMS now resolves to another individual
-        // lands on the same row — that individual's date is not this one's.
         const data = await persistWithStoredStamp(`${CURRENT_UUID}_ind-other_worker`);
 
         expect(data._denrollmentDate).toBeNull();
