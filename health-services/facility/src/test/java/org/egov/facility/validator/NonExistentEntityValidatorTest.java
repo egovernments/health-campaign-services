@@ -1,8 +1,11 @@
 package org.egov.facility.validator;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
+import org.egov.common.models.household.Household;
 import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
 import org.egov.facility.helper.FacilityTestBuilder;
 import org.egov.facility.repository.FacilityRepository;
@@ -34,10 +37,10 @@ class NonExistentEntityValidatorTest {
     
     @Test
     @DisplayName("should add to error details map if entity not found")
-    void shouldAddToErrorDetailsMapIfEntityNotFound() {
+    void shouldAddToErrorDetailsMapIfEntityNotFound() throws InvalidTenantIdException {
         FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacilityId("some-id").withRequestInfo().build();
-        when(facilityRepository.findById(anyList(), anyString(), anyBoolean()))
-                .thenReturn(Collections.emptyList());
+        when(facilityRepository.findById(anyString(), anyList(), anyString(), anyBoolean()))
+                .thenReturn(SearchResponse.<Facility>builder().build());
 
         Map<Facility, List<Error>> errorDetailsMap = fNonExistentValidator.validate(request);
 
@@ -46,10 +49,12 @@ class NonExistentEntityValidatorTest {
 
     @Test
     @DisplayName("should not add to error details map if entity found")
-    void shouldNotAddToErrorDetailsMapIfEntityFound() {
+    void shouldNotAddToErrorDetailsMapIfEntityFound() throws InvalidTenantIdException {
         FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacilityId("some-id").withRequestInfo().build();
-        when(facilityRepository.findById(anyList(), anyString(), anyBoolean()))
-                .thenReturn(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build()));
+        when(facilityRepository.findById(anyString(), anyList(), anyString(), anyBoolean()))
+                .thenReturn(SearchResponse.<Facility>builder().
+                        response(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build()))
+                        .build());
 
         Map<Facility, List<Error>> errorDetailsMap = fNonExistentValidator.validate(request);
 

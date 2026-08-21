@@ -1,0 +1,39 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
+import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
+import { processTemplateConfigs } from "../config/processTemplateConfigs";
+import { enrichProcessTemplateConfig, generateResource, initializeGenerateAndGetResponse, initializeProcessAndGetResponse, processResource } from "../utils/sheetManageUtils";
+import config from "../config";
+import {GenerateTemplateQuery} from "../models/GenerateTemplateQuery";
+import { ResourceDetails } from "../config/models/resourceDetailsSchema";
+import { validateGenerateQuery, validateResourceDetails } from "../validators/campaignValidators";
+
+
+/** Validates the generate query and kicks off template generation for the given resource type, returning the tracking resource. */
+export async function generateDataService(generateRequestQuery: GenerateTemplateQuery, userUuid: string, locale : string = config.localisation.defaultLocale, requestInfo?: RequestInfo) {
+    let { type, tenantId, hierarchyType, campaignId } = generateRequestQuery;
+    await validateGenerateQuery(generateRequestQuery);
+    tenantId = String(tenantId);
+    type = String(type);
+    hierarchyType = String(hierarchyType);
+    campaignId = String(campaignId);
+    const generationTemplateConfig = JSON.parse(JSON.stringify(generationtTemplateConfigs?.[String(type)]));
+    const responseToSend = await initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, locale, requestInfo);
+    if (generateRequestQuery.registerId) {
+        responseToSend.additionalDetails = {
+            ...responseToSend.additionalDetails,
+            registerId: generateRequestQuery.registerId
+        };
+    }
+    generateResource(responseToSend, generationTemplateConfig);
+    return responseToSend;
+}
+
+/** Validates and processes an uploaded resource sheet through its type's process template, returning the tracking resource. */
+export async function processDataService(ResourceDetails : ResourceDetails, userUuid: string, locale : string = config.localisation.defaultLocale) {
+    await validateResourceDetails(ResourceDetails);
+    const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(ResourceDetails.type)]));
+    await enrichProcessTemplateConfig(ResourceDetails, processTemplateConfig);
+    const responseToSend = await initializeProcessAndGetResponse(ResourceDetails, userUuid, processTemplateConfig, locale);
+    processResource(responseToSend, processTemplateConfig);
+    return responseToSend;
+}

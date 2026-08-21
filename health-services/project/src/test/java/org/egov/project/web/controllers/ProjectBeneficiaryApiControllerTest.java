@@ -2,6 +2,7 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiaryRequest;
 import org.egov.common.models.project.BeneficiaryResponse;
@@ -16,8 +17,8 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.ProjectBeneficiarySearch;
+import org.egov.common.models.project.BeneficiarySearchRequest;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
@@ -216,7 +217,7 @@ public class ProjectBeneficiaryApiControllerTest {
     void shouldAcceptSearchRequestAndReturnProjectStaff() throws Exception {
 
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder().projectBeneficiary(
-                ProjectBeneficiarySearch.builder().projectId("12").build()
+                ProjectBeneficiarySearch.builder().projectId(Arrays.asList("12","11")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         when(projectBeneficiaryService.search(any(BeneficiarySearchRequest.class),
@@ -224,7 +225,7 @@ public class ProjectBeneficiaryApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProjectBeneficiaryTestBuilder.builder().withId().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(Arrays.asList(ProjectBeneficiaryTestBuilder.builder().withId().withAuditDetails().build())).build());
 
         final MvcResult result = mockMvc.perform(post(
                         "/beneficiary/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
@@ -245,7 +246,7 @@ public class ProjectBeneficiaryApiControllerTest {
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder().projectBeneficiary(
-                ProjectBeneficiarySearch.builder().projectId("12").build()
+                ProjectBeneficiarySearch.builder().projectId(Arrays.asList("12","11")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         when(projectBeneficiaryService.search(any(BeneficiarySearchRequest.class),
