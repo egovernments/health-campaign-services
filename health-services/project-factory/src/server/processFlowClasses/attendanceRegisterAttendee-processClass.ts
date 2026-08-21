@@ -46,15 +46,16 @@ function sheetTypeOf(sheetName: string): AttendeeSheetType {
  */
 export class TemplateClass {
     /**
-     * Whether a stored de-enrolment date belongs to the register being processed. The row key is
-     * serviceCode-based, so a register deleted and recreated under the same serviceCode lands on the
-     * same row; the stamp it was saved with names the register the date came from. Unknowable cases
-     * (this run resolved no register, or the row was never stamped) count as belonging, so a
-     * transient failure cannot clear a date recorded elsewhere.
+     * Whether a stored de-enrolment date belongs to the row being written. The row key is
+     * serviceCode+username based, while the stamp names the register AND the individual, so both can
+     * move under a stable key: a register recreated under the same serviceCode, or a username HRMS now
+     * resolves to a different individual. Matched in full for that reason. Unknowable cases (this run
+     * resolved no identity, or the row was never stamped) count as belonging, so a transient HRMS or
+     * register-search failure cannot clear a date recorded elsewhere.
      */
-    static storedDateBelongsToRegister(storedStamp: string, registerUuid: string): boolean {
-        if (!registerUuid || storedStamp === "") return true;
-        return storedStamp.startsWith(`${registerUuid}_`);
+    static storedDateBelongsToIdentity(storedStamp: string, expectedIdentity: string | null): boolean {
+        if (!expectedIdentity || storedStamp === "") return true;
+        return storedStamp === expectedIdentity;
     }
 
     static async process(
@@ -371,9 +372,11 @@ export class TemplateClass {
                 // Fall back to whatever is already stored: HRMS or the register search can fail
                 // transiently, and the persister overwrites this column unconditionally, so a blip
                 // would otherwise erase a good identity and break every later de-enrolment event.
-                const uniqueIdAfterProcess = registerUuid && individualId
+                const expectedIdentity = registerUuid && individualId
                     ? attendeeIdentity(registerUuid as AttendanceRegisterId, individualId as IndividualId, sheetType)
-                    : (existingDataMap.get(uniqueIdentifier)?.uniqueIdAfterProcess ?? null);
+                    : null;
+                const uniqueIdAfterProcess = expectedIdentity
+                    ?? (existingDataMap.get(uniqueIdentifier)?.uniqueIdAfterProcess ?? null);
 
                 // Stamp the de-enrolment date from the sheet directly. The attendance echo event can
                 // arrive before this row exists, so relying on it alone would lose console-driven
@@ -384,8 +387,8 @@ export class TemplateClass {
                 // serviceCode lands on the same row. Its stamp names the register the date belongs to:
                 // when that is a different register, the date is the dead one's and must not carry over.
                 const storedRow = existingDataMap.get(uniqueIdentifier);
-                const storedDenrollmentDate = TemplateClass.storedDateBelongsToRegister(
-                    String(storedRow?.uniqueIdAfterProcess ?? ""), String(registerUuid ?? "")
+                const storedDenrollmentDate = TemplateClass.storedDateBelongsToIdentity(
+                    String(storedRow?.uniqueIdAfterProcess ?? ""), expectedIdentity
                 ) ? (storedRow?.denrollmentDate ?? null) : null;
                 // Only a row that actually reached the attendance service may set this. A failed or
                 // skipped row keeps whatever is stored, so a date whose API call errored is not made

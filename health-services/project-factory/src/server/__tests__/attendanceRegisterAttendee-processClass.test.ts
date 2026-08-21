@@ -726,10 +726,18 @@ describe("persisting the de-enrolment date for a recreated register", () => {
         expect(data._denrollmentDate).toBeNull();
     });
 
-    it("keeps the date when the stored row belongs to this register", async () => {
+    it("keeps the date when the stored row belongs to this register and individual", async () => {
         const data = await persistWithStoredStamp(`${CURRENT_UUID}_ind-1_worker`);
 
         expect(data._denrollmentDate).toBe(OLD_DATE);
+    });
+
+    it("clears a date stamped for a different individual under the same register", async () => {
+        // The row key is username-based, so a username HRMS now resolves to another individual
+        // lands on the same row — that individual's date is not this one's.
+        const data = await persistWithStoredStamp(`${CURRENT_UUID}_ind-other_worker`);
+
+        expect(data._denrollmentDate).toBeNull();
     });
 
     it("keeps the date when the row was never stamped, so a blank cell cannot clear it", async () => {
