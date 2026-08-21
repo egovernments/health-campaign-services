@@ -150,10 +150,22 @@ const config = {
     staffSearchPageSize: process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE, 10) : 100,
 
     attendeePersistBatchSize: process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE, 10) : 100,
+    // Identities per de-enrolment UPDATE, so one bulk event cannot become a single huge statement
+    deEnrolmentUpdateBatchSize: process.env.ATTENDANCE_DEENROLMENT_UPDATE_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_DEENROLMENT_UPDATE_BATCH_SIZE, 10) : 100,
 
     registerPersistBatchSize: process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_PERSIST_BATCH_SIZE, 10) : 100,
 
     registerApiBatchSize: process.env.ATTENDANCE_REGISTER_API_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_API_BATCH_SIZE, 10) : 100,
+    // How long a claimed current-register refresh may run before another reader may take it over
+    sheetRefreshLeaseMs: process.env.ATTENDANCE_SHEET_REFRESH_LEASE_MS ? parseInt(process.env.ATTENDANCE_SHEET_REFRESH_LEASE_MS, 10) : 120000,
+    // How long a download may wait for a refresh already running elsewhere, so it is never handed a
+    // sheet that still lists a deleted register
+    sheetRefreshWaitMs: process.env.ATTENDANCE_SHEET_REFRESH_WAIT_MS ? parseInt(process.env.ATTENDANCE_SHEET_REFRESH_WAIT_MS, 10) : 15000,
+    sheetRefreshPollMs: process.env.ATTENDANCE_SHEET_REFRESH_POLL_MS ? parseInt(process.env.ATTENDANCE_SHEET_REFRESH_POLL_MS, 10) : 500,
+    // Attempts per sync group: the offset commits even when the handler throws, so a transient DB
+    // error has to be retried here or the deletion/de-enrolment is lost
+    syncGroupAttempts: process.env.ATTENDANCE_SYNC_GROUP_ATTEMPTS ? parseInt(process.env.ATTENDANCE_SYNC_GROUP_ATTEMPTS, 10) : 3,
+    syncGroupRetryDelayMs: process.env.ATTENDANCE_SYNC_GROUP_RETRY_DELAY_MS ? parseInt(process.env.ATTENDANCE_SYNC_GROUP_RETRY_DELAY_MS, 10) : 1000,
   },
       // HRMS configuration
     hrms: {
@@ -194,6 +206,12 @@ const config = {
     KAFKA_USER_CREATE_BATCH_TOPIC: process.env.KAFKA_USER_CREATE_BATCH_TOPIC || "hcm-user-create-batch",
     KAFKA_MAPPING_BATCH_TOPIC: process.env.KAFKA_MAPPING_BATCH_TOPIC || "hcm-mapping-batch",
     KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: process.env.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC || "hcm-campaign-mark-failed",
+    // Produced by the attendance service, so these must match ITS configured topic names, not ours.
+    // The health vertical suffixes them with "-health"; other environments prefix instead
+    // (e.g. "dev-update-attendee"), so every environment must set these explicitly.
+    KAFKA_ATTENDANCE_REGISTER_DELETE_TOPIC: process.env.KAFKA_ATTENDANCE_REGISTER_DELETE_TOPIC || "delete-attendance-health",
+    KAFKA_ATTENDANCE_ATTENDEE_UPDATE_TOPIC: process.env.KAFKA_ATTENDANCE_ATTENDEE_UPDATE_TOPIC || "update-attendee-health",
+    KAFKA_ATTENDANCE_STAFF_UPDATE_TOPIC: process.env.KAFKA_ATTENDANCE_STAFF_UPDATE_TOPIC || "update-staff-health",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
     KAFKA_NON_CENTRAL_INSTANCE_TOPICS: process.env.KAFKA_NON_CENTRAL_INSTANCE_TOPICS || "egov.core.notification.email",
     KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION: parseInt(process.env.KAFKA_CONSUMER_MAX_BYTES_PER_PARTITION || "5242880", 10) || 5242880,

@@ -377,3 +377,23 @@ export const getErrorCodes = (module: string, key: string): Error => {
         message: message
     }
 }
+
+/**
+ * Attendance sheet refresh state. Shared because the read path in resourceDetailsService decides
+ * whether a refresh runs at all, and attendanceSheetUtils writes it — the two must not drift.
+ */
+/**
+ * The de-enrolment date lives inside the row's own data rather than in a column: only attendees
+ * carry one, unlike isDeleted, which is the table's general soft-delete flag. It is an internal
+ * key, so every path that emits a sheet strips it like the other _-prefixed fields.
+ */
+export const attendanceSyncDataKeys = {
+  denrollmentDate: "_denrollmentDate",
+} as const;
+
+export const attendanceSheetRefresh = {
+    additionalDetailsKey: "attendanceRefresh",
+    statePending: "pending",
+    stateInProgress: "inProgress",
+    resourceTypes: ["attendanceRegister", "attendanceRegisterAttendee"],
+};

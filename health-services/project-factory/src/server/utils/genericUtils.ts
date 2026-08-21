@@ -13,6 +13,8 @@ import { executeQuery, getTableName } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
 import { getProcessNamesForResourceTypes } from "../config/resourceTypeRegistry";
+import { CampaignDataApiRow, CampaignDataRow } from "../config/models/campaignDataRow";
+import { attendanceSyncDataKeys } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -1384,8 +1386,11 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
 
 
 /** Reads campaign-data rows for a type/campaign (optionally filtered by status and uniqueIdentifier), mapped to camelCase. */
-export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string) {
+export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string): Promise<CampaignDataRow[]> {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+  // Removed rows are returned here on purpose: callers use this to decide insert-vs-update, and the
+  // persister has no upsert, so hiding a row that physically exists routes it to a duplicate insert.
+  // Download paths filter on the isDeleted / denrollmentDate fields returned below.
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
   if(status) queryString += ` AND status = $3`;
   const arrayStatements = [type, campaignNumber];
@@ -1394,7 +1399,7 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
   if(uniqueIdentifier) arrayStatements.push(uniqueIdentifier);
   let relatedData = await executeQuery(queryString, arrayStatements);
   if(!relatedData?.rows) return [];
-  let rows = [];
+  const rows: CampaignDataRow[] = [];
   for(let i = 0; i < relatedData?.rows?.length; i++) {
     rows.push({
       campaignNumber : relatedData?.rows[i]?.campaignnumber,
@@ -1402,10 +1407,21 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
       data : relatedData?.rows[i]?.data,
       uniqueIdentifier : relatedData?.rows[i]?.uniqueidentifier,
       status : relatedData?.rows[i]?.status,
-      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess
+      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess,
+      isDeleted : relatedData?.rows[i]?.isdeleted === true,
+      denrollmentDate : attendanceSyncedDate(relatedData?.rows[i]?.data)
     })
   }
   return rows;
+}
+
+/** The synced de-enrolment date as a number: JSONB may carry it as either a number or a string. */
+function attendanceSyncedDate(data: unknown): number | null {
+  if (typeof data !== "object" || data === null) return null;
+  const stored = (data as Record<string, unknown>)[attendanceSyncDataKeys.denrollmentDate];
+  if (stored == null || stored === "") return null;
+  const asNumber = Number(stored);
+  return Number.isFinite(asNumber) ? asNumber : null;
 }
 
 /** Hard-deletes failed/invalid campaign-data rows before re-validation so a retry starts from a clean slate. */
@@ -1795,7 +1811,7 @@ export async function searchCampaignData(searchParams: {
   const totalCount = parseInt(countResult?.rows?.[0]?.count || '0');
 
   // Transform results
-  const rows = dataResult?.rows?.map((row: any) => ({
+  const rows: CampaignDataApiRow[] = dataResult?.rows?.map((row: any) => ({
     id: row?.id,
     campaignNumber: row?.campaignnumber,
     type: row?.type,
@@ -1803,6 +1819,10 @@ export async function searchCampaignData(searchParams: {
     uniqueIdentifier: row?.uniqueidentifier,
     status: row?.status,
     uniqueIdAfterProcess: row?.uniqueidafterprocess,
+    // isDeleted is the table's own soft-delete column; the de-enrolment date lives inside data,
+    // since only attendees have one — surfaced here as a field either way.
+    isDeleted: row?.isdeleted === true,
+    denrollmentDate: attendanceSyncedDate(row?.data),
     createdBy: row?.createdby,
     createdTime: row?.createdtime,
     lastModifiedBy: row?.lastmodifiedby,

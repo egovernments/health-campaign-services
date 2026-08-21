@@ -528,7 +528,7 @@ class ImmutableJoinServiceTest {
 
             ProcessResource attendee = ProcessResource.builder()
                     .tenantId(TENANT).type("attendanceRegisterAttendee-validation")
-                    .referenceId(REF).referenceType(ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER)
+                    .referenceId(REF).referenceType("attendanceRegister")
                     .fileStoreId(UPLOAD_FS).build();
 
             Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED");
@@ -554,7 +554,7 @@ class ImmutableJoinServiceTest {
 
             ProcessResource cloned = ProcessResource.builder()
                     .tenantId(TENANT).type(TYPE).referenceId("campaign-2")
-                    .referenceType(ProcessingConstants.REFERENCE_TYPE_CAMPAIGN).fileStoreId(UPLOAD_FS).build();
+                    .referenceType("campaign").fileStoreId(UPLOAD_FS).build();
 
             Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED");
             Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name");

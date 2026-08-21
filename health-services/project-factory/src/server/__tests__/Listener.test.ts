@@ -61,6 +61,9 @@ jest.mock('../config', () => {
         KAFKA_USER_CREATE_BATCH_TOPIC: 'hcm-user-create-batch',
         KAFKA_MAPPING_BATCH_TOPIC: 'hcm-mapping-batch',
         KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: 'hcm-campaign-mark-failed',
+        KAFKA_ATTENDANCE_REGISTER_DELETE_TOPIC: 'delete-attendance-health',
+        KAFKA_ATTENDANCE_ATTENDEE_UPDATE_TOPIC: 'update-attendee-health',
+        KAFKA_ATTENDANCE_STAFF_UPDATE_TOPIC: 'update-staff-health',
         KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC: 'save-project-campaign-details',
         KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC: 'update-project-campaign-details',
         KAFKA_NON_CENTRAL_INSTANCE_TOPICS: '',
@@ -111,6 +114,13 @@ jest.mock('../utils/facilityBatchHandler', () => ({ handleFacilityBatch: mockHan
 jest.mock('../utils/userBatchHandler', () => ({ handleUserBatch: mockHandleUserBatch }));
 jest.mock('../utils/mappingBatchHandler', () => ({ handleMappingBatch: mockHandleMappingBatch }));
 jest.mock('../utils/campaignFailureHandler', () => ({ handleCampaignFailure: mockHandleCampaignFailure }));
+// The attendance sync handlers touch the DB, whose pool is built at module load from a config this
+// suite stubs — mocked here so importing the listener does not open a connection.
+jest.mock('../utils/attendanceSyncUtils', () => ({
+    handleAttendanceRegisterDelete: jest.fn(),
+    handleAttendanceAttendeeDeEnrolment: jest.fn(),
+    handleAttendanceStaffDeEnrolment: jest.fn(),
+}));
 
 import config from '../config';
 import { logger } from '../utils/logger';
@@ -165,8 +175,11 @@ describe('Kafka Listener', () => {
       expect(subscribedTopics).toContain('hcm-user-create-batch');
       expect(subscribedTopics).toContain('hcm-mapping-batch');
       expect(subscribedTopics).toContain('hcm-campaign-mark-failed');
+      expect(subscribedTopics).toContain('delete-attendance-health');
+      expect(subscribedTopics).toContain('update-attendee-health');
+      expect(subscribedTopics).toContain('update-staff-health');
       expect(subscribedTopics).toContain('test-topic-project-factory');
-      expect(subscribedTopics).toHaveLength(8);
+      expect(subscribedTopics).toHaveLength(11);
       subscribedTopics.forEach((t: any) => expect(typeof t).toBe('string'));
     });
 
@@ -176,7 +189,7 @@ describe('Kafka Listener', () => {
 
       const subscribedTopics = mockSubscribe.mock.calls.map((c: any[]) => c[0].topic);
 
-      expect(subscribedTopics).toHaveLength(8);
+      expect(subscribedTopics).toHaveLength(11);
       subscribedTopics.forEach((t: any) => expect(t).toBeInstanceOf(RegExp));
 
       const mappingBatchRegex = subscribedTopics.find((t: any) =>

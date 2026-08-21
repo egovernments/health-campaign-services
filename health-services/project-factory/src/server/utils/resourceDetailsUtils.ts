@@ -1,6 +1,6 @@
 import config from "../config";
 import { executeQuery, getTableName } from "./db";
-import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
+import { ResourceDetailsCriteria, ResourceDetailsSearchCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
 import { ResourceDetailsResponse } from "../config/models/resourceTypes";
 import { resourceStatuses } from "../config/constants";
 
@@ -50,7 +50,7 @@ export function toResourceDetailsResponse(row: ResourceDetailRow): ResourceDetai
 }
 
 export async function searchResourceDetailsFromDB(
-  criteria: ResourceDetailsCriteria,
+  criteria: ResourceDetailsSearchCriteria,
   pagination?: Pagination
 ): Promise<ResourceDetailRow[]> {
   const { tenantId, campaignId, campaignIds, type, ids, parentResourceId, status, isActive, excludeTypes } = criteria;
