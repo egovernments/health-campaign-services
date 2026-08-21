@@ -76,7 +76,7 @@ public class ProjectTaskTransformationService {
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
         log.info("transformation success for TASK id's {}", projectTaskIndexV1List.stream()
-                .map(ProjectTaskIndexV1::getId)
+                .map(ProjectTaskIndexV1::getTaskId)
                 .collect(Collectors.toList()));
         producer.push(topic, projectTaskIndexV1List);
     }
@@ -114,7 +114,7 @@ public class ProjectTaskTransformationService {
 
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
         if (hasIndividualOrHousehold) {
-            log.info("Fetching BeneficiaryInfo from task addFields");
+            log.debug("Fetching BeneficiaryInfo from task addFields");
             List<Field> fields = taskAdditionalFields.getFields();
             if (fields != null) {
                 fields.forEach(field -> {
@@ -148,8 +148,9 @@ public class ProjectTaskTransformationService {
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType,
                                                                Map<String, String> userInfoMap, String localityCode, ProjectInfo projectInfo) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
-        List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
-        String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
+        String productVariantId = taskResource.getProductVariantId();
+        String productName = productVariantId == null ? null
+                : String.join(COMMA, productService.getProductVariantNames(Collections.singletonList(productVariantId), tenantId));
         String projectTypeId = projectInfo.getProjectTypeId();
 
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()

@@ -100,8 +100,6 @@ public class TransformerCacheService {
         Object value = redisTemplate.opsForValue().get(finalKey);
         if (ObjectUtils.isEmpty(value)) {
             log.info("Cache miss for key {}", finalKey);
-        } else {
-            log.info("Cache hit for key {}", finalKey);
         }
         try {
             return clazz.cast(value);
