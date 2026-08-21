@@ -91,8 +91,9 @@ All tenants share one DB schema (`config.DB_CONFIG.DB_SCHEMA`) and unprefixed Ka
 - Always use `kafkaTopicUtils.ts` for produce/subscribe — never build topic names inline.
 - Always use `getTableName(config.DB_CONFIG.DB_*_TABLE_NAME, tenantId)` — never inline schema strings.
 - `tenantId` must be typed as `TenantId` (branded) and passed explicitly — never read from module-level state.
-- **`CENTRAL_INSTANCE_TENANT_IDS`** (comma-separated, e.g. `ba,oy,ko`) is the single source of truth for central-instance Kafka: it drives both startup topic creation (`getStartupTopicsToCreate`) and the consumer subscription regex (`getEffectiveConsumerPrefix`), so the two can never drift. Parsing trims whitespace and ignores empty/extra commas.
+- **`CENTRAL_INSTANCE_TENANT_IDS`** (comma-separated, e.g. `ba,oy,ko`) drives the consumer subscription regex (`getEffectiveConsumerPrefix`). Parsing trims whitespace and ignores empty/extra commas.
 - `KAFKA_CONSUMER_TOPIC_PREFIX` is an explicit override of the derived regex (back-compat); when set it wins over `CENTRAL_INSTANCE_TENANT_IDS`. Startup fails fast if central instance is on and neither is set.
+- **Topic creation follows whichever of the two the consumer actually subscribes with** (`getStartupTenantIds`): an explicit prefix is read back into its tenant ids (`(ba|ke)-` → `ba,ke`) and used for creation, so the created topics can never be ones the regex will not match — a KafkaJS regex subscription only matches topics that exist at subscribe time, and a mismatch leaves every handler idle with no error anywhere. Startup also fails fast when the prefix cannot be expanded into tenant ids and no tenant list is set.
 
 ---
 
@@ -287,6 +288,49 @@ All five steps required atomically in one PR:
 5. `generateFlowClasses/<type>-generateClass.ts` → if template generation needed
 
 Never change existing phase numbers or `dependsOn` chains.
+
+### Attendance sync state is a cross-service contract
+
+Attendance sync state is split by how general it is: **`campaign_data.isDeleted` is a column** — the table's soft-delete flag, meaningful to any resource type — while **the de-enrolment date lives inside `campaign_data.data`** under `attendanceSyncDataKeys.denrollmentDate` (`_denrollmentDate`), because only attendees ever have one. `getRelatedDataWithCampaign` and `searchCampaignData` surface both as row-level `isDeleted` / `denrollmentDate`, so no reader knows where either is stored; the sheet paths strip `_denrollmentDate` like the other `_`-prefixed fields. Because the persister replaces `data` wholesale on every upload, **each attendee persist must carry the merged date** (sheet value, else stored value) — `attendanceRegisterAttendee-processClass` does, and that is what stops a re-upload from dropping a date recorded outside the console. Both are written by the attendance consumers in `attendanceSyncUtils.ts` and read back on every path that emits an attendance sheet: the generate classes, the process classes' output file (`buildOutputData` drops deleted registers, `toOutputRow` surfaces the synced de-enrolment date) and the on-read refresh in `attendanceSheetUtils.ts`. They are also part of `data/campaign/_search`'s response shape (`searchCampaignData`) — `denrollmentDate` is BIGINT, which node-postgres returns as a string, so both readers coerce it to a number. Sheet dates use `formatEpochAsSheetDate` (`attendanceIdentityUtils.ts`) in `config.appTimezone`, not the pod's zone.
+
+**Attendance templates deliberately carry no enrolment state.** The generated template is for adding people; pre-filling dates locks those cells under the immutable-baseline join, so state belongs in the "current …" files only. Nothing invalidates a template when enrolments change, and that is intentional.
+
+Every campaign_data reader returns one shape — `CampaignDataRow` (`config/models/campaignDataRow.ts`), plus `CampaignDataApiRow` for `data/campaign/_search`. Add a field there rather than re-mapping columns per caller.
+
+**A register re-created under a deleted register's serviceCode must not inherit its attendees.** `attendanceRegisterAttendee-generateClass.storedRowsForRegister` keeps rows stamped with the current register UUID, and trusts unstamped rows only while nothing for that serviceCode is stamped (campaigns older than the stamp still generate). The stamp itself is `attendeeIdentity` (`attendanceIdentityUtils.ts`), which also owns the `worker`/`marker`/`approver` slugs — the upload path writes them and the de-enrolment consumer rebuilds them, so they live in one place.
+
+The Kafka handlers retry each group `config.attendanceRegister.syncGroupAttempts` times: `processMessageKJS` swallows a handler error and `eachMessage` then returns normally, so the offset commits and the event is never redelivered — a transient DB error would otherwise lose that deletion outright. Both updates are idempotent, so a repeat is safe.
+
+### Deploy order for the attendance sync
+
+`campaign_data.isDeleted` is referenced by the **shared** sheet-data persister maps
+(`configs/health/egov-persister/project-factory-persister.yml`, `save-sheet-data` / `update-sheet-data`,
+both `isTransaction: true`), which every resource type writes through. Order is therefore mandatory:
+
+1. **DB migration** (`V20260820140000` — adds `isDeleted`, creates the partial index)
+2. **persister config reload**
+3. **service pods**
+
+Get it wrong and the failure is not attendance-scoped: a persister that references `isdeleted` before
+the column exists raises `42703` and rolls back the whole batch, so boundary, user, facility and target
+uploads fail alongside attendance. In the other direction — new pods against an old config — the field
+is silently dropped and the feature is simply inert, with no error anywhere.
+
+The persister config is branch-specific per environment, so confirm which branch each cluster renders
+from before rolling; an environment fed from a branch without the change runs the new service against
+the old mapping.
+
+### Current-register file is refreshed on read, never on the Kafka path
+
+The console downloads the current register list from `resource_details.processedFileStoreId` — a snapshot of `campaign_data` written when the file was last uploaded, so a register deleted afterwards would keep appearing. `attendanceSheetUtils.ts` fixes that on demand:
+
+- the delete handler only **marks** it (`additionalDetails.attendanceRefresh = {state: pending}`); no filestore or workbook work runs on a Kafka listener thread
+- `searchResourceDetails` completes the work when a marked row is read, and returns the new `processedFileStoreId` in that same response, so a download is never handed a sheet listing a deleted register
+- one worker per file: the claim moves `pending → inProgress{at}` in a single conditional UPDATE, and an `inProgress` older than `sheetRefreshLeaseMs` may be taken over, so a crash cannot strand the marker
+- a reader that loses the claim waits for the winner, then **withholds** the file rather than serving a stale one. `sheetRefreshWaitMs` is one budget for the whole response, shared by every owed row, so several stale files cannot add up to a very slow search
+- the marker lives in `additionalDetails`, never in `status`: `hasAnyCreatingResource` treats `creating` as "campaign busy" and would block unrelated add/update operations
+- rows are rewritten in place (values moved up, leftovers blanked) rather than spliced, because this path does not reload the schema to re-apply per-row validations
+- each owed row logs `refresh outcome resource=… outcome=… durationMs=…` (`refreshed`, `refreshedElsewhere`, `alreadyCorrect`, `nothingToRefresh`, `stillRunning`, `waitedOut`, `failed`) — this work sits inside a search, so the withheld rate and the latency it adds have to be visible without a metrics stack
 
 ### Shared-across-family resource resolution
 

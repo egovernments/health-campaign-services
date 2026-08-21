@@ -21,13 +21,16 @@ export async function startFacilityMapping(campaignDetails: any, useruuid: strin
     const boundaryData = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const boundaryToProjectId: Record<string, string> = {};
     boundaryData.forEach(row => {
-        boundaryToProjectId[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
+        // Unstamped means no project was created for that boundary, which the mapping guard below rejects
+        if (!row?.uniqueIdAfterProcess) return;
+        boundaryToProjectId[row.uniqueIdentifier] = row.uniqueIdAfterProcess;
     });
 
     const facilityData = await getRelatedDataWithCampaign("facility", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const facilityMap: Record<string, string> = {};
     facilityData.forEach(row => {
-        facilityMap[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
+        if (!row?.uniqueIdAfterProcess) return;
+        facilityMap[row.uniqueIdentifier] = row.uniqueIdAfterProcess;
     });
 
     const startDate = campaignDetails.startDate;
@@ -74,13 +77,16 @@ export async function startFacilityDemapping(campaignDetails: any, useruuid: str
     const boundaryData = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const boundaryToProjectId: Record<string, string> = {};
     boundaryData.forEach(row => {
-        boundaryToProjectId[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
+        // Unstamped means no project was created for that boundary, which the mapping guard below rejects
+        if (!row?.uniqueIdAfterProcess) return;
+        boundaryToProjectId[row.uniqueIdentifier] = row.uniqueIdAfterProcess;
     });
 
     const facilityData = await getRelatedDataWithCampaign("facility", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const facilityMap: Record<string, string> = {};
     facilityData.forEach(row => {
-        facilityMap[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
+        if (!row?.uniqueIdAfterProcess) return;
+        facilityMap[row.uniqueIdentifier] = row.uniqueIdAfterProcess;
     });
 
     const RequestInfo = requestInfo;
