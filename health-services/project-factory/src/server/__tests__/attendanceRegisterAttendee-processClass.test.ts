@@ -687,12 +687,12 @@ describe("persisting the de-enrolment date for a recreated register", () => {
 
     const persistInternals = TemplateClass as unknown as {
         persistAttendeesToCampaignData: (
-            sheetRows: Map<string, unknown[]>,
+            sheetRows: Map<string, Record<string, unknown>[]>,
             existingDataMap: Map<string, Partial<CampaignDataRow>>,
             campaignNumber: string,
             tenantId: string,
             usernameToIndividualId: Map<string, string>,
-            registerDataMap: Map<string, unknown>
+            registerDataMap: Map<string, { register?: { id?: unknown } }>
         ) => Promise<void>;
     };
 
@@ -714,8 +714,10 @@ describe("persisting the de-enrolment date for a recreated register", () => {
             new Map([["USR-1", "ind-1"]]),
             new Map([["REG-001", { register: { id: CURRENT_UUID } }]])
         );
-        const pushed = jest.mocked(produceModifiedMessages).mock.calls.at(-1)?.[0] as any;
-        return pushed?.datas?.[0]?.data;
+        const pushed = jest.mocked(produceModifiedMessages).mock.calls.at(-1)?.[0] as {
+            datas?: Array<{ data?: Record<string, unknown> }>;
+        };
+        return pushed?.datas?.[0]?.data ?? {};
     };
 
     afterEach(() => jest.clearAllMocks());

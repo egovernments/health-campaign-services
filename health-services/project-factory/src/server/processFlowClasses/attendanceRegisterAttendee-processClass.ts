@@ -1,11 +1,11 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
-import { SheetMap } from "../models/SheetMap";
+import { SheetMap, SheetRow } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { sheetDataRowStatuses, dataRowStatuses } from "../config/constants";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { attendeeIdentity, attendeeSheetTypes, AttendeeSheetType } from "../utils/attendanceIdentityUtils";
-import { AttendanceRegisterId, IndividualId } from "../config/models/brandedTypes";
+import { AttendanceRegisterId, CampaignNumber, IndividualId, TenantId } from "../config/models/brandedTypes";
 import { CampaignDataRow } from "../config/models/campaignDataRow";
 import { attendanceSyncDataKeys } from "../config/constants";
 import { httpRequest } from "../utils/request";
@@ -45,6 +45,15 @@ function sheetTypeOf(sheetName: string): AttendeeSheetType {
  * `${registerServiceCode}_${username}_${sheetType}` and re-fetches to build SheetMap.
  */
 export class TemplateClass {
+    /** The register search and HRMS return unvalidated shapes, so an id is branded only once checked. */
+    private static asRegisterId(value: unknown): AttendanceRegisterId | null {
+        return typeof value === "string" && value.trim() !== "" ? (value as AttendanceRegisterId) : null;
+    }
+
+    private static asIndividualId(value: unknown): IndividualId | null {
+        return typeof value === "string" && value.trim() !== "" ? (value as IndividualId) : null;
+    }
+
     /**
      * Whether a stored de-enrolment date belongs to the row being written. The row key is
      * serviceCode+username based, while the stamp names the register AND the individual, so both can
@@ -289,7 +298,7 @@ export class TemplateClass {
      * One processed-file row from a stored attendee row: internal fields stripped, and the synced
      * de-enrolment date surfaced so a removal done outside the console is visible here too.
      */
-    private static toOutputRow(storedRow: any): any {
+    private static toOutputRow(storedRow: CampaignDataRow): SheetRow {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _registerServiceCode, _sheetName, _denrollmentDate, ...outputRow } = storedRow.data;
         if (storedRow.denrollmentDate != null) {
@@ -333,12 +342,12 @@ export class TemplateClass {
      * - EXISTING rows → KAFKA_UPDATE_SHEET_DATA_TOPIC
      */
     private static async persistAttendeesToCampaignData(
-        sheetRows: Map<string, any[]>,
+        sheetRows: Map<string, Record<string, unknown>[]>,
         existingDataMap: Map<string, CampaignDataRow>,
-        campaignNumber: string,
-        tenantId: string,
+        campaignNumber: CampaignNumber,
+        tenantId: TenantId,
         usernameToIndividualId: Map<string, string>,
-        registerDataMap: Map<string, any>
+        registerDataMap: Map<string, { register?: { id?: unknown } }>
     ): Promise<void> {
         const toSave: any[] = [];
         const toUpdate: any[] = [];
@@ -367,13 +376,13 @@ export class TemplateClass {
 
                 // Stamp the attendance-side identity so de-enrolment events, which carry only UUIDs,
                 // can resolve back to this row. Null when the register or individual is unresolved.
-                const registerUuid = registerDataMap.get(registerServiceCode)?.register?.id;
-                const individualId = usernameToIndividualId.get(username);
+                const registerUuid = this.asRegisterId(registerDataMap.get(registerServiceCode)?.register?.id);
+                const individualId = this.asIndividualId(usernameToIndividualId.get(username));
                 // Fall back to whatever is already stored: HRMS or the register search can fail
                 // transiently, and the persister overwrites this column unconditionally, so a blip
                 // would otherwise erase a good identity and break every later de-enrolment event.
                 const expectedIdentity = registerUuid && individualId
-                    ? attendeeIdentity(registerUuid as AttendanceRegisterId, individualId as IndividualId, sheetType)
+                    ? attendeeIdentity(registerUuid, individualId, sheetType)
                     : null;
                 const uniqueIdAfterProcess = expectedIdentity
                     ?? (existingDataMap.get(uniqueIdentifier)?.uniqueIdAfterProcess ?? null);
