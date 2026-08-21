@@ -14,9 +14,9 @@ jest.mock('../config', () => ({
     default: {
         host: {},
         paths: {},
-        kafka: {},
+        kafka: { KAFKA_SAVE_SHEET_DATA_TOPIC: 'save-sheet-data', KAFKA_UPDATE_SHEET_DATA_TOPIC: 'update-sheet-data' },
         hrms: { hrmsParallelSearchLimit: 5 },
-        attendanceRegister: { serviceCodeParallelSearchLimit: 5, batchSize: 50 },
+        attendanceRegister: { serviceCodeParallelSearchLimit: 5, batchSize: 50, attendeePersistBatchSize: 100 },
         get appTimezone() { return mockServerTimezone.value; },
     },
     __esModule: true,
@@ -58,6 +58,8 @@ jest.mock('../service/campaignManageService', () => ({
 
 import { sheetDataRowStatuses } from "../config/constants";
 import { TemplateClass } from "../processFlowClasses/attendanceRegisterAttendee-processClass";
+import { CampaignDataRow } from "../config/models/campaignDataRow";
+import { produceModifiedMessages } from "../kafka/Producer";
 
 const ENROLLMENT_EPOCH = 1700000000000;   // 2023-11-14
 const DEENROLLMENT_EPOCH = 1700100000000; // ~2023-11-15
@@ -678,22 +680,62 @@ describe("parseDateEndOfDay", () => {
 
 // ─── Processed-file output ───────────────────────────────────────────────────
 
-describe("storedDateBelongsToRegister", () => {
-    // The row key is serviceCode-based, so a recreated register lands on the dead register's row
-    it("rejects a date stamped by a different register", () => {
-        expect(TemplateClass.storedDateBelongsToRegister("reg-old_ind-1_worker", "reg-new")).toBe(false);
+describe("persisting the de-enrolment date for a recreated register", () => {
+    const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
+    const CURRENT_UUID = "reg-new";
+    const OLD_DATE = 1786579200000;
+
+    const persistInternals = TemplateClass as unknown as {
+        persistAttendeesToCampaignData: (
+            sheetRows: Map<string, unknown[]>,
+            existingDataMap: Map<string, Partial<CampaignDataRow>>,
+            campaignNumber: string,
+            tenantId: string,
+            usernameToIndividualId: Map<string, string>,
+            registerDataMap: Map<string, unknown>
+        ) => Promise<void>;
+    };
+
+    // One row for a person whose stored row was written by whichever register the stamp names
+    const persistWithStoredStamp = async (storedStamp: string) => {
+        const uniqueIdentifier = "REG-001_USR-1_worker";
+        await persistInternals.persistAttendeesToCampaignData(
+            new Map([[WORKER_SHEET, [{
+                UserName: "USR-1",
+                HCM_ATTENDANCE_REGISTER_ID: "REG-001",
+                "#status#": sheetDataRowStatuses.CREATED,
+            }]]]),
+            new Map([[uniqueIdentifier, {
+                uniqueIdAfterProcess: storedStamp,
+                denrollmentDate: OLD_DATE,
+            }]]),
+            "CMP-1",
+            "dev",
+            new Map([["USR-1", "ind-1"]]),
+            new Map([["REG-001", { register: { id: CURRENT_UUID } }]])
+        );
+        const pushed = jest.mocked(produceModifiedMessages).mock.calls.at(-1)?.[0] as any;
+        return pushed?.datas?.[0]?.data;
+    };
+
+    afterEach(() => jest.clearAllMocks());
+
+    it("clears a date stamped by the register that used this serviceCode before", async () => {
+        const data = await persistWithStoredStamp("reg-old_ind-1_worker");
+
+        expect(data._denrollmentDate).toBeNull();
     });
 
-    it("accepts its own date, so a blank cell cannot clear a synced one", () => {
-        expect(TemplateClass.storedDateBelongsToRegister("reg-new_ind-1_worker", "reg-new")).toBe(true);
+    it("keeps the date when the stored row belongs to this register", async () => {
+        const data = await persistWithStoredStamp(`${CURRENT_UUID}_ind-1_worker`);
+
+        expect(data._denrollmentDate).toBe(OLD_DATE);
     });
 
-    it("accepts when this run could not resolve the register", () => {
-        expect(TemplateClass.storedDateBelongsToRegister("reg-old_ind-1_worker", "")).toBe(true);
-    });
+    it("keeps the date when the row was never stamped, so a blank cell cannot clear it", async () => {
+        const data = await persistWithStoredStamp("");
 
-    it("accepts when the row was never stamped", () => {
-        expect(TemplateClass.storedDateBelongsToRegister("", "reg-new")).toBe(true);
+        expect(data._denrollmentDate).toBe(OLD_DATE);
     });
 });
 
