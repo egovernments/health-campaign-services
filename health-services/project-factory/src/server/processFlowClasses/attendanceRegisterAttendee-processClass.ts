@@ -276,8 +276,8 @@ export class TemplateClass {
         const sheetMap: SheetMap = {};
         for (const name of SHEET_NAMES) {
             const rowsForSheet = filteredRows
-                .filter((r: any) => r.data._sheetName === name)
-                .map((r: any) => this.toOutputRow(r));
+                .filter((row) => row.data?._sheetName === name)
+                .map((row) => this.toOutputRow(row));
             // Fall back to in-memory sheetRows if nothing stored yet (should not happen after persistence+wait)
             sheetMap[name] = {
                 data: rowsForSheet.length > 0 ? rowsForSheet : (sheetRows.get(name) || []),

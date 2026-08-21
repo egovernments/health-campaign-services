@@ -59,6 +59,7 @@ jest.mock('../service/campaignManageService', () => ({
 import { sheetDataRowStatuses } from "../config/constants";
 import { TemplateClass } from "../processFlowClasses/attendanceRegisterAttendee-processClass";
 import { CampaignDataRow } from "../config/models/campaignDataRow";
+import { CampaignNumber, TenantId } from "../config/models/brandedTypes";
 import { produceModifiedMessages } from "../kafka/Producer";
 
 const ENROLLMENT_EPOCH = 1700000000000;   // 2023-11-14
@@ -688,13 +689,24 @@ describe("persisting the de-enrolment date for a recreated register", () => {
     const persistInternals = TemplateClass as unknown as {
         persistAttendeesToCampaignData: (
             sheetRows: Map<string, Record<string, unknown>[]>,
-            existingDataMap: Map<string, Partial<CampaignDataRow>>,
-            campaignNumber: string,
-            tenantId: string,
+            existingDataMap: Map<string, CampaignDataRow>,
+            campaignNumber: CampaignNumber,
+            tenantId: TenantId,
             usernameToIndividualId: Map<string, string>,
             registerDataMap: Map<string, { register?: { id?: unknown } }>
         ) => Promise<void>;
     };
+
+    const storedRow = (uniqueIdAfterProcess: string): CampaignDataRow => ({
+        campaignNumber: "CMP-1",
+        type: "attendanceRegisterAttendee",
+        data: { UserName: "USR-1", _sheetName: WORKER_SHEET },
+        uniqueIdentifier: "REG-001_USR-1_worker",
+        status: "completed",
+        uniqueIdAfterProcess,
+        isDeleted: false,
+        denrollmentDate: OLD_DATE,
+    });
 
     const persistWithStoredStamp = async (storedStamp: string) => {
         const uniqueIdentifier = "REG-001_USR-1_worker";
@@ -704,12 +716,9 @@ describe("persisting the de-enrolment date for a recreated register", () => {
                 HCM_ATTENDANCE_REGISTER_ID: "REG-001",
                 "#status#": sheetDataRowStatuses.CREATED,
             }]]]),
-            new Map([[uniqueIdentifier, {
-                uniqueIdAfterProcess: storedStamp,
-                denrollmentDate: OLD_DATE,
-            }]]),
-            "CMP-1",
-            "dev",
+            new Map([[uniqueIdentifier, storedRow(storedStamp)]]),
+            "CMP-1" as CampaignNumber,
+            "dev" as TenantId,
             new Map([["USR-1", "ind-1"]]),
             new Map([["REG-001", { register: { id: CURRENT_UUID } }]])
         );
