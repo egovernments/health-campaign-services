@@ -50,6 +50,11 @@ public class Service   {
         @JsonProperty("serviceCode")
         private String serviceCode = null;
 
+        @NotNull
+        @CustomSafeHtml
+        @JsonProperty("hierarchyType")
+        private String hierarchyType = null;
+
         @CustomSafeHtml
         @JsonProperty("serviceRequestId")
         private String serviceRequestId = null;

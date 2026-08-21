@@ -83,6 +83,14 @@ public class PGRQueryBuilder {
             addToPreparedStatement(preparedStmtList, serviceCodes);
         }
 
+        //Optional filter. When not supplied the search stays backward compatible and also returns
+        //older complaints which were created before hierarchyType was introduced.
+        if (StringUtils.hasText(criteria.getHierarchyType())) {
+            addClauseIfRequired(preparedStmtList, builder);
+            builder.append(" ser.hierarchytype=? ");
+            preparedStmtList.add(criteria.getHierarchyType());
+        }
+
         Set<String> applicationStatuses = criteria.getApplicationStatus();
         if (!CollectionUtils.isEmpty(applicationStatuses)) {
             addClauseIfRequired(preparedStmtList, builder);
