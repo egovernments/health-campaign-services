@@ -26,6 +26,10 @@ public class RequestSearchCriteria {
     @JsonProperty("serviceCode")
     private Set<String> serviceCode;
 
+    @CustomSafeHtml
+    @JsonProperty("hierarchyType")
+    private String hierarchyType;
+
     @JsonProperty("applicationStatus")
     private Set<String> applicationStatus;
 

@@ -7,7 +7,7 @@ serviceMaps:
     isTransaction: true
     queryMaps:
 
-    - query: INSERT INTO eg_pgr_service_v2(id, tenantid, servicecode, servicerequestid, description, accountid, additionaldetails, applicationstatus, source, createdby, createdtime, lastmodifiedby, lastmodifiedtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    - query: INSERT INTO eg_pgr_service_v2(id, tenantid, servicecode, hierarchytype, servicerequestid, description, accountid, additionaldetails, applicationstatus, source, createdby, createdtime, lastmodifiedby, lastmodifiedtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       basePath: service
       jsonMaps:
       - jsonPath: $.service.id
@@ -15,6 +15,8 @@ serviceMaps:
       - jsonPath: $.service.tenantId
 
       - jsonPath: $.service.serviceCode
+
+      - jsonPath: $.service.hierarchyType
 
       - jsonPath: $.service.serviceRequestId
 
@@ -95,10 +97,12 @@ serviceMaps:
     isTransaction: true
     queryMaps:
 
-    - query: UPDATE eg_pgr_service_v2 SET servicecode=?, rating = ?,servicerequestid=?, description=?, accountid=?, additionaldetails=?, applicationstatus=?, lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
+    - query: UPDATE eg_pgr_service_v2 SET servicecode=?, hierarchytype=?, rating = ?,servicerequestid=?, description=?, accountid=?, additionaldetails=?, applicationstatus=?, lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
       basePath: service
       jsonMaps:
       - jsonPath: $.service.serviceCode
+
+      - jsonPath: $.service.hierarchyType
 
       - jsonPath: $.service.rating
 
@@ -168,7 +172,7 @@ serviceMaps:
     fromTopic: statea-save-pgr-request
     isTransaction: true
     queryMaps:
-        - query: INSERT INTO statea.eg_pgr_service_v2(id, tenantid, servicecode, servicerequestid, description, accountid, additionaldetails, applicationstatus, source, createdby, createdtime, lastmodifiedby, lastmodifiedtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO statea.eg_pgr_service_v2(id, tenantid, servicecode, hierarchytype, servicerequestid, description, accountid, additionaldetails, applicationstatus, source, createdby, createdtime, lastmodifiedby, lastmodifiedtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: service
           jsonMaps:
             - jsonPath: $.service.id
@@ -176,6 +180,8 @@ serviceMaps:
             - jsonPath: $.service.tenantId
 
             - jsonPath: $.service.serviceCode
+
+            - jsonPath: $.service.hierarchyType
 
             - jsonPath: $.service.serviceRequestId
 
@@ -255,10 +261,12 @@ serviceMaps:
     fromTopic: statea-update-pgr-request
     isTransaction: true
     queryMaps:
-        - query: UPDATE statea.eg_pgr_service_v2 SET servicecode=?, rating = ?,servicerequestid=?, description=?, accountid=?, additionaldetails=?, applicationstatus=?, lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
+        - query: UPDATE statea.eg_pgr_service_v2 SET servicecode=?, hierarchytype=?, rating = ?,servicerequestid=?, description=?, accountid=?, additionaldetails=?, applicationstatus=?, lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
           basePath: service
           jsonMaps:
             - jsonPath: $.service.serviceCode
+
+            - jsonPath: $.service.hierarchyType
 
             - jsonPath: $.service.rating
 
