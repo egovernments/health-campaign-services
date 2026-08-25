@@ -2,6 +2,7 @@ import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
+import { v4 as uuidv4 } from 'uuid';
 import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses, campaignDataRowFields, userDataFields, userCredentialFields, errorCodes } from '../config/constants';
 import { sleep } from './timeUtils';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
@@ -35,6 +36,9 @@ interface UserBatchMessage {
     batchNumber: number;
     totalBatches: number;
     requestInfo: RequestInfo;
+    /** Absolute epoch-ms ceiling for the individual-searchability wait. Set on first deferral and carried
+     *  on the message, so redelivery is bounded by wall-clock rather than by an attempt count. */
+    workerDeadlineAt?: number;
 }
 
 /**
@@ -309,17 +313,47 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             // (worker/v1/bulk/_create returns terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND); mark them
             // retryable so a later upload/retry re-attempts them once individual indexing catches up.
             if (deferred.length > 0) {
-                const deferMsg = `Individual not searchable after ${config.user.individualConsistencyMaxPollAttempts} consistency poll attempt(s); worker creation deferred for retry`;
-                const deferredIds = new Set<string>();
-                for (const w of deferred) {
-                    if (deferredIds.has(w.individualId)) continue;
-                    deferredIds.add(w.individualId);
-                    const records = individualIdToRecords.get(w.individualId) || [];
-                    const demoted = markWorkerRecordsFailed(records, deferMsg);
-                    successCount -= demoted;
-                    failureCount += demoted;
+                const deferredIds = new Set(deferred.map(w => w.individualId));
+                const deadline = messageObject.workerDeadlineAt ?? (Date.now() + config.user.workerCreateDeadlineMs);
+                // Phones behind the still-invisible individuals. Only these go back on the topic — the rest
+                // of the batch is finished and must not be reprocessed.
+                const deferredPhones = Object.entries(createResult.mobileToIndividualIdMap)
+                    .filter(([phone, indId]) => deferredIds.has(indId) && userData[phone])
+                    .map(([phone]) => phone);
+
+                if (Date.now() < deadline && deferredPhones.length > 0) {
+                    // Not a failure: the individual exists and the persister has simply not committed it.
+                    // Put the unfinished rows back on the topic so the search is retried when the write has
+                    // landed, and leave them `pending` so nothing downstream treats them as done. Kafka's
+                    // own redelivery is the wait; the absolute deadline is the only bound.
+                    const requeued: UserBatchMessage = {
+                        ...messageObject,
+                        userData: Object.fromEntries(deferredPhones.map(p => [p, userData[p]])),
+                        workerDeadlineAt: deadline,
+                    };
+                    for (const w of deferred) {
+                        for (const record of individualIdToRecords.get(w.individualId) || []) {
+                            record.status = dataRowStatuses.pending;
+                            successCount -= 1;
+                        }
+                    }
+                    await produceModifiedMessages(
+                        requeued, config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC, tenantId, uuidv4()
+                    );
+                    logger.warn(`${deferredIds.size} individual(s) not searchable yet; re-queued ${deferredPhones.length} user(s) of batch ${batchNumber}/${totalBatches}, deadline in ${Math.round((deadline - Date.now()) / 1000)}s`);
+                } else {
+                    // Deadline spent — treat as permanent so a genuine failure cannot loop forever.
+                    const deferMsg = `Individual still not searchable ${Math.round(config.user.workerCreateDeadlineMs / 1000)}s after first attempt; no worker record was created`;
+                    const processed = new Set<string>();
+                    for (const w of deferred) {
+                        if (processed.has(w.individualId)) continue;
+                        processed.add(w.individualId);
+                        const demoted = markWorkerRecordsFailed(individualIdToRecords.get(w.individualId) || [], deferMsg);
+                        successCount -= demoted;
+                        failureCount += demoted;
+                    }
+                    logger.error(`${processed.size} worker(s) left uncreated after the ${Math.round(config.user.workerCreateDeadlineMs / 1000)}s deadline — rows marked failed`);
                 }
-                logger.warn(`Deferred ${deferredIds.size} worker(s) for retry — individual(s) not yet searchable`);
             }
 
             try {
