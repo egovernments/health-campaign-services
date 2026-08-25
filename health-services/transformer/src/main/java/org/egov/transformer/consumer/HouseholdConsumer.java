@@ -30,7 +30,8 @@ public class HouseholdConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.household.topic}",
-            "${transformer.consumer.update.household.topic}"})
+            "${transformer.consumer.update.household.topic}"},
+            autoStartup = "${transformer.consumer.household.enabled:true}")
     public void consumeHouseholds(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

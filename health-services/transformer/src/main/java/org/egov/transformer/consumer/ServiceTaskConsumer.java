@@ -30,7 +30,8 @@ public class ServiceTaskConsumer {
         this.serviceTaskTransformationService = serviceTaskTransformationService;
     }
 
-    @KafkaListener(topics = {"${transformer.consumer.create.service.topic}"})
+    @KafkaListener(topics = {"${transformer.consumer.create.service.topic}"},
+            autoStartup = "${transformer.consumer.service.enabled:true}")
     public void consumeServiceTask(ConsumerRecord<String, Object> payload,
                                    @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

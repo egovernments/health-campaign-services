@@ -29,7 +29,8 @@ public class StockReconciliationConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.stock.reconciliation.create.topic}",
-            "${transformer.consumer.stock.reconciliation.update.topic}"})
+            "${transformer.consumer.stock.reconciliation.update.topic}"},
+            autoStartup = "${transformer.consumer.stock.reconciliation.enabled:true}")
     public void consumeStockReconciliation(ConsumerRecord<String, Object> payload,
                                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

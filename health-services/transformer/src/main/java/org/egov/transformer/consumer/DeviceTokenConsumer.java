@@ -32,7 +32,8 @@ public class DeviceTokenConsumer {
         this.deviceTokenTransformationService = deviceTokenTransformationService;
     }
 
-    @KafkaListener(topics = {"${transformer.consumer.save.device.token.topic}"})
+    @KafkaListener(topics = {"${transformer.consumer.save.device.token.topic}"},
+            autoStartup = "${transformer.consumer.device.token.enabled:true}")
     public void consumeDeviceToken(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

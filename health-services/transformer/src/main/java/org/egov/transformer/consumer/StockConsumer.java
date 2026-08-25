@@ -29,7 +29,8 @@ public class StockConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.bulk.create.stock.topic}",
-            "${transformer.consumer.bulk.update.stock.topic}"})
+            "${transformer.consumer.bulk.update.stock.topic}"},
+            autoStartup = "${transformer.consumer.stock.enabled:true}")
     public void consumeStock(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

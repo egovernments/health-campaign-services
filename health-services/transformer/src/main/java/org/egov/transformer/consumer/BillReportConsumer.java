@@ -28,7 +28,8 @@ public class BillReportConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.bill.report.topic}",
-            "${transformer.consumer.update.bill.report.topic}"})
+            "${transformer.consumer.update.bill.report.topic}"},
+            autoStartup = "${transformer.consumer.billreport.enabled:true}")
     public void consumeAttendanceLog(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

@@ -27,7 +27,8 @@ public class ProjectConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.project.topic}",
-            "${transformer.consumer.update.project.topic}"})
+            "${transformer.consumer.update.project.topic}"},
+            autoStartup = "${transformer.consumer.project.enabled:true}")
     public void consumeProjects(ConsumerRecord<String, Object> payload,
                                 @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

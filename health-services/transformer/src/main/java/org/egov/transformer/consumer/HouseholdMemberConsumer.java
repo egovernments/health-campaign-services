@@ -28,7 +28,8 @@ public class HouseholdMemberConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.household.member.topic}",
-            "${transformer.consumer.update.household.member.topic}",})
+            "${transformer.consumer.update.household.member.topic}"},
+            autoStartup = "${transformer.consumer.household.member.enabled:true}")
     public void consumeHouseholdMember(ConsumerRecord<String, Object> payload,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
