@@ -789,7 +789,15 @@ export async function waitForIndividualsSearchable(
     const searchBatchSize = config.user.individualSearchBatchSize;
     const pollInterval = config.user.individualConsistencyPollIntervalMs;
     const maxAttempts = config.user.individualConsistencyMaxPollAttempts;
+    // Fall back to a single round when unset or non-numeric: an absent key must degrade to the previous
+    // behaviour, never to zero rounds — which would skip the readiness check entirely and send every
+    // worker straight into NON_RECOVERABLE INDIVIDUAL_NOT_FOUND.
+    const configuredRounds = Number(config.user.individualConsistencyRetryRounds);
+    const retryRounds = Number.isFinite(configuredRounds) && configuredRounds >= 1 ? Math.floor(configuredRounds) : 1;
+    const configuredDelay = Number(config.user.individualConsistencyRetryDelayMs);
+    const retryDelay = Number.isFinite(configuredDelay) && configuredDelay >= 0 ? configuredDelay : 0;
 
+    for (let round = 1; round <= retryRounds; round++) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const pending = uniqueIds.filter(id => !found.has(id));
 
@@ -814,14 +822,22 @@ export async function waitForIndividualsSearchable(
             return { found, missing: [] };
         }
 
-        logger.info(`Individual consistency poll attempt ${attempt}/${maxAttempts}: ${found.size}/${uniqueIds.length} searchable`);
+        logger.info(`Individual consistency poll round ${round}/${retryRounds} attempt ${attempt}/${maxAttempts}: ${found.size}/${uniqueIds.length} searchable`);
         if (attempt < maxAttempts) {
             await new Promise(res => setTimeout(res, pollInterval));
         }
     }
 
+        // Round exhausted and some are still invisible. They are not lost — the persister simply has not
+        // committed them yet — so back off and look again rather than giving up on a user that exists.
+        if (round < retryRounds) {
+            logger.warn(`${uniqueIds.length - found.size}/${uniqueIds.length} individual(s) not searchable after round ${round}/${retryRounds}; waiting ${retryDelay} ms for the persister to catch up before re-checking`);
+            await new Promise(res => setTimeout(res, retryDelay));
+        }
+    }
+
     const missing = uniqueIds.filter(id => !found.has(id));
-    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${maxAttempts} attempt(s); their workers will be deferred for retry (not sent to worker-registry, which would return NON_RECOVERABLE INDIVIDUAL_NOT_FOUND)`);
+    logger.warn(`${missing.length}/${uniqueIds.length} individual(s) still not searchable after ${retryRounds} round(s) of ${maxAttempts} attempt(s); their workers will be deferred for retry (not sent to worker-registry, which would return NON_RECOVERABLE INDIVIDUAL_NOT_FOUND)`);
     return { found, missing };
 }
 
