@@ -3,7 +3,9 @@ package org.egov.household.validators.household;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
 import java.util.List;
@@ -16,6 +18,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HRequiredLinkValidatorTest {
 
     private final HRequiredLinkValidator validator = new HRequiredLinkValidator();
+
+    @BeforeEach
+    void enableValidator() {
+        // The flag ships false so the image cannot start rejecting payloads that persisted before.
+        // These cases cover the enforcing behaviour, so they opt in explicitly.
+        ReflectionTestUtils.setField(validator, "enabled", true);
+    }
+
+    @Test
+    void shouldReportButNotRejectWhenDisabled() {
+        ReflectionTestUtils.setField(validator, "enabled", false);
+        Household invalid = Household.builder().clientReferenceId("  ").hasErrors(false).build();
+
+        assertTrue(validator.validate(HouseholdBulkRequest.builder()
+                .households(List.of(invalid)).build()).isEmpty());
+    }
 
     @Test
     void shouldRejectOnlyHouseholdWithBlankClientReferenceId() {

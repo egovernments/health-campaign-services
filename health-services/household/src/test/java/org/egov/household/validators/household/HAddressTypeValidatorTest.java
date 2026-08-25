@@ -8,8 +8,10 @@ import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.household.helper.AddressTestBuilder;
 import org.egov.household.helper.HouseholdBulkRequestTestBuilder;
 import org.egov.household.helper.HouseholdTestBuilder;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.stereotype.Component;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
 import java.util.List;
@@ -23,6 +25,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HAddressTypeValidatorTest {
 
     private final HAddressTypeValidator validator = new HAddressTypeValidator();
+
+    @BeforeEach
+    void enableValidator() {
+        // Household never had this check, so the flag ships false. These cases cover the
+        // enforcing behaviour and opt in explicitly.
+        ReflectionTestUtils.setField(validator, "enabled", true);
+    }
+
+    @Test
+    void shouldReportButNotRejectWhenDisabled() {
+        ReflectionTestUtils.setField(validator, "enabled", false);
+        Address nullTypeAddress = AddressTestBuilder.builder().withAddress().build();
+        nullTypeAddress.setType(null);
+        Household bad = HouseholdTestBuilder.builder().withHousehold()
+                .withAddress(nullTypeAddress).build();
+
+        assertTrue(validator.validate(HouseholdBulkRequestTestBuilder.builder()
+                .withHouseholds(List.of(bad)).build()).isEmpty());
+    }
 
     @Test
     void shouldFlagOnlyTheHouseholdWithNullAddressType() {

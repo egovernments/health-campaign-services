@@ -8,6 +8,7 @@ import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.Relationship;
 import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -28,8 +29,10 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
  *  - a household link (householdId or householdClientReferenceId) must be present,
  *  - an individual link (individualId or individualClientReferenceId) must be present
  *    (records missing either link were silently dropped in the pipeline),
- *  - each relationship must identify its relative by server ID or client reference ID.
- * Always on: this is a structural check, not an existence check.
+ *  - each relationship must identify its relative by server ID or client reference ID (OFF by
+ *    default — the three checks above shipped already, this one is new and would reject member
+ *    payloads that persisted yesterday, so it reports before it enforces).
+ * The first three are always on: they are structural checks, not existence checks.
  */
 @Component
 @Order(value = 1)
@@ -38,9 +41,13 @@ public class HmRequiredLinkValidator implements Validator<HouseholdMemberBulkReq
 
     private static final String ERROR_CODE = "REQUIRED_LINK_MISSING";
 
+    @Value("${hcm.validator.household.member.relationship-link.enabled:false}")
+    private boolean relationshipLinkEnabled;
+
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request) {
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
+        int relationshipWouldReject = 0;
         for (HouseholdMember member : request.getHouseholdMembers()) {
             List<String> missing = new ArrayList<>();
             if (StringUtils.isBlank(member.getClientReferenceId())) {
@@ -61,8 +68,12 @@ public class HmRequiredLinkValidator implements Validator<HouseholdMemberBulkReq
                     if (relationship == null
                             || (StringUtils.isBlank(relationship.getRelativeId())
                             && StringUtils.isBlank(relationship.getRelativeClientReferenceId()))) {
-                        missing.add("memberRelationships[" + index
-                                + "].relativeId/relativeClientReferenceId");
+                        if (relationshipLinkEnabled) {
+                            missing.add("memberRelationships[" + index
+                                    + "].relativeId/relativeClientReferenceId");
+                        } else {
+                            relationshipWouldReject++;
+                        }
                     }
                 }
             }
@@ -77,6 +88,12 @@ public class HmRequiredLinkValidator implements Validator<HouseholdMemberBulkReq
                 log.error("household member {} rejected: {}", member.getClientReferenceId(), message);
                 populateErrorDetails(member, error, errorDetailsMap);
             }
+        }
+        if (relationshipWouldReject > 0) {
+            log.warn("HmRequiredLinkValidator relationship check disabled: {} relationship(s) across "
+                            + "{} member(s) carry no relative link and would be rejected if "
+                            + "hcm.validator.household.member.relationship-link.enabled=true",
+                    relationshipWouldReject, request.getHouseholdMembers().size());
         }
         return errorDetailsMap;
     }

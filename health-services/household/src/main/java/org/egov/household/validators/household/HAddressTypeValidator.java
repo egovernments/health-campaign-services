@@ -5,6 +5,7 @@ import org.egov.common.models.Error;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.validator.Validator;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -25,11 +26,18 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForAddressType;
  * payload that reaches the consumer without passing either — DLQ/park replay, or a direct produce
  * onto the topic — and it reports the condition as a domain error rather than a raw
  * field-validation failure.
+ * <p>
+ * Off by default: household had no such check before, so a null Address.type reached the persister
+ * and persisted. Enabling it with the image would start rejecting households the pipeline accepted
+ * yesterday. Report-only until the logged count is known to be zero for an environment.
  */
 @Component
 @Order(value = 2)
 @Slf4j
 public class HAddressTypeValidator implements Validator<HouseholdBulkRequest, Household> {
+
+    @Value("${hcm.validator.household.address-type.enabled:false}")
+    private boolean enabled;
 
     @Override
     public Map<Household, List<Error>> validate(HouseholdBulkRequest request) {
@@ -37,13 +45,23 @@ public class HAddressTypeValidator implements Validator<HouseholdBulkRequest, Ho
         Map<Household, List<Error>> errorDetailsMap = new HashMap<>();
         List<Household> households = request.getHouseholds();
         if (!households.isEmpty()) {
-            households.stream()
+            List<Household> offending = households.stream()
                     .filter(household -> household.getAddress() != null
                             && household.getAddress().getType() == null)
-                    .forEach(household -> {
-                        Error error = getErrorForAddressType();
-                        populateErrorDetails(household, error, errorDetailsMap);
-                    });
+                    .toList();
+            if (!enabled) {
+                if (!offending.isEmpty()) {
+                    log.warn("HAddressTypeValidator disabled: {} of {} household(s) have a null "
+                                    + "address type and would be rejected if "
+                                    + "hcm.validator.household.address-type.enabled=true",
+                            offending.size(), households.size());
+                }
+                return errorDetailsMap;
+            }
+            offending.forEach(household -> {
+                Error error = getErrorForAddressType();
+                populateErrorDetails(household, error, errorDetailsMap);
+            });
         }
         return errorDetailsMap;
     }

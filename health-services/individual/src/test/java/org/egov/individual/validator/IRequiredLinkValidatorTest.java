@@ -4,7 +4,9 @@ import org.egov.common.models.Error;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.individual.validators.IRequiredLinkValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
 import java.util.List;
@@ -17,6 +19,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class IRequiredLinkValidatorTest {
 
     private final IRequiredLinkValidator validator = new IRequiredLinkValidator();
+
+    @BeforeEach
+    void enableValidator() {
+        // The flag ships false so the image cannot start rejecting payloads that persisted before.
+        // These cases cover the enforcing behaviour, so they opt in explicitly.
+        ReflectionTestUtils.setField(validator, "enabled", true);
+    }
+
+    @Test
+    void shouldReportButNotRejectWhenDisabled() {
+        ReflectionTestUtils.setField(validator, "enabled", false);
+        Individual invalid = Individual.builder().clientReferenceId("  ").hasErrors(false).build();
+
+        assertTrue(validator.validate(IndividualBulkRequest.builder()
+                .individuals(List.of(invalid)).build()).isEmpty());
+    }
 
     @Test
     void shouldRejectOnlyIndividualWithBlankClientReferenceId() {

@@ -951,7 +951,8 @@ public class CommonUtils {
                                                        Predicate<Validator<R, T>> applicableValidators,
                                                        R request,
                                                        String setPayloadMethodName) {
-        return validate(validators, applicableValidators, request, setPayloadMethodName, true);
+        return validate(validators, applicableValidators, request, setPayloadMethodName,
+                PayloadGuardrail.enforceDtoConstraintsByDefault());
     }
 
     public static <T, R> Map<T, ErrorDetails> validate(List<Validator<R, T>> validators,

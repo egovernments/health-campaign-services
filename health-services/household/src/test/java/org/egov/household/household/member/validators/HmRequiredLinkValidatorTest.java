@@ -4,7 +4,9 @@ import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.Relationship;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -16,6 +18,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HmRequiredLinkValidatorTest {
 
     private final HmRequiredLinkValidator validator = new HmRequiredLinkValidator();
+
+    @BeforeEach
+    void enableRelationshipCheck() {
+        // Only the relationship check is flagged; the three original link checks are always on.
+        ReflectionTestUtils.setField(validator, "relationshipLinkEnabled", true);
+    }
+
+    @Test
+    void shouldReportButNotRejectRelationshipWhenDisabled() {
+        ReflectionTestUtils.setField(validator, "relationshipLinkEnabled", false);
+        HouseholdMember member = memberWithRequiredLinks();
+        member.setMemberRelationships(Collections.singletonList(
+                Relationship.builder().relationshipType("PARENT").build()));
+
+        assertTrue(validator.validate(request(member)).isEmpty());
+    }
 
     @Test
     void shouldRejectRelationshipWithoutEitherRelativeKey() {

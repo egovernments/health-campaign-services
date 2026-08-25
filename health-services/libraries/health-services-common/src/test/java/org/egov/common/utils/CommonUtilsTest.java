@@ -866,9 +866,11 @@ class CommonUtilsTest {
 
                 when(someValidator.validate(any())).thenReturn(Collections.emptyMap());
 
+                // Explicit true: the no-flag overload defaults to report-only so an image cannot
+                // start rejecting payloads that persisted before it. See PayloadGuardrail.
                 Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
                                 Collections.singletonList(someValidator), validator -> true,
-                                request, "setOtherObject");
+                                request, "setOtherObject", true);
 
                 assertEquals(1, errors.size());
                 assertTrue(errors.containsKey(bad));
@@ -879,6 +881,27 @@ class CommonUtilsTest {
                                 errors.get(bad).getErrors().get(0).getErrorCode());
                 assertTrue(errors.get(bad).getErrors().get(0).getErrorMessage()
                                 .contains("someOtherField"));
+        }
+
+        @Test
+        @DisplayName("should not reject on DTO annotations when the guardrail is not enforcing")
+        void shouldNotRejectOnDtoConstraintsByDefault() {
+                RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                                .withCompleteRequestInfo().build();
+                OtherObject bad = OtherObject.builder().someOtherField(null).build();
+                SomeObject request = SomeObject.builder()
+                                .requestInfo(requestInfo)
+                                .otherObject(Collections.singletonList(bad))
+                                .build();
+
+                when(someValidator.validate(any())).thenReturn(Collections.emptyMap());
+
+                Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
+                                Collections.singletonList(someValidator), validator -> true,
+                                request, "setOtherObject");
+
+                assertTrue(errors.isEmpty());
+                assertFalse(Boolean.TRUE.equals(bad.getHasErrors()));
         }
 
         @Test
@@ -897,7 +920,7 @@ class CommonUtilsTest {
 
                 Map<OtherObject, ErrorDetails> errors = CommonUtils.validate(
                                 Collections.singletonList(someValidator), validator -> true,
-                                request, "setOtherObject");
+                                request, "setOtherObject", true);
 
                 assertEquals(2, errors.size());
                 assertTrue(errors.containsKey(first));
