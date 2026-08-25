@@ -1541,13 +1541,19 @@ export async function getCurrentProcesses(campaignNumber: string, tenantId: stri
 }
 
 /** Reads campaign-data rows matching a type and set of uniqueIdentifiers; returns empty when no identifiers given. */
-export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uniqueIdentifiers: any[], tenantId: string, status ?: string) {
+export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uniqueIdentifiers: any[], tenantId: string, status ?: string, campaignNumber ?: string) {
   if(uniqueIdentifiers?.length === 0) return [];
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND uniqueIdentifier = ANY($2)`;
-  if(status) queryString += ` AND status = $3`;
-  const arrayStatements = [type, uniqueIdentifiers];
-  if(status) arrayStatements.push(status);
+  const arrayStatements: any[] = [type, uniqueIdentifiers];
+  if(status) {
+    arrayStatements.push(status);
+    queryString += ` AND status = $${arrayStatements.length}`;
+  }
+  if(campaignNumber) {
+    arrayStatements.push(campaignNumber);
+    queryString += ` AND campaignNumber = $${arrayStatements.length}`;
+  }
   let relatedData = await executeQuery(queryString, arrayStatements);
   if(!relatedData?.rows) return [];
   let rows = [];

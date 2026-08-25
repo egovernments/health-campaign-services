@@ -36,7 +36,9 @@ public class FacilityService {
         try {
             List<Map<String, Object>> allFacilities = new ArrayList<>();
             int offset = 0;
-            int limit = 50;
+            // Sequential sweep: page count IS round-trip count, so this is the dominant cost of the
+            // facility sheet on large tenants. Config-driven rather than a literal.
+            int limit = config.getFacilitySearchPageSize();
             boolean searchAgain = true;
             
             while (searchAgain) {

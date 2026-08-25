@@ -230,12 +230,22 @@ public class BoundaryUtil {
     }
     
     private void buildCodeToBoundaryMapRecursive(List<EnrichedBoundary> boundaries, Map<String, EnrichedBoundary> codeMap) {
+        buildCodeToBoundaryMapRecursive(boundaries, codeMap, null);
+    }
+
+    /**
+     * Stamps each node's parent code while indexing, so callers can walk up the tree by map lookup
+     * instead of rescanning every boundary and its children to find one parent. A root keeps parent null.
+     */
+    private void buildCodeToBoundaryMapRecursive(List<EnrichedBoundary> boundaries, Map<String, EnrichedBoundary> codeMap,
+                                                 String parentCode) {
         if (boundaries == null) return;
-        
+
         for (EnrichedBoundary boundary : boundaries) {
+            boundary.setParent(parentCode);
             codeMap.put(boundary.getCode(), boundary);
             if (boundary.getChildren() != null && !boundary.getChildren().isEmpty()) {
-                buildCodeToBoundaryMapRecursive(boundary.getChildren(), codeMap);
+                buildCodeToBoundaryMapRecursive(boundary.getChildren(), codeMap, boundary.getCode());
             }
         }
     }

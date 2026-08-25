@@ -302,6 +302,13 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             // so creatable/deferred are in scope for the catch below — deferred rows are already demoted and
             // must not be double-counted if the create throws.
             const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
+            // One batch per Kafka message means there is no later batch to lag behind, so give the persister
+            // a configurable head start before gating. Zero by default — see config.user.workerCreateSettleDelayMs.
+            const settleDelayMs = Math.max(0, config.user.workerCreateSettleDelayMs);
+            if (settleDelayMs > 0) {
+                logger.info(`Waiting ${settleDelayMs} ms before the individual-searchability gate`);
+                await sleep(settleDelayMs);
+            }
             const { missing } = await waitForIndividualsSearchable(workerDataList.map(w => w.individualId), tenantId, workerRequestInfo);
             const { creatable, deferred } = partitionWorkersByIndividualSearchability(workerDataList, missing);
 
@@ -309,7 +316,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             // (worker/v1/bulk/_create returns terminal NON_RECOVERABLE INDIVIDUAL_NOT_FOUND); mark them
             // retryable so a later upload/retry re-attempts them once individual indexing catches up.
             if (deferred.length > 0) {
-                const deferMsg = `Individual not searchable after ${config.user.individualConsistencyMaxPollAttempts} consistency poll attempt(s); worker creation deferred for retry`;
+                const deferMsg = `Individual not searchable after ${config.user.individualConsistencyMaxPollAttempts} consistency poll attempt(s); no worker record was created. Re-upload this campaign's user sheet to retry.`;
                 const deferredIds = new Set<string>();
                 for (const w of deferred) {
                     if (deferredIds.has(w.individualId)) continue;
@@ -319,7 +326,9 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     successCount -= demoted;
                     failureCount += demoted;
                 }
-                logger.warn(`Deferred ${deferredIds.size} worker(s) for retry — individual(s) not yet searchable`);
+                // No automatic re-drive exists: these rows are left retryable-`failed` and are picked up only
+                // by a subsequent upload of this campaign's user sheet. Do not describe this as a queued retry.
+                logger.warn(`${deferredIds.size} worker(s) left uncreated — individual(s) not yet searchable; rows marked failed and awaiting a re-upload of this campaign's user sheet`);
             }
 
             try {
@@ -341,20 +350,25 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     }
                 }
 
-                // Mark rows as failed for workers that didn't get an ID back (partial failure)
+                // Demote every dispatched individual that came back without a worker id, whether or not the
+                // call reported an error. A bulk endpoint that answers 200 with a short list reports nothing,
+                // so gating this on `errors` leaves the row `completed` with no worker — an unpayable user
+                // with no failed status, no error and no log line anywhere.
                 if (errors.length > 0) {
-                    const errMsg = errors.join("; ");
-                    logger.error("Worker registry integration had errors:", errMsg);
-                    const processedIds = new Set<string>();
-                    for (const w of creatable) {
-                        if (processedIds.has(w.individualId)) continue;
-                        processedIds.add(w.individualId);
-                        if (!individualIdToWorkerIdMap.has(w.individualId)) {
-                            const records = individualIdToRecords.get(w.individualId) || [];
-                            const demoted = markWorkerRecordsFailed(records, errMsg);
-                            successCount -= demoted;
-                            failureCount += demoted;
-                        }
+                    logger.error("Worker registry integration had errors:", errors.join("; "));
+                }
+                const workerFailureMsg = errors.length > 0
+                    ? errors.join("; ")
+                    : "Worker registry did not return a worker id for this individual";
+                const processedIds = new Set<string>();
+                for (const w of creatable) {
+                    if (processedIds.has(w.individualId)) continue;
+                    processedIds.add(w.individualId);
+                    if (!individualIdToWorkerIdMap.has(w.individualId)) {
+                        const records = individualIdToRecords.get(w.individualId) || [];
+                        const demoted = markWorkerRecordsFailed(records, workerFailureMsg);
+                        successCount -= demoted;
+                        failureCount += demoted;
                     }
                 }
             } catch (workerError: unknown) {

@@ -138,6 +138,9 @@ async function createOrUpdateWorkers(
 
     const workersToCreate: WorkerCreatePayload[] = [];
     const workersToUpdate: WorkerRegistryRecord[] = [];
+    // worker/v1/bulk/_create answers 200 with only the workers it accepted and carries no per-item status,
+    // so a short response is the ONLY evidence that some individuals were dropped. Track what we dispatch.
+    const dispatchedIndividualIds = new Set<string>();
 
     if (workersByIdList.length) {
         try {
@@ -170,6 +173,7 @@ async function createOrUpdateWorkers(
                         ...(!!data.beneficiaryCode ? { beneficiaryCode: data.beneficiaryCode } : {}),
                         rowVersion: existingWorker.rowVersion || 1,
                     });
+                    dispatchedIndividualIds.add(data.individualId);
                 } else {
                     // Worker not found by id — fall through to individualId-based path
                     workersByIndividualIdList.push(data);
@@ -212,6 +216,7 @@ async function createOrUpdateWorkers(
                         ...(!!data.beneficiaryCode ? { beneficiaryCode: data.beneficiaryCode } : {}),
                         rowVersion: existingWorker.rowVersion || 1,
                     });
+                    dispatchedIndividualIds.add(data.individualId);
                 } else {
                     workersToCreate.push({
                         name: data.name,
@@ -225,6 +230,7 @@ async function createOrUpdateWorkers(
                         tenantId: data.tenantId,
                         additionalDetails: {},
                     });
+                    dispatchedIndividualIds.add(data.individualId);
                 }
             }
         } catch (error: unknown) {
@@ -282,6 +288,13 @@ async function createOrUpdateWorkers(
             logger.error(msg, error);
             errors.push(msg);
         }
+    }
+
+    const unresolvedIndividualIds = Array.from(dispatchedIndividualIds).filter(id => !individualIdToWorkerIdMap.has(id));
+    if (unresolvedIndividualIds.length) {
+        const msg = `Worker registry returned no worker id for ${unresolvedIndividualIds.length} of ${dispatchedIndividualIds.size} dispatched individual(s)`;
+        logger.error(`${msg}: ${unresolvedIndividualIds.join(", ")}`);
+        errors.push(msg);
     }
 
     return { individualIdToWorkerIdMap, individualIdToWorkerMap, errors };

@@ -34,8 +34,9 @@ export class TemplateClass {
         const userSchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema;
         validateDatasWithSchema(userSheetData, userSchema, errors, localizationMap);
         validateActiveFieldMinima(userSheetData,"HCM_ADMIN_CONSOLE_USER_USAGE", errors);
-        await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
-        await this.validateUserNames(userSheetData, resourceDetails, errors);
+        const exemptPhoneNumbers = await this.getExemptPhoneNumbers(userSheetData, resourceDetails);
+        await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors, resourceDetails, exemptPhoneNumbers);
+        await this.validateUserNames(userSheetData, resourceDetails, errors, exemptPhoneNumbers);
         await this.validateBoundaries(userSheetData, resourceDetails, errors);
         await this.validateWorkerIds(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
         this.validateBeneficiaryCode(userSheetData, errors);
@@ -114,7 +115,47 @@ export class TemplateClass {
         }
     }
 
-    private static async validatePhoneNumber(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
+    /**
+     * Phones exempt from the "already exists" checks: completed in any campaign (legitimate cross-campaign
+     * reuse), or already owned by THIS campaign at any status. The second half matters because a row left
+     * failed by a previous attempt would otherwise be read as a foreign user, re-derive INVALID, and make
+     * the operator's re-upload the very thing that blocks the retry.
+     */
+    private static async getExemptPhoneNumbers(userSheetData: any[], resourceDetails: any): Promise<Set<string>> {
+        const tenantId = resourceDetails?.tenantId;
+        const phoneNumbers = Array.from(new Set(
+            (userSheetData || [])
+                .map((row: any) => row?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"])
+                .filter((phone: any) => phone !== undefined && phone !== null && String(phone).trim() !== "")
+                .map((phone: any) => String(phone))
+        ));
+        if (phoneNumbers.length === 0) return new Set<string>();
+
+        const completedAnywhere = await getCampaignDataRowsWithUniqueIdentifiers("user", phoneNumbers, tenantId, dataRowStatuses.completed);
+        const exempt = new Set<string>(completedAnywhere.map((user: any) => String(user?.uniqueIdentifier)));
+
+        const campaignNumber = await this.resolveCampaignNumberForExemption(resourceDetails);
+        if (campaignNumber) {
+            const ownedByThisCampaign = await getCampaignDataRowsWithUniqueIdentifiers("user", phoneNumbers, tenantId, undefined, campaignNumber);
+            for (const row of ownedByThisCampaign) {
+                exempt.add(String(row?.uniqueIdentifier));
+            }
+        }
+        logger.info(`${exempt.size} of ${phoneNumbers.length} phone numbers exempt from the already-exists checks`);
+        return exempt;
+    }
+
+    private static async resolveCampaignNumberForExemption(resourceDetails: any): Promise<string | undefined> {
+        try {
+            const campaign = await this.getCampaignDetails(resourceDetails);
+            return campaign?.campaignNumber;
+        } catch (error: unknown) {
+            logger.warn(`Could not resolve campaign number for the exemption check: ${error instanceof Error ? error.message : String(error)}`);
+            return undefined;
+        }
+    }
+
+    private static async validatePhoneNumber(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any, exemptPhoneNumbers?: Set<string>) {
         logger.info("Validating phone numbers...");
         const phoneNumbersToRowMap: any = {};
         for (let i = 0; i < userSheetData.length; i++) {
@@ -124,8 +165,8 @@ export class TemplateClass {
             }
         }
         const allPhoneNumbersToSearch = Object.keys(phoneNumbersToRowMap);
-        const allCurrentUsersInCampaignDataWithPhoneNumbersRows = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, tenantId, dataRowStatuses.completed);
-        const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => String(user?.uniqueIdentifier)));
+        const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = exemptPhoneNumbers
+            ?? await this.getExemptPhoneNumbers(userSheetData, { ...resourceDetails, tenantId });
         const allPhoneNumbersNotInCampaignData = allPhoneNumbersToSearch.filter((phoneNumber: any) => !setOfAllCurrentUsersInCampaignDataWithPhoneNumbers.has(String(phoneNumber)));
         logger.info(`Number of phone numbers not in campaign data: ${allPhoneNumbersNotInCampaignData?.length}`);
         logger.info(`Phone numbers not in campaign data: ${JSON.stringify(allPhoneNumbersNotInCampaignData)}`);
@@ -179,7 +220,7 @@ export class TemplateClass {
         logger.info("Phone number validation completed.");
     }
 
-    private static async validateUserNames(userSheetData: any, resourceDetails: any, errors: any[]) {
+    private static async validateUserNames(userSheetData: any, resourceDetails: any, errors: any[], exemptPhoneNumbers?: Set<string>) {
         logger.info("Validating user names...");
         const tenantId = resourceDetails?.tenantId;
         const userNamesToRowMap: any = {};
@@ -189,8 +230,8 @@ export class TemplateClass {
                 allPhoneNumbersToSearch.push(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]));
             }
         }
-        const userDataInDb = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, tenantId, dataRowStatuses.completed);
-        const alreadyCreatedUsersPhoneNumberSet = new Set(userDataInDb.map((user: any) => String(user?.uniqueIdentifier)));
+        const alreadyCreatedUsersPhoneNumberSet = exemptPhoneNumbers
+            ?? await this.getExemptPhoneNumbers(userSheetData, resourceDetails);
         for (let i = 0; i < userSheetData.length; i++) {
             if (userSheetData[i]["UserName"] && !alreadyCreatedUsersPhoneNumberSet.has(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]))) {
                 const userName = userSheetData[i]["UserName"];

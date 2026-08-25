@@ -95,8 +95,15 @@ const config = {
 
     individualSearchBatchSize: process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE, 10) : 50,
     individualConsistencyPollIntervalMs: process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS, 10) : 2000,
-    individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 5,
+    // 5 attempts x 2s = 10s, which is below observed persister latency for a 100-row individual batch and
+    // loses whole batches when exceeded. The poll early-exits on the first hit, so a larger cap costs
+    // nothing on the happy path and only buys time on a slow one.
+    individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 50,
     workerCreateBatchLag: process.env.USER_WORKER_CREATE_BATCH_LAG ? parseInt(process.env.USER_WORKER_CREATE_BATCH_LAG, 10) : 2,
+    // The Kafka handler gets one batch per message, so it cannot lag worker creation behind individual
+    // creation the way the in-process loop does. This is the equivalent lever for that path: a settle
+    // delay before the searchability gate. Defaults to 0 so behaviour is unchanged until tuned.
+    workerCreateSettleDelayMs: process.env.USER_WORKER_CREATE_SETTLE_DELAY_MS ? parseInt(process.env.USER_WORKER_CREATE_SETTLE_DELAY_MS, 10) : 0,
   },
       // Worker registry configuration
     workerRegistry: {

@@ -971,9 +971,11 @@ async function monitorCampaignDataCompletion(
                     throw failureError;
                 }
 
-                // Non-blocking: user failures are allowed, log them but continue
+                // Non-blocking by policy (see CLAUDE.md, Campaign Failure Semantics) — but logged at error
+                // level with counts, because the campaign will still report `created` and every process
+                // `completed`, so this line is the only place the user-level loss is stated.
                 if (userStatus.anyFailed) {
-                    logger.warn(`Campaign ${campaignNumber} has user-level failures: ${userStatus.failedRows} out of ${userStatus.totalRows} users failed. Failures are non-blocking and visible in error worksheet.`);
+                    logger.error(`Campaign ${campaignNumber} completing with user-level failures: ${userStatus.failedRows} of ${userStatus.totalRows} user rows failed and are NOT usable for this campaign. Non-blocking by policy; per-row reasons are in the error worksheet and in campaign_data.#errorDetails#.`);
                 }
 
                 if (status.allCompleted || (status.totalRows > 0 && status.failedRows > 0 && status.pendingRows === 0 && !boundaryStatus.anyFailed && !facilityStatus.anyFailed)) {

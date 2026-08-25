@@ -363,19 +363,13 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         return reversePath;
     }
     
-    private EnrichedBoundary findParentBoundary(EnrichedBoundary boundary, 
+    private EnrichedBoundary findParentBoundary(EnrichedBoundary boundary,
                                                Map<String, EnrichedBoundary> codeToEnrichedBoundary) {
-        // Find parent by searching through all boundaries
-        for (EnrichedBoundary candidate : codeToEnrichedBoundary.values()) {
-            if (candidate.getChildren() != null) {
-                for (EnrichedBoundary child : candidate.getChildren()) {
-                    if (child.getCode().equals(boundary.getCode())) {
-                        return candidate;
-                    }
-                }
-            }
-        }
-        return null;
+        // buildCodeToBoundaryMap stamps every node with its parent code, so this is a map lookup instead
+        // of rescanning the whole hierarchy once per level per facility. A root has no parent, which ends
+        // the upward walk exactly as the previous scan did when it found no containing node.
+        String parentCode = boundary.getParent();
+        return parentCode == null ? null : codeToEnrichedBoundary.get(parentCode);
     }
     
     private void populateBoundaryColumnsFromPath(Map<String, Object> facility, 

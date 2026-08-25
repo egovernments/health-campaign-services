@@ -101,6 +101,12 @@ public class ExcelIngestionConfig {
     @Value("${egov.facility.search.path}")
     private String facilitySearchPath;
 
+    // Page size for the tenant-wide permanent-facility sweep in FacilityService. This runs SEQUENTIALLY,
+    // so the page count is the round-trip count: at the previous hardcoded 50 a tenant with 65k facilities
+    // cost 1,300 calls and ~4 minutes, which was ~70% of a whole unified-console generation.
+    @Value("${egov.facility.search.page.size:1000}")
+    private int facilitySearchPageSize;
+
     @Value("${egov.attendance.host}")
     private String attendanceHost;
 

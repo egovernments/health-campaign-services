@@ -369,31 +369,32 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         // Check campaign data for existing users with completed status (any campaign)
         String tenantId = resource.getTenantId();
         Set<String> existingInCampaign = new HashSet<>();
-        
+        String currentCampaignNumber = getCampaignNumberFromReferenceId(resource.getReferenceId(), tenantId, requestInfo);
+
         try {
             // Search in batches to avoid large array operations
             final int SEARCH_BATCH_SIZE = 500;
             for (int i = 0; i < allPhoneNumbers.size(); i += SEARCH_BATCH_SIZE) {
                 int endIndex = Math.min(i + SEARCH_BATCH_SIZE, allPhoneNumbers.size());
                 List<String> batch = allPhoneNumbers.subList(i, endIndex);
-                
-                List<Map<String, Object>> campaignUsers = campaignService.searchCampaignDataByUniqueIdentifiers(
-                    batch, "user", "completed", null, tenantId, requestInfo);
-                
-                for (Map<String, Object> campaignUser : campaignUsers) {
-                    String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
-                    if (uniqueIdentifier != null) {
-                        existingInCampaign.add(uniqueIdentifier);
-                        String existingCampaignNumber = (String) campaignUser.get("campaignNumber");
-                        log.debug("Phone number {} already exists in campaign {} with completed status", 
-                                uniqueIdentifier, existingCampaignNumber);
-                    }
+
+                collectExistingIdentifiers(campaignService.searchCampaignDataByUniqueIdentifiers(
+                        batch, ValidationConstants.SHEET_KIND_USER, ProcessingConstants.STATUS_COMPLETED,
+                        null, tenantId, requestInfo), existingInCampaign);
+
+                // A phone this campaign already owns stays exempt at ANY status. Without this, a row left
+                // failed by a previous attempt is treated as a foreign user, re-derives INVALID, and the
+                // re-upload the operator just performed becomes the thing that blocks the retry.
+                if (currentCampaignNumber != null && !currentCampaignNumber.trim().isEmpty()) {
+                    collectExistingIdentifiers(campaignService.searchCampaignDataByUniqueIdentifiers(
+                            batch, ValidationConstants.SHEET_KIND_USER, null,
+                            currentCampaignNumber, tenantId, requestInfo), existingInCampaign);
                 }
             }
-            
+
             if (!existingInCampaign.isEmpty()) {
-                log.info("Found {} users already existing in any campaign with completed status - will skip validation for these", 
-                        existingInCampaign.size());
+                log.info("Found {} users exempt from the phone-exists check (completed in any campaign, or already owned by campaign {})",
+                        existingInCampaign.size(), currentCampaignNumber);
             }
         } catch (Exception e) {
             log.error("Error searching campaign data: {}", e.getMessage(), e);
@@ -444,8 +445,34 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         log.info("Phone number validation completed");
         return existingInCampaign;
     }
-    
-    private void validateUserNames(List<Map<String, Object>> sheetData, String tenantId, 
+
+    private void collectExistingIdentifiers(List<Map<String, Object>> campaignUsers, Set<String> existingInCampaign) {
+        if (campaignUsers == null) {
+            return;
+        }
+        for (Map<String, Object> campaignUser : campaignUsers) {
+            String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
+            if (uniqueIdentifier != null) {
+                existingInCampaign.add(uniqueIdentifier);
+            }
+        }
+    }
+
+    /** Resolves the campaign number for the campaign being processed; null when it cannot be resolved. */
+    private String getCampaignNumberFromReferenceId(String referenceId, String tenantId, RequestInfo requestInfo) {
+        if (referenceId == null || referenceId.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
+            return campaign != null ? campaign.getCampaignNumber() : null;
+        } catch (Exception e) {
+            log.error("Could not resolve campaign number for reference ID {}: {}", referenceId, e.getMessage());
+            return null;
+        }
+    }
+
+    private void validateUserNames(List<Map<String, Object>> sheetData, String tenantId,
                                  RequestInfo requestInfo, List<ValidationError> errors,
                                  Map<String, String> localizationMap, Set<String> existingPhonesInCampaign) {
         log.info("Validating usernames for {} records (will skip {} phones already in campaign)", 
