@@ -610,6 +610,21 @@ function isRetryableHrmsError(message: string): boolean {
         || m.includes('jdbc')
         || m.includes('database_error')
         || m.includes('user creation failed at the user service')
+        // HRMS surfaces downstream infrastructure failures as HTTP 400 with a structured
+        // downstreamCode, so neither the 5xx test nor any of the text probes above match them.
+        // Observed 2026-08-25 on mhbase: Azure Postgres went read-only, idgen could not run
+        // nextval(), and HRMS returned 400 with
+        //   downstreamCode=IDGEN_ERROR downstreamMessage=No ids returned from idgen Service
+        // That was classified permanent, so ~5.3k rows went terminally failed with no retry —
+        // and defect E then promoted them to INVALID and disowned users that did exist.
+        // Match the downstream code, not the wrapper text: the wrapper reads
+        // "User creation failed for N of M employee(s)", which is emitted for permanent
+        // validation failures too, so broadening it would make those retryable as well.
+        || m.includes('idgen_error')
+        || m.includes('no ids returned')
+        // The underlying Postgres condition, in case it ever reaches us unwrapped.
+        || m.includes('read-only transaction')
+        || m.includes('25006')
         || m.includes('timeout')
         || m.includes('econnreset')
         || m.includes('econnrefused')
