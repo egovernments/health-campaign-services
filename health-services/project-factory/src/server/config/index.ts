@@ -104,6 +104,11 @@ const config = {
     individualConsistencyRetryRounds: process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_ROUNDS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_ROUNDS, 10) : 4,
     individualConsistencyRetryDelayMs: process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_DELAY_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_DELAY_MS, 10) : 15000,
     workerCreateBatchLag: process.env.USER_WORKER_CREATE_BATCH_LAG ? parseInt(process.env.USER_WORKER_CREATE_BATCH_LAG, 10) : 2,
+    // Long fixed ceiling on how long a batch may keep coming back for its individuals to become
+    // searchable. Individual creation is async — an HRMS 202 only means the record reached Kafka — so a
+    // batch is re-queued until the persister's write lands rather than failed on a timer. The deadline is
+    // absolute and rides on the message, so redelivery cannot loop forever when the failure is permanent.
+    workerCreateDeadlineMs: process.env.USER_WORKER_CREATE_DEADLINE_MS ? parseInt(process.env.USER_WORKER_CREATE_DEADLINE_MS, 10) : 600000,
   },
       // Worker registry configuration
     workerRegistry: {
