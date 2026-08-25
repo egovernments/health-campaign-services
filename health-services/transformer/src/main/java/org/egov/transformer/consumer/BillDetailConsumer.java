@@ -33,7 +33,8 @@ public class BillDetailConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.billdetail.topic}",
-            "${transformer.consumer.update.billdetail.topic}"})
+            "${transformer.consumer.update.billdetail.topic}"},
+            autoStartup = "${transformer.consumer.billdetail.enabled:true}")
     public void consumeBillDetails(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

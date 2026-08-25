@@ -37,7 +37,8 @@ public class SideEffectConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}",
-            "${transformer.consumer.update.side.effect.topic}"})
+            "${transformer.consumer.update.side.effect.topic}"},
+            autoStartup = "${transformer.consumer.side.effect.enabled:true}")
     public void consumeSideEffect(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

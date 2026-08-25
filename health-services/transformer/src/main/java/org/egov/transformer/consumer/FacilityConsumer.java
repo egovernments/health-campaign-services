@@ -37,7 +37,8 @@ public class FacilityConsumer {
     }
 
     @KafkaListener(topics = { "${transformer.consumer.create.facility.topic}",
-            "${transformer.consumer.update.facility.topic}"})
+            "${transformer.consumer.update.facility.topic}"},
+            autoStartup = "${transformer.consumer.facility.enabled:true}")
     public void consumeFacilities(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

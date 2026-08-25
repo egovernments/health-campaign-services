@@ -33,7 +33,8 @@ public class MusterRollConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.musterroll.topic}",
-            "${transformer.consumer.update.musterroll.topic}"})
+            "${transformer.consumer.update.musterroll.topic}"},
+            autoStartup = "${transformer.consumer.musterroll.enabled:true}")
     public void consumeMusterRoll(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

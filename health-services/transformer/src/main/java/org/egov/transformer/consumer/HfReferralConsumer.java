@@ -34,7 +34,8 @@ public class HfReferralConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.hfreferral.topic}",
-            "${transformer.consumer.update.hfreferral.topic}"})
+            "${transformer.consumer.update.hfreferral.topic}"},
+            autoStartup = "${transformer.consumer.hfreferral.enabled:true}")
     public void consumeReferral(ConsumerRecord<String, Object> payload,
                                 @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

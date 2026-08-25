@@ -35,7 +35,8 @@ public class AttendeeConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.save.attendee.topic}",
-            "${transformer.consumer.update.attendee.topic}"})
+            "${transformer.consumer.update.attendee.topic}"},
+            autoStartup = "${transformer.consumer.attendee.enabled:true}")
     public void consumeAttendee(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

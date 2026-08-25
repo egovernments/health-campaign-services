@@ -34,7 +34,8 @@ public class UserActionConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.user.action.topic}",
-            "${transformer.consumer.update.user.action.topic}"})
+            "${transformer.consumer.update.user.action.topic}"},
+            autoStartup = "${transformer.consumer.user.action.enabled:true}")
     public void consumeUserActions(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
