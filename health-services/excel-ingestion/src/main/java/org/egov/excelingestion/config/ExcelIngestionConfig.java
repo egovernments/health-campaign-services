@@ -101,6 +101,9 @@ public class ExcelIngestionConfig {
     @Value("${egov.facility.search.path}")
     private String facilitySearchPath;
 
+    @Value("${egov.facility.search.page.size:1000}")
+    private int facilitySearchPageSize;
+
     @Value("${egov.attendance.host}")
     private String attendanceHost;
 

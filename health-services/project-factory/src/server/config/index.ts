@@ -96,6 +96,13 @@ const config = {
     individualSearchBatchSize: process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE, 10) : 50,
     individualConsistencyPollIntervalMs: process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS, 10) : 2000,
     individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 5,
+    // Outer rounds around the poll above, mirroring tryTriggerGenerateIfBoundariesSynced: a child waits
+    // for its parent to arrive rather than failing. The individual IS being written — an HRMS 202 only
+    // means it reached Kafka — so exhausting the inner poll means "not yet", not "never". Kept as its own
+    // budget so an environment that tuned MAX_POLL_ATTEMPTS down cannot shrink the total wait below the
+    // observed persister latency. Backing off between rounds also stops the retry hammering individual/_search.
+    individualConsistencyRetryRounds: process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_ROUNDS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_ROUNDS, 10) : 4,
+    individualConsistencyRetryDelayMs: process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_DELAY_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_DELAY_MS, 10) : 15000,
     workerCreateBatchLag: process.env.USER_WORKER_CREATE_BATCH_LAG ? parseInt(process.env.USER_WORKER_CREATE_BATCH_LAG, 10) : 2,
   },
       // Worker registry configuration
