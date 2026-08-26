@@ -96,8 +96,8 @@ public class ProjectAddressQueryBuilder {
 
             if (StringUtils.isNotBlank(project.getName())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.name LIKE ? ");
-                preparedStmtList.add('%' + project.getName() + '%');
+                queryBuilder.append(" LOWER(prj.name) LIKE ? ");
+                preparedStmtList.add('%' + project.getName().trim().toLowerCase() + '%');
             }
 
             if (StringUtils.isNotBlank(project.getProjectType())) {
