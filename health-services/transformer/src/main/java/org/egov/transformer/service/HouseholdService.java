@@ -9,6 +9,7 @@ import org.egov.common.contract.request.User;
 import org.egov.common.models.household.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -20,11 +21,13 @@ import static org.egov.transformer.Constants.*;
 public class HouseholdService {
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
+    private final TransformerErrorProducer errorProducer;
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(PREGNANTWOMEN, CHILDREN, NO_OF_ROOMS, MEN_COUNT, WOMEN_COUNT));
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient) {
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
+        this.errorProducer = errorProducer;
     }
 
     public List<Household> searchHousehold(String clientRefId, String tenantId) {
@@ -50,6 +53,7 @@ public class HouseholdService {
                     HouseholdBulkResponse.class);
         } catch (Exception e) {
             log.error("Error while fetching household for clientRefId: {}. ExceptionDetails: {}", clientRefId, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
             return Collections.emptyList();
         }
         return response.getHouseholds();

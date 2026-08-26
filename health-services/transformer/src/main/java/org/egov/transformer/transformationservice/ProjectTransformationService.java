@@ -12,6 +12,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProductService;
 import org.egov.transformer.service.ProjectFactoryService;
@@ -36,8 +37,9 @@ public class ProjectTransformationService {
     private final ProductService productService;
     private final BoundaryService boundaryService;
     private final ProjectFactoryService projectFactoryService;
+    private final TransformerErrorProducer errorProducer;
 
-    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
+    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -46,6 +48,7 @@ public class ProjectTransformationService {
         this.productService = productService;
         this.boundaryService = boundaryService;
         this.projectFactoryService = projectFactoryService;
+        this.errorProducer = errorProducer;
     }
 
 
@@ -65,6 +68,7 @@ public class ProjectTransformationService {
 
     private List<ProjectIndexV1> transform(Project project) {
         String localityCode;
+        String hierarhyType = commonUtils.getHierarchyTypeFromProject(project);
         if (project.getAddress() != null) {
             localityCode = project.getAddress().getBoundary() != null ?
                     project.getAddress().getBoundary() :
@@ -74,7 +78,7 @@ public class ProjectTransformationService {
         } else {
             localityCode = null;
         }
-        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(localityCode, project.getTenantId());
+        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(localityCode, project.getTenantId(),hierarhyType);
 
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchy() : null;
         Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchyCode() : null;
@@ -157,7 +161,7 @@ public class ProjectTransformationService {
                             .referenceID(project.getReferenceID())
                             .projectNumber(project.getProjectNumber())
                             .build();
-                    projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName());
+                    projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName(),hierarhyType);
                     projectIndexV1.setCampaignNumber(project.getReferenceID());
                     projectIndexV1.setCampaignId(campaignId);
                     return projectIndexV1;
@@ -185,6 +189,7 @@ public class ProjectTransformationService {
 
                                 } catch (JsonProcessingException e) {
                                     log.error("target object : " + target + " could not be processed {}", ExceptionUtils.getStackTrace(e));
+                                    errorProducer.sendToErrorTopic(target, null, e);
                                 }
                             }
                         }
@@ -194,9 +199,9 @@ public class ProjectTransformationService {
         }
     }
 
-    private BoundaryHierarchyResult getBoundaryHierarchyResult(String localityCode, String tenantId) {
+    private BoundaryHierarchyResult getBoundaryHierarchyResult(String localityCode, String tenantId,String hierarhyType) {
         if (localityCode != null) {
-            return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarhyType);
         }
         return null;
     }

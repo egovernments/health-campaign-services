@@ -7,6 +7,7 @@ import org.egov.common.contract.request.User;
 import org.egov.common.models.product.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -23,12 +24,15 @@ public class ProductService {
 
     private final ServiceRequestClient serviceRequestClient;
 
+    private final TransformerErrorProducer errorProducer;
+
     private static HashMap<String, String> productVariantVsNameCache = new HashMap<>();
 
 
-    public ProductService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient) {
+    public ProductService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
+        this.errorProducer = errorProducer;
     }
 
     public List<String> getProductVariantNames(List<String> productVariantIds, String tenantId) {
@@ -76,6 +80,7 @@ public class ProductService {
             return sku;
         } catch (Exception e) {
             log.error("PRODUCT_VARIANT_FETCH_ERROR in transformer: {}", ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
             return productVariantId;
         }
     }

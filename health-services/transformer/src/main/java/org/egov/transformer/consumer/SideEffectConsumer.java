@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.sideeffect.*;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,16 +21,19 @@ import java.util.List;
 @Slf4j
 public class SideEffectConsumer {
 
-
     private final ObjectMapper objectMapper;
 
     private final SideEffectTransformationService sideEffectTransformationService;
 
-    @Autowired
-    public SideEffectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, SideEffectTransformationService sideEffectTransformationService) {
+    private final TransformerErrorProducer errorQueueProducer;
 
+    @Autowired
+    public SideEffectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                              SideEffectTransformationService sideEffectTransformationService,
+                              TransformerErrorProducer errorQueueProducer) {
         this.objectMapper = objectMapper;
         this.sideEffectTransformationService = sideEffectTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}",
@@ -38,12 +42,15 @@ public class SideEffectConsumer {
     public void consumeSideEffect(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            errorQueueProducer.withSourceTopic(topic, () -> {
             List<SideEffect> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             SideEffect[].class));
             sideEffectTransformationService.transform(payloadList);
+            });
         } catch (Exception exception) {
             log.error("TRANSFORMER error in side effect consumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
         }
     }
 }

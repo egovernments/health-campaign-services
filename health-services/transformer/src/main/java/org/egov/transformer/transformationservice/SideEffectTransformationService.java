@@ -7,6 +7,7 @@ import org.egov.common.models.project.*;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.models.downstream.SideEffectsIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
@@ -82,7 +83,8 @@ public class SideEffectTransformationService {
                     task.getAddress().getLocality().getCode() != null) ?
                     task.getAddress().getLocality().getCode() :
                     null;
-            BoundaryHierarchyResult boundaryHierarchyResult = localityCode != null ? boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId) :
+            ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(sideEffect.getClientAuditDetails().getLastModifiedBy(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = localityCode != null ? boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId, projectInfo.getHierarchyType()) :
                     boundaryService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
