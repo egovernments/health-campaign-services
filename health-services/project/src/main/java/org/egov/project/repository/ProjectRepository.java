@@ -188,6 +188,17 @@ public class ProjectRepository extends GenericRepository<Project> {
         return projects;
     }
 
+
+    /* Fetch Project descendants by walking the parent chain down from the given ancestor ids */
+    private List<Project> getProjectsDescendantsByRecursion(String tenantId, List<String> projectIds, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
+        String query = queryBuilder.getProjectDescendantsSearchQueryByRecursion(projectIds, preparedStmtListDescendants);
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
+        log.info("Fetched project descendants list by walking the parent chain");
+        return projects;
+    }
+
     /* Fetch Project descendants based on Project ids */
     private List<Project> getProjectsDescendantsBasedOnProjectIds(String tenantId, List<String> projectIds, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
         String query = queryBuilder.getProjectDescendantsSearchQueryBasedOnIds(projectIds, preparedStmtListDescendants);
@@ -253,12 +264,14 @@ public class ProjectRepository extends GenericRepository<Project> {
 
     /* Fetch projects where project hierarchy for projects in db contains project ID of requested project. The descendant project's projectHierarchy will contain parent project id */
     private List<Project> getProjectDescendants(String tenantId, List<Project> projects) throws InvalidTenantIdException {
-        List<String> projectIds = projects.stream().map(Project:: getId).collect(Collectors.toList());
-
         List<Object> preparedStmtListDescendants = new ArrayList<>();
         log.info("Fetching descendant projects");
-
-        return getProjectsDescendantsBasedOnProjectIds(tenantId, projectIds, preparedStmtListDescendants);
+        List<String> projectIds = projects.stream()
+                .map(Project::getId)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        return getProjectsDescendantsByRecursion(tenantId, projectIds, preparedStmtListDescendants);
     }
 
     /* Fetch projects where project parent for projects in db contains project ID of requested project.*/

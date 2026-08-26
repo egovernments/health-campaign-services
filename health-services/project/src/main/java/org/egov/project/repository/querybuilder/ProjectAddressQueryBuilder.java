@@ -1,7 +1,9 @@
 package org.egov.project.repository.querybuilder;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -43,6 +45,15 @@ public class ProjectAddressQueryBuilder {
             " result) result_offset " +
             "WHERE offset_ > ? AND offset_ <= ?";
 
+    /* Every project at or below the given id, found by walking parent -> child over idx_project_parent */
+    private static final String DESCENDANT_ID_SUBQUERY = " prj.id IN ("
+            + " WITH RECURSIVE descendants AS ("
+            + "   SELECT id FROM " + SCHEMA_REPLACE_STRING + ".project WHERE id = ?"
+            + "   UNION ALL"
+            + "   SELECT child.id FROM " + SCHEMA_REPLACE_STRING + ".project child"
+            + "     JOIN descendants ON child.parent = descendants.id"
+            + " ) SELECT id FROM descendants ) ";
+
     private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM " + SCHEMA_REPLACE_STRING + ".project prj " +
             "left join " + SCHEMA_REPLACE_STRING + ".project_address addr " +
             "on prj.id = addr.projectId ";;
@@ -79,8 +90,11 @@ public class ProjectAddressQueryBuilder {
              */
             if (isAncestorProjectId && StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" ( prj.projectHierarchy LIKE ? OR prj.id =? ) ");
-                preparedStmtList.add('%' + project.getId() + '%');
+                // Walks down the parent chain instead of matching the hierarchy path as text: a
+                // text match on projectHierarchy cannot use any index, so it read the whole table.
+                // The recursion uses idx_project_parent, which already exists, and its base case is
+                // the project itself, so the ancestor is included without a separate id clause.
+                queryBuilder.append(DESCENDANT_ID_SUBQUERY);
                 preparedStmtList.add(project.getId());
             } else if (StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
@@ -388,6 +402,23 @@ public class ProjectAddressQueryBuilder {
             preparedStmtListDescendants.add('%' + projectId + '%');
         }
         
+        return queryBuilder.toString();
+    }
+
+
+    /**
+     * Returns query for every project at or below the given ancestor ids. Matches the same rows as
+     * {@link #getProjectDescendantsSearchQueryBasedOnIds}, but walks parent -> child over
+     * idx_project_parent instead of matching projectHierarchy as text, which no index can serve.
+     */
+    public String getProjectDescendantsSearchQueryByRecursion(List<String> projectIds, List<Object> preparedStmtListDescendants) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_ADDRESS_QUERY);
+        for (String projectId : projectIds) {
+            addConditionalClause(preparedStmtListDescendants, queryBuilder);
+            queryBuilder.append(DESCENDANT_ID_SUBQUERY);
+            preparedStmtListDescendants.add(projectId);
+        }
+
         return queryBuilder.toString();
     }
 
