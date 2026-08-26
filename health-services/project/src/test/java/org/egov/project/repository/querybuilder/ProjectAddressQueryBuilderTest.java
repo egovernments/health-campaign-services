@@ -13,10 +13,13 @@ import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -53,8 +56,51 @@ class ProjectAddressQueryBuilderTest {
 
         ancestorSearch(Map.of(DISTRICT_ID, DISTRICT_PATH), params);
 
-        assertTrue(params.contains(DISTRICT_PATH + "%"), "expected an anchored prefix pattern");
+        assertTrue(params.contains(DISTRICT_PATH + ".%"), "expected an anchored prefix pattern");
         assertFalse(params.contains("%" + DISTRICT_ID + "%"), "unanchored pattern must not be used");
+    }
+
+    @Test
+    @DisplayName("a root project anchors on its own id, since it has no path of its own")
+    void rootProjectAnchorsOnItsId() {
+        List<Object> params = new ArrayList<>();
+
+        ancestorSearch(Map.of(DISTRICT_ID, DISTRICT_ID), params);
+
+        assertTrue(params.contains(DISTRICT_ID + ".%"), "every descendant's path starts with the root id");
+        assertFalse(params.contains("%" + DISTRICT_ID + "%"), "unanchored pattern must not be used");
+    }
+
+    @Test
+    @DisplayName("a blank prefix in the map is treated as no prefix at all")
+    void blankPrefixFallsBack() {
+        List<Object> params = new ArrayList<>();
+        Map<String, String> noUsablePrefix = new HashMap<>();
+        noUsablePrefix.put(DISTRICT_ID, null);
+
+        ancestorSearch(noUsablePrefix, params);
+
+        assertTrue(params.contains("%" + DISTRICT_ID + "%"), "expected the fallback to keep results identical");
+    }
+
+    @Test
+    @DisplayName("a project with a path anchors on that path")
+    void prefixIsThePathWhenPresent() {
+        assertEquals(DISTRICT_PATH, ProjectAddressQueryBuilder.hierarchyPrefix(DISTRICT_PATH, DISTRICT_ID, "parent-id"));
+    }
+
+    @Test
+    @DisplayName("a root (no path, no parent) anchors on its own id")
+    void prefixIsTheIdForARoot() {
+        assertEquals(DISTRICT_ID, ProjectAddressQueryBuilder.hierarchyPrefix(null, DISTRICT_ID, null));
+        assertEquals(DISTRICT_ID, ProjectAddressQueryBuilder.hierarchyPrefix("", DISTRICT_ID, ""));
+    }
+
+    @Test
+    @DisplayName("a non-root row with no path yields no prefix, so the caller must not anchor")
+    void noPrefixWhenPathIsMissingButParentIsNot() {
+        // its descendants' paths start at the root, so anchoring on this id would silently drop them
+        assertNull(ProjectAddressQueryBuilder.hierarchyPrefix(null, DISTRICT_ID, "some-parent-id"));
     }
 
     @Test
@@ -75,7 +121,7 @@ class ProjectAddressQueryBuilderTest {
         queryBuilder.getSearchCountQueryString(projectWithId(DISTRICT_ID), "mz", null, Boolean.FALSE,
                 null, null, true, params, Map.of(DISTRICT_ID, DISTRICT_PATH));
 
-        assertTrue(params.contains(DISTRICT_PATH + "%"));
+        assertTrue(params.contains(DISTRICT_PATH + ".%"));
         assertFalse(params.contains("%" + DISTRICT_ID + "%"));
     }
 
@@ -100,8 +146,8 @@ class ProjectAddressQueryBuilderTest {
 
         queryBuilder.getProjectDescendantsSearchQueryBasedOnHierarchies(List.of(DISTRICT_PATH, otherPath), params);
 
-        assertTrue(params.contains(DISTRICT_PATH + "%"));
-        assertTrue(params.contains(otherPath + "%"));
+        assertTrue(params.contains(DISTRICT_PATH + ".%"));
+        assertTrue(params.contains(otherPath + ".%"));
         assertFalse(params.stream().anyMatch(p -> String.valueOf(p).startsWith("%")));
     }
 
@@ -114,6 +160,7 @@ class ProjectAddressQueryBuilderTest {
 
         assertTrue(query.contains("prj.id IN (?, ?)"));
         assertTrue(query.contains("prj.projectHierarchy as project_projectHierarchy"));
+        assertTrue(query.contains("prj.parent as project_parent"), "parent tells a root apart from a data gap");
         assertFalse(query.contains("LIKE"));
         assertTrue(params.contains(DISTRICT_ID) && params.contains("other-id"));
     }
