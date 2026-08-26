@@ -169,7 +169,8 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Fetch Projects based on search criteria */
     private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false);
+        Map<String, String> idToHierarchy = resolveProjectHierarchies(tenantId, projectsRequest, isAncestorProjectId);
+        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false, idToHierarchy);
         // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
@@ -188,14 +189,38 @@ public class ProjectRepository extends GenericRepository<Project> {
         return projects;
     }
 
+    /* Resolve each requested id to its own hierarchy path, so the ancestor match can be anchored */
+    private Map<String, String> resolveProjectHierarchies(String tenantId, List<Project> projectsRequest, boolean isAncestorProjectId) throws InvalidTenantIdException {
+        if (!isAncestorProjectId || projectsRequest == null) {
+            return Collections.emptyMap();
+        }
+        List<String> projectIds = projectsRequest.stream()
+                .map(Project::getId)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        if (projectIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
 
-    /* Fetch Project descendants by walking the parent chain down from the given ancestor ids */
-    private List<Project> getProjectsDescendantsByRecursion(String tenantId, List<String> projectIds, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
-        String query = queryBuilder.getProjectDescendantsSearchQueryByRecursion(projectIds, preparedStmtListDescendants);
-        // Replacing schema placeholder with the schema name for the tenant id
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getProjectHierarchyQueryBasedOnIds(projectIds, preparedStmtList);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+
+        Map<String, String> idToHierarchy = new HashMap<>();
+        jdbcTemplate.query(query, rs -> {
+            idToHierarchy.put(rs.getString("projectId"), rs.getString("project_projectHierarchy"));
+        }, preparedStmtList.toArray());
+        log.info("Resolved hierarchy paths for {} of {} requested project ids", idToHierarchy.size(), projectIds.size());
+        return idToHierarchy;
+    }
+
+    /* Fetch Project descendants based on ancestor hierarchy paths (anchored, index-usable) */
+    private List<Project> getProjectsDescendantsBasedOnProjectHierarchies(String tenantId, List<String> projectHierarchies, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
+        String query = queryBuilder.getProjectDescendantsSearchQueryBasedOnHierarchies(projectHierarchies, preparedStmtListDescendants);
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
-        log.info("Fetched project descendants list by walking the parent chain");
+        log.info("Fetched project descendants list based on given hierarchy paths");
         return projects;
     }
 
@@ -264,14 +289,23 @@ public class ProjectRepository extends GenericRepository<Project> {
 
     /* Fetch projects where project hierarchy for projects in db contains project ID of requested project. The descendant project's projectHierarchy will contain parent project id */
     private List<Project> getProjectDescendants(String tenantId, List<Project> projects) throws InvalidTenantIdException {
+        List<String> projectIds = projects.stream().map(Project:: getId).collect(Collectors.toList());
+
         List<Object> preparedStmtListDescendants = new ArrayList<>();
         log.info("Fetching descendant projects");
-        List<String> projectIds = projects.stream()
-                .map(Project::getId)
+
+        // The parent rows already carry their own path, so the anchored form needs no extra lookup.
+        // Falls back whenever any row lacks one, so the result set is never narrowed silently.
+        List<String> projectHierarchies = projects.stream()
+                .map(Project::getProjectHierarchy)
                 .filter(StringUtils::isNotBlank)
-                .distinct()
                 .collect(Collectors.toList());
-        return getProjectsDescendantsByRecursion(tenantId, projectIds, preparedStmtListDescendants);
+        if (projectHierarchies.size() == projects.size()) {
+            return getProjectsDescendantsBasedOnProjectHierarchies(tenantId, projectHierarchies, preparedStmtListDescendants);
+        }
+        log.warn("Not all projects have a projectHierarchy; falling back to the id-based descendant search");
+
+        return getProjectsDescendantsBasedOnProjectIds(tenantId, projectIds, preparedStmtListDescendants);
     }
 
     /* Fetch projects where project parent for projects in db contains project ID of requested project.*/
@@ -399,7 +433,8 @@ public class ProjectRepository extends GenericRepository<Project> {
      */
     public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStatement = new ArrayList<>();
-        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement);
+        Map<String, String> idToHierarchy = resolveProjectHierarchies(tenantId, project.getProjects(), isAncestorProjectId);
+        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, idToHierarchy);
 
         if (query == null)
             return 0;
