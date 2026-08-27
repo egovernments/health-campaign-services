@@ -28,6 +28,13 @@ try:
 except ImportError:
     from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
+# Airflow puts DAGS_FOLDER on sys.path, not the directory holding this file.
+# With DAGS_FOLDER at the synced repo root, `from dst_common import ...` cannot
+# resolve - eGov's own DAGs fail the same way with `common`. Two lines here beat
+# a PYTHONPATH the hosted Airflow gives us no way to set.
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+
 from dst_common import dst_config
 from dst_common.alerts import notify_slack_on_failure
 from dst_common.deployment_env import (group_environment, load_deployment_groups,

@@ -11,8 +11,6 @@ path there).
 """
 import logging
 
-from pipeline.run_log import append_run_log, fetch_today_runs
-from pipeline.schedule_utils import parse_report_times
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +28,8 @@ def build_retime_guard():
     (Bauchi SMC + ITN, Chad's three rows), and tenant-only matching let one
     campaign's success suppress another's slot.
     """
+    from pipeline.run_log import fetch_today_runs
+    from pipeline.schedule_utils import parse_report_times
     today_runs = fetch_today_runs()
     log.info(f"[retime-guard] {len(today_runs)} run(s) recorded today")
 
@@ -168,6 +168,7 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
     recorded = "kafka" if published else "none"
     if not published:
         with group_environment(group):
+            from pipeline.run_log import append_run_log
             ok = append_run_log(
                 conf.get("state_name", ""), row.get("campaign_name", ""), day,
                 "FAILED" if failed else "SUCCESS",
