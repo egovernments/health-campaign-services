@@ -10,7 +10,6 @@ slots against [now - lookback, now] computed from datetime.now(UTC).
 import logging
 from datetime import datetime, timedelta, timezone
 
-from pipeline.schedule_utils import campaign_key, compute_trigger_slots
 
 log = logging.getLogger(__name__)
 
@@ -18,6 +17,17 @@ log = logging.getLogger(__name__)
 # mop-up day, and goes to BOTH the internal and the partner channel.
 CUMULATIVE_TIME = "23:59"
 CUMULATIVE_MODE = "cumulative"
+
+
+
+def campaign_key(row):
+    """Re-exported from pipeline.schedule_utils, imported lazily (see module note).
+
+    Kept as a public name here because callers - including the test suites -
+    import it from this module.
+    """
+    from pipeline.schedule_utils import campaign_key as _ck
+    return _ck(row)
 
 
 def parse_sheet_date(value):
@@ -81,6 +91,7 @@ def _candidate_slots(row):
     ES keeps absorbing late syncs for days after a campaign closes and the date
     is a judgement call the campaign lead owns.
     """
+    from pipeline.schedule_utils import compute_trigger_slots
     slots = list(compute_trigger_slots(row))
     if parse_sheet_date(row.get("mopup_end_date")):
         slots.append((CUMULATIVE_TIME, CUMULATIVE_MODE))
