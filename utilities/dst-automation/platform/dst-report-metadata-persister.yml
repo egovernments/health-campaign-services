@@ -1,0 +1,48 @@
+# egov-persister config for the DST report automation lifecycle events.
+#
+# Consumes the Kafka topic save-dst-report-metadata (published by the
+# dst_campaign_run DAG in mdms mode — see dags/common/dst_kafka_status.py for
+# the producer and the exact event schema) and persists one row per report
+# attempt into dst_report_metadata (DDL: platform/dst_report_metadata.sql).
+#
+# Platform-side installation:
+#   1. Add this file to the persister configs repo/folder the environment's
+#      egov-persister loads from.
+#   2. Create the table once (platform/dst_report_metadata.sql).
+#   3. CENTRAL INSTANCES: when IS_CENTRAL_INSTANCE_ENABLED=true the producer
+#      publishes to {tenant}-save-dst-report-metadata, NOT the bare topic. The
+#      bare name below will then consume nothing. List every tenant's prefixed
+#      topic, comma separated, e.g.
+#        fromTopic: ch-save-dst-report-metadata,ba-save-dst-report-metadata
+serviceMaps:
+  serviceName: dst-report-automation
+  mappings:
+    - version: 1.0
+      description: Persists DST campaign report run outcomes
+      fromTopic: save-dst-report-metadata
+      isTransaction: true
+      queryMaps:
+        - query: >
+            INSERT INTO dst_report_metadata
+            (event_id, tenant_id, state_name, campaign_identifier, cycle_index,
+             deployment_group, mode, day, slot_date, slot_time, dag_run_id,
+             status, step_failed, drive_folder_url, timestamp_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (event_id) DO NOTHING;
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.event_id
+            - jsonPath: $.tenant_id
+            - jsonPath: $.state_name
+            - jsonPath: $.campaign_identifier
+            - jsonPath: $.cycle_index
+            - jsonPath: $.deployment_group
+            - jsonPath: $.mode
+            - jsonPath: $.day
+            - jsonPath: $.slot_date
+            - jsonPath: $.slot_time
+            - jsonPath: $.dag_run_id
+            - jsonPath: $.status
+            - jsonPath: $.step_failed
+            - jsonPath: $.drive_folder_url
+            - jsonPath: $.timestamp_ms
