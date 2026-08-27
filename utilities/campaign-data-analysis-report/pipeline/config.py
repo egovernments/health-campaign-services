@@ -118,24 +118,11 @@ def _pad_cycle(val):
 
 
 # ── in-code feature defaults ───────────────────────────────────────────────────
-# ITN duplicate-distribution matrix (analyze_itn._classify_duplicates). SMC/AZM
-# rows never read it.
-#
-# Resolution order, most specific first:
-#   1. a dup_matrix cell on the sheet row   (TRUE/FALSE, per campaign)
-#   2. the DST_DUP_MATRIX environment key   (per deployment)
-#   3. DUP_MATRIX_FALLBACK below            (per checkout)
-#
-# Step 2 exists because step 3 alone was unreachable on the deployment that
-# needs it. The KB records DUP_MATRIX=TRUE as a standing Chad ITN divergence,
-# but the hosted Airflow has no env vars, no file mounts and a read-only
-# git-sync checkout - Admin -> Variables is the only writable surface. So the
-# feature could only be switched on by editing this file, which that deployment
-# cannot do. As an env key it is now settable from the dst_config Variable's
-# "env" block, like every other deployment setting.
-#
-# Unset means unchanged: absent DST_DUP_MATRIX and an empty sheet cell resolve
-# to the same FALSE this constant has always held.
+# ITN duplicate-distribution matrix (analyze_itn._classify_duplicates); SMC/AZM
+# ignore it. Resolution: sheet cell > DST_DUP_MATRIX env > fallback below.
+# The env key exists because the hosted Airflow can only set Variables, so a
+# code-only default was unreachable there (Chad ITN needs it TRUE).
+# Unset = FALSE, unchanged from before.
 DUP_MATRIX_FALLBACK = "FALSE"
 
 
@@ -357,19 +344,12 @@ def build(row):
     except (ValueError, TypeError):
         campaign_days_cfg = 4
 
-    # campaign_days is the DIVISOR for the daily target and the clamp on DAY, so
-    # a value disagreeing with the campaign dates is silently destructive: on a
-    # 5-day campaign left at 4, the daily target is inflated, Day 5 is labelled
-    # "Day 4" and overwrites performance_day4.xlsx, and CAMPAIGN_DATES loses a
-    # day so every CDD loses a sync day. analyze_itn already recomputes the real
-    # length from the dates to route around exactly this.
-    #
-    # Deliberately REPORTED, not corrected. Which field is authoritative is a
-    # product decision, not a code one: campaign_end may legitimately extend past
-    # the last treatment day, in which case deriving campaign_days from the span
-    # would inflate the target the opposite way. And rejecting would stop every
-    # report for the campaign until someone edits the sheet. The actual defect
-    # here was SILENCE - a blank cell became 4 with no signal at all.
+    # campaign_days is the daily-target DIVISOR and the clamp on DAY, so a value
+    # disagreeing with the dates is silently destructive (5-day campaign left at
+    # 4: inflated target, Day 5 labelled Day 4, a CDD sync day lost).
+    # REPORTED, not corrected: campaign_end may legitimately extend past the last
+    # treatment day, and rejecting would stop every report until the sheet is
+    # fixed. The defect was SILENCE - a blank cell became 4 with no signal.
     if campaign_start and campaign_end:
         span = (campaign_end - campaign_start).days + 1
         if span > 0 and campaign_days_cfg != span:
@@ -400,23 +380,15 @@ def build(row):
     gte = f"{today.isoformat()}T00:00:00.000Z"
     lte = f"{today.isoformat()}T23:59:59.999Z"
 
-    # Local SCRATCH only — Google Drive is the output store. Every durable
-    # artifact (reports, Excels, chart, checkpoints) is published to the
-    # campaign's Drive folder, so this directory is disposable and the code
-    # picks it itself: no env var, no sheet column to get wrong.
-    # It must never sit inside the package — under Kubernetes the code is
-    # typically a read-only git-sync mount and makedirs() would raise
-    # "Read-only file system" before any work starts.
-    # The legacy out_dir column is still honoured for the JupyterHub boxes,
-    # which read their reports off local disk; it is deprecated.
-    # Per CAMPAIGN, not per tenant. Two campaigns on one tenant run
-    # concurrently (Bauchi SMC + ITN, Chad C1 + C2) and Airflow allows 16
-    # parallel runs, so a tenant-only directory made both write
-    # performance_dayN.xlsx, cdd_sync_dayN.xlsx and the same checkpoints - one
-    # run could overwrite the Excel another was about to read back, publishing
-    # the wrong campaign's numbers with no error. Verified live 2026-08-20.
-    # A sheet-supplied out_dir is left exactly as given: the JupyterHub boxes
-    # run one campaign per tenant and expect their known paths.
+    # Local SCRATCH only - Drive is the output store, so this directory is
+    # disposable and the code picks it itself. It must never sit inside the
+    # package: under Kubernetes that is a read-only git-sync mount and makedirs()
+    # would raise before any work starts.
+    # Per CAMPAIGN, not per tenant: two campaigns on one tenant run concurrently
+    # (Bauchi SMC + ITN, Chad C1 + C2) and a tenant-only directory made both write
+    # the same performance_dayN.xlsx - one run could overwrite the Excel another
+    # was about to read. Verified live 2026-08-20.
+    # A sheet-supplied out_dir is honoured as given (JupyterHub); deprecated.
     from pipeline.schedule_utils import campaign_key
     out_dir = (str(row.get("out_dir", "")).strip()
                or os.path.join(tempfile.gettempdir(), "dst", tenant,

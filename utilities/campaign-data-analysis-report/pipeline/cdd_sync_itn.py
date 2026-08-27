@@ -200,25 +200,14 @@ def _get_synced_keys_by_cutoff(cfg, cutoff_hour, cutoff_min=0):
         return None
 
 
-# ── CDD roster (sync-derived) ─────────────────────────────────────────────────
-# ADAPTATION FROM SPAQ, disclosed: cdd_sync.py's roster comes from the STAFF index
-# (assigned CDDs), then cross-references sync activity against it — so it can show
-# a "NEVER SYNCED" CDD (assigned but inactive). That roster source is blocked here
-# (see module docstring: no correct campaign-scoping field on chad-project-staff-
-# index-v1). This module instead derives the roster FROM the sync records
-# themselves — real, verified per this session's ES checks — which means a CDD
-# who has NEVER synced even once for this campaign cannot appear at all. This is a
-# structural limitation of the approach, not a bug: it's disclosed here and again
-# in the SUMMARY tab's note row rather than silently reusing SPAQ's "NEVER SYNCED"
-# label for something this data can't actually show.
-#
-# Status model: SAME HIGH/MODERATE/LOW/NEVER SYNCED thresholds as cdd_sync.py's
-# _sync_status(n, day) — n = distinct days synced, day = elapsed campaign day
-# (cfg["campaign_start"] to cfg["extract_date"], not cfg["DAY"]/cfg["campaign_days"],
-# which config.py defaults to 4 when a sheet row doesn't set it). NEVER SYNCED will
-# always read 0 here — structural, not a bug: this roster is built FROM sync
-# records, so a CDD with 0 syncs can never appear in it (see roster note above).
-# The column is kept so the table shape matches cdd_sync.py's exactly.
+# ── CDD roster (sync-derived) ────────────────────────────────────
+# Derived FROM sync records rather than the staff index (no correct
+# campaign-scoping field on chad-project-staff-index-v1 - see module docstring).
+# Consequence: a CDD who never synced cannot appear, so NEVER SYNCED always reads
+# 0. Structural, not a bug; disclosed again in the SUMMARY tab. The column is kept
+# so the table shape matches cdd_sync.py.
+# Thresholds match cdd_sync._sync_status(n, day): n = distinct days synced,
+# day = elapsed campaign day (not cfg["DAY"], which defaults to 4).
 
 def _fetch_cdd_roster(cfg):
     """

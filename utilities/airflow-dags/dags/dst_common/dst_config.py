@@ -197,18 +197,12 @@ def _write_credentials_file(payload):
                   "account object (no private_key) — ignoring it")
         return None
 
-    # Per-PROCESS path, not a fixed one. This file is deleted in apply()'s
-    # finally, and with max_active_runs=16 two campaign tasks can share a
-    # container: on a fixed path the first task to finish deleted the key out
-    # from under a longer-running one, whose next Drive call then fell back to
-    # the repo-root credential.json (absent on a clean deploy -> FileNotFoundError,
-    # which is a DATA_ERROR, so no retry and the slot's run id already consumed;
-    # or present on a dev box -> silently a DIFFERENT service account).
-    #
-    # mkdtemp also closes two smaller holes: makedirs(exist_ok=True) would have
-    # accepted a pre-existing directory owned by someone else on a shared /tmp,
-    # and it creates with 0700 so there is no window where the parent is
-    # world-traversable.
+    # Per-PROCESS path. With max_active_runs=16 two tasks can share a container,
+    # and on a fixed path the first to finish deleted the key from under the other
+    # - which then fell back to the repo-root credential.json (missing on a clean
+    # deploy, or a DIFFERENT service account on a dev box).
+    # mkdtemp also creates 0700 and avoids adopting a pre-existing directory owned
+    # by someone else on a shared /tmp.
     directory = tempfile.mkdtemp(prefix=f"dst-credentials-{os.getpid()}-")
     path = os.path.join(directory, "credential.json")
     # O_EXCL + 0600 at CREATE time: open() then chmod() left a window in which

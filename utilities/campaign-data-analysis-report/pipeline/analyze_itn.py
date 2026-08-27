@@ -1283,26 +1283,12 @@ def run(cfg):
     wb.save(out)
     log.info(f"[analyze_itn] saved -> {out}  ({len(rows)} LGAs, {len(fac_rows)} facilities)")
 
-    # Day-indexed history snapshot — mirrors SPAQ's per-day file convention
-    # (performance_day{N}.xlsx) so report_itn.py's progress chart/cumulative view
-    # can read a real historical series, the same way report.py's
-    # _load_all_days_perf does. Now that _fetch_facility_rows applies a real
-    # GTE/LTE date filter (see _date_filter), each day's snapshot IS genuinely
-    # that day's own data — same as SPAQ's per-day files — so report_itn.py sums
-    # them together for the cumulative view, exactly like report.py does, rather
-    # than needing any delta/subtraction logic.
-    # ADAPTED, disclosed: cfg["perf_xlsx"] itself is still unusable for this — it's
-    # named from cfg["DAY"], which config.py clamps to cfg["campaign_days"]
-    # (defaults to 4 when a Google Sheet row doesn't set it), so every day's run
-    # would overwrite the same file rather than accumulating one per day. This
-    # writes to a separate, ITN-only history folder keyed by the REAL elapsed
-    # day (cfg["campaign_start"] to cfg["extract_date"], both guaranteed present
-    # — config.py requires campaign_start/campaign_end on every row), independent
-    # of that clamp.
-    # Never in cumulative mode: the wb then holds campaign-wide figures, and
-    # saving it as performance_day{N}.xlsx would overwrite that day's genuine
-    # daily snapshot — the progress chart/table would read campaign totals as
-    # one day's activity.
+    # Day-indexed history snapshot, mirroring SPAQ's performance_day{N}.xlsx so
+    # report_itn can build a real cumulative series. cfg["perf_xlsx"] cannot be
+    # used: it is named from cfg["DAY"], which config.py clamps to campaign_days,
+    # so every day would overwrite one file. Keyed on the REAL elapsed day.
+    # Never in cumulative mode - the wb then holds campaign-wide figures and
+    # would overwrite that day's genuine daily snapshot.
     if cfg.get("campaign_start") and cfg.get("extract_date") and not cfg.get("cumulative"):
         elapsed_day = (cfg["extract_date"] - cfg["campaign_start"]).days + 1
         hist_dir = os.path.join(os.path.dirname(out), "itn_history")

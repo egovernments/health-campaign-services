@@ -106,24 +106,17 @@ def download_raw(name, folder_id, dest_path):
     return dest_path
 
 
-# ── Target books ─────────────────────────────────────────────────────────────
-# Campaign target CSVs live in ONE Drive folder (DST_TARGET_FOLDER_ID) instead of
-# on the runner's filesystem: a pod has no persistent disk, and the old relative
-# `target/xx_target.csv` paths resolved only on the JupyterHub boxes — off them
-# _load_targets fell through to "all targets = 0" and still published a report.
-#
-# WHICH file is named by the campaign config sheet: the `target_csv` column is
-# read as a FILE NAME inside that folder, not as a path. Existing rows already
-# work unchanged because only the basename is used —
-# `target/ba_target.csv` -> looks up `ba_target.csv`.
-#
-# If the column is blank, fall back to a naming convention, most specific first,
-# so one tenant can still hold books for two concurrent campaigns:
+# ── Target books ────────────────────────────────────────────
+# Target CSVs live in ONE Drive folder (DST_TARGET_FOLDER_ID), not on disk: a pod
+# has no persistent disk, and the old relative paths silently gave "all targets =
+# 0" off the JupyterHub boxes.
+# The sheet's `target_csv` column is a FILE NAME in that folder, not a path - only
+# the basename is used, so existing rows keep working.
+# Blank falls back, most specific first, so one tenant can hold two campaigns:
 #     <tenant>_<campaign_number>_target.csv
 #     <tenant>_<cycle_index>_target.csv
 #     <tenant>_target.csv
-# Every candidate is tried with and without the .csv suffix (Drive drops it when
-# a CSV is uploaded as a Google Sheet).
+# Each tried with and without .csv (Drive drops it for CSV-as-Sheet uploads).
 
 TARGET_FOLDER_ENV = "DST_TARGET_FOLDER_ID"
 _GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet"
