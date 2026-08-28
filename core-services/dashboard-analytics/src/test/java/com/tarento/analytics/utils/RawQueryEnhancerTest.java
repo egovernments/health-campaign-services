@@ -287,6 +287,58 @@ class RawQueryEnhancerTest {
 	}
 
 	@Test
+	@DisplayName("a wildcard projection (Data.*) allows any field under the prefix")
+	void wildcardProjectionAllowsPrefixedFields() throws Exception {
+		// Real config shape: commodityStockSummary on UNIFIED-DEV projects ["Data.*"]. Treating that
+		// as a literal field name locked such charts out of filtering and sorting entirely.
+		JsonNode wildcardConfig = MAPPER.readTree("{\"transformData\":\"rawDocuments\",\"aggrQuery\":"
+				+ "\"{\\\"size\\\":10000,\\\"_source\\\":[\\\"Data.*\\\"]}\"}");
+
+		AggregateRequestDto request = new AggregateRequestDto();
+		request.setTermFilters(Collections.singletonMap("Data.eventType.keyword", "DISPATCHED"));
+		PaginationDto pagination = new PaginationDto();
+		pagination.setSort(new SortCriteria("Data.dateOfEntry", "desc"));
+		request.setPagination(pagination);
+
+		ObjectNode query = configuredQuery();
+		enhancer.enhance(query, request, wildcardConfig);
+		assertTrue(query.has("sort"), "sort under the wildcard prefix must be accepted");
+
+		// A field OUTSIDE the prefix is still rejected.
+		AggregateRequestDto outside = new AggregateRequestDto();
+		outside.setTermFilters(Collections.singletonMap("other.field", "x"));
+		assertThrows(CustomException.class, () -> enhancer.enhance(configuredQuery(), outside, wildcardConfig));
+	}
+
+	@Test
+	@DisplayName("a non-numeric range bound is refused loudly instead of failing silently downstream")
+	void nonNumericRangeBoundRejected() throws Exception {
+		// A bad VALUE passes field validation, Elasticsearch rejects the whole query, and the HTTP
+		// layer swallows that into an empty 200 — reproduced live on unified-dev 2026-08-28. The only
+		// acceptable failure mode is a refusal before the query is sent.
+		AggregateRequestDto request = new AggregateRequestDto();
+		request.setRangeFilters(Collections.singletonList(rangeFilter("Data.dateOfEntry", "not-a-number", null)));
+		CustomException error = assertThrows(CustomException.class,
+				() -> enhancer.enhance(configuredQuery(), request, documentQueryConfig()));
+		assertTrue(error.getMessage().contains("numeric"));
+
+		// Numbers and numeric strings are both fine.
+		AggregateRequestDto numeric = new AggregateRequestDto();
+		numeric.setRangeFilters(Collections.singletonList(rangeFilter("Data.dateOfEntry", 1735689600000L, "1790000000000")));
+		ObjectNode query = configuredQuery();
+		enhancer.enhance(query, numeric, documentQueryConfig());
+		assertTrue(query.get("query").get("bool").get("filter").toString().contains("Data.dateOfEntry"));
+	}
+
+	private RangeFilter rangeFilter(String field, Object from, Object to) {
+		RangeFilter filter = new RangeFilter();
+		filter.setField(field);
+		filter.setFrom(from);
+		filter.setTo(to);
+		return filter;
+	}
+
+	@Test
 	@DisplayName("a caller cannot filter or sort on a field the chart does not return")
 	void fieldsOutsideTheProjectionAreRejected() throws Exception {
 		AggregateRequestDto filtering = new AggregateRequestDto();

@@ -33,6 +33,13 @@ public class CompletenessDto {
 	 */
 	private List<Object> nextPageToken;
 
+	/**
+	 * True when this dataset has no Elasticsearch response at all — the store rejected the query or
+	 * the call failed, and the HTTP layer reports success regardless. The dataset is unavailable,
+	 * not empty; nothing else in this object is meaningful when this is set.
+	 */
+	private Boolean queryFailed;
+
 	public Long getMatched() {
 		return matched;
 	}
@@ -63,5 +70,13 @@ public class CompletenessDto {
 
 	public void setNextPageToken(List<Object> nextPageToken) {
 		this.nextPageToken = nextPageToken;
+	}
+
+	public Boolean getQueryFailed() {
+		return queryFailed;
+	}
+
+	public void setQueryFailed(Boolean queryFailed) {
+		this.queryFailed = queryFailed;
 	}
 }

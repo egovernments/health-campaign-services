@@ -51,6 +51,7 @@ public class RawQueryEnhancer {
 	private static final String LTE = "lte";
 	private static final String SOURCE = "_source";
 	private static final String KEYWORD_SUFFIX = ".keyword";
+	private static final java.util.regex.Pattern NUMERIC_BOUND = java.util.regex.Pattern.compile("-?\\d+(\\.\\d+)?");
 
 	static final String SIZE = "size";
 	static final String SORT = "sort";
@@ -147,10 +148,19 @@ public class RawQueryEnhancer {
 		String base = field.endsWith(KEYWORD_SUFFIX)
 				? field.substring(0, field.length() - KEYWORD_SUFFIX.length())
 				: field;
-		if (!allowedFields.contains(base) && !allowedFields.contains(field)) {
-			throw new CustomException("INVALID_REQUEST_FIELD", "Cannot " + usage + " on '" + field
-					+ "': this chart returns only " + allowedFields);
+		if (allowedFields.contains(base) || allowedFields.contains(field)) {
+			return;
 		}
+		// A projection may be a wildcard ("Data.*"): the chart returns everything under that prefix,
+		// so any field under it is fair game. Without this, a wildcard-projected chart could never
+		// use request-driven sorting or filtering at all.
+		for (String allowed : allowedFields) {
+			if (allowed.endsWith("*") && base.startsWith(allowed.substring(0, allowed.length() - 1))) {
+				return;
+			}
+		}
+		throw new CustomException("INVALID_REQUEST_FIELD", "Cannot " + usage + " on '" + field
+				+ "': this chart returns only " + allowedFields);
 	}
 
 	/**
@@ -189,8 +199,28 @@ public class RawQueryEnhancer {
 				}
 				String trimmed = rangeFilter.getField().trim();
 				requireAllowed(trimmed, allowedFields, "filter");
+				requireNumericBounds(trimmed, rangeFilter);
 				filterArray.add(buildRangeCondition(trimmed, rangeFilter));
 			}
+		}
+	}
+
+	/**
+	 * Bounds must be numeric (epoch milliseconds for time fields). A non-numeric bound passes field
+	 * validation, but Elasticsearch rejects the whole query — and that rejection is swallowed
+	 * upstream into an empty, successful-looking response, which is the exact silent failure this
+	 * feature exists to remove. Refusing here keeps the failure loud and attributable to the caller.
+	 */
+	private void requireNumericBounds(String field, RangeFilter rangeFilter) {
+		for (Object bound : new Object[] { rangeFilter.getFrom(), rangeFilter.getTo() }) {
+			if (bound == null || bound instanceof Number) {
+				continue;
+			}
+			if (bound instanceof String && NUMERIC_BOUND.matcher((String) bound).matches()) {
+				continue;
+			}
+			throw new CustomException("INVALID_RANGE_FILTER", "Range bound for '" + field
+					+ "' must be numeric (epoch milliseconds for time fields); got '" + bound + "'");
 		}
 	}
 

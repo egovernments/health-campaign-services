@@ -58,6 +58,49 @@ class CompletenessCalculatorTest {
 	// ---------------------------------------------------------------- truncation detection
 
 	@Test
+	@DisplayName("a dataset with no ES response at all is reported as queryFailed, never as empty")
+	void missingResponseIsQueryFailedNotEmpty() throws Exception {
+		// The shape the HTTP layer produces when Elasticsearch rejects the query: the dataset key is
+		// present but its value is a NullNode. Rendering that as an empty dataset is the silent
+		// failure this whole feature exists to remove.
+		JsonNode failed = MAPPER.createObjectNode().set("stockBalanceTransformer", MAPPER.nullNode());
+
+		Map<String, CompletenessDto> result =
+				calculator.calculate(failed, MAPPER.readTree(DOCUMENT_CHART), "commodityFacilityStockBalance");
+
+		assertTrue(result.get("stockBalanceTransformer").getQueryFailed());
+		assertNull(result.get("stockBalanceTransformer").getTruncated(), "nothing else is meaningful");
+	}
+
+	@Test
+	@DisplayName("failure detection runs even for a totals-only request; truncation reporting does not")
+	void failureDetectionIgnoresDocumentsRequestedFlag() throws Exception {
+		JsonNode failed = MAPPER.createObjectNode().set("stockBalanceTransformer", MAPPER.nullNode());
+		Map<String, CompletenessDto> failedResult =
+				calculator.calculate(failed, MAPPER.readTree(DOCUMENT_CHART), "c", false);
+		assertTrue(failedResult.get("stockBalanceTransformer").getQueryFailed());
+
+		// A healthy response with documentsRequested=false stays unreported (zero-size page is not truncation).
+		Map<String, CompletenessDto> healthy = calculator.calculate(
+				datasets(esResponse("{\"value\":500,\"relation\":\"eq\"}", 0)),
+				MAPPER.readTree(DOCUMENT_CHART), "c", false);
+		assertTrue(healthy.isEmpty());
+	}
+
+	@Test
+	@DisplayName("an object response without hits stays unreported — filtered, not failed")
+	void objectWithoutHitsIsNotQueryFailed() throws Exception {
+		// e.g. an aggregationFilterPath stripped hits from the response: unusable for completeness,
+		// but not the failed-query shape; no confident wrong claim either way.
+		JsonNode noHits = MAPPER.createObjectNode().set("stockBalanceTransformer", MAPPER.createObjectNode());
+
+		Map<String, CompletenessDto> result =
+				calculator.calculate(noHits, MAPPER.readTree(DOCUMENT_CHART), "c");
+
+		assertTrue(result.isEmpty());
+	}
+
+	@Test
 	@DisplayName("more matches than returned is reported as truncated")
 	void moreMatchesThanReturnedIsTruncated() throws Exception {
 		CompletenessDto dto = calculator.fromEsResponse(esResponse("{\"value\":25000,\"relation\":\"eq\"}", 3));

@@ -51,12 +51,12 @@ public class RawResponseHandler implements IResponseHandler {
 		// Read against the untransformed response: transformation keeps only the documents
 		// themselves, discarding the hit totals this is derived from.
 		//
-		// Skipped entirely when the caller asked for no documents — a totals-only request returns zero
-		// hits by design, and measuring that against the match count would report every such request as
-		// a truncated document list.
-		Map<String, CompletenessDto> completeness = documentsRequested(request)
-				? completenessCalculator.calculate(aggregationNode, chartNode, request.getVisualizationCode())
-				: Collections.<String, CompletenessDto>emptyMap();
+		// Truncation reporting is skipped when the caller asked for no documents — a totals-only
+		// request returns zero hits by design, and measuring that against the match count would report
+		// every such request as truncated. Failure detection is NOT skipped: a dataset with no
+		// Elasticsearch response is reported as queryFailed either way.
+		Map<String, CompletenessDto> completeness = completenessCalculator.calculate(aggregationNode, chartNode,
+				request.getVisualizationCode(), documentsRequested(request));
 
 		// Read before transformation for the same reason: transformation keeps only the documents.
 		Map<String, Object> stockSummary = buildStockSummary(aggregationNode, request);

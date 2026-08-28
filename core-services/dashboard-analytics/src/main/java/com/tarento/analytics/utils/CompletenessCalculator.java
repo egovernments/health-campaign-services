@@ -24,10 +24,11 @@ import com.tarento.analytics.dto.CompletenessDto;
  * complete one. Reading {@code hits.total} alongside the returned document count turns that into an
  * explicit signal, at no extra query cost, because the whole response already reaches this layer.
  *
- * <p><strong>Assumes the caller asked for documents.</strong> A query deliberately run with a page
- * size of zero — a request for totals alone — returns no documents by design, and measuring that
- * against the match count would report it as truncated. Only the request knows the difference, so
- * that check belongs to the caller of this class, not to this class.
+ * <p><strong>Truncation reporting assumes the caller asked for documents.</strong> A query
+ * deliberately run with a page size of zero — a request for totals alone — returns no documents by
+ * design, and measuring that against the match count would report it as truncated. Only the request
+ * knows the difference, so the caller passes {@code documentsRequested}. Failure detection
+ * (a dataset with no Elasticsearch response at all) runs regardless of that flag.
  */
 @Component
 public class CompletenessCalculator {
@@ -50,6 +51,17 @@ public class CompletenessCalculator {
 	 * @return dataset key to completeness; empty when nothing in the response returns documents
 	 */
 	public Map<String, CompletenessDto> calculate(JsonNode datasetsNode, JsonNode chartNode, String visualizationCode) {
+		return calculate(datasetsNode, chartNode, visualizationCode, true);
+	}
+
+	/**
+	 * @param documentsRequested false when the caller asked for a page of zero documents — truncation
+	 *                           is then meaningless and is not reported, but a FAILED query still is:
+	 *                           the failure detection below runs regardless, because an unavailable
+	 *                           dataset must never be indistinguishable from an empty one.
+	 */
+	public Map<String, CompletenessDto> calculate(JsonNode datasetsNode, JsonNode chartNode, String visualizationCode,
+			boolean documentsRequested) {
 		Map<String, CompletenessDto> result = new LinkedHashMap<>();
 		if (datasetsNode == null || !datasetsNode.isObject()) {
 			return result;
@@ -67,7 +79,24 @@ public class CompletenessCalculator {
 			if (!documentDatasets.contains(responseKey) && !documentDatasets.contains(baseKey(responseKey))) {
 				continue;
 			}
-			CompletenessDto completeness = fromEsResponse(entry.getValue());
+			// No response object at all: the store rejected the query or the call failed, and the
+			// layer below reports success regardless. Said explicitly, because an unavailable dataset
+			// rendered as an empty one is the exact silent failure this class exists to remove.
+			JsonNode esResponse = entry.getValue();
+			if (esResponse == null || esResponse.isNull() || !esResponse.isObject()) {
+				CompletenessDto failed = new CompletenessDto();
+				failed.setQueryFailed(Boolean.TRUE);
+				result.put(responseKey, failed);
+				logger.error("Dashboard query FAILED upstream: chart '{}' dataset '{}' has no Elasticsearch "
+						+ "response. Treat this dataset as unavailable, not empty. The usual causes are a query "
+						+ "the store rejected (check the service log just above) or a connectivity failure.",
+						visualizationCode, responseKey);
+				continue;
+			}
+			if (!documentsRequested) {
+				continue;
+			}
+			CompletenessDto completeness = fromEsResponse(esResponse);
 			if (completeness == null) {
 				continue;
 			}
