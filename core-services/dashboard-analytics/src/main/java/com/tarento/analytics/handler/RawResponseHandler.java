@@ -17,7 +17,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tarento.analytics.constant.Constants;
 import com.tarento.analytics.dto.AggregateDto;
 import com.tarento.analytics.dto.AggregateRequestDto;
+import com.tarento.analytics.dto.CompletenessDto;
+import com.tarento.analytics.dto.PaginationDto;
 import com.tarento.analytics.enums.ChartType;
+import com.tarento.analytics.utils.CompletenessCalculator;
+import com.tarento.analytics.utils.StockSummaryAggregation;
 import com.tarento.analytics.utils.RawResponseTransformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -33,10 +37,29 @@ public class RawResponseHandler implements IResponseHandler {
 	@Autowired
 	private RawResponseTransformer rawResponseTransformer;
 
+	@Autowired
+	private CompletenessCalculator completenessCalculator;
+
+	@Autowired
+	private StockSummaryAggregation stockSummaryAggregation;
+
 	@Override
 	public AggregateDto translate(AggregateRequestDto request, ObjectNode aggregations) throws IOException {
 		JsonNode aggregationNode = aggregations.get(AGGREGATIONS);
 		JsonNode chartNode = request.getChartNode();
+
+		// Read against the untransformed response: transformation keeps only the documents
+		// themselves, discarding the hit totals this is derived from.
+		//
+		// Skipped entirely when the caller asked for no documents — a totals-only request returns zero
+		// hits by design, and measuring that against the match count would report every such request as
+		// a truncated document list.
+		Map<String, CompletenessDto> completeness = documentsRequested(request)
+				? completenessCalculator.calculate(aggregationNode, chartNode, request.getVisualizationCode())
+				: Collections.<String, CompletenessDto>emptyMap();
+
+		// Read before transformation for the same reason: transformation keeps only the documents.
+		Map<String, Object> stockSummary = buildStockSummary(aggregationNode, request);
 
 		Map<String, Object> rawResponses = new LinkedHashMap<>();
 		if (aggregationNode != null && aggregationNode.isObject()) {
@@ -87,12 +110,50 @@ public class RawResponseHandler implements IResponseHandler {
 		Map<String, Object> customData = new LinkedHashMap<>();
 		customData.put("rawResponse", transformed);
 
+		if (!completeness.isEmpty()) {
+			customData.put("completeness", completeness);
+		}
+
+		if (!stockSummary.isEmpty()) {
+			customData.put("stockSummary", stockSummary);
+		}
+
 		List<Map<String, Object>> cardsList = buildCardsList(chartNode, transformed);
 		if (!cardsList.isEmpty()) {
 			customData.put("cardsList", cardsList);
 		}
 		dto.setCustomData(customData);
 		return dto;
+	}
+
+	/**
+	 * @return false when the caller explicitly asked for a page of zero documents, which is how a
+	 *         request for totals alone is expressed.
+	 */
+	private boolean documentsRequested(AggregateRequestDto request) {
+		PaginationDto pagination = request.getPagination();
+		return pagination == null || pagination.getSize() == null || pagination.getSize() > 0;
+	}
+
+	/**
+	 * Collects the per-facility totals for any dataset whose query asked for them. Datasets that did
+	 * not ask contribute nothing, so the response is unchanged for every existing caller.
+	 */
+	private Map<String, Object> buildStockSummary(JsonNode datasetsNode, AggregateRequestDto request) {
+		Map<String, Object> summaries = new LinkedHashMap<>();
+		if (datasetsNode == null || !datasetsNode.isObject()) {
+			return summaries;
+		}
+		Iterator<Map.Entry<String, JsonNode>> datasets = datasetsNode.fields();
+		while (datasets.hasNext()) {
+			Map.Entry<String, JsonNode> dataset = datasets.next();
+			Map<String, Object> assembled = stockSummaryAggregation.assemble(dataset.getValue(),
+					request.getStockSummary() == null ? null : request.getStockSummary().getFacilityScope());
+			if (assembled != null) {
+				summaries.put(dataset.getKey(), assembled);
+			}
+		}
+		return summaries;
 	}
 
 	private List<Map<String, Object>> buildCardsList(JsonNode chartNode, Map<String, Object> transformed) {

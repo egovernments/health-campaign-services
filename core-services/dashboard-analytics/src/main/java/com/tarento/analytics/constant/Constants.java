@@ -88,6 +88,11 @@ public class Constants {
 		final static String TRANSFORMATION_MAPPINGS = "transformationMappings";
 		final static String TRANSFORM_DATA = "transformData";
 		final static String TRANSFORM_KEY = "transformKey";
+		/**
+		 * The one {@link #TRANSFORM_DATA} value that returns documents rather than aggregations.
+		 * Only these datasets can be paged, filtered by the caller, or reported as truncated.
+		 */
+		final static String TRANSFORM_DATA_RAW_DOCUMENTS = "rawDocuments";
 		final static String BUCKETS_PATH = "bucketsPath";
 		final static String MERGES = "merges";
 		final static String MERGE_KEY = "mergeKey";

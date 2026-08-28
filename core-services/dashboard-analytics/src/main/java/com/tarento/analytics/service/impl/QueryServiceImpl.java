@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tarento.analytics.ConfigurationLoader;
 import com.tarento.analytics.constant.Constants;
+import org.egov.tracer.model.CustomException;
+
 import com.tarento.analytics.dao.ElasticSearchDao;
 import com.tarento.analytics.dto.AggregateRequestDto;
 import com.tarento.analytics.enums.ChartType;
@@ -31,6 +33,7 @@ import com.tarento.analytics.model.ElasticSearchDictator;
 import com.tarento.analytics.model.KeyData;
 import com.tarento.analytics.service.QueryService;
 import com.tarento.analytics.utils.ElasticProperties;
+import com.tarento.analytics.utils.RawQueryEnhancer;
 
 @Component
 public class QueryServiceImpl implements QueryService {
@@ -50,6 +53,9 @@ public class QueryServiceImpl implements QueryService {
 */
 	@Autowired
     private ConfigurationLoader configurationLoader;
+
+	@Autowired
+	private RawQueryEnhancer rawQueryEnhancer;
 
 	private static final Map<Integer, String> WeekDayMap = createMap();
 
@@ -519,6 +525,14 @@ public class QueryServiceImpl implements QueryService {
                 }
             }
 
+            // Request-driven filtering, sorting and continuation paging. No-op unless the caller
+            // asked for them, so an unchanged request still emits the configured query verbatim.
+            rawQueryEnhancer.enhance(aggrNode, request, query);
+
+        } catch (CustomException ex) {
+            // A caller-input error, not a parsing failure: let the tracer advice turn it into a
+            // structured 400 instead of wrapping it into an anonymous 500.
+            throw ex;
         } catch (Exception ex) {
             logger.error("Encountered an Exception while parsing the JSON: {}", ex.getMessage(), ex);
             throw new RuntimeException(ex);
