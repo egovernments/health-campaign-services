@@ -84,7 +84,7 @@ _cache_loaded = False
 def _read_variable(name):
     """Airflow 3 forbids ORM access inside tasks and the Task SDK is absent
     outside them, so both paths are tried. Shared with deployment_env."""
-    from dst_common.deployment_env import _get_airflow_variable
+    from dst_data_analysis_report.common.deployment_env import _get_airflow_variable
     return _get_airflow_variable(name)
 
 

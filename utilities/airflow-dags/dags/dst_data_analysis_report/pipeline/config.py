@@ -389,7 +389,7 @@ def build(row):
     # the same performance_dayN.xlsx - one run could overwrite the Excel another
     # was about to read. Verified live 2026-08-20.
     # A sheet-supplied out_dir is honoured as given (JupyterHub); deprecated.
-    from pipeline.schedule_utils import campaign_key
+    from dst_data_analysis_report.pipeline.schedule_utils import campaign_key
     out_dir = (str(row.get("out_dir", "")).strip()
                or os.path.join(tempfile.gettempdir(), "dst", tenant,
                                campaign_key(row)))

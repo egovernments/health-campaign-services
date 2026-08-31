@@ -76,7 +76,7 @@ def apply_cumulative(cfg):
     divisor 1 when cumulative is set, instead of dividing by campaign_days.
     """
     import os
-    from pipeline.config import _date_label
+    from dst_data_analysis_report.pipeline.config import _date_label
 
     start = cfg["campaign_start"]
     end = cfg.get("mopup_end_date") or cfg["campaign_end"]
@@ -117,9 +117,9 @@ def select_pipeline_modules(drug_type):
     """ITN/LLIN campaigns use the household-grain module set; everything else
     (SPAQ, AZM) uses the per-child originals."""
     if drug_type in ITN_DRUG_TYPES:
-        from pipeline import analyze_itn, cdd_sync_itn, report_itn
+        from dst_data_analysis_report.pipeline import analyze_itn, cdd_sync_itn, report_itn
         return analyze_itn, cdd_sync_itn, report_itn
-    from pipeline import analyze, cdd_sync, report
+    from dst_data_analysis_report.pipeline import analyze, cdd_sync, report
     return analyze, cdd_sync, report
 
 
@@ -179,9 +179,9 @@ def _degrade(marker, stage, reason):
 def _name_registry_modules(analyze_mod):
     """Every module whose NAME_BATCH_FAILURES this run can write to.
 
-    Always includes pipeline.analyze, because the ITN path calls ITS name helpers.
+    Always includes dst_data_analysis_report.pipeline.analyze, because the ITN path calls ITS name helpers.
     """
-    from pipeline import analyze as base_analyze
+    from dst_data_analysis_report.pipeline import analyze as base_analyze
     mods = [base_analyze]
     if (analyze_mod is not base_analyze
             and hasattr(analyze_mod, "NAME_BATCH_FAILURES")):
@@ -195,7 +195,7 @@ def execute_campaign(row, mode="both"):
     {"ok": None, "reason": ...} for a routine no-op (inactive / out of window).
     Raises on genuine failure. Checkpoints are uploaded to Drive in all cases.
     """
-    from pipeline import config, notify
+    from dst_data_analysis_report.pipeline import config, notify
 
     # Cleared BEFORE build, because build is what populates it. Clearing later
     # (alongside the other registries) silently discarded every correction.
@@ -230,15 +230,15 @@ def execute_campaign(row, mode="both"):
     # (analyze*.NAME_BATCH_FAILURES). Both would otherwise pass silently.
     notify.FAILED_UPLOADS.clear()
     notify.FAILED_POSTS.clear()
-    from pipeline import analyze as _base_analyze
+    from dst_data_analysis_report.pipeline import analyze as _base_analyze
     _base_analyze.RUN_DEGRADATIONS.clear()
     try:
         report_mod.TRAJECTORY_FAILURES.clear()
     except AttributeError:
         pass          # report_itn has no ES trajectory back-fill
-    # The registry lives in pipeline.analyze, and analyze_itn IMPORTS the two name
+    # The registry lives in dst_data_analysis_report.pipeline.analyze, and analyze_itn IMPORTS the two name
     # helpers from there (analyze_itn.py:90) rather than owning copies — so an ITN
-    # run records its failures into pipeline.analyze's list, not analyze_itn's.
+    # run records its failures into dst_data_analysis_report.pipeline.analyze's list, not analyze_itn's.
     # Reading only analyze_mod would make this check dead for every ITN campaign.
     for _mod in _name_registry_modules(analyze_mod):
         _mod.NAME_BATCH_FAILURES.clear()

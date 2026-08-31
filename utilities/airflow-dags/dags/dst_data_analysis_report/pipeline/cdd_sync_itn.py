@@ -41,11 +41,11 @@ from openpyxl import Workbook
 
 urllib3.disable_warnings()
 
-# Shares only the generic Excel-styling primitives from pipeline.core. NOT reusing
+# Shares only the generic Excel-styling primitives from dst_data_analysis_report.pipeline.core. NOT reusing
 # cdd_sync.py's _write_summary/_write_df/_build_rows/_sync_status — those are built
 # around a fixed "Day 1..Day N of a short campaign" model, which doesn't fit a
 # continuously-running, months-long ITN campaign (see _roster_status below).
-from pipeline.core.excel import (
+from dst_data_analysis_report.pipeline.core.excel import (
     SYNC_HDR_FILL, SYNC_LOW_FILL, SYNC_NEVER_FILL, SYNC_TOTAL_FILL, style_sync_cell,
 )
 

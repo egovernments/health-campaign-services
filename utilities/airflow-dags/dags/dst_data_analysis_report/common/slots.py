@@ -21,12 +21,12 @@ CUMULATIVE_MODE = "cumulative"
 
 
 def campaign_key(row):
-    """Re-exported from pipeline.schedule_utils, imported lazily (see module note).
+    """Re-exported from dst_data_analysis_report.pipeline.schedule_utils, imported lazily (see module note).
 
     Kept as a public name here because callers - including the test suites -
     import it from this module.
     """
-    from pipeline.schedule_utils import campaign_key as _ck
+    from dst_data_analysis_report.pipeline.schedule_utils import campaign_key as _ck
     return _ck(row)
 
 
@@ -70,7 +70,7 @@ def _warn_if_never_schedulable(row):
     never produces a report, and the only way to notice is that stakeholders ask
     where it is. Say it once per tick, naming the campaign.
     """
-    from pipeline.schedule_utils import parse_report_times
+    from dst_data_analysis_report.pipeline.schedule_utils import parse_report_times
 
     internal = parse_report_times(row.get("report_times"))
     partner = parse_report_times(row.get("partner_report_times"))
@@ -91,7 +91,7 @@ def _candidate_slots(row):
     ES keeps absorbing late syncs for days after a campaign closes and the date
     is a judgement call the campaign lead owns.
     """
-    from pipeline.schedule_utils import compute_trigger_slots
+    from dst_data_analysis_report.pipeline.schedule_utils import compute_trigger_slots
     slots = list(compute_trigger_slots(row))
     if parse_sheet_date(row.get("mopup_end_date")):
         slots.append((CUMULATIVE_TIME, CUMULATIVE_MODE))

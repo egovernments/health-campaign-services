@@ -89,7 +89,7 @@ def _get_airflow_variable(name):
 
 def load_deployment_groups():
     """Return the configured groups, or the env-driven default group."""
-    from dst_common import dst_config
+    from dst_data_analysis_report.common import dst_config
 
     raw = _get_airflow_variable("dst_groups")
     if not raw.strip():
@@ -112,7 +112,7 @@ def load_deployment_groups():
 
 
 def _load_group_secrets(group_name):
-    from dst_common import dst_config
+    from dst_data_analysis_report.common import dst_config
 
     raw = _get_airflow_variable(f"dst_secrets_{group_name}")
     if not raw.strip():

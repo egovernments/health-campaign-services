@@ -6,7 +6,7 @@ full reasoning): report.py's _build_doc() hardcodes "Children Treated" / drug1-d
 splits and individual-child DQ metrics throughout nearly every section, not just in
 a couple of branches — retrofitting ITN there would mean wrapping most of a 300-line
 function in conditionals. Shares only the generic docx styling helpers in
-pipeline.core.word — report.py itself is never imported and its SPAQ/AZM path
+dst_data_analysis_report.pipeline.core.word — report.py itself is never imported and its SPAQ/AZM path
 is untouched.
 
 Section structure deliberately mirrors report.py's Word report (same rigor, same
@@ -28,8 +28,8 @@ from docx import Document
 from docx.shared import Pt, Cm, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-from pipeline.core.llm import generate_narrative
-from pipeline.core.word import (
+from dst_data_analysis_report.pipeline.core.llm import generate_narrative
+from dst_data_analysis_report.pipeline.core.word import (
     ALT_FILL, FONT, GREY_RGB, STATUS_COLOR, TITLE_RGB,
     add_heading, add_hyperlink, add_para, cov_band, dat, hdr, set_cell_bg,
     set_cell_borders, two_col_table,
@@ -1279,7 +1279,7 @@ def run(cfg):
     perf_link, sync_link = "", ""
     if not cfg.get("no_upload"):
         try:
-            from pipeline import notify as _notify
+            from dst_data_analysis_report.pipeline import notify as _notify
             fid   = _notify.campaign_folder_id(cfg)
             now_hm = datetime.now().strftime("%Y-%m-%d %H:%M")
             perf_title = f"{cfg['state_name']} ITN Performance Data — {now_hm}"
@@ -1374,7 +1374,7 @@ def run(cfg):
         partner_perf_path = _make_partner_perf_xlsx_itn(perf_path)
         if partner_perf_path and not cfg.get("no_upload"):
             try:
-                from pipeline import notify as _notify
+                from dst_data_analysis_report.pipeline import notify as _notify
                 p_title = f"{cfg['state_name']} ITN Performance Data (Partner) — {datetime.now().strftime('%Y-%m-%d %H:%M')}"
                 partner_perf_link = _notify.upload_file(
                     partner_perf_path, p_title, folder_id=_notify.campaign_folder_id(cfg))

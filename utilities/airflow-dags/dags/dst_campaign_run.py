@@ -32,17 +32,17 @@ except ImportError:
     from airflow.decorators import dag, task
 
 # Airflow puts DAGS_FOLDER on sys.path, not the directory holding this file.
-# With DAGS_FOLDER at the synced repo root, `from dst_common import ...` cannot
+# With DAGS_FOLDER at the synced repo root, `from dst_data_analysis_report.common import ...` cannot
 # resolve - eGov's own DAGs fail the same way with `common`. Two lines here beat
 # a PYTHONPATH the hosted Airflow gives us no way to set.
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 
-from dst_common import dst_config
-from dst_common.alerts import notify_slack_on_failure
-from dst_common.campaign_runner import execute_campaign
-from dst_common.deployment_env import group_environment, mdms_enabled
-from dst_common.dst_kafka_status import push_run_event
+from dst_data_analysis_report.common import dst_config
+from dst_data_analysis_report.common.alerts import notify_slack_on_failure
+from dst_data_analysis_report.common.campaign_runner import execute_campaign
+from dst_data_analysis_report.common.deployment_env import group_environment, mdms_enabled
+from dst_data_analysis_report.common.dst_kafka_status import push_run_event
 
 log = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ def dst_campaign_run():
         xcom_pull means the execute task genuinely failed — recorded, then
         re-raised so the DAG run is marked failed (finalize is the leaf task;
         swallowing the failure would blind max_consecutive_failed_dag_runs)."""
-        from dst_common.run_history import record_outcome
+        from dst_data_analysis_report.common.run_history import record_outcome
 
         conf = dag_run.conf or {}
         marker = ti.xcom_pull(task_ids=EXECUTE_TASK_ID)

@@ -1,2 +1,2 @@
-# Not DAGs: a shared helper package, imported BY the dags.
-dst_common
+# Not a DAG: the shared reporting package, imported BY the dags.
+dst_data_analysis_report

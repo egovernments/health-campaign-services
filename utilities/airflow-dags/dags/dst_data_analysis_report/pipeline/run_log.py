@@ -28,7 +28,7 @@ def _open_runlog_worksheet():
         import gspread
         from google.oauth2.service_account import Credentials
 
-        from pipeline.config import _resolve_creds_path
+        from dst_data_analysis_report.pipeline.config import _resolve_creds_path
 
         sheet_id = os.getenv("GOOGLE_SHEET_ID")
         if not sheet_id:

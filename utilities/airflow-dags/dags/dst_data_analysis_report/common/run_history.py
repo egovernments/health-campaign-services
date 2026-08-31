@@ -28,8 +28,8 @@ def build_retime_guard():
     (Bauchi SMC + ITN, Chad's three rows), and tenant-only matching let one
     campaign's success suppress another's slot.
     """
-    from pipeline.run_log import fetch_today_runs
-    from pipeline.schedule_utils import parse_report_times
+    from dst_data_analysis_report.pipeline.run_log import fetch_today_runs
+    from dst_data_analysis_report.pipeline.schedule_utils import parse_report_times
     today_runs = fetch_today_runs()
     log.info(f"[retime-guard] {len(today_runs)} run(s) recorded today")
 
@@ -91,8 +91,8 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
     tab if the publish does not land, so a broker outage cannot silently erase
     the audit trail.
     """
-    from dst_common.alerts import send_slack_warning
-    from dst_common.dst_kafka_status import push_run_event
+    from dst_data_analysis_report.common.alerts import send_slack_warning
+    from dst_data_analysis_report.common.dst_kafka_status import push_run_event
 
     row = conf.get("row") or {}
     group = conf.get("group") or {"name": "default", "env": {}}
@@ -168,7 +168,7 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
     recorded = "kafka" if published else "none"
     if not published:
         with group_environment(group):
-            from pipeline.run_log import append_run_log
+            from dst_data_analysis_report.pipeline.run_log import append_run_log
             ok = append_run_log(
                 conf.get("state_name", ""), row.get("campaign_name", ""), day,
                 "FAILED" if failed else "SUCCESS",

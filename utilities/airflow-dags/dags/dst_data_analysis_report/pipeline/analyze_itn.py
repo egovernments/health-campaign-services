@@ -4,7 +4,7 @@ analyze_itn.py — ITN/LLIN (bed-net) household-based aggregation → performanc
 Separate module from analyze.py by design: SPAQ/AZM's core computation (is_treated
 requires a non-null Data.age; one child = one dose) does not apply to ITN campaigns
 (beneficiaryType=HOUSEHOLD, Data.age is always null, one household = N nets based on
-household size). Shares only the generic primitives in pipeline.core (ES scroll,
+household size). Shares only the generic primitives in dst_data_analysis_report.pipeline.core (ES scroll,
 Excel styling) plus analyze.py's name-resolution lookups — analyze.py's aggregation
 logic is never imported and never modified by this file.
 
@@ -87,11 +87,11 @@ from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
-from pipeline.analyze import (_map_household_ids_to_head_ids,
+from dst_data_analysis_report.pipeline.analyze import (_map_household_ids_to_head_ids,
                              _fetch_individual_names,
                              _degrade_run, TARGETS_ZERO)
-from pipeline.core.es import scroll_batches
-from pipeline.core.excel import (
+from dst_data_analysis_report.pipeline.core.es import scroll_batches
+from dst_data_analysis_report.pipeline.core.excel import (
     BANNER_FILL, FLAG_COLOR, HDR_FILL, TOTAL_FILL, WHITE_FILL, style_cell,
 )
 
@@ -672,7 +672,7 @@ def _load_targets_itn(cfg):
       net/ITN target:      net_target | product_target | TargetBednets
     Any column not found defaults to 0 (reported, not silently assumed correct).
     """
-    from pipeline.core.drive import resolve_target_book
+    from dst_data_analysis_report.pipeline.core.drive import resolve_target_book
     csv_path = resolve_target_book(cfg)
     if not csv_path:
         log.error("[analyze_itn] no target book configured — all targets = 0, "
@@ -684,7 +684,7 @@ def _load_targets_itn(cfg):
     if csv_path.startswith("https://docs.google.com/spreadsheets/"):
         # same Sheets-URL form analyze.py accepts; without this the URL fails
         # os.path.exists and the ITN report publishes 0% coverage silently
-        from pipeline.analyze import _read_target_sheet_url
+        from dst_data_analysis_report.pipeline.analyze import _read_target_sheet_url
         df = _read_target_sheet_url(csv_path)
         if df is None:
             log.error(f"[analyze_itn] could not read target sheet {csv_path} — ALL "

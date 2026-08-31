@@ -135,8 +135,8 @@ def normalize_row(row):
 def validate_row(row):
     """Pre-flight checks a bad sheet edit must not get past. Returns a list
     of problems (empty = valid). MDMS schema validation is the second net."""
-    from pipeline.config import _parse_date
-    from pipeline.schedule_utils import parse_report_times
+    from dst_data_analysis_report.pipeline.config import _parse_date
+    from dst_data_analysis_report.pipeline.schedule_utils import parse_report_times
 
     problems = []
     if not str(row.get("tenant", "")).strip():

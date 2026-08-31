@@ -15,9 +15,9 @@ import requests
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
-from pipeline.core.checkpoint import load_checkpoint, save_checkpoint
-from pipeline.core.es import composite_agg, scroll_all
-from pipeline.core.excel import (
+from dst_data_analysis_report.pipeline.core.checkpoint import load_checkpoint, save_checkpoint
+from dst_data_analysis_report.pipeline.core.es import composite_agg, scroll_all
+from dst_data_analysis_report.pipeline.core.excel import (
     SYNC_HDR_FILL, SYNC_LOW_FILL, SYNC_NEVER_FILL, SYNC_TOTAL_FILL, style_sync_cell,
 )
 

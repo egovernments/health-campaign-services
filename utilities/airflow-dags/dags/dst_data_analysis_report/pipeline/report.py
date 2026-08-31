@@ -12,8 +12,8 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Cm, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-from pipeline.core.llm import generate_narrative
-from pipeline.core.word import (
+from dst_data_analysis_report.pipeline.core.llm import generate_narrative
+from dst_data_analysis_report.pipeline.core.word import (
     ALT_FILL, FONT, GREY_RGB, STATUS_COLOR, TITLE_RGB,
     add_heading, add_hyperlink, add_para, cov_band, dat, hdr, set_cell_bg,
     set_cell_borders, two_col_table,
@@ -1387,7 +1387,7 @@ def _publish_excels(cfg, perf_path, sync_path):
         log.info("[report:publish] no_upload set — skipping Drive upload of Excels")
     else:
         try:
-            from pipeline import notify
+            from dst_data_analysis_report.pipeline import notify
             fid    = notify.campaign_folder_id(cfg)
             now_hm = datetime.now().strftime("%H:%M")
             period = _report_period(cfg)
@@ -1415,7 +1415,7 @@ def _publish_partner_excel(cfg, partner_perf_path):
     if cfg.get("no_upload"):
         return ""
     try:
-        from pipeline import notify
+        from dst_data_analysis_report.pipeline import notify
         title = (f"{cfg['state_name']} {_report_period(cfg)} Performance Data (Partner) — "
                  f"{cfg['DATE_LABEL']} {datetime.now().strftime('%H:%M')}")
         link = notify.upload_file(partner_perf_path, title,

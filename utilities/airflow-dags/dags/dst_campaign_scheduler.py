@@ -29,18 +29,18 @@ except ImportError:
     from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 # Airflow puts DAGS_FOLDER on sys.path, not the directory holding this file.
-# With DAGS_FOLDER at the synced repo root, `from dst_common import ...` cannot
+# With DAGS_FOLDER at the synced repo root, `from dst_data_analysis_report.common import ...` cannot
 # resolve - eGov's own DAGs fail the same way with `common`. Two lines here beat
 # a PYTHONPATH the hosted Airflow gives us no way to set.
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 
-from dst_common import dst_config
-from dst_common.alerts import notify_slack_on_failure
-from dst_common.deployment_env import (group_environment, load_deployment_groups,
+from dst_data_analysis_report.common import dst_config
+from dst_data_analysis_report.common.alerts import notify_slack_on_failure
+from dst_data_analysis_report.common.deployment_env import (group_environment, load_deployment_groups,
                                    mdms_enabled)
-from dst_common.run_history import build_retime_guard
-from dst_common.slots import find_due_slots
+from dst_data_analysis_report.common.run_history import build_retime_guard
+from dst_data_analysis_report.common.slots import find_due_slots
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def dst_campaign_scheduler():
         has a zero-width data interval, so the tick's own timestamps are useless
         for windowing. The lookback also gives downtime catch-up.
         """
-        from pipeline import config
+        from dst_data_analysis_report.pipeline import config
 
         # dst_config wraps the WHOLE body: mdms_enabled() is read outside the
         # per-group context and would otherwise never see Variable-supplied
@@ -97,7 +97,7 @@ def dst_campaign_scheduler():
             use_mdms = mdms_enabled()
             with group_environment(group):
                 if use_mdms:
-                    from pipeline.mdms import get_active_rows_from_mdms
+                    from dst_data_analysis_report.pipeline.mdms import get_active_rows_from_mdms
                     try:
                         rows = get_active_rows_from_mdms(group)
                     except ValueError as e:

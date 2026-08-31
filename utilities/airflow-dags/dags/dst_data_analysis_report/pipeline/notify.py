@@ -24,7 +24,7 @@ _SCOPES = [
 
 
 def _creds():
-    from pipeline.config import _resolve_creds_path
+    from dst_data_analysis_report.pipeline.config import _resolve_creds_path
     return Credentials.from_service_account_file(_resolve_creds_path(), scopes=_SCOPES)
 
 
@@ -259,7 +259,7 @@ def temp_folder_id(cfg):
     fid = campaign_folder_id(cfg)
     if not fid:
         return ""
-    from pipeline.core import drive
+    from dst_data_analysis_report.pipeline.core import drive
     return drive.find_or_create_folder("temp", fid)
 
 
@@ -271,7 +271,7 @@ def upload_chart(cfg):
     disposable scratch dir, it would simply be lost. Raw upload (no Google
     conversion), non-fatal.
     """
-    from pipeline.core import drive
+    from dst_data_analysis_report.pipeline.core import drive
     suffix = ("cumulative" if cfg.get("cumulative") else f"day{cfg.get('DAY','')}")
     # SPAQ/AZM and ITN name the file differently
     candidates = [f"progress_chart_{suffix}.png", f"itn_progress_chart_{suffix}.png"]
@@ -296,8 +296,8 @@ def upload_checkpoints(cfg, stages=("analyze", "cdd_sync")):
     Raw upload (no conversion, no public link — checkpoints carry beneficiary
     names), overwriting any previous copy of the same run. Non-fatal throughout.
     """
-    from pipeline.core import drive
-    from pipeline.core.checkpoint import checkpoint_path
+    from dst_data_analysis_report.pipeline.core import drive
+    from dst_data_analysis_report.pipeline.core.checkpoint import checkpoint_path
     uploaded = {}
     try:
         folder = temp_folder_id(cfg)
@@ -317,8 +317,8 @@ def download_checkpoint(cfg, stage):
     """Fetch a stage checkpoint from the campaign's Drive temp folder into the
     local checkpoints directory, enabling rerun_from_checkpoint on any machine.
     Returns the local path, or None when the checkpoint is not on Drive."""
-    from pipeline.core import drive
-    from pipeline.core.checkpoint import checkpoint_path
+    from dst_data_analysis_report.pipeline.core import drive
+    from dst_data_analysis_report.pipeline.core.checkpoint import checkpoint_path
     folder = temp_folder_id(cfg)
     if not folder:
         return None

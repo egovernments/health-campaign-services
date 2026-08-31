@@ -20,7 +20,7 @@ _SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 
 def _service():
-    from pipeline.config import _resolve_creds_path
+    from dst_data_analysis_report.pipeline.config import _resolve_creds_path
     creds = Credentials.from_service_account_file(_resolve_creds_path(), scopes=_SCOPES)
     return build("drive", "v3", credentials=creds)
 

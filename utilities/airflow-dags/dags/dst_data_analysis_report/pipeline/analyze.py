@@ -12,9 +12,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
-from pipeline.core.checkpoint import load_checkpoint, save_checkpoint
-from pipeline.core.es import scroll_batches
-from pipeline.core.excel import (
+from dst_data_analysis_report.pipeline.core.checkpoint import load_checkpoint, save_checkpoint
+from dst_data_analysis_report.pipeline.core.es import scroll_batches
+from dst_data_analysis_report.pipeline.core.excel import (
     BANNER_FILL, FLAG_COLOR, HDR_FILL, TOTAL_FILL, WHITE_FILL, style_cell,
 )
 
@@ -292,7 +292,7 @@ def _read_target_sheet_url(url):
     sheet_id = m.group(1)
     gid_m = re.search(r"[#&]gid=(\d+)", url)
 
-    from pipeline.config import _resolve_creds_path
+    from dst_data_analysis_report.pipeline.config import _resolve_creds_path
     creds = Credentials.from_service_account_file(
         _resolve_creds_path(),
         scopes=["https://www.googleapis.com/auth/spreadsheets",
@@ -309,7 +309,7 @@ def _read_target_sheet_url(url):
 
 
 def _load_targets(cfg):
-    from pipeline.core.drive import resolve_target_book
+    from dst_data_analysis_report.pipeline.core.drive import resolve_target_book
     csv_path = resolve_target_book(cfg)
     if not csv_path:
         log.error("no target book configured — all targets = 0, so "
