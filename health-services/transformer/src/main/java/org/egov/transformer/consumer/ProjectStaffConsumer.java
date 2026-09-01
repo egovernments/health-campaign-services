@@ -30,8 +30,15 @@ public class ProjectStaffConsumer {
         this.projectStaffTransformationService = projectStaffTransformationService;
     }
 
+    // The delete topic is consumed so that a RETIRED assignment is tombstoned in the index instead of
+    // surviving as a live document. A worker whose area is corrected gets a NEW staff row (new id), and
+    // without this subscription the old document stays isDeleted=false forever - so the worker is counted
+    // twice on every dashboard that reads this index. The delete message carries the soft-deleted entity
+    // with isDeleted=true and the transformation already copies that flag through, so subscribing is the
+    // whole fix. The document id is unchanged ($.id), so the tombstone upserts in place.
     @KafkaListener(topics = {"${transformer.consumer.bulk.create.project.staff.topic}",
-            "${transformer.consumer.bulk.update.project.staff.topic}"})
+            "${transformer.consumer.bulk.update.project.staff.topic}",
+            "${transformer.consumer.bulk.delete.project.staff.topic}"})
     public void consumeStaff(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
