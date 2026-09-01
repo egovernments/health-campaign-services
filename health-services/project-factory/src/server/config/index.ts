@@ -147,6 +147,12 @@ const config = {
     batchSize: process.env.ATTENDANCE_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_BATCH_SIZE, 10) : 50,
     serviceCodeParallelSearchLimit: process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT, 10) : 50,
     attendeeSearchPageSize: process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE, 10) : 100,
+    // Hard cap on the attendee pages scanned when realigning enrolments after an area change. The
+    // attendance search ignores its criteria (verified on unified-dev: a registerIds filter returned
+    // attendees from 16 other registers), so enrolments must be filtered client-side over a paged
+    // scan. If the cap is reached the enrolment state is treated as UNDETERMINED and nothing is
+    // changed, rather than acting on a partial view.
+    enrolmentScanMaxPages: process.env.ATTENDANCE_ENROLMENT_SCAN_MAX_PAGES ? parseInt(process.env.ATTENDANCE_ENROLMENT_SCAN_MAX_PAGES, 10) : 40,
     staffSearchPageSize: process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE, 10) : 100,
 
     attendeePersistBatchSize: process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE, 10) : 100,

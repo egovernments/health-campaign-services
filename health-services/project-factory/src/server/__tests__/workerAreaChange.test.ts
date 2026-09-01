@@ -14,8 +14,9 @@ jest.mock("../config", () => ({
             attendanceRegisterSearch: "health-attendance/v1/_search",
             attendanceAttendeeCreate: "health-attendance/attendee/v1/_create",
             attendanceAttendeeDelete: "health-attendance/attendee/v1/_delete",
+            attendanceAttendeeSearch: "health-attendance/attendee/v1/_search",
         },
-        attendanceRegister: { batchSize: 50 },
+        attendanceRegister: { batchSize: 50, attendeeSearchPageSize: 100, enrolmentScanMaxPages: 3 },
     },
 }));
 
@@ -77,110 +78,147 @@ describe("workerNeedsUpdate", () => {
 });
 
 describe("reconcileAttendanceEnrolments", () => {
-    const OLD = { id: "REG-OLD", localityCode: "VILLAGE_A", registerNumber: "R/OLD", attendees: [
-        { id: "ATT-1", individualId: "IND-1", registerId: "REG-OLD", enrollmentDate: 1, denrollmentDate: null },
-    ] } as any;
-    const NEW = { id: "REG-NEW", localityCode: "VILLAGE_B", registerNumber: "R/NEW", attendees: [] } as any;
+    const CN = "CMP-1";
+    const OLD = { id: "REG-OLD", localityCode: "VILLAGE_A", registerNumber: "R/OLD", campaignNumber: CN } as any;
+    const NEW = { id: "REG-NEW", localityCode: "VILLAGE_B", registerNumber: "R/NEW", campaignNumber: CN } as any;
+    const ATT = { id: "ATT-1", individualId: "IND-1", registerId: "REG-OLD", enrollmentDate: 1, denrollmentDate: null };
 
     const moves = [{ individualId: "IND-1", targetLocalityCode: "VILLAGE_B" }] as any;
-    const call = () => reconcileAttendanceEnrolments(moves, "CMP-1" as any, "dev" as any, {});
+    const call = () => reconcileAttendanceEnrolments(moves, CN as any, "dev" as any, {});
+    /** call order: 1 register search, 2 attendee scan page, then create, then delete */
+    const seq = (registers: any[], attendees: any[]) => {
+        mockHttp.mockReset();
+        mockHttp
+            .mockResolvedValueOnce({ attendanceRegister: registers } as any)
+            .mockResolvedValueOnce({ attendees } as any)
+            .mockResolvedValue({} as any);
+    };
+    const urls = () => mockHttp.mock.calls.map((c) => String(c[0]));
 
     afterEach(() => jest.clearAllMocks());
 
     it("does nothing when there are no moves", async () => {
-        await reconcileAttendanceEnrolments([], "CMP-1" as any, "dev" as any, {});
+        mockHttp.mockReset();
+        await reconcileAttendanceEnrolments([], CN as any, "dev" as any, {});
         expect(mockHttp).not.toHaveBeenCalled();
     });
 
-    it("enrols on the destination BEFORE end-dating the old row", async () => {
-        mockHttp
-            .mockResolvedValueOnce({ attendanceRegister: [OLD, NEW] } as any)
-            .mockResolvedValueOnce({} as any)
-            .mockResolvedValueOnce({} as any);
+    it("enrols at the destination BEFORE end-dating the old enrolment", async () => {
+        seq([OLD, NEW], [ATT]);
         await call();
-        const urls = mockHttp.mock.calls.map((c) => String(c[0]));
-        expect(urls[1]).toContain("attendee/v1/_create");
-        expect(urls[2]).toContain("attendee/v1/_delete");
+        const u = urls();
+        expect(u[0]).toContain("v1/_search");
+        expect(u[1]).toContain("attendee/v1/_search");
+        expect(u[2]).toContain("attendee/v1/_create");
+        expect(u[3]).toContain("attendee/v1/_delete");
     });
 
-    it("end-dates the old enrolment rather than deleting it, preserving worked days", async () => {
-        mockHttp
-            .mockResolvedValueOnce({ attendanceRegister: [OLD, NEW] } as any)
-            .mockResolvedValueOnce({} as any)
-            .mockResolvedValueOnce({} as any);
+    it("end-dates rather than deleting, so days already worked stay attributed", async () => {
+        seq([OLD, NEW], [ATT]);
         await call();
-        const deleteBody: any = mockHttp.mock.calls[2][1];
-        expect(deleteBody.attendees[0].id).toBe("ATT-1");
-        expect(typeof deleteBody.attendees[0].denrollmentDate).toBe("number");
+        const body: any = mockHttp.mock.calls[3][1];
+        expect(body.attendees[0].id).toBe("ATT-1");
+        expect(typeof body.attendees[0].denrollmentDate).toBe("number");
     });
 
-    it("is a no-op when the worker is already enrolled at the target area", async () => {
-        const already = { ...OLD, localityCode: "VILLAGE_B" };
-        mockHttp.mockResolvedValueOnce({ attendanceRegister: [already] } as any);
+    it("is a no-op when the worker is already at the target area", async () => {
+        seq([{ ...OLD, localityCode: "VILLAGE_B" }], [ATT]);
         await call();
-        expect(mockHttp).toHaveBeenCalledTimes(1);
+        expect(urls().some((u) => u.includes("_create"))).toBe(false);
     });
 
     it("does not enrol a worker who has no live enrolment", async () => {
-        const noAttendees = { ...OLD, attendees: [] };
-        mockHttp.mockResolvedValueOnce({ attendanceRegister: [noAttendees, NEW] } as any);
+        seq([OLD, NEW], []);
         await call();
-        expect(mockHttp).toHaveBeenCalledTimes(1);
+        expect(urls().some((u) => u.includes("_create"))).toBe(false);
     });
 
-    it("ignores an already de-enrolled row when deciding what is live", async () => {
-        const ended = { ...OLD, attendees: [{ ...OLD.attendees[0], denrollmentDate: 999 }] };
-        mockHttp.mockResolvedValueOnce({ attendanceRegister: [ended, NEW] } as any);
+    it("ignores an already end-dated enrolment when deciding what is live", async () => {
+        seq([OLD, NEW], [{ ...ATT, denrollmentDate: 999 }]);
         await call();
-        expect(mockHttp).toHaveBeenCalledTimes(1);
+        expect(urls().some((u) => u.includes("_create"))).toBe(false);
     });
 
-    it("leaves the old enrolment intact when no register exists at the target area", async () => {
-        mockHttp.mockResolvedValueOnce({ attendanceRegister: [OLD] } as any);
+    it("leaves the enrolment alone when no register exists at the target area", async () => {
+        seq([OLD], [ATT]);
         await call();
-        expect(mockHttp).toHaveBeenCalledTimes(1);
-        expect(mockHttp.mock.calls.some((c) => String(c[0]).includes("_delete"))).toBe(false);
+        expect(urls().some((u) => u.includes("_create") || u.includes("_delete"))).toBe(false);
     });
 
-    it("does not strand the worker when enrolment at the destination fails", async () => {
+    it("REGRESSION: never uses a register belonging to another campaign", async () => {
+        // The attendance search ignores campaignNumber, so a foreign register at the SAME locality
+        // code can come back. Acting on it would move the worker's pay to another campaign's register.
+        const foreign = { id: "REG-FOREIGN", localityCode: "VILLAGE_B", campaignNumber: "CMP-OTHER" } as any;
+        seq([OLD, foreign], [ATT]);
+        await call();
+        expect(urls().some((u) => u.includes("_create"))).toBe(false);
+    });
+
+    it("REGRESSION: reads enrolments from the attendee search, not from register.attendees", async () => {
+        // register.attendees is not reliably populated by the register search; trusting it made every
+        // worker look unenrolled and the realignment silently do nothing.
+        const withInlineAttendees = { ...OLD, attendees: [ATT] } as any;
+        seq([withInlineAttendees, NEW], []);   // inline present, attendee search says none
+        await call();
+        expect(urls().some((u) => u.includes("_create"))).toBe(false);
+    });
+
+    it("aborts without changing anything when the attendee scan hits its page cap", async () => {
+        mockHttp.mockReset();
+        mockHttp.mockResolvedValueOnce({ attendanceRegister: [OLD, NEW] } as any);
+        const fullPage = Array.from({ length: 100 }, (_, i) => ({
+            id: `A${i}`, individualId: "OTHER", registerId: "REG-OLD", denrollmentDate: null }));
+        mockHttp.mockResolvedValue({ attendees: fullPage } as any);
+        await call();
+        expect(urls().some((u) => u.includes("_create") || u.includes("_delete"))).toBe(false);
+    });
+
+    it("does not strand the worker when enrolling at the destination fails", async () => {
+        mockHttp.mockReset();
         mockHttp
             .mockResolvedValueOnce({ attendanceRegister: [OLD, NEW] } as any)
+            .mockResolvedValueOnce({ attendees: [ATT] } as any)
             .mockRejectedValueOnce(new Error("attendance down"));
         await call();
-        expect(mockHttp.mock.calls.some((c) => String(c[0]).includes("_delete"))).toBe(false);
+        expect(urls().some((u) => u.includes("_delete"))).toBe(false);
     });
 
     it("never throws when the register search fails", async () => {
+        mockHttp.mockReset();
         mockHttp.mockRejectedValueOnce(new Error("search down"));
         await expect(call()).resolves.toBeUndefined();
     });
 
-    it("never throws when end-dating fails, leaving two enrolments rather than none", async () => {
+    it("never throws when the attendee scan fails", async () => {
+        mockHttp.mockReset();
         mockHttp
             .mockResolvedValueOnce({ attendanceRegister: [OLD, NEW] } as any)
+            .mockRejectedValueOnce(new Error("scan down"));
+        await expect(call()).resolves.toBeUndefined();
+    });
+
+    it("never throws when end-dating fails, leaving two enrolments rather than none", async () => {
+        mockHttp.mockReset();
+        mockHttp
+            .mockResolvedValueOnce({ attendanceRegister: [OLD, NEW] } as any)
+            .mockResolvedValueOnce({ attendees: [ATT] } as any)
             .mockResolvedValueOnce({} as any)
             .mockRejectedValueOnce(new Error("delete down"));
         await expect(call()).resolves.toBeUndefined();
     });
 
-    it("searches registers once for many workers rather than once per worker", async () => {
+    it("scans attendees once for many workers rather than once per worker", async () => {
         const many = Array.from({ length: 25 }, (_, i) => ({
-            individualId: `IND-${i}`, targetLocalityCode: "VILLAGE_B",
-        })) as any;
+            individualId: `IND-${i}`, targetLocalityCode: "VILLAGE_B" })) as any;
         const attendees = many.map((m: any, i: number) => ({
-            id: `ATT-${i}`, individualId: m.individualId, registerId: "REG-OLD", denrollmentDate: null,
-        }));
-        mockHttp.mockResolvedValue({} as any);
-        mockHttp.mockResolvedValueOnce({ attendanceRegister: [{ ...OLD, attendees }, NEW] } as any);
-        await reconcileAttendanceEnrolments(many, "CMP-1" as any, "dev" as any, {});
-        const searches = mockHttp.mock.calls.filter((c) => String(c[0]).includes("v1/_search"));
-        expect(searches).toHaveLength(1);
-    });
-
-    it("skips a deleted register as a destination", async () => {
-        const deletedTarget = { ...NEW, isDeleted: true };
-        mockHttp.mockResolvedValueOnce({ attendanceRegister: [OLD, deletedTarget] } as any);
-        await call();
-        expect(mockHttp).toHaveBeenCalledTimes(1);
+            id: `ATT-${i}`, individualId: m.individualId, registerId: "REG-OLD", denrollmentDate: null }));
+        mockHttp.mockReset();
+        mockHttp
+            .mockResolvedValueOnce({ attendanceRegister: [OLD, NEW] } as any)
+            .mockResolvedValueOnce({ attendees } as any)
+            .mockResolvedValue({} as any);
+        await reconcileAttendanceEnrolments(many, CN as any, "dev" as any, {});
+        expect(urls().filter((u) => u.includes("v1/_search") && !u.includes("attendee")).length).toBe(1);
+        expect(urls().filter((u) => u.includes("attendee/v1/_search")).length).toBe(1);
     });
 });

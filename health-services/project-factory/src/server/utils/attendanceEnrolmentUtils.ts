@@ -27,8 +27,8 @@ interface AttendanceRegister {
     tenantId?: TenantId;
     localityCode?: BoundaryCode;
     registerNumber?: string;
+    campaignNumber?: CampaignNumber;
     isDeleted?: boolean;
-    attendees?: AttendeeRecord[];
 }
 
 /** One worker's move, resolved by the caller that already knows the new area. */
@@ -69,13 +69,74 @@ export async function fetchCampaignRegisters(
             { tenantId, limit: config.attendanceRegister.batchSize, offset: 0 }
         );
         const registers = (response as { attendanceRegister?: unknown })?.attendanceRegister;
-        return Array.isArray(registers)
-            ? (registers as AttendanceRegister[]).filter((r) => !r?.isDeleted)
-            : [];
+        if (!Array.isArray(registers)) return [];
+        // The attendance search IGNORES campaignNumber - verified on unified-dev, where asking for one
+        // campaign returned 100 registers spanning four unrelated hierarchies. Filtering client-side is
+        // mandatory: without it a destination register could belong to a DIFFERENT campaign, which would
+        // enrol the worker onto someone else's register and move their pay there.
+        const all = registers as AttendanceRegister[];
+        const live = all.filter((r) => !r?.isDeleted);
+        const ours = live.filter((r) => r?.campaignNumber === campaignNumber);
+        if (ours.length !== live.length) {
+            logger.info(`Attendance: server returned ${live.length} registers for campaign ${campaignNumber}; ${ours.length} actually belong to it (criteria ignored server-side, filtered locally)`);
+        }
+        return ours;
     } catch (error) {
         logger.warn(`Attendance register search failed for campaign ${campaignNumber}: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
+}
+
+
+/**
+ * Live (not end-dated) enrolments for the given individuals, gathered by a BOUNDED paged scan.
+ *
+ * Does not read register.attendees: that field is not reliably populated by the register search
+ * (verified on unified-dev - a register probed by its own id returned attendees:null), so trusting it
+ * makes every worker look unenrolled and the realignment silently do nothing. The attendee search
+ * ignores its criteria too, hence the client-side filter over pages.
+ *
+ * Returns null when the scan cap is hit, meaning "enrolment state undetermined" - callers must then
+ * make no change rather than act on a partial view.
+ */
+async function fetchLiveEnrolments(
+    individualIds: Set<string>,
+    tenantId: TenantId,
+    requestInfo: unknown
+): Promise<Map<string, AttendeeRecord[]> | null> {
+    const endpoint = url(paths().attendanceAttendeeSearch);
+    if (!endpoint) {
+        logger.warn("Attendance reconciliation skipped: attendee-search path not configured");
+        return null;
+    }
+    const pageSize = config.attendanceRegister.attendeeSearchPageSize;
+    const maxPages = config.attendanceRegister.enrolmentScanMaxPages;
+    const found = new Map<string, AttendeeRecord[]>();
+    for (let page = 0; page < maxPages; page++) {
+        let batch: AttendeeRecord[];
+        try {
+            const response = await httpRequest(
+                endpoint,
+                { RequestInfo: requestInfo, attendeeSearchCriteria: { tenantId } },
+                { tenantId, limit: pageSize, offset: page * pageSize }
+            );
+            const raw = (response as { attendees?: unknown })?.attendees;
+            batch = Array.isArray(raw) ? (raw as AttendeeRecord[]) : [];
+        } catch (error) {
+            logger.warn(`Attendee scan failed on page ${page}: ${error instanceof Error ? error.message : String(error)}`);
+            return null;
+        }
+        for (const attendee of batch) {
+            const id = attendee?.individualId;
+            if (!id || !individualIds.has(id) || attendee?.denrollmentDate != null) continue;
+            const bucket = found.get(id) ?? [];
+            bucket.push(attendee);
+            found.set(id, bucket);
+        }
+        if (batch.length < pageSize) return found; // last page reached cleanly
+    }
+    logger.warn(`Attendance realignment ABORTED: attendee scan hit the ${maxPages}-page cap, so enrolment state is undetermined. No enrolment was changed; ${individualIds.size} worker(s) may still be paid against the area they left.`);
+    return null;
 }
 
 /**
@@ -100,17 +161,25 @@ export async function reconcileAttendanceEnrolments(
     if (registers.length === 0) return;
 
     const registerByLocality = new Map<string, AttendanceRegister>();
-    const liveByIndividual = new Map<string, { register: AttendanceRegister; attendee: AttendeeRecord }[]>();
+    const registerById = new Map<string, AttendanceRegister>();
     for (const register of registers) {
+        if (register?.id) registerById.set(register.id, register);
         if (register?.localityCode && !registerByLocality.has(register.localityCode)) {
             registerByLocality.set(register.localityCode, register);
         }
-        for (const attendee of register?.attendees ?? []) {
-            if (!attendee?.individualId || attendee?.denrollmentDate != null) continue;
-            const bucket = liveByIndividual.get(attendee.individualId) ?? [];
-            bucket.push({ register, attendee });
-            liveByIndividual.set(attendee.individualId, bucket);
-        }
+    }
+
+    // Enrolments come from the attendee search, NOT from register.attendees - see fetchLiveEnrolments.
+    const enrolments = await fetchLiveEnrolments(
+        new Set(moves.map((m) => String(m.individualId))), tenantId, requestInfo);
+    if (enrolments === null) return; // undetermined - make no change
+
+    const liveByIndividual = new Map<string, { register: AttendanceRegister; attendee: AttendeeRecord }[]>();
+    for (const [individualId, attendees] of enrolments) {
+        const pairs = attendees
+            .map((attendee) => ({ register: registerById.get(String(attendee.registerId)), attendee }))
+            .filter((x): x is { register: AttendanceRegister; attendee: AttendeeRecord } => !!x.register);
+        if (pairs.length) liveByIndividual.set(individualId, pairs);
     }
 
     const createEndpoint = url(paths().attendanceAttendeeCreate);
