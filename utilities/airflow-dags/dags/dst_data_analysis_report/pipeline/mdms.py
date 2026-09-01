@@ -19,7 +19,13 @@ unit-testable without a network.
 Entry data shape (top-level fields drive schema uniqueness):
     {"rowIdentity": "<tenant>::<campaign key>::<cycle>::<campaign_start>",
      "deploymentGroup": "<sheet tab / group name>",
-     "row": {...the sheet row verbatim, all values as strings...}}
+     ...every sheet column as its own top-level field, values as strings...}
+
+FLAT on purpose (HCM-style, like airflow-configs.campaign-report-config): each
+column is visible and queryable in MDMS instead of hiding inside a nested
+object. The two bookkeeping keys above are the ENVELOPE; entry_row() strips
+them to recover the sheet row. New sheet columns still flow with no schema
+change - the schema does not forbid additionalProperties.
 
 Env: MDMS_URL (in-cluster base URL, required to enable),
 MDMS_API_PREFIX (/mdms-v2/v2 via the gateway, /egov-mdms-service/v2
@@ -55,6 +61,17 @@ def _api_prefix():
 
 def _base_url():
     return os.getenv("MDMS_URL", "").strip().rstrip("/")
+
+
+# The two bookkeeping fields the sync adds on top of the sheet columns. Row
+# reconstruction is "everything except these", so a new sheet column needs no
+# code change here.
+_ENVELOPE_KEYS = ("rowIdentity", "deploymentGroup")
+
+
+def entry_row(data):
+    """The sheet row inside a FLAT mdms entry: data minus the envelope keys."""
+    return {k: v for k, v in (data or {}).items() if k not in _ENVELOPE_KEYS}
 
 
 def _schema_code():
@@ -199,11 +216,13 @@ def plan_sync(sheet_rows, existing_entries, group_name):
             plan["rejected"].append((identity, problems))
             continue
 
-        data = {"rowIdentity": identity, "deploymentGroup": group_name, "row": row}
+        # flat: the row IS the entry, plus the envelope (written last so a
+        # hypothetical sheet column of the same name cannot shadow it)
+        data = {**row, "rowIdentity": identity, "deploymentGroup": group_name}
         existing = by_identity.get(identity)
         if existing is None:
             plan["create"].append(data)
-        elif ((existing.get("data") or {}).get("row") != row
+        elif (entry_row(existing.get("data")) != row
               or not existing.get("isActive", True)):
             plan["update"].append((existing, data))
         else:
@@ -331,7 +350,7 @@ def get_active_rows_from_mdms(group):
     dicts identical in shape to config.get_active_rows()."""
     if not _base_url():
         raise ValueError("DST_MDMS_ENABLED=true but MDMS_URL is not set")
-    rows = [(e.get("data") or {}).get("row", {})
+    rows = [entry_row(e.get("data"))
             for e in search_entries(group) if e.get("isActive", True)]
     log.info(f"MDMS group '{group.get('name')}': {len(rows)} row(s) loaded")
     return rows
