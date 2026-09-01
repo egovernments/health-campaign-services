@@ -19,4 +19,13 @@ public class ElasticSearchConstants {
      public static final String DAY_OF_WEEK = "dayOfWeek";
      public static final String DAY = "day";
      public static final String HOUR = "hour";
+
+     /**
+      * Indices whose documents carry a soft-delete marker that current-state charts must exclude.
+      * A retired campaign-staff assignment is tombstoned in place (same document id) rather than
+      * removed, so without this exclusion a worker whose area was corrected is counted once for the
+      * assignment they left and once for the new one.
+      */
+     public static final String PROJECT_STAFF_INDEX_FRAGMENT = "project-staff-index";
+     public static final String IS_DELETED_FIELD = "Data.isDeleted";
 }

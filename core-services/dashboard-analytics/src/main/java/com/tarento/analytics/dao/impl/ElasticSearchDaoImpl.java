@@ -589,6 +589,7 @@ public class ElasticSearchDaoImpl implements ElasticSearchDao {
 	public SearchRequest buildElasticSearchQuery(ElasticSearchDictator dictator) {
 		SearchSourceBuilder searchBuilder = buildSearchSourceBuilder();
 		BoolQueryBuilder boolQuery = buildBoolQuery();
+		excludeSoftDeletedDocuments(boolQuery, dictator.getIndexName());
 		String localDateStartRange = null;
 		String localDateEndRange = null;
 		if (dictator.getQueryMap().containsKey(ElasticProperties.Query.RANGE_CONDITION)) {
@@ -977,6 +978,26 @@ public class ElasticSearchDaoImpl implements ElasticSearchDao {
 	private AvgAggregationBuilder buildSubAvgAggregation(AvgAggregationBuilder builder, String aggregationName,
 			String fieldName) {
 		return builder.subAggregation(AggregationBuilders.avg(aggregationName).field(fieldName));
+	}
+
+	/**
+	 * Excludes soft-deleted (retired) documents from a chart query. Applied centrally here because every
+	 * chart's query segment is built by this method - the chart configuration supplies only the
+	 * aggregation - so one clause covers every chart that reads the affected index.
+	 *
+	 * <p>Scoped by index name on purpose: the marker exists only on the campaign-staff index, and an
+	 * unconditional filter would reference a missing field on every other index this service serves.
+	 *
+	 * <p>Uses mustNot(term == true) rather than filter(term == false) deliberately: documents written
+	 * before the marker existed have no such field at all, and a positive term filter would silently
+	 * exclude every one of them.
+	 */
+	private void excludeSoftDeletedDocuments(BoolQueryBuilder boolQuery, String indexName) {
+		if (boolQuery == null || indexName == null
+				|| !indexName.contains(ElasticSearchConstants.PROJECT_STAFF_INDEX_FRAGMENT)) {
+			return;
+		}
+		boolQuery.mustNot(QueryBuilders.termQuery(ElasticSearchConstants.IS_DELETED_FIELD, true));
 	}
 
 	private BoolQueryBuilder buildBoolQuery() {
