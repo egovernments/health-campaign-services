@@ -52,6 +52,21 @@ LOCALIZATION_CODES = {
     'coordinates list': "HCM_ANOMALY_REPORT_COORDINATESLIST",
 }
 
+# Column -> localization code (looked up verbatim; falls back to the raw column).
+LOCALIZATION_CODES = {
+    'Province': "HCM_ANOMALY_REPORT_PROVINCE",
+    'District': "HCM_ANOMALY_REPORT_DISTRICT",
+    'userName': "HCM_ANOMALY_REPORT_USERNAME",
+    'total administrations by user': "HCM_ANOMALY_REPORT_TOTALADMINISTRATIONSBYUSER",
+    'max administrations in 1 min': "HCM_ANOMALY_REPORT_MAXADMINISTRATIONSIN1MIN",
+    'no. of times user administered >= 3 individuals in 1 min': "HCM_ANOMALY_REPORT_NOOFTIMESUSERADMINISTERED3INDIVIDUALSIN1MIN",
+    'time of user administered >=3 individuals in 1 min': "HCM_ANOMALY_REPORT_TIMEOFUSERADMINISTERED3INDIVIDUALSIN1MIN",
+    'total administrations by user with coordinates': "HCM_ANOMALY_REPORT_TOTALADMINISTRATIONSBYUSERWITHCOORDINATES",
+    'Max points within radius 5m': "HCM_ANOMALY_REPORT_MAXPOINTSWITHINRADIUS5M",
+    'percentage of records falls within radius': "HCM_ANOMALY_REPORT_PERCENTAGEOFRECORDSFALLSWITHINRADIUS",
+    'coordinates list': "HCM_ANOMALY_REPORT_COORDINATESLIST",
+}
+
 ES_PROJECT_TASK_SEARCH = es_index_url("project-task-index-v1")
 
 DISTANCE = 5
