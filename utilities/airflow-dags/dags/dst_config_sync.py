@@ -29,15 +29,15 @@ except ImportError:
     from airflow.decorators import dag, task
 
 # Airflow puts DAGS_FOLDER on sys.path, not the directory holding this file.
-# With DAGS_FOLDER at the synced repo root, `from dst_common import ...` cannot
+# With DAGS_FOLDER at the synced repo root, `from dst_data_analysis_report.common import ...` cannot
 # resolve - eGov's own DAGs fail the same way with `common`. Two lines here beat
 # a PYTHONPATH the hosted Airflow gives us no way to set.
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 
-from dst_common import dst_config
-from dst_common.alerts import notify_slack_on_failure, send_slack_warning
-from dst_common.deployment_env import (group_environment, load_deployment_groups,
+from dst_data_analysis_report.common import dst_config
+from dst_data_analysis_report.common.alerts import notify_slack_on_failure, send_slack_warning
+from dst_data_analysis_report.common.deployment_env import (group_environment, load_deployment_groups,
                                    mdms_enabled)
 
 try:
@@ -78,8 +78,8 @@ def dst_config_sync():
     def sync_group_to_mdms(group):
         """Read one tab, plan the diff, apply it to MDMS. Returns the counts
         so the sync history is visible in the Airflow UI per group."""
-        from pipeline import config
-        from pipeline.mdms import sync_rows_to_mdms
+        from dst_data_analysis_report.pipeline import config
+        from dst_data_analysis_report.pipeline.mdms import sync_rows_to_mdms
 
         with dst_config.apply():
             if not mdms_enabled():
