@@ -86,3 +86,6 @@ Thumbs.db
 
 utilities/project-factory/node_modules/*
 frontend/micro-ui/web/micro-ui-internals/node_modules/*
+# Python bytecode caches (generated per-interpreter; never belongs in git)
+__pycache__/
+*.py[cod]
