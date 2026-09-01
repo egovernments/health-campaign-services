@@ -106,25 +106,33 @@ async function fetchAllPendingMappings(campaignNumber: string, tenantId: string)
 
 /**
  * Waits until every boundary referenced by a pending map-direction row resolves to
- * a created project — replaces blind sleeps with a verified precondition. Fails
- * open: a stall here only means unresolved rows will fail retryably and reconcile
- * next cycle.
+ * a created project — replaces blind sleeps with a verified precondition.
+ *
+ * Returns the set of boundary codes that DID resolve, or null when the precondition was
+ * fully satisfied (nothing needs holding back). On a stall the caller holds unresolved
+ * map-direction rows back rather than dispatching them: dispatching a row whose project
+ * does not exist yet is a guaranteed failure that consumes one of only a few retries on
+ * what is purely a timing race, so the row is better left pending for the next cycle.
  */
-async function waitForProjectLookupReadiness(campaignNumber: string, tenantId: string, pendingMappings: any[]): Promise<void> {
+async function waitForProjectLookupReadiness(campaignNumber: string, tenantId: string, pendingMappings: any[]): Promise<Set<string> | null> {
+    // Declared outside the try so the catch can report, and hold back, whatever was still unresolved
+    // when the poll gave up.
+    const neededBoundaryCodes = new Set<string>();
+    let lastResolvedSnapshot = new Set<string>();
     try {
-        const neededBoundaryCodes = new Set<string>();
         pendingMappings.forEach((row: any) => {
             if (row?.status === mappingStatuses.toBeMapped && row?.boundaryCode) {
                 neededBoundaryCodes.add(row.boundaryCode);
             }
         });
-        if (neededBoundaryCodes.size === 0) return;
+        if (neededBoundaryCodes.size === 0) return null;
 
         await pollUntilCountFn(async () => {
             const boundaries = await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
-            const resolved = new Set(
+            const resolved = new Set<string>(
                 boundaries.filter((b: any) => b?.uniqueIdAfterProcess).map((b: any) => b.uniqueIdentifier)
             );
+            lastResolvedSnapshot = resolved;
             let count = 0;
             neededBoundaryCodes.forEach(code => { if (resolved.has(code)) count++; });
             return count;
@@ -133,8 +141,12 @@ async function waitForProjectLookupReadiness(campaignNumber: string, tenantId: s
             stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs,
             pollIntervalMs: config.excelIngestion.persistencePollIntervalMs
         });
+        return null; // precondition satisfied — dispatch everything
     } catch (error) {
-        logger.warn(`Project lookup readiness incomplete for ${campaignNumber}; unresolved mappings will retry next cycle: ${error}`);
+        const unresolved: string[] = [];
+        neededBoundaryCodes.forEach(code => { if (!lastResolvedSnapshot.has(code)) unresolved.push(code); });
+        logger.warn(`Project lookup readiness incomplete for ${campaignNumber}; holding back ${unresolved.length} unresolved boundary code(s) so they retry next cycle instead of failing now: ${error}`);
+        return lastResolvedSnapshot;
     }
 }
 
@@ -282,10 +294,58 @@ export async function runMappingReconciler(
 
         const pendingMappings = await fetchAllPendingMappings(campaignNumber, tenantId);
 
-        await waitForProjectLookupReadiness(campaignNumber, tenantId, pendingMappings);
+        const resolvedBoundaries = await waitForProjectLookupReadiness(campaignNumber, tenantId, pendingMappings);
+
+        // On a readiness stall, hold back the map-direction rows whose project does not exist yet rather
+        // than dispatching them. Dispatching one is a guaranteed failure that burns one of only a few
+        // retries on a pure timing race; left pending, the row is picked up by the next cycle. De-map rows
+        // and rows with no boundary are unaffected.
+        let dispatchable = pendingMappings;
+        if (resolvedBoundaries) {
+            dispatchable = pendingMappings.filter((row: any) =>
+                row?.status !== mappingStatuses.toBeMapped
+                || !row?.boundaryCode
+                || resolvedBoundaries.has(row.boundaryCode));
+            const heldBack = pendingMappings.length - dispatchable.length;
+            if (heldBack > 0) {
+                logger.info(`Mapping cycle ${cycle}/${maxCycles}: holding back ${heldBack} of ${pendingMappings.length} mapping row(s) whose project is not created yet`);
+            }
+        }
+
+        // Pair a worker's move so it can never half-apply in the losing direction. An area change
+        // becomes one toBeMapped row (new area) plus one toBeDeMapped row (old area) for the SAME
+        // identifier. Both are dispatched as Kafka batches keyed on a random partition, so consumption
+        // is concurrent and unordered - the de-map can be applied while the map is still in flight or
+        // has failed, leaving the worker with NO area at all while the campaign still reports success.
+        //
+        // Holding the de-map back until a cycle in which that identifier has no pending map inverts the
+        // failure: the worst case becomes the worker holding BOTH areas, which is visible in the data
+        // and repairable, instead of holding none, which is silent and is not. The reconciler already
+        // loops cycles, so a held-back de-map is picked up on the next pass once the map has completed
+        // and is no longer pending. Unrelated de-maps are unaffected.
+        // Computed from the FULL pending set, not from `dispatchable`. If the readiness hold-back just
+        // removed this worker's map row, filtering on `dispatchable` would see no pending map and let the
+        // de-map through - removing them from the old area while the add is deferred, which is the exact
+        // "worker ends up with no area" outcome these guards exist to prevent.
+        const pendingMapIdentifiers = new Set<string>(
+            pendingMappings
+                .filter((row: any) => row?.status === mappingStatuses.toBeMapped && row?.uniqueIdentifierForData)
+                .map((row: any) => `${row?.type ?? ''}#${row.uniqueIdentifierForData}`)
+        );
+        if (pendingMapIdentifiers.size > 0) {
+            const beforePairing = dispatchable.length;
+            dispatchable = dispatchable.filter((row: any) =>
+                row?.status !== mappingStatuses.toBeDeMapped
+                || !row?.uniqueIdentifierForData
+                || !pendingMapIdentifiers.has(`${row?.type ?? ''}#${row.uniqueIdentifierForData}`));
+            const pairedHeldBack = beforePairing - dispatchable.length;
+            if (pairedHeldBack > 0) {
+                logger.info(`Mapping cycle ${cycle}/${maxCycles}: deferring ${pairedHeldBack} de-map row(s) whose identifier still has a pending map, so a move cannot leave a worker unassigned`);
+            }
+        }
 
         const generation = await bumpMappingGeneration(tenantId, campaignNumber);
-        const dispatchedCount = await dispatchMappingBatches(campaignDetails, useruuid, tenantId, pendingMappings, requestInfo, generation);
+        const dispatchedCount = await dispatchMappingBatches(campaignDetails, useruuid, tenantId, dispatchable, requestInfo, generation);
 
         const snapshot = await checkCampaignMappingCompletionStatus(campaignNumber, tenantId);
         if (snapshot.totalMappings === 0 && dispatchedCount === 0) {

@@ -207,6 +207,12 @@ public class ImmutableJoinService {
     /**
      * Joins one sheet's immutable columns from the baseline onto the uploaded rows.
      *
+     * <p>Hierarchy/boundary columns are handled specially: ANY level whose uploaded value differs from
+     * the baseline is a permitted area change and is left exactly as uploaded - deepening, a same-level
+     * move and clearing a level are all allowed. Levels the operator did NOT touch are still restored
+     * from the baseline when the baseline had a value, so untouched cells keep their
+     * freezeColumnIfFilled protection.
+     *
      * @return the set of always-immutable column names that were reconstructed onto existing rows of
      *         this sheet (empty if nothing was reconstructed). freezeColumnIfFilled columns are excluded
      *         because they are restored only conditionally (per cell), so they must still be validated.
@@ -261,6 +267,13 @@ public class ImmutableJoinService {
         Map<String, Integer> uploadedColIndex = headerIndex(uploadedSheet);
         SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut, localizationMap);
 
+        // Area levels are editable only on the free-entry (user-typed) sheets - the User List and
+        // Facilities List. Generation leaves exactly those UNPROTECTED in join mode and protects every
+        // other join-mode sheet, so the BASELINE sheet's protection flag is the server's own record of
+        // which is which. Read from the BASELINE (our generated file), never from the upload, so an
+        // operator cannot unlock a protected sheet by unprotecting it in Excel.
+        boolean areaEditableSheet = !baselineSheet.getProtect();
+
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
             String rid = trimToNull(ExcelUtil.getValueAsString(upRow.get(ProcessingConstants.ROW_ID_COLUMN_NAME)));
@@ -289,7 +302,8 @@ public class ImmutableJoinService {
             int poiRowIdx = rowIndexOf(upRow);
             Object baselineBoundaryCode = null;
             Object baselineRegisterId = null;
-            boolean userDeepenedBoundary = false;
+            boolean userChangedBoundaryPath = false;
+
 
             for (Map.Entry<String, Object> baseEntry : baseRow.entrySet()) {
                 String col = baseEntry.getKey();
@@ -315,21 +329,43 @@ public class ImmutableJoinService {
                 } else if (hierarchyPrefix != null
                         && parent.toUpperCase().startsWith(hierarchyPrefix)
                         && !isExcluded(parent)) {
-                    // Dynamic boundary/hierarchy column. Lock the prefilled level (freezeColumnIfFilled);
-                    // an empty baseline level the user filled means the user picked a deeper boundary.
-                    if (baseFilled) {
-                        writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue(), true);
-                    } else if (trimToNull(ExcelUtil.getValueAsString(upRow.get(col))) != null) {
-                        userDeepenedBoundary = true;
+                    // Dynamic boundary/hierarchy column. ANY change the operator made to an area level is
+                    // a permitted area change and is left exactly as uploaded - writeBack is deliberately
+                    // NOT called for it, because writeBack's revert path fails open (no error and no
+                    // warning) whenever poiRowIdx is -1, so never calling it is the only safe way to
+                    // honour the edit. An UNCHANGED column is still restored when the baseline had a
+                    // value, preserving freezeColumnIfFilled behaviour for untouched cells.
+                    if (areaEditableSheet) {
+                        // Free-entry sheet (User/Facilities List): ANY level the operator changed is a
+                        // permitted area change and is left exactly as uploaded - deepening, a same-level
+                        // move and clearing a level are all allowed. writeBack is deliberately NOT called
+                        // for a changed level, because its revert path fails open (no error, no warning)
+                        // whenever poiRowIdx is -1. Untouched levels are still restored when the baseline
+                        // had a value, so they keep their freezeColumnIfFilled protection.
+                        if (!sameTrimmed(upRow.get(col), baseEntry.getValue())) {
+                            userChangedBoundaryPath = true;
+                        } else if (baseFilled) {
+                            writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue(), true);
+                        }
+                    } else {
+                        // Protected sheet (e.g. Boundary List, where a boundary cell IS the row's
+                        // identity): unchanged legacy behaviour - a prefilled level stays locked and a
+                        // change is rejected; only filling an EMPTY level is treated as a deepen.
+                        if (baseFilled) {
+                            writeBack(sj, upRow, poiRowIdx, col, baseEntry.getValue(), true);
+                        } else if (trimToNull(ExcelUtil.getValueAsString(upRow.get(col))) != null) {
+                            userChangedBoundaryPath = true;
+                        }
                     }
                 }
             }
 
             // Restore the derived boundary code / register id from the baseline ONLY when the boundary
-            // path is unchanged (no deeper level added). Then the baseline value is authoritative - this
-            // also corrects a code that the sheet formula mis-evaluated from a tampered locked selection.
-            // If the user legitimately deepened an empty level, keep the formula-computed code instead.
-            if (!userDeepenedBoundary) {
+            // path is unchanged. Then the baseline value is authoritative - this also corrects a code
+            // that the sheet formula mis-evaluated from a tampered locked selection. If the user
+            // legitimately changed the boundary path (deepened, moved sideways, or cleared a leaf),
+            // keep the formula-computed code instead.
+            if (!userChangedBoundaryPath) {
                 if (trimToNull(ExcelUtil.getValueAsString(baselineBoundaryCode)) != null) {
                     writeBack(sj, upRow, poiRowIdx,
                             ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, baselineBoundaryCode, false);

@@ -36,6 +36,33 @@ interface WorkerRegistryRecord {
     signatureId?: string;
 }
 
+/**
+ * Fields that a unified-sheet re-upload can legitimately change on a worker-registry record.
+ * Used to decide whether a write is actually needed - see workerNeedsUpdate.
+ */
+const WORKER_COMPARABLE_FIELDS: (keyof WorkerData & keyof WorkerRegistryRecord)[] = [
+    "name", "payeePhoneNumber", "paymentProvider", "payeeName", "bankAccount", "bankCode", "beneficiaryCode",
+];
+
+/**
+ * True when the sheet-derived worker data differs from what the registry already holds.
+ *
+ * An area-only edit re-supplies every payment cell unchanged (the template is regenerated from stored
+ * values), so writing unconditionally pushes a real update into the SHARED worker registry for every
+ * worker on the sheet who has payment data - churn with no change, and noise in any audit trail on
+ * those records. Comparing first makes the write proportional to the actual edit.
+ *
+ * Both sides are normalised to a trimmed string before comparison so that undefined, null and "" are
+ * treated as equal - the registry omits empty fields while the sheet path yields "".
+ */
+function workerNeedsUpdate(incoming: WorkerData, existing: WorkerRegistryRecord | undefined): boolean {
+    if (!existing) return true; // nothing stored yet -> must write
+    const norm = (v: unknown): string => (v === undefined || v === null ? "" : String(v).trim());
+    return WORKER_COMPARABLE_FIELDS.some(
+        (f) => norm((incoming as any)[f]) !== norm((existing as any)[f])
+    );
+}
+
 /** Payload for creating a new worker (no id/rowVersion yet) */
 interface WorkerCreatePayload {
     name: string;
@@ -287,4 +314,5 @@ async function createOrUpdateWorkers(
     return { individualIdToWorkerIdMap, individualIdToWorkerMap, errors };
 }
 
+export { workerNeedsUpdate };
 export { WorkerData, WorkerRegistryRecord, WorkerRegistryResult, WorkerCreatePayload, searchWorkersByIndividualIds, searchWorkersByIds, createOrUpdateWorkers };

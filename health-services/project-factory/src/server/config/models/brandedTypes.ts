@@ -21,3 +21,6 @@ export type CampaignNumber = Brand<string, "CampaignNumber">;
 export type AttendanceRegisterId = Brand<string, "AttendanceRegisterId">;
 
 export type IndividualId = Brand<string, "IndividualId">;
+
+/** A boundary/locality code, e.g. the area a worker is assigned to or a register covers. */
+export type BoundaryCode = Brand<string, "BoundaryCode">;

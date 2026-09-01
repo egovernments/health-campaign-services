@@ -12,7 +12,11 @@ import { transformConfigs } from "../config/transformConfigs";
 import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
-import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, searchWorkersByIds } from "../utils/workerRegistryUtils";
+import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, workerNeedsUpdate, searchWorkersByIds } from "../utils/workerRegistryUtils";
+import { reconcileAttendanceEnrolments, EnrolmentMove } from "../utils/attendanceEnrolmentUtils";
+
+/** The user sheet's area column. Mirrors the local key used by the active/inactive row paths. */
+const BOUNDARY_CODE_MANDATORY_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
 import { validatePaymentFields } from "../utils/paymentValidationUtils";
 import { fetchExistingUsersByPhone, normalizeNameForCompare, waitForIndividualsSearchable, partitionWorkersByIndividualSearchability, type CampaignRecord } from "../utils/userBatchHandler";
 
@@ -292,6 +296,33 @@ export class TemplateClass {
         logger.info(`Done processing inactive rows for user sheet...`);
     }
 
+    /**
+     * Realign attendance enrolments with the areas on the sheet. Isolated and never rethrown: the
+     * assignment and registry work is already durable, and a missing attendance register must not
+     * fail a campaign.
+     */
+    private static async realignAttendanceEnrolments(
+        moves: EnrolmentMove[],
+        resourceDetails: any,
+        tenantId: string,
+        requestInfo: any
+    ): Promise<void> {
+        const campaignNumber = resourceDetails?.campaignNumber;
+        if (moves.length === 0 || !campaignNumber || !tenantId) {
+            return;
+        }
+        try {
+            await reconcileAttendanceEnrolments(
+                moves,
+                campaignNumber,
+                tenantId as any,
+                requestInfo
+            );
+        } catch (error: unknown) {
+            logger.warn(`Attendance enrolment realignment failed for campaign ${campaignNumber}; area change stands: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
     private static async updateWorkerRegistryForCompletedUsers(
         userSheetData: any[],
         existingUsersForCampaign: any[],
@@ -366,6 +397,7 @@ export class TemplateClass {
         // inside createOrUpdateWorkers by supplying id so it goes through the workersByIdList path,
         // which still re-searches internally — acceptable single extra call per batch).
         const workerDataList: WorkerData[] = [];
+        const enrolmentMoves: EnrolmentMove[] = [];
         for (const workerId of allWorkerIds) {
             const { row, existingUser } = workerIdToSheetEntry[workerId];
             const existingWorker = workerByIdMap.get(workerId);
@@ -374,7 +406,7 @@ export class TemplateClass {
             const individualId = existingWorker.individualIds?.[0];
             if (!individualId) continue;
 
-            workerDataList.push({
+            const candidate: WorkerData = {
                 name: row?.["HCM_ADMIN_CONSOLE_USER_NAME"] || existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
                 payeePhoneNumber: String(row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || ""),
                 paymentProvider: row?.["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
@@ -387,10 +419,41 @@ export class TemplateClass {
                 id: workerId,
                 individualId,
                 tenantId,
-            });
+            };
+
+            // Attendance follows the sheet's area, not the registry write: a bill's area comes from the
+            // register it was generated from, so a stale enrolment keeps paying the area the worker left.
+            // Collected for every row (not only changed ones) because this reconciles current state and
+            // is idempotent - an already-correct worker is a no-op.
+            // The area cell can carry several comma-separated codes. Reconciling attendance then has no
+            // single answer, and guessing one would move a worker's pay to an arbitrary area - so those
+            // rows are skipped and reported instead.
+            const sheetAreas: string[] = String(row?.[BOUNDARY_CODE_MANDATORY_KEY] ?? "")
+                .split(",")
+                .map((code: string) => code.trim())
+                .filter(Boolean);
+            if (individualId && sheetAreas.length === 1) {
+                enrolmentMoves.push({
+                    individualId: individualId as EnrolmentMove["individualId"],
+                    targetLocalityCode: sheetAreas[0] as EnrolmentMove["targetLocalityCode"],
+                });
+            } else if (individualId && sheetAreas.length > 1) {
+                logger.warn(`Attendance enrolment not realigned for individual ${individualId}: row carries ${sheetAreas.length} areas, so the destination register is ambiguous`);
+            }
+
+            // Only write when something the sheet controls actually differs from the stored record.
+            // An area-only edit re-supplies every payment cell unchanged, so an unconditional write
+            // churns the shared worker registry for every worker on the sheet that has payment data.
+            if (!workerNeedsUpdate(candidate, existingWorker)) continue;
+            workerDataList.push(candidate);
         }
 
-        if (!workerDataList.length) return;
+        await TemplateClass.realignAttendanceEnrolments(enrolmentMoves, resourceDetails, tenantId, workerRequestInfo);
+
+        if (!workerDataList.length) {
+            logger.info("Worker registry: no worker had a changed name or payment field — nothing to write");
+            return;
+        }
 
         // Log warnings for workers with invalid payment fields (don't block — let worker-registry be the hard gate)
         workerDataList.forEach(wd => {

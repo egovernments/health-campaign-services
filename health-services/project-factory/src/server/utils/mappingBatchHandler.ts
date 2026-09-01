@@ -55,17 +55,29 @@ export async function handleMappingBatch(messageObject: any) {
             promises.push(processUserMappings(mappingGroups.userToBeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
         }
 
+        // Map-direction work runs concurrently, then de-mapping runs only after it has all settled.
+        // For a worker whose area changed, the add and the remove are two rows; applying the remove
+        // while the add is still in flight (or has failed) can leave them with NO assignment at all
+        // while the campaign still reports success. Awaiting the adds first inverts that failure to
+        // "holds both areas", which is visible in the data and repairable.
+        //
+        // The reconciler additionally keeps a worker's de-map out of the same dispatch as their own
+        // map, so the two should not normally arrive together - this ordering is the second line of
+        // defence, for a batch that carries both regardless.
+        await Promise.all(promises);
+
+        const demapPromises: Promise<void>[] = [];
         if (mappingGroups.resourceToBeDeMapped.length > 0) {
-            promises.push(processResourceDemappings(mappingGroups.resourceToBeDeMapped, tenantId, useruuid));
+            demapPromises.push(processResourceDemappings(mappingGroups.resourceToBeDeMapped, tenantId, useruuid));
         }
         if (mappingGroups.facilityToBeDeMapped.length > 0) {
-            promises.push(processFacilityDemappings(mappingGroups.facilityToBeDeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo));
+            demapPromises.push(processFacilityDemappings(mappingGroups.facilityToBeDeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo));
         }
         if (mappingGroups.userToBeDeMapped.length > 0) {
-            promises.push(processUserDemappings(mappingGroups.userToBeDeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
+            demapPromises.push(processUserDemappings(mappingGroups.userToBeDeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
         }
 
-        await Promise.all(promises);
+        await Promise.all(demapPromises);
 
         logger.info(`Mapping batch ${batchNumber}/${totalBatches} completed successfully`);
 

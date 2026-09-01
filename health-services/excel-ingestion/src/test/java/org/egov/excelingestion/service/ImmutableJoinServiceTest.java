@@ -137,6 +137,16 @@ class ImmutableJoinServiceTest {
             return m;
         }
 
+        /**
+         * Marks the BASELINE sheet protected, i.e. NOT a free-entry (user-typed) sheet. Generation
+         * leaves only the User/Facilities List unprotected in join mode, and the join reads the
+         * baseline's protection flag to decide whether area levels may be changed. Tests that assert
+         * the Boundary List contract must call this; tests for the User List must not.
+         */
+        private void protectBaselineSheet() {
+            baselineWorkbook.getSheet(SHEET).protectSheet("pw");
+        }
+
         private void stubRows(List<Map<String, Object>> uploaded, List<Map<String, Object>> baseline) {
             when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(SHEET), any())).thenReturn(uploaded);
             when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(SHEET), any())).thenReturn(baseline);
@@ -316,10 +326,12 @@ class ImmutableJoinServiceTest {
         }
 
         @Test
-        void boundaryColumn_prefilled_lockedEvenThoughNotInSchema() {
+        void boundaryColumn_prefilled_editableOnFreeEntrySheet() {
             // Boundary/hierarchy columns ("HZ_COUNTRY" etc.) are dynamic - NOT in the schema columnDefs.
-            // A prefilled boundary cell must be locked to baseline (freezeColumnIfFilled); an empty boundary
-            // level must stay user-editable.
+            // CONTRACT CHANGED (worker area change): on a FREE-ENTRY sheet (User/Facilities List, left
+            // unprotected by generation) a prefilled boundary level the operator changed is now KEPT, so
+            // an area correction survives the join. The old behaviour - restore to baseline - still applies
+            // on protected sheets; see boundarySheet_noSchemaImmutableColumns_stillLocksBoundaryAndCode.
             ProcessResource res = ProcessResource.builder()
                     .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).hierarchyType("HZ").build();
             Map<String, Object> up = row(ROW_ID, "r1", "name", "ok",
@@ -330,7 +342,8 @@ class ImmutableJoinServiceTest {
 
             service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
 
-            assertEquals("Mozambique", up.get("HZ_COUNTRY"), "prefilled boundary column locked to baseline value");
+            assertEquals("HACKED_COUNTRY", up.get("HZ_COUNTRY"),
+                    "changed boundary level kept on a free-entry sheet (area correction survives)");
             assertEquals("UserPicked", up.get("HZ_PROVINCE"), "empty-baseline boundary level stays user-editable");
         }
 
@@ -338,6 +351,8 @@ class ImmutableJoinServiceTest {
         void boundarySheet_noSchemaImmutableColumns_stillLocksBoundaryAndCode() {
             // Regression for the Boundary List leak: that sheet's MDMS schema has ONLY editable target
             // columns, so the derived immutable set is EMPTY. joinSheet used to return at `immutable.isEmpty()`
+            // NOTE: the Boundary List is a PROTECTED sheet, so area levels stay locked there even though
+            // they are now editable on the free-entry User List. The fixture must say so explicitly.
             // BEFORE the dynamic boundary-column locking ran, leaving prefilled boundary selections + the
             // derived code unprotected - a user could tamper them and the change would persist. The boundary
             // columns + code must still be reconstructed from the baseline on an all-editable-schema sheet;
@@ -353,6 +368,7 @@ class ImmutableJoinServiceTest {
                     "HZ_COUNTRY", "Manland", "HZ_PROVINCE", "RealProv",
                     ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "ZQ_VILL_231");
             stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+            protectBaselineSheet(); // Boundary List is protected -> area levels stay locked here
 
             service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
 
@@ -365,9 +381,12 @@ class ImmutableJoinServiceTest {
         }
 
         @Test
-        void boundaryCode_restoredWhenLockedSelectionTampered() {
-            // Boundary fully prefilled (COUNTRY+PROVINCE) -> locked. User tampered them + the derived code.
-            // Path is unchanged after restore (no deeper level added) -> the baseline code is authoritative.
+        void boundaryCode_keptWhenUserChangesLevelOnFreeEntrySheet() {
+            // CONTRACT CHANGED (worker area change): boundary fully prefilled (COUNTRY+PROVINCE), and the
+            // operator changed a level. On a free-entry sheet that is a permitted area change, so the level
+            // is kept AND the derived code is NOT reset to the baseline - otherwise the edit would be
+            // silently reverted. In production the code cell is a live VLOOKUP recomputed from the new
+            // selections; the literal below just stands in for "whatever the sheet formula produced".
             ProcessResource res = ProcessResource.builder()
                     .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).hierarchyType("HZ").build();
             Map<String, Object> up = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "HACK", "HZ_PROVINCE", "HACKPROV",
@@ -378,9 +397,9 @@ class ImmutableJoinServiceTest {
 
             service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
 
-            assertEquals("Maryland", up.get("HZ_PROVINCE"), "locked boundary level restored");
-            assertEquals("HZ_MZ_MARYLAND", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
-                    "derived boundary code restored to baseline when path unchanged (tamper corrected)");
+            assertEquals("HACKPROV", up.get("HZ_PROVINCE"), "changed boundary level kept on a free-entry sheet");
+            assertEquals("WRONG_CODE", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
+                    "derived code NOT reset to baseline once the area path changed");
         }
 
         @Test
@@ -400,6 +419,80 @@ class ImmutableJoinServiceTest {
             assertEquals("Maryland", up.get("HZ_PROVINCE"), "user-deepened (empty-baseline) level kept");
             assertEquals("HZ_MZ_MARYLAND", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
                     "derived code kept for the user's deeper selection, not reset to baseline country code");
+        }
+
+        /**
+         * CASE 2 - sideways move at the same level (village A -> village B) on a free-entry sheet.
+         * The changed level must survive the join and the derived code must NOT be reset to the
+         * baseline, or the move is silently reverted to the area the worker was leaving.
+         */
+        @Test
+        void areaChange_sidewaysAtSameLevel_keptOnFreeEntrySheet() {
+            ProcessResource res = ProcessResource.builder()
+                    .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).hierarchyType("HZ").build();
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ",
+                    "HZ_PROVINCE", "Montserrado",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_MONTSERRADO");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ",
+                    "HZ_PROVINCE", "Maryland",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_MARYLAND");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
+
+            assertEquals("Montserrado", up.get("HZ_PROVINCE"), "same-level move kept, not reverted to Maryland");
+            assertEquals("HZ_MZ_MONTSERRADO", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
+                    "derived code follows the sideways move");
+            assertEquals("MZ", up.get("HZ_COUNTRY"), "untouched ancestor level unchanged");
+        }
+
+        /**
+         * CASE 3 - clearing a level (village -> blank) on a free-entry sheet. The cleared cell must
+         * stay blank and the derived code must follow the now-shorter path, rather than the baseline's
+         * deeper code being restored over it.
+         */
+        @Test
+        void areaChange_clearingALevel_keptOnFreeEntrySheet() {
+            ProcessResource res = ProcessResource.builder()
+                    .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).hierarchyType("HZ").build();
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ",
+                    "HZ_PROVINCE", null,
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ",
+                    "HZ_PROVINCE", "Maryland",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_MARYLAND");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
+
+            assertNull(up.get("HZ_PROVINCE"), "cleared level stays cleared, not restored");
+            assertEquals("HZ_MZ", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
+                    "derived code follows the shorter path after the level was cleared");
+        }
+
+        /**
+         * SCOPING GUARD. The same sideways move on a PROTECTED sheet (Boundary List) must still be
+         * rejected/restored. This is the test that fails if the relaxation is ever widened beyond the
+         * free-entry sheets again.
+         */
+        @Test
+        void areaChange_sidewaysOnProtectedSheet_stillRestored() {
+            ProcessResource res = ProcessResource.builder()
+                    .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).hierarchyType("HZ").build();
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ",
+                    "HZ_PROVINCE", "Montserrado",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_MONTSERRADO");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ",
+                    "HZ_PROVINCE", "Maryland",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_MARYLAND");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+            protectBaselineSheet();
+
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
+
+            assertEquals("Maryland", up.get("HZ_PROVINCE"), "protected sheet: changed level restored to baseline");
+            assertEquals("HZ_MZ_MARYLAND", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
+                    "protected sheet: derived code restored to baseline");
         }
 
         @Test
