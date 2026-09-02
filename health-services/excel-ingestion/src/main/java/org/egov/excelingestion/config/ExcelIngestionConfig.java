@@ -68,6 +68,14 @@ public class ExcelIngestionConfig {
     @Value("${egov.excel.join-mode-sheet-protection-enabled:false}")
     private boolean joinModeSheetProtectionEnabled;
 
+    // Surgical switch for the worker-area-change feature ONLY: whether the immutable join honours area
+    // (hierarchy) edits on the free-entry sheets. false reverts to the legacy deepen-only contract
+    // server-side with NO other effect — generation, sheet protection, validations and every downstream
+    // service behave identically — unlike the protect-all flag above, which also locks the entry sheets
+    // in Excel. Default ON: the feature ships enabled.
+    @Value("${egov.excel.worker-area-change-enabled:true}")
+    private boolean workerAreaChangeEnabled;
+
     // When true, editing a pre-filled (server-managed/immutable) cell in an unprotected join-mode template
     // makes the upload FAIL, instead of silently reverting the cell to the generated baseline value.
     // Default true. Set false to restore the legacy silent-revert-with-warning behaviour.

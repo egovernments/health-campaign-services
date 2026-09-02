@@ -95,6 +95,11 @@ class ImmutableJoinServiceTest {
                     schemaColumnDefUtil, new ObjectMapper(), new CustomExceptionHandler(), config,
                     campaignService);
 
+            // The feature switch defaults ON in production config; the mock must mirror that or every
+            // area-editability test silently exercises the switched-off path. lenient: not every test
+            // reaches the join gate.
+            lenient().when(config.isWorkerAreaChangeEnabled()).thenReturn(true);
+
             uploadedWorkbook = new XSSFWorkbook();
             uploadedWorkbook.createSheet(SHEET);
             uploadedWorkbook.createSheet(GenerationConstants.META_SHEET_NAME)
@@ -516,6 +521,33 @@ class ImmutableJoinServiceTest {
             assertNull(up.get("HZ_PROVINCE"), "cleared level stays cleared, not restored");
             assertEquals("HZ_MZ", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
                     "derived code follows the shorter path after the level was cleared");
+        }
+
+        /**
+         * FEATURE SWITCH OFF. With egov.excel.worker-area-change-enabled=false the join must treat even a
+         * free-entry sheet as area-immutable: the sideways move is restored to baseline and the derived
+         * code follows — the exact pre-feature contract, with nothing else changed. This is the test that
+         * fails if the switch ever stops reaching the gate.
+         */
+        @Test
+        void areaChange_featureSwitchOff_sidewaysRestoredOnFreeEntrySheet() {
+            when(config.isWorkerAreaChangeEnabled()).thenReturn(false);
+            ProcessResource res = ProcessResource.builder()
+                    .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).hierarchyType("HZ").build();
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ",
+                    "HZ_PROVINCE", "Montserrado",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_MONTSERRADO");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ",
+                    "HZ_PROVINCE", "Maryland",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_MARYLAND");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
+
+            assertEquals("Maryland", up.get("HZ_PROVINCE"),
+                    "switch off: changed area level restored to baseline even on a free-entry sheet");
+            assertEquals("HZ_MZ_MARYLAND", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
+                    "switch off: derived code restored to baseline");
         }
 
         /**

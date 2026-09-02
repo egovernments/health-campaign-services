@@ -280,9 +280,12 @@ public class ImmutableJoinService {
         // least one protected sheet makes the signal self-validating: no protection anywhere means the
         // flag carries no information, so fall back to the pre-relaxation behaviour and restore from
         // baseline. Fail closed, never open.
+        // egov.excel.worker-area-change-enabled is the surgical feature switch: off means the join
+        // treats every sheet as area-immutable (legacy deepen-only), with no other behaviour change.
+        boolean workerAreaChangeEnabled = config.isWorkerAreaChangeEnabled();
         boolean protectionIsMeaningful = anySheetProtected(baselineWorkbook);
-        boolean areaEditableSheet = protectionIsMeaningful && !baselineSheet.getProtect();
-        if (!protectionIsMeaningful) {
+        boolean areaEditableSheet = workerAreaChangeEnabled && protectionIsMeaningful && !baselineSheet.getProtect();
+        if (workerAreaChangeEnabled && !protectionIsMeaningful) {
             log.warn("Baseline generation {} has no protected sheet at all (egov.excel.sheet.password unset?)"
                     + " - treating every sheet as area-immutable so boundary columns stay server-authoritative",
                     baselineFileStoreId);
