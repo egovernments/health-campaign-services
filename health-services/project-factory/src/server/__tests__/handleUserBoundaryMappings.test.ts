@@ -60,6 +60,9 @@ jest.mock('../utils/genericUtils', () => ({
 jest.mock('../utils/mappingReconciler', () => ({
     runMappingReconciler: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../utils/attendanceEnrolmentUtils', () => ({
+    reconcileAttendanceEnrolmentsForPhones: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../config', () => ({
     __esModule: true,
     default: {
@@ -82,6 +85,8 @@ import { handleUserBoundaryMappings } from '../utils/processingResultHandler';
 import { getMappingDataRelatedToCampaign } from '../utils/genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { mappingStatuses } from '../config/constants';
+import { reconcileAttendanceEnrolmentsForPhones } from '../utils/attendanceEnrolmentUtils';
+import config from '../config';
 
 const getMappingMock = getMappingDataRelatedToCampaign as jest.MockedFunction<typeof getMappingDataRelatedToCampaign>;
 const produceMock = produceModifiedMessages as jest.MockedFunction<typeof produceModifiedMessages>;
@@ -242,5 +247,52 @@ describe('handleUserBoundaryMappings — sheet-presence-driven demap', () => {
             status: mappingStatuses.toBeMapped,
         });
         expect(producedTo('update-map')).toHaveLength(0);
+    });
+});
+
+describe('handleUserBoundaryMappings — attendance realignment wiring (unified path)', () => {
+    // The flag-ON dev e2e on 2 Sep 2026 caught the realignment wired ONLY into user-processClass,
+    // which the unified-console path never executes — so it silently never ran. These tests pin the
+    // wiring to THIS handler, the one the unified path actually uses.
+    const realignMock = reconcileAttendanceEnrolmentsForPhones as jest.MockedFunction<typeof reconcileAttendanceEnrolmentsForPhones>;
+
+    beforeEach(() => jest.clearAllMocks());
+    afterEach(() => { delete (config as any).attendanceRegister; });
+
+    it('REGRESSION: with the flag ON, a boundary move hands the changed phone to the realigner', async () => {
+        (config as any).attendanceRegister = { realignEnrolmentsOnAreaChange: true };
+        getMappingMock.mockResolvedValue([existingMapping('9111', 'B001')] as any);
+
+        await handleUserBoundaryMappings('CMP-1', 'tn',
+            [{ phoneNumber: '9111', boundaryCode: 'B002', active: true }],
+            new Set(), new Set(['9111']), { userInfo: { uuid: 'u1' } } as any);
+
+        expect(realignMock).toHaveBeenCalledTimes(1);
+        const [phoneMap, cn, tenant] = realignMock.mock.calls[0];
+        expect([...phoneMap.keys()]).toEqual(['9111']);
+        expect(phoneMap.get('9111')).toEqual(['B002']);
+        expect(String(cn)).toBe('CMP-1');
+        expect(String(tenant)).toBe('tn');
+    });
+
+    it('does not invoke the realigner for a phone whose boundaries did not change', async () => {
+        (config as any).attendanceRegister = { realignEnrolmentsOnAreaChange: true };
+        getMappingMock.mockResolvedValue([existingMapping('9111', 'B001')] as any);
+
+        await handleUserBoundaryMappings('CMP-1', 'tn',
+            [{ phoneNumber: '9111', boundaryCode: 'B001', active: true }],
+            new Set(), new Set(['9111']));
+
+        expect(realignMock).not.toHaveBeenCalled();
+    });
+
+    it('with the flag OFF (or absent) the realigner is never invoked', async () => {
+        getMappingMock.mockResolvedValue([existingMapping('9111', 'B001')] as any);
+
+        await handleUserBoundaryMappings('CMP-1', 'tn',
+            [{ phoneNumber: '9111', boundaryCode: 'B002', active: true }],
+            new Set(), new Set(['9111']));
+
+        expect(realignMock).not.toHaveBeenCalled();
     });
 });

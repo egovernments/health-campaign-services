@@ -37,10 +37,13 @@ export interface EnrolmentMove {
     targetLocalityCode: BoundaryCode;
 }
 
-function url(path: unknown): string {
-    const host = (config as { host?: Record<string, unknown> })?.host?.attendanceHost;
+function urlFor(host: unknown, path: unknown): string {
     if (typeof host !== "string" || typeof path !== "string" || !host || !path) return "";
     return `${host.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+}
+
+function url(path: unknown): string {
+    return urlFor((config as { host?: Record<string, unknown> })?.host?.attendanceHost, path);
 }
 
 function paths(): Record<string, unknown> {
@@ -137,6 +140,78 @@ async function fetchLiveEnrolments(
     }
     logger.warn(`Attendance realignment ABORTED: attendee scan hit the ${maxPages}-page cap, so enrolment state is undetermined. No enrolment was changed; ${individualIds.size} worker(s) may still be paid against the area they left.`);
     return null;
+}
+
+/**
+ * Unified-path entry: the excel-ingestion-driven upload deals in PHONES, not individual ids, so this
+ * resolves each phone to its individual (health-individual, by mobileNumber, batched) and then
+ * reconciles enrolments. A phone carrying more than one target boundary has no single destination
+ * register, so it is skipped and reported; a phone with no individual is skipped and reported.
+ * Never throws — same contract as reconcileAttendanceEnrolments.
+ */
+export async function reconcileAttendanceEnrolmentsForPhones(
+    phoneToBoundaries: Map<string, string[]>,
+    campaignNumber: CampaignNumber,
+    tenantId: TenantId,
+    requestInfo: unknown
+): Promise<void> {
+    const single: [string, string][] = [];
+    for (const [phone, boundaries] of phoneToBoundaries) {
+        if (boundaries.length === 1) {
+            single.push([phone, boundaries[0]]);
+        } else if (boundaries.length > 1) {
+            logger.warn(`Attendance enrolment not realigned for ${phone}: row carries ${boundaries.length} areas, so the destination register is ambiguous`);
+        }
+    }
+    if (single.length === 0) return;
+
+    const endpoint = urlFor(
+        (config as { host?: Record<string, unknown> })?.host?.healthIndividualHost,
+        paths().healthIndividualSearch
+    );
+    if (!endpoint) {
+        logger.warn("Attendance realignment skipped: health-individual host or search path not configured");
+        return;
+    }
+    const phoneToIndividual = new Map<string, string>();
+    const batchSize = config.user.individualSearchBatchSize;
+    for (let i = 0; i < single.length; i += batchSize) {
+        const phones = single.slice(i, i + batchSize).map(([p]) => p);
+        try {
+            const response = await httpRequest(
+                endpoint,
+                { RequestInfo: requestInfo, Individual: { mobileNumber: phones } },
+                { tenantId, limit: phones.length * 2, offset: 0 }
+            );
+            const individuals = (response as { Individual?: unknown })?.Individual;
+            for (const ind of (Array.isArray(individuals) ? individuals : []) as
+                    { id?: string; mobileNumber?: string }[]) {
+                const mobile = ind?.mobileNumber != null ? String(ind.mobileNumber) : "";
+                if (mobile && ind?.id && !phoneToIndividual.has(mobile)) {
+                    phoneToIndividual.set(mobile, ind.id);
+                }
+            }
+        } catch (error) {
+            logger.warn(`Individual lookup failed for ${phones.length} phone(s); their enrolments stay as-is: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    const moves: EnrolmentMove[] = [];
+    for (const [phone, boundary] of single) {
+        const individualId = phoneToIndividual.get(phone);
+        if (!individualId) {
+            logger.warn(`Attendance enrolment not realigned for ${phone}: no individual found for the phone`);
+            continue;
+        }
+        moves.push({
+            individualId: individualId as EnrolmentMove["individualId"],
+            targetLocalityCode: boundary as EnrolmentMove["targetLocalityCode"],
+        });
+    }
+    if (moves.length > 0) {
+        logger.info(`Attendance realignment starting for ${moves.length} worker(s) in campaign ${campaignNumber}`);
+        await reconcileAttendanceEnrolments(moves, campaignNumber, tenantId, requestInfo);
+    }
 }
 
 /**

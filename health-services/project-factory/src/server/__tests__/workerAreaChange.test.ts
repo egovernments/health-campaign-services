@@ -1,5 +1,5 @@
 import { workerNeedsUpdate } from "../utils/workerRegistryUtils";
-import { reconcileAttendanceEnrolments } from "../utils/attendanceEnrolmentUtils";
+import { reconcileAttendanceEnrolments, reconcileAttendanceEnrolmentsForPhones } from "../utils/attendanceEnrolmentUtils";
 import { httpRequest } from "../utils/request";
 
 jest.mock("../utils/logger", () => ({
@@ -9,14 +9,16 @@ jest.mock("../utils/request", () => ({ httpRequest: jest.fn() }));
 jest.mock("../config", () => ({
     __esModule: true,
     default: {
-        host: { attendanceHost: "http://attendance/" },
+        host: { attendanceHost: "http://attendance/", healthIndividualHost: "http://individual/" },
         paths: {
             attendanceRegisterSearch: "health-attendance/v1/_search",
             attendanceAttendeeCreate: "health-attendance/attendee/v1/_create",
             attendanceAttendeeDelete: "health-attendance/attendee/v1/_delete",
             attendanceAttendeeSearch: "health-attendance/attendee/v1/_search",
+            healthIndividualSearch: "health-individual/v1/_search",
         },
         attendanceRegister: { batchSize: 50, attendeeSearchPageSize: 100, enrolmentScanMaxPages: 3 },
+        user: { individualSearchBatchSize: 50 },
     },
 }));
 
@@ -220,5 +222,50 @@ describe("reconcileAttendanceEnrolments", () => {
         await reconcileAttendanceEnrolments(many, CN as any, "dev" as any, {});
         expect(urls().filter((u) => u.includes("v1/_search") && !u.includes("attendee")).length).toBe(1);
         expect(urls().filter((u) => u.includes("attendee/v1/_search")).length).toBe(1);
+    });
+});
+
+describe("reconcileAttendanceEnrolmentsForPhones (unified-console path)", () => {
+    const CN = "CMP-1";
+    const OLD = { id: "REG-OLD", localityCode: "VILLAGE_A", campaignNumber: CN } as any;
+    const NEW = { id: "REG-NEW", localityCode: "VILLAGE_B", campaignNumber: CN } as any;
+    const ATT = { id: "ATT-1", individualId: "IND-1", registerId: "REG-OLD", enrollmentDate: 1, denrollmentDate: null };
+    const urls = () => jest.mocked(httpRequest).mock.calls.map((c) => String(c[0]));
+    const call = (m: Map<string, string[]>) =>
+        reconcileAttendanceEnrolmentsForPhones(m, CN as any, "dev" as any, {});
+
+    afterEach(() => jest.clearAllMocks());
+
+    it("resolves the phone to its individual, then enrols at the destination BEFORE end-dating", async () => {
+        jest.mocked(httpRequest).mockReset();
+        jest.mocked(httpRequest)
+            .mockResolvedValueOnce({ Individual: [{ id: "IND-1", mobileNumber: "9119900044" }] } as any)
+            .mockResolvedValueOnce({ attendanceRegister: [OLD, NEW] } as any)
+            .mockResolvedValueOnce({ attendees: [ATT] } as any)
+            .mockResolvedValue({} as any);
+        await call(new Map([["9119900044", ["VILLAGE_B"]]]));
+        const u = urls();
+        expect(u[0]).toContain("health-individual/v1/_search");
+        expect(u[3]).toContain("attendee/v1/_create");
+        expect(u[4]).toContain("attendee/v1/_delete");
+    });
+
+    it("skips a phone carrying several target boundaries without any lookup", async () => {
+        jest.mocked(httpRequest).mockReset();
+        await call(new Map([["9119900044", ["VILLAGE_A", "VILLAGE_B"]]]));
+        expect(jest.mocked(httpRequest)).not.toHaveBeenCalled();
+    });
+
+    it("skips a phone whose individual cannot be found, touching nothing", async () => {
+        jest.mocked(httpRequest).mockReset();
+        jest.mocked(httpRequest).mockResolvedValueOnce({ Individual: [] } as any);
+        await call(new Map([["9119900044", ["VILLAGE_B"]]]));
+        expect(urls().some((u) => u.includes("attendance"))).toBe(false);
+    });
+
+    it("never throws when the individual lookup fails", async () => {
+        jest.mocked(httpRequest).mockReset();
+        jest.mocked(httpRequest).mockRejectedValueOnce(new Error("individual down"));
+        await expect(call(new Map([["9119900044", ["VILLAGE_B"]]]))).resolves.toBeUndefined();
     });
 });

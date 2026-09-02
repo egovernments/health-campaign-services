@@ -1,4 +1,5 @@
 import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
+import { reconcileAttendanceEnrolmentsForPhones } from './attendanceEnrolmentUtils';
 import { logger } from './logger';
 import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
@@ -341,7 +342,8 @@ export async function handleProcessingResult(messageObject: any) {
                         messageObject.tenantId,
                         messageObject.fileStoreId,
                         localizationMap,
-                        campaignDetails
+                        campaignDetails,
+                        resolveCreationRequestInfo(messageObject?.requestInfo, campaignDetails?.auditDetails?.createdBy, messageObject.tenantId)
                     )
                 ]);
                 logger.info('=== ALL CAMPAIGN DATA PROCESSING COMPLETED ===');
@@ -1316,7 +1318,8 @@ async function processCampaignUsersFromExcelData(
     tenantId: string,
     fileStoreId: string,
     localizationMap: Record<string, string>,
-    campaignDetails: any
+    campaignDetails: any,
+    requestInfo?: RequestInfo
 ): Promise<number> {
     try {
         logger.info('=== PROCESSING CAMPAIGN USERS FROM EXCEL DATA ===');
@@ -1371,7 +1374,7 @@ async function processCampaignUsersFromExcelData(
             skipOtherCampaignReuse = await isNewSheetUploadedForClone(campaignDetails, tenantId, fileStoreId);
         }
 
-        const count = await processUsersSimple(tenantId, campaignId, fileStoreId, userSheetName, phoneNumbers, campaignNumber, skipOtherCampaignReuse);
+        const count = await processUsersSimple(tenantId, campaignId, fileStoreId, userSheetName, phoneNumbers, campaignNumber, skipOtherCampaignReuse, requestInfo);
 
         logger.info('=== CAMPAIGN USERS PROCESSING COMPLETED ===');
         return count;
@@ -1392,7 +1395,8 @@ async function processUsersSimple(
     userSheetName: string,
     phoneNumbers: any[],
     campaignNumber: string,
-    skipOtherCampaignReuse: boolean = false
+    skipOtherCampaignReuse: boolean = false,
+    requestInfo?: RequestInfo
 ): Promise<number> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
     const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
@@ -1568,7 +1572,7 @@ async function processUsersSimple(
 
     // Handle boundary mappings once across all pages — invalidUserPhones lets the
     // helper preserve mappings for users whose sheet row failed validation.
-    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings, invalidUserPhones, sheetUserPhones);
+    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings, invalidUserPhones, sheetUserPhones, requestInfo);
 
     logger.info(`User processing completed: ${savedCount} saved, ${updatedCount} updated, ${userBoundaryMappings.length} mappings processed`);
     return savedCount + updatedCount;
@@ -1588,7 +1592,8 @@ export async function handleUserBoundaryMappings(
     tenantId: string,
     newMappings: any[],
     invalidUserPhones: Set<string> = new Set(),
-    sheetUserPhones: Set<string> = new Set()
+    sheetUserPhones: Set<string> = new Set(),
+    requestInfo?: RequestInfo
 ): Promise<void> {
     // Get existing mappings for this campaign
     const existingMappings = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId);
@@ -1657,6 +1662,34 @@ export async function handleUserBoundaryMappings(
     if (mappingsToDemap.length > 0) {
         logger.info(`Demapping ${mappingsToDemap.length} user-boundary mappings`);
         await persistDataInBatches(mappingsToDemap, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+    }
+
+    // Attendance realignment (opt-in, OFF by default): pay follows the register, not the assignment,
+    // so a moved worker keeps being paid against the old area until their enrolment moves too. Scoped
+    // to phones whose boundary set actually changed in THIS upload, and detached — it must never slow
+    // or fail the upload. This is the unified-console path's counterpart of the same wiring in
+    // user-processClass; this handler, not that class, processes unified uploads.
+    if (config.attendanceRegister?.realignEnrolmentsOnAreaChange) {
+        const changedPhones = new Set<string>(
+            [...mappingsToCreate, ...mappingsToRevive, ...mappingsToDemap]
+                .map((m: any) => String(m.uniqueIdentifierForData)));
+        const phoneToBoundaries = new Map<string, string[]>();
+        newMappings.forEach((m: any) => {
+            const phone = String(m.phoneNumber);
+            if (!changedPhones.has(phone)) return;
+            const list = phoneToBoundaries.get(phone) ?? [];
+            list.push(String(m.boundaryCode));
+            phoneToBoundaries.set(phone, list);
+        });
+        if (phoneToBoundaries.size > 0) {
+            void reconcileAttendanceEnrolmentsForPhones(
+                phoneToBoundaries,
+                campaignNumber as Parameters<typeof reconcileAttendanceEnrolmentsForPhones>[1],
+                tenantId as Parameters<typeof reconcileAttendanceEnrolmentsForPhones>[2],
+                requestInfo ?? {}
+            ).catch((err: unknown) =>
+                logger.warn(`Attendance realignment failed (upload unaffected): ${err instanceof Error ? err.message : String(err)}`));
+        }
     }
 }
 
