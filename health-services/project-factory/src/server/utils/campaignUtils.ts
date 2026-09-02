@@ -1396,7 +1396,7 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
 
   const wantsBoundaries =
     Boolean(searchFields?.includeBoundaries) ||
-    (Array.isArray(ids) && ids.length > 0) ||
+    (Array.isArray(ids) && ids.length === 1) ||
     Boolean(searchFields?.campaignNumber);
 
   const projectIds = Array.from(
@@ -1454,8 +1454,10 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
         status: r?.status ?? 'completed',
         additionalDetails: r?.additionalDetails ?? {},
       }));
-    // Boundaries dominate this payload and no list screen reads them, so they ship only for single-campaign searches.
-    const campaignBoundaries = data?.campaignDetails?.boundaries || [];
+    // Boundaries dominate this payload, so they ship only when a caller asks or targets a single campaign.
+    const campaignBoundaries = Array.isArray(data?.campaignDetails?.boundaries)
+      ? data.campaignDetails.boundaries
+      : [];
     data.boundaryCount = campaignBoundaries.length;
     if (wantsBoundaries) {
       data.boundaries = campaignBoundaries;
