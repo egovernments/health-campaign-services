@@ -6,9 +6,13 @@
  *  - a worker's de-map never travels in the same cycle as their own map, so they cannot end up with
  *    no area at all
  *
- * The filters are exercised directly here. They are pure set logic over the pending rows, so they can
- * be asserted without standing up Kafka, the database or the poller.
+ * The two filters are IMPORTED from the module the reconciler itself calls, never re-implemented here.
+ * An earlier version of this file mirrored the logic, and a mirror cannot fail: the copy and the source
+ * drifted, and the pairing guard shipped unscoped — deferring live facility re-assignments — with all
+ * twelve tests green. They live in their own Kafka/DB-free module so importing them costs nothing.
  */
+
+import { applyReadinessHoldBack, deferPairedUserDeMaps } from "../utils/mappingDispatchGuards";
 
 const toBeMapped = "toBeMapped";
 const toBeDeMapped = "toBeDeMapped";
@@ -20,36 +24,8 @@ interface Row {
     boundaryCode?: string;
 }
 
-/** Mirrors the readiness hold-back applied in runMappingReconciler. */
-function applyReadinessHoldBack(pending: Row[], resolvedBoundaries: Set<string> | null): Row[] {
-    if (!resolvedBoundaries) return pending;
-    return pending.filter(
-        (row) =>
-            row?.status !== toBeMapped ||
-            !row?.boundaryCode ||
-            resolvedBoundaries.has(row.boundaryCode)
-    );
-}
-
-/**
- * Mirrors the map/de-map pairing guard applied in runMappingReconciler. `allPending` is the FULL
- * pending set, deliberately not the already-filtered dispatchable list: a map row removed by the
- * readiness hold-back must still block its own de-map, or the worker loses their area entirely.
- */
-function applyPairingGuard(dispatchable: Row[], allPending: Row[] = dispatchable): Row[] {
-    const pendingMapIdentifiers = new Set<string>(
-        allPending
-            .filter((row) => row?.status === toBeMapped && row?.uniqueIdentifierForData)
-            .map((row) => `${row?.type ?? ""}#${row.uniqueIdentifierForData}`)
-    );
-    if (pendingMapIdentifiers.size === 0) return dispatchable;
-    return dispatchable.filter(
-        (row) =>
-            row?.status !== toBeDeMapped ||
-            !row?.uniqueIdentifierForData ||
-            !pendingMapIdentifiers.has(`${row?.type ?? ""}#${row.uniqueIdentifierForData}`)
-    );
-}
+const applyPairingGuard = (dispatchable: Row[], allPending: Row[] = dispatchable): Row[] =>
+    deferPairedUserDeMaps(dispatchable, allPending) as Row[];
 
 describe("readiness hold-back", () => {
     it("dispatches everything when the precondition was satisfied", () => {
@@ -134,6 +110,51 @@ describe("map/de-map pairing guard", () => {
         const out = applyPairingGuard(rows);
         expect(out).toHaveLength(1);
         expect(out[0].boundaryCode).toBe("NEW");
+    });
+});
+
+/**
+ * The guard is for the user area-change flow only. Facility and resource re-assignment are live,
+ * unconditional, pre-existing flows: a withheld row stays pending, so the observation poll cannot reach
+ * its target and burns a full reconcileStallTimeoutMs (5 min by default) before the next cycle. Deferring
+ * them would be a five-minute regression on a flow this change set has no business touching.
+ */
+describe("REGRESSION: the pairing guard must never defer a non-user de-map", () => {
+    it("dispatches a facility's de-map even while that same facility has a pending map", () => {
+        const rows: Row[] = [
+            { type: "facility", status: toBeMapped, uniqueIdentifierForData: "Health Post 1", boundaryCode: "VILLAGE_B" },
+            { type: "facility", status: toBeDeMapped, uniqueIdentifierForData: "Health Post 1", boundaryCode: "VILLAGE_A" },
+        ];
+        expect(applyPairingGuard(rows)).toHaveLength(2);
+    });
+
+    it("dispatches a resource's de-map even while that same resource has a pending map", () => {
+        const rows: Row[] = [
+            { type: "resource", status: toBeMapped, uniqueIdentifierForData: "PVAR-1", boundaryCode: "VILLAGE_B" },
+            { type: "resource", status: toBeDeMapped, uniqueIdentifierForData: "PVAR-1", boundaryCode: "VILLAGE_A" },
+        ];
+        expect(applyPairingGuard(rows)).toHaveLength(2);
+    });
+
+    it("defers only the user half of a mixed cycle, leaving facility rows untouched", () => {
+        const rows: Row[] = [
+            { type: "user", status: toBeMapped, uniqueIdentifierForData: "p1", boundaryCode: "VILLAGE_B" },
+            { type: "user", status: toBeDeMapped, uniqueIdentifierForData: "p1", boundaryCode: "VILLAGE_A" },
+            { type: "facility", status: toBeMapped, uniqueIdentifierForData: "Health Post 1", boundaryCode: "VILLAGE_B" },
+            { type: "facility", status: toBeDeMapped, uniqueIdentifierForData: "Health Post 1", boundaryCode: "VILLAGE_A" },
+        ];
+        const out = applyPairingGuard(rows);
+        expect(out).toHaveLength(3);
+        expect(out.filter((r) => r.type === "facility")).toHaveLength(2);
+        expect(out.filter((r) => r.type === "user" && r.status === toBeDeMapped)).toHaveLength(0);
+    });
+
+    it("a facility map does not block a user de-map that shares its identifier", () => {
+        const rows: Row[] = [
+            { type: "facility", status: toBeMapped, uniqueIdentifierForData: "same", boundaryCode: "NEW" },
+            { type: "user", status: toBeDeMapped, uniqueIdentifierForData: "same", boundaryCode: "OLD" },
+        ];
+        expect(applyPairingGuard(rows)).toHaveLength(2);
     });
 });
 

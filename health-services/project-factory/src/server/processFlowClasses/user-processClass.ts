@@ -14,11 +14,11 @@ import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, workerNeedsUpdate, searchWorkersByIds } from "../utils/workerRegistryUtils";
 import { reconcileAttendanceEnrolments, EnrolmentMove } from "../utils/attendanceEnrolmentUtils";
+import { validatePaymentFields } from "../utils/paymentValidationUtils";
+import { fetchExistingUsersByPhone, normalizeNameForCompare, waitForIndividualsSearchable, partitionWorkersByIndividualSearchability, type CampaignRecord } from "../utils/userBatchHandler";
 
 /** The user sheet's area column. Mirrors the local key used by the active/inactive row paths. */
 const BOUNDARY_CODE_MANDATORY_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
-import { validatePaymentFields } from "../utils/paymentValidationUtils";
-import { fetchExistingUsersByPhone, normalizeNameForCompare, waitForIndividualsSearchable, partitionWorkersByIndividualSearchability, type CampaignRecord } from "../utils/userBatchHandler";
 
 /** One user-creation batch buffered for lagged worker finalization (worker create + persist run `workerCreateBatchLag` batches later). */
 interface BufferedWorkerBatch {
@@ -59,7 +59,7 @@ export class TemplateClass {
 
         await this.createUserFromTableData(resourceDetails);
 
-        await this.updateWorkerRegistryForCompletedUsers(userSheetData, existingUsersForCampaign, resourceDetails, localizationMap);
+        await this.updateWorkerRegistryForCompletedUsers(userSheetData, existingUsersForCampaign, resourceDetails, localizationMap, campaign.campaignNumber);
 
         // Read all rows then filter to completed + failed only.
         // Pending users have no encrypted UserName/Password yet — decrypting undefined would throw.
@@ -303,19 +303,23 @@ export class TemplateClass {
      */
     private static async realignAttendanceEnrolments(
         moves: EnrolmentMove[],
-        resourceDetails: any,
+        campaignNumber: string,
         tenantId: string,
         requestInfo: any
     ): Promise<void> {
-        const campaignNumber = resourceDetails?.campaignNumber;
+        // campaignNumber is passed in deliberately: it is NOT a field on resourceDetails (verified
+        // against the resource-details schema), while every other use in this file reads it from the
+        // campaign. Reading it off resourceDetails yielded undefined and returned here.
         if (moves.length === 0 || !campaignNumber || !tenantId) {
+            logger.info(`Attendance realignment skipped: moves=${moves.length} campaignNumber=${campaignNumber ?? "MISSING"}`);
             return;
         }
+        logger.info(`Attendance realignment starting for ${moves.length} worker(s) in campaign ${campaignNumber}`);
         try {
             await reconcileAttendanceEnrolments(
                 moves,
-                campaignNumber,
-                tenantId as any,
+                campaignNumber as unknown as Parameters<typeof reconcileAttendanceEnrolments>[1],
+                tenantId as unknown as Parameters<typeof reconcileAttendanceEnrolments>[2],
                 requestInfo
             );
         } catch (error: unknown) {
@@ -327,7 +331,8 @@ export class TemplateClass {
         userSheetData: any[],
         existingUsersForCampaign: any[],
         resourceDetails: any,
-        localizationMap: Record<string, string>
+        localizationMap: Record<string, string>,
+        campaignNumber: string
     ): Promise<void> {
         const WORKER_BATCH_SIZE = config.workerRegistry.updateBatchSize;
         const workerFieldKeys = [
@@ -421,24 +426,26 @@ export class TemplateClass {
                 tenantId,
             };
 
-            // Attendance follows the sheet's area, not the registry write: a bill's area comes from the
-            // register it was generated from, so a stale enrolment keeps paying the area the worker left.
-            // Collected for every row (not only changed ones) because this reconciles current state and
-            // is idempotent - an already-correct worker is a no-op.
-            // The area cell can carry several comma-separated codes. Reconciling attendance then has no
-            // single answer, and guessing one would move a worker's pay to an arbitrary area - so those
-            // rows are skipped and reported instead.
-            const sheetAreas: string[] = String(row?.[BOUNDARY_CODE_MANDATORY_KEY] ?? "")
-                .split(",")
-                .map((code: string) => code.trim())
-                .filter(Boolean);
-            if (individualId && sheetAreas.length === 1) {
-                enrolmentMoves.push({
-                    individualId: individualId as EnrolmentMove["individualId"],
-                    targetLocalityCode: sheetAreas[0] as EnrolmentMove["targetLocalityCode"],
-                });
-            } else if (individualId && sheetAreas.length > 1) {
-                logger.warn(`Attendance enrolment not realigned for individual ${individualId}: row carries ${sheetAreas.length} areas, so the destination register is ambiguous`);
+            // Attendance realignment is opt-in and off by default, so nothing here runs unless it is
+            // deliberately enabled. When on: a bill's area comes from the register it was generated
+            // from, so a stale enrolment keeps paying the area the worker left. Collected for every
+            // row, not only changed ones, because the realignment reconciles current state and is
+            // idempotent - an already-correct worker is a no-op. A row carrying several
+            // comma-separated areas is skipped and reported, because guessing one would move that
+            // worker's pay to an arbitrary area.
+            if (config.attendanceRegister.realignEnrolmentsOnAreaChange) {
+                const sheetAreas: string[] = String(row?.[BOUNDARY_CODE_MANDATORY_KEY] ?? "")
+                    .split(",")
+                    .map((code: string) => code.trim())
+                    .filter(Boolean);
+                if (sheetAreas.length === 1) {
+                    enrolmentMoves.push({
+                        individualId: individualId as EnrolmentMove["individualId"],
+                        targetLocalityCode: sheetAreas[0] as EnrolmentMove["targetLocalityCode"],
+                    });
+                } else if (sheetAreas.length > 1) {
+                    logger.warn(`Attendance enrolment not realigned for individual ${individualId}: row carries ${sheetAreas.length} areas, so the destination register is ambiguous`);
+                }
             }
 
             // Only write when something the sheet controls actually differs from the stored record.
@@ -448,7 +455,13 @@ export class TemplateClass {
             workerDataList.push(candidate);
         }
 
-        await TemplateClass.realignAttendanceEnrolments(enrolmentMoves, resourceDetails, tenantId, workerRequestInfo);
+        // Detached on purpose: the assignment and registry work is already durable by this point, and
+        // attendance realignment must never add latency to, or fail, the upload path. Same
+        // fire-and-forget shape the resource-details controller uses for its post-create trigger.
+        if (enrolmentMoves.length > 0) {
+            void TemplateClass.realignAttendanceEnrolments(enrolmentMoves, campaignNumber, tenantId, workerRequestInfo)
+                .catch((err: unknown) => logger.warn(`Attendance realignment failed (upload unaffected): ${err instanceof Error ? err.message : String(err)}`));
+        }
 
         if (!workerDataList.length) {
             logger.info("Worker registry: no worker had a changed name or payment field — nothing to write");

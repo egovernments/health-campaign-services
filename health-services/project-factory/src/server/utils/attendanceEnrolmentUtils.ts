@@ -52,7 +52,7 @@ function paths(): Record<string, unknown> {
  * per row on a 50k-row upload. Returns [] on failure, which callers treat as "cannot reconcile"
  * rather than "this worker has no enrolment".
  */
-export async function fetchCampaignRegisters(
+async function fetchCampaignRegisters(
     campaignNumber: CampaignNumber,
     tenantId: TenantId,
     requestInfo: unknown

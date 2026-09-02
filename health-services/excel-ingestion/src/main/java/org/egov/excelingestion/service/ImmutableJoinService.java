@@ -272,7 +272,21 @@ public class ImmutableJoinService {
         // other join-mode sheet, so the BASELINE sheet's protection flag is the server's own record of
         // which is which. Read from the BASELINE (our generated file), never from the upload, so an
         // operator cannot unlock a protected sheet by unprotecting it in Excel.
-        boolean areaEditableSheet = !baselineSheet.getProtect();
+        //
+        // An unprotected sheet only MEANS "free-entry" when protection was actually applied somewhere in
+        // this workbook. ExcelDataPopulator.applyProtection skips protection entirely when
+        // egov.excel.sheet.password is blank, which would leave EVERY sheet unprotected - and then a
+        // Boundary List would read as area-editable and its hierarchy would become writable. Requiring at
+        // least one protected sheet makes the signal self-validating: no protection anywhere means the
+        // flag carries no information, so fall back to the pre-relaxation behaviour and restore from
+        // baseline. Fail closed, never open.
+        boolean protectionIsMeaningful = anySheetProtected(baselineWorkbook);
+        boolean areaEditableSheet = protectionIsMeaningful && !baselineSheet.getProtect();
+        if (!protectionIsMeaningful) {
+            log.warn("Baseline generation {} has no protected sheet at all (egov.excel.sheet.password unset?)"
+                    + " - treating every sheet as area-immutable so boundary columns stay server-authoritative",
+                    baselineFileStoreId);
+        }
 
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
@@ -298,12 +312,11 @@ public class ImmutableJoinService {
             // The boundary code / attendance register id are FORMULA cells derived from the boundary
             // selection columns, evaluated at parse time from the UPLOADED selections. We capture their
             // authoritative baseline values and restore them after the loop, but only if the user did not
-            // deepen the boundary path (see below) - otherwise we'd clobber a legitimate deeper selection.
+            // change the boundary path (see below) - otherwise we'd clobber a legitimate area change.
             int poiRowIdx = rowIndexOf(upRow);
             Object baselineBoundaryCode = null;
             Object baselineRegisterId = null;
             boolean userChangedBoundaryPath = false;
-
 
             for (Map.Entry<String, Object> baseEntry : baseRow.entrySet()) {
                 String col = baseEntry.getKey();
@@ -329,12 +342,7 @@ public class ImmutableJoinService {
                 } else if (hierarchyPrefix != null
                         && parent.toUpperCase().startsWith(hierarchyPrefix)
                         && !isExcluded(parent)) {
-                    // Dynamic boundary/hierarchy column. ANY change the operator made to an area level is
-                    // a permitted area change and is left exactly as uploaded - writeBack is deliberately
-                    // NOT called for it, because writeBack's revert path fails open (no error and no
-                    // warning) whenever poiRowIdx is -1, so never calling it is the only safe way to
-                    // honour the edit. An UNCHANGED column is still restored when the baseline had a
-                    // value, preserving freezeColumnIfFilled behaviour for untouched cells.
+                    // Dynamic boundary/hierarchy column.
                     if (areaEditableSheet) {
                         // Free-entry sheet (User/Facilities List): ANY level the operator changed is a
                         // permitted area change and is left exactly as uploaded - deepening, a same-level
@@ -421,6 +429,21 @@ public class ImmutableJoinService {
             // unFreezeColumnTillData / no flag -> editable, never restored
         }
         return result;
+    }
+
+    /**
+     * Whether ANY sheet in the generated baseline carries sheet protection. Used to decide whether an
+     * unprotected sheet is a deliberate free-entry sheet or simply a workbook that was generated with no
+     * protection at all (blank {@code egov.excel.sheet.password}), in which case the flag means nothing.
+     */
+    private static boolean anySheetProtected(Workbook baselineWorkbook) {
+        for (int i = 0; i < baselineWorkbook.getNumberOfSheets(); i++) {
+            Sheet sheet = baselineWorkbook.getSheetAt(i);
+            if (sheet != null && sheet.getProtect()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isExcluded(String name) {

@@ -80,6 +80,7 @@ class ImmutableJoinServiceTest {
         private static final String UPLOAD_FS = "upload-fs";
         private static final String BASELINE_FS = "baseline-fs";
         private static final String SHEET = "Users";
+        private static final String PROTECTED_SIBLING_SHEET = "Boundary List";
         private static final String ROW_ID = ProcessingConstants.ROW_ID_COLUMN_NAME;
         private static final String ROW_NUM = ProcessingConstants.ACTUAL_ROW_NUMBER_KEY;
 
@@ -101,6 +102,12 @@ class ImmutableJoinServiceTest {
 
             baselineWorkbook = new XSSFWorkbook();
             baselineWorkbook.createSheet(SHEET);
+            // A real join-mode workbook always carries at least one PROTECTED sheet (the pre-filled
+            // Boundary List, plus every non-join-mode sheet). The join treats "unprotected" as
+            // "free-entry" only when protection was applied somewhere, so the baseline must model that
+            // or every sheet would read as area-immutable. Not in sheetNameToSchema, so it is never
+            // joined - it exists purely to carry the protection signal.
+            baselineWorkbook.createSheet(PROTECTED_SIBLING_SHEET).protectSheet("pw");
 
             resource = ProcessResource.builder()
                     .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).build();
@@ -145,6 +152,20 @@ class ImmutableJoinServiceTest {
          */
         private void protectBaselineSheet() {
             baselineWorkbook.getSheet(SHEET).protectSheet("pw");
+        }
+
+        /**
+         * Leaves NO protected sheet in the baseline, modelling a deployment where
+         * egov.excel.sheet.password is blank so ExcelDataPopulator.applyProtection protected nothing. The
+         * unprotected flag then carries no information and the join must fail CLOSED. Drops the sibling
+         * rather than un-protecting it: POI has no clean "remove protection" on an already-protected
+         * sheet, and removing the sheet models the same observable state.
+         */
+        private void unprotectAllBaselineSheets() {
+            int siblingIdx = baselineWorkbook.getSheetIndex(PROTECTED_SIBLING_SHEET);
+            if (siblingIdx >= 0) {
+                baselineWorkbook.removeSheetAt(siblingIdx);
+            }
         }
 
         private void stubRows(List<Map<String, Object>> uploaded, List<Map<String, Object>> baseline) {
@@ -419,6 +440,33 @@ class ImmutableJoinServiceTest {
             assertEquals("Maryland", up.get("HZ_PROVINCE"), "user-deepened (empty-baseline) level kept");
             assertEquals("HZ_MZ_MARYLAND", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
                     "derived code kept for the user's deeper selection, not reset to baseline country code");
+        }
+
+        /**
+         * REGRESSION - the free-entry relaxation must not be inferable from a workbook that was generated
+         * with NO protection at all. ExcelDataPopulator.applyProtection skips protection entirely when
+         * egov.excel.sheet.password is blank; if "unprotected" were taken at face value then EVERY sheet -
+         * including the pre-filled Boundary List - would become area-editable and its hierarchy writable.
+         * With nothing protected the flag carries no information, so the join must fail CLOSED and restore
+         * the baseline area exactly as it did before the relaxation existed.
+         */
+        @Test
+        void areaChange_rejectedWhenNothingInTheWorkbookIsProtected() {
+            unprotectAllBaselineSheets();
+            ProcessResource res = ProcessResource.builder()
+                    .tenantId(TENANT).type(TYPE).referenceId(REF).fileStoreId(UPLOAD_FS).hierarchyType("HZ").build();
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ", "HZ_VILLAGE", "VILLAGE_B",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_VILLAGE_B");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "ok", "HZ_COUNTRY", "MZ", "HZ_VILLAGE", "VILLAGE_A",
+                    ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "HZ_MZ_VILLAGE_A");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, res, sheetNameToSchema, null);
+
+            assertEquals("VILLAGE_A", up.get("HZ_VILLAGE"),
+                    "with no protected sheet anywhere the area must be restored from baseline, not trusted");
+            assertEquals("HZ_MZ_VILLAGE_A", up.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY),
+                    "derived code must follow the restored baseline area");
         }
 
         /**

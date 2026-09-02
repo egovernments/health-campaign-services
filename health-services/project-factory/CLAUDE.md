@@ -367,6 +367,36 @@ The mapping table (`eg_cm_campaign_mapping_data`) is **desired state**; `health-
 - **External consumers**: `campaignStatusService` summaries and `mapping/_search` filters now surface `deMapFailed`; dashboards summing `failed` must include it.
 - **User demap is sheet-presence-driven, never absence-driven** (`handleUserBoundaryMappings`): only phones explicitly present in the current upload with usage `Active`/`Inactive` can be demapped — `Inactive` demaps all the user's mappings, `Active` demaps only stale boundaries. Phones absent from the sheet keep their mappings (incl. staff adopted from `health-project` that PF never created). Deactivation requires an explicit `Inactive` row.
 
+### Re-uploading a worker's area (map + demap in one batch)
+
+Two guards, both **pure functions in `utils/mappingDispatchGuards.ts`** (Kafka/DB/HTTP-free so tests
+import the REAL code). **Never re-implement them in a test**: the first version of the test mirrored
+them, the copy drifted, and a defect shipped with every test green.
+
+- **`applyReadinessHoldBack`** — on a readiness stall, holds back map rows whose project is not
+  searchable yet (`null` = poll satisfied, dispatch everything). Not type-scoped; on a stall any
+  type's dispatch would fail anyway.
+- **`deferPairedUserDeMaps`** — defers a demap a cycle while the same phone has a pending map, read off
+  `pendingMappings`, never the filtered `dispatchable`. Worst case: worker holds both areas —
+  recoverable, non-blocking. **SCOPED TO `type === "user"`; do not widen**: `facility-processClass`
+  emits the identical shape unconditionally, and an unscoped guard adds a full
+  `reconcileStallTimeoutMs` (default 5 min) to every facility re-assignment. The facility half-apply
+  race is deliberately left as-is; `resource` has no demap writer at all.
+
+`mappingBatchHandler` awaits the map-direction `Promise.all` before creating demap promises — but only
+within one batch (batches are consumed concurrently), which is why the reconciler guard is not redundant.
+
+**Worker registry writes are diffed** (`workerRegistryUtils.workerNeedsUpdate`; `undefined`/`null`/`""`
+normalised, values trimmed): an area-only re-upload issues no worker write at all.
+
+**Attendance realignment is opt-in, OFF by default** (`ATTENDANCE_REALIGN_ENROLMENTS_ON_AREA_CHANGE`).
+Pay follows the *register*, not the assignment, so a stale enrolment keeps paying the old area. When on,
+`attendanceEnrolmentUtils.ts` enrols at the destination **before** end-dating the old row, filters
+registers by `campaignNumber` client-side (the attendance search ignores its criteria), reads enrolments
+from the attendee search (`register.attendees` is not reliably populated), and is invoked **detached**
+(`void … .catch`) — it never throws and cannot slow the upload. Known gap while on: `hasWorkerFields`
+limits it to rows carrying payment data; widening that is a separate change.
+
 ---
 
 ## Layering & Abstraction

@@ -152,6 +152,10 @@ const config = {
     // attendees from 16 other registers), so enrolments must be filtered client-side over a paged
     // scan. If the cap is reached the enrolment state is treated as UNDETERMINED and nothing is
     // changed, rather than acting on a partial view.
+    // Attendance realignment after an area change is OPT-IN and OFF by default: it has never been
+    // confirmed working end to end, and it only reaches rows carrying payment data. Off means the
+    // upload path behaves exactly as before this work. Enable deliberately, per environment.
+    realignEnrolmentsOnAreaChange: process.env.ATTENDANCE_REALIGN_ENROLMENTS_ON_AREA_CHANGE === "true",
     enrolmentScanMaxPages: process.env.ATTENDANCE_ENROLMENT_SCAN_MAX_PAGES ? parseInt(process.env.ATTENDANCE_ENROLMENT_SCAN_MAX_PAGES, 10) : 40,
     staffSearchPageSize: process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE, 10) : 100,
 
