@@ -1311,6 +1311,7 @@ async function getTotalCount(campaignDetails: any) {
       field !== "campaignsIncludeDates" &&
       field !== "isLikeSearch" &&
       field !== "isOverrideDatesFromProject" &&
+      field !== "includeBoundaries" &&
       field !== "pagination"
     ) {
       if (field === "startDate") {
@@ -1393,6 +1394,11 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
     queryData.values
   );
 
+  const wantsBoundaries =
+    Boolean(searchFields?.includeBoundaries) ||
+    (Array.isArray(ids) && ids.length === 1) ||
+    Boolean(searchFields?.campaignNumber);
+
   const projectIds = Array.from(
     new Set(responseData.map(d => d?.projectId).filter(Boolean))
   );
@@ -1448,7 +1454,14 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
         status: r?.status ?? 'completed',
         additionalDetails: r?.additionalDetails ?? {},
       }));
-    data.boundaries = data?.campaignDetails?.boundaries;
+    // Boundaries dominate this payload, so they ship only when a caller asks or targets a single campaign.
+    const campaignBoundaries = Array.isArray(data?.campaignDetails?.boundaries)
+      ? data.campaignDetails.boundaries
+      : [];
+    data.boundaryCount = campaignBoundaries.length;
+    if (wantsBoundaries) {
+      data.boundaries = campaignBoundaries;
+    }
     data.deliveryRules = data?.campaignDetails?.deliveryRules;
     delete data.campaignDetails;
     data.auditDetails = {
@@ -1495,6 +1508,7 @@ function buildSearchQuery(
       field !== "campaignsIncludeDates" &&
       field !== "isLikeSearch" &&
       field !== "isOverrideDatesFromProject" &&
+      field !== "includeBoundaries" &&
       field !== "pagination"
     ) {
       if (field === "startDate") {
