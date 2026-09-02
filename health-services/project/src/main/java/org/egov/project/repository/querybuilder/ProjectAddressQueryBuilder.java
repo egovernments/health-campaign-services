@@ -379,6 +379,36 @@ public class ProjectAddressQueryBuilder {
         preparedStmtList.addAll(ids);
     }
 
+    /* Narrow projection for the date cascade: no address join, only the columns the date-only persister writes */
+    private static final String FETCH_PROJECT_DATE_CASCADE_QUERY = "SELECT prj.id as projectId, prj.tenantId as project_tenantId, "
+            + "prj.startDate as project_startDate, prj.endDate as project_endDate, prj.parent as project_parent, "
+            + "prj.projectHierarchy as project_projectHierarchy, prj.additionalDetails as project_additionalDetails, "
+            + "prj.createdBy as project_createdBy, prj.lastModifiedBy as project_lastModifiedBy, "
+            + "prj.createdTime as project_createdTime, prj.lastModifiedTime as project_lastModifiedTime "
+            + "from " + SCHEMA_REPLACE_STRING + ".project prj ";
+
+    /* Returns the date-cascade projection for the given project ids */
+    public String getDateCascadeQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtList) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_DATE_CASCADE_QUERY);
+        queryBuilder.append(" WHERE prj.id IN (").append(createQuery(projectIds)).append(")");
+        addToPreparedStatement(preparedStmtList, projectIds);
+        return queryBuilder.toString();
+    }
+
+    /* Returns the date-cascade projection for descendants. Mirrors the predicate of
+     * getProjectDescendantsSearchQueryBasedOnIds so the matched rows stay identical.
+     * Follow-up: once HCMPRE-4295 lands, anchor this on hierarchyPrefix() so it can use
+     * idx_project_projecthierarchy instead of scanning. */
+    public String getDateCascadeDescendantsQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtList) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_DATE_CASCADE_QUERY);
+        for (String projectId : projectIds) {
+            addConditionalClause(preparedStmtList, queryBuilder);
+            queryBuilder.append(" ( prj.projectHierarchy LIKE ? )");
+            preparedStmtList.add('%' + projectId + '%');
+        }
+        return queryBuilder.toString();
+    }
+
     /* Returns query to search for projects where project_hierarchy contains project Ids */
     public String getProjectDescendantsSearchQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtListDescendants) {
         StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_ADDRESS_QUERY);

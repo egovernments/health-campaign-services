@@ -50,6 +50,11 @@ public class ProjectEnrichment {
     @Autowired
     private ProjectConfiguration config;
 
+    // Reused across the cascade; a new mapper per descendant rebuilt Jackson's serializer caches each time.
+    // Safe to share: never reconfigured after construction, and valueToTree/convertValue are read-only.
+    // Deliberately not the Spring ObjectMapper bean, which is configured differently (see MainConfiguration).
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     /* Enrich Project on Create Request */
     public void enrichProjectOnCreate(ProjectRequest request, List<Project> parentProjects) {
         RequestInfo requestInfo = request.getRequestInfo();
@@ -209,8 +214,6 @@ public class ProjectEnrichment {
             return;
         }
 
-        ObjectMapper objectMapper = new ObjectMapper();
-
         /*
          * Extract additional details from descendant and request projects
          */
@@ -308,7 +311,9 @@ public class ProjectEnrichment {
              */
             log.info("Pushing batch {} with {} projects to Kafka", (i / batchSize) + 1, batch.size());
 
-            producer.push(tenantId, projectConfiguration.getUpdateProjectTopic(), projectRequest);
+            // Cascade changes only dates and cycles, so the date-only persister is the correct target;
+            // the full update topic would rewrite name, address and targets with unchanged values.
+            producer.push(tenantId, projectConfiguration.getUpdateProjectDateTopic(), projectRequest);
         }
     }
 

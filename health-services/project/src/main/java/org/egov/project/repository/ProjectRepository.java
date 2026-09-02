@@ -19,6 +19,7 @@ import org.egov.project.repository.querybuilder.ProjectAddressQueryBuilder;
 import org.egov.project.repository.querybuilder.TargetQueryBuilder;
 import org.egov.project.repository.rowmapper.DocumentRowMapper;
 import org.egov.project.repository.rowmapper.ProjectAddressRowMapper;
+import org.egov.project.repository.rowmapper.ProjectDateCascadeRowMapper;
 import org.egov.project.repository.rowmapper.ProjectRowMapper;
 import org.egov.project.repository.rowmapper.TargetRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     private final DocumentQueryBuilder documentQueryBuilder;
 
     private final ProjectAddressRowMapper addressRowMapper;
+    private final ProjectDateCascadeRowMapper dateCascadeRowMapper;
     private final TargetRowMapper targetRowMapper;
     private final DocumentRowMapper documentRowMapper;
 
@@ -53,7 +55,8 @@ public class ProjectRepository extends GenericRepository<Project> {
                              TargetQueryBuilder targetQueryBuilder,
                              DocumentQueryBuilder documentQueryBuilder,
                              ProjectAddressRowMapper addressRowMapper, TargetRowMapper targetRowMapper,
-                             DocumentRowMapper documentRowMapper, JdbcTemplate jdbcTemplate) {
+                             DocumentRowMapper documentRowMapper, ProjectDateCascadeRowMapper dateCascadeRowMapper,
+                             JdbcTemplate jdbcTemplate) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
                 projectRowMapper, Optional.of("project"));
         this.queryBuilder = queryBuilder;
@@ -62,6 +65,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         this.addressRowMapper = addressRowMapper;
         this.targetRowMapper = targetRowMapper;
         this.documentRowMapper = documentRowMapper;
+        this.dateCascadeRowMapper = dateCascadeRowMapper;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -153,6 +157,59 @@ public class ProjectRepository extends GenericRepository<Project> {
 
         //Construct Project Objects with fetched projects, targets and documents using Project id
         return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
+    }
+
+    /**
+     * Fetches the project with its ancestors and descendants for the date cascade. The cascade
+     * rewrites only dates and the cycles inside additionalDetails, so this deliberately skips the
+     * address join, targets and documents that a full search pulls for every descendant.
+     */
+    public Project getProjectForDateCascade(String tenantId, String projectId) throws InvalidTenantIdException {
+        List<Project> roots = getDateCascadeProjectsByIds(tenantId, Collections.singletonList(projectId));
+        if (roots.isEmpty()) {
+            return null;
+        }
+        Project root = roots.get(0);
+
+        // Mirrors buildProjectSearchResult, which only attaches ancestors when the project has a parent
+        if (StringUtils.isNotBlank(root.getParent()) && StringUtils.isNotBlank(root.getProjectHierarchy())) {
+            List<String> ancestorIds = new ArrayList<>(Arrays.asList(root.getProjectHierarchy().split("\\.")));
+            ancestorIds.remove(root.getId());
+            if (!ancestorIds.isEmpty()) {
+                root.setAncestors(getDateCascadeProjectsByIds(tenantId, ancestorIds));
+            }
+        }
+
+        List<Project> descendants = getDateCascadeDescendants(tenantId, root);
+        if (!descendants.isEmpty()) {
+            root.setDescendants(descendants);
+        }
+        log.info("Date cascade fetched {} ancestors and {} descendants for project {}",
+                root.getAncestors() == null ? 0 : root.getAncestors().size(), descendants.size(), projectId);
+        return root;
+    }
+
+    private List<Project> getDateCascadeProjectsByIds(String tenantId, List<String> projectIds) throws InvalidTenantIdException {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getDateCascadeQueryBasedOnIds(projectIds, preparedStmtList);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        return jdbcTemplate.query(query, dateCascadeRowMapper, preparedStmtList.toArray());
+    }
+
+    /* Keeps the same rows addDescendantsToProjectSearchResult would have kept, without the wide fetch.
+     * The LIKE also matches the project itself (a non-root path contains its own id), so self is filtered out. */
+    private List<Project> getDateCascadeDescendants(String tenantId, Project root) throws InvalidTenantIdException {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getDateCascadeDescendantsQueryBasedOnIds(
+                Collections.singletonList(root.getId()), preparedStmtList);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        List<Project> rows = jdbcTemplate.query(query, dateCascadeRowMapper, preparedStmtList.toArray());
+        return rows.stream()
+                .filter(d -> StringUtils.isNotBlank(d.getParent())
+                        && !root.getId().equals(d.getId())
+                        && d.getProjectHierarchy() != null
+                        && d.getProjectHierarchy().contains(root.getId()))
+                .collect(Collectors.toList());
     }
 
     private List<Project> getProjectsBasedOnV2SearchCriteria(@NotNull @Valid ProjectSearch projectSearch, ProjectSearchURLParams urlParams) throws InvalidTenantIdException {
