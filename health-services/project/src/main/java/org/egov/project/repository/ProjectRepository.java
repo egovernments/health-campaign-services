@@ -169,7 +169,8 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Fetch Projects based on search criteria */
     private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false);
+        Map<String, String> idToHierarchyPrefix = resolveHierarchyPrefixes(tenantId, projectsRequest, isAncestorProjectId);
+        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false, idToHierarchyPrefix);
         // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
@@ -185,6 +186,47 @@ public class ProjectRepository extends GenericRepository<Project> {
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
         log.info("Fetched project list based on given Project Ids");
+        return projects;
+    }
+
+    /* Resolve each requested id to a safe anchor prefix, so the ancestor match can be anchored */
+    private Map<String, String> resolveHierarchyPrefixes(String tenantId, List<Project> projectsRequest, boolean isAncestorProjectId) throws InvalidTenantIdException {
+        if (!isAncestorProjectId || projectsRequest == null) {
+            return Collections.emptyMap();
+        }
+        List<String> projectIds = projectsRequest.stream()
+                .map(Project::getId)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        if (projectIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getProjectHierarchyQueryBasedOnIds(projectIds, preparedStmtList);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+
+        Map<String, String> idToHierarchyPrefix = new HashMap<>();
+        jdbcTemplate.query(query, rs -> {
+            String id = rs.getString("projectId");
+            String prefix = ProjectAddressQueryBuilder.hierarchyPrefix(
+                    rs.getString("project_projectHierarchy"), id, rs.getString("project_parent"));
+            if (StringUtils.isNotBlank(prefix)) {
+                idToHierarchyPrefix.put(id, prefix);
+            }
+        }, preparedStmtList.toArray());
+        log.info("Anchored {} of {} requested project ids; the rest fall back to an unanchored match",
+                idToHierarchyPrefix.size(), projectIds.size());
+        return idToHierarchyPrefix;
+    }
+
+    /* Fetch Project descendants based on ancestor hierarchy paths (anchored, index-usable) */
+    private List<Project> getProjectsDescendantsBasedOnProjectHierarchies(String tenantId, List<String> projectHierarchies, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
+        String query = queryBuilder.getProjectDescendantsSearchQueryBasedOnHierarchies(projectHierarchies, preparedStmtListDescendants);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
+        log.info("Fetched project descendants list based on given hierarchy paths");
         return projects;
     }
 
@@ -257,6 +299,17 @@ public class ProjectRepository extends GenericRepository<Project> {
 
         List<Object> preparedStmtListDescendants = new ArrayList<>();
         log.info("Fetching descendant projects");
+
+        // The parent rows are already in hand, so the anchored prefix needs no extra lookup. A root
+        // project has no path of its own and contributes its id instead.
+        List<String> prefixes = projects.stream()
+                .map(p -> ProjectAddressQueryBuilder.hierarchyPrefix(p.getProjectHierarchy(), p.getId(), p.getParent()))
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.toList());
+        if (prefixes.size() == projects.size()) {
+            return getProjectsDescendantsBasedOnProjectHierarchies(tenantId, prefixes, preparedStmtListDescendants);
+        }
+        log.warn("Not every project yields a safe hierarchy prefix; falling back to the id-based descendant search");
 
         return getProjectsDescendantsBasedOnProjectIds(tenantId, projectIds, preparedStmtListDescendants);
     }
@@ -386,7 +439,8 @@ public class ProjectRepository extends GenericRepository<Project> {
      */
     public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStatement = new ArrayList<>();
-        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement);
+        Map<String, String> idToHierarchyPrefix = resolveHierarchyPrefixes(tenantId, project.getProjects(), isAncestorProjectId);
+        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, idToHierarchyPrefix);
 
         if (query == null)
             return 0;
