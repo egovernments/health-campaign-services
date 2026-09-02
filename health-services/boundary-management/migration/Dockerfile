@@ -1,4 +1,4 @@
-FROM egovio/flyway:10.7.1
+FROM egovio/flyway:10.7.1@sha256:42ecebdef3250cffd9f9e8cea0f2c279df10570aa07e8b3d3db41f00e4020779
 
 COPY ./main /flyway/sql
 
