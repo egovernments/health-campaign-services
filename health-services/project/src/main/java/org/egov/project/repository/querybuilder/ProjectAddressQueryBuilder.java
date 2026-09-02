@@ -409,10 +409,22 @@ public class ProjectAddressQueryBuilder {
         return queryBuilder.toString();
     }
 
-    /* Returns the date-cascade projection for descendants. Mirrors the predicate of
-     * getProjectDescendantsSearchQueryBasedOnIds so the matched rows stay identical.
-     * Follow-up: once HCMPRE-4295 lands, anchor this on hierarchyPrefix() so it can use
-     * idx_project_projecthierarchy instead of scanning. */
+    /* Returns the date-cascade projection for descendants under the given hierarchy paths.
+     * Anchored like getProjectDescendantsSearchQueryBasedOnHierarchies, so idx_project_projecthierarchy
+     * can serve it. The trailing separator also excludes the project itself, whose own path has no
+     * trailing dot. */
+    public String getDateCascadeDescendantsQueryBasedOnHierarchies(List<String> projectHierarchyPrefixes, List<Object> preparedStmtList) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_DATE_CASCADE_QUERY);
+        for (String prefix : projectHierarchyPrefixes) {
+            addConditionalClause(preparedStmtList, queryBuilder);
+            queryBuilder.append(" ( prj.projectHierarchy LIKE ? )");
+            preparedStmtList.add(prefix + PROJECT_PARENT_HIERARCHY_SEPERATOR + '%');
+        }
+        return queryBuilder.toString();
+    }
+
+    /* Unanchored fallback for when no safe hierarchy prefix can be derived. Mirrors the predicate of
+     * getProjectDescendantsSearchQueryBasedOnIds so the matched rows stay identical. */
     public String getDateCascadeDescendantsQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtList) {
         StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_DATE_CASCADE_QUERY);
         for (String projectId : projectIds) {

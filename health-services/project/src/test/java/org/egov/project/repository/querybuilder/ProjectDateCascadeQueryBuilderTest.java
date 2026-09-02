@@ -12,6 +12,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+    import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,7 +62,43 @@ class ProjectDateCascadeQueryBuilderTest {
     }
 
     @Test
-    @DisplayName("descendant predicate matches the existing hierarchy search so the same rows are returned")
+    @DisplayName("anchored descendant query binds prefix + separator so the index can serve it")
+    void anchoredDescendantQueryBindsPrefix() {
+        List<Object> preparedStmtList = new ArrayList<>();
+
+        String query = queryBuilder.getDateCascadeDescendantsQueryBasedOnHierarchies(
+                Arrays.asList("ROOT.P"), preparedStmtList);
+
+        assertTrue(query.contains("prj.projectHierarchy LIKE ?"));
+        assertEquals(Arrays.asList("ROOT.P.%"), preparedStmtList);
+        assertFalse(query.contains("project_address"), "anchored cascade query must not join the address table");
+    }
+
+    @Test
+    @DisplayName("anchored descendant query binds exactly as the merged search path does")
+    void anchoredDescendantQueryMatchesSearchPathBinding() {
+        List<Object> cascadeParams = new ArrayList<>();
+        List<Object> searchParams = new ArrayList<>();
+
+        queryBuilder.getDateCascadeDescendantsQueryBasedOnHierarchies(Arrays.asList("ROOT.P"), cascadeParams);
+        queryBuilder.getProjectDescendantsSearchQueryBasedOnHierarchies(Arrays.asList("ROOT.P"), searchParams);
+
+        assertEquals(searchParams, cascadeParams, "cascade must select the same rows as the search path");
+    }
+
+    @Test
+    @DisplayName("hierarchyPrefix anchors a root project on its own id and refuses an unresolvable row")
+    void hierarchyPrefixBehaviour() {
+        // root: no path of its own, children start at its id
+        assertEquals("ROOT", ProjectAddressQueryBuilder.hierarchyPrefix(null, "ROOT", null));
+        // non-root: its own full path
+        assertEquals("ROOT.P", ProjectAddressQueryBuilder.hierarchyPrefix("ROOT.P", "P", "ROOT"));
+        // data gap: has a parent but no path -> unsafe to anchor, caller must fall back
+        assertNull(ProjectAddressQueryBuilder.hierarchyPrefix(null, "P", "ROOT"));
+    }
+
+    @Test
+    @DisplayName("unanchored fallback predicate matches the existing hierarchy search so the same rows are returned")
     void dateCascadeDescendantPredicateMatchesExisting() {
         List<Object> narrowParams = new ArrayList<>();
         List<Object> wideParams = new ArrayList<>();

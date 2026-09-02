@@ -197,13 +197,27 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Keeps the same rows addDescendantsToProjectSearchResult would have kept, without the wide fetch.
-     * The LIKE also matches the project itself (a non-root path contains its own id), so self is filtered out. */
+     * Anchored on the hierarchy path where one can be derived, so the index can serve it; the
+     * unanchored fallback is kept for rows whose path cannot be resolved safely. */
     private List<Project> getDateCascadeDescendants(String tenantId, Project root) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getDateCascadeDescendantsQueryBasedOnIds(
-                Collections.singletonList(root.getId()), preparedStmtList);
+        String prefix = ProjectAddressQueryBuilder.hierarchyPrefix(
+                root.getProjectHierarchy(), root.getId(), root.getParent());
+
+        String query;
+        if (StringUtils.isNotBlank(prefix)) {
+            query = queryBuilder.getDateCascadeDescendantsQueryBasedOnHierarchies(
+                    Collections.singletonList(prefix), preparedStmtList);
+        } else {
+            log.warn("No safe hierarchy prefix for project {}; falling back to the unanchored descendant search", root.getId());
+            query = queryBuilder.getDateCascadeDescendantsQueryBasedOnIds(
+                    Collections.singletonList(root.getId()), preparedStmtList);
+        }
+
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> rows = jdbcTemplate.query(query, dateCascadeRowMapper, preparedStmtList.toArray());
+        // The anchored pattern already excludes self; this still guards the unanchored fallback,
+        // where a non-root project's own path contains its own id.
         return rows.stream()
                 .filter(d -> StringUtils.isNotBlank(d.getParent())
                         && !root.getId().equals(d.getId())
