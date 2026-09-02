@@ -1,0 +1,570 @@
+openapi: 3.0.1
+info:
+  version: v2
+  title: DIGIT Public Grievance Redressal(PGR) V2
+  description: |
+    ### API specs for PGR ###
+    Application to Raise Grivances and track the progress.
+    . It allows any user registered in the system to raise a complaint (based on the   Service definition provided in the master data, Please Refer MDMS service to        Service Definition master) for any ulb belonging to the state.
+    . Notifications will be provided on progress of the complaint in evevry step.
+    . Feedback can be provided by the user once the compliant is resolved.
+    . If not satisfied the user can reopen the complaint.
+paths:
+
+  /v2/request/_search:
+    post:
+      tags:
+        - requests-api-controller
+      operationId: requestsSearchPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requestInfoWrapper:
+                  $ref: '#/components/schemas/RequestInfoWrapper'
+                criteria:
+                  $ref: '#/components/schemas/RequestSearchCriteria'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+  /v2/request/_plainsearch:
+    post:
+      tags:
+        - requests-api-controller
+      operationId: requestsPlainSearchPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requestInfoWrapper:
+                  $ref: '#/components/schemas/RequestInfoWrapper'
+                requestSearchCriteria:
+                  $ref: '#/components/schemas/RequestSearchCriteria'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+  /v2/request/_create:
+    post:
+      tags:
+        - requests-api-controller
+      operationId: requestsCreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+  /v2/request/_update:
+    post:
+      tags:
+        - requests-api-controller
+      operationId: requestsUpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+  /v2/request/_count:
+    post:
+      tags:
+        - requests-api-controller
+      operationId: requestsCountPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requestInfoWrapper:
+                  $ref: '#/components/schemas/RequestInfoWrapper'
+                criteria:
+                  $ref: '#/components/schemas/RequestSearchCriteria'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CountResponse'
+  /migration/_transform:
+    post:
+      tags:
+        - migration-controller
+      operationId: requestsCreatePost_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceResponse'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+components:
+  schemas:
+    Address:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          description: Unique Identifier of the tenant to which user primarily belongs
+        doorNo:
+          type: string
+          description: House number or door number.
+        plotNo:
+          type: string
+          description: Plot number of the house.
+        id:
+          type: string
+          description: System generated id for the address
+          readOnly: true
+        landmark:
+          type: string
+          description: additional landmark to help locate the address
+        city:
+          type: string
+          description: City of the address. Can be represented by the tenantid itself
+        district:
+          type: string
+          description: The district in which the property is located
+        region:
+          type: string
+          description: The Region in which the property is located
+        state:
+          type: string
+          description: The State in which the property is located
+        country:
+          type: string
+          description: The Country in which the property is located
+        pincode:
+          type: string
+          description: PIN code of the address. Indian pincodes will usually be all numbers.
+        additionDetails:
+          type: object
+          description: more address detail as may be needed
+        buildingName:
+          type: string
+          description: Name of the building
+          maxLength: 64
+          minLength: 2
+        street:
+          type: string
+          description: Street Name
+          maxLength: 64
+          minLength: 2
+        locality:
+          $ref: '#/components/schemas/Boundary'
+        geoLocation:
+          $ref: '#/components/schemas/GeoLocation'
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+          description: username (preferred) or userid of the user that created the object
+        lastModifiedBy:
+          type: string
+          description: username (preferred) or userid of the user that last modified the object
+        createdTime:
+          type: integer
+          format: int64
+          description: epoch of the time object is created
+        lastModifiedTime:
+          type: integer
+          format: int64
+          description: epoch of the time object is last modified
+    Boundary:
+      required:
+        - code
+      type: object
+      properties:
+        code:
+          type: string
+          description: code of the boundary.
+        name:
+          type: string
+          description: name of the boundary.
+        label:
+          type: string
+          description: localized label for the boundry.
+        latitude:
+          type: string
+          description: latitude of the boundary.
+        longitude:
+          type: string
+          description: longitude of the boundary.
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Boundary'
+        materializedPath:
+          type: string
+          description: materialized path of the boundary - this would be of the format tenantid.[code] from parentt till teh current boundary
+    Document:
+      type: object
+      description: This object holds list of documents attached during the transaciton for a property
+      properties:
+        id:
+          type: string
+          description: system id of the Document.
+          maximum: 64
+        documentType:
+          type: string
+          description: unique document type code, should be validated with document type master
+        fileStoreId:
+          type: string
+          description: File store reference key.
+        documentUid:
+          type: string
+          description: The unique id(Pancard Number,Adhar etc.) of the given Document.
+          maxLength: 64
+        additionalDetails:
+          type: object
+          description: The unique id(Pancard Number,Adhar etc.) of the given Document.
+    GeoLocation:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+          description: latitude of the address
+        longitude:
+          type: number
+          format: double
+          description: longitude of the address
+        additionalDetails:
+          type: object
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+          description: time in epoch
+        action:
+          type: string
+          description: API action to be performed like _create, _update, _search (denoting POST, PUT, GET) or _oauth etc
+          maxLength: 32
+        did:
+          type: string
+        key:
+          type: string
+          description: API key (API key provided to the caller in case of server to server communication)
+          maxLength: 256
+        msgId:
+          type: string
+          description: Unique request message id from the caller
+          maxLength: 256
+        authToken:
+          type: string
+          description: token - the usual value that would go into HTTP bearer token
+        correlationId:
+          type: string
+          readOnly: true
+        userInfo:
+          $ref: '#/components/schemas/User'
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        code:
+          type: string
+        tenantId:
+          type: string
+    Service:
+      required:
+        - address
+        - serviceCode
+        - source
+        - tenantId
+      type: object
+      properties:
+        active:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/User'
+        id:
+          type: string
+        tenantId:
+          type: string
+          description: Unique identifier of the tenant.
+          minLength: 2
+          maxLength: 64
+        serviceCode:
+          type: string
+          description: Unique Code of the service defination (from service defination master)
+          minLength: 2
+          maxLength: 64
+        serviceRequestId:
+          type: string
+          readOnly: true
+          description: The unique formatted id for service request.
+          minLength: 2
+          maxLength: 128
+        description:
+          type: string
+          description: Additional information or description of the service request
+          minLength: 2
+          maxLength: 256
+        accountId:
+          type: string
+          description: userid of the user requesting the srervice - in our case it may be same as phone as we are using mobile number as the userid
+          minLength: 2
+          maxLength: 64
+        rating:
+          maximum: 5
+          minimum: 1
+          type: integer
+          format: int32
+        additionalDetail:
+          type: object
+          description: This is the json object that will carry the actual input (whereever the metadata requries input). Structure should be same as the schema definition provided in the metadata of the service (schema compliance check to be performed at client/server)
+        applicationStatus:
+          type: string
+          description: The current status of the service request.
+          readOnly: true
+        source:
+          type: string
+          description: 'Source mdms master data. Which captures the source of the service request(ex:- whatsapp, ivr, Swachhata etc)'
+          minLength: 2
+          maxLength: 64
+          example: whatsapp, ivr etc
+        address:
+          $ref: '#/components/schemas/Address'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        selfComplaint:
+          type: boolean
+    ServiceRequest:
+      required:
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        service:
+          $ref: '#/components/schemas/Service'
+        workflow:
+          $ref: '#/components/schemas/Workflow'
+    User:
+      type: object
+      description: This is acting ID token of the authenticated user on the server. Any value provided by the clients will be ignored and actual user based on authtoken will be used on the server.
+      properties:
+        id:
+          type: integer
+          format: int64
+        userName:
+          type: string
+          description: Unique user name of the authenticated user
+        name:
+          type: string
+        type:
+          type: string
+        mobileNumber:
+          type: string
+        emailId:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenantId:
+          type: string
+          description: Unique Identifier of the tenant to which user primarily belongs
+        uuid:
+          type: string
+          description: System Generated User id of the authenticated user.
+        active:
+          type: boolean
+    Workflow:
+      type: object
+      description: BPA application object to capture the details of land, land owners, and address of the land.
+      properties:
+        action:
+          type: string
+          description: Action on the application in certain
+          minLength: 1
+          maxLength: 64
+        assignes:
+          type: array
+
+          items:
+            type: string
+        comments:
+          type: string
+          description: Unique Identifier scrutinized number
+          minLength: 1
+          maxLength: 64
+        verificationDocuments:
+          type: array
+          description: Attach the workflow varification documents.
+          items:
+            $ref: '#/components/schemas/Document'
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        resMsgId:
+          type: string
+        msgId:
+          type: string
+        status:
+          type: string
+    ServiceResponse:
+      type: object
+      properties:
+        responseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ServiceWrappers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceWrapper'
+        complaintsResolved:
+          type: integer
+          format: int32
+        averageResolutionTime:
+          type: integer
+          format: int32
+        complaintTypes:
+          type: integer
+          format: int32
+    ServiceWrapper:
+      type: object
+      properties:
+        service:
+          $ref: '#/components/schemas/Service'
+        workflow:
+          $ref: '#/components/schemas/Workflow'
+    RequestInfoWrapper:
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+    RequestSearchCriteria:
+      type: object
+      properties:
+        empty:
+          type: boolean
+        tenantId:
+          type: string
+        tenantIds:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        serviceCode:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        applicationStatus:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        mobileNumber:
+          type: string
+        serviceRequestId:
+            readOnly: true
+            description: The unique formatted id for service request.
+            minLength: 2
+            maxLength: 128
+        sortBy:
+          type: string
+          enum:
+            - locality
+            - applicationStatus
+            - serviceRequestId
+        sortOrder:
+          type: string
+          enum:
+            - ASC
+            - DESC
+        locality:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        ids:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        fromDate:
+          type: integer
+          format: int64
+        toDate:
+          type: integer
+          format: int64
+        slaDeltaMaxLimit:
+          type: integer
+          format: int64
+        slaDeltaMinLimit:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int32
+        accountId:
+          type: string
+    CountResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        count:
+          type: integer
+          format: int32

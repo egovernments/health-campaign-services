@@ -1,0 +1,46 @@
+TABLE referral {
+  id  varchar(64) [primary key]
+  clientreferenceid varchar(64)
+  tenantid varchar(1000)
+  projectbeneficiaryid varchar(64)
+  projectbeneficiaryclientreferenceid varchar(64)
+  referrerid varchar(100)
+  recipientid varchar(100)
+  recipienttype varchar(100)
+  reasons jsonb
+  sideeffectid varchar(100) [ref: > side_effect.id]
+  sideeffectclientreferenceid varchar(100) [ref: > side_effect.clientreferenceid]
+  createdby varchar(64)
+  createdtime bigint
+  lastmodifiedby varchar(64)
+  lastmodifiedtime bigint
+  clientcreatedby varchar(64)
+  clientcreatedtime bigint
+  clientlastmodifiedby varchar(64)
+  clientlastmodifiedtime bigint
+  rowversion bigint
+  isdeleted boolean
+  additionaldetails jsonb
+}
+
+TABLE side_effect {
+  id varchar(64) [primary key]
+  clientreferenceid varchar(64)
+  tenantid varchar(1000)
+  taskid varchar(64)
+  taskclientreferenceid varchar(64)
+  projectbeneficiaryid varchar(64)
+  projectbeneficiaryclientreferenceid varchar(64)
+  symptoms jsonb
+  createdby varchar(64)
+  createdtime bigint
+  lastmodifiedby varchar(64)
+  lastmodifiedtime bigint
+  clientcreatedby varchar(64)
+  clientcreatedtime bigint
+  clientlastmodifiedby varchar(64)
+  clientlastmodifiedtime bigint
+  rowversion bigint
+  isdeleted boolean
+  additionaldetails jsonb
+}

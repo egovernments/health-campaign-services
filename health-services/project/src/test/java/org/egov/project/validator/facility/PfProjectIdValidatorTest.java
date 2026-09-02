@@ -1,11 +1,14 @@
 package org.egov.project.validator.facility;
 
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectFacilityBulkRequestTestBuilder;
 import org.egov.project.repository.ProjectRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +23,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,13 +35,21 @@ class PfProjectIdValidatorTest {
     @Mock
     private ProjectRepository projectRepository;
 
+    @Mock
+    private ProjectConfiguration config;
+
+    @BeforeEach
+    void setup() {
+      when(config.getProjectCacheKey()).thenReturn("project-create-cache-");
+    }
+
     @Test
     @DisplayName("should add project facility to error details if is Deleted is true")
-    void shouldAddProjectFacilityToErrorDetailsIfIsDeletedIsTrue() {
+    void shouldAddProjectFacilityToErrorDetailsIfIsDeletedIsTrue() throws InvalidTenantIdException {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
                 .withOneProjectFacility().withRequestInfo().build();
 
-        when(projectRepository.validateIds(any(List.class), any(String.class)))
+        when(projectRepository.validateIds(anyString(), any(List.class), any(String.class)))
                 .thenReturn(Collections.emptyList());
 
         Map<ProjectFacility, List<Error>> errorDetailsMap = pfProjectIdValidator.validate(request);
@@ -46,14 +58,14 @@ class PfProjectIdValidatorTest {
 
     @Test
     @DisplayName("should not add project facility to error details if is Deleted is false")
-    void shouldNotAddProjectFacilityToErrorDetailsIfIsDeletedIsFalse() {
+    void shouldNotAddProjectFacilityToErrorDetailsIfIsDeletedIsFalse() throws InvalidTenantIdException {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
                 .withOneProjectFacility().withRequestInfo().build();
 
         List<String> projectIdList = new ArrayList<>();
         projectIdList.add("some-project-id");
 
-        when(projectRepository.validateIds(any(List.class), any(String.class)))
+        when(projectRepository.validateIds(anyString(), any(List.class), any(String.class)))
                 .thenReturn(projectIdList);
 
         Map<ProjectFacility, List<Error>> errorDetailsMap = pfProjectIdValidator.validate(request);

@@ -1,0 +1,310 @@
+import { v4 as uuidv4 } from "uuid";
+import config from "../config";
+import { produceModifiedMessages } from "../kafka/Producer";
+import { throwError, getCampaignIdsByCampaignNumber } from "../utils/genericUtils";
+import { logger } from "../utils/logger";
+import {
+  searchResourceDetailsFromDB,
+  getResourceDetailById,
+  findActiveResourceByUpsertKey,
+  countResourcesByType,
+  countTotalResourceDetails,
+  toResourceDetailsResponse,
+  ResourceDetailRow,
+  hasAnyCreatingResource
+} from "../utils/resourceDetailsUtils";
+import { executeQuery, getTableName } from "../utils/db";
+import { getResourceConfigOrDefault, isRegisteredType, isSharedAcrossCampaignFamily } from "../config/resourceTypeRegistry";
+import { attendanceSheetRefresh, campaignStatuses, resourceStatuses } from "../config/constants";
+import { TenantId } from "../config/models/brandedTypes";
+import { ResourceDetailsCreateInput } from "../config/models/resourceDetailsCreateSchema";
+import { ResourceDetailsUpdateInput } from "../config/models/resourceDetailsUpdateSchema";
+import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
+
+/** Reads a campaign's current status and campaignNumber from the details table (null fields when the campaign row is absent). */
+export async function getCampaignStatusFromDB(campaignId: string, tenantId: string): Promise<{ status: string | null; campaignNumber: string | null }> {
+  const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `SELECT status, campaignnumber FROM ${tableName} WHERE id = $1 AND tenantid = $2 LIMIT 1`,
+    [campaignId, tenantId]
+  );
+  const row = result?.rows?.[0];
+  return { status: row?.status || null, campaignNumber: row?.campaignnumber || null };
+}
+
+/**
+ * Create or upsert a resource detail.
+ * - If same (campaignId, type, parentResourceId) active resource exists with status=creating → reject 409
+ * - If exists with other status → deactivate old, create new
+ * - If not exists → create new
+ */
+export async function createResourceDetail(
+  input: ResourceDetailsCreateInput,
+  userUuid: string
+): Promise<any> {
+  const { tenantId, campaignId, type, parentResourceId, fileStoreId, filename, additionalDetails } = input;
+
+  const { status: campaignStatus } = await getCampaignStatusFromDB(campaignId, tenantId);
+  if (campaignStatus === campaignStatuses.started) {
+    throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot add/update resources while campaign is processing");
+  }
+  if (campaignStatus === campaignStatuses.cancelled) {
+    throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot add resources to a cancelled campaign");
+  }
+
+  if (await hasAnyCreatingResource(tenantId, campaignId)) {
+    throwError("COMMON", 409, "CAMPAIGN_RESOURCE_PROCESSING",
+      "Cannot add resources while campaign resources are currently being processed");
+  }
+
+  const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, type, parentResourceId);
+
+  const typeConfig = getResourceConfigOrDefault(type);
+  if (isRegisteredType(type) && typeConfig.parentType) {
+    if (!parentResourceId) {
+      throwError("COMMON", 400, "VALIDATION_ERROR", `parentResourceId is required for resource type '${type}'`);
+    }
+    if (!typeConfig.allowMultiplePerParent) {
+      const existingCount = await countResourcesByType(tenantId, campaignId, type, parentResourceId);
+      // Existing count is only advisory — the upsert below deactivates + replaces any prior active resource.
+      if (existingCount > 0) {
+        logger.info(`Found existing resource for type ${type} and parent ${parentResourceId}, will upsert`);
+      }
+    }
+  }
+
+  if (existing) {
+    if (existing.status === resourceStatuses.creating) {
+      throwError("COMMON", 409, "RESOURCE_PROCESSING", `Resource of type '${type}' is currently being processed`);
+    }
+    await deactivateResource(existing, userUuid, tenantId);
+  }
+
+  const now = Date.now();
+  const newResource = {
+    id: uuidv4(),
+    tenantId,
+    campaignId,
+    type,
+    parentResourceId: parentResourceId || null,
+    fileStoreId,
+    processedFileStoreId: null,
+    filename: filename || null,
+    status: resourceStatuses.toCreate,
+    action: "create",
+    isActive: true,
+    hierarchyType: null,
+    additionalDetails: additionalDetails || {},
+    auditDetails: {
+      createdBy: userUuid,
+      createdTime: now,
+      lastModifiedBy: userUuid,
+      lastModifiedTime: now
+    }
+  };
+
+  await produceModifiedMessages(
+    { ResourceDetails: newResource },
+    config.kafka.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC,
+    tenantId
+  );
+
+  logger.info(`Created resource detail id=${newResource.id} type=${type} campaignId=${campaignId}`);
+  return newResource;
+}
+
+/**
+ * Update a resource detail by replacing the file (creates a new record, deactivates old).
+ */
+export async function updateResourceDetail(
+  input: ResourceDetailsUpdateInput,
+  userUuid: string
+): Promise<any> {
+  const { id, tenantId, campaignId, fileStoreId, filename } = input;
+
+  const { status: campaignStatus } = await getCampaignStatusFromDB(campaignId, tenantId);
+  if (campaignStatus === campaignStatuses.started) {
+    throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot update resources while campaign is processing");
+  }
+  if (campaignStatus === campaignStatuses.cancelled) {
+    throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot update resources on a cancelled campaign");
+  }
+
+  if (await hasAnyCreatingResource(tenantId, campaignId)) {
+    throwError("COMMON", 409, "CAMPAIGN_RESOURCE_PROCESSING",
+      "Cannot update resources while campaign resources are currently being processed");
+  }
+
+  const existing = await getResourceDetailById(id, tenantId);
+  if (!existing) {
+    throwError("COMMON", 404, "NOT_FOUND", `Resource detail '${id}' not found`);
+  }
+  if (!existing!.isactive) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", `Resource detail '${id}' is inactive. Create a new resource instead.`);
+  }
+  if (existing!.status === resourceStatuses.creating) {
+    throwError("COMMON", 409, "RESOURCE_PROCESSING", `Resource '${id}' is currently being processed`);
+  }
+
+  await deactivateResource(existing!, userUuid, tenantId);
+
+  const now = Date.now();
+  const newResource = {
+    id: uuidv4(),
+    tenantId,
+    campaignId,
+    type: existing!.type,
+    parentResourceId: existing!.parentresourceid || null,
+    fileStoreId,
+    processedFileStoreId: null,
+    filename: filename !== undefined ? filename : existing!.filename,
+    status: resourceStatuses.toCreate,
+    action: "update",
+    isActive: true,
+    hierarchyType: existing!.hierarchytype || null,
+    additionalDetails: existing!.additionaldetails || {},
+    auditDetails: {
+      createdBy: userUuid,
+      createdTime: now,
+      lastModifiedBy: userUuid,
+      lastModifiedTime: now
+    }
+  };
+
+  await produceModifiedMessages(
+    { ResourceDetails: newResource },
+    config.kafka.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC,
+    tenantId
+  );
+
+  logger.info(`Updated resource detail: deactivated id=${id}, created id=${newResource.id}`);
+  return newResource;
+}
+
+/**
+ * Search resource details with pagination.
+ */
+export async function searchResourceDetails(
+  criteria: ResourceDetailsCriteria,
+  pagination?: Pagination
+): Promise<{ ResourceDetails: any[]; TotalCount: number }> {
+  const types = criteria.type || [];
+  const allShared = types.length > 0 && types.every(t => isSharedAcrossCampaignFamily(t));
+
+  if (allShared && criteria.campaignId) {
+    const familyResult = await searchResourceDetailsAcrossCampaignFamily(criteria, pagination);
+    if (familyResult) return familyResult;
+  }
+
+  const [rows, total] = await Promise.all([
+    searchResourceDetailsFromDB(criteria, pagination),
+    countTotalResourceDetails(criteria)
+  ]);
+
+  return {
+    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId as TenantId, rows),
+    TotalCount: total
+  };
+}
+
+/**
+ * A register file owing a refresh is finished here, so the id handed back never points at a sheet
+ * still listing a deleted register. Rows already claimed elsewhere keep their in-progress marker for
+ * the caller to poll, exactly like an upload in flight.
+ *
+ * The refresh module is imported only when a row actually owes one: it pulls in filestore and Excel
+ * plumbing that every other caller of this service has no use for.
+ */
+async function respondWithRefreshedRegisterFile(tenantId: TenantId, rows: ResourceDetailRow[]): Promise<any[]> {
+  const owed = rows.some((row) => attendanceSheetRefresh.resourceTypes.includes(row?.type)
+    && (row?.additionaldetails || {})[attendanceSheetRefresh.additionalDetailsKey]);
+
+  if (!owed) return rows.map(toResourceDetailsResponse);
+
+  const { completeOwedRegisterSheetRefresh } = await import("../utils/attendanceSheetUtils");
+  const refreshed = await completeOwedRegisterSheetRefresh(tenantId, rows);
+  return rows.map((row) => {
+    const response = toResourceDetailsResponse(row);
+    if (!refreshed.has(row.id)) return response;
+    // null means the file is known to be out of date: withhold it rather than serve a sheet that
+    // still lists a deleted register. The marker stays set, so the next download retries.
+    return { ...response, processedFileStoreId: refreshed.get(row.id) ?? null };
+  });
+}
+
+/**
+ * Resolve shared-type resources (e.g. attendanceRegister) across the whole campaign family.
+ * Child/nested-child campaigns share the parent's campaignNumber but have distinct campaignIds,
+ * so a search by a descendant campaignId would miss rows held under an ancestor. This derives
+ * the campaignNumber, expands to all family campaignIds, queries across them (newest first),
+ * and dedupes by (type, parentResourceId). Returns null to fall back to the strict path.
+ */
+async function searchResourceDetailsAcrossCampaignFamily(
+  criteria: ResourceDetailsCriteria,
+  pagination?: Pagination
+): Promise<{ ResourceDetails: any[]; TotalCount: number } | null> {
+  const { campaignNumber } = await getCampaignStatusFromDB(criteria.campaignId, criteria.tenantId);
+  if (!campaignNumber) return null;
+
+  const familyIds = await getCampaignIdsByCampaignNumber(campaignNumber, criteria.tenantId);
+  if (familyIds.length === 0) return null;
+
+  const rows = await searchResourceDetailsFromDB(
+    { ...criteria, campaignIds: familyIds },
+    { sortBy: "lastmodifiedtime", sortOrder: "DESC" }
+  );
+
+  const seen = new Set<string>();
+  const deduped: ResourceDetailRow[] = [];
+  for (const row of rows) {
+    const key = `${row.type}::${row.parentresourceid || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(row);
+  }
+
+  const offset = pagination?.offset || 0;
+  const paged = pagination?.limit ? deduped.slice(offset, offset + pagination.limit) : deduped.slice(offset);
+
+  return {
+    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId as TenantId, paged),
+    TotalCount: deduped.length
+  };
+}
+
+/** Soft-deactivates every active resource of a campaign — used when hierarchy/boundary changes invalidate prior uploads. */
+export async function deactivateAllResourcesForCampaign(campaignId: string, tenantId: string, userUuid: string): Promise<void> {
+  const rows = await searchResourceDetailsFromDB({ tenantId, campaignId, isActive: true });
+  await Promise.all(rows.map(row => deactivateResource(row, userUuid, tenantId)));
+}
+
+async function deactivateResource(resource: ResourceDetailRow, userUuid: string, tenantId: string): Promise<void> {
+  const now = Date.now();
+  const updated = {
+    id: resource.id,
+    tenantId: resource.tenantid,
+    campaignId: resource.campaignid,
+    type: resource.type,
+    parentResourceId: resource.parentresourceid || null,
+    fileStoreId: resource.filestoreid,
+    processedFileStoreId: resource.processedfilestoreid || null,
+    filename: resource.filename || null,
+    status: resource.status,
+    action: resource.action,
+    isActive: false,
+    hierarchyType: resource.hierarchytype || null,
+    additionalDetails: resource.additionaldetails || {},
+    auditDetails: {
+      createdBy: resource.createdby,
+      createdTime: Number(resource.createdtime),
+      lastModifiedBy: userUuid,
+      lastModifiedTime: now
+    }
+  };
+
+  await produceModifiedMessages(
+    { ResourceDetails: updated },
+    config.kafka.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC,
+    tenantId
+  );
+}

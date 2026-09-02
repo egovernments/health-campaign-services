@@ -12,6 +12,7 @@ import com.tarento.analytics.dto.Data;
 import com.tarento.analytics.dto.Plot;
 import com.tarento.analytics.helper.ComputedFieldFactory;
 import com.tarento.analytics.helper.IComputedField;
+import com.tarento.analytics.helper.SortingHelper;
 import com.tarento.analytics.model.ComputedFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,8 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
 
     @Autowired
     private ObjectMapper mapper;
+    @Autowired
+    private SortingHelper sortingHelper;
 
     @Autowired
     private ComputedFieldFactory computedFieldFactory;
@@ -116,6 +119,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
             });
 
         });
+        List<Data> finalDataList = dataList;
         mappings.entrySet().stream().forEach(plotMap -> {
             List<Plot> plotList = plotMap.getValue().values().stream().collect(Collectors.toList());
             //filter out data object with all zero data.
@@ -146,7 +150,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                         logger.error("execution of computed field :"+e.getMessage());
                     }
                 }
-                dataList.add(data);
+                finalDataList.add(data);
             }
 
         });
@@ -168,7 +172,11 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                 });
             }
         }
-        
+
+        if (chartNode.has("sort")) {
+            dataList = sortingHelper.tableSort(dataList, chartNode.get("sort").asText());
+        }
+
         return getAggregatedDto(chartNode, dataList, requestDto.getVisualizationCode());
 
     }

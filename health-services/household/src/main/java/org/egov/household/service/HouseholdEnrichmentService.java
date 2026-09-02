@@ -1,6 +1,6 @@
 package org.egov.household.service;
 
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Address;
 import org.egov.common.models.household.Household;

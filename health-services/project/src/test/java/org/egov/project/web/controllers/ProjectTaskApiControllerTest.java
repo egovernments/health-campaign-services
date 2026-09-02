@@ -2,6 +2,8 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskRequest;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.models.project.TaskSearchRequest;
@@ -22,8 +24,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -81,7 +81,7 @@ class ProjectTaskApiControllerTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().build()).build();
         when(projectTaskService.search(any(TaskSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), any(), any())).thenReturn(SearchResponse.<Task>builder().build());
 
         mockMvc.perform(post("/task/v1/_search?limit=10&offset=0&tenantId=default").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(taskSearchRequest)))
@@ -95,7 +95,7 @@ class ProjectTaskApiControllerTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().build()).build();
         when(projectTaskService.search(any(TaskSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<Task>builder().build());
 
         mockMvc.perform(post("/task/v1/_search?limit=10&offset=0").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(taskSearchRequest)))

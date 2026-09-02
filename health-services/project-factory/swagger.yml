@@ -1,0 +1,2068 @@
+openapi: 3.0.3
+info:
+  title: Project Factory API
+  description: |
+    **Project Factory Service** - DIGIT Health Campaign Management System
+    
+    This service manages health campaigns, data processing, Excel template generation, and provides core functionality for the DIGIT HCM platform.
+    
+    ## Key Features:
+    - **Campaign Management**: Create, update, search, and manage health campaigns
+    - **Data Management**: Generate, process, and manage campaign data (V1 Legacy API)  
+    - **Sheet Management**: Template-based Excel generation and processing (V2 Advanced API)
+    - **Crypto Operations**: Bulk encryption/decryption utilities
+    - **Localization**: Multi-language support and message management
+    
+    ## API Versions:
+    - **V1 Data APIs**: Legacy data management endpoints
+    - **V2 Sheet APIs**: Modern template-based Excel processing with advanced validation
+    
+    ## Authentication:
+    All endpoints require valid RequestInfo with user authentication details.
+  version: "1.0.0"
+
+tags:
+  - name: Campaign Management
+    description: Health campaign lifecycle management operations
+  - name: Data Management (V1)
+    description: Legacy data generation and processing endpoints
+  - name: Sheet Management (V2)  
+    description: Modern template-based Excel processing with validation
+  - name: Crypto Operations
+    description: Encryption and decryption utilities
+  - name: Localization
+    description: Multi-language support and message management (Internal APIs)
+
+paths:
+  # =======================
+  # CAMPAIGN MANAGEMENT
+  # =======================
+  /v1/project-type/create:
+    post:
+      tags:
+        - Campaign Management
+      summary: Create Campaign
+      description: |
+        Creates a new health campaign with specified configuration including boundaries, resources, and delivery rules.
+        
+        **Use Cases:**
+        - Setting up vaccination campaigns
+        - Creating bednet distribution campaigns  
+        - Launching disease prevention campaigns
+      operationId: createProjectTypeCampaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCampaignRequest'
+            example:
+              RequestInfo:
+                apiId: "project-factory-api"
+                ver: "1.0"
+                ts: 1234567890123
+                action: "create"
+                did: "device-id"
+                key: "request-key"
+                msgId: "msg-id"
+                userInfo:
+                  id: 1
+                  uuid: "user-uuid"
+                  userName: "system"
+                  tenantId: "pb.amritsar"
+              CampaignDetails:
+                tenantId: "pb.amritsar"
+                hierarchyType: "ADMIN"
+                campaignName: "Malaria Bednet Distribution 2024"
+                action: "create"
+                startDate: 1640995200000
+                endDate: 1672531200000
+                boundaries:
+                  - code: "BOUNDARY_001"
+                    type: "District"
+                    includeAllChildren: true
+                resources:
+                  - filestoreId: "fs-001"
+                    type: "user"
+                    filename: "users.xlsx"
+                projectType: "HEALTH-CAMPAIGN"
+                deliveryRules:
+                  - condition: "age > 18"
+                    action: "deliver"
+                additionalDetails:
+                  disease: "malaria"
+                  campaignType: "prevention"
+      responses:
+        '200':
+          description: Campaign created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCampaignResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/project-type/update:
+    post:
+      tags:
+        - Campaign Management
+      summary: Update Campaign
+      description: |
+        Updates an existing health campaign with new configuration, boundaries, or resources.
+        
+        **Use Cases:**
+        - Extending campaign dates
+        - Adding new boundaries to campaign
+        - Updating delivery rules
+      operationId: updateProjectTypeCampaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCampaignRequest'
+      responses:
+        '200':
+          description: Campaign updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateCampaignResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/project-type/search:
+    post:
+      tags:
+        - Campaign Management
+      summary: Search Campaigns
+      description: |
+        Search and filter health campaigns based on comprehensive criteria with advanced filtering options.
+        
+        **Key Features:**
+        - **Flexible Filtering**: Multiple filter combinations supported
+        - **Pagination Support**: Limit, offset, sorting options
+        - **Partial Matching**: Fuzzy search for campaign names
+        - **Date Range Filtering**: Start/end date filters
+        - **Status Filtering**: Single status or array of statuses
+        - **Hierarchical Search**: Parent-child campaign relationships
+        
+        **Search Options:**
+        - By tenant ID (required)
+        - By campaign IDs array
+        - By campaign name (partial matching)
+        - By campaign number (exact match)
+        - By project type
+        - By status (single or multiple)
+        - By date range (start/end dates)
+        - By creator user ID
+        - By active/inactive status
+        - By parent-child relationships
+        
+        **Validation Rules:**
+        - tenantId is required
+        - At least one additional search criteria required
+        - Pagination limit: 1-100 records
+        - Date filters must be valid timestamps
+      operationId: searchProjectTypeCampaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchCampaignRequest'
+            example:
+              RequestInfo:
+                apiId: "project-factory-api"
+                ver: "1.0"
+                ts: 1234567890123
+                userInfo:
+                  uuid: "user-uuid"
+                  tenantId: "pb.amritsar"
+              CampaignDetails:
+                tenantId: "pb.amritsar"
+                campaignName: "Malaria"
+                projectType: "HEALTH-CAMPAIGN"
+                status: ["ACTIVE", "COMPLETED"]
+                isActive: true
+                startDate: 1640995200000
+                endDate: 1672531200000
+                pagination:
+                  limit: 10
+                  offset: 0
+                  sortBy: "campaignName"
+                  sortOrder: "asc"
+      responses:
+        '200':
+          description: Campaigns retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchCampaignResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/project-type/fetch-from-microplan:
+    post:
+      tags:
+        - Campaign Management
+      summary: Fetch Campaign from Microplan
+      description: |
+        Integrates with microplan service to fetch and sync campaign data for better planning and resource allocation.
+        
+        **Integration Features:**
+        - Sync boundary data
+        - Import resource estimates
+        - Align delivery schedules
+      operationId: fetchFromMicroplan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MicroplanFetchRequest'
+            example:
+              RequestInfo:
+                apiId: "project-factory-api"
+                ver: "1.0"
+                ts: 1234567890123
+                userInfo:
+                  uuid: "user-uuid"
+                  tenantId: "pb.amritsar"
+              MicroplanDetails:
+                tenantId: "pb.amritsar"
+                campaignId: "campaign-uuid-123"
+                planConfigurationId: "plan-config-456"
+      responses:
+        '200':
+          description: Campaign data fetched from microplan successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MicroplanFetchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/project-type/cancel-campaign:
+    post:
+      tags:
+        - Campaign Management
+      summary: Cancel Campaign
+      description: |
+        Cancels an active health campaign and performs necessary cleanup operations.
+        
+        **Cancel Operations:**
+        - Stop active deliveries
+        - Update campaign status
+        - Notify stakeholders
+        - Archive campaign data
+      operationId: cancelCampaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelCampaignRequest'
+            example:
+              RequestInfo:
+                apiId: "project-factory-api"
+                ver: "1.0"
+                ts: 1234567890123
+                userInfo:
+                  uuid: "user-uuid"
+                  tenantId: "pb.amritsar"
+              CampaignDetails:
+                campaignId: "campaign-uuid-123"
+                tenantId: "pb.amritsar"
+      responses:
+        '200':
+          description: Campaign canceled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelCampaignResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/project-type/status:
+    post:
+      tags:
+        - Campaign Management
+      summary: Get Campaign Status
+      description: |
+        Retrieves detailed status information for a specific health campaign including progress metrics.
+        
+        **Status Information:**
+        - Campaign execution progress
+        - Delivery statistics
+        - Resource utilization
+        - Boundary coverage
+      operationId: getCampaignStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CampaignStatusRequest'
+            example:
+              RequestInfo:
+                apiId: "project-factory-api"
+                ver: "1.0"
+                ts: 1234567890123
+              CampaignDetails:
+                campaignNumber: "CAMPAIGN_001"
+                tenantId: "pb.amritsar"
+      responses:
+        '200':
+          description: Campaign status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # =======================
+  # DATA MANAGEMENT (V1 - Legacy)
+  # =======================
+  /v1/data/_generate:
+    post:
+      tags:
+        - Data Management (V1)
+      summary: Generate Data Template (Legacy)
+      description: |
+        **⚠️ Legacy API** - Use V2 Sheet Management APIs for new implementations.
+        
+        Generates Excel templates for data collection based on specified type and parameters.
+        
+        **Supported Types:**
+        - facility: Facility data templates
+        - user: User registration templates  
+        - boundary: Boundary hierarchy templates
+        - boundaryManagement: Boundary management templates
+        - facilityWithBoundary: Facility with boundary data
+        - userWithBoundary: User with boundary data
+        - boundaryGeometryManagement: Boundary geometry templates
+      operationId: generateData
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [facility, user, boundary, boundaryManagement, facilityWithBoundary, userWithBoundary, boundaryGeometryManagement]
+          description: Type of template to generate
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 128
+            minLength: 1
+          description: Tenant identifier
+        - name: hierarchyType
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 128
+            minLength: 1
+          description: Boundary hierarchy type
+        - name: campaignId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Campaign identifier
+        - name: forceUpdate
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "false"
+          description: Force update existing template
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Source of the request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateDataRequest'
+            example:
+              RequestInfo:
+                apiId: "project-factory-api"
+                ver: "1.0"
+                ts: 1234567890123
+                userInfo:
+                  uuid: "user-uuid"
+                  tenantId: "pb.amritsar"
+      responses:
+        '200':
+          description: Data template generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateDataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/data/_download:
+    post:
+      tags:
+        - Data Management (V1)
+      summary: Download Generated Data (Legacy)
+      description: |
+        **⚠️ Legacy API** - Use V2 Sheet Management APIs for new implementations.
+        
+        Downloads previously generated Excel templates or processed data files. If no generated file found, automatically triggers generation.
+        
+        **Auto-Generation Feature:**
+        - If no previous generated file exists, automatically triggers new generation
+        - Supports both regular campaigns and microplan campaigns
+        - Returns cached results when available
+      operationId: downloadData
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [facility, user, boundary, facilityWithBoundary, userWithBoundary, boundaryManagement, boundaryGeometryManagement, userCredential]
+          description: Type of data to download
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 128
+            minLength: 1
+          description: Tenant identifier
+        - name: hierarchyType
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 128
+            minLength: 1
+          description: Boundary hierarchy type
+        - name: campaignId
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+            minLength: 1
+          description: Campaign identifier
+        - name: id
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+            minLength: 1
+          description: Specific resource ID to download
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 500
+            minLength: 1
+          description: Filter by status
+        - name: forceUpdate
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Force regeneration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DownloadDataRequest'
+      responses:
+        '200':
+          description: Data downloaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadDataResponse'
+              example:
+                ResponseInfo:
+                  apiId: "project-factory-api"
+                  ver: "1.0"
+                  ts: 1234567890123
+                  status: "successful"
+                GeneratedResource:
+                  - id: "gen-123"
+                    tenantId: "pb.amritsar"
+                    type: "user"
+                    status: "completed"
+                    action: "create"
+                    fileStoreid: "fs-001"
+                    campaignId: "CAMPAIGN_001"
+                    hierarchyType: "ADMIN"
+                    locale: "en_IN"
+                    auditDetails:
+                      createdTime: 1640995200000
+                      lastModifiedTime: 1640995300000
+                      createdBy: "user-uuid"
+                      lastModifiedBy: "user-uuid"
+                    additionalDetails:
+                      filters: {}
+                      fileName: "user_template.xlsx"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/data/_create:
+    post:
+      tags:
+        - Data Management (V1)
+      summary: Create Data Records (Legacy)
+      description: |
+        **⚠️ Legacy API** - Use V2 Sheet Management APIs for new implementations.
+        
+        Creates entity records from processed Excel data.
+      operationId: createData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDataRequest'
+      responses:
+        '200':
+          description: Data records created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateDataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/data/_search:
+    post:
+      tags:
+        - Data Management (V1)
+      summary: Search Entity Data (Legacy)
+      description: |
+        **⚠️ Legacy API** - Use V2 Sheet Management APIs for new implementations.
+        
+        Searches for entity data records based on criteria.
+      operationId: searchData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchDataRequest'
+      responses:
+        '200':
+          description: Data search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchDataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/data/campaign/_search:
+    post:
+      tags:
+        - Data Management (V1)
+      summary: Search Campaign Data (Legacy)
+      description: |
+        **⚠️ Legacy API** - Use V2 Sheet Management APIs for new implementations.
+        
+        Searches for campaign-specific entity data.
+      operationId: searchCampaignData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchCampaignDataRequest'
+      responses:
+        '200':
+          description: Campaign data search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchCampaignDataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/data/mapping/_search:
+    post:
+      tags:
+        - Data Management (V1)
+      summary: Search Mapping Data (Legacy)
+      description: |
+        **⚠️ Legacy API** - Use V2 Sheet Management APIs for new implementations.
+        
+        Searches for entity mapping and relationship data.
+      operationId: searchMappingData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchMappingDataRequest'
+      responses:
+        '200':
+          description: Mapping data search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchMappingDataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # =======================
+  # SHEET MANAGEMENT (V2 - Modern)
+  # =======================
+  /v2/data/_generate:
+    post:
+      tags:
+        - Sheet Management (V2)
+      summary: Generate Excel Template (Advanced)
+      description: |
+        **✅ Recommended API** - Modern template generation with class-based approach.
+        
+        Generates Excel templates using configurable template classes with strict validation and better customization.
+        
+        **Key Features:**
+        - Class-based generation for each entity type
+        - Hardcoded template configurations
+        - Multiple sheets per template
+        - Better validation and error handling
+        
+        **Supported Types:**
+        - user: User registration with validation
+        - facility: Facility management templates
+        - boundary: Boundary hierarchy with dropdowns
+      operationId: generateSheetData
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [user, facility, boundary]
+          description: Type of Excel template to generate
+          example: "user"
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Tenant identifier
+          example: "pb.amritsar"
+        - name: hierarchyType
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Boundary hierarchy type (e.g., ADMIN)
+          example: "ADMIN"
+        - name: campaignId
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Campaign identifier for context
+          example: "CAMPAIGN_001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateSheetRequest'
+            example:
+              RequestInfo:
+                apiId: "project-factory-api"
+                ver: "1.0"
+                ts: 1234567890123
+                userInfo:
+                  uuid: "user-uuid"
+                  tenantId: "pb.amritsar"
+      responses:
+        '200':
+          description: Excel template generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateSheetResponse'
+              example:
+                ResponseInfo:
+                  apiId: "project-factory-api"
+                  ver: "1.0"
+                  ts: 1234567890123
+                  status: "successful"
+                GeneratedResource:
+                  id: "gen-123"
+                  type: "user"
+                  status: "completed"
+                  fileStoreId: "fs-001"
+                  downloadUrl: "https://filestore.gov.in/download?id=fs-001"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v2/data/_process:
+    post:
+      tags:
+        - Sheet Management (V2)
+      summary: Process Excel Data (Strict Validation)
+      description: |
+        **✅ Recommended API** - Processes uploaded Excel files with strict validation.
+        
+        Validates and processes Excel data using template-based validation with entity type checking and business rule enforcement.
+        
+        **Key Features:**
+        - Strict entity type validation
+        - Business rule enforcement
+        - Data transformation and mapping
+        - Error reporting with line numbers
+        - Rollback on validation failures
+      operationId: processSheetData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessSheetRequest'
+            example:
+              RequestInfo:
+                apiId: "project-factory-api"
+                ver: "1.0"
+                ts: 1234567890123
+                userInfo:
+                  uuid: "user-uuid"
+                  tenantId: "pb.amritsar"
+              ResourceDetails:
+                type: "user"
+                hierarchyType: "ADMIN"
+                tenantId: "pb.amritsar"
+                fileStoreId: "fs-001"
+                campaignId: "CAMPAIGN_001"
+      responses:
+        '200':
+          description: Excel data processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessSheetResponse'
+              example:
+                ResponseInfo:
+                  apiId: "project-factory-api"
+                  ver: "1.0"
+                  ts: 1234567890123
+                  status: "successful"
+                ResourceDetails:
+                  id: "proc-123"
+                  type: "user"
+                  status: "completed"
+                  processedCount: 150
+                  errorCount: 0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v2/data/_process-any:
+    post:
+      tags:
+        - Sheet Management (V2)
+      summary: Process Excel Data (Relaxed Validation)
+      description: |
+        **✅ Alternative Processing** - Processes Excel files with relaxed validation.
+        
+        Processes any entity type without strict type checking, useful for flexible data imports or legacy data migration.
+        
+        **Key Features:**
+        - Relaxed entity type validation
+        - Flexible data acceptance
+        - Warning-based error handling
+        - Partial success processing
+        - Suitable for data migration
+      operationId: processSheetDataAny
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessSheetAnyRequest'
+      responses:
+        '200':
+          description: Excel data processed with relaxed validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessSheetAnyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # =======================
+  # CRYPTO OPERATIONS
+  # =======================
+  /v1/crypto/_bulkDecrypt:
+    post:
+      tags:
+        - Crypto Operations
+      summary: Bulk Decrypt Strings
+      description: |
+        Decrypts multiple encrypted strings in a single request for performance optimization.
+        
+        **Use Cases:**
+        - Decrypting user credentials
+        - Processing encrypted form data
+        - Bulk data migration
+        
+        **Limitations:**
+        - Maximum 500 strings per request
+        - Each string must be validly encrypted
+      operationId: bulkDecryptData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDecryptRequest'
+            example:
+              encryptedStrings:
+                - "encrypted_string_1"
+                - "encrypted_string_2"
+                - "encrypted_string_3"
+      responses:
+        '200':
+          description: Strings decrypted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkDecryptResponse'
+              example:
+                ResponseInfo:
+                  apiId: "project-factory-api"
+                  ver: "1.0"
+                  ts: 1234567890123
+                  status: "successful"
+                decryptedStrings:
+                  - "decrypted_value_1"
+                  - "decrypted_value_2" 
+                  - "decrypted_value_3"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    # =======================
+    # COMMON SCHEMAS
+    # =======================
+    RequestInfo:
+      type: object
+      required:
+        - apiId
+        - ver
+        - ts
+      properties:
+        apiId:
+          type: string
+          description: Unique API identifier
+          example: "project-factory-api"
+        ver:
+          type: string
+          description: API version
+          example: "1.0"
+        ts:
+          type: integer
+          format: int64
+          description: Timestamp in milliseconds
+          example: 1234567890123
+        action:
+          type: string
+          description: Action being performed
+        did:
+          type: string
+          description: Device identifier
+        key:
+          type: string
+          description: Request key
+        msgId:
+          type: string
+          description: Message identifier
+        userInfo:
+          $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: User ID
+        uuid:
+          type: string
+          description: User UUID
+          example: "user-uuid-123"
+        userName:
+          type: string
+          description: Username
+        tenantId:
+          type: string
+          description: User's tenant ID
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+          description: API identifier from request
+        ver:
+          type: string
+          description: API version from request
+        ts:
+          type: integer
+          format: int64
+          description: Response timestamp
+        status:
+          type: string
+          enum: [successful, failed]
+          description: Response status
+        resMsgId:
+          type: string
+          description: Response message ID
+
+    ErrorInfo:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        description:
+          type: string
+          description: Detailed error description
+
+    # =======================
+    # CAMPAIGN MANAGEMENT SCHEMAS
+    # =======================
+    CampaignDetails:
+      type: object
+      required:
+        - hierarchyType
+        - tenantId
+        - campaignName
+        - action
+        - startDate
+        - endDate
+        - projectType
+        - deliveryRules
+        - additionalDetails
+      properties:
+        id:
+          type: string
+          description: Campaign identifier
+        hierarchyType:
+          type: string
+          maxLength: 128
+          minLength: 1
+          description: Boundary hierarchy type
+          example: "ADMIN"
+        tenantId:
+          type: string
+          maxLength: 64
+          minLength: 1
+          description: Tenant identifier
+          example: "pb.amritsar"
+        campaignName:
+          type: string
+          maxLength: 250
+          minLength: 2
+          description: Name of the campaign
+          example: "Malaria Bednet Distribution 2024"
+        campaignNumber:
+          type: string
+          description: Unique campaign number
+        action:
+          type: string
+          enum: [create, draft, update]
+          description: Action to perform
+        startDate:
+          type: integer
+          format: int64
+          description: Campaign start date (timestamp)
+        endDate:
+          type: integer
+          format: int64
+          description: Campaign end date (timestamp)
+        boundaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignBoundary'
+          description: Campaign coverage boundaries
+        resources:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/CampaignResource'
+          description: Campaign resources (Excel files)
+        projectType:
+          type: string
+          maxLength: 128
+          minLength: 1
+          description: Type of project/campaign
+          example: "HEALTH-CAMPAIGN"
+        deliveryRules:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              condition:
+                type: string
+                description: Delivery rule condition
+              action:
+                type: string
+                description: Action to take when condition is met
+            description: Individual delivery rule
+          description: Rules for campaign delivery
+        additionalDetails:
+          type: object
+          description: Additional campaign configuration
+
+    CampaignSearchCriteria:
+      type: object
+      required:
+        - tenantId
+      properties:
+        tenantId:
+          type: string
+          minLength: 1
+          description: Tenant identifier (required)
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: Array of campaign IDs to search for
+        campaignName:
+          type: string
+          minLength: 1
+          description: Campaign name (supports partial matching)
+        campaignNumber:
+          type: string
+          description: Unique campaign number
+        projectType:
+          type: string
+          description: Type of project/campaign
+        status:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+              minItems: 1
+          description: Campaign status (single value or array)
+        startDate:
+          type: integer
+          minimum: 0
+          description: Campaign start date filter (timestamp)
+        endDate:
+          type: integer
+          minimum: 0
+          description: Campaign end date filter (timestamp)
+        createdBy:
+          type: string
+          description: Campaign creator user ID
+        isActive:
+          type: boolean
+          description: Filter by active/inactive campaigns
+        isChildCampaign:
+          type: boolean
+          description: Filter for child campaigns
+        parentId:
+          type: string
+          description: Parent campaign ID for child campaigns
+        campaignsIncludeDates:
+          type: boolean
+          description: Include date range in campaign search
+        isLikeSearch:
+          type: boolean
+          description: Enable fuzzy/partial matching
+        isOverrideDatesFromProject:
+          type: boolean
+          description: Override date filters from project settings
+        pagination:
+          type: object
+          properties:
+            sortBy:
+              type: string
+              description: Field to sort by
+            sortOrder:
+              type: string
+              enum: [asc, desc]
+              description: Sort order
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+              description: Maximum number of results (1-100)
+            offset:
+              type: integer
+              minimum: 0
+              description: Number of results to skip
+          description: Pagination and sorting options
+
+    CampaignBoundary:
+      type: object
+      required:
+        - code
+        - type
+      properties:
+        code:
+          type: string
+          maxLength: 64
+          minLength: 1
+          description: Boundary code
+        type:
+          type: string
+          maxLength: 128
+          minLength: 1
+          description: Boundary type
+        isRoot:
+          type: boolean
+          description: Whether this is a root boundary
+        includeAllChildren:
+          type: boolean
+          description: Include all child boundaries
+
+    CampaignResource:
+      type: object
+      required:
+        - filestoreId
+        - type
+        - filename
+      properties:
+        filestoreId:
+          type: string
+          maxLength: 128
+          minLength: 1
+          description: Filestore identifier
+        type:
+          type: string
+          maxLength: 128
+          minLength: 1
+          description: Resource type (user, facility, boundary)
+        filename:
+          type: string
+          maxLength: 128
+          minLength: 1
+          pattern: "^.+\\.(xlsx|xls)$"
+          description: Excel filename
+
+    CreateCampaignRequest:
+      type: object
+      required:
+        - RequestInfo
+        - CampaignDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        CampaignDetails:
+          $ref: '#/components/schemas/CampaignDetails'
+
+    CreateCampaignResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        CampaignDetails:
+          $ref: '#/components/schemas/CampaignDetails'
+
+    UpdateCampaignRequest:
+      type: object
+      required:
+        - RequestInfo
+        - CampaignDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        CampaignDetails:
+          $ref: '#/components/schemas/CampaignDetails'
+
+    UpdateCampaignResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        CampaignDetails:
+          $ref: '#/components/schemas/CampaignDetails'
+
+    SearchCampaignRequest:
+      type: object
+      required:
+        - RequestInfo
+        - CampaignDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        CampaignDetails:
+          $ref: '#/components/schemas/CampaignSearchCriteria'
+
+    SearchCampaignResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        CampaignDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignDetails'
+        totalCount:
+          type: integer
+          description: Total number of campaigns found
+
+    MicroplanFetchRequest:
+      type: object
+      required:
+        - RequestInfo
+        - MicroplanDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        MicroplanDetails:
+          type: object
+          required:
+            - tenantId
+            - campaignId
+            - planConfigurationId
+          properties:
+            tenantId:
+              type: string
+              description: Tenant identifier
+            campaignId:
+              type: string
+              description: Campaign identifier to sync with
+            planConfigurationId:
+              type: string
+              description: Microplan configuration identifier
+
+    MicroplanFetchResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        CampaignDetails:
+          $ref: '#/components/schemas/CampaignDetails'
+
+    CancelCampaignRequest:
+      type: object
+      required:
+        - RequestInfo
+        - CampaignDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        CampaignDetails:
+          type: object
+          required:
+            - campaignId
+            - tenantId
+          properties:
+            campaignId:
+              type: string
+              description: Campaign identifier to cancel
+            tenantId:
+              type: string
+              description: Tenant identifier
+
+    CancelCampaignResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        CampaignDetails:
+          $ref: '#/components/schemas/CampaignDetails'
+
+    CampaignStatusRequest:
+      type: object
+      required:
+        - RequestInfo
+        - CampaignDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        CampaignDetails:
+          type: object
+          required:
+            - campaignNumber
+            - tenantId
+          properties:
+            campaignNumber:
+              type: string
+              description: Campaign number to get status for
+            tenantId:
+              type: string
+              description: Tenant identifier
+
+    CampaignStatusResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        CampaignStatus:
+          type: object
+          properties:
+            campaignNumber:
+              type: string
+              description: Campaign number
+            summary:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: integer
+              description: Summary of entity types and their status counts
+              example:
+                user:
+                  COMPLETED: 150
+                  FAILED: 5
+                facility:
+                  COMPLETED: 45
+                  PENDING: 10
+            processes:
+              type: array
+              items:
+                type: object
+                properties:
+                  processname:
+                    type: string
+                  status:
+                    type: string
+              description: List of campaign processes and their status
+
+    # =======================
+    # DATA MANAGEMENT SCHEMAS (V1)
+    # =======================
+    GenerateDataRequest:
+      type: object
+      required:
+        - RequestInfo
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+
+    GenerateDataResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        GeneratedResource:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Generated resource ID
+            tenantId:
+              type: string
+              description: Tenant identifier
+            status:
+              type: string
+              description: Generation status (accepted, completed, failed)
+            action:
+              type: string
+              description: Action performed
+            fileStoreId:
+              type: string
+              description: Original request filestore ID
+            type:
+              type: string
+              description: Resource type
+            campaignId:
+              type: string
+              description: Campaign identifier
+            hierarchyType:
+              type: string
+              description: Hierarchy type
+            auditDetails:
+              type: object
+              properties:
+                createdTime:
+                  type: integer
+                  format: int64
+                  description: Creation timestamp
+                lastModifiedTime:
+                  type: integer
+                  format: int64
+                  description: Last modification timestamp
+                createdBy:
+                  type: string
+                  description: Creator user ID
+                lastModifiedBy:
+                  type: string
+                  description: Last modifier user ID
+            additionalDetails:
+              type: object
+              description: Additional configuration and metadata
+
+    DownloadDataRequest:
+      type: object
+      required:
+        - RequestInfo
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+
+    DownloadDataResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        GeneratedResource:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: Generated resource ID
+              tenantId:
+                type: string
+                description: Tenant identifier
+              status:
+                type: string
+                description: Generation status (completed, failed, etc.)
+              action:
+                type: string
+                description: Action performed
+              fileStoreid:
+                type: string
+                description: Filestore ID of generated file
+              type:
+                type: string
+                description: Resource type
+              campaignId:
+                type: string
+                description: Campaign identifier
+              hierarchyType:
+                type: string
+                description: Hierarchy type
+              locale:
+                type: string
+                description: Locale used for generation
+              auditDetails:
+                type: object
+                properties:
+                  createdTime:
+                    type: integer
+                    format: int64
+                    description: Creation timestamp
+                  lastModifiedTime:
+                    type: integer
+                    format: int64
+                    description: Last modification timestamp
+                  createdBy:
+                    type: string
+                    description: Creator user ID
+                  lastModifiedBy:
+                    type: string
+                    description: Last modifier user ID
+              additionalDetails:
+                type: object
+                description: Additional details and filters
+
+    CreateDataRequest:
+      type: object
+      required:
+        - RequestInfo
+        - ResourceDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ResourceDetails:
+          type: object
+          required:
+            - type
+            - tenantId
+            - fileStoreId
+            - action
+            - hierarchyType
+          properties:
+            type:
+              type: string
+              enum: [boundary, facility, user, boundaryWithTarget, boundaryManagement, boundaryGeometryManagement]
+              description: Type of resource to create
+            tenantId:
+              type: string
+              minLength: 1
+              maxLength: 128
+              description: Tenant identifier
+            fileStoreId:
+              type: string
+              minLength: 1
+              maxLength: 128
+              description: Uploaded file's filestore ID
+            action:
+              type: string
+              enum: [create, validate]
+              description: Action to perform (create or validate)
+            hierarchyType:
+              type: string
+              minLength: 1
+              maxLength: 128
+              description: Boundary hierarchy type
+            campaignId:
+              type: string
+              minLength: 1
+              maxLength: 128
+              description: Campaign identifier
+            additionalDetails:
+              type: object
+              description: Additional processing parameters
+            isActive:
+              type: boolean
+              description: Whether the resource is active
+
+    CreateDataResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Resource ID
+            type:
+              type: string
+              description: Resource type
+            tenantId:
+              type: string
+              description: Tenant identifier
+            fileStoreId:
+              type: string
+              description: Filestore ID
+            action:
+              type: string
+              description: Action performed
+            hierarchyType:
+              type: string
+              description: Hierarchy type
+            campaignId:
+              type: string
+              description: Campaign identifier
+            status:
+              type: string
+              description: Processing status
+            isActive:
+              type: boolean
+              description: Whether resource is active
+            auditDetails:
+              type: object
+              description: Audit information
+            additionalDetails:
+              type: object
+              description: Additional details
+
+    SearchDataRequest:
+      type: object
+      required:
+        - RequestInfo
+        - SearchCriteria
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SearchCriteria:
+          type: object
+          properties:
+            type:
+              type: string
+            tenantId:
+              type: string
+
+    SearchDataResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Resource ID
+            type:
+              type: string
+              description: Resource type
+            tenantId:
+              type: string
+              description: Tenant identifier
+            status:
+              type: string
+              description: Processing status
+            additionalDetails:
+              type: object
+              description: Additional details
+
+    SearchCampaignDataRequest:
+      type: object
+      required:
+        - RequestInfo
+        - SearchCriteria
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SearchCriteria:
+          type: object
+          required:
+            - tenantId
+          properties:
+            tenantId:
+              type: string
+              description: Tenant identifier (required)
+            type:
+              type: string
+              description: Campaign data type
+            campaignNumber:
+              type: string
+              description: Campaign number
+            status:
+              type: string
+              description: Status filter
+            uniqueIdentifiers:
+              type: array
+              items:
+                type: string
+              description: Array of unique identifiers to search for
+        Pagination:
+          type: object
+          properties:
+            offset:
+              type: integer
+              minimum: 0
+              default: 0
+              description: Number of records to skip
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 1000
+              default: 100
+              description: Maximum number of records to return
+
+    SearchCampaignDataResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        CampaignData:
+          type: array
+          items:
+            type: object
+          description: Array of campaign data records
+        TotalCount:
+          type: integer
+          description: Total number of records found
+        Pagination:
+          type: object
+          properties:
+            offset:
+              type: integer
+            limit:
+              type: integer
+          description: Pagination information
+
+    SearchMappingDataRequest:
+      type: object
+      required:
+        - RequestInfo
+        - SearchCriteria
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SearchCriteria:
+          type: object
+          required:
+            - tenantId
+          properties:
+            tenantId:
+              type: string
+              description: Tenant identifier (required)
+            type:
+              type: string
+              description: Mapping data type
+            campaignNumber:
+              type: string
+              description: Campaign number
+            status:
+              type: string
+              description: Status filter
+            boundaryCode:
+              type: string
+              description: Boundary code filter
+            uniqueIdentifierForData:
+              type: string
+              description: Unique identifier for data mapping
+        Pagination:
+          type: object
+          properties:
+            offset:
+              type: integer
+              minimum: 0
+              default: 0
+              description: Number of records to skip
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 1000
+              default: 100
+              description: Maximum number of records to return
+
+    SearchMappingDataResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        MappingData:
+          type: array
+          items:
+            type: object
+          description: Array of mapping data records
+        TotalCount:
+          type: integer
+          description: Total number of records found
+        Pagination:
+          type: object
+          properties:
+            offset:
+              type: integer
+            limit:
+              type: integer
+          description: Pagination information
+
+    # =======================
+    # SHEET MANAGEMENT SCHEMAS (V2)
+    # =======================
+    GenerateSheetRequest:
+      type: object
+      required:
+        - RequestInfo
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+
+    GenerateSheetResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        GeneratedResource:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Generation request ID
+            tenantId:
+              type: string
+              description: Tenant identifier
+            type:
+              type: string
+              description: Template type generated
+            hierarchyType:
+              type: string
+              description: Boundary hierarchy type
+            campaignId:
+              type: string
+              description: Campaign identifier
+            locale:
+              type: string
+              description: Locale used for generation
+            status:
+              type: string
+              enum: [inprogress, completed, failed, expired]
+              description: Generation status
+            additionalDetails:
+              type: object
+              description: Additional configuration details
+            auditDetails:
+              type: object
+              properties:
+                createdTime:
+                  type: integer
+                  format: int64
+                  description: Creation timestamp
+                lastModifiedTime:
+                  type: integer
+                  format: int64
+                  description: Last modification timestamp
+                createdBy:
+                  type: string
+                  description: Creator user UUID
+                lastModifiedBy:
+                  type: string
+                  description: Last modifier user UUID
+
+    ResourceDetails:
+      type: object
+      required:
+        - type
+        - hierarchyType
+        - tenantId
+        - fileStoreId
+        - campaignId
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: Resource type (user, facility, boundary)
+        hierarchyType:
+          type: string
+          minLength: 1
+          description: Boundary hierarchy type
+        tenantId:
+          type: string
+          minLength: 1
+          description: Tenant identifier
+        fileStoreId:
+          type: string
+          minLength: 1
+          description: Uploaded file's filestore ID
+        campaignId:
+          type: string
+          minLength: 1
+          description: Campaign identifier
+        additionalDetails:
+          type: object
+          description: Additional processing parameters
+        status:
+          type: string
+          description: Processing status
+
+    ProcessSheetRequest:
+      type: object
+      required:
+        - RequestInfo
+        - ResourceDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ResourceDetails'
+
+    ProcessSheetResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          allOf:
+            - $ref: '#/components/schemas/ResourceDetails'
+            - type: object
+              properties:
+                id:
+                  type: string
+                  description: Processing request ID
+                locale:
+                  type: string
+                  description: Locale used for processing
+                status:
+                  type: string
+                  enum: [inprogress, completed, failed]
+                  description: Processing status
+                additionalDetails:
+                  type: object
+                  description: Additional processing details
+                auditDetails:
+                  type: object
+                  properties:
+                    createdTime:
+                      type: integer
+                      format: int64
+                    lastModifiedTime:
+                      type: integer
+                      format: int64
+                    createdBy:
+                      type: string
+                    lastModifiedBy:
+                      type: string
+                processedFileStoreId:
+                  type: string
+                  nullable: true
+                  description: Processed file store ID
+                action:
+                  type: string
+                  enum: [process]
+                  description: Action performed
+
+    ProcessSheetAnyRequest:
+      type: object
+      required:
+        - RequestInfo
+        - ResourceDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ResourceDetails'
+
+    ProcessSheetAnyResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          allOf:
+            - $ref: '#/components/schemas/ResourceDetails'
+            - type: object
+              properties:
+                id:
+                  type: string
+                  description: Processing request ID
+                locale:
+                  type: string
+                  description: Locale used for processing
+                status:
+                  type: string
+                  enum: [inprogress, completed, failed]
+                  description: Processing status
+                additionalDetails:
+                  type: object
+                  description: Additional processing details
+                auditDetails:
+                  type: object
+                  properties:
+                    createdTime:
+                      type: integer
+                      format: int64
+                    lastModifiedTime:
+                      type: integer
+                      format: int64
+                    createdBy:
+                      type: string
+                    lastModifiedBy:
+                      type: string
+                processedFileStoreId:
+                  type: string
+                  nullable: true
+                  description: Processed file store ID
+                action:
+                  type: string
+                  enum: [process]
+                  description: Action performed
+
+    # =======================
+    # CRYPTO SCHEMAS
+    # =======================
+    BulkDecryptRequest:
+      type: object
+      required:
+        - encryptedStrings
+      properties:
+        encryptedStrings:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 500
+          description: Array of encrypted strings to decrypt
+
+    BulkDecryptResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        decryptedStrings:
+          type: array
+          items:
+            type: string
+          description: Array of decrypted strings in same order as input
+
+  responses:
+    BadRequest:
+      description: Bad Request - Invalid input parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ResponseInfo:
+                $ref: '#/components/schemas/ResponseInfo'
+              Errors:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ErrorInfo'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ResponseInfo:
+                $ref: '#/components/schemas/ResponseInfo'
+              Errors:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ErrorInfo'
+
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ResponseInfo:
+                $ref: '#/components/schemas/ResponseInfo'
+              Errors:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ErrorInfo'

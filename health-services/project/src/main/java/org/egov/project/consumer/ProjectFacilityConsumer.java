@@ -2,6 +2,7 @@ package org.egov.project.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.project.service.ProjectFacilityService;
@@ -34,7 +35,7 @@ public class ProjectFacilityConsumer {
             ProjectFacilityBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectFacilityBulkRequest.class);
             return service.create(request, true);
         } catch (Exception exception) {
-            log.error("error in project facility consumer bulk create", exception);
+            log.error("error in project facility consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -46,7 +47,7 @@ public class ProjectFacilityConsumer {
             ProjectFacilityBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectFacilityBulkRequest.class);
             return service.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project facility consumer bulk update", exception);
+            log.error("error in project facility consumer bulk update", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -58,7 +59,7 @@ public class ProjectFacilityConsumer {
             ProjectFacilityBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectFacilityBulkRequest.class);
             return service.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project facility consumer bulk delete", exception);
+            log.error("error in project facility consumer bulk delete", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

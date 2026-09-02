@@ -1,0 +1,29 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
+import { httpRequest } from "../utils/request";
+import config from "../config";
+import { throwError } from "../utils/genericUtils";
+import { logger } from "../utils/logger";
+
+/** Fetches product variants by id from the product service, chunked to stay within the search batch size. */
+export async function fetchProductVariants(pvarIds: string[], tenantId?: string, requestInfo?: RequestInfo) {
+    const CHUNK_SIZE = config.productVariant.searchBatchSize;
+    const allProductVariants: any[] = [];
+    const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: tenantId };
+
+    for (let i = 0; i < pvarIds.length; i += CHUNK_SIZE) {
+        const chunk = pvarIds.slice(i, i + CHUNK_SIZE);
+        try {
+            const response = await httpRequest(
+                config.host.productHost + config.paths.productVariantSearch,
+                { ProductVariant: { id: chunk }, RequestInfo: requestInfo },
+                params
+            );
+            allProductVariants.push(...response?.ProductVariant || []);
+        } catch (error: any) {
+            logger.error("Error during product variant fetch");
+            throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occurred while fetching product variants. ${error?.message}`);
+        }
+    }
+
+    return allProductVariants;
+}

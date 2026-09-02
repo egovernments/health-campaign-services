@@ -147,5 +147,6 @@ public class PGRConstants {
 
     public static final String DEPARTMENT = "department";
 
+    public static final String INVALID_TENANT_ID_ERR_CODE = "INVALID_TENANT_ID";
 
 }

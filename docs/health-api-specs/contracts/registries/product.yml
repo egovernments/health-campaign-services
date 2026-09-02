@@ -311,13 +311,19 @@ definitions:
         description: Define the type of product
         example: 'DRUG'
       name:
-        type: string
+        type: array
+        items:
+          type: string
+          example: Paracetamol
         description: Capture name of the product
-        example: Paracetamol
+
       manufacturer:
-        type: string
+        type: array
+        items:
+          type: string
+          example: 'J&J'
         description: Capture manufacturer of product
-        example: 'J&J'
+
 
   ProductVariant:
     type: object
@@ -368,9 +374,11 @@ definitions:
       id:
         $ref: '#/definitions/idForSearch'
       productId:
-        type: string
-        minLength: 2
-        maxLength: 64
+        type: array
+        items:
+          type: string
+          minLength: 2
+          maxLength: 64
         description: Product for which this variant is being created
       sku:
         type: string
