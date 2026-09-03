@@ -250,8 +250,8 @@ def search_entries(group=None):
     optionally filtered to the group. Same call shape as the platform's
     fetch_campaigns_from_mdms."""
     # MDMS_SEARCH_ENDPOINT still wins when set explicitly (existing deployments)
-    url = _base_url() + os.getenv("MDMS_SEARCH_ENDPOINT",
-                                  _api_prefix() + "/_search")
+    endpoint = os.getenv("MDMS_SEARCH_ENDPOINT", _api_prefix() + "/_search")
+    url = _base_url() + "/" + endpoint.lstrip("/")
     limit = int(os.getenv("MDMS_LIMIT", "500"))
     entries, offset = [], 0
     while True:
