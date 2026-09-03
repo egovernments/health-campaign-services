@@ -29,13 +29,20 @@ def _get_producer():
         return _producer
     broker = os.getenv("KAFKA_BROKER", "").strip()
     if not broker:
+        # Was a SILENT return - an empty/absent KAFKA_BROKER looked identical in
+        # the logs to a healthy run, so mdms-mode history quietly fell back to
+        # the sheet with no clue why. Say it plainly.
+        log.warning("[kafka] KAFKA_BROKER is not set - run events cannot be "
+                    "published; history falls back to the Run Log tab")
         _producer_init_failed = True
         return None
+    log.info(f"[kafka] connecting to broker {broker} ...")
     try:
         from kafka import KafkaProducer
         _producer = KafkaProducer(
             bootstrap_servers=broker,
             value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"))
+        log.info(f"[kafka] producer connected to {broker}")
     except Exception:
         log.exception("[kafka] producer init failed — run events will be skipped")
         _producer_init_failed = True
