@@ -91,17 +91,22 @@ def dst_config_sync():
 
         if counts and counts.get("skip_deactivation"):
             send_slack_warning(
-                f"DST CONFIG SYNC [{group['name']}]: the sheet tab read back EMPTY, "
-                f"so deactivation was skipped. Campaigns removed from the sheet are "
-                f"still ACTIVE in MDMS and will keep producing reports.",
+                f"*Config sync — nothing deactivated* · {group['name']}\n"
+                f"The sheet tab read back EMPTY, so deactivation was skipped as a "
+                f"safety measure. Campaigns removed from the sheet are still active "
+                f"in MDMS and will keep producing reports until the next good read.",
                 group_name=group["name"])
         if counts is None:
             log.info(f"[{group['name']}] MDMS_URL not set — nothing to sync")
         elif counts.get("rejected"):
-            details = "\n".join(counts.get("rejected_details", []))
+            # one bullet per rejected row: "campaign — reason", readable at a glance
+            details = "\n".join(
+                f"  - {d}" for d in counts.get("rejected_details", []))
+            n = counts["rejected"]
             send_slack_warning(
-                f"DST CONFIG SYNC [{group['name']}]: {counts['rejected']} sheet "
-                f"row(s) REJECTED and not synced to MDMS - fix the sheet:\n{details}")
+                f"*Config sync — {n} row(s) rejected* · {group['name']}\n"
+                f"These rows did not sync to MDMS and need a fix on the sheet:\n"
+                f"{details}")
         return counts
 
     sync_group_to_mdms.expand(group=list_groups())

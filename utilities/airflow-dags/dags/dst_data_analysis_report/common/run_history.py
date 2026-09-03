@@ -145,14 +145,17 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
         where = " ".join(x for x in (conf.get("slot_date", ""),
                                      conf.get("slot_time", "")) if x)
         day_part = f" / Day {day}" if day else ""
+        # Slack mrkdwn: a scannable structure (bold headers, one issue per line)
+        # reads better than a run-on paragraph when triaging several at once.
+        state = conf.get("state_name", "?")
+        head = f"{campaign}" + (f" · Day {day}" if day else "")
         send_slack_warning(
-            f"DST REPORT INCOMPLETE — {conf.get('state_name', '?')} / "
-            f"{campaign}{day_part}\n"
-            f"Slot {where} ({mode}). The report WAS published and sent, but it is "
-            f"missing data:\n"
-            f"{problems}\n"
-            f"Action: review the report before sharing it with partners, then fix "
-            f"the cause above and re-run the slot if the numbers matter.",
+            f"*Report incomplete* — {state} · {head}\n"
+            f"Slot {where} ({mode}) — published and sent, but missing data.\n"
+            f"\n*What is missing*\n{problems}\n"
+            f"\n*Before you share it*\n"
+            f"Review the report, fix the cause above, then re-run the slot if the "
+            f"numbers matter.",
             group_name=(group or {}).get("name", ""))
 
     published = False
