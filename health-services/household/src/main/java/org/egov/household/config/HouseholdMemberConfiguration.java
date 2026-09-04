@@ -45,4 +45,23 @@ public class HouseholdMemberConfiguration {
     // Default FALSE = disabled (validators off) — chosen for the unified-dev rollout test; set true to enforce.
     @Value("${household.member.relationship.validation:false}")
     private boolean householdMemberRelationshipValidation;
+
+    // BACKWARD COMPATIBILITY GATES. All default FALSE = pre-existing (old-client) behaviour.
+    // Set true only once every field build in scope is known to satisfy the rule.
+
+    // Gates the head-of-household rules ADDED after the old baseline: HOUSEHOLD_DOES_NOT_HAVE_A_HEAD,
+    // HOUSEHOLD_HAS_MORE_THAN_ONE_HEAD and HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED. The original
+    // HOUSEHOLD_ALREADY_HAS_HEAD protection is NOT gated - it existed before and stays always on.
+    @Value("${household.member.head.strict.validation:false}")
+    private boolean householdMemberHeadStrictValidation;
+
+    // Gates HmRelationshipTypeValidator at the predicate. Predicate-level (rather than in-validator) gating is
+    // deliberate: it also removes the unconditional MDMS round-trip and the whole-batch throw when the
+    // HOUSEHOLD_MEMBER_RELATIONSHIP_TYPES master is absent.
+    @Value("${household.member.relationship.type.validation:false}")
+    private boolean householdMemberRelationshipTypeValidation;
+
+    // Gates HmRequiredLinkValidator (REQUIRED_LINK_MISSING on create). Old service accepted link-less members.
+    @Value("${household.member.required.link.validation:false}")
+    private boolean householdMemberRequiredLinkValidation;
 }

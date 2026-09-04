@@ -16,6 +16,7 @@ import org.egov.referralmanagement.web.models.DownsyncFileLink;
 import org.egov.referralmanagement.web.models.PregenDownsyncResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
@@ -91,6 +92,10 @@ public class BeneficiaryDownsyncController {
                         .createResponseInfo(request.getRequestInfo(), true))
                 .build();
 
-        return ResponseEntity.ok(response);
+        // The old service returned 202 ACCEPTED here; the pregen rewrite changed it to 200 OK, which breaks
+        // any client asserting the exact status. Default restores 202; set the property false to emit 200.
+        return config.isDownsyncAcceptedStatus()
+                ? ResponseEntity.status(HttpStatus.ACCEPTED).body(response)
+                : ResponseEntity.ok(response);
     }
 }

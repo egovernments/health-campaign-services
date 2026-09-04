@@ -22,7 +22,11 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
  * (flags off), an enrollment saved without any beneficiary (household/individual) link is an
  * orphan that can never be traced back, and one without its own clientReferenceId is accepted
  * by the API but violates the DB NOT NULL later. Presence is enforced even though the referenced
- * entity is allowed to not exist yet. Always on: structural, not an existence check.
+ * entity is allowed to not exist yet. Structural, not an existence check, so it is not covered
+ * by project.relationship.validation; it is gated separately by
+ * project.required.link.validation, which defaults to false because the old service accepted
+ * link-less enrollments and rejecting them now would silently discard those writes behind the
+ * 202 the bulk endpoint has already returned.
  */
 @Component
 @Order(value = 1)

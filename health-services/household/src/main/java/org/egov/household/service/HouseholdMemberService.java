@@ -67,6 +67,15 @@ public class HouseholdMemberService {
         return householdMemberConfiguration.isHouseholdMemberRelationshipValidation();
     }
 
+    // Backward-compatibility gates; same live-read pattern as above. All default false = old behaviour.
+    private boolean relationshipTypeValidationEnabled() {
+        return householdMemberConfiguration.isHouseholdMemberRelationshipTypeValidation();
+    }
+
+    private boolean requiredLinkValidationEnabled() {
+        return householdMemberConfiguration.isHouseholdMemberRequiredLinkValidation();
+    }
+
     private final ServiceRequestClient serviceRequestClient;
     
     private final HouseholdMemberEnrichmentService householdMemberEnrichmentService;
@@ -82,16 +91,16 @@ public class HouseholdMemberService {
                     || (relationshipValidationEnabled() && validator.getClass().equals(HmHouseholdValidator.class))
                     || (relationshipValidationEnabled() && validator.getClass().equals(HmIndividualValidator.class))
                     || validator.getClass().equals(HmHouseholdHeadValidator.class)
-                    || validator.getClass().equals(HmRelationshipTypeValidator.class)
+                    || (relationshipTypeValidationEnabled() && validator.getClass().equals(HmRelationshipTypeValidator.class))
                     || validator.getClass().equals(HmRelativeExistentValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
-            validator.getClass().equals(HmRequiredLinkValidator.class) ||
+            (requiredLinkValidationEnabled() && validator.getClass().equals(HmRequiredLinkValidator.class)) ||
             (relationshipValidationEnabled() && validator.getClass().equals(HmHouseholdValidator.class))
                     || validator.getClass().equals(HmExistentEntityValidator.class)
                     || validator.getClass().equals(HmUniqueIndividualValidator.class)
                     || validator.getClass().equals(HmHouseholdHeadValidator.class)
-                    || validator.getClass().equals(HmRelationshipTypeValidator.class)
+                    || (relationshipTypeValidationEnabled() && validator.getClass().equals(HmRelationshipTypeValidator.class))
                     || validator.getClass().equals(HmRelativeExistentValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForDelete = validator ->

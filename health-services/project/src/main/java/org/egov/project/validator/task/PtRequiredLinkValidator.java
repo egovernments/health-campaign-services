@@ -22,7 +22,11 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
  * saved without any beneficiary link is an orphan delivery that can never be traced back to a
  * person, and a task without its own clientReferenceId is accepted by the API but violates the
  * DB NOT NULL later. Presence of the links is therefore enforced even though the referenced
- * beneficiary is allowed to not exist yet. Always on: structural, not an existence check.
+ * beneficiary is allowed to not exist yet. Structural, not an existence check, so it is not
+ * covered by project.relationship.validation; it is gated separately by
+ * project.required.link.validation, which defaults to false because the old service accepted
+ * link-less tasks and rejecting them now would silently discard those writes behind the 202
+ * the bulk endpoint has already returned.
  */
 @Component
 @Order(value = 1)

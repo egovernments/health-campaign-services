@@ -1,12 +1,14 @@
 package org.egov.household.household.member.validators;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
+import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
@@ -14,7 +16,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,7 +36,6 @@ import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
 import static org.egov.household.Constants.HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD;
 import static org.egov.household.Constants.HOUSEHOLD_ID_FIELD;
 import static org.egov.household.Constants.ID_FIELD;
-import static org.egov.household.utils.CommonUtils.getHouseholdColumnName;
 
 @Component
 @Order(9)
@@ -41,8 +44,12 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
 
     private final HouseholdMemberRepository householdMemberRepository;
 
-    public HmHouseholdHeadValidator(HouseholdMemberRepository householdMemberRepository) {
+    private final HouseholdMemberConfiguration householdMemberConfiguration;
+
+    public HmHouseholdHeadValidator(HouseholdMemberRepository householdMemberRepository,
+                                    HouseholdMemberConfiguration householdMemberConfiguration) {
         this.householdMemberRepository = householdMemberRepository;
+        this.householdMemberConfiguration = householdMemberConfiguration;
     }
 
     @Override
@@ -54,28 +61,48 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
         if(!householdMembers.isEmpty()){
             String tenantId = CommonUtils.getTenantId(householdMembers);
             Method householdMemberidMethod = getIdMethod(householdMembers, ID_FIELD, CLIENT_REFERENCE_ID_FIELD);
-            Method householdIdMethod = getIdMethod(householdMembers, HOUSEHOLD_ID_FIELD, HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD);
-            String householdColumnName = getHouseholdColumnName(householdIdMethod);
-            Map<String, List<HouseholdMember>> householdIdHouseholdMemberMap = householdMembers.stream()
-                            .collect(Collectors.groupingBy(
-                                    householdMember ->
-                                            (String) ReflectionUtils.invokeMethod(householdIdMethod, householdMember)
-                            ));
-            householdIdHouseholdMemberMap.forEach((householdId, householdMembersInHousehold) -> {
-                validateHeadOfHousehold(tenantId,householdId,householdMemberidMethod, householdColumnName, errorDetailsMap, householdMembersInHousehold);
-            });
+            boolean strictHeadValidation = householdMemberConfiguration.isHouseholdMemberHeadStrictValidation();
+
+            // Group per member by whichever parent key that member actually carries. Previously a single
+            // accessor was chosen for the whole batch from an arbitrary element, so a mixed batch (some
+            // members carrying only householdId, others only householdClientReferenceId) produced a null
+            // grouping key and threw NullPointerException("element cannot be mapped to a null key") out of
+            // validate(), discarding the entire batch. Members carrying neither key are skipped here;
+            // HmRequiredLinkValidator reports them when it is enabled.
+            Map<String, List<HouseholdMember>> membersByHouseholdId = new LinkedHashMap<>();
+            Map<String, List<HouseholdMember>> membersByHouseholdClientReferenceId = new LinkedHashMap<>();
+            for (HouseholdMember householdMember : householdMembers) {
+                if (StringUtils.isNotBlank(householdMember.getHouseholdId())) {
+                    membersByHouseholdId
+                            .computeIfAbsent(householdMember.getHouseholdId(), key -> new ArrayList<>())
+                            .add(householdMember);
+                } else if (StringUtils.isNotBlank(householdMember.getHouseholdClientReferenceId())) {
+                    membersByHouseholdClientReferenceId
+                            .computeIfAbsent(householdMember.getHouseholdClientReferenceId(), key -> new ArrayList<>())
+                            .add(householdMember);
+                }
+            }
+
+            membersByHouseholdId.forEach((householdId, householdMembersInHousehold) ->
+                    validateHeadOfHousehold(tenantId, householdId, householdMemberidMethod, HOUSEHOLD_ID_FIELD,
+                            errorDetailsMap, householdMembersInHousehold, strictHeadValidation));
+            membersByHouseholdClientReferenceId.forEach((householdClientReferenceId, householdMembersInHousehold) ->
+                    validateHeadOfHousehold(tenantId, householdClientReferenceId, householdMemberidMethod,
+                            HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD, errorDetailsMap, householdMembersInHousehold,
+                            strictHeadValidation));
         }
         log.debug("household member Head validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 
     private void validateHeadOfHousehold(String tenantId, String householdId, Method householdMemberidMethod, String householdColumnName,
-                                         HashMap<HouseholdMember, List<Error>> errorDetailsMap, List<HouseholdMember> householdMembersRequest) {
+                                         HashMap<HouseholdMember, List<Error>> errorDetailsMap, List<HouseholdMember> householdMembersRequest,
+                                         boolean strictHeadValidation) {
         log.debug("validating if household already has a head");
         List<HouseholdMember> requestHouseholdHead = householdMembersRequest.stream().filter(HouseholdMember::getIsHeadOfHousehold).toList();
 
-        // Validates if a household has more than 1 heads
-        if(requestHouseholdHead.size() > 1) {
+        // Validates if a household has more than 1 heads (gated: rule added after the old baseline)
+        if(strictHeadValidation && requestHouseholdHead.size() > 1) {
             householdMembersRequest.forEach(householdMember -> {
                 Error error = Error.builder().errorMessage(HOUSEHOLD_HAS_MORE_THAN_ONE_HEAD_MESSAGE)
                         .errorCode(HOUSEHOLD_HAS_MORE_THAN_ONE_HEAD)
@@ -93,8 +120,10 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                     .findIndividualByHousehold(tenantId, householdId, householdColumnName).getResponse()
                     .stream().filter(HouseholdMember::getIsHeadOfHousehold).toList();
 
-            // Validates if a household doesn't have a head
-            if(requestHouseholdHead.isEmpty() && existingHouseholdHead.isEmpty()) {
+            // Validates if a household doesn't have a head (gated: rule added after the old baseline).
+            // With the gate off, a member whose household head is still on the persister queue - or whose
+            // household legitimately has no head - is accepted, as it was before.
+            if(strictHeadValidation && requestHouseholdHead.isEmpty() && existingHouseholdHead.isEmpty()) {
                 householdMembersRequest.forEach(householdMember -> {
                     Error error = Error.builder().errorMessage(HOUSEHOLD_DOES_NOT_HAVE_A_HEAD_MESSAGE)
                             .errorCode(HOUSEHOLD_DOES_NOT_HAVE_A_HEAD)
@@ -108,8 +137,8 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                 return;
             }
 
-            // Validate if household head is removed
-            if(requestHouseholdHead.isEmpty()) {
+            // Validate if household head is removed (gated: rule added after the old baseline)
+            if(strictHeadValidation && requestHouseholdHead.isEmpty() && !existingHouseholdHead.isEmpty()) {
                 HouseholdMember existingHead = existingHouseholdHead.get(0);
                 String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existingHead);
                 Optional<HouseholdMember> unassignedHouseholdHead = householdMembersRequest.stream().filter(householdMember ->

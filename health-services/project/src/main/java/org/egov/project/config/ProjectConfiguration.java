@@ -232,6 +232,13 @@ public class ProjectConfiguration {
     @Value("${project.relationship.validation:false}")
     private Boolean isRelationshipValidationEnabled;
 
+    // BACKWARD COMPATIBILITY GATE. Default FALSE = pre-existing (old-client) behaviour.
+    // Gates PtRequiredLinkValidator / PbRequiredLinkValidator (REQUIRED_LINK_MISSING on create). The old
+    // service accepted and persisted tasks/beneficiaries with no parent link; on bulk sync a rejection is
+    // dropped to the error queue behind an already-returned 202, so it is invisible to the client.
+    @Value("${project.required.link.validation:false}")
+    private Boolean isRequiredLinkValidationEnabled;
+
     @Value("${project.create.cache.key}")
     private String projectCacheKey;
 

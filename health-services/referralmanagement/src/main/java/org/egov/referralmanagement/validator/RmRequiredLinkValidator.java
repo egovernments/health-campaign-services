@@ -22,7 +22,11 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
  * referral saved without any beneficiary link is an orphan that can never be traced back to a
  * person, and one without its own clientReferenceId is accepted by the API but violates the DB
  * NOT NULL later. Presence is enforced even though the referenced beneficiary is allowed to not
- * exist yet. Always on: structural, not an existence check.
+ * exist yet. Structural, not an existence check, so it is not covered by
+ * referralmanagement.relationship.validation; it is gated separately by
+ * referralmanagement.required.link.validation, which defaults to false because the old service
+ * accepted standalone referrals and rejecting them now would silently discard those writes
+ * behind the 202 the bulk endpoint has already returned.
  */
 @Component
 @Order(value = 1)

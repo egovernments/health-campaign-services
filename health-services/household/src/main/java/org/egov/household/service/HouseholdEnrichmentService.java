@@ -3,6 +3,7 @@ package org.egov.household.service;
 import org.egov.common.contract.models.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Address;
+import org.egov.common.models.household.HouseHoldType;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.service.IdGenService;
@@ -37,6 +38,8 @@ public class HouseholdEnrichmentService {
     public void create(List<Household> households, HouseholdBulkRequest request) throws Exception {
         log.info("starting create method for households");
 
+        defaultHouseholdType(households);
+
         log.info("generating IDs for households using IdGenService");
         List<String> idList =  idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(households),
@@ -55,6 +58,23 @@ public class HouseholdEnrichmentService {
             enrichId(addresses, ids);
         }
         log.info("completed create method for households");
+    }
+
+    /**
+     * Defaults a null householdType to FAMILY on create.
+     * <p>
+     * household.householdtype is DEFAULT 'FAMILY' NOT NULL (migration V20241114114225), but
+     * household-persister.yml names the column in its INSERT, so the DB default never applies: a null
+     * binds SQL NULL and fails 23502 inside the persister, behind a 202 the bulk endpoint has already
+     * returned, silently losing the record.
+     * <p>
+     * Create only. On update HHouseholdTypeChangeValidator rejects a null householdType before
+     * enrichment runs, so defaulting there would be unreachable.
+     */
+    private void defaultHouseholdType(List<Household> households) {
+        households.stream()
+                .filter(household -> Objects.isNull(household.getHouseholdType()))
+                .forEach(household -> household.setHouseholdType(HouseHoldType.FAMILY));
     }
 
     public void update(List<Household> households, HouseholdBulkRequest request) {

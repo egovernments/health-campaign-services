@@ -86,12 +86,27 @@ set together (shared-lib bump below).
 ### Cross-entity validation "unbundled" — default OFF (behaviour change)
 
 Create/update no longer synchronously reject on a **missing parent** by default (offline-first);
-structural/uniqueness/link checks still run. Toggle per service (read **live**, no restart):
+structural/uniqueness checks still run; the required-**link** presence checks are now gated by
+their own separate flags and also default OFF. Toggle per service — note that **every** flag below
+requires a **pod restart** to take effect. (An earlier version of this line said "read live, no
+restart". That is wrong for all of them: they are plain `@Value`-injected fields and `@RefreshScope`
+appears nowhere in `health-services`, so nothing rebinds them at runtime.)
 
 - `household.member.relationship.validation=false`
 - `project.relationship.validation=false`
 - `referralmanagement.relationship.validation=false`
 - `individual.beneficiary.id.validation.enabled=false`
+
+Backward-compatibility gates added 2026-09-03 (all default to the OLD, pre-2.1 behaviour). Same
+restart requirement as the flags above:
+
+- `household.member.head.strict.validation=false`
+- `household.member.relationship.type.validation=false`
+- `household.member.required.link.validation=false`
+- `project.required.link.validation=false`
+- `referralmanagement.required.link.validation=false`
+- `referralmanagement.downsync.accepted.status=true` (restores `202 ACCEPTED` on downsync; set
+  `false` to emit `200 OK`)
 
 > **Action:** if an environment relies on synchronous parent-existence rejection, set the
 > relevant flag(s) to `true`. With the default (OFF), e.g. `INDIVIDUAL_NOT_FOUND` on member

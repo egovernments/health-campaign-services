@@ -27,7 +27,11 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
  *  - a household link (householdId or householdClientReferenceId) must be present,
  *  - an individual link (individualId or individualClientReferenceId) must be present
  *    (records missing either link were silently dropped in the pipeline).
- * Always on: this is a structural check, not an existence check.
+ * This is a structural check, not an existence check, so it is not covered by
+ * household.member.relationship.validation. It is gated separately by
+ * household.member.required.link.validation, which defaults to false because the old service
+ * accepted link-less members and rejecting them now would silently discard those writes behind
+ * the 202 the bulk endpoint has already returned.
  */
 @Component
 @Order(value = 1)

@@ -63,12 +63,17 @@ public class SideEffectService {
         return referralManagementConfiguration.isRelationshipValidation();
     }
 
+    // Backward-compatibility gate; same live-read pattern. Default false = old behaviour.
+    private boolean requiredLinkValidationEnabled() {
+        return referralManagementConfiguration.isRequiredLinkValidation();
+    }
+
     private final SideEffectEnrichmentService sideEffectEnrichmentService;
 
     private final List<Validator<SideEffectBulkRequest, SideEffect>> validators;
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForCreate = validator ->
-            validator.getClass().equals(SeRequiredLinkValidator.class)
+            (requiredLinkValidationEnabled() && validator.getClass().equals(SeRequiredLinkValidator.class))
                 || (relationshipValidationEnabled() && validator.getClass().equals(SeProjectTaskIdValidator.class))
                 || validator.getClass().equals(SeExistentEntityValidator.class)
                 || (relationshipValidationEnabled() && validator.getClass().equals(SeProjectBeneficiaryIdValidator.class));

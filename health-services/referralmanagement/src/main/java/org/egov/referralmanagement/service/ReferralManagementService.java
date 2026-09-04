@@ -67,12 +67,17 @@ public class ReferralManagementService {
         return referralManagementConfiguration.isRelationshipValidation();
     }
 
+    // Backward-compatibility gate; same live-read pattern. Default false = old behaviour.
+    private boolean requiredLinkValidationEnabled() {
+        return referralManagementConfiguration.isRequiredLinkValidation();
+    }
+
     private final ReferralManagementEnrichmentService referralManagementEnrichmentService;
 
     private final List<Validator<ReferralBulkRequest, Referral>> validators;
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForCreate = validator ->
-            validator.getClass().equals(RmRequiredLinkValidator.class) ||
+            (requiredLinkValidationEnabled() && validator.getClass().equals(RmRequiredLinkValidator.class)) ||
             (relationshipValidationEnabled() && validator.getClass().equals(RmProjectBeneficiaryIdValidator.class))
                 || (relationshipValidationEnabled() && validator.getClass().equals(RmProjectIdValidator.class))
                 || validator.getClass().equals(RmExistentEntityValidator.class)

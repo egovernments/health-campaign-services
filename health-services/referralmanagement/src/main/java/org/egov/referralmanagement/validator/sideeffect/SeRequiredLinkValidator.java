@@ -23,7 +23,12 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
  * delivery/beneficiary, and one without its own clientReferenceId is accepted by the API but
  * violates the DB NOT NULL later. Presence of the parent-task link (taskId or
  * taskClientReferenceId) is enforced even though the referenced task is allowed to not exist yet.
- * Always on: structural, not an existence check. Mirrors Hm/Pt/Pb/RmRequiredLinkValidator.
+ * Structural, not an existence check, so it is not covered by
+ * referralmanagement.relationship.validation; it is gated separately by the same
+ * referralmanagement.required.link.validation flag as RmRequiredLinkValidator, which defaults to
+ * false because the old service accepted standalone side-effects and rejecting them now would
+ * silently discard those writes behind the 202 the bulk endpoint has already returned.
+ * Mirrors Hm/Pt/Pb/RmRequiredLinkValidator.
  */
 @Component
 @Order(value = 1)

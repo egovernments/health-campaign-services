@@ -2,6 +2,12 @@
 
 All notable changes to this module will be documented in this file.
 
+## Unreleased - 2026-09-03
+
+Backward-compatibility change set. Every new gate defaults to the OLD behaviour.
+
+- Added `project.required.link.validation` (default `false`). Gates `PtRequiredLinkValidator` and `PbRequiredLinkValidator`, which were previously unconditional. **Corrects the 1.2.4 entry below, which described them as always on regardless of the relationship-validation flag — they are now gated by this separate flag.**
+
 ## 1.2.4 - 2026-07-20
 
 - Cross-entity existence validation is now gated behind a new config flag `project.relationship.validation` (default `false` = disabled) for the task and beneficiary create/update chains, so records referencing a not-yet-persisted parent are accepted (offline-first / persister-queue-tolerant). Set `true` to enforce (`PtProjectIdValidator`, `PtProductVariantIdValidator`, `PtProjectBeneficiaryIdValidator` DB lookup, `PbProjectIdValidator`, `BeneficiaryValidator`).

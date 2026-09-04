@@ -77,10 +77,15 @@ public class ProjectTaskService {
         return projectConfiguration.getIsRelationshipValidationEnabled();
     }
 
+    // Backward-compatibility gate; same live-read pattern. Default false = old behaviour.
+    private boolean requiredLinkValidationEnabled() {
+        return projectConfiguration.getIsRequiredLinkValidationEnabled();
+    }
+
     private final ProjectTaskEnrichmentService enrichmentService;
     //                    || validator.getClass().equals(PtResourceQuantityValidator.class) FIXME add this back once requirement confirmation is done
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PtRequiredLinkValidator.class) ||
+            (requiredLinkValidationEnabled() && validator.getClass().equals(PtRequiredLinkValidator.class)) ||
             (relationshipValidationEnabled() && validator.getClass().equals(PtProjectIdValidator.class))
                     || validator.getClass().equals(PtExistentEntityValidator.class)
                     || validator.getClass().equals(PtIsResouceEmptyValidator.class)

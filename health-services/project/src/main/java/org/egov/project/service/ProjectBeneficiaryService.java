@@ -68,6 +68,11 @@ public class ProjectBeneficiaryService {
         return projectConfiguration.getIsRelationshipValidationEnabled();
     }
 
+    // Backward-compatibility gate; same live-read pattern. Default false = old behaviour.
+    private boolean requiredLinkValidationEnabled() {
+        return projectConfiguration.getIsRequiredLinkValidationEnabled();
+    }
+
     private final ProjectBeneficiaryEnrichmentService projectBeneficiaryEnrichmentService;
 
     private final List<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> validators;
@@ -84,7 +89,7 @@ public class ProjectBeneficiaryService {
                     || validator.getClass().equals(PbUniqueEntityValidator.class);
 
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PbRequiredLinkValidator.class) ||
+            (requiredLinkValidationEnabled() && validator.getClass().equals(PbRequiredLinkValidator.class)) ||
             (relationshipValidationEnabled() && validator.getClass().equals(PbProjectIdValidator.class))
                     || validator.getClass().equals(PbExistentEntityValidator.class)
                     || (relationshipValidationEnabled() && validator.getClass().equals(BeneficiaryValidator.class))

@@ -497,7 +497,8 @@ default-behaviour changes. Deploy the health-services set together (shared-lib b
 ### 12.2 Cross-entity validation "unbundled" — default OFF (breaking behaviour)
 
 - **What changed:** create/update no longer **synchronously reject on a missing parent** by
-  default (offline-first). Structural / uniqueness / required-link checks still run. Gated per
+  default (offline-first). Uniqueness checks still run; the required-link presence checks are now
+  gated by their own separate flags and also default OFF. Gated per
   service, read **live** at request time (no restart):
   - `household.member.relationship.validation=false`
   - `project.relationship.validation=false`

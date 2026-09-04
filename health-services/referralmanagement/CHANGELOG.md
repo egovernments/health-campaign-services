@@ -2,6 +2,13 @@
 
 All notable changes to this module will be documented in this file.
 
+## Unreleased - 2026-09-03
+
+Backward-compatibility change set. Every new gate defaults to the OLD behaviour.
+
+- Added `referralmanagement.required.link.validation` (default `false`). Gates `RmRequiredLinkValidator` and `SeRequiredLinkValidator`, which were previously unconditional. **Corrects the 1.2.5 entry below, which described them as always on regardless of the flag.**
+- Added `referralmanagement.downsync.accepted.status` (default `true`). Restores `202 ACCEPTED` on `/beneficiary-downsync/v1/_get`; the pregen rewrite had changed the success path to `200 OK`, which breaks any client asserting the exact status. Set `false` to emit `200`. Note that `docs/health-api-specs/contracts/referral-management.yml` has declared `'200'` for this path since it was introduced, so the default restores the historical **runtime** behaviour and knowingly diverges from the checked-in contract; the flag exists to switch back.
+
 ## 1.2.5 - 2026-07-20
 
 - Validator unbundle: added config flag `referralmanagement.relationship.validation` (default `false`, read live) that gates cross-entity **existence** checks (project, project-beneficiary, project-task, referrer, recipient staff/facility, side-effect) on the referral & side-effect create/update chains, so a record is not rejected while a referenced parent is still on the persister queue (offline-first). The `recipientType` enum check and all structural/uniqueness checks remain on. Set `true` to enforce.

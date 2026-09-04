@@ -2,6 +2,16 @@
 
 All notable changes to this module will be documented in this file.
 
+## Unreleased - 2026-09-03
+
+Backward-compatibility change set. Every new gate defaults to the OLD behaviour. Two deliberate exceptions, both in the *more permissive* direction, so neither can reject a payload the old service accepted: `HOUSEHOLD_ALREADY_HAS_HEAD` stays ungated but runs master's reassignment algorithm rather than the baseline's blunter per-member check, and the post-baseline `HmRelativeExistentValidator` also stays ungated (its `INVALID_RELATED_ENTITY_ID` path only fires when `memberRelationships` is populated, a field old clients do not send).
+
+- Added `household.member.head.strict.validation` (default `false`). Gates the three head-of-household rules added after the old baseline (`HOUSEHOLD_DOES_NOT_HAVE_A_HEAD`, `HOUSEHOLD_HAS_MORE_THAN_ONE_HEAD`, `HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED`). The pre-existing `HOUSEHOLD_ALREADY_HAS_HEAD` reassignment protection is **not** gated and still always runs.
+- Added `household.member.relationship.type.validation` (default `false`). Gates `HmRelationshipTypeValidator` at the predicate, which also removes the unconditional MDMS round-trip — previously a missing `HCM.HOUSEHOLD_MEMBER_RELATIONSHIP_TYPES` master threw out of `validate()` and killed the entire batch rather than one record.
+- Added `household.member.required.link.validation` (default `false`). Gates `HmRequiredLinkValidator`, which was previously unconditional. **Corrects the 1.2.3 entry below, which described that validator as always on — it no longer is.**
+- A null `householdType` is now defaulted to `FAMILY` in `HouseholdEnrichmentService.create()`. **Upstreamed from `customize-2.1-household` `5ef888f7c1`** ("added default household type as family while household creation"), matching that branch's shape so master behaves identically. It matters on create: `household.householdtype` is `NOT NULL` and `household-persister.yml` names the column in its INSERT, so a null previously failed `23502` inside the persister behind an already-returned `202`, losing the record silently. On update the persister's SET clause omits the column, so it cannot change a stored type.
+- Fixed a mixed-batch `NullPointerException` in `HmHouseholdHeadValidator`: members are now grouped per member by whichever parent key each one carries. Previously a single accessor was chosen for the whole batch from an arbitrary element, so a batch mixing `householdId` and `householdClientReferenceId` produced a null grouping key and discarded the entire batch.
+
 ## 1.2.3 - 2026-07-20
 
 - Added `household.member.relationship.validation` flag (default `false`) that unbundles cross-entity **existence** validation (household / individual / relative) for member create/update, so a member is accepted while its parent is still on the persister queue (offline-first). Set `true` to enforce.

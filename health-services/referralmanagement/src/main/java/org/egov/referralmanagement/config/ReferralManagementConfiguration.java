@@ -160,6 +160,19 @@ public class ReferralManagementConfiguration {
     @Value("${referralmanagement.relationship.validation:false}")
     private boolean relationshipValidation;
 
+    // BACKWARD COMPATIBILITY GATES. Both default to pre-existing (old-client) behaviour.
+
+    // Gates RmRequiredLinkValidator / SeRequiredLinkValidator (REQUIRED_LINK_MISSING on create). The old
+    // service accepted and persisted standalone referrals and side effects, so any flow that relied on that
+    // stops landing data - silently, since a bulk rejection sits behind an already-returned 202.
+    @Value("${referralmanagement.required.link.validation:false}")
+    private boolean requiredLinkValidation;
+
+    // Downsync success status. The old service returned 202 ACCEPTED; the pregen rewrite changed the success
+    // path to 200 OK, which breaks any client asserting the exact code. Default true = restore 202.
+    @Value("${referralmanagement.downsync.accepted.status:true}")
+    private boolean downsyncAcceptedStatus;
+
     @Value("${egov.s3.bucket}")
     private String s3Bucket;
 
