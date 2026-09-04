@@ -203,8 +203,11 @@ public class ProjectEnrichment {
              * For ancestor projects, set the start date to the minimum of the current and existing start dates,
              * and set the end date to the maximum of the current and existing end dates
              */
-            project.setStartDate(Math.min(startDate, project.getStartDate()));
-            project.setEndDate(Math.max(endDate, project.getEndDate()));
+            // The columns are nullable; an absent existing date means the request date wins outright
+            Long currentStartDate = project.getStartDate();
+            Long currentEndDate = project.getEndDate();
+            project.setStartDate(currentStartDate == null ? startDate : Math.min(startDate, currentStartDate));
+            project.setEndDate(currentEndDate == null ? endDate : Math.max(endDate, currentEndDate));
         }
     }
 

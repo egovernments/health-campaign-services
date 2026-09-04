@@ -30,16 +30,18 @@ public class ProjectDateCascadeRowMapper implements RowMapper<Project> {
     public Project mapRow(ResultSet rs, int rowNum) throws SQLException {
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(rs.getString("project_createdBy"))
-                .createdTime(rs.getLong("project_createdTime"))
+                .createdTime(rs.getObject("project_createdTime", Long.class))
                 .lastModifiedBy(rs.getString("project_lastModifiedBy"))
-                .lastModifiedTime(rs.getLong("project_lastModifiedTime"))
+                .lastModifiedTime(rs.getObject("project_lastModifiedTime", Long.class))
                 .build();
 
+        // These bigint columns are nullable; getLong would flatten SQL NULL to 0 and the ancestor
+        // min/max in ProjectEnrichment would then write epoch over a genuinely absent date.
         return Project.builder()
                 .id(rs.getString("projectId"))
                 .tenantId(rs.getString("project_tenantId"))
-                .startDate(rs.getLong("project_startDate"))
-                .endDate(rs.getLong("project_endDate"))
+                .startDate(rs.getObject("project_startDate", Long.class))
+                .endDate(rs.getObject("project_endDate", Long.class))
                 .parent(rs.getString("project_parent"))
                 .projectHierarchy(rs.getString("project_projectHierarchy"))
                 .additionalDetails(getAdditionalDetail("project_additionalDetails", rs))

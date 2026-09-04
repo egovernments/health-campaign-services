@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -73,6 +74,32 @@ class ProjectCascadeDateEnrichmentTest {
         projectEnrichment.enrichProjectCascadingDatesOnUpdate(request, projectFromDb, RequestInfo.builder().build());
 
         verify(producer, never()).push(any(), eq(FULL_TOPIC), any());
+    }
+
+    @Test
+    @DisplayName("an ancestor with no stored dates takes the requested dates instead of epoch")
+    void ancestorWithNullDatesTakesRequestedDates() {
+        Project ancestor = Project.builder().id("a1").tenantId(TENANT_ID).build();
+        projectFromDb.setAncestors(Collections.singletonList(ancestor));
+        projectFromDb.setDescendants(Collections.emptyList());
+
+        projectEnrichment.enrichProjectCascadingDatesOnUpdate(request, projectFromDb, RequestInfo.builder().build());
+
+        assertEquals(200L, ancestor.getStartDate());
+        assertEquals(400L, ancestor.getEndDate());
+    }
+
+    @Test
+    @DisplayName("an ancestor with stored dates still widens to the outer bounds")
+    void ancestorWithDatesWidensRange() {
+        Project ancestor = Project.builder().id("a1").tenantId(TENANT_ID).startDate(100L).endDate(500L).build();
+        projectFromDb.setAncestors(Collections.singletonList(ancestor));
+        projectFromDb.setDescendants(Collections.emptyList());
+
+        projectEnrichment.enrichProjectCascadingDatesOnUpdate(request, projectFromDb, RequestInfo.builder().build());
+
+        assertEquals(100L, ancestor.getStartDate(), "start widens to the earlier of the two");
+        assertEquals(500L, ancestor.getEndDate(), "end widens to the later of the two");
     }
 
     @Test
