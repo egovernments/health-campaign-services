@@ -162,4 +162,37 @@ def find_due_slots(group, rows, now_utc, lookback_minutes, has_report_since=None
                         "slot_time": slot_time,
                     },
                 })
+    _warn_on_duplicate_cumulative(due)
     return due
+
+
+def _warn_on_duplicate_cumulative(due):
+    """Say it loudly when one tenant is about to publish TWO mop-up reports
+    for the same date.
+
+    The cumulative report is the final, partner-facing deliverable and the one
+    place a duplicate is both likely and unacceptable. Its deterministic run id
+    keys on campaign_key, so two ACTIVE rows for the same real campaign (an
+    orphan left by a mid-campaign identity edit, MDMS mode having no retime
+    guard) each yield their own cumulative slot and both fire — two docs, two
+    Slack posts, no error. This does not change what fires (a tenant may
+    legitimately run two campaigns that share a mop-up date); it names the
+    collision so a human can deactivate the stale row instead of finding out
+    from the channel.
+    """
+    seen = {}
+    for item in due:
+        conf = item["conf"]
+        if conf.get("mode") != CUMULATIVE_MODE:
+            continue
+        marker = (conf["tenant"], conf["slot_date"])
+        campaign = (conf.get("row") or {}).get("campaign_name") or campaign_key(conf.get("row") or {})
+        if marker in seen and seen[marker] != campaign:
+            log.warning(
+                f"[{conf.get('state_name') or conf['tenant']}] TWO active "
+                f"campaigns are producing a mop-up report for {conf['slot_date']}: "
+                f"{seen[marker]!r} and {campaign!r}. Both will publish. If these "
+                f"are the same campaign, one row is a stale duplicate (identity "
+                f"edited under MDMS mode) — deactivate it on the sheet.")
+        else:
+            seen[marker] = campaign

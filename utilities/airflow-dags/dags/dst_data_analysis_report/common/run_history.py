@@ -149,14 +149,21 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
         # reads better than a run-on paragraph when triaging several at once.
         state = conf.get("state_name", "?")
         head = f"{campaign}" + (f" · Day {day}" if day else "")
+        from dst_data_analysis_report.common.alerts import (build_alert_blocks,
+                                                            COLOR_INCOMPLETE)
+        slot_field = f"*Slot*\n{where or '-'}  ({mode})"
+        blocks = build_alert_blocks(
+            header=f"Report incomplete — {state}",
+            lead=f"*{head}* was published and sent to Slack, "
+                 f"but it is missing data.",
+            fields=[slot_field, f"*Campaign*\n{campaign}"],
+            detail_label="What is missing", detail=problems,
+            context="Before you share it: review the report, fix the cause "
+                    "above, then re-run the slot if the numbers matter.")
         send_slack_warning(
-            f"*Report incomplete* — {state} · {head}\n"
-            f"Slot {where} ({mode}) — published and sent, but missing data.\n"
-            f"\n*What is missing*\n{problems}\n"
-            f"\n*Before you share it*\n"
-            f"Review the report, fix the cause above, then re-run the slot if the "
-            f"numbers matter.",
-            group_name=(group or {}).get("name", ""))
+            f"Report incomplete — {state} · {head} — published but missing data",
+            group_name=(group or {}).get("name", ""),
+            blocks=blocks, color=COLOR_INCOMPLETE)
 
     published = False
     if use_mdms:
