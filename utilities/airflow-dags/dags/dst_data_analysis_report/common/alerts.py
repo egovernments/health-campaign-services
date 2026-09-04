@@ -96,13 +96,15 @@ def notify_slack_on_failure(context):
         mode = conf.get("mode", "")
         if mode:
             slot = f"{slot}  ({mode})"
-        detail = f"{type(exception).__name__}: {exception}" if exception else "Failure"
-        message = (f"DST report failed - {state} | {campaign} | slot {slot}\n"
+        detail = (f"{type(exception).__name__}: {exception}" if exception
+                  else "No error detail was captured — see the task log via the "
+                       "run id below.")
+        message = (f"Report failed — {state} · {campaign} · slot {slot}\n"
                    f"{detail}")
 
         blocks = [
             {"type": "header",
-             "text": {"type": "plain_text", "text": f"DST report failed - {state}"[:150]}},
+             "text": {"type": "plain_text", "text": f"Report failed — {state}"[:150]}},
             {"type": "section", "fields": [
                 {"type": "mrkdwn", "text": f"*Campaign*\n{campaign}"},
                 {"type": "mrkdwn", "text": f"*Tenant*\n`{tenant}`"},

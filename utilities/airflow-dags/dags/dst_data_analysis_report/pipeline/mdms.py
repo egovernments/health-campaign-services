@@ -163,6 +163,15 @@ def validate_row(row):
     for field in ("campaign_start", "campaign_end"):
         if not _parse_date(row.get(field, "")):
             problems.append(f"{field} unparseable: {row.get(field)!r}")
+    # start must not be AFTER end. The RUN-time validator catches this, but by
+    # then the row has already synced into MDMS and the scheduler has silently
+    # dropped its slots (an inverted range contains no dates, so the window check
+    # rejects every slot with no report and no alert). Checking here turns that
+    # silent no-op into a visible sync rejection, like any other bad edit.
+    s, e = _parse_date(row.get("campaign_start", "")), _parse_date(row.get("campaign_end", ""))
+    if s and e and s > e:
+        problems.append(f"campaign_start {row.get('campaign_start')!r} is AFTER "
+                        f"campaign_end {row.get('campaign_end')!r} (dates swapped)")
     if not (parse_report_times(row.get("report_times", ""))
             or parse_report_times(row.get("partner_report_times", ""))):
         problems.append(
