@@ -13,6 +13,12 @@ import requests
 
 log = logging.getLogger(__name__)
 
+# Severity colours for the attachment bar — the one bit of visual "styling"
+# Slack allows. Kept muted (not pure #FF0000) so a channel of them is readable.
+COLOR_FAILED = "#D64541"      # red   — a run died, nothing was delivered
+COLOR_INCOMPLETE = "#E5A50A"  # amber — published but degraded / missing data
+COLOR_INFO = "#5B6B7B"        # slate — routine notice (e.g. config sync)
+
 
 def _slack_token(group_name=""):
     """Slack token for a callback.
@@ -39,12 +45,20 @@ def _slack_token(group_name=""):
         return ""
 
 
-def _post(channel, text, token, blocks=None):
+def _post(channel, text, token, blocks=None, color=None):
     """Post and CHECK the result. Slack answers 200 with {"ok": false} for
     invalid_auth / channel_not_found / not_in_channel, so an unchecked post
-    reports success while delivering nothing."""
+    reports success while delivering nothing.
+
+    color is the nearest thing Slack has to CSS: an attachment color paints a
+    coloured vertical bar down the left of the message (red = failed, amber =
+    incomplete), so severity reads at a glance in a busy channel. When a colour
+    is given the blocks go INSIDE the attachment (blocks at top level would
+    render a second, bar-less copy)."""
     payload = {"channel": channel, "text": text}
-    if blocks:
+    if blocks and color:
+        payload["attachments"] = [{"color": color, "blocks": blocks}]
+    elif blocks:
         # text stays as the notification/fallback line; blocks are the layout
         payload["blocks"] = blocks
     r = requests.post("https://slack.com/api/chat.postMessage",
@@ -60,6 +74,32 @@ def _post(channel, text, token, blocks=None):
                   f"error={body.get('error', r.text[:120])!r} channel={channel}")
         return False
     return True
+
+
+def build_alert_blocks(header, lead, fields=None, detail_label=None,
+                       detail=None, detail_code=False, context=None):
+    """One layout for every DST alert, so failure / incomplete / config-sync
+    all read the same: a header, a plain-English lead line, an optional 2-column
+    field grid, a divider + labelled detail, and a muted context footer. Pair it
+    with a colour in _post (red/amber/slate) for the severity bar."""
+    blocks = [
+        {"type": "header", "text": {"type": "plain_text", "text": header[:150]}},
+        {"type": "section", "text": {"type": "mrkdwn", "text": lead}},
+    ]
+    if fields:
+        blocks.append({"type": "section",
+                       "fields": [{"type": "mrkdwn", "text": f}
+                                  for f in fields[:10]]})
+    if detail:
+        blocks.append({"type": "divider"})
+        body = f"```{detail[:2800]}```" if detail_code else detail[:2900]
+        text = f"*{detail_label}*\n{body}" if detail_label else body
+        blocks.append({"type": "section",
+                       "text": {"type": "mrkdwn", "text": text}})
+    if context:
+        blocks.append({"type": "context",
+                       "elements": [{"type": "mrkdwn", "text": context}]})
+    return blocks
 
 
 def alert_channel(row=None):
@@ -102,34 +142,34 @@ def notify_slack_on_failure(context):
         message = (f"Report failed — {state} · {campaign} · slot {slot}\n"
                    f"{detail}")
 
-        blocks = [
-            {"type": "header",
-             "text": {"type": "plain_text", "text": f"Report failed — {state}"[:150]}},
-            {"type": "section", "fields": [
-                {"type": "mrkdwn", "text": f"*Campaign*\n{campaign}"},
-                {"type": "mrkdwn", "text": f"*Tenant*\n`{tenant}`"},
-                {"type": "mrkdwn", "text": f"*Slot*\n{slot}"},
-                {"type": "mrkdwn", "text": f"*Failed at*\n`{task_id}`"},
-            ]},
-            {"type": "section",
-             "text": {"type": "mrkdwn", "text": f"```{detail[:900]}```"}},
-            {"type": "context", "elements": [
-                {"type": "mrkdwn", "text": f"dag `{dag_id}`  |  run `{run_id}`"}]},
-        ]
+        blocks = build_alert_blocks(
+            header=f"Report failed — {state}",
+            lead=f"*{campaign}* did not produce a report.\n"
+                 f"Nothing was posted to any channel for this slot.",
+            fields=[f"*Tenant*\n`{tenant}`", f"*Slot*\n{slot}",
+                    f"*Failed at*\n`{task_id}`", f"*DAG*\n`{dag_id}`"],
+            detail_label="What went wrong", detail=detail, detail_code=True,
+            context=f"run `{run_id}` — open this run in Airflow for the "
+                    f"full task log")
         log.error(message)
 
         if not token or not channel:
             log.warning("[alerts] SLACK_TOKEN/channel not set — alert logged only")
             return
-        _post(channel, message, token, blocks=blocks)
+        _post(channel, message, token, blocks=blocks, color=COLOR_FAILED)
     except Exception as e:
         log.warning(f"[alerts] failure alert could not be sent: {e}")
 
 
-def send_slack_warning(text, channel=None, group_name=""):
+def send_slack_warning(text, channel=None, group_name="", blocks=None,
+                       color=None):
     """Post a warning to Slack (campaign channel or SLACK_CHANNEL fallback).
     Never raises. Used e.g. by the config sync to nag about rejected rows
-    every tick until a human fixes the sheet."""
+    every tick until a human fixes the sheet.
+
+    text is always the fallback/notification line; pass blocks (from
+    build_alert_blocks) and a color for the same styled, bar-coded layout the
+    failure alert uses."""
     try:
         # group_name matters: the rejected-rows nag is raised outside
         # group_environment, so without it a token held in dst_secrets_<group>
@@ -139,6 +179,6 @@ def send_slack_warning(text, channel=None, group_name=""):
         log.warning(text)
         if not token or not channel:
             return
-        _post(channel, text, token)
+        _post(channel, text, token, blocks=blocks, color=color)
     except Exception as e:
         log.warning(f"[alerts] warning could not be sent: {e}")

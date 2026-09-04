@@ -36,7 +36,10 @@ import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 
 from dst_data_analysis_report.common import dst_config
-from dst_data_analysis_report.common.alerts import notify_slack_on_failure, send_slack_warning
+from dst_data_analysis_report.common.alerts import (notify_slack_on_failure,
+                                                   send_slack_warning,
+                                                   build_alert_blocks,
+                                                   COLOR_INCOMPLETE)
 from dst_data_analysis_report.common.deployment_env import (group_environment, load_deployment_groups,
                                    mdms_enabled)
 
@@ -90,23 +93,34 @@ def dst_config_sync():
                 counts = sync_rows_to_mdms(group, rows)
 
         if counts and counts.get("skip_deactivation"):
+            blocks = build_alert_blocks(
+                header="Config sync — nothing deactivated",
+                lead=f"Group *{group['name']}* — the sheet tab read back "
+                     f"*empty*, so deactivation was skipped as a safety measure.",
+                detail_label="What this means",
+                detail="Campaigns removed from the sheet are still active in "
+                       "MDMS and will keep producing reports until the next "
+                       "good read. If this repeats, check the sheet/tab name "
+                       "and the service-account share.")
             send_slack_warning(
-                f"*Config sync — nothing deactivated* · {group['name']}\n"
-                f"The sheet tab read back EMPTY, so deactivation was skipped as a "
-                f"safety measure. Campaigns removed from the sheet are still active "
-                f"in MDMS and will keep producing reports until the next good read.",
-                group_name=group["name"])
+                f"Config sync — nothing deactivated · {group['name']} "
+                f"(sheet read back empty)",
+                group_name=group["name"], blocks=blocks, color=COLOR_INCOMPLETE)
         if counts is None:
             log.info(f"[{group['name']}] MDMS_URL not set — nothing to sync")
         elif counts.get("rejected"):
             # one bullet per rejected row: "campaign — reason", readable at a glance
             details = "\n".join(
-                f"  - {d}" for d in counts.get("rejected_details", []))
+                f"• {d}" for d in counts.get("rejected_details", []))
             n = counts["rejected"]
+            blocks = build_alert_blocks(
+                header=f"Config sync — {n} row(s) rejected",
+                lead=f"Group *{group['name']}* — these rows did not sync to "
+                     f"MDMS and need a fix on the sheet.",
+                detail_label="Rejected rows", detail=details)
             send_slack_warning(
-                f"*Config sync — {n} row(s) rejected* · {group['name']}\n"
-                f"These rows did not sync to MDMS and need a fix on the sheet:\n"
-                f"{details}")
+                f"Config sync — {n} row(s) rejected · {group['name']}",
+                group_name=group["name"], blocks=blocks, color=COLOR_INCOMPLETE)
         return counts
 
     sync_group_to_mdms.expand(group=list_groups())
