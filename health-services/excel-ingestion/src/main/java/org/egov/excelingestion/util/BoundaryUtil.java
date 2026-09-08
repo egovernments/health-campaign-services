@@ -369,23 +369,36 @@ public class BoundaryUtil {
         }
         
         Set<String> processedCodes = new HashSet<>();
-        
+        List<String> droppedCodes = new ArrayList<>();
+
         // For each campaign boundary, find all its children based on includeAllChildren flag
         for (CampaignSearchResponse.BoundaryDetail campaignBoundary : campaignBoundaries) {
             String campaignBoundaryCode = campaignBoundary.getCode();
             if (campaignBoundaryCode != null && codeToNode.containsKey(campaignBoundaryCode)) {
                 EnrichedBoundary boundaryNode = codeToNode.get(campaignBoundaryCode);
-                
+
                 // Set includeAllChildren flag from campaign boundary
-                boolean includeChildren = campaignBoundary.getIncludeAllChildren() != null ? 
+                boolean includeChildren = campaignBoundary.getIncludeAllChildren() != null ?
                     campaignBoundary.getIncludeAllChildren() : false;
-                
-                collectAllBoundariesFromEnriched(boundaryNode, enrichedBoundaries, processedCodes, includeChildren, 
+
+                collectAllBoundariesFromEnriched(boundaryNode, enrichedBoundaries, processedCodes, includeChildren,
                         campaignBoundary.getParent());
+            } else {
+                // null code = malformed campaign boundary, a different defect from a hierarchy miss
+                droppedCodes.add(campaignBoundaryCode != null ? campaignBoundaryCode : "<null code>");
             }
         }
-        
-        log.info("Enriched {} campaign boundaries to {} total boundary objects including children", 
+
+        if (!droppedCodes.isEmpty()) {
+            // Campaign boundaries missing from the hierarchy tree are dropped from the sheet; warn so
+            // this is diagnosable (likely a stale 1h boundaryRelationship cache). Sample capped at 20.
+            int sample = Math.min(droppedCodes.size(), 20);
+            log.warn("Dropped {} campaign boundary code(s) not present in hierarchy {} (first {}): {}. "
+                            + "These will be MISSING from the generated sheet.",
+                    droppedCodes.size(), hierarchyType, sample, droppedCodes.subList(0, sample));
+        }
+
+        log.info("Enriched {} campaign boundaries to {} total boundary objects including children",
                 campaignBoundaries.size(), enrichedBoundaries.size());
         
         return enrichedBoundaries;

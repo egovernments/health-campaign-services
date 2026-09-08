@@ -39,6 +39,9 @@ class AsyncProcessingServiceTest {
     @Mock
     private RequestInfoConverter requestInfoConverter;
 
+    @Mock
+    private CampaignCacheEvictor campaignCacheEvictor;
+
     private AsyncProcessingService asyncProcessingService;
 
     @BeforeEach
@@ -49,7 +52,7 @@ class AsyncProcessingServiceTest {
         // Setup mock RequestInfoConverter
         when(requestInfoConverter.extractLocale(any())).thenReturn("en_IN");
         
-        asyncProcessingService = new AsyncProcessingService(excelProcessingService, producer, kafkaTopicConfig, configBasedProcessingService, requestInfoConverter);
+        asyncProcessingService = new AsyncProcessingService(excelProcessingService, producer, kafkaTopicConfig, configBasedProcessingService, requestInfoConverter, campaignCacheEvictor);
     }
 
     @Test
