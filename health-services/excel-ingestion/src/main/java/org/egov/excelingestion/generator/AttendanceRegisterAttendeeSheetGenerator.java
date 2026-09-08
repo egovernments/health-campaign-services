@@ -20,6 +20,10 @@ import org.egov.excelingestion.util.RequestInfoUtil;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -140,15 +144,39 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         log.info("Filtered {} users for sheet {}", filteredUsers.size(), sheetName);
 
+        Long campaignStartDate = resolveCampaignStartDate(generateResource, tenantId, requestInfo);
+        Long campaignEndDate = resolveCampaignEndDate(generateResource, tenantId, requestInfo);
+
         // 8. Decrypt credentials and build data rows
         List<Map<String, Object>> dataRows = buildDataRows(
                 filteredUsers, registerDetails.serviceCode, localizationMap, requestInfo,
-                WORKER_SHEET.equals(sheetName));
+                WORKER_SHEET.equals(sheetName), campaignStartDate, campaignEndDate);
 
         return SheetGenerationResult.builder()
                 .columnDefs(columnDefs)
                 .data(dataRows.isEmpty() ? null : dataRows)
                 .build();
+    }
+
+    private Long resolveCampaignStartDate(GenerateResource generateResource, String tenantId, RequestInfo requestInfo) {
+        if (generateResource.getAdditionalDetails() != null
+                && generateResource.getAdditionalDetails().containsKey("campaignStartDate")) {
+            Object value = generateResource.getAdditionalDetails().get("campaignStartDate");
+            if (value != null) return Long.valueOf(String.valueOf(value));
+        }
+
+        // fallback if you later fetch campaign details via CampaignService
+        return null;
+    }
+
+    private Long resolveCampaignEndDate(GenerateResource generateResource, String tenantId, RequestInfo requestInfo) {
+        if (generateResource.getAdditionalDetails() != null
+                && generateResource.getAdditionalDetails().containsKey("campaignEndDate")) {
+            Object value = generateResource.getAdditionalDetails().get("campaignEndDate");
+            if (value != null) return Long.valueOf(String.valueOf(value));
+        }
+
+        return null;
     }
 
     /**
@@ -517,7 +545,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     private List<Map<String, Object>> buildDataRows(
             List<Map<String, Object>> filteredUsers, String registerServiceCode,
             Map<String, String> localizationMap, RequestInfo requestInfo,
-            boolean includeTeamCode) {
+            boolean includeTeamCode, Long campaignStartDate, Long campaignEndDate) {
 
         if (filteredUsers.isEmpty()) return Collections.emptyList();
 
@@ -565,8 +593,8 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                             boundaryCode, localizationMap));
             row.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", boundaryCode);
             row.put("HCM_ATTENDANCE_REGISTER_ID", registerServiceCode);
-            row.put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", "");
-            row.put("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE", "");
+            row.put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", campaignStartDate != null ? formatDateForSheet(campaignStartDate) : "");
+            row.put("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE", campaignEndDate != null ? formatDateForSheet(campaignEndDate): "");
 
             if (includeTeamCode) {
                 row.put("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE", "");
@@ -576,6 +604,13 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
         }
 
         return dataRows;
+    }
+
+    private String formatDateForSheet(Long epochMillis) {
+        if (epochMillis == null) return "";
+        Instant instant = Instant.ofEpochMilli(epochMillis);
+        LocalDate localDate = instant.atZone(ZoneId.systemDefault()).toLocalDate();
+        return localDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
     }
 
     /**
