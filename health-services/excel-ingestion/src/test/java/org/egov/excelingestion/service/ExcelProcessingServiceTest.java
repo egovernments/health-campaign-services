@@ -84,7 +84,8 @@ class ExcelProcessingServiceTest {
             validationService, schemaValidationService, configBasedProcessingService,
             fileStoreService, localizationService, requestInfoConverter,
             restTemplate, exceptionHandler, config, enrichmentUtil, mdmsConfigService, excelUtil,
-            immutableJoinService, new org.egov.excelingestion.util.BoundaryCodeResolver(excelUtil)
+            immutableJoinService, new org.egov.excelingestion.util.BoundaryCodeResolver(excelUtil),
+            new org.egov.excelingestion.util.WorkbookLocaleResolver()
         );
 
         requestInfo = RequestInfo.builder().build();
@@ -154,15 +155,13 @@ class ExcelProcessingServiceTest {
 
     @Test
     void testProcessExcelFile_LocalizationServiceCalled() {
-        // Given
-        // Setup FileStoreService to fail
+        // Given - the workbook must download successfully: the generation locale is read FROM the
+        // file, so localization is only reached once the workbook is in hand.
         when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
-                .thenThrow(new RuntimeException("File download failed"));
-        
+                .thenReturn(new XSSFWorkbook());
+
         // When
-        assertThrows(RuntimeException.class, () -> {
-            excelProcessingService.processExcelFile(request);
-        });
+        excelProcessingService.processExcelFile(request);
 
         // Then - Verify localization service was called for schema localization
         verify(localizationService).getLocalizedMessages(
@@ -185,14 +184,12 @@ class ExcelProcessingServiceTest {
                 .resourceDetails(resource)
                 .build();
         
-        // Setup FileStoreService to fail
+        // Workbook must download successfully - see testProcessExcelFile_LocalizationServiceCalled.
         when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
-                .thenThrow(new RuntimeException("File download failed"));
-        
+                .thenReturn(new XSSFWorkbook());
+
         // When
-        assertThrows(RuntimeException.class, () -> {
-            excelProcessingService.processExcelFile(request);
-        });
+        excelProcessingService.processExcelFile(request);
 
         // Then - Verify both boundary and schema localization were called
         verify(localizationService).getLocalizedMessages(
