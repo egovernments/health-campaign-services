@@ -111,7 +111,8 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             // Fetch and merge existing campaign data for targets if reference ID is provided
             String referenceId = generateResource.getReferenceId();
             if (referenceId != null && !referenceId.isEmpty()) {
-                String campaignNumber = getCampaignNumberFromReferenceId(referenceId, generateResource.getTenantId(), requestInfo);
+                String campaignNumber = campaignService.resolveDataSourceCampaignNumber(referenceId, "boundary",
+                        generateResource.getTenantId(), requestInfo);
                 if (campaignNumber != null && !campaignNumber.isEmpty()) {
                     boundaryData = mergeExistingCampaignData(boundaryData, campaignNumber, 
                             generateResource.getTenantId(), requestInfo, schemaColumns);

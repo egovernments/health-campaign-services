@@ -168,7 +168,7 @@ public class UserSheetGenerator implements ISheetGenerator {
         
         try {
             // Get campaign number from reference ID
-            String campaignNumber = getCampaignNumberFromReferenceId(referenceId, 
+            String campaignNumber = campaignService.resolveDataSourceCampaignNumber(referenceId, "user",
                     generateResource.getTenantId(), requestInfo);
             
             if (campaignNumber == null || campaignNumber.isEmpty()) {

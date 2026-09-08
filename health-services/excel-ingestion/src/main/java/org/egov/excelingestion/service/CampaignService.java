@@ -137,6 +137,56 @@ public class CampaignService {
     }
 
     /**
+     * Resolves which campaign's stored data should populate a generated sheet.
+     *
+     * <p>Normally that is the campaign itself. A clone is the exception: until it has been uploaded it
+     * owns no data of its own, because the data the operator sees belongs to the campaign it was cloned
+     * from. Regenerating such a clone — which is what a boundary, hierarchy, project-type or source
+     * change forces — would otherwise emit an empty sheet and silently discard everything the operator
+     * inherited.
+     *
+     * <p>The fallback is deliberately conditional on the clone owning <em>nothing</em> for this type.
+     * Once it has been uploaded its own rows are authoritative, so a value the operator cleared on
+     * purpose stays cleared instead of being topped back up from the source on every regeneration.
+     *
+     * @return the campaign number whose data should be merged, or null if the reference cannot be resolved
+     */
+    public String resolveDataSourceCampaignNumber(String referenceId, String type, String tenantId,
+                                                  RequestInfo requestInfo) {
+        CampaignSearchResponse.CampaignDetail campaign = searchCampaignById(referenceId, tenantId, requestInfo);
+        if (campaign == null) {
+            log.warn("No campaign found for reference ID: {}", referenceId);
+            return null;
+        }
+        String ownNumber = campaign.getCampaignNumber();
+        String cloneFrom = campaign.getAdditionalDetails() != null
+                ? campaign.getAdditionalDetails().getCloneFrom()
+                : null;
+
+        if (ownNumber == null || ownNumber.isEmpty() || cloneFrom == null || cloneFrom.isEmpty()
+                || cloneFrom.equals(ownNumber)) {
+            return ownNumber;
+        }
+
+        try {
+            java.util.List<Map<String, Object>> own =
+                    searchCampaignDataByType(type, null, ownNumber, tenantId, requestInfo);
+            if (own != null && !own.isEmpty()) {
+                return ownNumber;
+            }
+        } catch (Exception e) {
+            // Falling back to the clone source on an unreadable own-data check could resurrect values the
+            // operator cleared, which is worse than generating the empty sheet we generate today.
+            log.error("Could not determine whether campaign {} owns {} data; using its own data: {}",
+                    ownNumber, type, e.getMessage(), e);
+            return ownNumber;
+        }
+
+        log.info("Campaign {} owns no {} data; merging from clone source {}", ownNumber, type, cloneFrom);
+        return cloneFrom;
+    }
+
+    /**
      * Extract projectType from campaign with validation. Cached at its own level (by campaignId +
      * tenantId): the internal searchCampaignById call is a same-bean invocation so it is not served from
      * the campaignDetail cache, but caching here means repeat calls for the same campaign skip the work.

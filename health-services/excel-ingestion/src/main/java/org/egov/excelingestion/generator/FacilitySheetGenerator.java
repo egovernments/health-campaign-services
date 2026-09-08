@@ -180,7 +180,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         
         try {
             // Get campaign number from reference ID
-            String campaignNumber = getCampaignNumberFromReferenceId(referenceId, 
+            String campaignNumber = campaignService.resolveDataSourceCampaignNumber(referenceId, "facility",
                     generateResource.getTenantId(), requestInfo);
             
             if (campaignNumber == null || campaignNumber.isEmpty()) {
