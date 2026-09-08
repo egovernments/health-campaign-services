@@ -1,38 +1,37 @@
 package org.egov.individual.web.controllers;
 
 
+import java.util.List;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualRequest;
 import org.egov.common.models.individual.IndividualResponse;
+import org.egov.common.models.individual.IndividualSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;
-import org.egov.individual.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-import java.util.List;
 
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-27T11:47:19.561+05:30")
 
 @Controller
 @Validated
@@ -75,24 +74,73 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+    public ResponseEntity<?> individualV1BulkCreatePost(
+            @ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request,
+            @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource,
+            @ApiParam(value = "When true, process the whole bulk create inline and return the fully-enriched individuals (including server-generated ids and user-service ids) in the response body. When false or omitted, the request is queued on Kafka and the response contains only the ResponseInfo (existing async behaviour).", defaultValue = "false") @Valid @RequestParam(value = "synchronous", required = false, defaultValue = "false") Boolean synchronous) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
+
+        if (Boolean.TRUE.equals(synchronous)) {
+            // Inline processing — same code path the Kafka consumer uses.
+            // Returns individuals populated with server-generated id / userId /
+            // userUuid AND a rich per-record errors array so downstream
+            // orchestrators can chain without polling and see WHY any record
+            // failed with the same code/message emitted by the downstream
+            // service (egov-user), enriched with individual-level identifiers.
+            java.util.Map<org.egov.common.models.individual.Individual,
+                    org.egov.common.models.ErrorDetails> errorDetailsMap = new java.util.HashMap<>();
+            List<Individual> individuals =
+                    individualService.create(request, true, true, errorDetailsMap);
+            java.util.List<java.util.Map<String, Object>> errorPayload = new java.util.ArrayList<>();
+            for (java.util.Map.Entry<org.egov.common.models.individual.Individual,
+                    org.egov.common.models.ErrorDetails> entry : errorDetailsMap.entrySet()) {
+                org.egov.common.models.individual.Individual ind = entry.getKey();
+                org.egov.common.models.ErrorDetails details = entry.getValue();
+                if (details == null || details.getErrors() == null) continue;
+                for (org.egov.common.models.Error err : details.getErrors()) {
+                    java.util.Map<String, Object> row = new java.util.HashMap<>();
+                    row.put("clientReferenceId", ind.getClientReferenceId());
+                    row.put("individualId", ind.getId());
+                    row.put("username", ind.getUserDetails() != null ? ind.getUserDetails().getUsername() : null);
+                    row.put("mobileNumber", ind.getMobileNumber());
+                    row.put("errorCode", err.getErrorCode());
+                    row.put("errorMessage", err.getErrorMessage());
+                    errorPayload.add(row);
+                }
+            }
+            java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("ResponseInfo",
+                    ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), errorPayload.isEmpty()));
+            body.put("TotalCount", (long) individuals.size());
+            body.put("Individual", individuals);
+            body.put("Errors", errorPayload);
+            return ResponseEntity.status(HttpStatus.OK).body(body);
+        }
+
+        // Existing async path — unchanged.
         individualService.putInCache(request.getIndividuals());
         producer.push(individualProperties.getBulkSaveIndividualTopic(), request);
-
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<IndividualBulkResponse> individualV1SearchPost(@ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualSearchRequest request, @NotNull
-    @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
-                                                                     @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @Size(min = 2, max = 1000) @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
-        List<Individual> individuals = individualService.search(request.getIndividual(), limit, offset, tenantId,
-                lastChangedSince, includeDeleted,request.getRequestInfo());
+    public ResponseEntity<IndividualBulkResponse> individualV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualSearchRequest request
+    ) {
+        SearchResponse<Individual> searchResponse  = individualService.search(
+                request.getIndividual(),
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted(),
+                request.getRequestInfo()
+        );
         IndividualBulkResponse response = IndividualBulkResponse.builder()
-                .individual(individuals)
+                .individual(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
                 .build();
         return ResponseEntity.status(HttpStatus.OK).body(response);

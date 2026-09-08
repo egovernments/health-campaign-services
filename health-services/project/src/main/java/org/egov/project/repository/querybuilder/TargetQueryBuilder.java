@@ -6,12 +6,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+
 @Component
 public class TargetQueryBuilder {
 
     private static final String FETCH_TARGET_QUERY = "select t.id as targetId, t.projectId as target_projectId, t.beneficiaryType as target_beneficiaryType, t.totalNo as target_totalNo, t.targetNo as target_targetNo, " +
             "t.isDeleted as target_isDeleted, t.createdBy as target_createdBy, t.createdTime as target_createdTime, t.lastModifiedBy as target_lastModifiedBy, t.lastModifiedTime as target_lastModifiedTime " +
-            " from project_target t ";
+            " from " + SCHEMA_REPLACE_STRING + ".project_target t ";
 
     /* Constructs target search query based on project Ids */
     public String getTargetSearchQuery(Set<String> projectIds, List<Object> preparedStmtList) {

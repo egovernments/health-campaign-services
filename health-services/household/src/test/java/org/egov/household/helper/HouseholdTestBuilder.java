@@ -1,17 +1,17 @@
 package org.egov.household.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.household.AdditionalFields;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.household.Address;
 import org.egov.common.models.household.Household;
 
 
 public class HouseholdTestBuilder {
 
-    private Household.HouseholdBuilder builder;
+    private Household.HouseholdBuilder<Household, ?> builder;
 
     public HouseholdTestBuilder() {
-        this.builder = Household.builder();
+        this.builder = (Household.HouseholdBuilder<Household, ?>) Household.builder();
     }
 
     public static HouseholdTestBuilder builder() {

@@ -1,5 +1,6 @@
 package org.egov.project.validator;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
@@ -33,10 +34,10 @@ public class ProjectIdValidatorTest {
 
     @Test
     @DisplayName("Should add to error details if project id is not found")
-    void shouldAddToErrorDetailsIfProjectIdIsNotFound() {
+    void shouldAddToErrorDetailsIfProjectIdIsNotFound() throws InvalidTenantIdException {
         ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder().withProjectResource()
                 .withRequestInfo().build();
-        when(projectRepository.validateIds(anyList(), anyString())).thenReturn(Collections.emptyList());
+        when(projectRepository.validateIds(anyString(), anyList(), anyString())).thenReturn(Collections.emptyList());
 
         Map<ProjectResource, List<Error>> errorDetailsMap = prProjectIdValidator.validate(request);
 

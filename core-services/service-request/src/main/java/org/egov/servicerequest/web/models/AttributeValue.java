@@ -9,9 +9,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  * Hold the attribute details as object.
@@ -24,25 +24,33 @@ import javax.validation.constraints.Size;
 @Builder
 public class AttributeValue {
     @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
+
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
 
     @JsonProperty("referenceId")
     @Size(min = 2, max = 64)
     private String referenceId = null;
+
+    @JsonProperty("serviceClientReferenceId")
+    @Size(min = 2, max = 64)
+    private String serviceClientReferenceId = null;
 
     @JsonProperty("attributeCode")
     @NotNull
     private String attributeCode = null;
 
     @JsonProperty("value")
-    @NotNull
     private Object value = null;
 
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
+    @JsonProperty("additionalFields")
     private Object additionalDetails = null;
 
 

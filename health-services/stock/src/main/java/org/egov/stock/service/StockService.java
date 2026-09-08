@@ -1,41 +1,36 @@
 package org.egov.stock.service;
 
-import lombok.extern.slf4j.Slf4j;
-import org.egov.common.ds.Tuple;
-import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.stock.Stock;
-import org.egov.common.models.stock.StockBulkRequest;
-import org.egov.common.models.stock.StockRequest;
-import org.egov.common.validator.Validator;
-import org.egov.stock.config.StockConfiguration;
-import org.egov.stock.repository.StockRepository;
-import org.egov.stock.service.enrichment.StockEnrichmentService;
-import org.egov.stock.validator.stock.SFacilityIdValidator;
-import org.egov.stock.validator.stock.SIsDeletedValidator;
-import org.egov.stock.validator.stock.SNonExistentValidator;
-import org.egov.stock.validator.stock.SNullIdValidator;
-import org.egov.stock.validator.stock.SProductVariantIdValidator;
-import org.egov.stock.validator.stock.SReferenceIdValidator;
-import org.egov.stock.validator.stock.SRowVersionValidator;
-import org.egov.stock.validator.stock.STransactingPartyIdValidator;
-import org.egov.stock.validator.stock.SUniqueEntityValidator;
-import org.egov.stock.web.models.StockSearchRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.util.ReflectionUtils;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.ds.Tuple;
+import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
+import org.egov.common.models.stock.StockRequest;
+import org.egov.common.models.stock.StockSearchRequest;
+import org.egov.common.validator.Validator;
+import org.egov.stock.config.StockConfiguration;
+import org.egov.stock.repository.StockRepository;
+import org.egov.stock.service.enrichment.StockEnrichmentService;
+import org.egov.stock.validator.stock.SExistentEntityValidator;
+import org.egov.stock.validator.stock.SIsDeletedValidator;
+import org.egov.stock.validator.stock.SNonExistentValidator;
+import org.egov.stock.validator.stock.SNullIdValidator;
+import org.egov.stock.validator.stock.SProductVariantIdValidator;
+import org.egov.stock.validator.stock.SReferenceIdValidator;
+import org.egov.stock.validator.stock.SRowVersionValidator;
+import org.egov.stock.validator.stock.SSenderIdReceiverIdEqualsValidator;
+import org.egov.stock.validator.stock.SUniqueEntityValidator;
+import org.egov.stock.validator.stock.SStockTransferPartiesValidator;
+import org.springframework.stereotype.Service;
 import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
 import static org.egov.stock.Constants.GET_STOCK;
@@ -57,9 +52,10 @@ public class StockService {
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForCreate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
-                    || validator.getClass().equals(SFacilityIdValidator.class)
-                    || validator.getClass().equals(SReferenceIdValidator.class)
-                    || validator.getClass().equals(STransactingPartyIdValidator.class);
+                    || validator.getClass().equals(SExistentEntityValidator.class)
+                    || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
+                    || validator.getClass().equals(SStockTransferPartiesValidator.class)
+                    || validator.getClass().equals(SReferenceIdValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
@@ -68,13 +64,14 @@ public class StockService {
             || validator.getClass().equals(SNullIdValidator.class)
             || validator.getClass().equals(SRowVersionValidator.class)
             || validator.getClass().equals(SUniqueEntityValidator.class)
-            || validator.getClass().equals(SFacilityIdValidator.class)
             || validator.getClass().equals(SReferenceIdValidator.class)
-            || validator.getClass().equals(STransactingPartyIdValidator.class);
+            || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
+            || validator.getClass().equals(SStockTransferPartiesValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForDelete =
             validator -> validator.getClass().equals(SNonExistentValidator.class)
-            || validator.getClass().equals(SNullIdValidator.class);
+            || validator.getClass().equals(SNullIdValidator.class)
+            || validator.getClass().equals(SRowVersionValidator.class);
 
     public StockService(StockRepository stockRepository, List<Validator<StockBulkRequest, Stock>> validators, StockConfiguration configuration, StockEnrichmentService enrichmentService) {
         this.stockRepository = stockRepository;
@@ -96,21 +93,21 @@ public class StockService {
                 isApplicableForCreate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Stock> validTasks = tuple.getX();
+        List<Stock> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.create(validEntities, request);
+                stockRepository.save(validEntities, configuration.getCreateStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed create method for stock");
-        return validTasks;
+        return validEntities;
     }
 
     public Stock update(StockRequest request) {
@@ -126,21 +123,21 @@ public class StockService {
                 isApplicableForUpdate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Stock> validTasks = tuple.getX();
+        List<Stock> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.update(validTasks, request);
-                stockRepository.save(validTasks, configuration.getUpdateStockTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.update(validEntities, request);
+                stockRepository.save(validEntities, configuration.getUpdateStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed update method for stock");
-        return validTasks;
+        return validEntities;
     }
 
     public Stock delete(StockRequest request) {
@@ -156,44 +153,51 @@ public class StockService {
                 isApplicableForDelete, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Stock> validTasks = tuple.getX();
+        List<Stock> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.delete(validTasks, request);
-                stockRepository.save(validTasks, configuration.getDeleteStockTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.delete(validEntities, request);
+                stockRepository.save(validEntities, configuration.getDeleteStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed delete method for stock");
-        return validTasks;
+        return validEntities;
     }
 
-    public List<Stock> search(StockSearchRequest stockSearchRequest,
-                              Integer limit,
-                              Integer offset,
-                              String tenantId,
-                              Long lastChangedSince,
-                              Boolean includeDeleted) throws Exception  {
+    // Removed the in-memory "search by id only" fast path so all searches go through findWithCount,
+    // keeping lastChangedSince/tenantId/includeDeleted/lastModifiedBy filtering consistent in one DB query.
+    public SearchResponse<Stock> search(StockSearchRequest stockSearchRequest,
+                                        Integer limit,
+                                        Integer offset,
+                                        String tenantId,
+                                        Long lastChangedSince,
+                                        Boolean includeDeleted,
+                                        Boolean includeOnlyUpdatedByOthers) throws Exception  {
         log.info("starting search method for stock");
-        String idFieldName = getIdFieldName(stockSearchRequest.getStock());
-        if (isSearchByIdOnly(stockSearchRequest.getStock(), idFieldName)) {
-            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
-                            .singletonList(stockSearchRequest.getStock())),
-                    stockSearchRequest.getStock());
-            return stockRepository.findById(ids, includeDeleted, idFieldName).stream()
-                    .filter(lastChangedSince(lastChangedSince))
-                    .filter(havingTenantId(tenantId))
-                    .filter(includeDeleted(includeDeleted))
-                    .collect(Collectors.toList());
+
+        // Use lastSyncedTime from request body if provided, otherwise fall back to lastChangedSince from URL params
+        Long effectiveLastChangedSince = stockSearchRequest.getStock().getLastSyncedTime() != null
+                ? stockSearchRequest.getStock().getLastSyncedTime()
+                : lastChangedSince;
+
+        String currentUserUuid = stockSearchRequest.getRequestInfo() != null
+                && stockSearchRequest.getRequestInfo().getUserInfo() != null
+                ? stockSearchRequest.getRequestInfo().getUserInfo().getUuid()
+                : null;
+
+        String lastModifiedByFilter = null;
+        if (effectiveLastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers) && currentUserUuid != null) {
+            lastModifiedByFilter = currentUserUuid;
         }
 
         log.info("completed search method for stock");
-        return stockRepository.find(stockSearchRequest.getStock(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+        return stockRepository.findWithCount(stockSearchRequest.getStock(),
+                limit, offset, tenantId, effectiveLastChangedSince, includeDeleted, lastModifiedByFilter);
     }
 }

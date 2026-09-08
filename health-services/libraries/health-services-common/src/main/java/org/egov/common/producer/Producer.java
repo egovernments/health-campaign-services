@@ -1,9 +1,15 @@
 package org.egov.common.producer;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.utils.CommonUtils;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.kafka.CustomKafkaTemplate;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
+
+import static org.egov.tracer.constants.TracerConstants.TENANTID_MDC;
 
 // NOTE: If tracer is disabled change CustomKafkaTemplate to KafkaTemplate in autowiring
 
@@ -12,13 +18,56 @@ import org.springframework.stereotype.Service;
 public class Producer {
 
     private final CustomKafkaTemplate<String, Object> kafkaTemplate;
+    private final MultiStateInstanceUtil multiStateInstanceUtil;
 
     @Autowired
-    public Producer(CustomKafkaTemplate<String, Object> kafkaTemplate) {
+    public Producer(CustomKafkaTemplate<String, Object> kafkaTemplate, MultiStateInstanceUtil multiStateInstanceUtil) {
         this.kafkaTemplate = kafkaTemplate;
+        this.multiStateInstanceUtil = multiStateInstanceUtil;
     }
 
+    /**
+     * push objects to kafka with modified topic for a specified tenant based on
+     * central instance environment configuration
+     *
+     * @param tenantId tenant id to get the topic for.
+     * @param topic    topic name to push changes for.
+     * @param value    Object which needs to be pushed.
+     */
+    public void push(String tenantId, String topic, Object value) {
+        String updatedTopic = multiStateInstanceUtil.getStateSpecificTopicName(tenantId, topic);
+        log.info("The Kafka topic for the tenantId : {} is : {}", tenantId, updatedTopic);
+        // seed tenantId into MDC (restore after) so the producer interceptor can stamp the header
+        boolean seeded = ObjectUtils.isEmpty(MDC.get(TENANTID_MDC)) && !ObjectUtils.isEmpty(tenantId);
+        if (seeded)
+            MDC.put(TENANTID_MDC, tenantId);
+        try {
+            kafkaTemplate.send(updatedTopic, value);
+        } finally {
+            if (seeded)
+                MDC.remove(TENANTID_MDC);
+        }
+    }
+
+    /**
+     * push objects to specified kafka topic
+     *
+     * @param topic    topic name to push changes for.
+     * @param value    Object which needs to be pushed.
+     */
     public void push(String topic, Object value) {
         kafkaTemplate.send(topic, value);
+    }
+
+    /**
+     * Returns the actual resolved topic name for a given tenantId and base topic.
+     * Useful for logging the correct topic name before pushing.
+     *
+     * @param tenantId  tenant id used to resolve the state-specific topic.
+     * @param baseTopic base topic name.
+     * @return resolved topic name (prefixed when central instance is enabled).
+     */
+    public String getResolvedTopicName(String tenantId, String baseTopic) {
+        return multiStateInstanceUtil.getStateSpecificTopicName(tenantId, baseTopic);
     }
 }

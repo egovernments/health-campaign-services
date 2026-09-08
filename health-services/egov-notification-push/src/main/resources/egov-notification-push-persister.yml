@@ -1,0 +1,58 @@
+serviceMaps:
+  serviceName: egov-notification-push
+  mappings:
+
+    - version: 1.0
+      description: Save/override device token
+      fromTopic: save-push-device-token-health
+      isTransaction: true
+      queryMaps:
+        - query: >-
+            INSERT INTO health.eg_push_device_tokens
+            (id, userid, devicetoken, devicetype, tenantid, facilityid, userroles, createdby, createdtime, lastmodifiedby, lastmodifiedtime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (devicetoken, facilityid) DO UPDATE SET
+            userid = EXCLUDED.userid, devicetype = EXCLUDED.devicetype, tenantid = EXCLUDED.tenantid,
+            userroles = EXCLUDED.userroles,
+            lastmodifiedby = EXCLUDED.lastmodifiedby, lastmodifiedtime = EXCLUDED.lastmodifiedtime
+          basePath: $.deviceTokens.*
+          jsonMaps:
+            - jsonPath: $.deviceTokens.*.id
+            - jsonPath: $.deviceTokens.*.userId
+            - jsonPath: $.deviceTokens.*.deviceToken
+            - jsonPath: $.deviceTokens.*.deviceType
+            - jsonPath: $.deviceTokens.*.tenantId
+            - jsonPath: $.deviceTokens.*.facilityId
+            - jsonPath: $.deviceTokens.*.userRoles
+            - jsonPath: $.deviceTokens.*.auditDetails.createdBy
+            - jsonPath: $.deviceTokens.*.auditDetails.createdTime
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedBy
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      description: Delete device token
+      fromTopic: delete-push-device-token-health
+      isTransaction: true
+      queryMaps:
+        - query: >-
+            DELETE FROM health.eg_push_device_tokens
+            WHERE userid = ? AND devicetoken = ? AND tenantid = ? AND facilityid = ?
+          basePath: $.deviceTokens.*
+          jsonMaps:
+            - jsonPath: $.deviceTokens.*.userId
+            - jsonPath: $.deviceTokens.*.deviceToken
+            - jsonPath: $.deviceTokens.*.tenantId
+            - jsonPath: $.deviceTokens.*.facilityId
+
+    - version: 1.0
+      description: Unregister device token (delete all rows for userId+deviceToken, regardless of facilityId)
+      fromTopic: unregister-push-device-token-health
+      isTransaction: true
+      queryMaps:
+        - query: >-
+            DELETE FROM health.eg_push_device_tokens
+            WHERE userid = ? AND devicetoken = ?
+          basePath: $.deviceTokens.*
+          jsonMaps:
+            - jsonPath: $.deviceTokens.*.userId
+            - jsonPath: $.deviceTokens.*.deviceToken

@@ -47,15 +47,29 @@ public class EncryptionDecryptionUtil {
             T encryptedObject = encryptionService.encryptJson(objectToEncrypt, key, properties.getStateLevelTenantId(), classType);
 
             if (encryptedObject == null) {
-                throw new CustomException("ENCRYPTION_NULL_ERROR", "Null object found on performing encryption");
+                throw new CustomException("INDIVIDUAL_ENCRYPTION_NULL_RESULT",
+                        String.format("egov-enc-service returned null for encryption request (securityPolicyKey=%s, classType=%s, tenantId=%s). "
+                                        + "Check that a SecurityPolicy exists in MDMS for this key.",
+                                key, classType.getSimpleName(), properties.getStateLevelTenantId()));
             }
             return encryptedObject;
         } catch (IOException | HttpClientErrorException | HttpServerErrorException | ResourceAccessException e) {
             log.error("Error occurred while encrypting", e);
-            throw new CustomException("ENCRYPTION_ERROR", "Error occurred in encryption process");
+            throw new CustomException("INDIVIDUAL_ENCRYPTION_TRANSPORT_ERROR",
+                    String.format("Failed to reach egov-enc-service while encrypting (securityPolicyKey=%s, classType=%s, tenantId=%s). "
+                                    + "downstreamExceptionClass=%s downstreamMessage=%s. "
+                                    + "Verify that egov-enc-service is running and reachable at the configured egov.enc.host.",
+                            key, classType.getSimpleName(), properties.getStateLevelTenantId(),
+                            e.getClass().getSimpleName(),
+                            e.getMessage() != null ? e.getMessage() : "(no message)"));
         } catch (Exception e) {
             log.error("Unknown Error occurred while encrypting", e);
-            throw new CustomException("UNKNOWN_ERROR", "Unknown error occurred in encryption process");
+            throw new CustomException("INDIVIDUAL_ENCRYPTION_ERROR",
+                    String.format("Encryption failed for (securityPolicyKey=%s, classType=%s, tenantId=%s). "
+                                    + "downstreamExceptionClass=%s downstreamMessage=%s",
+                            key, classType.getSimpleName(), properties.getStateLevelTenantId(),
+                            e.getClass().getSimpleName(),
+                            e.getMessage() != null ? e.getMessage() : "(no message)"));
         }
     }
 
@@ -84,7 +98,10 @@ public class EncryptionDecryptionUtil {
             
             P decryptedObject = (P) encryptionService.decryptJson(requestInfo,objectToDecrypt, key, purpose, classType);
             if (decryptedObject == null) {
-                throw new CustomException("DECRYPTION_NULL_ERROR", "Null object found on performing decryption");
+                throw new CustomException("INDIVIDUAL_DECRYPTION_NULL_RESULT",
+                        String.format("egov-enc-service returned null for decryption request (securityPolicyKey=%s, classType=%s, purpose=%s). "
+                                        + "Check that a SecurityPolicy exists in MDMS and that the stored ciphertexts were produced by the same key.",
+                                key, classType.getSimpleName(), purpose));
             }
 
             if (objectToDecryptNotList) {
@@ -93,10 +110,21 @@ public class EncryptionDecryptionUtil {
             return decryptedObject;
         } catch (IOException | HttpClientErrorException | HttpServerErrorException | ResourceAccessException e) {
             log.error("Error occurred while decrypting", e);
-            throw new CustomException("DECRYPTION_SERVICE_ERROR", "Error occurred in decryption process");
+            throw new CustomException("INDIVIDUAL_DECRYPTION_TRANSPORT_ERROR",
+                    String.format("Failed to reach egov-enc-service while decrypting (securityPolicyKey=%s, classType=%s). "
+                                    + "downstreamExceptionClass=%s downstreamMessage=%s. "
+                                    + "Verify that egov-enc-service is running and reachable at the configured egov.enc.host.",
+                            key, classType.getSimpleName(),
+                            e.getClass().getSimpleName(),
+                            e.getMessage() != null ? e.getMessage() : "(no message)"));
         } catch (Exception e) {
             log.error("Unknown Error occurred while decrypting", e);
-            throw new CustomException("UNKNOWN_ERROR", "Unknown error occurred in decryption process");
+            throw new CustomException("INDIVIDUAL_DECRYPTION_ERROR",
+                    String.format("Decryption failed for (securityPolicyKey=%s, classType=%s). "
+                                    + "downstreamExceptionClass=%s downstreamMessage=%s",
+                            key, classType.getSimpleName(),
+                            e.getClass().getSimpleName(),
+                            e.getMessage() != null ? e.getMessage() : "(no message)"));
         }
     }
 

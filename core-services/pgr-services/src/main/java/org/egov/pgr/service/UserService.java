@@ -61,11 +61,13 @@ public class UserService {
     public void enrichUsers(List<ServiceWrapper> serviceWrappers){
 
         Set<String> uuids = new HashSet<>();
+        if (CollectionUtils.isEmpty(serviceWrappers)) return;
+        String tenantId = serviceWrappers.get(0).getService().getTenantId();
         serviceWrappers.forEach(serviceWrapper -> {
             uuids.add(serviceWrapper.getService().getAccountId());
         });
 
-        Map<String, User> idToUserMap = searchBulkUser(new LinkedList<>(uuids));
+        Map<String, User> idToUserMap = searchBulkUser(tenantId, new LinkedList<>(uuids));
 
         serviceWrappers.forEach(serviceWrapper -> {
             serviceWrapper.getService().setUser(idToUserMap.get(serviceWrapper.getService().getAccountId()));
@@ -196,14 +198,19 @@ public class UserService {
     }
 
     /**
-     * calls the user search API based on the given list of user uuids
-     * @param uuids
-     * @return
+     * Searches for users based on their unique identifiers (UUIDs) within a specific tenant
+     * and returns a mapping of UUIDs to their corresponding user details.
+     *
+     * @param tenantId the ID of the tenant to which the users belong
+     * @param uuids a list of unique user identifiers to be searched
+     * @return a map where the keys are user UUIDs and the values are the corresponding User objects
+     * @throws CustomException if no users are found for the provided UUIDs
      */
-    private Map<String,User> searchBulkUser(List<String> uuids){
+    private Map<String,User> searchBulkUser(String tenantId, List<String> uuids){
 
         UserSearchRequest userSearchRequest =new UserSearchRequest();
         userSearchRequest.setActive(true);
+        userSearchRequest.setTenantId(tenantId);
 
 
         if(!CollectionUtils.isEmpty(uuids))

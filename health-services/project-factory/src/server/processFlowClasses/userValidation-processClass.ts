@@ -1,0 +1,357 @@
+import { getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
+import { SheetMap } from "../models/SheetMap";
+import { logger } from "../utils/logger";
+import config from "../config";
+import { getCampaignDataRowsWithUniqueIdentifiers, throwError } from "../utils/genericUtils";
+import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
+import { httpRequest } from "../utils/request";
+import { searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { validateActiveFieldMinima, validateDatasWithSchema, validateMultiSelectUniqueness } from "../validators/campaignValidators";
+import { ResourceDetails } from "../config/models/resourceDetailsSchema";
+import { searchWorkersByIds } from "../utils/workerRegistryUtils";
+
+
+export class TemplateClass {
+    /** Validates the user sheet (schema, phones, usernames, boundaries, worker IDs, beneficiary codes) and annotates row errors. */
+    static async process(
+        resourceDetails: any,
+        wholeSheetData: any,
+        localizationMap: Record<string, string>,
+        templateConfig: any
+    ): Promise<SheetMap> {
+        logger.info("Processing file...");
+        logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
+        const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
+        if (!userSheetData || !userSheetData?.length) {
+            throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)}' is empty or not present`);
+        }
+        // Reconstruct multiselect parent columns from individual _MULTISELECT_* columns
+        // Handles sheets where the CONCATENATE formula was missing beyond row 101
+        this.reconstructMultiSelectFields(userSheetData);
+
+        const errors: any[] = [];
+        const userSchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema;
+        validateDatasWithSchema(userSheetData, userSchema, errors, localizationMap);
+        validateActiveFieldMinima(userSheetData,"HCM_ADMIN_CONSOLE_USER_USAGE", errors);
+        await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
+        await this.validateUserNames(userSheetData, resourceDetails, errors);
+        await this.validateBoundaries(userSheetData, resourceDetails, errors);
+        await this.validateWorkerIds(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
+        this.validateBeneficiaryCode(userSheetData, errors);
+        validateMultiSelectUniqueness(userSheetData, userSchema, localizationMap, errors);
+
+        this.processErrors(userSheetData, errors, resourceDetails);       
+        const sheetMap: SheetMap = {
+            ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
+                data: userSheetData,
+                dynamicColumns: {
+                    ["Password"]: {
+                        hideColumn: true,
+                        showInProcessed: false
+                    }
+                }
+            }
+        }
+        logger.info(`SheetMap generated for template of type ${resourceDetails.type}.`);
+        return sheetMap;
+    }
+
+    private static processErrors(sheetData : any, errors : any[], resourceDetails : ResourceDetails) {
+            for (const error of errors) {
+                if (error.row == null) {
+                    logger.warn(`Skipping error without row number: ${error.message}`);
+                    continue;
+                }
+                const row = error.row - 3;
+                if (row < 0 || row >= sheetData.length) {
+                    logger.warn(`Row index ${row} out of bounds for error: ${error.message}`);
+                    continue;
+                }
+                const existingError = sheetData[row]["#errorDetails#"];
+
+                if (existingError) {
+                    const trimmed = existingError.trim();
+                    const separator = trimmed.endsWith(".") ? " " : ". ";
+                    sheetData[row]["#errorDetails#"] = `${trimmed}${separator}${error.message}`;
+                } else {
+                    sheetData[row]["#errorDetails#"] = error.message;
+                }
+                sheetData[row]["#status#"] = sheetDataRowStatuses.INVALID;
+            }
+            if (errors.length > 0) {
+                resourceDetails.additionalDetails = {
+                    ...resourceDetails.additionalDetails,
+                    sheetErrors: errors
+                };
+            }
+        }
+
+
+    private static reconstructMultiSelectFields(rows: any[]): void {
+        for (const row of rows) {
+            const multiSelectParents: Record<string, { index: number; value: string }[]> = {};
+            for (const key of Object.keys(row)) {
+                const idx = key.indexOf("_MULTISELECT_");
+                if (idx > 0) {
+                    const parent = key.substring(0, idx);
+                    const suffix = parseInt(key.substring(idx + "_MULTISELECT_".length), 10);
+                    if (isNaN(suffix)) continue;
+                    const val = row[key];
+                    if (val && String(val).trim()) {
+                        if (!multiSelectParents[parent]) multiSelectParents[parent] = [];
+                        multiSelectParents[parent].push({ index: suffix, value: String(val).trim() });
+                    }
+                }
+            }
+            for (const parent of Object.keys(multiSelectParents)) {
+                const entries = multiSelectParents[parent];
+                if ((!row[parent] || !String(row[parent]).trim()) && entries.length > 0) {
+                    entries.sort((a, b) => a.index - b.index);
+                    row[parent] = entries.map(e => e.value).join(",");
+                }
+            }
+        }
+    }
+
+    private static async validatePhoneNumber(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
+        logger.info("Validating phone numbers...");
+        const phoneNumbersToRowMap: any = {};
+        for (let i = 0; i < userSheetData.length; i++) {
+            if (userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]) {
+                const phoneNumber = userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
+                phoneNumbersToRowMap[String(phoneNumber)] = i + 3;
+            }
+        }
+        const allPhoneNumbersToSearch = Object.keys(phoneNumbersToRowMap);
+        const allCurrentUsersInCampaignDataWithPhoneNumbersRows = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, tenantId, dataRowStatuses.completed);
+        const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => String(user?.uniqueIdentifier)));
+        const allPhoneNumbersNotInCampaignData = allPhoneNumbersToSearch.filter((phoneNumber: any) => !setOfAllCurrentUsersInCampaignDataWithPhoneNumbers.has(String(phoneNumber)));
+        logger.info(`Number of phone numbers not in campaign data: ${allPhoneNumbersNotInCampaignData?.length}`);
+        logger.info(`Phone numbers not in campaign data: ${JSON.stringify(allPhoneNumbersNotInCampaignData)}`);
+        const searchBody: any = {
+            RequestInfo: resourceDetails?.requestInfo,
+            Individual: {
+            },
+        };
+        const searchBatchlimit = config.user.individualSearchBatchSize;
+        const params = {
+            limit: searchBatchlimit + 5,
+            offset: 0,
+            tenantId,
+            includeDeleted: true,
+        };
+        for (let i = 0; i < allPhoneNumbersNotInCampaignData.length; i += searchBatchlimit) {
+            const batch = allPhoneNumbersNotInCampaignData.slice(i, i + searchBatchlimit);
+            searchBody.Individual.mobileNumber = batch;
+            logger.info("Individual search to validate the mobile no initiated");
+            const response = await httpRequest(
+                config.host.healthIndividualHost + config.paths.healthIndividualSearch,
+                searchBody,
+                params,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                true
+            );
+            if (!response) {
+                throwError(
+                    "COMMON",
+                    400,
+                    "INTERNAL_SERVER_ERROR",
+                    "Error occurred during user search while validating mobile number."
+                );
+            }
+            if (response?.Individual?.length === 0) {
+                continue;
+            }
+            for (const user of response?.Individual) {
+                logger.warn(
+                    `User with mobileNumber ${user?.mobileNumber} already exists in campaign data`
+                );
+                errors.push({
+                    row: phoneNumbersToRowMap[user?.mobileNumber],
+                    message: `User with mobileNumber ${user?.mobileNumber} already exists and is not suitable for this campaign.`
+                });
+            }
+        }
+        logger.info("Phone number validation completed.");
+    }
+
+    private static async validateUserNames(userSheetData: any, resourceDetails: any, errors: any[]) {
+        logger.info("Validating user names...");
+        const tenantId = resourceDetails?.tenantId;
+        const userNamesToRowMap: any = {};
+        const allPhoneNumbersToSearch = [];
+        for (let i = 0; i < userSheetData.length; i++) {
+            if (userSheetData?.[i]?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]) {
+                allPhoneNumbersToSearch.push(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]));
+            }
+        }
+        const userDataInDb = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, tenantId, dataRowStatuses.completed);
+        const alreadyCreatedUsersPhoneNumberSet = new Set(userDataInDb.map((user: any) => String(user?.uniqueIdentifier)));
+        for (let i = 0; i < userSheetData.length; i++) {
+            if (userSheetData[i]["UserName"] && !alreadyCreatedUsersPhoneNumberSet.has(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]))) {
+                const userName = userSheetData[i]["UserName"];
+                if (!userSheetData[i]["UserService Uuids"] && userName) {
+                    userNamesToRowMap[userName] = i + 3;
+                }
+            }
+        }
+        const allUserNamesToCheck = Object.keys(userNamesToRowMap);
+        const searchBody: any = {
+            RequestInfo: resourceDetails?.requestInfo,
+            Individual: {
+                username: []
+            }
+        };
+
+        const searchUrl = config.host.healthIndividualHost + config.paths.healthIndividualSearch;
+        const chunkSize = config.user.validationSearchBatchSize;
+
+        for (let i = 0; i < allUserNamesToCheck.length; i += chunkSize) {
+            const chunk = allUserNamesToCheck.slice(i, i + chunkSize);
+            searchBody.Individual.username = chunk;
+            const params = {
+                tenantId,
+                limit: 51,
+                offset: 0
+            };
+
+            try {
+                const response = await httpRequest(
+                    searchUrl,
+                    searchBody,
+                    params,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    true
+                );
+                if (response?.Individual?.length > 0) {
+                    response.Individual.forEach((emp: any) => {
+                        errors.push({
+                            row: userNamesToRowMap[emp?.userDetails?.username],
+                            message: `User with userName ${emp?.userDetails?.username} already exists.`
+                        })
+                    });
+                }
+            } catch (error: any) {
+                console.log(error);
+                throwError(
+                    "COMMON",
+                    500,
+                    "INTERNAL_SERVER_ERROR",
+                    error.message ||
+                    "Some internal error occurred while searching employees"
+                );
+            }
+        }
+        logger.info("User name validation completed.");
+    }
+
+    private static async validateBoundaries(userSheetData: any, resourceDetails: any, errors: any[]) {
+        logger.info("Validating boundaries...");
+        const campaignDetails = await this.getCampaignDetails(resourceDetails);
+        const tenantId = campaignDetails?.tenantId;
+        const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, campaignDetails?.hierarchyType, true, true, false);
+        const boundaries = campaignDetails?.boundaries || [];
+
+        const boundaryChildren: Record<string, boolean> = boundaries.reduce((acc: any, boundary: any) => {
+            acc[boundary.code] = boundary.includeAllChildren;
+            return acc;
+        }, {});
+
+        const boundaryCodes: any = new Set(boundaries.map((boundary: any) => boundary.code));
+
+        await populateBoundariesRecursively(
+            boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary?.[0],
+            boundaries,
+            boundaryChildren[boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code],
+            boundaryCodes,
+            boundaryChildren
+        );
+        const setOfCampaignBoundaries = new Set();
+        for (let i = 0; i < boundaries.length; i++) {
+            setOfCampaignBoundaries.add(boundaries[i]?.code);
+        }
+        for (let i = 0; i < userSheetData.length; i++) {
+            if (userSheetData[i]?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]) {
+                const boundariesAfterSplitAndTrim = userSheetData[i]?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"].split(",").map((boundary: any) => boundary.trim());
+                boundariesAfterSplitAndTrim.forEach((boundary: any) => {
+                    if (!setOfCampaignBoundaries.has(boundary)) {
+                        errors.push({
+                            row: i + 3,
+                            message: `Boundary code ${boundary} is not part of this campaign.`
+                        });
+                    }
+                });
+            }
+        }
+        logger.info("Boundary validation completed.");
+    }
+
+    private static async validateWorkerIds(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
+        logger.info("Validating worker IDs...");
+        const workerIdToRowMap: Record<string, number> = {};
+        for (let i = 0; i < userSheetData.length; i++) {
+            const workerId = userSheetData[i]["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+            if (workerId) {
+                workerIdToRowMap[String(workerId)] = i + 3;
+            }
+        }
+        const allWorkerIds = Object.keys(workerIdToRowMap);
+        if (!allWorkerIds.length) return;
+
+        const chunkSize = config.workerRegistry.searchBatchSize;
+        const foundIds = new Set<string>();
+        for (let i = 0; i < allWorkerIds.length; i += chunkSize) {
+            const chunk = allWorkerIds.slice(i, i + chunkSize);
+            const workers = await searchWorkersByIds(chunk, tenantId, resourceDetails?.requestInfo);
+            for (const worker of workers) {
+                if (worker.id) foundIds.add(String(worker.id));
+            }
+        }
+
+        for (const workerId of allWorkerIds) {
+            if (!foundIds.has(workerId)) {
+                errors.push({
+                    row: workerIdToRowMap[workerId],
+                    message: `Worker with ID ${workerId} does not exist in the worker registry.`
+                });
+            }
+        }
+        logger.info("Worker ID validation completed.");
+    }
+
+    private static validateBeneficiaryCode(userSheetData: any[], errors: any[]): void {
+        const fields = [
+            { key: "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE", label: "Beneficiary Code" },
+            { key: "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT", label: "Bank Account" },
+            { key: "HCM_ADMIN_CONSOLE_USER_BANK_CODE", label: "Bank Code" },
+        ];
+        for (const { key, label } of fields) {
+            logger.info(`Validating ${label} for whitespace...`);
+            for (let i = 0; i < userSheetData.length; i++) {
+                const raw = userSheetData[i][key];
+                if (raw === undefined || raw === null || raw === "") continue;
+                if (/\s/.test(String(raw))) {
+                    errors.push({ row: i + 3, message: `${label} must not contain any whitespace.` });
+                }
+            }
+        }
+        logger.info("Whitespace validation completed.");
+    }
+
+    private static async getCampaignDetails(resourceDetails: any): Promise<any> {
+        const response = await searchProjectTypeCampaignService({
+            tenantId: resourceDetails.tenantId,
+            ids: [resourceDetails?.campaignId],
+        });
+        const campaign = response?.CampaignDetails?.[0];
+        if (!campaign) throw new Error("Campaign not found");
+        return campaign;
+    }
+}

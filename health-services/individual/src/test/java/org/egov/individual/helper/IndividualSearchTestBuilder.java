@@ -4,7 +4,7 @@ package org.egov.individual.helper;
 import org.egov.common.models.individual.Gender;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Name;
-import org.egov.individual.web.models.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearch;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -53,7 +53,17 @@ public class IndividualSearchTestBuilder {
         this.builder.clientReferenceId(ids);
         return this;
     }
+    public IndividualSearchTestBuilder byUserUUID(String... args) {
+        ArrayList<String> ids = new ArrayList<>();
+        if (args != null && args.length > 0) {
+            ids.add(args[0]);
+        } else {
+            ids.add("some-user-uuid");
+        }
 
+        this.builder.userUuid(ids);
+        return this;
+    }
 
     public IndividualSearchTestBuilder byName() {
         this.builder.name(Name.builder()

@@ -10,14 +10,14 @@ import lombok.Setter;
 import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 
 
 @ApiModel(description = "Contract class to receive workflow response.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2018-12-04T11:26:25.532+05:30")
+@jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2018-12-04T11:26:25.532+05:30")
 
 @Getter
 @Setter

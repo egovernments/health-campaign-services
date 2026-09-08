@@ -1,0 +1,940 @@
+import { NextFunction, Request, Response } from "express";
+import { logger } from "./logger";
+import { getLocaleFromRequest , getLocaleFromRequestInfo ,getLocalisationModuleName} from "./localisationUtils";
+import Localisation from "../controllers/localisationController/localisation.controller";
+import config from "../config/index";
+import { httpRequest } from "./request";
+import { getErrorCodes ,generatedResourceStatuses} from "../config/constants";
+import { v4 as uuidv4 } from 'uuid';
+import { resourceDataStatuses } from "../config/constants";
+import { produceModifiedMessages } from "../kafka/Producer";
+import {generateHierarchyList} from "../api/boundaryApis";
+import {getLocalizedName,getHierarchy , getLocalizedNameOnlyIfMessagePresent,getLatLongMapForBoundaryCodes} from "../utils/boundaryUtils";
+import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
+import {getBoundaryDataService} from "../services/boundaryManagementService";
+import {getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement , createExcelSheet} from "../api/genericApis";
+import {getTableName,executeQuery} from "../utils/db";
+const NodeCache = require("node-cache");
+import _ from "lodash";
+const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC;
+const createGeneratedResourceTopic = config?.kafka?.KAFKA_CREATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC;
+
+
+
+/*
+  stdTTL: (default: 0) the standard ttl as number in seconds for every generated
+   cache element. 0 = unlimited
+
+  checkperiod: (default: 600) The period in seconds, as a number, used for the automatic
+   delete check interval. 0 = no periodic check.
+
+   30 mins caching
+*/
+const appCache = new NodeCache({ stdTTL: 1800000, checkperiod: 300 });
+
+
+/*
+Error handling Middleware function reads the error message and sends back a response in JSON format
+*/
+export const errorResponder = (
+  error: any,
+  request: any,
+  response: Response,
+  status: any = 500,
+  next: any = null
+) => {
+  if (error?.status) {
+    status = error?.status;
+  }
+  const code = error?.code || (status === 500 ? "INTERNAL_SERVER_ERROR" : (status === 400 ? "BAD_REQUEST" : "UNKNOWN_ERROR"));
+  response.setHeader("Content-Type", "application/json");
+  const errorMessage = trimError(error.message || "Some Error Occurred!!");
+  const errorDescription = error.description || null;
+  const errorResponse = getErrorResponse(code, errorMessage, errorDescription);
+  response.status(status).send(errorResponse);
+};
+
+
+const trimError = (e: any) => {
+  if (typeof e === "string") {
+    e = e.trim();
+    while (e.startsWith("Error:")) {
+      e = e.substring(6);
+      e = e.trim();
+    }
+  }
+  return e;
+}
+
+/* 
+Error Object
+*/
+const getErrorResponse = (
+  code = "INTERNAL_SERVER_ERROR",
+  message = "Some Error Occured!!",
+  description: any = null
+) => ({
+  ResponseInfo: null,
+  Errors: [
+    {
+      code: code,
+      message: message,
+      description: description,
+      params: null,
+    },
+  ],
+});
+
+/*
+Error handling Middleware function for logging the error message
+*/
+const errorLogger = (
+  error: Error,
+  request: any,
+  response: any,
+  next: NextFunction
+) => {
+  logger.error(error.stack);
+  logger.error(`error ${error.message}`);
+  next(error); // calling next middleware
+};
+/* 
+Fallback Middleware function for returning 404 error for undefined paths
+*/
+const invalidPathHandler = (
+  request: any,
+  response: any,
+  next: NextFunction
+) => {
+  response.status(404);
+  response.send(getErrorResponse("INVALID_PATH", "invalid path"));
+};
+
+/* 
+Send The Response back to client with proper response code and response info
+*/
+const sendResponse = (
+  response: Response,
+  responseBody: any,
+  req: Request,
+  code: number = 200
+) => {
+  /* if (code != 304) {
+    appCache.set(req.headers.cachekey, { ...responseBody });
+  } else {
+    logger.info("CACHED RESPONSE FOR :: " + req.headers.cachekey);
+  }
+  */
+  logger.info("Send back the response to the client");
+  response.status(code).send({
+    ...getResponseInfo(code),
+    ...responseBody,
+  });
+};
+
+/* 
+Response Object
+*/
+const getResponseInfo = (code: Number) => ({
+  ResponseInfo: {
+    apiId: "egov-bff",
+    ver: "0.0.1",
+    ts: new Date().getTime(),
+    status: "successful",
+    desc: code == 304 ? "cached-response" : "new-response",
+  },
+});
+
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false, locale?: string) {
+  const localisationcontroller = Localisation.getInstance();
+  if (!locale) {
+    locale = getLocaleFromRequest(request);
+  }
+  try {
+    const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
+    return localizationResponse;
+  } catch (e: any) {
+    // Localization provides display names only and must not block boundary creation. If the
+    // localization service is unavailable, proceed with an empty map (headers/names fall back to codes).
+    logger.warn(`Localization fetch failed for module ${module}, locale ${locale}, tenant ${tenantId}; proceeding without localization: ${e?.message || e}`);
+    return {};
+  }
+}
+
+/* 
+Send The Error Response back to client with proper response code 
+*/
+const throwErrorViaRequest = (message: any = "Internal Server Error") => {
+  if (message?.message || message?.code) {
+    let error: any = new Error(message?.message || message?.code);
+    error = Object.assign(error, { status: message?.status || 500 });
+    logger.error("Error : " + error + " " + (message?.description || ""));
+    throw error;
+  }
+  else {
+    let error: any = new Error(message);
+    error = Object.assign(error, { status: 500 });
+    logger.error("Error : " + error);
+    throw error;
+  }
+};
+function capitalizeFirstLetter(str: string | undefined) {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+const throwError = (module = "COMMON", status = 500, code = "UNKNOWN_ERROR", description: any = null) => {
+  const errorResult: any = getErrorCodes(module, code);
+  status = errorResult?.code == "UNKNOWN_ERROR" ? 500 : status;
+  let error: any = new Error(capitalizeFirstLetter(errorResult?.message));
+  error = Object.assign(error, { status, code: errorResult?.code, description: capitalizeFirstLetter(description) });
+  logger.error(error);
+  throw error;
+};
+
+function getLocalizedHeaders(headers: any, localizationMap?: { [key: string]: string }) {
+  const messages = headers.map((header: any) => (localizationMap ? localizationMap[header] || header : header));
+  return messages;
+}
+
+/**
+ * Enrich the resource details with uuid, processed file store id, status, audit details, type and campaignId.
+ * 
+ * @param {any} request - The request object containing the resource details to be enriched.
+ * 
+ * @returns {Promise<any>} - A promise containing the enriched resource details.
+ */
+async function enrichResourceDetails(request: any) {
+  request.body.ResourceDetails.id = uuidv4();
+  request.body.ResourceDetails.processedFileStoreId = null;
+  request.body.ResourceDetails.referenceId = request?.body?.ResourceDetails?.referenceId || null;
+  // additionalDetails is mapped (JSONB) by the create-processed-boundary-management persister
+  // config. It MUST be present as a key: the persister reads $.ResourceDetails.additionalDetails
+  // with a strict JsonPath (no DEFAULT_PATH_LEAF_TO_NULL), so an absent key throws
+  // PathNotFoundException and the whole status record is dead-lettered/parked. Default to {}.
+  request.body.ResourceDetails.additionalDetails = request?.body?.ResourceDetails?.additionalDetails || {};
+  if (request?.body?.ResourceDetails?.action == "create") {
+    request.body.ResourceDetails.status = resourceDataStatuses.accepted
+  }
+  else {
+    request.body.ResourceDetails.status = resourceDataStatuses.started
+  }
+
+  request.body.ResourceDetails.auditDetails = {
+    createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
+    createdTime: Date.now(),
+    lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
+    lastModifiedTime: Date.now()
+  }
+
+  const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC, request?.body?.ResourceDetails?.tenantId);
+}
+function shutdownGracefully() {
+  logger.info('Shutting down gracefully...');
+  // Perform any cleanup tasks here, like closing database connections
+  process.exit(1); // Exit with a non-zero code to indicate an error
+}
+
+function createHeaderToHierarchyMap(
+  sheetHeaders: string[],
+  hierarchy: string[]
+): { [key: string]: string } {
+  const map: { [key: string]: string } = {};
+  let hierarchyIndex = 0;
+
+  for (const header of sheetHeaders) {
+    if (hierarchyIndex < hierarchy.length) {
+      map[header] = hierarchy[hierarchyIndex++];
+    }
+  }
+
+  return map;
+}
+
+function modifyBoundaryDataHeadersWithMap(
+  boundaryData: any[],
+  headerToHierarchyMap: { [originalHeader: string]: string }
+) {
+  return boundaryData.map((row) => {
+    const updatedRow: { [key: string]: any } = {};
+
+    for (const key in row) {
+      if (Object.prototype.hasOwnProperty.call(row, key)) {
+        const newKey = headerToHierarchyMap[key];
+        updatedRow[newKey || key] = row[key];
+      }
+    }
+
+    return updatedRow;
+  });
+}
+
+// Recursively collect every code in a boundary-relationship tree response.
+// Local copy (rather than importing from boundaryUtils) to avoid a cyclic import.
+function collectRelationshipCodes(boundaries: any[], acc: Set<string>): Set<string> {
+  if (!Array.isArray(boundaries)) return acc;
+  for (const boundary of boundaries) {
+    if (boundary?.code) acc.add(boundary.code.toString());
+    if (boundary?.children && boundary.children.length > 0) {
+      collectRelationshipCodes(boundary.children, acc);
+    }
+  }
+  return acc;
+}
+
+/**
+ * Fetch every boundary code already present in THIS hierarchy (tenantId + hierarchyType)
+ * in a single relationship search (the search returns the whole tree with includeChildren).
+ * This replaces the previous tenant-global entity lookup done in chunks of 20:
+ *  - correctness: existence is now scoped to the hierarchy being uploaded (Issue 2 — codes
+ *    belonging to another hierarchy no longer masquerade as "already processed"), and
+ *  - performance: one call instead of ~N/20 calls, so the segregation/entity phases scale
+ *    with the delta rather than the total hierarchy size (Issue 5).
+ * Degrades safely to an empty set on any failure (callers then fall back to per-code search).
+ */
+async function getExistingHierarchyCodes(request: any, tenantId?: string): Promise<Set<string>> {
+  const codes = new Set<string>();
+  const resolvedTenantId = tenantId || request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId;
+  const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
+  if (!resolvedTenantId || !hierarchyType) {
+    return codes;
+  }
+  try {
+    const response = await httpRequest(
+      config.host.boundaryHost + config.paths.boundaryRelationship,
+      request.body,
+      {
+        type: "boundaryManagement",
+        tenantId: resolvedTenantId,
+        boundaryType: null,
+        codes: null,
+        includeChildren: true,
+        hierarchyType,
+      }
+    );
+    const boundaryData = response?.TenantBoundary?.[0]?.boundary;
+    if (Array.isArray(boundaryData)) {
+      collectRelationshipCodes(boundaryData, codes);
+    }
+  } catch (error: any) {
+    logger.error(`Failed to fetch existing codes for hierarchy ${hierarchyType}: ${error?.message}`);
+  }
+  return codes;
+}
+
+/**
+ * Helper function to check which of the given boundary codes already exist in THIS hierarchy.
+ * Scoped to (tenantId + hierarchyType) via a single relationship search (see
+ * getExistingHierarchyCodes) instead of a tenant-global, chunked entity lookup.
+ * @param boundaryCodes - Array of boundary codes to check
+ * @param tenantId - Tenant ID for the request
+ * @param request - Request object
+ * @returns Set of the given boundary codes that already exist in this hierarchy
+ */
+async function checkExistingBoundaryCodes(
+  boundaryCodes: string[],
+  tenantId: string,
+  request: any
+): Promise<Set<string>> {
+  const existingCodes = new Set<string>();
+
+  if (!boundaryCodes || boundaryCodes.length === 0) {
+    return existingCodes;
+  }
+
+  const hierarchyCodes = await getExistingHierarchyCodes(request, tenantId);
+  const requested = new Set(boundaryCodes.map((c) => c?.toString()));
+  hierarchyCodes.forEach((code) => {
+    if (requested.has(code)) {
+      existingCodes.add(code);
+    }
+  });
+
+  return existingCodes;
+}
+
+/**
+ * Helper function to check for duplicate boundary codes within arrays
+ * Used inside modifyBoundaryData to validate immediately after DB check
+ */
+function checkForDuplicateBoundaryCodesInArrays(
+  withBoundaryCode: any[],
+  manualBoundaryCode: any[],
+  boundaryCodeKey: string
+) {
+  const seenCodes = new Map<string, number>();
+  const duplicates: string[] = [];
+
+  // Combine both arrays
+  const allBoundaryCodeRows = [...withBoundaryCode, ...manualBoundaryCode];
+
+  // Extract and check for duplicates
+  allBoundaryCodeRows.forEach((row: any[]) => {
+    const boundaryCodeObj = row.find((obj: any) => obj.key === boundaryCodeKey);
+    if (boundaryCodeObj && boundaryCodeObj.value) {
+      const code = boundaryCodeObj.value.toString().trim();
+      if (seenCodes.has(code)) {
+        if (!duplicates.includes(code)) {
+          duplicates.push(code);
+        }
+      } else {
+        seenCodes.set(code, 1);
+      }
+    }
+  });
+
+  if (duplicates.length > 0) {
+    const duplicateCodesString = duplicates.join(", ");
+    throwError(
+      "BOUNDARY",
+      400,
+      "DUPLICATE_BOUNDARY_CODE",
+      `You have entered duplicate boundary service codes: ${duplicateCodesString}. Please correct them.`
+    );
+  }
+}
+
+/**
+ * Helper function to check for mixed boundary flow
+ * Used inside modifyBoundaryData to validate immediately after DB check
+ */
+function checkForMixedBoundaryFlowInArrays(
+  withoutBoundaryCode: any[],
+  manualBoundaryCode: any[]
+) {
+  if (withoutBoundaryCode.length > 0 && manualBoundaryCode.length > 0) {
+    throwError(
+      "BOUNDARY",
+      400,
+      "MIXED_BOUNDARY_FLOW",
+      "You should only use either manual flow or auto-generated flow, not both. Please ensure all boundaries either have service codes or none have service codes."
+    );
+  }
+}
+
+async function modifyBoundaryData(
+  boundaryData: any[],
+  localizationMap?: any,
+  request?: any,
+  hierarchy?: string[]
+): Promise<[{ key: string; value: string }[][], { key: string; value: string }[][], { key: string; value: string }[][]]> {
+  // Initialize arrays to store data
+  const withBoundaryCode: { key: string, value: string }[][] = [];
+  const withoutBoundaryCode: { key: string, value: string }[][] = [];
+  const manualBoundaryCode: { key: string, value: string }[][] = [];
+
+  // Get the key for the boundary code
+  const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
+
+  // Temporary arrays to hold rows with and without boundary codes
+  const tempWithBoundaryCode: { row: any; boundaryCode: string; index: number }[] = [];
+  const tempWithoutBoundaryCode: { row: any; index: number }[] = [];
+
+  // Process each object in boundaryData
+  boundaryData.forEach((obj: any, index: number) => {
+    // Convert object entries to an array of {key, value} objects
+    const row: any = Object.entries(obj)
+      .filter(([key, value]: [string, any]) => value !== null && value !== undefined) // Filter out null or undefined values
+      .map(([key, value]: [string, any]) => {
+        // Check if the current key is the "Boundary Code" key
+        if (key === boundaryCodeKey) {
+          // Keep the "Boundary Code" value as is without transformation
+          return { key, value: value.toString() };
+        } else {
+          // Transform other values
+          return { key, value: value.toString().replace(/_/g, ' ').trim() };
+        }
+      });
+
+    // Stamp a stable ancestor-path on every hierarchy-level element so boundaryKeyOf can tell
+    // apart two same-level/same-name boundaries that sit under different parents, and treat the
+    // SAME boundary restated on multiple rows as identical. Built from post-normalization values
+    // in hierarchy order; \u0000/\u0001 cannot occur in boundary names.
+    if (hierarchy && hierarchy.length) {
+      const chain: string[] = [];
+      hierarchy.forEach((level: string) => {
+        const el = row.find((o: any) => o.key === level);
+        if (el && el.value !== '' && el.value != null) {
+          chain.push(`${level}\u0000${el.value}`);
+          el.__path = chain.join('\u0001');
+        }
+      });
+    }
+
+    // Determine whether the object has a boundary code property WITH A NON-EMPTY VALUE
+    // Check both: (1) property exists, (2) value is not empty/null/undefined
+    const hasBoundaryCode = obj.hasOwnProperty(boundaryCodeKey) &&
+                           obj[boundaryCodeKey] !== null &&
+                           obj[boundaryCodeKey] !== undefined &&
+                           obj[boundaryCodeKey].toString().trim() !== '';
+
+    // Store rows with their original index to maintain order
+    if (hasBoundaryCode) {
+      const boundaryCodeValue = obj[boundaryCodeKey]?.toString().trim();
+      tempWithBoundaryCode.push({ row, boundaryCode: boundaryCodeValue, index });
+    } else {
+      tempWithoutBoundaryCode.push({ row, index });
+    }
+  });
+
+  // If there are rows with boundary codes and request is provided, check which ones are already processed
+  if (tempWithBoundaryCode.length > 0 && request) {
+    const boundaryCodes = tempWithBoundaryCode.map(item => item.boundaryCode);
+    const tenantId = request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId;
+
+    // Check which boundary codes already exist in the database
+    const existingCodes = await checkExistingBoundaryCodes(boundaryCodes, tenantId, request);
+
+    // Separate into already processed and manual (user-provided but not processed)
+    tempWithBoundaryCode.forEach(item => {
+      if (existingCodes.has(item.boundaryCode)) {
+        // Boundary is already processed
+        withBoundaryCode.push(item.row);
+      } else {
+        // Boundary code is user-provided but not processed yet
+        manualBoundaryCode.push(item.row);
+      }
+    });
+
+    // IMMEDIATE VALIDATION: Check for duplicates within user submission
+    // This prevents race conditions by validating immediately after DB check
+    // Additional safeguards exist at creation time:
+    // - createBoundaryEntities checks DB before creating
+    // - createBoundaryRelationship validates boundaries don't already exist
+    if (manualBoundaryCode.length > 0) {
+      checkForDuplicateBoundaryCodesInArrays(withBoundaryCode, manualBoundaryCode, boundaryCodeKey);
+    }
+  } else {
+    // If no request provided (backward compatibility), treat all as withBoundaryCode
+    tempWithBoundaryCode.forEach(item => {
+      withBoundaryCode.push(item.row);
+    });
+  }
+
+  // Add rows without boundary codes in their original order
+  tempWithoutBoundaryCode.forEach(item => {
+    withoutBoundaryCode.push(item.row);
+  });
+
+  // Return the three arrays: processed boundaries, unprocessed boundaries, manual boundary codes
+  return [withBoundaryCode, withoutBoundaryCode, manualBoundaryCode];
+}
+
+// Stable string key for {key, value} boundary elements so Maps/Sets can do O(1)
+// structural-equality lookups (object keys would compare by reference).
+function boundaryKeyOf(element: any): string {
+  // PATH-AWARE identity: two boundaries with the same level+name but different ancestors
+  // (duplicate names are allowed under different parents) must be distinct, and the SAME
+  // boundary restated on multiple rows must collapse. modifyBoundaryData stamps __path (the
+  // full ancestor chain) on every hierarchy element; fall back to level+name for objects that
+  // carry no path (e.g. the appended boundary-code object, which is never used as a key).
+  return element?.__path ?? `${element?.key}\u0000${element?.value}`;
+}
+
+function extractFrenchOrPortugeseLocalizationMap(
+  boundaryData: any[][],
+  isFrench: boolean,
+  isPortugese: boolean,
+  localizationMap: any
+): Map<{ key: string; value: string }, string> {
+  const resultMap = new Map<{ key: string; value: string }, string>();
+
+  boundaryData.forEach(row => {
+    const boundaryCodeObj = row.find(obj => obj.key === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
+    const boundaryCode = boundaryCodeObj?.value;
+
+    if (!boundaryCode) return;
+
+    if (isFrench) {
+      const frenchMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap));
+      resultMap.set({
+        key: "french",
+        value: frenchMessageObj?.value || ""
+      }, boundaryCode);
+    } else if (isPortugese) {
+      const portugeseMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE", localizationMap));
+      resultMap.set({
+        key: "portugese",
+        value: portugeseMessageObj?.value || ""
+      }, boundaryCode);
+    }
+  });
+
+  return resultMap;
+}
+
+/**
+ * Process generate request
+ * 1. Fetch existing data from db
+ * 2. Modify existing data with audit details
+ * 3. Generate new random id and make filestore id null
+ * 4. Update existing data with expired status
+ * 5. Generate new data
+ * 6. Update and persist generate request
+ * 
+ * @param request - request object
+ * @param enableCaching - whether to enable caching or not
+ * @param filteredBoundary - optional parameter to filter out boundaries
+ */
+
+async function processGenerate(request: any, enableCaching = false, filteredBoundary?: any) {
+  // fetch the data from db  to check any request already exists
+  const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
+
+  // Preserve existing currentFlow if available and not already set from process flow
+  if (responseData && responseData.length > 0 && responseData[0]?.additionalDetails?.currentFlow) {
+    request.body.determinedCurrentFlow = responseData[0].additionalDetails.currentFlow;
+    logger.info(`Preserving existing currentFlow '${request.body.determinedCurrentFlow}' from previous generation for hierarchy '${request?.query?.hierarchyType}'`);
+  }
+
+  // modify response from db
+  const modifiedResponse = await enrichAuditDetails(responseData || []);
+  // generate new random id and make filestore id null
+  const newEntryResponse = await generateNewRequestObject(request);
+  // make old data status as expired
+  const oldEntryResponse = await updateExistingResourceExpired(modifiedResponse, request);
+  // generate data
+  await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, enableCaching, filteredBoundary);
+}
+
+async function updateExistingResourceExpired(modifiedResponse: any[], request: any) {
+  return modifiedResponse.map((item: any) => {
+    const newItem = { ...item };
+    newItem.status = generatedResourceStatuses.expired;
+    newItem.auditDetails.lastModifiedTime = Date.now();
+    newItem.referenceId = newItem?.referenceId || null;
+    newItem.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
+    return newItem;
+  });
+}
+
+const replicateRequest = (originalRequest: Request, requestBody: any, requestQuery?: any) => {
+  const newRequest = {
+    ...originalRequest,
+    body: _.cloneDeep(requestBody), // Deep clone using lodash
+    query: requestQuery ? _.cloneDeep(requestQuery) : _.cloneDeep(originalRequest.query)
+  };
+  return newRequest;
+};
+
+async function enrichAuditDetails(responseData: any) {
+  return responseData.map((item: any) => {
+    return {
+      ...item,
+      count: parseInt(item.count),
+      auditDetails: {
+        ...item.auditDetails,
+        lastModifiedTime: parseInt(item.auditDetails.lastModifiedTime),
+        createdTime: parseInt(item.auditDetails.createdTime)
+      }
+    };
+  });
+}
+
+async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryResponse: any, responseData: any, request: any, enableCaching = false, filteredBoundary?: any) {
+  const { forceUpdate } = request.query;
+  const forceUpdateBool: boolean = forceUpdate === 'true';
+  let generatedResource: any;
+  if (forceUpdateBool && responseData.length > 0) {
+    generatedResource = { generatedResource: oldEntryResponse };
+    // send message to update topic 
+    await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic, request?.query?.tenantId);
+    request.body.generatedResource = oldEntryResponse;
+  }
+  if (responseData.length === 0 || forceUpdateBool) {
+    processGenerateForNew(request, generatedResource, newEntryResponse, enableCaching, filteredBoundary)
+  }
+  else {
+    request.body.generatedResource = responseData
+  }
+}
+
+async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any, enableCaching = false, filteredBoundary?: any) {
+  request.body.generatedResource = newEntryResponse;
+  logger.info("Generate flow :: processing new request");
+  await fullProcessFlowForNewEntry(newEntryResponse, generatedResource, request, enableCaching, filteredBoundary);
+  return request.body.generatedResource;
+}
+
+async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResource: any, request: any, enableCaching = false, filteredBoundary?: any) {
+  const tenantId = request?.query?.tenantId;
+  try {
+    const { hierarchyType } = request?.query;
+    generatedResource = { generatedResource: newEntryResponse }
+    // send message to create toppic
+    logger.info(`processing the generate request for type ${hierarchyType}`)
+    await produceModifiedMessages(generatedResource, createGeneratedResourceTopic, request?.query?.tenantId);
+
+      // get boundary data from boundary relationship search api
+      logger.info("Generating Boundary Data")
+      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, false);
+      logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
+      // get boundary sheet data after being generated
+      const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
+      const generatedResourceNew: any = { generatedResource: finalResponse }
+      // send to update topic
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
+      request.body.generatedResource = finalResponse;
+      logger.info("generation completed for boundary management create flow")
+  }
+  catch (error: any) {
+    console.log(error)
+    await handleGenerateError(newEntryResponse, generatedResource, error, tenantId);
+  }
+}
+
+async function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any, tenantId: string) {
+  newEntryResponse.map((item: any) => {
+    item.status = generatedResourceStatuses.failed, item.additionalDetails = {
+      ...item.additionalDetails,
+      error: {
+        status: error.status,
+        code: error.code,
+        description: error.description,
+        message: error.message
+      }
+    }
+  })
+  generatedResource = { generatedResource: newEntryResponse };
+  logger.error(String(error));
+  await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic, tenantId);
+}
+
+async function generateNewRequestObject(request: any) {
+  const additionalDetails: any = {};
+
+  // Add currentFlow if passed from process flow (first-time processing)
+  if (request?.body?.determinedCurrentFlow) {
+    additionalDetails.currentFlow = request.body.determinedCurrentFlow;
+    logger.info(`Adding currentFlow '${request.body.determinedCurrentFlow}' to new generated resource for hierarchy '${request?.query?.hierarchyType}'`);
+  }
+
+  const newEntry = {
+    id: uuidv4(),
+    fileStoreid: null,
+    status: generatedResourceStatuses.inprogress,
+    hierarchyType: request?.query?.hierarchyType,
+    tenantId: request?.query?.tenantId,
+    auditDetails: {
+      lastModifiedTime: Date.now(),
+      createdTime: Date.now(),
+      createdBy: request?.body?.RequestInfo?.userInfo.uuid,
+      lastModifiedBy: request?.body?.RequestInfo?.userInfo.uuid,
+    },
+    additionalDetails: additionalDetails,
+    count: null,
+    referenceId : request?.query?.referenceId ? request.query.referenceId : null,
+    // Default the locale instead of storing null: _generate-search filters rows by locale via
+    // getLocaleFromRequestInfo (same default constant), so a null-locale row is invisible to it.
+    locale: request?.body?.RequestInfo?.msgId?.split('|')[1] || config?.localisation?.defaultLocale
+  };
+  return [newEntry];
+}
+
+async function getFinalUpdatedResponse(result: any, responseData: any, request: any) {
+  return responseData.map((item: any) => {
+    return {
+      ...item,
+      tenantId: request?.query?.tenantId,
+      count: parseInt(request?.body?.generatedResourceCount || null),
+      auditDetails: {
+        ...item.auditDetails,
+        lastModifiedTime: Date.now(),
+        createdTime: Date.now(),
+        lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid
+      },
+      fileStoreid: result?.[0]?.fileStoreId,
+      status: resourceDataStatuses.completed
+    };
+  });
+}
+
+/* Fetches data from the database */
+async function searchGeneratedResources(searchQuery: any, locale: any) {
+  try {
+    const { tenantId, hierarchyType, id, status , referenceId} = searchQuery;
+    const tableName = getTableName(config?.DB_CONFIG.DB_GENERATED_TEMPLATE_TABLE_NAME, tenantId);
+    let queryString = `SELECT * FROM ${tableName} WHERE `;
+    let queryConditions: string[] = [];
+    let queryValues: any[] = [];
+    if (id) {
+      queryConditions.push(`id = $${queryValues.length + 1}`);
+      queryValues.push(id);
+    }
+    // if (type) {
+    //   queryConditions.push(`type = $${queryValues.length + 1}`);
+    //   queryValues.push(type);
+    // }
+
+    if (hierarchyType) {
+      queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
+      queryValues.push(hierarchyType);
+    }
+
+    if (tenantId) {
+      queryConditions.push(`tenantId = $${queryValues.length + 1}`);
+      queryValues.push(tenantId);
+    } // ✅ closed tenantId block
+
+    if (status) {
+      const statusArray = status.split(',').map((s: any) => s.trim());
+      const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
+      queryConditions.push(`(${statusConditions.join(' OR ')})`);
+      queryValues.push(...statusArray);
+    }
+
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
+    }
+
+    if (referenceId) {
+      queryConditions.push(`referenceId = $${queryValues.length + 1}`);
+      queryValues.push(referenceId);
+    }
+
+    queryString += queryConditions.join(" AND ");
+
+    // Add sorting and limiting
+    queryString += " ORDER BY createdTime DESC";
+
+    const queryResult = await executeQuery(queryString, queryValues);
+    return generatedResourceTransformer(queryResult?.rows);
+  } catch (error: any) {
+    console.log(error);
+    logger.error(`Error fetching data from the database: ${error.message}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
+    return null; // Return null in case of an error
+  }
+}
+
+
+async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
+  const boundaryType = boundaryData?.[0].boundaryType;
+  // Each entry is the full root-to-node code chain; boundary codes are unique, so identical chains
+  // are true duplicates (e.g. the relationship search returns the same node under multiple paths).
+  // Dedup so the generated/downloaded sheet has exactly one row per boundary.
+  const boundaryList = Array.from(new Set(generateHierarchyList(boundaryData)))
+  const locale = getLocaleFromRequest(request);
+  const region = locale.split('_')[1];
+  const frenchMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `fr_${region}`);
+  const portugeseMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `pt_${region}`);
+  if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
+  }
+
+  const hierarchy = await getHierarchy(request?.query?.tenantId, request?.query?.hierarchyType);
+  const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
+  const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
+  const modifiedReducedHierarchy = getLocalizedHeaders(reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase()), localizationMap);
+  // get Campaign Details from Campaign Search Api
+  var configurableColumnHeadersBasedOnCampaignType: any[] = []
+  configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request, localizationMap);
+  const headers = [
+  ...modifiedReducedHierarchy,
+  ...configurableColumnHeadersBasedOnCampaignType
+  ];
+
+  const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
+  var boundaryCodeList: any[] = [];
+  var data = boundaryList.map(boundary => {
+    const boundaryParts = boundary.split(',');
+    const boundaryCode = boundaryParts[boundaryParts.length - 1];
+    boundaryCodeList.push(boundaryCode);
+    const rowData = boundaryParts.concat(Array(Math.max(0, reducedHierarchy.length - boundaryParts.length)).fill(''));
+    // localize the boundary codes
+    const mappedRowData = rowData.map((cell: any, index: number) =>
+      index === reducedHierarchy.length ? '' : cell !== '' ? getLocalizedName(cell, localizationMap) : ''
+    );
+    const boundaryCodeIndex = reducedHierarchy.length;
+    mappedRowData[boundaryCodeIndex] = boundaryCode;
+      const frenchTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, frenchMessagesMap) || '';
+      const portugeseTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, portugeseMessagesMap) || '';
+      mappedRowData.push(frenchTranslation);
+      mappedRowData.push(portugeseTranslation);
+    return mappedRowData;
+  });
+    logger.info("Processing data for boundaryManagement type")
+    const latLongBoundaryMap = await getLatLongMapForBoundaryCodes(request, boundaryCodeList);
+    for (let d of data) {
+      const boundaryCode = d[d.length - 1];  // Assume last element is the boundary code
+
+      if (latLongBoundaryMap[boundaryCode]) {
+        const [latitude = null, longitude = null] = latLongBoundaryMap[boundaryCode];  // Destructure lat/long
+        d.push(latitude);   // Append latitude
+        d.push(longitude);  // Append longitude
+      }
+    }
+  const sheetRowCount = data.length;
+  request.body.generatedResourceCount = sheetRowCount;
+  return await createExcelSheet(data, localizedHeaders);
+}
+
+export async function callGenerate(request: any, type: any, enableCaching = false) {
+    logger.info(`calling generate api for type ${type}`);
+        await processGenerate(request, enableCaching);
+}
+
+
+/* Fetches data from the database */
+async function searchGeneratedBoundaryResources(searchQuery : any, locale : any) {
+  try {
+    const {tenantId, hierarchyType, id, status, referenceId } = searchQuery;
+    const tableName = getTableName(config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+    let queryString = `SELECT * FROM ${tableName} WHERE `;
+    let queryConditions: string[] = [];
+    let queryValues: any[] = [];
+    if (id) {
+      queryConditions.push(`id = $${queryValues.length + 1}`);
+      queryValues.push(id);
+    }
+
+    if (hierarchyType) {
+      queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
+      queryValues.push(hierarchyType);
+    }
+    if (tenantId) {
+      queryConditions.push(`tenantId = $${queryValues.length + 1}`);
+      queryValues.push(tenantId);
+    }
+    if (referenceId) {
+      queryConditions.push(`referenceId = $${queryValues.length + 1}`);
+      queryValues.push(referenceId);
+    }
+    if (status) {
+      const statusArray = status.split(',').map((s: any) => s.trim());
+      const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
+      queryConditions.push(`(${statusConditions.join(' OR ')})`);
+      queryValues.push(...statusArray);
+    }
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
+    }
+
+    queryString += queryConditions.join(" AND ");
+
+    // Add sorting and limiting
+    queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
+
+    const queryResult = await executeQuery(queryString, queryValues);
+    return generatedResourceTransformer(queryResult?.rows);
+  } catch (error: any) {
+    console.log(error)
+    logger.error(`Error fetching data from the database: ${error.message}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
+    return null; // Return null in case of an error
+  }
+}
+
+
+
+
+
+export {  appCache,errorLogger,invalidPathHandler
+  ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
+  ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
+  ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,boundaryKeyOf,extractFrenchOrPortugeseLocalizationMap
+  ,processGenerate ,getDataSheetReady , replicateRequest ,searchGeneratedBoundaryResources , checkForMixedBoundaryFlowInArrays
+  ,getExistingHierarchyCodes
+};

@@ -2,11 +2,13 @@ package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.stock.ReferenceIdType;
+import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.StockIndexV1;
-import org.egov.transformer.producer.Producer;
+import org.egov.common.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.stereotype.Component;
 
@@ -74,21 +76,32 @@ public abstract class StockTransformationService implements TransformationServic
         @Override
         public List<StockIndexV1> transform(Stock stock) {
             Map<String, String> boundaryLabelToNameMap = null;
-            if (stock.getReferenceIdType().equals(PROJECT)) {
-                boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMap(stock.getReferenceId(), stock.getTenantId());
+            Facility facility = null;
+            if (stock.getSenderType().equals(SenderReceiverType.WAREHOUSE)) {
+                facility = facilityService.findFacilityById(stock.getSenderId(), stock.getTenantId());
             }
-            Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());;
+            if (facility != null && facility.getAddress().getLocality() != null && facility.getAddress().getLocality().getCode() != null) {
+                boundaryLabelToNameMap = projectService
+                        .getBoundaryCodeToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
+            } else {
+                if (stock.getReferenceIdType().equals(ReferenceIdType.PROJECT)) {
+                    boundaryLabelToNameMap = projectService
+                            .getBoundaryCodeToNameMapByProjectId(stock.getReferenceId(), stock.getTenantId());
+                }
+            }
 
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
                     .productVariant(stock.getProductVariantId())
-                    .facilityId(stock.getFacilityId())
+                    .facilityId(stock.getSenderId())
+                    .facilityName(facility != null ? facility.getName() : stock.getSenderId())
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .reason(stock.getTransactionReason())
-                    .eventTimeStamp(stock.getAuditDetails().getLastModifiedTime())
+                    .eventTimeStamp(stock.getDateOfEntry() != null ?
+                            stock.getDateOfEntry() : stock.getAuditDetails().getLastModifiedTime())
                     .createdTime(stock.getAuditDetails().getCreatedTime())
+                    .dateOfEntry(stock.getDateOfEntry())
                     .createdBy(stock.getAuditDetails().getCreatedBy())
                     .lastModifiedTime(stock.getAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(stock.getAuditDetails().getLastModifiedBy())

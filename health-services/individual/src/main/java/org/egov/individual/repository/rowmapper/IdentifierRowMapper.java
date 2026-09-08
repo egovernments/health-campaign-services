@@ -1,11 +1,11 @@
 package org.egov.individual.repository.rowmapper;
 
-import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.individual.Identifier;
-import org.springframework.jdbc.core.RowMapper;
-
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.individual.Identifier;
+import org.springframework.jdbc.core.RowMapper;
 
 public class IdentifierRowMapper implements RowMapper<Identifier> {
     @Override
@@ -13,6 +13,7 @@ public class IdentifierRowMapper implements RowMapper<Identifier> {
         return Identifier.builder()
                 .id(resultSet.getString("id"))
                 .individualId(resultSet.getString("individualId"))
+                .individualClientReferenceId(resultSet.getString("individualClientReferenceId"))
                 .clientReferenceId(resultSet.getString("clientReferenceId"))
                 .identifierType(resultSet.getString("identifierType"))
                 .identifierId(resultSet.getString("identifierId"))

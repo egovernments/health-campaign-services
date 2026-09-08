@@ -1,0 +1,52 @@
+Table stock {
+  id varchar [pk]
+  clientReferenceId varchar(64) [unique]
+  tenantId varchar(1000)
+  facilityId varchar(64) //[ref: > facility.id]
+  productVariantId varchar(64) //[ref: > product_variant.id]
+  quantity bigint
+  referenceId varchar(200)
+  referenceIdType varchar(100)
+  transactionType varchar(100)
+  transactionReason varchar(100)
+  transactingPartyId varchar(64)
+  transactingPartyType varchar(100)
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+  waybillNUmber varchar(200)
+  dateofentry bigint
+  clientcreatedtime bigint
+  clientlastmodifiedtime bigint
+  clientcreatedby varchar(64)
+  clientlastmodifiedby varchar(64)
+  sendertype varchar(128)
+  receivertype varchar(128)
+  senderid varchar(128)
+  receiverid varchar(128)
+
+}
+
+Table stock_reconciliation_log {
+   id varchar [pk]
+   clientReferenceId varchar [unique] //store id provided by frontend
+   tenantId varchar(1000)
+   productVariantId varchar(64)  //[ref: > product_variant.id]
+   facilityId varchar(64) //[ref: > facility.id]
+   referenceId varchar(64)
+   referenceIdType varchar(64)
+   dateOfReconciliation bigint
+   calculatedCount int
+   physicalRecordedCount int
+   commentsOnReconciliation varchar
+   createdAt bigint
+   modifiedAt bigint
+   createdBy varchar
+   modifiedBy varchar
+   additionalFields json
+   isDeleted bool
+}
