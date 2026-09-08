@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.util.Collections;
 import org.egov.common.contract.models.AuditDetails;
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -307,28 +306,11 @@ public class ProjectService {
         String projectId = String.valueOf(project.getId());
 
         /*
-         * Fetch projects from the database with ancestors and descendants
+         * Fetch the project with its ancestors and descendants using the narrow date-cascade
+         * projection. Only dates and cycles are rewritten, so address, targets and documents are
+         * not pulled for the descendant tree.
          */
-        List<Project> projectsFromDbWithAncestorsAndDescendants = searchProject(
-            getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false),
-            projectConfiguration.getMaxLimit(),
-            projectConfiguration.getDefaultOffset(),
-            tenantId,
-            null,
-            false,
-            true,
-            true,
-            false,
-            null,
-            null,
-            false
-        );
-
-        /*
-         * Create a map of projects from the database with ancestors and descendants
-         */
-        Map<String, Project> projectFromDbWithAncestorsAndDescendantsMap = projectServiceUtil.createProjectMap(projectsFromDbWithAncestorsAndDescendants);
-        Project projectFromDbWithAncestorsAndDescendants = projectFromDbWithAncestorsAndDescendantsMap.get(projectId);
+        Project projectFromDbWithAncestorsAndDescendants = projectRepository.getProjectForDateCascade(tenantId, projectId);
 
         /*
          * Enrich project cascading dates based on the retrieved data
