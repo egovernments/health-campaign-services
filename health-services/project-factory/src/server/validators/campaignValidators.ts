@@ -1108,42 +1108,56 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     if (actionInUrl == "update") {
         await validateById(request);
         await validateIsActive(request);
+        // The list search omits boundaries, so a caller that echoes a grid row straight back
+        // (the My Campaigns retry button) has no boundaries key at all. Absent means "unchanged";
+        // an explicit [] still means "none". validateById has already populated
+        // ExistingCampaignDetails from an ids:[id] search, which does carry boundaries.
+        if (CampaignDetails.boundaries === undefined) {
+            CampaignDetails.boundaries = request?.body?.ExistingCampaignDetails?.boundaries;
+        }
     }
     if (actionInUrl == "create") {
         if (!request?.body?.CampaignDetails?.isActive) {
             request.body.CampaignDetails.isActive = true;
         }
-        await attachCloneBaseline(request);
+        await backfillCloneBoundaries(request);
     }
     await validateCampaignBody(request, CampaignDetails, actionInUrl);
 }
 
-/** Without a baseline the generation trigger is unconditionally true on a clone create, so an untouched clone regenerates instead of keeping its source's sheet. */
-async function attachCloneBaseline(request: any) {
+/** The console builds a clone payload by spreading a My Campaigns grid row, and the list search omits boundaries, so the clone would be created with none and routed to the fresh-campaign wizard. */
+async function backfillCloneBoundaries(request: any) {
     const CampaignDetails = request?.body?.CampaignDetails;
     const cloneFrom = CampaignDetails?.additionalDetails?.cloneFrom;
     if (CampaignDetails?.parentId || !cloneFrom) {
         return;
     }
+    // An absent key means the caller never mentioned boundaries; an explicit [] means it wants none.
+    // Only the former is repaired, so a client that deliberately clones a reduced set is still honoured.
+    if (CampaignDetails.boundaries !== undefined) {
+        return;
+    }
     try {
-        // Same lookup shape as borrowUnifiedSheetFromCloneCampaign so both resolve the same campaign;
-        // if they disagreed, an untouched clone could borrow one sheet and be judged against another.
-        const searchResponse = await searchProjectTypeCampaignService({ tenantId: CampaignDetails?.tenantId, campaignNumber: cloneFrom });
+        // A campaignNumber lookup is ambiguous while a parent and its child campaign are both active —
+        // they share a number and the query has no ORDER BY — so prefer the id the console already sends.
+        // Both shapes return boundaries: ids.length === 1 and campaignNumber each satisfy the search guard.
+        const clonedCampaignId = CampaignDetails?.additionalDetails?.clonedCampaignId;
+        const searchResponse = await searchProjectTypeCampaignService(
+            clonedCampaignId
+                ? { tenantId: CampaignDetails?.tenantId, ids: [clonedCampaignId] }
+                : { tenantId: CampaignDetails?.tenantId, campaignNumber: cloneFrom }
+        );
         const source = searchResponse?.CampaignDetails?.[0];
-        if (!source) {
-            logger.warn(`cloneFrom ${cloneFrom} did not resolve; clone will be treated as changed`);
+        if (!Array.isArray(source?.boundaries)) {
+            logger.warn(`cloneFrom ${cloneFrom} did not resolve to a campaign with boundaries; clone will be created without them`);
             return;
         }
-        request.body.CloneSourceForGenerationCheck = {
-            boundaries: source?.boundaries,
-            projectType: source?.projectType,
-            hierarchyType: source?.hierarchyType,
-            // The console drops additionalDetails.source when cloning, so compare like for like rather
-            // than letting an absent source count as a change.
-            additionalDetails: { source: CampaignDetails?.additionalDetails?.source }
-        };
+        // Must run before processBasedOnAction computes the generation check, so the boundaries the
+        // trigger sees and the boundaries that get persisted are the same array.
+        CampaignDetails.boundaries = source.boundaries;
+        logger.info(`Backfilled ${source.boundaries.length} boundaries onto clone of ${cloneFrom}`);
     } catch (error) {
-        logger.warn(`Failed to attach clone baseline for cloneFrom ${cloneFrom}: ${error}`);
+        logger.warn(`Failed to backfill clone boundaries for cloneFrom ${cloneFrom}: ${error}`);
     }
 }
 

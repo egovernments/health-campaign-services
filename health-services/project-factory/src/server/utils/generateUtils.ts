@@ -9,9 +9,9 @@ import { checkIfSourceIsMicroplan } from "./campaignUtils";
 import { httpRequest } from "./request";
 import { RequestInfo } from "../config/models/requestInfoSchema";
 
-/** Clone creates have no ExistingCampaignDetails; a separate field is used because that one is also the authority for the persisted campaign's identity. */
+/** Only an update has a baseline to compare against; a create has no sheet of its own, so the create path must not consult this predicate at all. */
 function getGenerationBaseline(request: any) {
-    return request?.body?.ExistingCampaignDetails ?? request?.body?.CloneSourceForGenerationCheck;
+    return request?.body?.ExistingCampaignDetails;
 }
 
 function extractProperties(obj: any) {
@@ -221,7 +221,10 @@ export const isGenerationTriggerNeeded = (request: any) => {
         logger.info("Boundaries, source, campaign type or hierarchy type differ, generating new resources");
         return { trigger: true, newBoundaries };
     }
-    return { trigger: false };
+    // newBoundaries is returned on both branches: a caller that generates regardless of the trigger
+    // still needs it, and handing tryTriggerGenerateIfBoundariesSynced undefined makes its comparison
+    // unsatisfiable and ends in a BOUNDARY_SYNC_ERROR 500 after the campaign is already persisted.
+    return { trigger: false, newBoundaries };
 }
 
 

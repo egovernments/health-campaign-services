@@ -2824,9 +2824,11 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
   const generationCheck = isGenerationTriggerNeeded(request);
   await enrichAndPersistProjectCampaignForFirst(request, actionInUrl, true);
 
+  // A create has no sheet of its own, so there is nothing for the change-detector to protect:
+  // asking "did the config change?" is the wrong question there and suppresses a clone's first sheet.
   const shouldTriggerGeneration =
     request?.body?.CampaignDetails?.action === "draft" &&
-    generationCheck?.trigger &&
+    (actionInUrl === "create" || generationCheck?.trigger) &&
     request?.body?.CampaignDetails?.boundaries?.length;
 
   if (shouldTriggerGeneration) {
