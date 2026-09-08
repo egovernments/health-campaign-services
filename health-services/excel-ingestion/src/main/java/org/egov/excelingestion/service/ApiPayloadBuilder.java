@@ -47,9 +47,31 @@ public class ApiPayloadBuilder {
         Map<String, Object> payload = new HashMap<>();
         payload.put("RequestInfo", requestInfo);
 
+        return createCampaignSearchPayload(requestInfo, tenantId, ids, null, isActive, limit, offset);
+    }
+
+    /**
+     * Campaign search payload that can also select by campaignNumber.
+     *
+     * <p>Prefer a campaignNumber-keyed search when resolving a parent campaign: project-factory only
+     * returns the boundaries array when the caller searches a single id, searches by campaignNumber, or
+     * explicitly opts in. A filter-shaped search silently comes back with no boundaries, which is far
+     * worse than an error because it is indistinguishable from a campaign that genuinely has none.
+     */
+    public Map<String, Object> createCampaignSearchPayload(RequestInfo requestInfo,
+                                                           String tenantId,
+                                                           String[] ids,
+                                                           String campaignNumber,
+                                                           Boolean isActive,
+                                                           Integer limit,
+                                                           Integer offset) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("RequestInfo", requestInfo);
+
         Map<String, Object> searchCriteria = new HashMap<>();
         searchCriteria.put("tenantId", tenantId);
         if (ids != null) searchCriteria.put("ids", ids);
+        if (campaignNumber != null) searchCriteria.put("campaignNumber", campaignNumber);
         if (isActive != null) searchCriteria.put("isActive", isActive);
 
         Map<String, Object> pagination = new HashMap<>();

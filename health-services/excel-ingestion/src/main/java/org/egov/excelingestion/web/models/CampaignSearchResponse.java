@@ -48,6 +48,14 @@ public class CampaignSearchResponse {
     @Builder
     public static class AdditionalDetails {
         private String clonedCampaignId;
+
+        /**
+         * Parent campaign NUMBER stamped by the console when a campaign is cloned. Unlike
+         * clonedCampaignId (a campaign id, written only by the newer console tree) this is written by
+         * both console trees, so it is the lineage key to prefer. The two are different types and must
+         * never be substituted for one another.
+         */
+        private String cloneFrom;
     }
 
     @Data

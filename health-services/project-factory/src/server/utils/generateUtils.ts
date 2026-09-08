@@ -9,6 +9,11 @@ import { checkIfSourceIsMicroplan } from "./campaignUtils";
 import { httpRequest } from "./request";
 import { RequestInfo } from "../config/models/requestInfoSchema";
 
+/** Clone creates have no ExistingCampaignDetails; a separate field is used because that one is also the authority for the persisted campaign's identity. */
+function getGenerationBaseline(request: any) {
+    return request?.body?.ExistingCampaignDetails ?? request?.body?.CloneSourceForGenerationCheck;
+}
+
 function extractProperties(obj: any) {
     return {
         code: obj.code || null,
@@ -29,9 +34,15 @@ function areBoundariesSame(existingBoundaries: any, currentBoundaries: any) {
 }
 
 function isCampaignTypeSame(request: any) {
-    const existingCampaignType = request?.body?.ExistingCampaignDetails?.projectType;
+    const existingCampaignType = getGenerationBaseline(request)?.projectType;
     const currentCampaignType = request?.body?.CampaignDetails?.projectType;
     return _.isEqual(existingCampaignType, currentCampaignType);
+}
+
+function isHierarchyTypeSame(request: any) {
+    const existingHierarchyType = getGenerationBaseline(request)?.hierarchyType;
+    const currentHierarchyType = request?.body?.CampaignDetails?.hierarchyType;
+    return _.isEqual(existingHierarchyType, currentHierarchyType);
 }
 
 /** Delegates template generation to the excel-ingestion service; swallows errors so a generate failure never blocks the caller. */
@@ -150,10 +161,10 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
 }
 
 function isSourceDifferent(request: any){
-    const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+    const baseline = getGenerationBaseline(request);
     const CampaignDetails = request?.body?.CampaignDetails;
 
-    if(CampaignDetails?.additionalDetails?.source !== ExistingCampaignDetails?.additionalDetails?.source){
+    if(CampaignDetails?.additionalDetails?.source !== baseline?.additionalDetails?.source){
         return true;
     }
     return false;
@@ -199,15 +210,15 @@ export async function triggerGenerate(type: string, tenantId: string, hierarchyT
 
 
 
-/** True (with the new boundaries) when a campaign update changed boundaries, source, or campaign type and templates must be regenerated. */
+/** The single place expressing what changes the generated sheet; callers must not add their own terms, or deactivation and regeneration diverge and a stale sheet is served with no error. */
 export const isGenerationTriggerNeeded = (request: any) => {
-    const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+    const baseline = getGenerationBaseline(request);
     const boundaries = request?.body?.CampaignDetails?.boundaries;
     const newBoundaries = boundaries?.filter((boundary: any) => !boundary.insertedAfter) || [];
 
 
-    if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, newBoundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
-        logger.info("Boundaries or Campaign Type  differ, generating new resources");
+    if (!areBoundariesSame(baseline?.boundaries, newBoundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request) || !isHierarchyTypeSame(request)) {
+        logger.info("Boundaries, source, campaign type or hierarchy type differ, generating new resources");
         return { trigger: true, newBoundaries };
     }
     return { trigger: false };

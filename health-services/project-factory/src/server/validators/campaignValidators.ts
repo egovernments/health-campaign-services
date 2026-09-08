@@ -1113,8 +1113,38 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         if (!request?.body?.CampaignDetails?.isActive) {
             request.body.CampaignDetails.isActive = true;
         }
+        await attachCloneBaseline(request);
     }
     await validateCampaignBody(request, CampaignDetails, actionInUrl);
+}
+
+/** Without a baseline the generation trigger is unconditionally true on a clone create, so an untouched clone regenerates instead of keeping its source's sheet. */
+async function attachCloneBaseline(request: any) {
+    const CampaignDetails = request?.body?.CampaignDetails;
+    const cloneFrom = CampaignDetails?.additionalDetails?.cloneFrom;
+    if (CampaignDetails?.parentId || !cloneFrom) {
+        return;
+    }
+    try {
+        // Same lookup shape as borrowUnifiedSheetFromCloneCampaign so both resolve the same campaign;
+        // if they disagreed, an untouched clone could borrow one sheet and be judged against another.
+        const searchResponse = await searchProjectTypeCampaignService({ tenantId: CampaignDetails?.tenantId, campaignNumber: cloneFrom });
+        const source = searchResponse?.CampaignDetails?.[0];
+        if (!source) {
+            logger.warn(`cloneFrom ${cloneFrom} did not resolve; clone will be treated as changed`);
+            return;
+        }
+        request.body.CloneSourceForGenerationCheck = {
+            boundaries: source?.boundaries,
+            projectType: source?.projectType,
+            hierarchyType: source?.hierarchyType,
+            // The console drops additionalDetails.source when cloning, so compare like for like rather
+            // than letting an absent source count as a change.
+            additionalDetails: { source: CampaignDetails?.additionalDetails?.source }
+        };
+    } catch (error) {
+        logger.warn(`Failed to attach clone baseline for cloneFrom ${cloneFrom}: ${error}`);
+    }
 }
 
 async function validateProductVariant(request: any) {

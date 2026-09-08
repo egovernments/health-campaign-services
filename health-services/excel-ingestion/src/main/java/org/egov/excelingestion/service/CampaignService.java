@@ -96,6 +96,47 @@ public class CampaignService {
     }
 
     /**
+     * Search a campaign by its campaignNumber. Used to resolve a clone's parent from
+     * additionalDetails.cloneFrom, which holds a campaign NUMBER rather than an id.
+     *
+     * <p>Deliberately cached under a distinct key prefix so a number-keyed lookup can never collide
+     * with an id-keyed one in the shared campaignDetail region.
+     *
+     * <p>Returns null when no campaign matches, rather than throwing: an unresolvable lineage stamp is
+     * a "no parent data available" condition for the caller to handle, not a request failure.
+     */
+    @Cacheable(value = "campaignDetail", key = "'num_' + #campaignNumber + '_' + #tenantId")
+    public CampaignSearchResponse.CampaignDetail searchCampaignByNumber(String campaignNumber, String tenantId, RequestInfo requestInfo) {
+        RequestInfo sanitizedRequestInfo = ensureTenantInRequestInfo(requestInfo, tenantId);
+
+        log.info("Fetching campaign details for campaignNumber: {} in tenant: {}", campaignNumber, tenantId);
+
+        try {
+            Map<String, Object> payload = apiPayloadBuilder.createCampaignSearchPayload(
+                    sanitizedRequestInfo, tenantId, null, campaignNumber, null, 1, 0);
+
+            StringBuilder uri = new StringBuilder(buildCampaignSearchUrl());
+
+            CampaignSearchResponse response = serviceRequestRepository.fetchResult(
+                    uri, payload, CampaignSearchResponse.class);
+
+            if (response != null && response.getCampaignDetails() != null && !response.getCampaignDetails().isEmpty()) {
+                CampaignSearchResponse.CampaignDetail campaign = response.getCampaignDetails().get(0);
+                log.info("Resolved campaignNumber {} to campaign {} with {} boundaries", campaignNumber,
+                        campaign.getId(),
+                        campaign.getBoundaries() != null ? campaign.getBoundaries().size() : 0);
+                return campaign;
+            }
+            log.warn("No campaign found for campaignNumber: {} in tenant: {}", campaignNumber, tenantId);
+            return null;
+        } catch (Exception e) {
+            log.error("Error fetching campaign by campaignNumber {} in tenant {}: {}",
+                    campaignNumber, tenantId, e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
      * Extract projectType from campaign with validation. Cached at its own level (by campaignId +
      * tenantId): the internal searchCampaignById call is a same-bean invocation so it is not served from
      * the campaignDetail cache, but caching here means repeat calls for the same campaign skip the work.

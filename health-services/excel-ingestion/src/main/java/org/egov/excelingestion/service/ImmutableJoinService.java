@@ -157,16 +157,19 @@ public class ImmutableJoinService {
 
         // A register reference is not a campaign id, so clone resolution is skipped for it.
         String clonedCampaignId = null;
+        String cloneFrom = null;
         if (ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER.equals(resource.getReferenceType())) {
             log.info("Immutable-baseline join for generationId {}: register reference {}, no clone resolution",
                     generationId, resource.getReferenceId());
         } else {
             CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(
                     resource.getReferenceId(), resource.getTenantId(), requestInfo);
-            clonedCampaignId = campaign.getAdditionalDetails() == null ? null
-                    : campaign.getAdditionalDetails().getClonedCampaignId();
-            log.info("Immutable-baseline join for generationId {}: campaign {} clonedCampaignId {}",
-                    generationId, resource.getReferenceId(), clonedCampaignId);
+            if (campaign.getAdditionalDetails() != null) {
+                clonedCampaignId = campaign.getAdditionalDetails().getClonedCampaignId();
+                cloneFrom = campaign.getAdditionalDetails().getCloneFrom();
+            }
+            log.info("Immutable-baseline join for generationId {}: campaign {} clonedCampaignId {} cloneFrom {}",
+                    generationId, resource.getReferenceId(), clonedCampaignId, cloneFrom);
         }
 
 
@@ -176,6 +179,8 @@ public class ImmutableJoinService {
         } else if (clonedCampaignId != null && !clonedCampaignId.trim().isEmpty()
                 && equalsNullSafe(baselineGen.getReferenceId(), clonedCampaignId.trim())) {
             log.info("Upload sheet is belong to the cloned campaign ");
+        } else if (matchesCloneSource(baselineGen.getReferenceId(), cloneFrom, resource.getTenantId(), requestInfo)) {
+            log.info("Upload sheet belongs to the clone source resolved from cloneFrom {}", cloneFrom);
         } else {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
                     ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
@@ -551,6 +556,38 @@ public class ImmutableJoinService {
 
     private static boolean equalsNullSafe(String a, String b) {
         return a == null ? b == null : a.equals(b);
+    }
+
+    /**
+     * True when the baseline was generated for the campaign this one was cloned from, resolved via
+     * additionalDetails.cloneFrom.
+     *
+     * <p>Why this exists alongside the clonedCampaignId check: cloneFrom is written by BOTH console
+     * trees while clonedCampaignId is written by only one, so a clone created from the other console
+     * would otherwise have its (legitimately borrowed) parent workbook rejected outright on upload.
+     *
+     * <p>cloneFrom holds a campaign NUMBER, not an id, so it needs a lookup to compare against the
+     * baseline's referenceId. That lookup is deliberately performed here — last in the identity
+     * chain — so the happy paths cost nothing extra. Resolution failure is treated as "not a match"
+     * rather than an error; the caller then reports the normal identity mismatch.
+     */
+    private boolean matchesCloneSource(String baselineReferenceId, String cloneFrom, String tenantId,
+                                       RequestInfo requestInfo) {
+        if (cloneFrom == null || cloneFrom.trim().isEmpty() || baselineReferenceId == null) {
+            return false;
+        }
+        try {
+            CampaignSearchResponse.CampaignDetail source =
+                    campaignService.searchCampaignByNumber(cloneFrom.trim(), tenantId, requestInfo);
+            if (source == null || source.getId() == null) {
+                log.warn("cloneFrom {} did not resolve to a campaign in tenant {}", cloneFrom, tenantId);
+                return false;
+            }
+            return baselineReferenceId.equals(source.getId());
+        } catch (Exception e) {
+            log.warn("Failed to resolve cloneFrom {} in tenant {}: {}", cloneFrom, tenantId, e.getMessage());
+            return false;
+        }
     }
 
     /** Immutable columns split by how the baseline value is applied. */

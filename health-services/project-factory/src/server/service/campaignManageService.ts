@@ -59,14 +59,10 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const tenantId = request?.body?.CampaignDetails?.tenantId;
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
 
-    // Deactivate stale resources when hierarchyType or boundaries change — user must re-upload for the new configuration
-    const existingCampaign = request?.body?.ExistingCampaignDetails;
-    const incomingHierarchyType = request?.body?.CampaignDetails?.hierarchyType;
-    const hierarchyChanged = existingCampaign && incomingHierarchyType &&
-        existingCampaign.hierarchyType !== incomingHierarchyType;
-    const boundariesOrTypeChanged = isGenerationTriggerNeeded(request)?.trigger === true;
-    if (campaignId && tenantId && (hierarchyChanged || boundariesOrTypeChanged)) {
-        logger.info(`Campaign config changed (hierarchyChanged=${hierarchyChanged}, boundariesOrTypeChanged=${boundariesOrTypeChanged}) for campaign ${campaignId}. Deactivating stale resources.`);
+    // Deactivate stale resources when the campaign config changes — user must re-upload for the new configuration
+    const campaignConfigChanged = isGenerationTriggerNeeded(request)?.trigger === true;
+    if (campaignId && tenantId && campaignConfigChanged) {
+        logger.info(`Campaign config changed for campaign ${campaignId}. Deactivating stale resources.`);
         try {
             await deactivateAllResourcesForCampaign(campaignId, tenantId, useruuid);
         } catch (err) {
