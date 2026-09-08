@@ -89,3 +89,30 @@ describe('storedRowsForRegister', () => {
         expect(rowsFor(rows, '')).toHaveLength(2);
     });
 });
+
+describe("default attendance campaign dates", () => {
+    it("prefills enrollment and de-enrollment with campaign start and end dates", () => {
+        const startDate = Date.UTC(2026, 3, 5, 0, 0, 0, 0); // 05-04-2026
+        const endDate = Date.UTC(2026, 3, 30, 0, 0, 0, 0); // 30-04-2026
+
+        const row = (TemplateClass as any).buildRowData(
+            {
+                UserName: "enc-user",
+                Password: "enc-pass",
+                HCM_ADMIN_CONSOLE_USER_WORKER_ID: "W-1",
+                HCM_ADMIN_CONSOLE_USER_NAME: "John Doe",
+                HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "WARD-01",
+                HCM_ADMIN_CONSOLE_BOUNDARY_NAME: "Ward 01",
+                HCM_ADMIN_CONSOLE_USER_ROLE: "DISTRIBUTOR",
+            },
+            "REG-1",
+            {},
+            false,
+            startDate,
+            endDate
+        );
+
+        expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("05-04-2026");
+        expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("30-04-2026");
+    });
+});

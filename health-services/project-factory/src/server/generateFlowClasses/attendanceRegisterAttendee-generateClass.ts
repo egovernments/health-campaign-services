@@ -64,6 +64,11 @@ export class TemplateClass {
             throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found");
         }
 
+        const startDate: number | null =
+            campaign?.startDate != null && campaign.startDate !== "" ? Number(campaign.startDate) : null;
+        const endDate: number | null =
+            campaign?.endDate != null && campaign.endDate !== "" ? Number(campaign.endDate) : null;
+
         const processes = campaign?.processes || [];
         const registerProcess = processes.find(
             (p: any) => p.processName === allProcesses.attendanceRegisterCreation
@@ -81,6 +86,7 @@ export class TemplateClass {
         const localityCode: string = register?.localityCode || "";
         const registerServiceCode: string = register?.serviceCode || "";
         const hierarchyType: string = campaign?.hierarchyType || "";
+        const campaignNumber: string = campaign?.campaignNumber || "";
 
         if (!localityCode) {
             throwError("CAMPAIGN", 400, "ATTENDANCE_REGISTER_LOCALITY_MISSING",
@@ -90,11 +96,18 @@ export class TemplateClass {
             throwError("CAMPAIGN", 400, "CAMPAIGN_HIERARCHY_MISSING",
                 `Campaign ${campaignId} has no hierarchyType set`);
         }
+        if (!campaignNumber) {
+            throwError("CAMPAIGN", 400, "CAMPAIGN_NUMBER_MISSING",
+                `Campaign ${campaignId} has no campaignNumber set`);
+        }
 
         // DB-first: if attendees were already processed into campaign_data, return them
         // directly rather than re-generating from HRMS (reflects real processed state).
         const storedAttendeeRows = await getRelatedDataWithCampaign(
-            "attendanceRegisterAttendee", campaign?.campaignNumber, tenantId, dataRowStatuses.completed
+            "attendanceRegisterAttendee",
+            campaignNumber,
+            tenantId,
+            dataRowStatuses.completed
         );
         const currentRegisterUuid: string = register?.id || "";
         const filteredStoredRows = this.storedRowsForRegister(storedAttendeeRows, registerServiceCode, currentRegisterUuid);
@@ -132,7 +145,7 @@ export class TemplateClass {
             this.resolveAllowedBoundaryCodes(tenantId, hierarchyType, localityCode, getBoundaryFilter(APPROVER_SHEET))
         ]);
 
-        const users = await getRelatedDataWithCampaign("user", campaign?.campaignNumber, tenantId, dataRowStatuses.completed);
+        const users = await getRelatedDataWithCampaign("user", campaignNumber, tenantId, dataRowStatuses.completed);
         logger.info(`Fetched ${users.length} users for campaign ${campaignId}`);
 
         // Classify users and filter by allowed boundary codes.
@@ -159,7 +172,7 @@ export class TemplateClass {
                 : sheet === MARKER_SHEET ? markerCodes : approverCodes;
             if (!allowedCodes.has(boundaryCode)) continue;
 
-            const row = this.buildRowData(rawData, registerServiceCode, localizationMap, sheet === WORKER_SHEET);
+            const row = this.buildRowData(rawData, registerServiceCode, localizationMap, sheet === WORKER_SHEET, startDate, endDate);
             if (sheet === APPROVER_SHEET) approverRows.push(row);
             else if (sheet === MARKER_SHEET) markerRows.push(row);
             else workerRows.push(row);
@@ -175,9 +188,6 @@ export class TemplateClass {
         return sheetMap;
     }
 
-    /**
-     * Fetch attendance register by ID.
-     */
     private static async fetchRegister(registerId: string, tenantId: string, requestInfo?: RequestInfo): Promise<any> {
         const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
         const RequestInfo = requestInfo || {};
@@ -297,7 +307,7 @@ export class TemplateClass {
     /**
      * Build row data object for a user, with prefilled and empty editable columns.
      */
-    private static buildRowData(rawData: any, registerServiceCode: string, localizationMap: any, includeTeamCode: boolean): any {
+    private static buildRowData(rawData: any, registerServiceCode: string, localizationMap: any, includeTeamCode: boolean, startDate: number | null, endDate: number | null): any {
         const boundaryCode = rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] || rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] || "";
         const roleCodes = this.getRoleCodes(rawData);
         const roleMultiSelectEntries = roleCodes.slice(0, 5).map(
@@ -312,8 +322,8 @@ export class TemplateClass {
             "HCM_ADMIN_CONSOLE_BOUNDARY_NAME": rawData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] || getLocalizedName(boundaryCode, localizationMap),
             "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY": boundaryCode,
             "HCM_ATTENDANCE_REGISTER_ID": registerServiceCode,
-            "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE": "",
-            "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE": ""
+            "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE": startDate ? formatEpochAsSheetDate(startDate) : "",
+            "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE": endDate ? formatEpochAsSheetDate(endDate) : ""
         };
         if (includeTeamCode) {
             row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = "";

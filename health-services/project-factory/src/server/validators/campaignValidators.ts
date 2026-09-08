@@ -1370,8 +1370,8 @@ export async function validateResourceDetails(ResourceDetails : ResourceDetails)
     const tenantId = ResourceDetails?.tenantId;
     const fileStoreId = ResourceDetails?.fileStoreId;
     validateTypeForProcess(type);
-    await validateHierarchyDefination(hierarchyType,tenantId);
-    await validateCampaignViaId(campaignId,tenantId);
+    await validateHierarchyDefination(hierarchyType, tenantId);
+    await validateCampaignViaId(campaignId, tenantId);
     try {
         const fileResponse = await fetchFileFromFilestore(fileStoreId, tenantId);
         if(!fileResponse){
