@@ -1,0 +1,66 @@
+# CodeQL static analysis (SAST).
+#
+# Addresses the OpenSSF Scorecard "SAST" check, which looks for a static
+# analysis tool running on commits and pull requests.
+#
+# Java uses `build-mode: none` rather than autobuild: this repository contains
+# 23 independent Maven modules targeting a mix of Java 17 and Java 8, so there
+# is no single reliable build command. `none` analyses the source directly.
+name: CodeQL
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  schedule:
+    # Weekly run so the Scorecard "SAST" signal stays fresh even in quiet weeks.
+    - cron: '18 4 * * 2'
+  workflow_dispatch:
+
+# Least-privilege default for GITHUB_TOKEN.
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      # Required to upload results to the code scanning dashboard.
+      security-events: write
+      # Required by github/codeql-action to read the Actions run status.
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # security-extended adds lower-severity security queries on top of
+          # the default suite.
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+        with:
+          category: "/language:${{ matrix.language }}"
