@@ -55,7 +55,9 @@ log = logging.getLogger(__name__)
 @dag(
     dag_id="dst_config_sync",
     description="Sheet listener: mirrors campaign config rows into MDMS (one-way)",
-    schedule="*/10 * * * *",
+    # Offset from the 5-minute grid (:03, :13, :23 …) so a dst_campaign_scheduler
+    # tick never reads the MDMS mirror while this DAG is mid-sync.
+    schedule="3-59/10 * * * *",
     start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
     catchup=False,
     max_active_runs=1,
