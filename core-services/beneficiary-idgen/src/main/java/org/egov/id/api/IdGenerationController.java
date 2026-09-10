@@ -10,9 +10,12 @@ import org.egov.id.config.PropertiesManager;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.id.service.IdDispatchService;
 import org.egov.id.service.IdGenerationService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -94,6 +97,10 @@ public class IdGenerationController {
 	@RequestMapping(value = "id_pool/_update", method = RequestMethod.POST)
 	public ResponseEntity<ResponseInfo> idRecordUpdate(@ApiParam(value = "Details for the IdRecord.", required = true) @Valid @RequestBody IdRecordBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 		request.getRequestInfo().setApiId(servletRequest.getRequestURI());
+		if (CollectionUtils.isEmpty(request.getIdRecords())
+				|| ObjectUtils.isEmpty(request.getIdRecords().get(0).getTenantId())) {
+			throw new CustomException("VALIDATION_EXCEPTION", "IdRecords with tenantId are mandatory");
+		}
 		producer.push(propertiesManager.getBulkIdUpdateTopic(), request);
 
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
