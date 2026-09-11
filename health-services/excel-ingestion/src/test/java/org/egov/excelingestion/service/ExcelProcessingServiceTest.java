@@ -85,7 +85,11 @@ class ExcelProcessingServiceTest {
             fileStoreService, localizationService, requestInfoConverter,
             restTemplate, exceptionHandler, config, enrichmentUtil, mdmsConfigService, excelUtil,
             immutableJoinService, new org.egov.excelingestion.util.BoundaryCodeResolver(excelUtil),
-            new org.egov.excelingestion.util.WorkbookLocaleResolver()
+            new org.egov.excelingestion.util.WorkbookLocaleResolver(),
+            new org.egov.excelingestion.util.EnumValueNormalizer(
+                new org.egov.excelingestion.util.SchemaColumnDefUtil(
+                    new org.egov.excelingestion.util.ColumnDefMaker(), exceptionHandler),
+                new com.fasterxml.jackson.databind.ObjectMapper(), excelUtil)
         );
 
         requestInfo = RequestInfo.builder().build();

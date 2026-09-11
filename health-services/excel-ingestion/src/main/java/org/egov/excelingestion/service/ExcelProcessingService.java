@@ -15,6 +15,7 @@ import org.egov.excelingestion.util.BoundaryCodeResolver;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.util.EnumValueNormalizer;
 import org.egov.excelingestion.util.WorkbookLocaleResolver;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
@@ -51,6 +52,7 @@ public class ExcelProcessingService {
     private final ImmutableJoinService immutableJoinService;
     private final BoundaryCodeResolver boundaryCodeResolver;
     private final WorkbookLocaleResolver workbookLocaleResolver;
+    private final EnumValueNormalizer enumValueNormalizer;
 
     public ExcelProcessingService(ValidationService validationService,
                                   SchemaValidationService schemaValidationService,
@@ -66,7 +68,8 @@ public class ExcelProcessingService {
                                   ExcelUtil excelUtil,
                                   ImmutableJoinService immutableJoinService,
                                   BoundaryCodeResolver boundaryCodeResolver,
-                                  WorkbookLocaleResolver workbookLocaleResolver) {
+                                  WorkbookLocaleResolver workbookLocaleResolver,
+                                  EnumValueNormalizer enumValueNormalizer) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -82,6 +85,7 @@ public class ExcelProcessingService {
         this.immutableJoinService = immutableJoinService;
         this.boundaryCodeResolver = boundaryCodeResolver;
         this.workbookLocaleResolver = workbookLocaleResolver;
+        this.enumValueNormalizer = enumValueNormalizer;
     }
 
     /**
@@ -161,6 +165,13 @@ public class ExcelProcessingService {
                 if (immutableColumnsBySheet == null) {
                     immutableColumnsBySheet = Collections.emptyMap();
                 }
+
+                // Map localized enum dropdown values (e.g. Permanent/Active shown in the sheet's
+                // generation locale) back to their canonical MDMS values. Runs AFTER the immutable join,
+                // which compares uploaded cells against the generated baseline while both are still
+                // localized, and BEFORE validation/processors/persistence, all of which match these
+                // values by exact string equality - as does project-factory downstream.
+                enumValueNormalizer.normalizeToCanonical(workbook, resource, sheetNameToSchema, mergedLocalizationMap);
 
                 // Resolve boundary codes for user-entered rows from the workbook's own lookup mapping.
                 // Scaffold-less templates carry no per-row VLOOKUP formulas, so blank code cells are
