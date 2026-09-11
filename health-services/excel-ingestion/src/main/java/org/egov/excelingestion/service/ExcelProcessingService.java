@@ -108,6 +108,14 @@ public class ExcelProcessingService {
                 // locale differs. Legacy files carry no stamp and fall back to the request locale.
                 String locale = workbookLocaleResolver.resolveLocale(workbook, requestLocale);
 
+                // Publish the resolved locale, not the caller's. Rows are persisted to
+                // eg_cm_sheet_data_temp keyed by the sheet names as written in THIS locale, and
+                // downstream consumers (project-factory) rebuild those same names from the locale on
+                // this resource to look the rows back up by exact string equality. Leaving the request
+                // locale here makes the consumer derive names in a language the stored rows were never
+                // written in, so the lookup silently matches nothing.
+                resource.setLocale(locale);
+
                 Map<String, String> mergedLocalizationMap = new HashMap<>();
 
                 // Get boundary hierarchy localization if hierarchyType is provided
