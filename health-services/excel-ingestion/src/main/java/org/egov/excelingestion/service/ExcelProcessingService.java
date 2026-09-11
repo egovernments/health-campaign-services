@@ -15,6 +15,7 @@ import org.egov.excelingestion.util.BoundaryCodeResolver;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.util.WorkbookLocaleResolver;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -49,6 +50,7 @@ public class ExcelProcessingService {
     private final ExcelUtil excelUtil;
     private final ImmutableJoinService immutableJoinService;
     private final BoundaryCodeResolver boundaryCodeResolver;
+    private final WorkbookLocaleResolver workbookLocaleResolver;
 
     public ExcelProcessingService(ValidationService validationService,
                                   SchemaValidationService schemaValidationService,
@@ -63,7 +65,8 @@ public class ExcelProcessingService {
                                   MDMSConfigService mdmsConfigService,
                                   ExcelUtil excelUtil,
                                   ImmutableJoinService immutableJoinService,
-                                  BoundaryCodeResolver boundaryCodeResolver) {
+                                  BoundaryCodeResolver boundaryCodeResolver,
+                                  WorkbookLocaleResolver workbookLocaleResolver) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -78,6 +81,7 @@ public class ExcelProcessingService {
         this.excelUtil = excelUtil;
         this.immutableJoinService = immutableJoinService;
         this.boundaryCodeResolver = boundaryCodeResolver;
+        this.workbookLocaleResolver = workbookLocaleResolver;
     }
 
     /**
@@ -90,30 +94,43 @@ public class ExcelProcessingService {
 
 
         try {
-            // Extract locale and create localization maps
-            String locale = resource.getLocale() != null ? resource.getLocale()
+            String requestLocale = resource.getLocale() != null ? resource.getLocale()
                     : requestInfoConverter.extractLocale(request.getRequestInfo());
             String tenantId = resource.getTenantId();
             String hierarchyType = resource.getHierarchyType();
 
-            Map<String, String> mergedLocalizationMap = new HashMap<>();
-
-            // Get boundary hierarchy localization if hierarchyType is provided
-            if (hierarchyType != null && !hierarchyType.trim().isEmpty()) {
-                String boundaryModule = "hcm-boundary-" + hierarchyType.toLowerCase();
-                Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
-                        tenantId, boundaryModule, locale, request.getRequestInfo());
-                mergedLocalizationMap.putAll(boundaryLocalizationMap);
-            }
-
-            // Get schema localization for field names
-            String schemaModule = "hcm-admin-schemas";
-            Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
-                    tenantId, schemaModule, locale, request.getRequestInfo());
-            mergedLocalizationMap.putAll(schemaLocalizationMap);
-
             // Download and validate the Excel file
             try (Workbook workbook = fileStoreService.downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
+
+                // The file's sheet names and column headers were written in the locale it was GENERATED
+                // in, and are matched below by exact string equality. Resolve that locale from the file
+                // itself so a template generated in one locale still validates when the user's current
+                // locale differs. Legacy files carry no stamp and fall back to the request locale.
+                String locale = workbookLocaleResolver.resolveLocale(workbook, requestLocale);
+
+                // Publish the resolved locale, not the caller's. Rows are persisted to
+                // eg_cm_sheet_data_temp keyed by the sheet names as written in THIS locale, and
+                // downstream consumers (project-factory) rebuild those same names from the locale on
+                // this resource to look the rows back up by exact string equality. Leaving the request
+                // locale here makes the consumer derive names in a language the stored rows were never
+                // written in, so the lookup silently matches nothing.
+                resource.setLocale(locale);
+
+                Map<String, String> mergedLocalizationMap = new HashMap<>();
+
+                // Get boundary hierarchy localization if hierarchyType is provided
+                if (hierarchyType != null && !hierarchyType.trim().isEmpty()) {
+                    String boundaryModule = "hcm-boundary-" + hierarchyType.toLowerCase();
+                    Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
+                            tenantId, boundaryModule, locale, request.getRequestInfo());
+                    mergedLocalizationMap.putAll(boundaryLocalizationMap);
+                }
+
+                // Get schema localization for field names
+                String schemaModule = "hcm-admin-schemas";
+                Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
+                        tenantId, schemaModule, locale, request.getRequestInfo());
+                mergedLocalizationMap.putAll(schemaLocalizationMap);
 
                 // Fail fast on oversized sheets BEFORE the expensive parse/validate/persist work,
                 // turning a potential OOM into a clean, localizable business error.
