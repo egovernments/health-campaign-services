@@ -678,7 +678,16 @@ def transform_page(
             skipped_events += 1
             continue
 
-        bronze_row = [raw_row[RAW_COL_EVENT_ID]]
+        # Coerced like every other column rather than passed through raw: the
+        # driver returns event_id as a uuid.UUID, which fails serialization
+        # with "object of type 'UUID' has no len()" when Bronze types the
+        # column String instead of UUID.
+        bronze_row = [
+            coerce_value(
+                value=raw_row[RAW_COL_EVENT_ID],
+                clickhouse_type=bronze_schema[EVENT_ID_COLUMN],
+            )
+        ]
 
         for source_column, bronze_column in mapping.items():
 
