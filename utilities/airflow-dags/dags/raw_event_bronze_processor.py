@@ -511,6 +511,11 @@ def coerce_value(
 
     if value is None:
 
+        # A Nullable column stores the NULL as-is. Only non-Nullable columns
+        # need a substitute, since the driver cannot serialize None into them.
+        if clickhouse_type.startswith("Nullable("):
+            return None
+
         if is_string_type(base_type):
             return ""
 
@@ -525,6 +530,17 @@ def coerce_value(
 
         if is_bool_type(base_type):
             return False
+
+        # Epoch as the sentinel, mirroring ""/0/False above. Only reached when
+        # the column is non-Nullable, where the driver would otherwise raise
+        # "unsupported operand type(s) for -: 'NoneType' and 'datetime.date'".
+        # Prefer declaring such columns Nullable in the Bronze DDL: a missing
+        # date surfaces here as 1970-01-01, indistinguishable from a real one.
+        if is_date32_type(base_type) or is_date_type(base_type):
+            return date(1970, 1, 1)
+
+        if is_datetime_type(base_type):
+            return datetime(1970, 1, 1, tzinfo=timezone.utc)
 
         return None
 
