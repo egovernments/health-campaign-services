@@ -85,19 +85,12 @@ const searchMDMSDataViaV1Api = async (
   MdmsCriteria: MDMSModels.MDMSv1RequestCriteria,
   requestInfo?: RequestInfo
 ): Promise<MDMSModels.MDMSv1Response> => {
-  const safeRequestInfo: RequestInfo = requestInfo || {
-    apiId: "project-factory",
-    ver: "1.0",
-    ts: Date.now(),
-    action: "search",
-    msgId: `${Date.now()}`
-  };
   const requestBody = {
     ...MdmsCriteria,
-    RequestInfo: safeRequestInfo,
+    RequestInfo: requestInfo,
   };
 
-  const url = config.host.mdms + config.paths.mdms_v1_search;
+  const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
 
   const response: MDMSModels.MDMSv1Response = await httpRequest(
     url,
