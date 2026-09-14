@@ -166,5 +166,26 @@ export const processTemplateConfigs: any = {
             }
         ],
         passFromController: true
+    },
+    attendanceRegisterUserBulkMapping: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-user-bulk-mapping"
+            }
+        ],
+        passFromController: true
+    },
+    attendanceRegisterUserBulkMappingValidation: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-user-bulk-mapping",
+                lockWholeSheet: true
+            }
+        ],
+        passFromController: true
     }
 }

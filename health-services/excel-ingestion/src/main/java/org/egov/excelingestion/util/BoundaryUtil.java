@@ -48,6 +48,7 @@ public class BoundaryUtil {
         }
         
         Set<String> processedCodes = new HashSet<>();
+        Map<String, String> derivedParentByChild = buildDerivedParentMap(codeToEnrichedBoundary);
 
         // Find starting boundaries: those whose parent is null or whose parent is not in the enriched list.
         // This handles campaigns where boundaries start at a non-top level (e.g. Province-level boundaries
@@ -77,7 +78,7 @@ public class BoundaryUtil {
         // Process each starting boundary independently
         for (Boundary startBoundary : startingBoundaries) {
             processBoundary(startBoundary, childrenByParent, codeToEnrichedBoundary, boundaryRows,
-                           processedCodes, new ArrayList<>(), levelTypes);
+                           processedCodes, new ArrayList<>(), levelTypes, derivedParentByChild);
         }
 
         return boundaryRows;
@@ -138,7 +139,8 @@ public class BoundaryUtil {
     private void processBoundary(Boundary boundary, Map<String, List<Boundary>> childrenByParent,
                                 Map<String, EnrichedBoundary> codeToEnrichedBoundary,
                                 List<BoundaryRowData> boundaryRows, Set<String> processedCodes,
-                                List<String> currentPath, List<String> levelTypes) {
+                                List<String> currentPath, List<String> levelTypes,
+                                Map<String, String> derivedParentByChild) {
         
         if (boundary == null || processedCodes.contains(boundary.getCode())) {
             return;
@@ -148,6 +150,12 @@ public class BoundaryUtil {
         
         // Create new path with current boundary
         List<String> newPath = new ArrayList<>(currentPath);
+        // If a campaign starts from a lower hierarchy level (for example DISTRICT) and the
+        // request carries only that node, reconstruct the missing ancestor slots from the
+        // boundary-relationship graph so dropdown scaffolding can still be built.
+        if (newPath.isEmpty()) {
+            populateAncestorPathFromGraph(boundary, codeToEnrichedBoundary, newPath, levelTypes, derivedParentByChild);
+        }
         int levelIndex = getLevelIndex(boundary.getType(), levelTypes);
 
         // Defensive: a boundary whose type isn't one of the hierarchy levelTypes yields -1.
@@ -170,7 +178,7 @@ public class BoundaryUtil {
             EnrichedBoundary enrichedBoundary = codeToEnrichedBoundary.get(boundary.getCode());
             if (enrichedBoundary != null && enrichedBoundary.getChildren() != null) {
                 processAllChildren(enrichedBoundary.getChildren(), codeToEnrichedBoundary,
-                                 boundaryRows, processedCodes, newPath, levelTypes);
+                                 boundaryRows, processedCodes, newPath, levelTypes, derivedParentByChild);
             }
         } else {
             // Process only the boundaries that are in the input list and are children of current
@@ -178,8 +186,43 @@ public class BoundaryUtil {
 
             for (Boundary child : children) {
                 processBoundary(child, childrenByParent, codeToEnrichedBoundary,
-                              boundaryRows, processedCodes, newPath, levelTypes);
+                              boundaryRows, processedCodes, newPath, levelTypes, derivedParentByChild);
             }
+        }
+    }
+
+    private void populateAncestorPathFromGraph(Boundary boundary,
+                                               Map<String, EnrichedBoundary> codeToEnrichedBoundary,
+                                               List<String> path,
+                                              List<String> levelTypes,
+                                              Map<String, String> derivedParentByChild) {
+        EnrichedBoundary start = codeToEnrichedBoundary.get(boundary.getCode());
+        if (start == null) {
+            return;
+        }
+
+        List<EnrichedBoundary> chain = new ArrayList<>();
+        Set<String> visitedCodes = new HashSet<>();
+        EnrichedBoundary current = start;
+        while (current != null && current.getCode() != null && visitedCodes.add(current.getCode())) {
+            chain.add(current);
+            String parentCode = current.getParent();
+            if ((parentCode == null || parentCode.isBlank()) && current.getCode() != null) {
+                parentCode = derivedParentByChild.get(current.getCode());
+            }
+            current = parentCode == null ? null : codeToEnrichedBoundary.get(parentCode);
+        }
+        Collections.reverse(chain);
+
+        for (EnrichedBoundary node : chain) {
+            int idx = getLevelIndex(node.getBoundaryType(), levelTypes);
+            if (idx < 0) {
+                continue;
+            }
+            while (path.size() <= idx) {
+                path.add(null);
+            }
+            path.set(idx, node.getCode());
         }
     }
     
@@ -189,7 +232,8 @@ public class BoundaryUtil {
     private void processAllChildren(List<EnrichedBoundary> children, 
                                    Map<String, EnrichedBoundary> codeToEnrichedBoundary,
                                    List<BoundaryRowData> boundaryRows, Set<String> processedCodes,
-                                   List<String> currentPath, List<String> levelTypes) {
+                                   List<String> currentPath, List<String> levelTypes,
+                                   Map<String, String> derivedParentByChild) {
         
         if (children == null || children.isEmpty()) {
             return;
@@ -223,10 +267,29 @@ public class BoundaryUtil {
                 // Recursively process children
                 if (child.getChildren() != null && !child.getChildren().isEmpty()) {
                     processAllChildren(child.getChildren(), codeToEnrichedBoundary,
-                                     boundaryRows, processedCodes, newPath, levelTypes);
+                                     boundaryRows, processedCodes, newPath, levelTypes, derivedParentByChild);
                 }
             }
         }
+    }
+
+    /**
+     * Builds a child->parent index from nested children edges, used when boundary service payload
+     * omits explicit parent on nodes.
+     */
+    private Map<String, String> buildDerivedParentMap(Map<String, EnrichedBoundary> codeToEnrichedBoundary) {
+        Map<String, String> derivedParentByChild = new HashMap<>();
+        for (EnrichedBoundary node : codeToEnrichedBoundary.values()) {
+            if (node == null || node.getCode() == null || node.getChildren() == null) {
+                continue;
+            }
+            for (EnrichedBoundary child : node.getChildren()) {
+                if (child != null && child.getCode() != null && !derivedParentByChild.containsKey(child.getCode())) {
+                    derivedParentByChild.put(child.getCode(), node.getCode());
+                }
+            }
+        }
+        return derivedParentByChild;
     }
     
     private void buildCodeToBoundaryMapRecursive(List<EnrichedBoundary> boundaries, Map<String, EnrichedBoundary> codeMap) {

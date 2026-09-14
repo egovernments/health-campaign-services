@@ -38,6 +38,8 @@ public class CampaignSearchResponse {
         private String hierarchyType;
         private String boundaryCode;
         private String campaignNumber;
+        private Long startDate;
+        private Long endDate;
         private List<BoundaryDetail> boundaries;
         private AdditionalDetails additionalDetails;
     }

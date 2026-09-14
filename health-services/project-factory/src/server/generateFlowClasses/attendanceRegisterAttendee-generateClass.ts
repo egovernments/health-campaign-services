@@ -1,5 +1,5 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
-import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
+import { getCurrentProcesses, getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { SheetMap } from "../models/SheetMap";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
@@ -73,7 +73,20 @@ export class TemplateClass {
         const registerProcess = processes.find(
             (p: any) => p.processName === allProcesses.attendanceRegisterCreation
         );
-        if (!registerProcess || registerProcess.status !== processStatuses.completed) {
+        let isRegisterCreationComplete = registerProcess?.status === processStatuses.completed;
+
+        // Search response may omit `processes`; fall back to process table lookup.
+        if (!isRegisterCreationComplete && campaign?.campaignNumber) {
+            const completedProcesses = await getCurrentProcesses(
+                campaign.campaignNumber,
+                tenantId,
+                allProcesses.attendanceRegisterCreation,
+                processStatuses.completed
+            );
+            isRegisterCreationComplete = completedProcesses.length > 0;
+        }
+
+        if (!isRegisterCreationComplete) {
             throwError("CAMPAIGN", 400, "ATTENDANCE_REGISTER_NOT_COMPLETE",
                 "Attendance registers must be created before mapping attendees");
         }

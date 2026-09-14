@@ -17,7 +17,8 @@ export const downloadRequestSchema = {
                 "boundary",
                 "facilityWithBoundary",
                 "userWithBoundary",
-                "userCredential"
+                "userCredential",
+                "attendanceRegisterUserBulkMapping"
             ]
         },
         "hierarchyType": {

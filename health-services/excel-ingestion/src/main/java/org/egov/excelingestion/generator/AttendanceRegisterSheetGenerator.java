@@ -9,6 +9,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
@@ -93,14 +94,15 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
 
                 // Add boundary dropdowns using HierarchicalBoundaryUtil (same pattern as UserSheetGenerator)
                 HierarchicalBoundaryUtil.BoundaryColumnLayout boundaryLayout = null;
-                if (shouldAddBoundaryDropdowns(generateResource)) {
+                String campaignId = resolveCampaignId(generateResource);
+                if (shouldAddBoundaryDropdowns(generateResource, campaignId)) {
                     List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries =
-                            campaignService.getBoundariesFromCampaign(generateResource.getReferenceId(),
+                            campaignService.getBoundariesFromCampaign(campaignId,
                                     generateResource.getTenantId(), requestInfo);
 
                     if (campaignBoundaries != null && !campaignBoundaries.isEmpty()) {
                         List<Boundary> enrichedBoundaries = boundaryUtil.getEnrichedBoundariesFromCampaign(
-                                generateResource.getId(), generateResource.getReferenceId(),
+                                generateResource.getId(), campaignId,
                                 generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
 
                         boundaryLayout = hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
@@ -126,9 +128,53 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
         return workbook;
     }
 
-    private boolean shouldAddBoundaryDropdowns(GenerateResource generateResource) {
-        return generateResource.getReferenceId() != null && !generateResource.getReferenceId().isEmpty()
+    private boolean shouldAddBoundaryDropdowns(GenerateResource generateResource, String campaignId) {
+        return campaignId != null && !campaignId.isEmpty()
                 && generateResource.getHierarchyType() != null && !generateResource.getHierarchyType().isEmpty();
+    }
+
+    /**
+     * Resolve campaignId for attendance-register generation.
+     * - referenceType=attendanceRegister: campaignId MUST come from additionalDetails.campaignId.
+     * - other reference types: use referenceId first, then fallback to additionalDetails.campaignId.
+     */
+    private String resolveCampaignId(GenerateResource generateResource) {
+        if (ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER.equals(generateResource.getReferenceType())) {
+            String campaignId = extractCampaignIdFromAdditionalDetails(generateResource.getAdditionalDetails());
+            if (campaignId != null && !campaignId.isBlank()) {
+                return campaignId;
+            }
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.MISSING_REQUIRED_FIELD,
+                    ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "additionalDetails.campaignId"),
+                    new RuntimeException("campaignId is required in additionalDetails when referenceType is attendanceRegister")
+            );
+            return null; // never reached
+        }
+
+        if (generateResource.getReferenceId() != null && !generateResource.getReferenceId().isBlank()) {
+            return generateResource.getReferenceId().trim();
+        }
+
+        String campaignId = extractCampaignIdFromAdditionalDetails(generateResource.getAdditionalDetails());
+        if (campaignId != null && !campaignId.isBlank()) {
+            return campaignId;
+        }
+
+        exceptionHandler.throwCustomException(
+                ErrorConstants.MISSING_REQUIRED_FIELD,
+                ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "referenceId"),
+                new RuntimeException("referenceId is required for campaign-based generation")
+        );
+        return null; // never reached
+    }
+
+    private String extractCampaignIdFromAdditionalDetails(Map<String, Object> additionalDetails) {
+        if (additionalDetails == null) return null;
+        Object campaignId = additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_CAMPAIGN_ID);
+        if (campaignId == null) return null;
+        String value = String.valueOf(campaignId).trim();
+        return value.isEmpty() ? null : value;
     }
 
     private String extractSchemaFromMDMSResponse(List<Map<String, Object>> mdmsList, String title) {

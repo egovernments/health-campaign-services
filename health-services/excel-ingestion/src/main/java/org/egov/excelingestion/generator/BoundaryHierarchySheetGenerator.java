@@ -2,6 +2,7 @@ package org.egov.excelingestion.generator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.BoundaryService;
@@ -54,6 +55,7 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
         try {
             String tenantId = generateResource.getTenantId();
             String hierarchyType = generateResource.getHierarchyType();
+            String campaignId = resolveCampaignId(generateResource);
             
             // Fetch boundary hierarchy data
             BoundaryHierarchyResponse hierarchyData = boundaryService.fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
@@ -71,11 +73,11 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             
             // Get campaign boundaries from campaign service instead of additionalDetails
             List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = 
-                campaignService.getBoundariesFromCampaign(generateResource.getReferenceId(), 
+                campaignService.getBoundariesFromCampaign(campaignId,
                     generateResource.getTenantId(), requestInfo);
             
             if (campaignBoundaries == null || campaignBoundaries.isEmpty()) {
-                log.info("No campaign boundaries found for campaign: {}, returning empty result", generateResource.getReferenceId());
+                log.info("No campaign boundaries found for campaign: {}, returning empty result", campaignId);
                 return SheetGenerationResult.builder()
                         .columnDefs(new ArrayList<>())
                         .data(new ArrayList<>())
@@ -84,7 +86,7 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             
             // Get enriched boundaries using cached function
             List<Boundary> enrichedBoundaries = boundaryUtil.getEnrichedBoundariesFromCampaign(
-                generateResource.getId(), generateResource.getReferenceId(), 
+                generateResource.getId(), campaignId,
                 generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
             
             // Filter boundaries based on campaign configuration
@@ -93,7 +95,7 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             
             // Get projectType from campaign service instead of additionalDetails
             String projectType = campaignService.getProjectTypeFromCampaign(
-                generateResource.getReferenceId(), generateResource.getTenantId(), requestInfo);
+                campaignId, generateResource.getTenantId(), requestInfo);
             
             // Fetch schema columns if projectType exists (skip if config says so)
             List<ColumnDef> schemaColumns = new ArrayList<>();
@@ -108,10 +110,9 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             List<Map<String, Object>> boundaryData = getBoundaryHierarchyDataFromFiltered(
                     filteredBoundaries, hierarchyRelations, hierarchyType, localizationMap, schemaColumns);
             
-            // Fetch and merge existing campaign data for targets if reference ID is provided
-            String referenceId = generateResource.getReferenceId();
-            if (referenceId != null && !referenceId.isEmpty()) {
-                String campaignNumber = getCampaignNumberFromReferenceId(referenceId, generateResource.getTenantId(), requestInfo);
+            // Fetch and merge existing campaign data for targets when campaign id is available.
+            if (campaignId != null && !campaignId.isEmpty()) {
+                String campaignNumber = getCampaignNumberFromCampaignId(campaignId, generateResource.getTenantId(), requestInfo);
                 if (campaignNumber != null && !campaignNumber.isEmpty()) {
                     boundaryData = mergeExistingCampaignData(boundaryData, campaignNumber, 
                             generateResource.getTenantId(), requestInfo, schemaColumns);
@@ -127,6 +128,50 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             log.error("Error generating boundary hierarchy sheet data: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to generate boundary hierarchy sheet data", e);
         }
+    }
+
+    /**
+     * Resolve campaignId for generation.
+     * - referenceType=attendanceRegister: campaignId must come from additionalDetails.campaignId.
+     * - otherwise use referenceId (campaign reference), with additionalDetails.campaignId fallback.
+     */
+    private String resolveCampaignId(GenerateResource generateResource) {
+        if (ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER.equals(generateResource.getReferenceType())) {
+            String campaignId = extractCampaignIdFromAdditionalDetails(generateResource.getAdditionalDetails());
+            if (campaignId != null && !campaignId.isBlank()) {
+                return campaignId;
+            }
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.MISSING_REQUIRED_FIELD,
+                    ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "additionalDetails.campaignId"),
+                    new RuntimeException("campaignId is required in additionalDetails when referenceType is attendanceRegister")
+            );
+            return null; // never reached
+        }
+
+        if (generateResource.getReferenceId() != null && !generateResource.getReferenceId().isBlank()) {
+            return generateResource.getReferenceId().trim();
+        }
+
+        String campaignId = extractCampaignIdFromAdditionalDetails(generateResource.getAdditionalDetails());
+        if (campaignId != null && !campaignId.isBlank()) {
+            return campaignId;
+        }
+
+        exceptionHandler.throwCustomException(
+                ErrorConstants.MISSING_REQUIRED_FIELD,
+                ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "referenceId"),
+                new RuntimeException("referenceId is required for campaign-based generation")
+        );
+        return null; // never reached
+    }
+
+    private String extractCampaignIdFromAdditionalDetails(Map<String, Object> additionalDetails) {
+        if (additionalDetails == null) return null;
+        Object campaignId = additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_CAMPAIGN_ID);
+        if (campaignId == null) return null;
+        String value = String.valueOf(campaignId).trim();
+        return value.isEmpty() ? null : value;
     }
     
     private List<ColumnDef> fetchSchemaColumns(String projectType, String tenantId, RequestInfo requestInfo) {
@@ -281,21 +326,21 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
         return data;
     }
     
-    private String getCampaignNumberFromReferenceId(String referenceId, String tenantId, RequestInfo requestInfo) {
+    private String getCampaignNumberFromCampaignId(String campaignId, String tenantId, RequestInfo requestInfo) {
         try {
-            log.info("Searching campaign by reference ID: {}", referenceId);
-            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
+            log.info("Searching campaign by campaign ID: {}", campaignId);
+            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(campaignId, tenantId, requestInfo);
             
             if (campaign != null) {
                 String campaignNumber = campaign.getCampaignNumber();
-                log.info("Found campaign number: {} for reference ID: {}", campaignNumber, referenceId);
+                log.info("Found campaign number: {} for campaign ID: {}", campaignNumber, campaignId);
                 return campaignNumber;
             } else {
-                log.warn("No campaign found for reference ID: {}", referenceId);
+                log.warn("No campaign found for campaign ID: {}", campaignId);
                 return null;
             }
         } catch (Exception e) {
-            log.error("Error fetching campaign for reference ID {}: {}", referenceId, e.getMessage());
+            log.error("Error fetching campaign for campaign ID {}: {}", campaignId, e.getMessage());
             return null;
         }
     }
