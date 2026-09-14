@@ -57,20 +57,19 @@ def _warn_url_missing_once(env_var_name: str, service_label: str) -> None:
         env_var_name, service_label,
     )
 
-BOUNDARY_RELATIONSHIP_SEARCH_PATH = "/boundary-service/boundary-relationships/_search"
-USER_SEARCH_PATH = "/user/_search"
-# Verified live against a local MDMS instance: this deployment runs the
-# classic MDMS v1 service, not the /mdms-v2/v1/_search path the Java
-# config referenced (that config was for a different environment) --
-# request/response shape (MdmsCriteria in, MdmsRes out) is otherwise
-# identical between the two.
-MDMS_SEARCH_PATH = "/mdms-v2/v1/_search"
+
+BOUNDARY_RELATIONSHIP_SEARCH_PATH = os.getenv(
+    "EGOV_BOUNDARY_RELATIONSHIP_SEARCH_PATH",
+    "/boundary-service/boundary-relationships/_search",
+)
+USER_SEARCH_PATH = os.getenv("EGOV_USER_SEARCH_PATH", "/user/_search")
+MDMS_SEARCH_PATH = os.getenv("EGOV_MDMS_SEARCH_PATH", "/egov-mdms-service/v1/_search")
 PROJECT_STAFF_ROLES_MODULE = "HCM-PROJECT-STAFF-ROLES"
 PROJECT_STAFF_ROLES_MASTER = "projectStaffRoles"
-# Standard DIGIT egov-workflow-v2 search path -- NOT verified against a live
-# instance in this repo (unlike BOUNDARY_RELATIONSHIP_SEARCH_PATH/USER_SEARCH_PATH/
-# MDMS_SEARCH_PATH, which were).
-WORKFLOW_PROCESS_SEARCH_PATH = "/egov-wf/process/_search"
+WORKFLOW_PROCESS_SEARCH_PATH = os.getenv(
+    "EGOV_WORKFLOW_PROCESS_SEARCH_PATH",
+    "/egov-workflow-v2/egov-wf/process/_search",
+)
 
 BOUNDARY_LEVEL_ORDINALS = [
     "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
