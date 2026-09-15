@@ -1,0 +1,93 @@
+{
+  "tenantId": "dev",
+  "code": "airflow-configs.dst-campaign-report-config",
+  "isActive": true,
+  "definition": {
+    "type": "object",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "properties": {
+      "rowIdentity": {
+        "type": "string"
+      },
+      "deploymentGroup": {
+        "type": "string"
+      },
+      "active": {
+        "type": "string"
+      },
+      "campaign_name": {
+        "type": "string"
+      },
+      "state_name": {
+        "type": "string"
+      },
+      "tenant": {
+        "type": "string"
+      },
+      "drug_type": {
+        "type": "string"
+      },
+      "campaign_start": {
+        "type": "string"
+      },
+      "campaign_end": {
+        "type": "string"
+      },
+      "mopup_end_date": {
+        "type": "string"
+      },
+      "campaign_days": {
+        "type": "string"
+      },
+      "is_admin_console": {
+        "type": "string"
+      },
+      "campaign_number": {
+        "type": "string"
+      },
+      "project_type_id": {
+        "type": "string"
+      },
+      "cycle_index": {
+        "type": "string"
+      },
+      "task_date_field": {
+        "type": "string"
+      },
+      "dose_index_filter": {
+        "type": "string"
+      },
+      "task_campaign_filter": {
+        "type": "string"
+      },
+      "target_file": {
+        "type": "string"
+      },
+      "slack_channel": {
+        "type": "string"
+      },
+      "report_times": {
+        "type": "string"
+      },
+      "slack_channel_partners": {
+        "type": "string"
+      },
+      "secondary_product": {
+        "type": "string"
+      },
+      "partner_report_times": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "rowIdentity",
+      "deploymentGroup",
+      "tenant",
+      "campaign_start",
+      "active"
+    ],
+    "x-unique": [
+      "rowIdentity"
+    ]
+  }
+}
