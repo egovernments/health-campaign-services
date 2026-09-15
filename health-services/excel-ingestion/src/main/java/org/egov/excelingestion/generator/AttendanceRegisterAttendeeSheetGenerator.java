@@ -144,13 +144,12 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         log.info("Filtered {} users for sheet {}", filteredUsers.size(), sheetName);
 
-        Long campaignStartDate = resolveCampaignStartDate(generateResource, tenantId, requestInfo);
-        Long campaignEndDate = resolveCampaignEndDate(generateResource, tenantId, requestInfo);
+        CampaignDateRange campaignDateRange = resolveCampaignDateRange(generateResource, tenantId, requestInfo);
 
         // 8. Decrypt credentials and build data rows
         List<Map<String, Object>> dataRows = buildDataRows(
                 filteredUsers, registerDetails.serviceCode, localizationMap, requestInfo,
-                WORKER_SHEET.equals(sheetName), campaignStartDate, campaignEndDate);
+                WORKER_SHEET.equals(sheetName), campaignDateRange.startDate, campaignDateRange.endDate);
 
         return SheetGenerationResult.builder()
                 .columnDefs(columnDefs)
@@ -158,25 +157,81 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                 .build();
     }
 
-    private Long resolveCampaignStartDate(GenerateResource generateResource, String tenantId, RequestInfo requestInfo) {
-        if (generateResource.getAdditionalDetails() != null
-                && generateResource.getAdditionalDetails().containsKey("campaignStartDate")) {
-            Object value = generateResource.getAdditionalDetails().get("campaignStartDate");
-            if (value != null) return Long.valueOf(String.valueOf(value));
+    private CampaignDateRange resolveCampaignDateRange(GenerateResource generateResource, String tenantId, RequestInfo requestInfo) {
+        Long startDate = getAdditionalDetailAsLong(generateResource, "campaignStartDate");
+        Long endDate = getAdditionalDetailAsLong(generateResource, "campaignEndDate");
+
+        // Fast path: dates already available on the generation request.
+        if (startDate != null && endDate != null) {
+            return new CampaignDateRange(startDate, endDate);
         }
 
-        // fallback if you later fetch campaign details via CampaignService
-        return null;
+        String campaignId = getAdditionalDetailAsString(generateResource, ProcessingConstants.ADDITIONAL_DETAILS_CAMPAIGN_ID);
+        if (campaignId == null || campaignId.isBlank()) {
+            log.warn("campaignId missing in additionalDetails for referenceId={}, cannot prefill attendee enrollment dates from campaign",
+                    generateResource.getReferenceId());
+            return new CampaignDateRange(startDate, endDate);
+        }
+
+        CampaignSearchResponse.CampaignDetail campaignDetail =
+                campaignService.searchCampaignById(campaignId.trim(), tenantId, requestInfo);
+
+        Long resolvedStartDate = startDate != null ? startDate : campaignDetail.getStartDate();
+        Long resolvedEndDate = endDate != null ? endDate : campaignDetail.getEndDate();
+
+        // Cache resolved values into additionalDetails so subsequent sheet generation in the same
+        // request can reuse them without recomputing.
+        if (resolvedStartDate != null || resolvedEndDate != null) {
+            if (generateResource.getAdditionalDetails() == null) {
+                generateResource.setAdditionalDetails(new HashMap<>());
+            }
+            if (resolvedStartDate != null) {
+                generateResource.getAdditionalDetails().put("campaignStartDate", resolvedStartDate);
+            }
+            if (resolvedEndDate != null) {
+                generateResource.getAdditionalDetails().put("campaignEndDate", resolvedEndDate);
+            }
+        }
+
+        log.info("Resolved campaign dates for campaignId {}: startDate={}, endDate={}",
+                campaignId, resolvedStartDate, resolvedEndDate);
+        return new CampaignDateRange(resolvedStartDate, resolvedEndDate);
     }
 
-    private Long resolveCampaignEndDate(GenerateResource generateResource, String tenantId, RequestInfo requestInfo) {
-        if (generateResource.getAdditionalDetails() != null
-                && generateResource.getAdditionalDetails().containsKey("campaignEndDate")) {
-            Object value = generateResource.getAdditionalDetails().get("campaignEndDate");
-            if (value != null) return Long.valueOf(String.valueOf(value));
+    private Long getAdditionalDetailAsLong(GenerateResource generateResource, String key) {
+        if (generateResource.getAdditionalDetails() == null) {
+            return null;
+        }
+        Object value = generateResource.getAdditionalDetails().get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
         }
 
-        return null;
+        String stringValue = String.valueOf(value).trim();
+        if (stringValue.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(stringValue);
+        } catch (NumberFormatException e) {
+            log.warn("Invalid additionalDetails.{} value '{}' for referenceId={}", key, stringValue, generateResource.getReferenceId());
+            return null;
+        }
+    }
+
+    private String getAdditionalDetailAsString(GenerateResource generateResource, String key) {
+        if (generateResource.getAdditionalDetails() == null) {
+            return null;
+        }
+        Object value = generateResource.getAdditionalDetails().get(key);
+        if (value == null) {
+            return null;
+        }
+        String stringValue = String.valueOf(value).trim();
+        return stringValue.isEmpty() ? null : stringValue;
     }
 
     /**
@@ -341,6 +396,16 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
             this.localityCode = localityCode;
             this.campaignNumber = campaignNumber;
             this.serviceCode = serviceCode;
+        }
+    }
+
+    private static class CampaignDateRange {
+        final Long startDate;
+        final Long endDate;
+
+        CampaignDateRange(Long startDate, Long endDate) {
+            this.startDate = startDate;
+            this.endDate = endDate;
         }
     }
 

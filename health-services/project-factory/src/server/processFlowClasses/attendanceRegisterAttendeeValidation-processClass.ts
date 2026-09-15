@@ -111,6 +111,7 @@ export class TemplateClass {
 
         const usernames = this.collectUniqueUsernames(allRows);
         const { usernameToIndividualId, usernameToRoles } = await this.resolveIndividualIds(usernames, tenantId, resourceDetails?.requestInfo);
+        this.mergeResolvedIndividualIdsFromCache(resourceDetails, usernameToIndividualId);
         const allIndividualIds = [...new Set(usernameToIndividualId.values())];
 
         // Fetch all enrollment records across ALL registers for cross-register validation
@@ -404,6 +405,23 @@ export class TemplateClass {
             }
         }
         return usernames;
+    }
+
+    private static mergeResolvedIndividualIdsFromCache(
+        resourceDetails: any,
+        usernameToIndividualId: Map<string, string>
+    ): void {
+        const cached = resourceDetails?.additionalDetails?.[attendanceCacheKeys.RESOLVED_INDIVIDUAL_IDS];
+        if (!cached || typeof cached !== "object") return;
+
+        for (const [username, individualId] of Object.entries(cached as Record<string, unknown>)) {
+            const normalizedUsername = this.getCellAsString(username);
+            const normalizedIndividualId = this.getCellAsString(individualId);
+            if (!normalizedUsername || !normalizedIndividualId) continue;
+            if (!usernameToIndividualId.has(normalizedUsername)) {
+                usernameToIndividualId.set(normalizedUsername, normalizedIndividualId);
+            }
+        }
     }
 
     private static async fetchRegister(registerId: string, tenantId: string, requestInfo?: RequestInfo): Promise<any> {
