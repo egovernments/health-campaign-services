@@ -1,0 +1,13 @@
+openpyxl>=3.1
+python-docx>=1.1
+requests>=2.31
+urllib3>=2.0
+pandas>=2.0
+gspread>=6.0
+google-auth>=2.0
+google-api-python-client>=2.100
+python-dotenv
+matplotlib>=3.7
+# mdms mode: run lifecycle events -> egov-persister. Without it the producer
+# is a silent no-op and the audit table stays empty while DAG runs go green.
+kafka-python>=2.0
