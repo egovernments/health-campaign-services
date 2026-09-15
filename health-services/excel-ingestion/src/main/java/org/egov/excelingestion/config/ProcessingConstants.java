@@ -18,6 +18,17 @@ public class ProcessingConstants {
     // Facility active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String FACILITY_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_USAGE";
 
+    // Permanent/Temporary enum columns. Localized for display at generation and mapped back to their
+    // canonical MDMS values on upload (see EnumLocalizationUtil).
+    public static final String FACILITY_STATUS_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_STATUS";
+    public static final String USER_EMPLOYMENT_TYPE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_EMPLOYMENT_TYPE";
+
+    // Canonical (MDMS) values of the facility-status / employment-type enums. project-factory maps these
+    // by exact string equality (createAndSearch.ts: Permanent -> isPermanent=true / employeeType=PERMANENT),
+    // so they must reach persistence in this exact form regardless of the sheet's locale.
+    public static final String STATUS_PERMANENT = "Permanent";
+    public static final String STATUS_TEMPORARY = "Temporary";
+
     // Template type families the unprotected join-mode immutability feature applies to.
     // Generation types are e.g. "unified-console" / "attendanceRegister" / "attendanceRegisterAttendee";
     // the matching processing types append a suffix ("-validation"/"-parse"), so the scope gate matches

@@ -132,7 +132,7 @@ public class ExcelDataPopulator {
 
         // 5. Fill Data (if not empty/null)
         if (dataRows != null && !dataRows.isEmpty()) {
-            fillDataRows(workbook, sheet, expandedColumns, dataRows);
+            fillDataRows(workbook, sheet, expandedColumns, dataRows, localizationMap);
         }
 
         // 6. Apply Formatting - reuse existing methods
@@ -229,7 +229,7 @@ public class ExcelDataPopulator {
      * Maps data keys to existing header columns in the sheet
      */
     private void fillDataRows(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties, 
-                             List<Map<String, Object>> dataRows) {
+                             List<Map<String, Object>> dataRows, Map<String, String> localizationMap) {
         log.debug("Filling {} data rows", dataRows.size());
 
         // Get header row (row 1, which is visible)
@@ -305,7 +305,7 @@ public class ExcelDataPopulator {
                     // Find corresponding ColumnDef for validation/formatting (O(1))
                     ColumnDef columnDef = colDefByName.get(dataKey);
 
-                    setCellValue(cell, value, columnDef);
+                    setCellValue(cell, value, columnDef, localizationMap);
                 } else if (colIdx == null) {
                     log.debug("No header column found for data key: {}", dataKey);
                 }
@@ -316,7 +316,7 @@ public class ExcelDataPopulator {
     /**
      * Set cell value based on data type and column properties
      */
-    private void setCellValue(Cell cell, Object value, ColumnDef column) {
+    private void setCellValue(Cell cell, Object value, ColumnDef column, Map<String, String> localizationMap) {
         if (value == null) {
             return;
         }
@@ -324,6 +324,12 @@ public class ExcelDataPopulator {
         // Handle different data types
         if (value instanceof String) {
             String stringValue = (String) value;
+            // Show pre-filled enum values (e.g. Permanent/Active) in the generation locale, matching the
+            // localized dropdown list so the cell's value is actually selectable in its own dropdown.
+            // Reversed to canonical on upload; untranslated values pass through unchanged.
+            if (EnumLocalizationUtil.isEnumColumn(column)) {
+                stringValue = EnumLocalizationUtil.toLocalized(column.getName(), stringValue, localizationMap);
+            }
             // Apply prefix if specified
             if (column != null && column.getPrefix() != null && !column.getPrefix().isEmpty()) {
                 stringValue = column.getPrefix() + stringValue;
@@ -491,14 +497,21 @@ public class ExcelDataPopulator {
             
             // Apply enum dropdown validation
             if (column.getEnumValues() != null && !column.getEnumValues().isEmpty()) {
+                // Show the dropdown in the generation locale. Display-only: the upload path maps the
+                // selected label back to its canonical MDMS value before validation/persistence, since
+                // processors and project-factory match those values by exact string equality.
+                // Untranslated values fall back to canonical, so this is a no-op until the
+                // localization entries exist.
+                List<String> dropdownValues = EnumLocalizationUtil.toLocalizedValues(
+                        column.getName(), column.getEnumValues(), localizationMap);
                 DataValidationConstraint constraint;
-                if (String.join(",", column.getEnumValues()).length() > INLINE_LIST_CHAR_LIMIT) {
+                if (String.join(",", dropdownValues).length() > INLINE_LIST_CHAR_LIMIT) {
                     Sheet dropdownSheet = getOrCreateDropdownSheet(workbook);
-                    int dropColIdx = writeEnumToDropdownSheet(dropdownSheet, column.getEnumValues());
-                    String rangeName = createDropdownNamedRange(workbook, column.getTechnicalName(), dropColIdx, column.getEnumValues().size());
+                    int dropColIdx = writeEnumToDropdownSheet(dropdownSheet, dropdownValues);
+                    String rangeName = createDropdownNamedRange(workbook, column.getTechnicalName(), dropColIdx, dropdownValues.size());
                     constraint = dvHelper.createFormulaListConstraint(rangeName);
                 } else {
-                    constraint = dvHelper.createExplicitListConstraint(column.getEnumValues().toArray(new String[0]));
+                    constraint = dvHelper.createExplicitListConstraint(dropdownValues.toArray(new String[0]));
                 }
                 int lastRow = getValidationLastRowIndex(sheet);
                 CellRangeAddressList addressList = new CellRangeAddressList(2, lastRow, colIndex, colIndex);
