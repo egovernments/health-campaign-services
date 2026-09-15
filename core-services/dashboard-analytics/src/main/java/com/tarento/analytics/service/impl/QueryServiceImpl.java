@@ -459,6 +459,7 @@ public class QueryServiceImpl implements QueryService {
         String aggrQuery = query.get(Constants.JsonPaths.AGGREGATION_QUERY).asText();
         if (interval != null && !interval.isEmpty())
             aggrQuery = aggrQuery.replace(Constants.JsonPaths.INTERVAL_VAL, interval);
+        aggrQuery = substituteQueryParams(aggrQuery, query.get(Constants.JsonPaths.QUERY_PARAMS), request.getFilters(), indexName);
         String rqMs = query.get(Constants.JsonPaths.REQUEST_QUERY_MAP).asText();
         String dateReferenceField = query.get(Constants.JsonPaths.DATE_REF_FIELD).asText();
         JsonNode requestQueryMaps = null;
@@ -525,6 +526,59 @@ public class QueryServiceImpl implements QueryService {
         }
         return aggrNode;
 
+    }
+
+    /**
+     * Substitutes ${name tokens in aggrQuery from the chart's "queryParams" node.
+     *
+     * queryParams is both the whitelist and the source of defaults: a request filter is only
+     * honoured if a param of that name is declared there. A request key that is not declared
+     * cannot reach the query at all - it is not substituted here, and it is not turned into an
+     * esFilter either unless requestQueryMap maps it.
+     *
+     * Substitution happens BEFORE the string is parsed as JSON, so an unchecked value could
+     * close a quote and restructure the query. Declared-numeric params are therefore coerced
+     * through BigDecimal and fall back to the default if the request value is not a number.
+     *
+     * Charts with no queryParams node are untouched, so existing configs behave identically.
+     */
+    private String substituteQueryParams(String aggrQuery, JsonNode declared, Map<String, Object> filters, String indexName) {
+        if (declared != null && declared.isObject()) {
+            Iterator<Entry<String, JsonNode>> declaredItr = declared.fields();
+            while (declaredItr.hasNext()) {
+                Entry<String, JsonNode> declaredParam = declaredItr.next();
+                String token = "${" + declaredParam.getKey() + "}";
+                if (!aggrQuery.contains(token)) continue;
+
+                JsonNode defaultValue = declaredParam.getValue();
+                String value = defaultValue.asText();
+                Object override = filters != null ? filters.get(declaredParam.getKey()) : null;
+                if (override != null) {
+                    if (defaultValue.isNumber()) {
+                        try {
+                            value = new java.math.BigDecimal(String.valueOf(override)).toPlainString();
+                        } catch (NumberFormatException nfe) {
+                            logger.warn("Non-numeric override '{}' for numeric query param '{}' on index {} - keeping default {}",
+                                    override, declaredParam.getKey(), indexName, value);
+                        }
+                    } else if (defaultValue.isBoolean()) {
+                        value = String.valueOf(Boolean.parseBoolean(String.valueOf(override)));
+                    }
+                    // Non-numeric, non-boolean params are deliberately not overridable: there is
+                    // no safe way to inline a free-text value into a query that is still a string.
+                }
+                aggrQuery = aggrQuery.replace(token, value);
+            }
+        }
+
+        // A token left standing means the chart uses a param it never declared. Failing here
+        // names the chart and the fix; letting it through surfaces as a Jackson parse error at
+        // some character offset instead.
+        if (aggrQuery.contains("${")) {
+            throw new IllegalStateException("Unresolved query param token in aggrQuery for index "
+                    + indexName + " - declare it under the chart's queryParams. Query: " + aggrQuery);
+        }
+        return aggrQuery;
     }
 
 }

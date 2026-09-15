@@ -89,6 +89,8 @@ public class Constants {
 		final static String TRANSFORM_DATA = "transformData";
 		final static String TRANSFORM_KEY = "transformKey";
 		final static String BUCKETS_PATH = "bucketsPath";
+		final static String QUERY_PARAMS = "queryParams";
+		final static String SELECT_CLUSTERS = "selectClusters";
 		final static String MERGES = "merges";
 		final static String MERGE_KEY = "mergeKey";
 		final static String BASE_DATASET = "baseDataset";

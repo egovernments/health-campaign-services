@@ -58,12 +58,17 @@ public class RawResponseHandler implements IResponseHandler {
 		}
 
 		// Inline "select" mappings on queries (optional, overrides chartNode.transform for that key)
-		transformationConfigs.putAll(parseInlineSelectMappings(chartNode));
+		transformationConfigs.putAll(parseInlineSelectMappings(chartNode, "select"));
 		bucketsPaths.putAll(buildInlineBucketsPaths(chartNode, aggregationNode));
+
+		// "rawDocsTermsAggs" needs a second mapping: "select" describes a hit, "selectClusters"
+		// describes a bucket, and one response carries both.
+		Map<String, List<Map<String, String>>> clusterConfigs =
+				parseInlineSelectMappings(chartNode, Constants.JsonPaths.SELECT_CLUSTERS);
 
 		Map<String, Object> transformed = transformationConfigs.isEmpty()
 				? rawResponses
-				: rawResponseTransformer.transformAll(rawResponses, transformationConfigs, transformDataTypes, bucketsPaths);
+				: rawResponseTransformer.transformAll(rawResponses, transformationConfigs, transformDataTypes, bucketsPaths, clusterConfigs);
 
 		List<String> aggregationPaths = parseAggregationPaths(chartNode);
 		JsonNode mergesNode = chartNode != null ? chartNode.get(Constants.JsonPaths.MERGES) : null;
@@ -288,7 +293,7 @@ public class RawResponseHandler implements IResponseHandler {
 		return aggregationPaths;
 	}
 
-	private Map<String, List<Map<String, String>>> parseInlineSelectMappings(JsonNode chartNode) {
+	private Map<String, List<Map<String, String>>> parseInlineSelectMappings(JsonNode chartNode, String selectField) {
 		Map<String, List<Map<String, String>>> configs = new LinkedHashMap<>();
 		if (chartNode == null || chartNode.get(Constants.JsonPaths.QUERIES) == null || !chartNode.get(Constants.JsonPaths.QUERIES).isArray()) {
 			return configs;
@@ -296,7 +301,7 @@ public class RawResponseHandler implements IResponseHandler {
 
 		for (JsonNode q : chartNode.get(Constants.JsonPaths.QUERIES)) {
 			if (q == null || !q.isObject()) continue;
-			if (!q.has("select") || !q.get("select").isObject()) {
+			if (!q.has(selectField) || !q.get(selectField).isObject()) {
 				continue;
 			}
 
@@ -308,7 +313,7 @@ public class RawResponseHandler implements IResponseHandler {
 						: q.get(Constants.JsonPaths.INDEX_NAME).asText());
 
 			@SuppressWarnings("unchecked")
-			Map<String, String> mapping = MAPPER.convertValue(q.get("select"), Map.class);
+			Map<String, String> mapping = MAPPER.convertValue(q.get(selectField), Map.class);
 			configs.put(key, Collections.singletonList(mapping));
 		}
 

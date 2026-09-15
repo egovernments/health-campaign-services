@@ -85,6 +85,19 @@ public class RawResponseTransformer {
                                              Map<String, List<Map<String, String>>> transformationConfigs,
                                              Map<String, String> transformDataTypes,
                                              Map<String, String> bucketsPaths) {
+        return transformAll(rawResponses, transformationConfigs, transformDataTypes, bucketsPaths, null);
+    }
+
+    /**
+     * @param clusterConfigs per-dataset bucket mappings, used only by "rawDocsTermsAggs" where a
+     *                       single ES response carries both hits and aggregation buckets and the
+     *                       two need different field mappings.
+     */
+    public Map<String, Object> transformAll(Map<String, Object> rawResponses,
+                                             Map<String, List<Map<String, String>>> transformationConfigs,
+                                             Map<String, String> transformDataTypes,
+                                             Map<String, String> bucketsPaths,
+                                             Map<String, List<Map<String, String>>> clusterConfigs) {
         Map<String, Object> result = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : rawResponses.entrySet()) {
             String key = entry.getKey();
@@ -117,6 +130,17 @@ public class RawResponseTransformer {
                         bucketsPath = bucketsPaths != null ? bucketsPaths.getOrDefault(baseKey, null) : null;
                     }
                     result.put(key, transformTermsAggregation(esResponse, mappings, bucketsPath));
+                    break;
+                case "rawDocsTermsAggs":
+                    String hitsBucketsPath = bucketsPaths != null ? bucketsPaths.getOrDefault(key, null) : null;
+                    if (hitsBucketsPath == null) {
+                        hitsBucketsPath = bucketsPaths != null ? bucketsPaths.getOrDefault(baseKey, null) : null;
+                    }
+                    List<Map<String, String>> clusterMappings = clusterConfigs != null ? clusterConfigs.get(key) : null;
+                    if (clusterMappings == null && clusterConfigs != null) {
+                        clusterMappings = clusterConfigs.get(baseKey);
+                    }
+                    result.put(key, transformHitsAndBuckets(esResponse, mappings, clusterMappings, hitsBucketsPath));
                     break;
                 case "rawDocuments":
                 default:
@@ -223,6 +247,56 @@ public class RawResponseTransformer {
         }
 
         return results;
+    }
+
+    /**
+     * One ES response, both renderings.
+     *
+     * A viewport query asks for raw hits and a geo grid aggregation at the same time so the UI can
+     * decide between plotting individual documents and plotting clusters without a second round
+     * trip. Which one it picks depends on "total", which is why that is returned alongside.
+     *
+     * "exact" reflects hits.total.relation: with track_total_hits capped, ES reports "gte" once the
+     * true count passes the cap. The caller only needs to know whether the count exceeded its
+     * threshold, so a capped count is sufficient and much cheaper than an exact one.
+     *
+     * Note this returns a Map, where the sibling modes return Lists. A dataset produced here is
+     * therefore not a valid input to "merges" or "cardsList", both of which expect list-shaped data.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> transformHitsAndBuckets(Map<String, Object> esResponse,
+                                                       List<Map<String, String>> hitMappings,
+                                                       List<Map<String, String>> clusterMappings,
+                                                       String bucketsPath) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        long total = 0L;
+        boolean exact = true;
+
+        if (esResponse != null) {
+            Object hitsObj = esResponse.get("hits");
+            if (hitsObj instanceof Map) {
+                Object totalObj = ((Map<String, Object>) hitsObj).get("total");
+                if (totalObj instanceof Map) {
+                    Map<String, Object> totalMap = (Map<String, Object>) totalObj;
+                    Object valueObj = totalMap.get("value");
+                    if (valueObj instanceof Number) total = ((Number) valueObj).longValue();
+                    exact = !"gte".equals(String.valueOf(totalMap.get("relation")));
+                } else if (totalObj instanceof Number) {
+                    // ES 6 style: hits.total is a bare number and always exact.
+                    total = ((Number) totalObj).longValue();
+                }
+            }
+        }
+
+        out.put("total", total);
+        out.put("exact", exact);
+        out.put("points", hitMappings == null || hitMappings.isEmpty()
+                ? Collections.emptyList()
+                : transform(esResponse, hitMappings));
+        out.put("clusters", clusterMappings == null || clusterMappings.isEmpty()
+                ? Collections.emptyList()
+                : transformTermsAggregation(esResponse, clusterMappings, bucketsPath));
+        return out;
     }
 
     // ---- Dataset merge/join ----
