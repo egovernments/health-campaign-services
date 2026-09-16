@@ -75,15 +75,26 @@ public class SideEffectTransformationService {
         Map<String, String> boundaryHierarchy = new HashMap<>();
         Map<String, String> boundaryHierarchyCode = new HashMap<>();
         List<Task> taskList = sideEffectService.getTaskFromTaskClientReferenceId(sideEffect.getTaskClientReferenceId(), tenantId);
+        // Resolve the project from the task the side effect was recorded against; resolving it from the
+        // reporting user's project-staff mapping (previous behaviour) returned nothing for users who are not
+        // staff of exactly one project, leaving projectId / campaignNumber null on the indexed document.
+        ProjectInfo projectInfo = null;
+        String taskProjectId = null;
 
         if (!CollectionUtils.isEmpty(taskList)) {
             Task task = taskList.get(0);
+            taskProjectId = task.getProjectId();
+            if (taskProjectId != null) {
+                projectInfo = projectService.getProjectInfoByProjectId(taskProjectId, tenantId);
+            }
             localityCode = (task.getAddress() != null &&
                     task.getAddress().getLocality() != null &&
                     task.getAddress().getLocality().getCode() != null) ?
                     task.getAddress().getLocality().getCode() :
                     null;
-            ProjectInfo projectInfo = projectService.projectDetailsFromUserId(sideEffect.getClientAuditDetails().getLastModifiedBy(), tenantId);
+            if (projectInfo == null || projectInfo.getProjectId() == null) {
+                projectInfo = projectService.projectDetailsFromUserId(sideEffect.getClientAuditDetails().getLastModifiedBy(), tenantId);
+            }
             BoundaryHierarchyResult boundaryHierarchyResult = localityCode != null ? boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId, projectInfo.getHierarchyType()) :
                     boundaryService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -121,9 +132,13 @@ public class SideEffectTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(sideEffect.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        projectService.addProjectDetailsForUserIdAndTenantId(sideEffectsIndexV1,
-                sideEffect.getClientAuditDetails().getLastModifiedBy(),
-                sideEffect.getTenantId());
+        if (projectInfo != null && projectInfo.getProjectId() != null) {
+            sideEffectsIndexV1.setProjectInfo(taskProjectId != null ? taskProjectId : projectInfo.getProjectId(), projectInfo);
+        } else {
+            projectService.addProjectDetailsForUserIdAndTenantId(sideEffectsIndexV1,
+                    sideEffect.getClientAuditDetails().getLastModifiedBy(),
+                    sideEffect.getTenantId());
+        }
         return sideEffectsIndexV1;
     }
 
