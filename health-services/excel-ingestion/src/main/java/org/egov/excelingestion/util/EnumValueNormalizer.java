@@ -37,6 +37,9 @@ import java.util.Map;
 @Slf4j
 public class EnumValueNormalizer {
 
+    /** Suffix pattern the sheet uses for the columns a multi-select is expanded into. */
+    private static final String MULTISELECT_SUFFIX = "_MULTISELECT_";
+
     private final SchemaColumnDefUtil schemaColumnDefUtil;
     private final ObjectMapper objectMapper;
     private final ExcelUtil excelUtil;
@@ -72,13 +75,12 @@ public class EnumValueNormalizer {
 
             // localized label -> canonical value, per enum column. Empty when the column has no
             // usable translation, in which case the column is skipped entirely.
-            Map<String, Map<String, String>> reverseMapsByColumn =
-                    buildReverseMaps(entry.getValue(), localizationMap);
-            if (reverseMapsByColumn.isEmpty()) {
+            ReverseMaps reverseMaps = buildReverseMaps(entry.getValue(), localizationMap);
+            if (reverseMaps.isEmpty()) {
                 continue;
             }
 
-            totalNormalized += normalizeSheet(sheet, reverseMapsByColumn, resource, sheetName);
+            totalNormalized += normalizeSheet(sheet, reverseMaps, resource, sheetName);
         }
 
         if (totalNormalized > 0) {
@@ -87,28 +89,48 @@ public class EnumValueNormalizer {
     }
 
     /** Builds the per-column reverse maps for every translated enum column in the schema. */
-    private Map<String, Map<String, String>> buildReverseMaps(Map<String, Object> schemaMap,
-                                                              Map<String, String> localizationMap) {
-        Map<String, Map<String, String>> reverseMapsByColumn = new HashMap<>();
+    private ReverseMaps buildReverseMaps(Map<String, Object> schemaMap,
+                                         Map<String, String> localizationMap) {
+        ReverseMaps result = new ReverseMaps();
         String schemaJson;
         try {
             schemaJson = objectMapper.writeValueAsString(schemaMap);
         } catch (Exception e) {
             log.warn("Could not serialize schema for enum normalization: {}", e.getMessage());
-            return reverseMapsByColumn; // empty -> sheet skipped, cells left as-is
+            return result; // empty -> sheet skipped, cells left as-is
         }
 
         for (ColumnDef column : schemaColumnDefUtil.convertSchemaToColumnDefs(schemaJson)) {
-            if (!EnumLocalizationUtil.isEnumColumn(column) || column.getName() == null) {
+            if (column.getName() == null) {
                 continue;
             }
-            Map<String, String> reverseMap = EnumLocalizationUtil.buildReverseMap(
-                    column.getName(), column.getEnumValues(), localizationMap);
-            if (!reverseMap.isEmpty()) {
-                reverseMapsByColumn.put(column.getName(), reverseMap);
+            if (EnumLocalizationUtil.isEnumColumn(column)) {
+                Map<String, String> reverseMap = EnumLocalizationUtil.buildReverseMap(
+                        column.getName(), column.getEnumValues(), localizationMap, column.getPrefix());
+                if (!reverseMap.isEmpty()) {
+                    result.byColumn.put(column.getName(), reverseMap);
+                }
+            } else if (column.getMultiSelectDetails() != null
+                    && column.getMultiSelectDetails().getEnumValues() != null) {
+                // The schema holds ONE multi-select column, but the sheet carries it as N single-value
+                // columns (<NAME>_MULTISELECT_1..maxSelections). Register the same reverse map under each
+                // child name so the per-column cell pass below finds them, since the schema itself never
+                // names the children.
+                Map<String, String> reverseMap = EnumLocalizationUtil.buildReverseMap(
+                        column.getName(), column.getMultiSelectDetails().getEnumValues(), localizationMap,
+                        column.getPrefix());
+                if (!reverseMap.isEmpty()) {
+                    int maxSelections = column.getMultiSelectDetails().getMaxSelections();
+                    for (int i = 1; i <= maxSelections; i++) {
+                        result.byColumn.put(column.getName() + MULTISELECT_SUFFIX + i, reverseMap);
+                    }
+                    // The parent cell holds the comma-joined labels; it is rebuilt from the canonical
+                    // children in normalizeCachedRows.
+                    result.multiSelectParents.put(column.getName(), maxSelections);
+                }
             }
         }
-        return reverseMapsByColumn;
+        return result;
     }
 
     /**
@@ -116,8 +138,9 @@ public class EnumValueNormalizer {
      *
      * @return the number of cells rewritten
      */
-    private int normalizeSheet(Sheet sheet, Map<String, Map<String, String>> reverseMapsByColumn,
+    private int normalizeSheet(Sheet sheet, ReverseMaps reverseMaps,
                                ProcessResource resource, String sheetName) {
+        Map<String, Map<String, String>> reverseMapsByColumn = reverseMaps.byColumn;
         Row technicalRow = sheet.getRow(0); // row 0 holds the hidden technical column names
         if (technicalRow == null) {
             return 0;
@@ -169,16 +192,31 @@ public class EnumValueNormalizer {
         // processors and persistence all read that cached copy rather than re-reading the cells - so
         // rewriting only the cells above would leave every downstream consumer on localized values.
         // Same shared-instance mutation pattern as BoundaryCodeResolver.
-        normalizeCachedRows(sheet, reverseMapsByColumn, resource, sheetName);
+        normalizeCachedRows(sheet, reverseMaps, resource, sheetName);
 
         return normalized;
+    }
+
+    /**
+     * Reverse maps for one sheet, plus the multi-select parents whose comma-joined value must be
+     * rebuilt from the canonical children.
+     */
+    private static final class ReverseMaps {
+        /** Column name (including expanded child names) -> localized label -> canonical value. */
+        final Map<String, Map<String, String>> byColumn = new HashMap<>();
+        /** Multi-select parent column name -> maxSelections. */
+        final Map<String, Integer> multiSelectParents = new HashMap<>();
+
+        boolean isEmpty() {
+            return byColumn.isEmpty();
+        }
     }
 
     /**
      * Applies the same canonical mapping to the cached row maps for this sheet, keyed by technical
      * column name. Mutating these shared instances propagates to validation/processing/persistence.
      */
-    private void normalizeCachedRows(Sheet sheet, Map<String, Map<String, String>> reverseMapsByColumn,
+    private void normalizeCachedRows(Sheet sheet, ReverseMaps reverseMaps,
                                      ProcessResource resource, String sheetName) {
         List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(
                 resource.getFileStoreId(), sheetName, sheet);
@@ -186,12 +224,49 @@ public class EnumValueNormalizer {
             return;
         }
         for (Map<String, Object> row : rows) {
-            for (Map.Entry<String, Map<String, String>> col : reverseMapsByColumn.entrySet()) {
+            for (Map.Entry<String, Map<String, String>> col : reverseMaps.byColumn.entrySet()) {
                 String value = ExcelUtil.getValueAsString(row.get(col.getKey()));
                 String canonical = EnumLocalizationUtil.toCanonical(value, col.getValue());
                 if (canonical != null && !canonical.equals(value)) {
                     row.put(col.getKey(), canonical);
                 }
+            }
+            rebuildMultiSelectParents(row, reverseMaps.multiSelectParents);
+        }
+    }
+
+    /**
+     * Rebuilds each multi-select parent's comma-joined value from its now-canonical child columns.
+     *
+     * <p>Needed because {@code ExcelUtil.convertSheetToMapListCached} joins the children into the parent
+     * (via {@code reconstructMultiSelectValues}) BEFORE this normalizer runs, so the cached parent still
+     * holds localized labels. The child columns in this same row map were canonicalized just above, so
+     * re-joining them yields the canonical parent that validation, persistence and project-factory expect
+     * (e.g. "DISTRIBUTOR,TEAM_SUPERVISOR").
+     *
+     * <p>Only rewrites a parent that already had a value, preserving the original
+     * "don't invent a parent value" behaviour. O(maxSelections) per parent per row.
+     */
+    private void rebuildMultiSelectParents(Map<String, Object> row, Map<String, Integer> multiSelectParents) {
+        for (Map.Entry<String, Integer> parent : multiSelectParents.entrySet()) {
+            String parentName = parent.getKey();
+            String existing = ExcelUtil.getValueAsString(row.get(parentName));
+            if (existing == null || existing.trim().isEmpty()) {
+                continue; // nothing was joined for this row; leave as-is
+            }
+            StringBuilder joined = new StringBuilder();
+            for (int i = 1; i <= parent.getValue(); i++) {
+                String childValue = ExcelUtil.getValueAsString(row.get(parentName + MULTISELECT_SUFFIX + i));
+                if (childValue == null || childValue.trim().isEmpty()) {
+                    continue;
+                }
+                if (joined.length() > 0) {
+                    joined.append(',');
+                }
+                joined.append(childValue.trim());
+            }
+            if (joined.length() > 0 && !joined.toString().equals(existing)) {
+                row.put(parentName, joined.toString());
             }
         }
     }

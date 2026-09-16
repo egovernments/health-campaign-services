@@ -34,6 +34,9 @@ import java.util.Map;
 @Slf4j
 public final class EnumLocalizationUtil {
 
+    /** ColumnDef type assigned to each column a multi-select is expanded into. */
+    private static final String MULTISELECT_ITEM_TYPE = "multiselect_item";
+
     private EnumLocalizationUtil() {
         // Utility class
     }
@@ -43,7 +46,29 @@ public final class EnumLocalizationUtil {
      * Non-alphanumeric characters in the value become underscores so the key stays a safe identifier.
      */
     public static String buildKey(String columnName, String canonicalValue) {
-        return columnName + "_" + canonicalValue.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
+        return buildKey(columnName, canonicalValue, null);
+    }
+
+    /**
+     * Builds the localization key for one enum value, honouring an explicit key prefix when the MDMS
+     * column declares one.
+     *
+     * <p>Some columns carry their own established localization namespace rather than deriving one from
+     * the column name. The user sheet's role column declares {@code "prefix": "ACCESSCONTROL_ROLES_ROLES_"},
+     * whose entries are already seeded platform-wide, so a role must resolve to
+     * {@code ACCESSCONTROL_ROLES_ROLES_DISTRIBUTOR} and NOT to a column-derived key. Using the prefix also
+     * keeps the five expanded role columns ({@code ..._USER_ROLE_MULTISELECT_1..5}) on one key per role
+     * instead of five duplicates.
+     *
+     * <p>With a blank/null prefix this is exactly the original column-derived behaviour, so every
+     * already-shipped enum column (facility type/status/usage, employment type) is unaffected.
+     */
+    public static String buildKey(String columnName, String canonicalValue, String keyPrefix) {
+        String normalizedValue = canonicalValue.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
+        if (keyPrefix != null && !keyPrefix.trim().isEmpty()) {
+            return keyPrefix.trim() + normalizedValue;
+        }
+        return columnName + "_" + normalizedValue;
     }
 
     /**
@@ -51,10 +76,16 @@ public final class EnumLocalizationUtil {
      * usable translation exists.
      */
     public static String toLocalized(String columnName, String canonicalValue, Map<String, String> localizationMap) {
+        return toLocalized(columnName, canonicalValue, localizationMap, null);
+    }
+
+    /** As {@link #toLocalized(String, String, Map)}, honouring the column's explicit key prefix. */
+    public static String toLocalized(String columnName, String canonicalValue, Map<String, String> localizationMap,
+                                     String keyPrefix) {
         if (canonicalValue == null || canonicalValue.trim().isEmpty() || localizationMap == null) {
             return canonicalValue;
         }
-        String localized = localizationMap.get(buildKey(columnName, canonicalValue));
+        String localized = localizationMap.get(buildKey(columnName, canonicalValue, keyPrefix));
         return (localized != null && !localized.trim().isEmpty()) ? localized.trim() : canonicalValue;
     }
 
@@ -69,6 +100,12 @@ public final class EnumLocalizationUtil {
      */
     public static List<String> toLocalizedValues(String columnName, List<String> canonicalValues,
                                                  Map<String, String> localizationMap) {
+        return toLocalizedValues(columnName, canonicalValues, localizationMap, null);
+    }
+
+    /** As {@link #toLocalizedValues(String, List, Map)}, honouring the column's explicit key prefix. */
+    public static List<String> toLocalizedValues(String columnName, List<String> canonicalValues,
+                                                 Map<String, String> localizationMap, String keyPrefix) {
         if (canonicalValues == null || canonicalValues.isEmpty() || localizationMap == null) {
             return canonicalValues;
         }
@@ -77,7 +114,7 @@ public final class EnumLocalizationUtil {
         boolean anyTranslated = false;
 
         for (String canonical : canonicalValues) {
-            String localized = toLocalized(columnName, canonical, localizationMap);
+            String localized = toLocalized(columnName, canonical, localizationMap, keyPrefix);
             String previous = seen.putIfAbsent(localized, canonical);
             if (previous != null && !previous.equals(canonical)) {
                 log.warn("Enum localization for column '{}' is ambiguous: '{}' and '{}' both localize to "
@@ -104,7 +141,13 @@ public final class EnumLocalizationUtil {
      */
     public static Map<String, String> buildReverseMap(String columnName, List<String> canonicalValues,
                                                       Map<String, String> localizationMap) {
-        List<String> localizedValues = toLocalizedValues(columnName, canonicalValues, localizationMap);
+        return buildReverseMap(columnName, canonicalValues, localizationMap, null);
+    }
+
+    /** As {@link #buildReverseMap(String, List, Map)}, honouring the column's explicit key prefix. */
+    public static Map<String, String> buildReverseMap(String columnName, List<String> canonicalValues,
+                                                      Map<String, String> localizationMap, String keyPrefix) {
+        List<String> localizedValues = toLocalizedValues(columnName, canonicalValues, localizationMap, keyPrefix);
         if (localizedValues == null || localizedValues == canonicalValues) {
             return Map.of(); // nothing translated (or ambiguous): cells already hold canonical values
         }
@@ -137,11 +180,39 @@ public final class EnumLocalizationUtil {
         return value.trim().toLowerCase(Locale.ROOT);
     }
 
-    /** True when the column carries a plain (non multi-select) enum dropdown. */
+    /**
+     * True when the column carries a single-value enum dropdown whose cell holds exactly one enum value.
+     *
+     * <p>Covers both plain enum columns (facility type/status/usage, employment type) and the individual
+     * columns a multi-select is expanded into ({@code ..._USER_ROLE_MULTISELECT_1..5}, built by
+     * {@code ExcelDataPopulator.expandMultiSelectColumns}). Each expanded column is populated with the
+     * parent's enum list and holds a single selection, so it localizes and reverses exactly like a plain
+     * enum column.
+     *
+     * <p>The multi-select PARENT is deliberately excluded: its cell holds a comma-joined string of several
+     * values, so it is not a single-value lookup and is rebuilt from the already-canonical children on
+     * upload (see {@code EnumValueNormalizer}).
+     */
     public static boolean isEnumColumn(ColumnDef column) {
         return column != null
                 && column.getEnumValues() != null
                 && !column.getEnumValues().isEmpty()
                 && column.getMultiSelectDetails() == null;
+    }
+
+    /** True when the column is one of the single-value columns a multi-select was expanded into. */
+    public static boolean isExpandedMultiSelectColumn(ColumnDef column) {
+        return column != null
+                && MULTISELECT_ITEM_TYPE.equals(column.getType())
+                && column.getEnumValues() != null
+                && !column.getEnumValues().isEmpty();
+    }
+
+    /**
+     * True when the column holds a single localizable enum value - either a plain enum column or one
+     * expanded multi-select column.
+     */
+    public static boolean isLocalizableEnumCell(ColumnDef column) {
+        return isEnumColumn(column) || isExpandedMultiSelectColumn(column);
     }
 }
