@@ -44,6 +44,7 @@ const downloadDataService = async (request: express.Request) => {
         const tenantId = String(request?.query?.tenantId);
         const hierarchyType = String(request?.query?.hierarchyType);
         const campaignId = String(request?.query?.campaignId);
+        const localityCode = request?.query?.localityCode ? String(request?.query?.localityCode) : undefined;
 
         let isMicroplan = false;
         try {
@@ -60,12 +61,22 @@ const downloadDataService = async (request: express.Request) => {
                     tenantId,
                     hierarchyType,
                     campaignId,
+                    localityCode,
                     forceUpdate: 'true'
                 }
             };
             await callGenerate(newRequestToGenerate, type);
         } else {
-            triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
+            triggerGenerate(
+                type,
+                tenantId,
+                hierarchyType,
+                campaignId,
+                request?.body?.RequestInfo?.userInfo?.uuid || "null",
+                locale,
+                request?.body?.RequestInfo,
+                localityCode
+            );
         }
     }
 

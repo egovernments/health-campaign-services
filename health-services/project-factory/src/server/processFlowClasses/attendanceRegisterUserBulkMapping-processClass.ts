@@ -1,23 +1,27 @@
 import { SheetMap } from "../models/SheetMap";
-import { getLocalizedName } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { TemplateClass as AttendanceRegisterAttendeeTemplateClass } from "./attendanceRegisterAttendee-processClass";
-import { attendanceCacheKeys, sheetDataRowStatuses } from "../config/constants";
+import { attendanceCacheKeys } from "../config/constants";
 import {
-    applyProjectedStatusesToBulkRows,
-    bulkAttendanceSheetName,
     collectBulkWorkerIds,
     fetchIndividualProfilesById,
+    getBulkRowsBySheetName,
     getLocalizedAttendanceSheetData,
+    hasActionableRows,
     logBulkProjectionSummary,
     mergeResolvedIndividualIdObjects,
-    projectBulkRowsToAttendanceSheets,
+    normalizeBulkRowsForAttendeeFlow,
+    ensureRowsHaveStatus,
+    toBulkSheetMap,
 } from "../utils/attendanceRegisterUserBulkMappingUtils";
 
 /**
- * Processes bulk register-user mapping uploads by projecting each row into the
- * existing attendanceRegisterAttendee process flow and persisting updates.
+ * Processes bulk register-user mapping uploads by normalizing the 3 attendee tabs
+ * (with prepended register columns) and delegating to attendee process flow.
+ * Rows without mapping edits are kept as SKIPPED in the returned sheet output.
+ *
+ * Reuses existing attendee processing for persistence/API behavior.
  */
 export class TemplateClass {
     static async process(
@@ -28,23 +32,17 @@ export class TemplateClass {
     ): Promise<SheetMap> {
         await validateResourceDetailsBeforeProcess("attendanceRegisterUserBulkMappingValidation", resourceDetails, localizationMap);
 
-        const localizedBulkSheetName = getLocalizedName(bulkAttendanceSheetName, localizationMap);
-        const bulkRows: Record<string, any>[] = wholeSheetData?.[localizedBulkSheetName] || [];
-        if (!Array.isArray(bulkRows) || bulkRows.length === 0) {
-            return {
-                [bulkAttendanceSheetName]: { data: [], dynamicColumns: null }
-            };
-        }
+        const allRowsBySheetName = getBulkRowsBySheetName(wholeSheetData, localizationMap);
 
         const tenantId = String(resourceDetails?.tenantId || "").split(".")[0];
-        const workerIds = collectBulkWorkerIds(bulkRows);
+        const workerIds = collectBulkWorkerIds(allRowsBySheetName);
         const profiles = await fetchIndividualProfilesById(tenantId, workerIds, resourceDetails?.requestInfo);
-        const { rowsBySheetName, projections, resolvedIndividualIds } = projectBulkRowsToAttendanceSheets(
-            bulkRows,
+        const { actionableRowsBySheetName, resolvedIndividualIds } = normalizeBulkRowsForAttendeeFlow(
+            allRowsBySheetName,
             profiles,
             localizationMap
         );
-        logBulkProjectionSummary(rowsBySheetName);
+        logBulkProjectionSummary(allRowsBySheetName, actionableRowsBySheetName);
 
         resourceDetails.additionalDetails = resourceDetails.additionalDetails || {};
         resourceDetails.additionalDetails[attendanceCacheKeys.RESOLVED_INDIVIDUAL_IDS] = mergeResolvedIndividualIdObjects(
@@ -52,10 +50,8 @@ export class TemplateClass {
             resolvedIndividualIds
         );
 
-        const localizedAttendanceSheetData = getLocalizedAttendanceSheetData(rowsBySheetName, localizationMap);
-        const hasProjectedRows = Object.values(localizedAttendanceSheetData).some((rows) => rows.length > 0);
-
-        if (hasProjectedRows) {
+        if (hasActionableRows(actionableRowsBySheetName)) {
+            const localizedAttendanceSheetData = getLocalizedAttendanceSheetData(actionableRowsBySheetName, localizationMap);
             const skipPreValidationBefore = resourceDetails.additionalDetails?.skipPreValidation;
             resourceDetails.additionalDetails.skipPreValidation = true;
             try {
@@ -74,23 +70,10 @@ export class TemplateClass {
             }
         }
 
-        applyProjectedStatusesToBulkRows(projections);
-        this.ensureRowsHaveStatus(bulkRows);
+        ensureRowsHaveStatus(allRowsBySheetName);
 
-        logger.info(`Bulk attendee mapping process complete — rows=${bulkRows.length}`);
-        return {
-            [bulkAttendanceSheetName]: {
-                data: bulkRows,
-                dynamicColumns: null
-            }
-        };
-    }
-
-    private static ensureRowsHaveStatus(rows: Record<string, any>[]): void {
-        for (const row of rows) {
-            if (!row["#status#"]) {
-                row["#status#"] = sheetDataRowStatuses.SKIPPED;
-            }
-        }
+        const totalRows = Array.from(allRowsBySheetName.values()).reduce((sum, rows) => sum + rows.length, 0);
+        logger.info(`Bulk attendee mapping process complete — rows=${totalRows}`);
+        return toBulkSheetMap(allRowsBySheetName);
     }
 }

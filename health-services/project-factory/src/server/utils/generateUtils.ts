@@ -179,16 +179,28 @@ export async function callGenerate(request: any, type: any, enableCaching = fals
 }
 
 /** Fire-and-forget generate for one resource type; logs and swallows errors so one type's failure doesn't abort the others. */
-export async function triggerGenerate(type: string, tenantId: string, hierarchyType: string, campaignId: string, userUuid: string, locale: string = config.localisation.defaultLocale, requestInfo?: RequestInfo) {
+export async function triggerGenerate(
+    type: string,
+    tenantId: string,
+    hierarchyType: string,
+    campaignId: string,
+    userUuid: string,
+    locale: string = config.localisation.defaultLocale,
+    requestInfo?: RequestInfo,
+    localityCode?: string
+) {
 
     logger.info(`Calling generate API for type ${type}`);
 
-    const generateRequestQuery = {
+    const generateRequestQuery: any = {
         type,
         tenantId,
         hierarchyType,
         campaignId
     };
+    if (localityCode) {
+        generateRequestQuery.localityCode = localityCode;
+    }
 
     try {
         await generateDataService(generateRequestQuery, userUuid, locale, requestInfo);

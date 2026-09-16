@@ -53,12 +53,16 @@ public class FileStoreService {
             log.info("Uploading file to filestore: {}", url);
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", new ByteArrayResource(fileBytes) {
+            ByteArrayResource fileResource = new ByteArrayResource(fileBytes) {
                 @Override
                 public String getFilename() {
                     return fileName;
                 }
-            });
+            };
+            HttpHeaders filePartHeaders = new HttpHeaders();
+            filePartHeaders.setContentType(MediaType.parseMediaType("application/x-tika-ooxml"));
+            filePartHeaders.setContentDispositionFormData("file", fileName);
+            body.add("file", new HttpEntity<>(fileResource, filePartHeaders));
             body.add("tenantId", tenantId);
             body.add("module", "excel-ingestion");
             // Use a simpler approach - create custom RestTemplate with no message converters for response

@@ -170,9 +170,19 @@ export const processTemplateConfigs: any = {
     attendanceRegisterUserBulkMapping: {
         sheets: [
             {
-                sheetName: "HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET",
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
                 validateRowsGap: true,
-                schemaName: "attendance-register-user-bulk-mapping"
+                schemaName: "attendance-register-attendee-worker"
+            },
+            {
+                sheetName: "HCM_REGISTER_MARKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-marker"
+            },
+            {
+                sheetName: "HCM_REGISTER_APPROVER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-approver"
             }
         ],
         passFromController: true
@@ -180,9 +190,21 @@ export const processTemplateConfigs: any = {
     attendanceRegisterUserBulkMappingValidation: {
         sheets: [
             {
-                sheetName: "HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET",
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
                 validateRowsGap: true,
-                schemaName: "attendance-register-user-bulk-mapping",
+                schemaName: "attendance-register-attendee-worker",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_REGISTER_MARKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-marker",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_REGISTER_APPROVER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-approver",
                 lockWholeSheet: true
             }
         ],

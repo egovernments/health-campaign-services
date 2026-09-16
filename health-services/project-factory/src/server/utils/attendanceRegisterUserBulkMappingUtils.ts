@@ -1,6 +1,7 @@
 import config from "../config";
 import { attendanceColumnKeys, attendanceSheetNames, sheetDataRowStatuses } from "../config/constants";
 import { RequestInfo } from "../config/models/requestInfoSchema";
+import { SheetMap } from "../models/SheetMap";
 import { getLocalizedName } from "./campaignUtils";
 import { logger } from "./logger";
 import { httpRequest } from "./request";
@@ -8,46 +9,50 @@ import { httpRequest } from "./request";
 const INDIVIDUAL_SEARCH_BATCH_SIZE = 100;
 const FALLBACK_INDIVIDUAL_SEARCH_PATH = "individual/v1/_search";
 
-const ROLE_DEFAULTS: Record<string, string> = {
-    [attendanceSheetNames.WORKER]: "WORKER",
-    [attendanceSheetNames.MARKER]: "TEAM_SUPERVISOR",
-    [attendanceSheetNames.APPROVER]: "PROXIMITY_SUPERVISOR",
+const ALL_ATTENDANCE_SHEETS = [
+    attendanceSheetNames.WORKER,
+    attendanceSheetNames.MARKER,
+    attendanceSheetNames.APPROVER,
+];
+
+export const bulkRegisterColumnKeys = {
+    registerCode: "HCM_ATTENDANCE_REGISTER_CODE",
+    registerName: "HCM_ATTENDANCE_REGISTER_NAME",
+    registerUuid: "HCM_ATTENDANCE_REGISTER_UUID",
 };
 
-const MARKER_ROLE_CODES = new Set([
-    "MARKER",
-    "OWNER",
-    "TEAM_SUPERVISOR",
-    "WAREHOUSE_MANAGER",
-    "CAMPAIGN_SUPERVISOR",
-]);
-
-const APPROVER_ROLE_CODES = new Set([
-    "APPROVER",
-    "PROXIMITY_SUPERVISOR",
-]);
-
-export const bulkAttendanceSheetName = "HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET";
+function bulkRegisterDynamicColumns() {
+    return {
+        [bulkRegisterColumnKeys.registerCode]: { orderNumber: 0.01, width: 22, freezeColumn: true },
+        [bulkRegisterColumnKeys.registerName]: { orderNumber: 0.02, width: 36 },
+        [bulkRegisterColumnKeys.registerUuid]: { orderNumber: 0.03, width: 42 },
+        [attendanceColumnKeys.REGISTER_ID]: { hideColumn: true },
+    };
+}
 
 export const bulkAttendanceColumnKeys = {
-    registerCode: "HCM_ATTENDANCE_REGISTER_CODE",
+    registerCode: bulkRegisterColumnKeys.registerCode,
+    registerName: bulkRegisterColumnKeys.registerName,
+    registerUuid: bulkRegisterColumnKeys.registerUuid,
     userName: "HCM_ADMIN_CONSOLE_USER_NAME",
     workerId: "HCM_ADMIN_CONSOLE_USER_WORKER_ID",
     role: "HCM_ADMIN_CONSOLE_USER_ROLE",
+    teamCode: attendanceColumnKeys.TEAM_CODE,
     enrollmentDate: attendanceColumnKeys.ENROLLMENT_DATE,
     deenrollmentDate: attendanceColumnKeys.DEENROLLMENT_DATE,
+    username: attendanceColumnKeys.USERNAME,
+    registerId: attendanceColumnKeys.REGISTER_ID,
 };
 
-interface IndividualProfile {
+export interface IndividualProfile {
     username: string;
     displayName: string;
 }
 
-export interface BulkRowProjection {
-    sourceRow: Record<string, any>;
-    projectedRow: Record<string, any>;
-    registerServiceCode: string;
-    sheetName: string;
+export type RowsBySheetName = Map<string, Record<string, any>[]>;
+
+function createEmptyRowsBySheetName(): RowsBySheetName {
+    return new Map<string, Record<string, any>[]>(ALL_ATTENDANCE_SHEETS.map((sheetName) => [sheetName, []]));
 }
 
 export function cellAsString(value: unknown): string {
@@ -55,14 +60,63 @@ export function cellAsString(value: unknown): string {
     return String(value).trim();
 }
 
-export function collectBulkWorkerIds(rows: Record<string, any>[]): string[] {
+function hasCellValue(value: unknown): boolean {
+    return cellAsString(value).length > 0;
+}
+
+function firstNonBlank(...values: unknown[]): string {
+    for (const value of values) {
+        const normalized = cellAsString(value);
+        if (normalized) return normalized;
+    }
+    return "";
+}
+
+function localizedError(
+    key: string,
+    localizationMap: Record<string, string> | undefined,
+    fallback: string
+): string {
+    if (!localizationMap) return fallback;
+    const localized = cellAsString(getLocalizedName(key, localizationMap));
+    if (!localized || localized === key) return fallback;
+    return localized;
+}
+
+function displayNameFromIndividual(individual: Record<string, any>): string {
+    const name = individual?.name || {};
+    return firstNonBlank(
+        [cellAsString(name?.givenName), cellAsString(name?.otherNames), cellAsString(name?.familyName)]
+            .filter(Boolean)
+            .join(" ")
+            .trim(),
+        cellAsString(individual?.username)
+    );
+}
+
+export function getBulkRowsBySheetName(
+    wholeSheetData: Record<string, any>,
+    localizationMap: Record<string, string>
+): RowsBySheetName {
+    const rowsBySheetName = createEmptyRowsBySheetName();
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
+        const localizedSheetName = getLocalizedName(sheetName, localizationMap);
+        const rows = wholeSheetData?.[localizedSheetName];
+        rowsBySheetName.set(sheetName, Array.isArray(rows) ? rows : []);
+    }
+    return rowsBySheetName;
+}
+
+export function collectBulkWorkerIds(rowsBySheetName: RowsBySheetName): string[] {
     const ids: string[] = [];
     const seen = new Set<string>();
-    for (const row of rows) {
-        const id = cellAsString(row?.[bulkAttendanceColumnKeys.workerId]);
-        if (!id || seen.has(id)) continue;
-        seen.add(id);
-        ids.push(id);
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
+        for (const row of rowsBySheetName.get(sheetName) || []) {
+            const workerId = cellAsString(row?.[bulkAttendanceColumnKeys.workerId]);
+            if (!workerId || seen.has(workerId)) continue;
+            seen.add(workerId);
+            ids.push(workerId);
+        }
     }
     return ids;
 }
@@ -116,166 +170,180 @@ export async function fetchIndividualProfilesById(
     return profiles;
 }
 
-export function projectBulkRowsToAttendanceSheets(
-    rows: Record<string, any>[],
+export function normalizeBulkRowsForAttendeeFlow(
+    allRowsBySheetName: RowsBySheetName,
     profiles: Map<string, IndividualProfile>,
     localizationMap?: Record<string, string>
 ): {
-    rowsBySheetName: Map<string, Record<string, any>[]>;
-    projections: BulkRowProjection[];
+    actionableRowsBySheetName: RowsBySheetName;
     resolvedIndividualIds: Record<string, string>;
 } {
-    const rowsBySheetName = new Map<string, Record<string, any>[]>([
-        [attendanceSheetNames.WORKER, []],
-        [attendanceSheetNames.MARKER, []],
-        [attendanceSheetNames.APPROVER, []],
-    ]);
-    const projections: BulkRowProjection[] = [];
+    const actionableRowsBySheetName = createEmptyRowsBySheetName();
     const resolvedIndividualIds: Record<string, string> = {};
 
-    for (const row of rows) {
-        delete row["#status#"];
-        delete row["#errorDetails#"];
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
+        const rows = allRowsBySheetName.get(sheetName) || [];
+        for (const row of rows) {
+            delete row["#status#"];
+            delete row["#errorDetails#"];
 
-        const registerServiceCode = firstNonBlank(
-            cellAsString(row?.[bulkAttendanceColumnKeys.registerCode]),
-            cellAsString(row?.[attendanceColumnKeys.REGISTER_ID])
-        );
-        const workerId = cellAsString(row?.[bulkAttendanceColumnKeys.workerId]);
-        const userName = cellAsString(row?.[bulkAttendanceColumnKeys.userName]);
-        const roleValue = cellAsString(row?.[bulkAttendanceColumnKeys.role]);
-        const enrollmentDate = row?.[bulkAttendanceColumnKeys.enrollmentDate];
-        const deenrollmentDate = row?.[bulkAttendanceColumnKeys.deenrollmentDate];
-        const hasMappingData = Boolean(workerId || userName || roleValue || enrollmentDate || deenrollmentDate);
-
-        if (!hasMappingData) {
-            row["#status#"] = sheetDataRowStatuses.SKIPPED;
-            continue;
-        }
-
-        if (!registerServiceCode) {
-            row["#status#"] = sheetDataRowStatuses.INVALID;
-            row["#errorDetails#"] = localizedError(
-                "HCM_ATTENDANCE_ATTENDEE_REGISTER_NOT_FOUND",
-                localizationMap,
-                "Register code is required"
+            const registerServiceCode = firstNonBlank(
+                row?.[bulkRegisterColumnKeys.registerCode],
+                row?.[attendanceColumnKeys.REGISTER_ID]
             );
-            continue;
+
+            if (registerServiceCode) {
+                row[bulkRegisterColumnKeys.registerCode] = registerServiceCode;
+                row[attendanceColumnKeys.REGISTER_ID] = registerServiceCode;
+            }
+
+            const workerId = cellAsString(row?.[bulkAttendanceColumnKeys.workerId]);
+            let username = cellAsString(row?.[attendanceColumnKeys.USERNAME]);
+            let displayName = cellAsString(row?.[bulkAttendanceColumnKeys.userName]);
+            const teamCode = sheetName === attendanceSheetNames.WORKER
+                ? cellAsString(row?.[bulkAttendanceColumnKeys.teamCode])
+                : "";
+
+            if (workerId) {
+                const profile = profiles.get(workerId);
+                username = firstNonBlank(profile?.username, username, workerId);
+                displayName = firstNonBlank(displayName, profile?.displayName, username);
+                row[bulkAttendanceColumnKeys.workerId] = workerId;
+                row[attendanceColumnKeys.USERNAME] = username;
+                row[bulkAttendanceColumnKeys.userName] = displayName;
+                if (username) {
+                    resolvedIndividualIds[username] = workerId;
+                }
+            }
+
+            const hasUserLookupInput = Boolean(workerId || username);
+            const hasDisplayNameInput = Boolean(displayName);
+            const hasDateInput = hasCellValue(row?.[bulkAttendanceColumnKeys.enrollmentDate])
+                || hasCellValue(row?.[bulkAttendanceColumnKeys.deenrollmentDate]);
+            const hasActionInput = hasUserLookupInput || hasDisplayNameInput || hasDateInput || Boolean(teamCode);
+
+            if (!hasActionInput) {
+                row["#status#"] = sheetDataRowStatuses.SKIPPED;
+                continue;
+            }
+
+            if (!registerServiceCode) {
+                row["#status#"] = sheetDataRowStatuses.INVALID;
+                row["#errorDetails#"] = localizedError(
+                    "HCM_ATTENDANCE_ATTENDEE_REGISTER_NOT_FOUND",
+                    localizationMap,
+                    "Register code is required"
+                );
+                continue;
+            }
+
+            if (!hasUserLookupInput) {
+                row["#status#"] = sheetDataRowStatuses.INVALID;
+                row["#errorDetails#"] = localizedError(
+                    "HCM_ATTENDANCE_ATTENDEE_USER_NOT_FOUND",
+                    localizationMap,
+                    "Worker ID or UserName is required"
+                );
+                continue;
+            }
+
+            actionableRowsBySheetName.get(sheetName)?.push(row);
         }
-
-        if (!workerId) {
-            row["#status#"] = sheetDataRowStatuses.INVALID;
-            row["#errorDetails#"] = localizedError(
-                "HCM_ATTENDANCE_ATTENDEE_USER_NOT_FOUND",
-                localizationMap,
-                "Worker ID is required"
-            );
-            continue;
-        }
-
-        const profile = profiles.get(workerId);
-        const username = firstNonBlank(profile?.username, workerId);
-        const displayName = firstNonBlank(userName, profile?.displayName, username);
-        const sheetName = sheetNameFromRoleValue(roleValue);
-        const normalizedRole = normalizeRoleValue(roleValue, sheetName);
-
-        row[bulkAttendanceColumnKeys.registerCode] = registerServiceCode;
-        row[bulkAttendanceColumnKeys.userName] = displayName;
-        row[bulkAttendanceColumnKeys.workerId] = workerId;
-        row[bulkAttendanceColumnKeys.role] = normalizedRole;
-
-        const projectedRow: Record<string, any> = {
-            ...row,
-            [attendanceColumnKeys.REGISTER_ID]: registerServiceCode,
-            [attendanceColumnKeys.USERNAME]: username,
-            [bulkAttendanceColumnKeys.userName]: displayName,
-            [bulkAttendanceColumnKeys.workerId]: workerId,
-            [bulkAttendanceColumnKeys.role]: normalizedRole,
-        };
-
-        rowsBySheetName.get(sheetName)?.push(projectedRow);
-        projections.push({ sourceRow: row, projectedRow, registerServiceCode, sheetName });
-        resolvedIndividualIds[username] = workerId;
     }
 
-    return { rowsBySheetName, projections, resolvedIndividualIds };
+    return { actionableRowsBySheetName, resolvedIndividualIds };
+}
+
+export function groupRowsByRegister(rowsBySheetName: RowsBySheetName): Map<string, RowsBySheetName> {
+    const groupedRowsByRegister = new Map<string, RowsBySheetName>();
+
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
+        for (const row of rowsBySheetName.get(sheetName) || []) {
+            if (row?.["#status#"] === sheetDataRowStatuses.INVALID) continue;
+            const registerServiceCode = cellAsString(row?.[attendanceColumnKeys.REGISTER_ID]);
+            if (!registerServiceCode) continue;
+
+            let groupedRows = groupedRowsByRegister.get(registerServiceCode);
+            if (!groupedRows) {
+                groupedRows = createEmptyRowsBySheetName();
+                groupedRowsByRegister.set(registerServiceCode, groupedRows);
+            }
+            groupedRows.get(sheetName)?.push(row);
+        }
+    }
+
+    return groupedRowsByRegister;
 }
 
 export function getLocalizedAttendanceSheetData(
-    rowsBySheetName: Map<string, Record<string, any>[]>,
+    rowsBySheetName: RowsBySheetName,
     localizationMap: Record<string, string>
 ): Record<string, Record<string, any>[]> {
     const localizedSheetData: Record<string, Record<string, any>[]> = {};
-    for (const sheetName of [attendanceSheetNames.WORKER, attendanceSheetNames.MARKER, attendanceSheetNames.APPROVER]) {
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
         const localizedName = getLocalizedName(sheetName, localizationMap);
         localizedSheetData[localizedName] = rowsBySheetName.get(sheetName) || [];
     }
     return localizedSheetData;
 }
 
-export function applyProjectedStatusesToBulkRows(projections: BulkRowProjection[]): void {
-    for (const { sourceRow, projectedRow } of projections) {
-        if (projectedRow["#status#"]) sourceRow["#status#"] = projectedRow["#status#"];
-        if (projectedRow["#errorDetails#"]) sourceRow["#errorDetails#"] = projectedRow["#errorDetails#"];
-
-        sourceRow[bulkAttendanceColumnKeys.registerCode] = projectedRow[attendanceColumnKeys.REGISTER_ID];
-        sourceRow[bulkAttendanceColumnKeys.userName] = projectedRow[bulkAttendanceColumnKeys.userName];
-        sourceRow[bulkAttendanceColumnKeys.workerId] = projectedRow[bulkAttendanceColumnKeys.workerId];
-        sourceRow[bulkAttendanceColumnKeys.role] = projectedRow[bulkAttendanceColumnKeys.role];
-        sourceRow[bulkAttendanceColumnKeys.enrollmentDate] = projectedRow[bulkAttendanceColumnKeys.enrollmentDate];
-        sourceRow[bulkAttendanceColumnKeys.deenrollmentDate] = projectedRow[bulkAttendanceColumnKeys.deenrollmentDate];
+export function ensureRowsHaveStatus(rowsBySheetName: RowsBySheetName): void {
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
+        for (const row of rowsBySheetName.get(sheetName) || []) {
+            if (!row["#status#"]) {
+                row["#status#"] = sheetDataRowStatuses.SKIPPED;
+            }
+        }
     }
 }
 
-function splitRoleCodes(value: string): string[] {
-    if (!value) return [];
-    return value
-        .split(",")
-        .map((part) => cellAsString(part).toUpperCase())
-        .filter(Boolean);
+export function collectBulkSheetErrors(rowsBySheetName: RowsBySheetName): { sheetName: string; errorDetails: string }[] {
+    const errors: { sheetName: string; errorDetails: string }[] = [];
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
+        for (const row of rowsBySheetName.get(sheetName) || []) {
+            if (row["#status#"] !== sheetDataRowStatuses.INVALID) continue;
+            const errorDetails = cellAsString(row["#errorDetails#"]);
+            if (!errorDetails) continue;
+            errors.push({ sheetName, errorDetails });
+        }
+    }
+    return errors;
 }
 
-function sheetNameFromRoleValue(roleValue: string): string {
-    const roleCodes = splitRoleCodes(roleValue);
-    if (roleCodes.some((role) => APPROVER_ROLE_CODES.has(role))) return attendanceSheetNames.APPROVER;
-    if (roleCodes.some((role) => MARKER_ROLE_CODES.has(role))) return attendanceSheetNames.MARKER;
-    return attendanceSheetNames.WORKER;
+export function toBulkSheetMap(rowsBySheetName: RowsBySheetName): SheetMap {
+    const sheetMap: SheetMap = {};
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
+        sheetMap[sheetName] = {
+            data: rowsBySheetName.get(sheetName) || [],
+            dynamicColumns: bulkRegisterDynamicColumns(),
+        };
+    }
+    return sheetMap;
 }
 
-function normalizeRoleValue(roleValue: string, sheetName: string): string {
-    const roleCodes = splitRoleCodes(roleValue);
-    if (!roleCodes.length) return ROLE_DEFAULTS[sheetName] || ROLE_DEFAULTS[attendanceSheetNames.WORKER];
-    return roleCodes.join(", ");
-}
+export function logBulkProjectionSummary(
+    allRowsBySheetName: RowsBySheetName,
+    actionableRowsBySheetName: RowsBySheetName
+): void {
+    const totalWorkerRows = allRowsBySheetName.get(attendanceSheetNames.WORKER)?.length || 0;
+    const totalMarkerRows = allRowsBySheetName.get(attendanceSheetNames.MARKER)?.length || 0;
+    const totalApproverRows = allRowsBySheetName.get(attendanceSheetNames.APPROVER)?.length || 0;
+    const actionableWorkerRows = actionableRowsBySheetName.get(attendanceSheetNames.WORKER)?.length || 0;
+    const actionableMarkerRows = actionableRowsBySheetName.get(attendanceSheetNames.MARKER)?.length || 0;
+    const actionableApproverRows = actionableRowsBySheetName.get(attendanceSheetNames.APPROVER)?.length || 0;
 
-function displayNameFromIndividual(individual: Record<string, any>): string {
-    const name = individual?.name || {};
-    return firstNonBlank(
-        [cellAsString(name?.givenName), cellAsString(name?.otherNames), cellAsString(name?.familyName)]
-            .filter(Boolean)
-            .join(" ")
-            .trim(),
-        cellAsString(individual?.username)
+    logger.info(
+        `Bulk row normalization complete — workerRows=${totalWorkerRows} (actionable=${actionableWorkerRows}), `
+        + `markerRows=${totalMarkerRows} (actionable=${actionableMarkerRows}), `
+        + `approverRows=${totalApproverRows} (actionable=${actionableApproverRows})`
     );
 }
 
-function firstNonBlank(...values: unknown[]): string {
-    for (const value of values) {
-        const normalized = cellAsString(value);
-        if (normalized) return normalized;
+export function hasActionableRows(rowsBySheetName: RowsBySheetName): boolean {
+    for (const sheetName of ALL_ATTENDANCE_SHEETS) {
+        if ((rowsBySheetName.get(sheetName) || []).length > 0) return true;
     }
-    return "";
-}
-
-function localizedError(
-    key: string,
-    localizationMap: Record<string, string> | undefined,
-    fallback: string
-): string {
-    if (!localizationMap) return fallback;
-    const localized = cellAsString(getLocalizedName(key, localizationMap));
-    if (!localized || localized === key) return fallback;
-    return localized;
+    return false;
 }
 
 export function mergeResolvedIndividualIdObjects(
@@ -298,26 +366,4 @@ export function mergeResolvedIndividualIdObjects(
         merged[normalizedUsername] = normalizedIndividualId;
     }
     return merged;
-}
-
-export function collectBulkSheetErrors(rows: Record<string, any>[]): { sheetName: string; errorDetails: string }[] {
-    const errors: { sheetName: string; errorDetails: string }[] = [];
-    for (const row of rows) {
-        if (row["#status#"] !== sheetDataRowStatuses.INVALID) continue;
-        const errorDetails = cellAsString(row["#errorDetails#"]);
-        if (!errorDetails) continue;
-        errors.push({
-            sheetName: bulkAttendanceSheetName,
-            errorDetails,
-        });
-    }
-    return errors;
-}
-
-export function logBulkProjectionSummary(rowsBySheetName: Map<string, Record<string, any>[]>): void {
-    logger.info(
-        `Bulk row projection complete — workerRows=${rowsBySheetName.get(attendanceSheetNames.WORKER)?.length || 0}, `
-        + `markerRows=${rowsBySheetName.get(attendanceSheetNames.MARKER)?.length || 0}, `
-        + `approverRows=${rowsBySheetName.get(attendanceSheetNames.APPROVER)?.length || 0}`
-    );
 }

@@ -40,7 +40,7 @@ describe("attendanceRegisterUserBulkMapping process class", () => {
         attendeeProcessMock.mockReset();
     });
 
-    it("validates, delegates to attendee process and copies status back to bulk rows", async () => {
+    it("normalizes 3-tab bulk rows, delegates actionable rows, and keeps seed rows skipped", async () => {
         jest.mocked(httpRequest).mockResolvedValue({
             Individual: [{ id: "ind-1", userDetails: { username: "usr-1" }, name: { givenName: "John" } }],
         });
@@ -51,6 +51,7 @@ describe("attendanceRegisterUserBulkMapping process class", () => {
             const workerRows = localizedSheetData?.HCM_REGISTER_WORKER_SHEET || [];
             for (const row of workerRows) {
                 row["#status#"] = "UPDATED";
+                row[bulkAttendanceColumnKeys.teamCode] = "TEAM-NEW";
             }
             return {};
         });
@@ -61,19 +62,21 @@ describe("attendanceRegisterUserBulkMapping process class", () => {
             requestInfo: { apiId: "hcm" },
         };
         const wholeSheetData: any = {
-            HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET: [
+            HCM_REGISTER_WORKER_SHEET: [
                 {
                     "!row#number!": 3,
                     [bulkAttendanceColumnKeys.registerCode]: "REG-001",
                     [bulkAttendanceColumnKeys.userName]: "John",
                     [bulkAttendanceColumnKeys.workerId]: "ind-1",
-                    [bulkAttendanceColumnKeys.role]: "WORKER",
+                    [bulkAttendanceColumnKeys.teamCode]: "TEAM-OLD",
                 },
                 {
                     "!row#number!": 4,
                     [bulkAttendanceColumnKeys.registerCode]: "REG-002",
                 },
             ],
+            HCM_REGISTER_MARKER_SHEET: [],
+            HCM_REGISTER_APPROVER_SHEET: [],
         };
 
         const result = await TemplateClass.process(resourceDetails, wholeSheetData, {}, {});
@@ -85,13 +88,21 @@ describe("attendanceRegisterUserBulkMapping process class", () => {
         );
         expect(attendeeProcessMock).toHaveBeenCalledTimes(1);
         expect(skipPreValidationSeen).toBe(true);
-        expect(result.HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET.data[0]["#status#"]).toBe("UPDATED");
-        expect(result.HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET.data[1]["#status#"]).toBe("SKIPPED");
+
+        const delegatedSheetData = attendeeProcessMock.mock.calls[0][1];
+        expect((delegatedSheetData?.HCM_REGISTER_WORKER_SHEET || []).length).toBe(1);
+        expect((delegatedSheetData?.HCM_REGISTER_WORKER_SHEET || [])[0]?.HCM_ATTENDANCE_REGISTER_ID).toBe("REG-001");
+        expect((delegatedSheetData?.HCM_REGISTER_WORKER_SHEET || [])[0]?.UserName).toBe("usr-1");
+        expect((delegatedSheetData?.HCM_REGISTER_WORKER_SHEET || [])[0]?.[bulkAttendanceColumnKeys.teamCode]).toBe("TEAM-NEW");
+
+        expect(result.HCM_REGISTER_WORKER_SHEET.data[0]["#status#"]).toBe("UPDATED");
+        expect(result.HCM_REGISTER_WORKER_SHEET.data[0][bulkAttendanceColumnKeys.teamCode]).toBe("TEAM-NEW");
+        expect(result.HCM_REGISTER_WORKER_SHEET.data[1]["#status#"]).toBe("SKIPPED");
         expect(resourceDetails.additionalDetails?.resolvedIndividualIds).toEqual({ "usr-1": "ind-1" });
         expect(resourceDetails.additionalDetails?.skipPreValidation).toBeUndefined();
     });
 
-    it("routes TEAM_SUPERVISOR rows to marker sheet", async () => {
+    it("delegates marker rows to marker sheet without role re-routing", async () => {
         jest.mocked(httpRequest).mockResolvedValue({
             Individual: [{ id: "ind-2", userDetails: { username: "usr-2" }, name: { givenName: "Marker" } }],
         });
@@ -110,15 +121,16 @@ describe("attendanceRegisterUserBulkMapping process class", () => {
             requestInfo: { apiId: "hcm" },
         };
         const wholeSheetData: any = {
-            HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET: [
+            HCM_REGISTER_WORKER_SHEET: [],
+            HCM_REGISTER_MARKER_SHEET: [
                 {
                     "!row#number!": 3,
                     [bulkAttendanceColumnKeys.registerCode]: "REG-001",
                     [bulkAttendanceColumnKeys.userName]: "Marker",
                     [bulkAttendanceColumnKeys.workerId]: "ind-2",
-                    [bulkAttendanceColumnKeys.role]: "TEAM_SUPERVISOR",
                 },
             ],
+            HCM_REGISTER_APPROVER_SHEET: [],
         };
 
         const result = await TemplateClass.process(resourceDetails, wholeSheetData, {}, {});
@@ -126,6 +138,6 @@ describe("attendanceRegisterUserBulkMapping process class", () => {
 
         expect((delegatedSheetData?.HCM_REGISTER_MARKER_SHEET || []).length).toBe(1);
         expect((delegatedSheetData?.HCM_REGISTER_WORKER_SHEET || []).length).toBe(0);
-        expect(result.HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET.data[0]["#status#"]).toBe("CREATED");
+        expect(result.HCM_REGISTER_MARKER_SHEET.data[0]["#status#"]).toBe("CREATED");
     });
 });

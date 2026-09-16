@@ -33,6 +33,8 @@ const MS_PER_DAY = 86_400_000;
 const EXCEL_SERIAL_THRESHOLD = 100_000_000; // Below = Excel serial, above = epoch ms
 const ISO_DATE_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}/; // Matches YYYY-MM-DD start
 
+type DateParts = { year: number; month: number; day: number };
+
 /**
  * Validation process class for Attendance Register Attendee Mapping.
  * Validates date formats, date ranges, register ID presence, and truth-table business rules
@@ -75,12 +77,19 @@ export class TemplateClass {
             tenantId,
             ids: [resourceDetails?.campaignId],
         });
-        const campaignNumber = campaignResponse?.CampaignDetails?.[0]?.campaignNumber;
+        const campaign = campaignResponse?.CampaignDetails?.[0];
+        const campaignNumber = campaign?.campaignNumber;
+        const campaignStartDate = this.toEpochOrNull(campaign?.startDate);
+        const campaignEndDate = this.toEpochOrNull(campaign?.endDate);
+        const campaignStartParts = campaignStartDate !== null ? this.epochToDatePartsInTz(campaignStartDate) : null;
+        const campaignEndParts = campaignEndDate !== null ? this.epochToDatePartsInTz(campaignEndDate) : null;
         logger.info(`Attendee validation context — campaignNumber=${campaignNumber}, registerId=${registerId}, totalRows=${allRows.length}`);
 
         // Fetch register to get start/end date only (attendees/staff fetched separately)
         let registerStartDate: number | null = null;
         let registerEndDate: number | null = null;
+        let registerStartParts: DateParts | null = null;
+        let registerEndParts: DateParts | null = null;
         // UUID of the register — attendance API returns entry.registerId as UUID, not serviceCode
         let registerUuid: string | null = null;
 
@@ -97,6 +106,8 @@ export class TemplateClass {
                 }
                 registerStartDate = register.startDate ?? null;
                 registerEndDate = register.endDate ?? null;
+                registerStartParts = registerStartDate !== null ? this.epochToDatePartsInTz(registerStartDate) : null;
+                registerEndParts = registerEndDate !== null ? this.epochToDatePartsInTz(registerEndDate) : null;
                 registerUuid = register.id ?? null;
                 logger.debug(`Register ${registerId} — uuid=${registerUuid}, startDate=${registerStartDate} (${registerStartDate ? new Date(registerStartDate).toISOString() : 'null'}), endDate=${registerEndDate} (${registerEndDate ? new Date(registerEndDate).toISOString() : 'null'})`);
             } else {
@@ -143,13 +154,23 @@ export class TemplateClass {
                 if (parsed === null) {
                     logger.debug(`Row ${row["!row#number!"]}: invalid enrollment date format — raw='${enrollmentDateRaw}', type=${typeof enrollmentDateRaw}`);
                     this.addError(row, attendanceErrorKeys.INVALID_DATE_FORMAT, localizationMap);
-                } else if (registerStartDate !== null && registerEndDate !== null) {
-                    // Compare calendar dates in configured timezone (not raw epochs)
+                } else {
                     const parsedParts = this.epochToDatePartsInTz(parsed);
-                    const startParts = this.epochToDatePartsInTz(registerStartDate);
-                    const endParts = this.epochToDatePartsInTz(registerEndDate);
-                    if (this.compareDateParts(parsedParts, startParts) < 0 || this.compareDateParts(parsedParts, endParts) > 0) {
-                        logger.debug(`Row ${row["!row#number!"]}: enrollment date out of range — parsed=${parsedParts.day}/${parsedParts.month}/${parsedParts.year}, registerStart=${startParts.day}/${startParts.month}/${startParts.year}, registerEnd=${endParts.day}/${endParts.month}/${endParts.year}, registerId=${registerId}`);
+                    if (this.isDateOutsideRange(parsedParts, campaignStartParts, campaignEndParts)) {
+                        logger.debug(
+                            `Row ${row["!row#number!"]}: enrollment date out of campaign range — `
+                            + `parsed=${this.formatDateParts(parsedParts)}, `
+                            + `campaignStart=${this.formatDateParts(campaignStartParts)}, `
+                            + `campaignEnd=${this.formatDateParts(campaignEndParts)}, registerId=${registerId}`
+                        );
+                        this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
+                    } else if (this.isDateOutsideRange(parsedParts, registerStartParts, registerEndParts)) {
+                        logger.debug(
+                            `Row ${row["!row#number!"]}: enrollment date out of register range — `
+                            + `parsed=${this.formatDateParts(parsedParts)}, `
+                            + `registerStart=${this.formatDateParts(registerStartParts)}, `
+                            + `registerEnd=${this.formatDateParts(registerEndParts)}, registerId=${registerId}`
+                        );
                         this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
                     }
                 }
@@ -161,15 +182,23 @@ export class TemplateClass {
                     logger.debug(`Row ${row["!row#number!"]}: invalid de-enrollment date format — raw='${deEnrollmentDateRaw}', type=${typeof deEnrollmentDateRaw}`);
                     this.addError(row, attendanceErrorKeys.INVALID_DATE_FORMAT, localizationMap);
                 } else {
-                    if (registerStartDate !== null && registerEndDate !== null) {
-                        // Compare calendar dates in configured timezone (not raw epochs)
-                        const deEnrollParts = this.epochToDatePartsInTz(parsedDeEnroll);
-                        const startParts = this.epochToDatePartsInTz(registerStartDate);
-                        const endParts = this.epochToDatePartsInTz(registerEndDate);
-                        if (this.compareDateParts(deEnrollParts, startParts) < 0 || this.compareDateParts(deEnrollParts, endParts) > 0) {
-                            logger.debug(`Row ${row["!row#number!"]}: de-enrollment date out of range — parsed=${deEnrollParts.day}/${deEnrollParts.month}/${deEnrollParts.year}, registerStart=${startParts.day}/${startParts.month}/${startParts.year}, registerEnd=${endParts.day}/${endParts.month}/${endParts.year}, registerId=${registerId}`);
-                            this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
-                        }
+                    const deEnrollParts = this.epochToDatePartsInTz(parsedDeEnroll);
+                    if (this.isDateOutsideRange(deEnrollParts, campaignStartParts, campaignEndParts)) {
+                        logger.debug(
+                            `Row ${row["!row#number!"]}: de-enrollment date out of campaign range — `
+                            + `parsed=${this.formatDateParts(deEnrollParts)}, `
+                            + `campaignStart=${this.formatDateParts(campaignStartParts)}, `
+                            + `campaignEnd=${this.formatDateParts(campaignEndParts)}, registerId=${registerId}`
+                        );
+                        this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
+                    } else if (this.isDateOutsideRange(deEnrollParts, registerStartParts, registerEndParts)) {
+                        logger.debug(
+                            `Row ${row["!row#number!"]}: de-enrollment date out of register range — `
+                            + `parsed=${this.formatDateParts(deEnrollParts)}, `
+                            + `registerStart=${this.formatDateParts(registerStartParts)}, `
+                            + `registerEnd=${this.formatDateParts(registerEndParts)}, registerId=${registerId}`
+                        );
+                        this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
                     }
                     // De-enrollment date must not be before enrollment date
                     if (enrollmentDateRaw !== null && enrollmentDateRaw !== undefined && enrollmentDateRaw !== "") {
@@ -563,7 +592,7 @@ export class TemplateClass {
     /**
      * Extracts calendar date parts {year, month, day} from an epoch ms value in the configured server timezone.
      */
-    private static epochToDatePartsInTz(epochMs: number): { year: number; month: number; day: number } {
+    private static epochToDatePartsInTz(epochMs: number): DateParts {
         const parts = this.getTzFormatter().formatToParts(new Date(epochMs));
         const get = (type: string) => {
             const part = parts.find(p => p.type === type);
@@ -582,13 +611,34 @@ export class TemplateClass {
 
     /** Returns -1, 0, or 1 comparing two date-part objects chronologically. */
     private static compareDateParts(
-        a: { year: number; month: number; day: number },
-        b: { year: number; month: number; day: number }
+        a: DateParts,
+        b: DateParts
     ): number {
         if (a.year !== b.year) return a.year < b.year ? -1 : 1;
         if (a.month !== b.month) return a.month < b.month ? -1 : 1;
         if (a.day !== b.day) return a.day < b.day ? -1 : 1;
         return 0;
+    }
+
+    private static isDateOutsideRange(
+        dateParts: DateParts,
+        rangeStart: DateParts | null,
+        rangeEnd: DateParts | null
+    ): boolean {
+        if (rangeStart && this.compareDateParts(dateParts, rangeStart) < 0) return true;
+        if (rangeEnd && this.compareDateParts(dateParts, rangeEnd) > 0) return true;
+        return false;
+    }
+
+    private static formatDateParts(parts: DateParts | null): string {
+        if (!parts) return "null";
+        return `${parts.day}/${parts.month}/${parts.year}`;
+    }
+
+    private static toEpochOrNull(value: unknown): number | null {
+        if (value === null || value === undefined || value === "") return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
     }
 
     // ── Date parsing ────────────────────────────────────────────────────────

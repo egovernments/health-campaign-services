@@ -1,14 +1,22 @@
 package org.egov.excelingestion.generator;
 
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
+import org.egov.excelingestion.web.models.CampaignSearchResponse;
+import org.egov.excelingestion.web.models.GenerateResource;
+import org.egov.excelingestion.web.models.SheetGenerationConfig;
+import org.egov.excelingestion.web.models.SheetGenerationResult;
+import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.common.contract.request.RequestInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -18,8 +26,12 @@ import java.time.ZoneId;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,6 +92,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
                         "HCM_ADMIN_CONSOLE_USER_WORKER_ID", "W-1",
                         "HCM_ADMIN_CONSOLE_USER_NAME", "Alice Worker",
                         "HCM_ADMIN_CONSOLE_USER_ROLE", "DISTRIBUTOR",
+                        "HCM_ATTENDANCE_ATTENDEE_TEAM_CODE", "TEAM-1",
                         "HCM_ADMIN_CONSOLE_BOUNDARY_NAME", "Boundary A"
                 )
         );
@@ -115,6 +128,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
         assertEquals("Alice Worker", first.get("HCM_ADMIN_CONSOLE_USER_NAME"));
         assertEquals("W-1", first.get("HCM_ADMIN_CONSOLE_USER_WORKER_ID"));
         assertEquals("DISTRIBUTOR, REGISTRAR", first.get("HCM_ADMIN_CONSOLE_USER_ROLE"));
+        assertEquals("TEAM-1", first.get("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"));
         assertEquals("01-01-2026", first.get("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"));
         assertEquals("10-01-2026", first.get("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"));
 
@@ -122,6 +136,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
         assertEquals("REG-002", second.get("HCM_ATTENDANCE_REGISTER_CODE"));
         assertEquals("", second.get("HCM_ADMIN_CONSOLE_USER_NAME"));
         assertEquals("", second.get("HCM_ADMIN_CONSOLE_USER_WORKER_ID"));
+        assertEquals("", second.get("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"));
     }
 
     @Test
@@ -174,6 +189,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
                         "ADMIN",
                         List.of(Map.of(
                                 "individualId", "ind-501",
+                                "tag", "TEAM-501",
                                 "enrollmentDate", 1772668800000L,   // 05-03-2026 UTC
                                 "denrollmentDate", 1773705600000L   // 17-03-2026 UTC
                         )),
@@ -215,6 +231,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
         assertEquals("Anaya Patel", mapped.get("HCM_ADMIN_CONSOLE_USER_NAME"));
         assertEquals("ind-501", mapped.get("HCM_ADMIN_CONSOLE_USER_WORKER_ID"));
         assertEquals("WORKER", mapped.get("HCM_ADMIN_CONSOLE_USER_ROLE"));
+        assertEquals("TEAM-501", mapped.get("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"));
         assertEquals("ADMIN", mapped.get("HCM_ADMIN_CONSOLE_BOUNDARY_NAME"));
         assertEquals("05-03-2026", mapped.get("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"));
         assertEquals("17-03-2026", mapped.get("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"));
@@ -223,6 +240,193 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
         assertEquals("REG-777", registerOnly.get("HCM_ATTENDANCE_REGISTER_CODE"));
         assertEquals("", registerOnly.get("HCM_ADMIN_CONSOLE_USER_NAME"));
         assertEquals("", registerOnly.get("HCM_ADMIN_CONSOLE_USER_WORKER_ID"));
+        assertEquals("", registerOnly.get("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"));
+    }
+
+    @Test
+    void generateSheetData_usesLocalityCodeForCampaignRegisterSearch() {
+        when(config.getAttendanceRegisterSearchUrl()).thenReturn("http://attendance.local/attendance/v1/_search");
+        when(mdmsService.searchMDMS(any(), eq("bednet"), eq(ProcessingConstants.MDMS_SCHEMA_CODE), any(), eq(1), eq(0)))
+                .thenReturn(List.of(Map.of(
+                        "data", Map.of("properties", Map.of("stringProperties", List.of()))
+                )));
+        when(schemaColumnDefUtil.convertSchemaToColumnDefs(any())).thenReturn(Collections.emptyList());
+
+        CampaignSearchResponse.CampaignDetail campaign = CampaignSearchResponse.CampaignDetail.builder()
+                .id("cmp-123")
+                .campaignNumber("CMP-123")
+                .boundaries(List.of(CampaignSearchResponse.BoundaryDetail.builder().code("LOC-123").build()))
+                .build();
+        when(campaignService.searchCampaignById(eq("cmp-123"), eq("bednet"), any())).thenReturn(campaign);
+        when(campaignService.searchCampaignDataByType(
+                eq("attendanceRegisterAttendee"),
+                eq(ProcessingConstants.STATUS_COMPLETED),
+                eq("CMP-123"),
+                eq("bednet"),
+                any()
+        )).thenReturn(Collections.emptyList());
+
+        when(serviceRequestRepository.fetchResult(any(StringBuilder.class), any(), eq(Map.class)))
+                .thenReturn(Map.of("attendanceRegister", Collections.emptyList()));
+
+        SheetGenerationConfig sheetConfig = SheetGenerationConfig.builder()
+                .sheetName("HCM_REGISTER_WORKER_SHEET")
+                .schemaName("attendance-register-attendee-worker")
+                .build();
+        GenerateResource resource = GenerateResource.builder()
+                .tenantId("bednet")
+                .type("attendanceRegisterUserBulkMapping")
+                .hierarchyType("ADMIN")
+                .referenceId("cmp-123")
+                .referenceType("campaign")
+                .build();
+
+        generator.generateSheetData(sheetConfig, resource, new RequestInfo(), Collections.emptyMap());
+
+        ArgumentCaptor<StringBuilder> urlCaptor = ArgumentCaptor.forClass(StringBuilder.class);
+        verify(serviceRequestRepository, atLeastOnce()).fetchResult(urlCaptor.capture(), any(), eq(Map.class));
+        assertTrue(
+                urlCaptor.getAllValues().stream().anyMatch((uri) ->
+                        uri.toString().contains("referenceId=cmp-123")
+                                && uri.toString().contains("localityCode=LOC-123"))
+        );
+    }
+
+    @Test
+    void generateSheetData_threeTabModeSplitsRowsBySheetAndAddsRegisterColumns() {
+        when(config.getAttendanceRegisterSearchUrl()).thenReturn("http://attendance.local/attendance/v1/_search");
+        when(mdmsService.searchMDMS(any(), eq("bednet"), eq(ProcessingConstants.MDMS_SCHEMA_CODE), any(), eq(1), eq(0)))
+                .thenReturn(List.of(Map.of(
+                        "data", Map.of("properties", Map.of("stringProperties", List.of()))
+                )));
+        when(schemaColumnDefUtil.convertSchemaToColumnDefs(any())).thenReturn(List.of(
+                ColumnDef.builder().name("HCM_ADMIN_CONSOLE_USER_WORKER_ID").type("string").orderNumber(10).build(),
+                ColumnDef.builder().name("HCM_ADMIN_CONSOLE_USER_NAME").type("string").orderNumber(11).build(),
+                ColumnDef.builder().name("UserName").type("string").orderNumber(12).build(),
+                ColumnDef.builder().name("HCM_ADMIN_CONSOLE_USER_ROLE").type("string").orderNumber(13).build(),
+                ColumnDef.builder().name("HCM_ADMIN_CONSOLE_BOUNDARY_NAME").type("string").orderNumber(14).build(),
+                ColumnDef.builder().name("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY").type("string").orderNumber(15).build(),
+                ColumnDef.builder().name("HCM_ATTENDANCE_REGISTER_ID").type("string").orderNumber(16).hideColumn(false).build(),
+                ColumnDef.builder().name("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE").type("string").orderNumber(17).build(),
+                ColumnDef.builder().name("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE").type("string").orderNumber(18).build(),
+                ColumnDef.builder().name("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE").type("string").orderNumber(19).build()
+        ));
+
+        CampaignSearchResponse.CampaignDetail campaign = CampaignSearchResponse.CampaignDetail.builder()
+                .id("cmp-123")
+                .campaignNumber("CMP-123")
+                .startDate(1777593600000L) // 01-05-2026 UTC
+                .endDate(1778976000000L)   // 17-05-2026 UTC
+                .boundaries(List.of(CampaignSearchResponse.BoundaryDetail.builder().code("ADMIN").build()))
+                .build();
+        when(campaignService.searchCampaignById(eq("cmp-123"), eq("bednet"), any())).thenReturn(campaign);
+        when(campaignService.searchCampaignDataByType(
+                eq("attendanceRegisterAttendee"),
+                eq(ProcessingConstants.STATUS_COMPLETED),
+                eq("CMP-123"),
+                eq("bednet"),
+                any()
+        )).thenReturn(List.of(
+                attendeeRow("row-worker", "reg-uuid-1_ind-1_worker", null, new HashMap<String, Object>() {{
+                    put("_sheetName", "HCM_REGISTER_WORKER_SHEET");
+                    put("_registerServiceCode", "REG-001");
+                    put("HCM_ADMIN_CONSOLE_USER_WORKER_ID", "W-1");
+                    put("HCM_ADMIN_CONSOLE_USER_NAME", "Worker One");
+                    put("UserName", "worker.one");
+                    put("HCM_ADMIN_CONSOLE_USER_ROLE", "DISTRIBUTOR");
+                    put("HCM_ADMIN_CONSOLE_BOUNDARY_NAME", "ADMIN");
+                    put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", "01/05/2026");
+                    put("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE", "17-05-2026");
+                    put("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE", "TEAM-A");
+                }}),
+                attendeeRow("row-marker", "reg-uuid-1_ind-2_worker", null, new HashMap<String, Object>() {{
+                    put("_registerServiceCode", "REG-001");
+                    put("HCM_ADMIN_CONSOLE_USER_WORKER_ID", "M-1");
+                    put("HCM_ADMIN_CONSOLE_USER_NAME", "Marker One");
+                    put("UserName", "marker.one");
+                    put("HCM_ADMIN_CONSOLE_USER_ROLE", "TEAM_SUPERVISOR");
+                    put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", "ADMIN");
+                    put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", "2026-05-01");
+                }})
+        ));
+
+        when(serviceRequestRepository.fetchResult(any(StringBuilder.class), any(), eq(Map.class)))
+                .thenReturn(Map.of("attendanceRegister", List.of(Map.of(
+                        "id", "reg-uuid-1",
+                        "serviceCode", "REG-001",
+                        "name", "Register 001",
+                        "localityCode", "ADMIN",
+                        "attendees", Collections.emptyList(),
+                        "staff", Collections.emptyList()
+                ))));
+
+        GenerateResource resource = GenerateResource.builder()
+                .tenantId("bednet")
+                .type("attendanceRegisterUserBulkMapping")
+                .hierarchyType("ADMIN")
+                .referenceId("cmp-123")
+                .referenceType("campaign")
+                .build();
+
+        SheetGenerationResult workerResult = generator.generateSheetData(
+                SheetGenerationConfig.builder()
+                        .sheetName("HCM_REGISTER_WORKER_SHEET")
+                        .schemaName("attendance-register-attendee-worker")
+                        .build(),
+                resource,
+                new RequestInfo(),
+                Collections.emptyMap()
+        );
+        SheetGenerationResult markerResult = generator.generateSheetData(
+                SheetGenerationConfig.builder()
+                        .sheetName("HCM_REGISTER_MARKER_SHEET")
+                        .schemaName("attendance-register-attendee-marker")
+                        .build(),
+                resource,
+                new RequestInfo(),
+                Collections.emptyMap()
+        );
+        SheetGenerationResult approverResult = generator.generateSheetData(
+                SheetGenerationConfig.builder()
+                        .sheetName("HCM_REGISTER_APPROVER_SHEET")
+                        .schemaName("attendance-register-attendee-approver")
+                        .build(),
+                resource,
+                new RequestInfo(),
+                Collections.emptyMap()
+        );
+
+        assertEquals(1, workerResult.getData().size());
+        Map<String, Object> workerRow = workerResult.getData().get(0);
+        assertEquals("REG-001", workerRow.get("HCM_ATTENDANCE_REGISTER_CODE"));
+        assertEquals("W-1", workerRow.get("HCM_ADMIN_CONSOLE_USER_WORKER_ID"));
+        assertEquals("TEAM-A", workerRow.get("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"));
+        assertEquals("01-05-2026", workerRow.get("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"));
+        assertEquals("DISTRIBUTOR", workerRow.get("HCM_ADMIN_CONSOLE_USER_ROLE"));
+
+        assertEquals(1, markerResult.getData().size());
+        Map<String, Object> markerRow = markerResult.getData().get(0);
+        assertEquals("M-1", markerRow.get("HCM_ADMIN_CONSOLE_USER_WORKER_ID"));
+        assertEquals("TEAM_SUPERVISOR", markerRow.get("HCM_ADMIN_CONSOLE_USER_ROLE"));
+        assertFalse(markerRow.containsKey("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"));
+
+        // No approver mapping in campaign_data => seed row for this register
+        assertEquals(1, approverResult.getData().size());
+        Map<String, Object> approverSeed = approverResult.getData().get(0);
+        assertEquals("REG-001", approverSeed.get("HCM_ATTENDANCE_REGISTER_CODE"));
+        assertEquals("", approverSeed.get("HCM_ADMIN_CONSOLE_USER_WORKER_ID"));
+        assertEquals("", approverSeed.get("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"));
+        assertEquals("", approverSeed.get("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"));
+
+        List<ColumnDef> workerColumns = workerResult.getColumnDefs();
+        assertEquals("HCM_ATTENDANCE_REGISTER_CODE", workerColumns.get(0).getName());
+        assertEquals("HCM_ATTENDANCE_REGISTER_NAME", workerColumns.get(1).getName());
+        assertEquals("HCM_ATTENDANCE_REGISTER_UUID", workerColumns.get(2).getName());
+        ColumnDef registerIdColumn = workerColumns.stream()
+                .filter(col -> "HCM_ATTENDANCE_REGISTER_ID".equals(col.getName()))
+                .findFirst()
+                .orElse(null);
+        assertTrue(registerIdColumn != null && registerIdColumn.isHideColumn());
     }
 
     private Map<String, Object> attendeeRow(String uniqueIdentifier,

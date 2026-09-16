@@ -1,5 +1,5 @@
 import config from "../config";
-import { dataRowStatuses } from "../config/constants";
+import { attendanceColumnKeys, attendanceSheetNames, dataRowStatuses } from "../config/constants";
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { CampaignDataRow } from "../config/models/campaignDataRow";
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
@@ -9,16 +9,31 @@ import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import { httpRequest } from "../utils/request";
 
-const BULK_MAPPING_SHEET = "HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET";
 const ATTENDEE_DATA_TYPE = "attendanceRegisterAttendee";
 const ATTENDANCE_REGISTER_SEARCH_LIMIT = 200;
 const INDIVIDUAL_SEARCH_BATCH_SIZE = 100;
 const MAX_ROLE_COLUMNS = 5;
 const STAFF_TYPE_APPROVER = "APPROVER";
 const STAFF_TYPE_OWNER = "OWNER";
-const ROLE_WORKER = "WORKER";
-const ROLE_MARKER = "TEAM_SUPERVISOR";
-const ROLE_APPROVER = "PROXIMITY_SUPERVISOR";
+
+const WORKER_SHEET = attendanceSheetNames.WORKER;
+const MARKER_SHEET = attendanceSheetNames.MARKER;
+const APPROVER_SHEET = attendanceSheetNames.APPROVER;
+
+const SHEET_NAMES = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET];
+
+const MARKER_ROLE_CODES = new Set([
+    "MARKER",
+    "OWNER",
+    "TEAM_SUPERVISOR",
+    "WAREHOUSE_MANAGER",
+    "CAMPAIGN_SUPERVISOR",
+]);
+
+const APPROVER_ROLE_CODES = new Set([
+    "APPROVER",
+    "PROXIMITY_SUPERVISOR",
+]);
 
 const REGISTER_CODE_COLUMN = "HCM_ATTENDANCE_REGISTER_CODE";
 const REGISTER_NAME_COLUMN = "HCM_ATTENDANCE_REGISTER_NAME";
@@ -29,9 +44,16 @@ const ROLE_COLUMN = "HCM_ADMIN_CONSOLE_USER_ROLE";
 const BOUNDARY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_NAME";
 const BOUNDARY_CODE_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
 const BOUNDARY_CODE_MANDATORY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
-const USERNAME_COLUMN = "UserName";
-const ENROLLMENT_DATE_COLUMN = "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE";
-const DEENROLLMENT_DATE_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
+const USERNAME_COLUMN = attendanceColumnKeys.USERNAME;
+const PASSWORD_COLUMN = "Password";
+const REGISTER_ID_COLUMN = attendanceColumnKeys.REGISTER_ID;
+const ENROLLMENT_DATE_COLUMN = attendanceColumnKeys.ENROLLMENT_DATE;
+const DEENROLLMENT_DATE_COLUMN = attendanceColumnKeys.DEENROLLMENT_DATE;
+const TEAM_CODE_COLUMN = attendanceColumnKeys.TEAM_CODE;
+
+const DASH_DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
+const SLASH_DATE_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+const ISO_DATE_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}/;
 
 interface RegisterData {
     id: string;
@@ -42,10 +64,9 @@ interface RegisterData {
     staff: AttendanceStaffRow[];
 }
 
-type BulkRow = Record<string, string>;
-
 interface AttendanceAttendeeRow {
     individualId?: string;
+    tag?: string;
     enrollmentDate?: number | string | null;
     denrollmentDate?: number | string | null;
 }
@@ -63,12 +84,19 @@ interface IndividualProfile {
     username: string;
 }
 
+type BulkRow = Record<string, string>;
+type RowsBySheetName = Map<string, BulkRow[]>;
+type DedupedRowsBySheetName = Map<string, Map<string, BulkRow>>;
+
 /**
- * Generates a single-sheet register-user mapping template:
- * one row per register-user mapping, with register-only rows for unmapped registers.
+ * Generates a bulk mapping workbook with the same 3 attendee tabs and columns,
+ * while prepending register metadata columns on each sheet.
+ *
+ * Rows are loaded from persisted attendee mappings when present; otherwise they
+ * are reconstructed from live attendance state.
  */
 export class TemplateClass {
-    static async generate(templateConfig: any, responseToSend: any, _localizationMap: any): Promise<SheetMap> {
+    static async generate(_templateConfig: any, responseToSend: any, _localizationMap: any): Promise<SheetMap> {
         logger.info("Generating attendance register user bulk mapping template...");
 
         const tenantId = String(responseToSend?.tenantId || "").trim();
@@ -92,7 +120,8 @@ export class TemplateClass {
         const campaignStartDate = this.formatEpochIfPresent(campaign?.startDate);
         const campaignEndDate = this.formatEpochIfPresent(campaign?.endDate);
 
-        const registers = await this.fetchCampaignRegisters(campaignId, tenantId, responseToSend?.requestInfo);
+        const localityCodes = this.resolveRegisterSearchLocalityCodes(campaign, responseToSend?.additionalDetails);
+        const registers = await this.fetchCampaignRegisters(campaignId, tenantId, localityCodes, responseToSend?.requestInfo);
         const registerByServiceCode = new Map<string, RegisterData>();
         const registerById = new Map<string, RegisterData>();
         for (const register of registers) {
@@ -107,7 +136,7 @@ export class TemplateClass {
             dataRowStatuses.completed
         ) as CampaignDataRow[];
 
-        const rows = this.buildBulkRows(
+        const rowsFromStoredData = this.buildRowsFromStoredMappings(
             registers,
             Array.isArray(attendeeRows) ? attendeeRows : [],
             registerByServiceCode,
@@ -116,8 +145,8 @@ export class TemplateClass {
             campaignEndDate
         );
 
-        const outputRows = this.containsMappedRows(rows)
-            ? rows
+        const outputRowsBySheetName = this.containsMappedRows(rowsFromStoredData)
+            ? rowsFromStoredData
             : await this.buildRowsFromAttendanceState(
                 registers,
                 tenantId,
@@ -126,27 +155,23 @@ export class TemplateClass {
                 campaignEndDate
             );
 
-        logger.info(`Built ${outputRows.length} rows for bulk mapping template (registers=${registers.length})`);
+        this.ensureSeedRowsPerRegisterPerSheet(outputRowsBySheetName, registers);
 
-        const sheetName = templateConfig?.sheets?.[0]?.sheetName || BULK_MAPPING_SHEET;
-        return {
-            [sheetName]: {
-                data: outputRows,
-                dynamicColumns: this.bulkSheetColumns()
-            }
-        };
+        const totalRows = Array.from(outputRowsBySheetName.values()).reduce((sum, rows) => sum + rows.length, 0);
+        logger.info(`Built ${totalRows} rows for bulk mapping template (registers=${registers.length})`);
+
+        return this.toSheetMap(outputRowsBySheetName);
     }
 
-    static buildBulkRows(
+    private static buildRowsFromStoredMappings(
         registers: RegisterData[],
         attendeeRows: CampaignDataRow[],
         registerByServiceCode: Map<string, RegisterData>,
         registerById: Map<string, RegisterData>,
         campaignStartDate: string,
         campaignEndDate: string
-    ): BulkRow[] {
-        const dedupedRows = new Map<string, BulkRow>();
-        const mappedRegisters = new Set<string>();
+    ): RowsBySheetName {
+        const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
 
         for (const attendeeRow of attendeeRows) {
             if (attendeeRow?.isDeleted) continue;
@@ -157,85 +182,29 @@ export class TemplateClass {
             const register = this.resolveRegister(rawData, attendeeRow?.uniqueIdAfterProcess, registerByServiceCode, registerById);
             if (!register) continue;
 
-            const registerKey = this.registerIdentity(register);
-            mappedRegisters.add(registerKey);
+            const sheetName = this.resolveSheetName(rawData);
+            if (!sheetName) continue;
 
-            const row = this.buildMappedRow(register, rawData, attendeeRow?.denrollmentDate, campaignStartDate, campaignEndDate);
-            const dedupeKey = `${registerKey}::${this.personIdentity(rawData, attendeeRow?.uniqueIdentifier)}`;
-            const existing = dedupedRows.get(dedupeKey);
-            dedupedRows.set(dedupeKey, existing ? this.mergeRows(existing, row) : row);
+            const row = this.buildMappedRow(register, sheetName, rawData, attendeeRow?.denrollmentDate, campaignStartDate, campaignEndDate);
+            const dedupeKey = `${this.registerIdentity(register)}::${sheetName}::${this.personIdentity(rawData, attendeeRow?.uniqueIdentifier)}`;
+
+            const sheetRows = dedupedRowsBySheetName.get(sheetName);
+            if (!sheetRows) continue;
+            const existing = sheetRows.get(dedupeKey);
+            sheetRows.set(dedupeKey, existing ? this.mergeRows(existing, row) : row);
         }
 
-        for (const register of registers) {
-            const registerKey = this.registerIdentity(register);
-            if (mappedRegisters.has(registerKey)) continue;
-            dedupedRows.set(
-                `${registerKey}::__register_only__`,
-                this.buildRegisterOnlyRow(register, campaignStartDate, campaignEndDate)
-            );
-        }
-
-        return Array.from(dedupedRows.values()).sort((a, b) => this.sortRows(a, b));
-    }
-
-    private static bulkSheetColumns(): { [columnName: string]: ColumnProperties } {
-        return {
-            [REGISTER_CODE_COLUMN]: { orderNumber: 1, width: 22, freezeColumn: true },
-            [REGISTER_NAME_COLUMN]: { orderNumber: 2, width: 36 },
-            [REGISTER_UUID_COLUMN]: { orderNumber: 3, width: 42 },
-            [USER_NAME_COLUMN]: { orderNumber: 4, width: 30 },
-            [WORKER_ID_COLUMN]: { orderNumber: 5, width: 38 },
-            [ROLE_COLUMN]: { orderNumber: 6, width: 30 },
-            [BOUNDARY_COLUMN]: { orderNumber: 7, width: 28 },
-            [ENROLLMENT_DATE_COLUMN]: { orderNumber: 8, width: 22 },
-            [DEENROLLMENT_DATE_COLUMN]: { orderNumber: 9, width: 22 }
-        };
-    }
-
-    private static async fetchCampaignRegisters(campaignId: string, tenantId: string, requestInfo?: RequestInfo): Promise<RegisterData[]> {
-        const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
-        const RequestInfo = requestInfo || {};
-        const seen = new Set<string>();
-        const registers: RegisterData[] = [];
-
-        for (let offset = 0; offset <= 10000; offset += ATTENDANCE_REGISTER_SEARCH_LIMIT) {
-            const response = await httpRequest(
-                url,
-                { RequestInfo },
-                { tenantId, referenceId: campaignId, limit: ATTENDANCE_REGISTER_SEARCH_LIMIT, offset }
-            );
-            const batch = Array.isArray(response?.attendanceRegister) ? response.attendanceRegister : [];
-            if (batch.length === 0) break;
-
-            for (const item of batch) {
-                if (item?.isDeleted === true) continue;
-                const id = String(item?.id || "").trim();
-                const serviceCode = String(item?.serviceCode || "").trim();
-                if (!id || !serviceCode) continue;
-                const key = `${id}::${serviceCode}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                registers.push({
-                    id,
-                    serviceCode,
-                    name: String(item?.name || serviceCode).trim(),
-                    localityCode: String(item?.localityCode || "").trim(),
-                    attendees: Array.isArray(item?.attendees) ? item.attendees : [],
-                    staff: Array.isArray(item?.staff) ? item.staff : []
-                });
+        // If there are no mapped rows in campaign_data yet, include register seeds.
+        if (!this.containsMappedRows(this.flattenRowsBySheetName(dedupedRowsBySheetName))) {
+            for (const register of registers) {
+                for (const sheetName of SHEET_NAMES) {
+                    const seedKey = `${this.registerIdentity(register)}::${sheetName}::__seed__`;
+                    dedupedRowsBySheetName.get(sheetName)?.set(seedKey, this.buildSeedRow(register, sheetName));
+                }
             }
-
-            if (batch.length < ATTENDANCE_REGISTER_SEARCH_LIMIT) break;
         }
 
-        return registers;
-    }
-
-    private static containsMappedRows(rows: BulkRow[]): boolean {
-        return rows.some((row) => Boolean(this.firstNonBlank(
-            row[USER_NAME_COLUMN],
-            row[WORKER_ID_COLUMN]
-        )));
+        return this.flattenRowsBySheetName(dedupedRowsBySheetName);
     }
 
     private static async buildRowsFromAttendanceState(
@@ -244,8 +213,9 @@ export class TemplateClass {
         requestInfo: RequestInfo | undefined,
         campaignStartDate: string,
         campaignEndDate: string
-    ): Promise<BulkRow[]> {
-        if (registers.length === 0) return [];
+    ): Promise<RowsBySheetName> {
+        const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
+        if (!registers.length) return this.flattenRowsBySheetName(dedupedRowsBySheetName);
 
         const personIds = new Set<string>();
         for (const register of registers) {
@@ -259,13 +229,7 @@ export class TemplateClass {
             }
         }
 
-        const profiles = await this.fetchIndividualProfiles(
-            tenantId,
-            Array.from(personIds),
-            requestInfo
-        );
-        const rows = new Map<string, BulkRow>();
-        const mappedRegisters = new Set<string>();
+        const profiles = await this.fetchIndividualProfiles(tenantId, Array.from(personIds), requestInfo);
 
         for (const register of registers) {
             const registerKey = this.registerIdentity(register);
@@ -275,66 +239,440 @@ export class TemplateClass {
                 if (!personId) continue;
 
                 const profile = profiles.get(personId);
-                const role = ROLE_WORKER;
-                const dedupeKey = `${registerKey}::${personId}::${role}`;
-                rows.set(dedupeKey, {
-                    [REGISTER_CODE_COLUMN]: register.serviceCode,
-                    [REGISTER_NAME_COLUMN]: register.name,
-                    [REGISTER_UUID_COLUMN]: register.id,
-                    [USER_NAME_COLUMN]: this.firstNonBlank(profile?.displayName, profile?.username, personId),
-                    [WORKER_ID_COLUMN]: personId,
-                    [ROLE_COLUMN]: role,
-                    [BOUNDARY_COLUMN]: register.localityCode,
-                    [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                        this.formatEpochIfPresent(attendee?.enrollmentDate),
-                        campaignStartDate
-                    ),
-                    [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                        this.formatEpochIfPresent(attendee?.denrollmentDate),
-                        campaignEndDate
-                    )
-                });
-                mappedRegisters.add(registerKey);
+                const dedupeKey = `${registerKey}::${WORKER_SHEET}::${personId}`;
+                const row = this.buildAttendanceStateWorkerRow(
+                    register,
+                    attendee,
+                    profile,
+                    personId,
+                    campaignStartDate,
+                    campaignEndDate
+                );
+                dedupedRowsBySheetName.get(WORKER_SHEET)?.set(dedupeKey, row);
             }
 
             for (const staff of register.staff || []) {
                 const personId = this.asText(staff?.userId);
                 if (!personId) continue;
-
-                const role = this.normalizeRoleFromStaffType(staff?.staffType);
-                if (!role) continue;
+                const sheetName = this.sheetNameFromStaffType(staff?.staffType);
+                if (!sheetName) continue;
 
                 const profile = profiles.get(personId);
-                const staffName = this.displayNameFromStaff(staff);
-                const dedupeKey = `${registerKey}::${personId}::${role}`;
-                rows.set(dedupeKey, {
-                    [REGISTER_CODE_COLUMN]: register.serviceCode,
-                    [REGISTER_NAME_COLUMN]: register.name,
-                    [REGISTER_UUID_COLUMN]: register.id,
-                    [USER_NAME_COLUMN]: this.firstNonBlank(profile?.displayName, staffName, profile?.username, personId),
-                    [WORKER_ID_COLUMN]: personId,
-                    [ROLE_COLUMN]: role,
-                    [BOUNDARY_COLUMN]: register.localityCode,
-                    [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                        this.formatEpochIfPresent(staff?.enrollmentDate),
-                        campaignStartDate
-                    ),
-                    [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                        this.formatEpochIfPresent(staff?.denrollmentDate),
-                        campaignEndDate
-                    )
-                });
-                mappedRegisters.add(registerKey);
+                const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
+                const row = this.buildAttendanceStateStaffRow(
+                    register,
+                    staff,
+                    profile,
+                    personId,
+                    campaignStartDate,
+                    campaignEndDate
+                );
+                dedupedRowsBySheetName.get(sheetName)?.set(dedupeKey, row);
             }
         }
 
-        for (const register of registers) {
-            const registerKey = this.registerIdentity(register);
-            if (mappedRegisters.has(registerKey)) continue;
-            rows.set(`${registerKey}::__register_only__`, this.buildRegisterOnlyRow(register, campaignStartDate, campaignEndDate));
+        return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+    }
+
+    private static async fetchCampaignRegisters(
+        campaignId: string,
+        tenantId: string,
+        localityCodes: string[],
+        requestInfo?: RequestInfo
+    ): Promise<RegisterData[]> {
+        const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
+        const RequestInfo = requestInfo || {};
+        const seen = new Set<string>();
+        const registers: RegisterData[] = [];
+        const effectiveLocalityCodes = Array.from(
+            new Set(localityCodes.map((code) => String(code || "").trim()).filter(Boolean))
+        );
+
+        if (!effectiveLocalityCodes.length) {
+            throwError(
+                "CAMPAIGN",
+                400,
+                "LOCALITY_CODE_REQUIRED",
+                `localityCode is required to search attendance registers for campaign ${campaignId}`
+            );
         }
 
-        return Array.from(rows.values()).sort((a, b) => this.sortRows(a, b));
+        for (const localityCode of effectiveLocalityCodes) {
+            for (let offset = 0; offset <= 10000; offset += ATTENDANCE_REGISTER_SEARCH_LIMIT) {
+                const response = await httpRequest(
+                    url,
+                    { RequestInfo },
+                    {
+                        tenantId,
+                        referenceId: campaignId,
+                        localityCode,
+                        limit: ATTENDANCE_REGISTER_SEARCH_LIMIT,
+                        offset
+                    }
+                );
+                const batch = Array.isArray(response?.attendanceRegister) ? response.attendanceRegister : [];
+                if (batch.length === 0) break;
+
+                for (const item of batch) {
+                    if (item?.isDeleted === true) continue;
+                    const id = String(item?.id || "").trim();
+                    const serviceCode = String(item?.serviceCode || "").trim();
+                    if (!id || !serviceCode) continue;
+                    const key = `${id}::${serviceCode}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    registers.push({
+                        id,
+                        serviceCode,
+                        name: String(item?.name || serviceCode).trim(),
+                        localityCode: String(item?.localityCode || "").trim(),
+                        attendees: Array.isArray(item?.attendees) ? item.attendees : [],
+                        staff: Array.isArray(item?.staff) ? item.staff : []
+                    });
+                }
+
+                if (batch.length < ATTENDANCE_REGISTER_SEARCH_LIMIT) break;
+            }
+        }
+
+        return registers;
+    }
+
+    private static resolveRegisterSearchLocalityCodes(
+        campaign: any,
+        additionalDetails?: Record<string, unknown>
+    ): string[] {
+        const codes = new Set<string>();
+
+        this.addLocalityCode(codes, additionalDetails?.localityCode);
+        const localityCodes = additionalDetails?.localityCodes;
+        if (Array.isArray(localityCodes)) {
+            for (const code of localityCodes) {
+                this.addLocalityCode(codes, code);
+            }
+        }
+
+        const campaignBoundaries = Array.isArray(campaign?.boundaries) ? campaign.boundaries : [];
+        for (const boundary of campaignBoundaries) {
+            this.addLocalityCode(codes, boundary?.code);
+        }
+        this.addLocalityCode(codes, campaign?.boundaryCode);
+
+        return Array.from(codes);
+    }
+
+    private static addLocalityCode(codes: Set<string>, rawCode: unknown): void {
+        const code = this.asText(rawCode);
+        if (code) {
+            codes.add(code);
+        }
+    }
+
+    private static containsMappedRows(rowsBySheetName: RowsBySheetName): boolean {
+        for (const sheetName of SHEET_NAMES) {
+            const rows = rowsBySheetName.get(sheetName) || [];
+            for (const row of rows) {
+                if (this.firstNonBlank(
+                    row[WORKER_ID_COLUMN],
+                    row[USERNAME_COLUMN],
+                    row[USER_NAME_COLUMN]
+                )) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static resolveRegister(
+        rawData: Record<string, unknown>,
+        uniqueIdAfterProcess: string | null,
+        registerByServiceCode: Map<string, RegisterData>,
+        registerById: Map<string, RegisterData>
+    ): RegisterData | null {
+        const serviceCode = this.firstNonBlank(
+            this.asText(rawData["_registerServiceCode"]),
+            this.asText(rawData[REGISTER_ID_COLUMN]),
+            this.asText(rawData[REGISTER_CODE_COLUMN])
+        );
+        if (serviceCode) {
+            const byServiceCode = registerByServiceCode.get(serviceCode);
+            if (byServiceCode) return byServiceCode;
+        }
+
+        const registerIdFromIdentity = this.registerIdFromIdentity(uniqueIdAfterProcess || "");
+        if (registerIdFromIdentity) {
+            const byId = registerById.get(registerIdFromIdentity);
+            if (byId) return byId;
+        }
+
+        return null;
+    }
+
+    private static resolveSheetName(rawData: Record<string, unknown>): string | null {
+        const storedSheetName = this.asText(rawData["_sheetName"]);
+        if (SHEET_NAMES.includes(storedSheetName)) return storedSheetName;
+
+        const roleCodes = this.extractRoleCodes(rawData);
+        if (roleCodes.some((role) => APPROVER_ROLE_CODES.has(role))) return APPROVER_SHEET;
+        if (roleCodes.some((role) => MARKER_ROLE_CODES.has(role))) return MARKER_SHEET;
+        return WORKER_SHEET;
+    }
+
+    private static buildMappedRow(
+        register: RegisterData,
+        sheetName: string,
+        rawData: Record<string, unknown>,
+        syncedDeenrollmentDate: number | null,
+        campaignStartDate: string,
+        campaignEndDate: string
+    ): BulkRow {
+        const row: BulkRow = {};
+        for (const [key, value] of Object.entries(rawData)) {
+            row[key] = this.asText(value);
+        }
+
+        delete row["_registerServiceCode"];
+        delete row["_sheetName"];
+        delete row["_denrollmentDate"];
+
+        row[REGISTER_CODE_COLUMN] = register.serviceCode;
+        row[REGISTER_NAME_COLUMN] = register.name;
+        row[REGISTER_UUID_COLUMN] = register.id;
+        row[REGISTER_ID_COLUMN] = this.firstNonBlank(row[REGISTER_ID_COLUMN], register.serviceCode);
+        row[USER_NAME_COLUMN] = this.asText(row[USER_NAME_COLUMN]);
+        row[WORKER_ID_COLUMN] = this.asText(row[WORKER_ID_COLUMN]);
+        row[USERNAME_COLUMN] = this.asText(row[USERNAME_COLUMN]);
+        row[PASSWORD_COLUMN] = this.asText(row[PASSWORD_COLUMN]);
+        row[BOUNDARY_COLUMN] = this.firstNonBlank(
+            row[BOUNDARY_COLUMN],
+            row[BOUNDARY_CODE_MANDATORY_COLUMN],
+            row[BOUNDARY_CODE_COLUMN],
+            register.localityCode
+        );
+        row[ENROLLMENT_DATE_COLUMN] = this.firstNonBlank(
+            this.normalizeSheetDateIfPresent(row[ENROLLMENT_DATE_COLUMN]),
+            campaignStartDate
+        );
+        row[DEENROLLMENT_DATE_COLUMN] = this.firstNonBlank(
+            this.normalizeSheetDateIfPresent(syncedDeenrollmentDate),
+            this.normalizeSheetDateIfPresent(row[DEENROLLMENT_DATE_COLUMN]),
+            campaignEndDate
+        );
+
+        if (sheetName === WORKER_SHEET) {
+            row[TEAM_CODE_COLUMN] = this.asText(row[TEAM_CODE_COLUMN]);
+        } else {
+            delete row[TEAM_CODE_COLUMN];
+        }
+
+        return row;
+    }
+
+    private static buildAttendanceStateWorkerRow(
+        register: RegisterData,
+        attendee: AttendanceAttendeeRow,
+        profile: IndividualProfile | undefined,
+        personId: string,
+        campaignStartDate: string,
+        campaignEndDate: string
+    ): BulkRow {
+        const username = this.firstNonBlank(profile?.username, personId);
+        return {
+            [REGISTER_CODE_COLUMN]: register.serviceCode,
+            [REGISTER_NAME_COLUMN]: register.name,
+            [REGISTER_UUID_COLUMN]: register.id,
+            [REGISTER_ID_COLUMN]: register.serviceCode,
+            [USER_NAME_COLUMN]: this.firstNonBlank(profile?.displayName, profile?.username, personId),
+            [WORKER_ID_COLUMN]: personId,
+            [USERNAME_COLUMN]: username,
+            [PASSWORD_COLUMN]: "",
+            [BOUNDARY_COLUMN]: register.localityCode,
+            [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
+            [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
+                this.formatEpochIfPresent(attendee?.enrollmentDate),
+                campaignStartDate
+            ),
+            [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
+                this.formatEpochIfPresent(attendee?.denrollmentDate),
+                campaignEndDate
+            ),
+            [TEAM_CODE_COLUMN]: this.asText(attendee?.tag),
+        };
+    }
+
+    private static buildAttendanceStateStaffRow(
+        register: RegisterData,
+        staff: AttendanceStaffRow,
+        profile: IndividualProfile | undefined,
+        personId: string,
+        campaignStartDate: string,
+        campaignEndDate: string
+    ): BulkRow {
+        const username = this.firstNonBlank(profile?.username, personId);
+        return {
+            [REGISTER_CODE_COLUMN]: register.serviceCode,
+            [REGISTER_NAME_COLUMN]: register.name,
+            [REGISTER_UUID_COLUMN]: register.id,
+            [REGISTER_ID_COLUMN]: register.serviceCode,
+            [USER_NAME_COLUMN]: this.firstNonBlank(
+                profile?.displayName,
+                this.displayNameFromStaff(staff),
+                profile?.username,
+                personId
+            ),
+            [WORKER_ID_COLUMN]: personId,
+            [USERNAME_COLUMN]: username,
+            [PASSWORD_COLUMN]: "",
+            [BOUNDARY_COLUMN]: register.localityCode,
+            [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
+            [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
+                this.formatEpochIfPresent(staff?.enrollmentDate),
+                campaignStartDate
+            ),
+            [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
+                this.formatEpochIfPresent(staff?.denrollmentDate),
+                campaignEndDate
+            ),
+        };
+    }
+
+    private static buildSeedRow(register: RegisterData, sheetName: string): BulkRow {
+        const seedRow: BulkRow = {
+            [REGISTER_CODE_COLUMN]: register.serviceCode,
+            [REGISTER_NAME_COLUMN]: register.name,
+            [REGISTER_UUID_COLUMN]: register.id,
+            [REGISTER_ID_COLUMN]: register.serviceCode,
+            [USER_NAME_COLUMN]: "",
+            [WORKER_ID_COLUMN]: "",
+            [USERNAME_COLUMN]: "",
+            [PASSWORD_COLUMN]: "",
+            [BOUNDARY_COLUMN]: register.localityCode,
+            [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
+            [ENROLLMENT_DATE_COLUMN]: "",
+            [DEENROLLMENT_DATE_COLUMN]: "",
+        };
+        if (sheetName === WORKER_SHEET) {
+            seedRow[TEAM_CODE_COLUMN] = "";
+        }
+        return seedRow;
+    }
+
+    private static ensureSeedRowsPerRegisterPerSheet(rowsBySheetName: RowsBySheetName, registers: RegisterData[]): void {
+        for (const sheetName of SHEET_NAMES) {
+            const rows = rowsBySheetName.get(sheetName) || [];
+            const registersInSheet = new Set(rows.map((row) => this.firstNonBlank(
+                row[REGISTER_CODE_COLUMN],
+                row[REGISTER_ID_COLUMN]
+            )));
+
+            for (const register of registers) {
+                if (registersInSheet.has(register.serviceCode)) continue;
+                rows.push(this.buildSeedRow(register, sheetName));
+            }
+
+            rows.sort((left, right) => this.sortRows(left, right));
+            rowsBySheetName.set(sheetName, rows);
+        }
+    }
+
+    private static createEmptyDedupedRowsBySheetName(): DedupedRowsBySheetName {
+        return new Map<string, Map<string, BulkRow>>(SHEET_NAMES.map((sheetName) => [sheetName, new Map<string, BulkRow>()]));
+    }
+
+    private static flattenRowsBySheetName(dedupedRowsBySheetName: DedupedRowsBySheetName): RowsBySheetName {
+        const rowsBySheetName = new Map<string, BulkRow[]>();
+        for (const sheetName of SHEET_NAMES) {
+            const rows = Array.from(dedupedRowsBySheetName.get(sheetName)?.values() || []);
+            rows.sort((left, right) => this.sortRows(left, right));
+            rowsBySheetName.set(sheetName, rows);
+        }
+        return rowsBySheetName;
+    }
+
+    private static toSheetMap(rowsBySheetName: RowsBySheetName): SheetMap {
+        const sheetMap: SheetMap = {};
+        for (const sheetName of SHEET_NAMES) {
+            sheetMap[sheetName] = {
+                data: rowsBySheetName.get(sheetName) || [],
+                dynamicColumns: this.registerColumns()
+            };
+        }
+        return sheetMap;
+    }
+
+    private static registerColumns(): { [columnName: string]: ColumnProperties } {
+        return {
+            [REGISTER_CODE_COLUMN]: { orderNumber: 0.01, width: 22, freezeColumn: true },
+            [REGISTER_NAME_COLUMN]: { orderNumber: 0.02, width: 36 },
+            [REGISTER_UUID_COLUMN]: { orderNumber: 0.03, width: 42 },
+            // Hidden helper column used by attendee ingest flow; keep out of visible bulk template to avoid duplicate "Register ID".
+            [REGISTER_ID_COLUMN]: { hideColumn: true },
+        };
+    }
+
+    private static sheetNameFromStaffType(staffType: unknown): string | null {
+        const normalized = this.asText(staffType).toUpperCase();
+        if (normalized === STAFF_TYPE_OWNER) return MARKER_SHEET;
+        if (normalized === STAFF_TYPE_APPROVER) return APPROVER_SHEET;
+        return null;
+    }
+
+    private static displayNameFromStaff(staff: AttendanceStaffRow): string {
+        const additionalDetails = this.asRecord(staff?.additionalDetails);
+        return this.firstNonBlank(
+            this.asText(additionalDetails?.staffName),
+            this.asText(additionalDetails?.ownerName)
+        );
+    }
+
+    private static mergeRows(existing: BulkRow, incoming: BulkRow): BulkRow {
+        const merged: BulkRow = { ...existing };
+        for (const [key, value] of Object.entries(incoming)) {
+            merged[key] = this.firstNonBlank(existing[key], value);
+        }
+        return merged;
+    }
+
+    private static extractRoleCodes(rawData: Record<string, unknown>): string[] {
+        const roles = new Set<string>();
+        const baseRole = this.asText(rawData[ROLE_COLUMN]);
+        if (baseRole) {
+            for (const role of baseRole.split(",")) {
+                const normalizedRole = this.asText(role).toUpperCase();
+                if (normalizedRole) roles.add(normalizedRole);
+            }
+        }
+        for (let i = 1; i <= MAX_ROLE_COLUMNS; i++) {
+            const role = this.asText(rawData[`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${i}`]).toUpperCase();
+            if (role) roles.add(role);
+        }
+        return Array.from(roles);
+    }
+
+    private static personIdentity(rawData: Record<string, unknown>, fallbackUniqueIdentifier: string): string {
+        return this.firstNonBlank(
+            this.asText(rawData[WORKER_ID_COLUMN]),
+            this.asText(rawData[USERNAME_COLUMN]),
+            this.asText(rawData[USER_NAME_COLUMN]),
+            fallbackUniqueIdentifier,
+            "__unknown__"
+        );
+    }
+
+    private static registerIdentity(register: RegisterData): string {
+        return this.firstNonBlank(register.id, register.serviceCode);
+    }
+
+    private static registerIdFromIdentity(identity: string): string {
+        const idx = identity.indexOf("_");
+        return idx > 0 ? identity.slice(0, idx).trim() : "";
+    }
+
+    private static sortRows(a: BulkRow, b: BulkRow): number {
+        return this.asText(a[REGISTER_CODE_COLUMN]).localeCompare(this.asText(b[REGISTER_CODE_COLUMN]))
+            || this.asText(a[USER_NAME_COLUMN]).localeCompare(this.asText(b[USER_NAME_COLUMN]))
+            || this.asText(a[WORKER_ID_COLUMN]).localeCompare(this.asText(b[WORKER_ID_COLUMN]));
     }
 
     private static async fetchIndividualProfiles(
@@ -396,166 +734,33 @@ export class TemplateClass {
         );
     }
 
-    private static displayNameFromStaff(staff: AttendanceStaffRow): string {
-        const additionalDetails = this.asRecord(staff?.additionalDetails);
-        return this.firstNonBlank(
-            this.asText(additionalDetails?.staffName),
-            this.asText(additionalDetails?.ownerName)
-        );
-    }
-
-    private static normalizeRoleFromStaffType(staffType: unknown): string {
-        const normalized = this.asText(staffType).toUpperCase();
-        if (!normalized) return "";
-        if (normalized === STAFF_TYPE_APPROVER) return ROLE_APPROVER;
-        if (normalized === STAFF_TYPE_OWNER) return ROLE_MARKER;
-        return normalized;
-    }
-
-    private static resolveRegister(
-        rawData: Record<string, unknown>,
-        uniqueIdAfterProcess: string | null,
-        registerByServiceCode: Map<string, RegisterData>,
-        registerById: Map<string, RegisterData>
-    ): RegisterData | null {
-        const serviceCode = this.firstNonBlank(
-            this.asText(rawData["_registerServiceCode"]),
-            this.asText(rawData["HCM_ATTENDANCE_REGISTER_ID"]),
-            this.asText(rawData[REGISTER_CODE_COLUMN])
-        );
-        if (serviceCode) {
-            const byServiceCode = registerByServiceCode.get(serviceCode);
-            if (byServiceCode) return byServiceCode;
-        }
-
-        const registerIdFromIdentity = this.registerIdFromIdentity(uniqueIdAfterProcess || "");
-        if (registerIdFromIdentity) {
-            const byId = registerById.get(registerIdFromIdentity);
-            if (byId) return byId;
-        }
-
-        return null;
-    }
-
-    private static buildMappedRow(
-        register: RegisterData,
-        rawData: Record<string, unknown>,
-        syncedDeenrollmentDate: number | null,
-        campaignStartDate: string,
-        campaignEndDate: string
-    ): BulkRow {
-        const deEnrollmentDate = this.firstNonBlank(
-            this.formatEpochIfPresent(syncedDeenrollmentDate),
-            this.asText(rawData[DEENROLLMENT_DATE_COLUMN]),
-            campaignEndDate
-        );
-
-        return {
-            [REGISTER_CODE_COLUMN]: register.serviceCode,
-            [REGISTER_NAME_COLUMN]: register.name,
-            [REGISTER_UUID_COLUMN]: register.id,
-            [USER_NAME_COLUMN]: this.asText(rawData[USER_NAME_COLUMN]),
-            [WORKER_ID_COLUMN]: this.asText(rawData[WORKER_ID_COLUMN]),
-            [ROLE_COLUMN]: this.extractRole(rawData),
-            [BOUNDARY_COLUMN]: this.firstNonBlank(
-                this.asText(rawData[BOUNDARY_COLUMN]),
-                this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
-                this.asText(rawData[BOUNDARY_CODE_COLUMN])
-            ),
-            [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(this.asText(rawData[ENROLLMENT_DATE_COLUMN]), campaignStartDate),
-            [DEENROLLMENT_DATE_COLUMN]: deEnrollmentDate
-        };
-    }
-
-    private static buildRegisterOnlyRow(register: RegisterData, campaignStartDate: string, campaignEndDate: string): BulkRow {
-        return {
-            [REGISTER_CODE_COLUMN]: register.serviceCode,
-            [REGISTER_NAME_COLUMN]: register.name,
-            [REGISTER_UUID_COLUMN]: register.id,
-            [USER_NAME_COLUMN]: "",
-            [WORKER_ID_COLUMN]: "",
-            [ROLE_COLUMN]: "",
-            [BOUNDARY_COLUMN]: "",
-            [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
-            [DEENROLLMENT_DATE_COLUMN]: campaignEndDate
-        };
-    }
-
-    private static mergeRows(existing: BulkRow, incoming: BulkRow): BulkRow {
-        const merged: BulkRow = { ...existing };
-        for (const [key, value] of Object.entries(incoming)) {
-            if (key === ROLE_COLUMN) {
-                merged[key] = this.mergeRoles(existing[ROLE_COLUMN], value);
-                continue;
-            }
-            merged[key] = this.firstNonBlank(existing[key], value);
-        }
-        return merged;
-    }
-
-    private static mergeRoles(existing: string, incoming: string): string {
-        const unique = new Set<string>();
-        const roles: string[] = [];
-        for (const role of [...this.splitRoles(existing), ...this.splitRoles(incoming)]) {
-            const key = role.toUpperCase();
-            if (unique.has(key)) continue;
-            unique.add(key);
-            roles.push(role);
-        }
-        return roles.join(", ");
-    }
-
-    private static splitRoles(roleValue: string): string[] {
-        return roleValue
-            .split(",")
-            .map((role) => role.trim())
-            .filter((role) => role.length > 0);
-    }
-
-    private static extractRole(rawData: Record<string, unknown>): string {
-        const baseRole = this.asText(rawData[ROLE_COLUMN]);
-        if (baseRole) {
-            return this.mergeRoles("", baseRole);
-        }
-
-        const roles: string[] = [];
-        for (let i = 1; i <= MAX_ROLE_COLUMNS; i++) {
-            const role = this.asText(rawData[`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${i}`]);
-            if (role) roles.push(role);
-        }
-        return this.mergeRoles("", roles.join(", "));
-    }
-
-    private static personIdentity(rawData: Record<string, unknown>, fallbackUniqueIdentifier: string): string {
-        return this.firstNonBlank(
-            this.asText(rawData[WORKER_ID_COLUMN]),
-            this.asText(rawData[USERNAME_COLUMN]),
-            this.asText(rawData[USER_NAME_COLUMN]),
-            fallbackUniqueIdentifier,
-            "__unknown__"
-        );
-    }
-
-    private static registerIdentity(register: RegisterData): string {
-        return this.firstNonBlank(register.id, register.serviceCode);
-    }
-
-    private static registerIdFromIdentity(identity: string): string {
-        const idx = identity.indexOf("_");
-        return idx > 0 ? identity.slice(0, idx).trim() : "";
-    }
-
-    private static sortRows(a: BulkRow, b: BulkRow): number {
-        return this.asText(a[REGISTER_CODE_COLUMN]).localeCompare(this.asText(b[REGISTER_CODE_COLUMN]))
-            || this.asText(a[USER_NAME_COLUMN]).localeCompare(this.asText(b[USER_NAME_COLUMN]))
-            || this.asText(a[WORKER_ID_COLUMN]).localeCompare(this.asText(b[WORKER_ID_COLUMN]));
-    }
-
     private static formatEpochIfPresent(value: unknown): string {
         if (value === null || value === undefined || value === "") return "";
         const asNumber = Number(value);
         if (!Number.isFinite(asNumber)) return "";
         return formatEpochAsSheetDate(asNumber);
+    }
+
+    private static normalizeSheetDateIfPresent(value: unknown): string {
+        const formattedFromEpoch = this.formatEpochIfPresent(value);
+        if (formattedFromEpoch) return formattedFromEpoch;
+
+        const raw = this.asText(value);
+        if (!raw) return "";
+
+        if (DASH_DATE_REGEX.test(raw)) return raw;
+
+        const slashDate = SLASH_DATE_REGEX.exec(raw);
+        if (slashDate) return `${slashDate[1]}-${slashDate[2]}-${slashDate[3]}`;
+
+        if (ISO_DATE_PREFIX_REGEX.test(raw)) {
+            const parsedEpoch = Date.parse(raw);
+            if (Number.isFinite(parsedEpoch)) {
+                return formatEpochAsSheetDate(parsedEpoch);
+            }
+        }
+
+        return raw;
     }
 
     private static firstNonBlank(...values: Array<string | null | undefined>): string {
@@ -572,8 +777,8 @@ export class TemplateClass {
         return String(value).trim();
     }
 
-    private static asRecord(value: unknown): Record<string, unknown> | null {
+    private static asRecord(value: unknown): Record<string, any> | null {
         if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-        return value as Record<string, unknown>;
+        return value as Record<string, any>;
     }
 }
