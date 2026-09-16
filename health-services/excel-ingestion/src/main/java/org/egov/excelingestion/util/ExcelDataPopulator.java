@@ -251,11 +251,15 @@ public class ExcelDataPopulator {
 
         // Build map: parent column name -> ordered list of _MULTISELECT_* column indexes
         Map<String, List<Integer>> parentToMultiselectColIndexes = new HashMap<>();
+        // Parent column name -> one expanded child def, used to localize prefilled values below. Every
+        // child of a parent shares the same enum list and key prefix, so any one of them suffices.
+        Map<String, ColumnDef> parentToMultiselectDef = new HashMap<>();
         for (ColumnDef col : columnProperties) {
             if ("multiselect_item".equals(col.getType())) {
                 parentToMultiselectColIndexes
                     .computeIfAbsent(col.getParentColumn(), k -> new ArrayList<>())
                     .add(headerToColumnMap.getOrDefault(col.getName(), -1));
+                parentToMultiselectDef.putIfAbsent(col.getParentColumn(), col);
             }
         }
 
@@ -281,11 +285,19 @@ public class ExcelDataPopulator {
                 List<Integer> multiselectColIndexes = parentToMultiselectColIndexes.get(dataKey);
                 if (multiselectColIndexes != null && value != null && !value.toString().trim().isEmpty()) {
                     String[] parts = value.toString().split(",");
+                    // Prefilled multi-select values (e.g. existing users' roles) must be shown in the
+                    // generation locale too, otherwise the canonical code sits in a cell whose dropdown
+                    // only offers localized labels and Excel flags it as invalid. Reversed on upload.
+                    ColumnDef msDef = parentToMultiselectDef.get(dataKey);
                     for (int p = 0; p < parts.length && p < multiselectColIndexes.size(); p++) {
                         int msColIdx = multiselectColIndexes.get(p);
                         if (msColIdx < 0) continue;
                         String part = parts[p].trim();
                         if (!part.isEmpty()) {
+                            if (msDef != null) {
+                                part = EnumLocalizationUtil.toLocalized(
+                                        msDef.getTechnicalName(), part, localizationMap, msDef.getPrefix());
+                            }
                             Cell cell = excelRow.getCell(msColIdx);
                             if (cell == null) cell = excelRow.createCell(msColIdx);
                             cell.setCellValue(part);
@@ -327,11 +339,15 @@ public class ExcelDataPopulator {
             // Show pre-filled enum values (e.g. Permanent/Active) in the generation locale, matching the
             // localized dropdown list so the cell's value is actually selectable in its own dropdown.
             // Reversed to canonical on upload; untranslated values pass through unchanged.
-            if (EnumLocalizationUtil.isEnumColumn(column)) {
-                stringValue = EnumLocalizationUtil.toLocalized(column.getName(), stringValue, localizationMap);
+            boolean localizableEnum = EnumLocalizationUtil.isLocalizableEnumCell(column);
+            if (localizableEnum) {
+                stringValue = EnumLocalizationUtil.toLocalized(
+                        column.getTechnicalName(), stringValue, localizationMap, column.getPrefix());
             }
-            // Apply prefix if specified
-            if (column != null && column.getPrefix() != null && !column.getPrefix().isEmpty()) {
+            // Apply prefix if specified. Skipped for a localizable enum cell: there the prefix is the
+            // column's localization NAMESPACE (already consumed as the key above), not a literal to
+            // prepend - concatenating it too would emit e.g. "ACCESSCONTROL_ROLES_ROLESDistributeur".
+            if (!localizableEnum && column != null && column.getPrefix() != null && !column.getPrefix().isEmpty()) {
                 stringValue = column.getPrefix() + stringValue;
             }
             cell.setCellValue(stringValue);
@@ -496,14 +512,14 @@ public class ExcelDataPopulator {
             ColumnDef column = columns.get(i);
             
             // Apply enum dropdown validation
-            if (column.getEnumValues() != null && !column.getEnumValues().isEmpty()) {
+            if (EnumLocalizationUtil.isLocalizableEnumCell(column)) {
                 // Show the dropdown in the generation locale. Display-only: the upload path maps the
                 // selected label back to its canonical MDMS value before validation/persistence, since
                 // processors and project-factory match those values by exact string equality.
                 // Untranslated values fall back to canonical, so this is a no-op until the
                 // localization entries exist.
                 List<String> dropdownValues = EnumLocalizationUtil.toLocalizedValues(
-                        column.getName(), column.getEnumValues(), localizationMap);
+                        column.getTechnicalName(), column.getEnumValues(), localizationMap, column.getPrefix());
                 DataValidationConstraint constraint;
                 if (String.join(",", dropdownValues).length() > INLINE_LIST_CHAR_LIMIT) {
                     Sheet dropdownSheet = getOrCreateDropdownSheet(workbook);
@@ -798,6 +814,9 @@ public class ExcelDataPopulator {
                             .colorHex(column.getColorHex())
                             .orderNumber(column.getOrderNumber())
                             .enumValues(details.getEnumValues())
+                            // Carry the parent's localization key prefix (e.g. ACCESSCONTROL_ROLES_ROLES_)
+                            // so all expanded columns resolve one shared key per enum value.
+                            .prefix(column.getPrefix())
                             .parentColumn(column.getName())
                             .multiSelectIndex(i)
                             .freezeTillData(column.isFreezeTillData())
