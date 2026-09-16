@@ -363,7 +363,10 @@ async function createAndUploadFile(
   const maxAttempts = parseInt(config.values.maxHttpRetries) || 4;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const formData = new FormData();
-    formData.append("file", buffer, "filename.xlsx");
+    formData.append("file", buffer, {
+      filename: "filename.xlsx",
+      contentType: "application/x-tika-ooxml",
+    });
     formData.append("tenantId", tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId);
     formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
     try {
@@ -403,7 +406,10 @@ export async function createAndUploadFileWithOutRequest(
   const maxAttempts = parseInt(config.values.maxHttpRetries) || 4;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const formData = new FormData();
-    formData.append("file", buffer, "filename.xlsx");
+    formData.append("file", buffer, {
+      filename: "filename.xlsx",
+      contentType: "application/x-tika-ooxml",
+    });
     formData.append("tenantId", tenantId);
     formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
     try {

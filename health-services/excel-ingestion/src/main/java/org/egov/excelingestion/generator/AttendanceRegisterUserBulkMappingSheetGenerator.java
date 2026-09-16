@@ -22,11 +22,15 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 /**
- * Generates one bulk mapping sheet with one row per register-user mapping.
- * Includes register-only rows (blank user fields) when a register has no mappings.
+ * Generates attendance register bulk mapping templates.
+ *
+ * Supports both:
+ * 1) Legacy single-tab bulk config (HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET)
+ * 2) 3-tab attendee-style config (Workers/Markers/Approvers) for bulk parity.
  */
 @Component
 @Slf4j
@@ -41,21 +45,39 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
     private static final String ROLE_WORKER = "WORKER";
     private static final String ROLE_MARKER = "TEAM_SUPERVISOR";
     private static final String ROLE_APPROVER = "PROXIMITY_SUPERVISOR";
+    private static final String WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
+    private static final String MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
+    private static final String APPROVER_SHEET = "HCM_REGISTER_APPROVER_SHEET";
+    private static final Set<String> THREE_TAB_SHEETS = Set.of(WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET);
+    private static final Set<String> MARKER_ROLE_CODES = Set.of(
+            "MARKER",
+            STAFF_TYPE_OWNER,
+            "TEAM_SUPERVISOR",
+            "WAREHOUSE_MANAGER",
+            "CAMPAIGN_SUPERVISOR"
+    );
+    private static final Set<String> APPROVER_ROLE_CODES = Set.of(
+            STAFF_TYPE_APPROVER,
+            "PROXIMITY_SUPERVISOR"
+    );
 
     private static final String ATTENDEE_DATA_TYPE = "attendanceRegisterAttendee";
 
     private static final String REGISTER_CODE_COLUMN = "HCM_ATTENDANCE_REGISTER_CODE";
     private static final String REGISTER_NAME_COLUMN = "HCM_ATTENDANCE_REGISTER_NAME";
     private static final String REGISTER_UUID_COLUMN = "HCM_ATTENDANCE_REGISTER_UUID";
+    private static final String REGISTER_ID_COLUMN = "HCM_ATTENDANCE_REGISTER_ID";
     private static final String USER_NAME_COLUMN = "HCM_ADMIN_CONSOLE_USER_NAME";
     private static final String WORKER_ID_COLUMN = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
     private static final String ROLE_COLUMN = "HCM_ADMIN_CONSOLE_USER_ROLE";
+    private static final String TEAM_CODE_COLUMN = ProcessingConstants.TEAM_CODE_COLUMN_KEY;
     private static final String BOUNDARY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_NAME";
     private static final String BOUNDARY_CODE_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     private static final String BOUNDARY_CODE_MANDATORY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
     private static final String USERNAME_COLUMN = "UserName";
     private static final String ENROLLMENT_DATE_COLUMN = "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE";
     private static final String DEENROLLMENT_DATE_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
+    private static final DateTimeFormatter ISO_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final MDMSService mdmsService;
     private final CampaignService campaignService;
@@ -103,7 +125,8 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
         String campaignStartDate = formatEpochIfPresent(campaign.getStartDate());
         String campaignEndDate = formatEpochIfPresent(campaign.getEndDate());
 
-        List<RegisterData> registers = fetchCampaignRegisters(campaignId, tenantId, requestInfo);
+        List<String> localityCodes = resolveRegisterSearchLocalityCodes(generateResource, campaign);
+        List<RegisterData> registers = fetchCampaignRegisters(campaignId, tenantId, requestInfo, localityCodes);
         Map<String, RegisterData> registerByServiceCode = new HashMap<>();
         Map<String, RegisterData> registerById = new HashMap<>();
         for (RegisterData register : registers) {
@@ -138,8 +161,14 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
             );
         }
 
-        log.info("Bulk mapping sheet generated: campaignId={}, registers={}, rows={}",
-                campaignId, registers.size(), rows.size());
+        String sheetName = stringValue(sheetConfig.getSheetName());
+        if (isThreeTabSheet(sheetName)) {
+            columnDefs = mergeRegisterColumnsForThreeTab(columnDefs);
+            rows = buildThreeTabRowsForSheet(sheetName, rows, registers, campaignStartDate, campaignEndDate);
+        }
+
+        log.info("Bulk mapping sheet generated: campaignId={}, sheetName={}, registers={}, rows={}",
+                campaignId, sheetName, registers.size(), rows.size());
 
         return SheetGenerationResult.builder()
                 .columnDefs(columnDefs)
@@ -201,50 +230,357 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
         return rows;
     }
 
-    private List<RegisterData> fetchCampaignRegisters(String campaignId, String tenantId, RequestInfo requestInfo) {
+    private List<RegisterData> fetchCampaignRegisters(
+            String campaignId,
+            String tenantId,
+            RequestInfo requestInfo,
+            List<String> localityCodes
+    ) {
         List<RegisterData> registers = new ArrayList<>();
         Set<String> seen = new HashSet<>();
-
-        for (int offset = 0; offset <= 10000; offset += REGISTER_SEARCH_LIMIT) {
-            StringBuilder url = new StringBuilder(config.getAttendanceRegisterSearchUrl());
-            url.append("?tenantId=").append(tenantId)
-                    .append("&referenceId=").append(campaignId)
-                    .append("&limit=").append(REGISTER_SEARCH_LIMIT)
-                    .append("&offset=").append(offset);
-
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("RequestInfo", requestInfo);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = serviceRequestRepository.fetchResult(url, payload, Map.class);
-            List<Map<String, Object>> batch = asMapList(response != null ? response.get("attendanceRegister") : null);
-            if (batch.isEmpty()) break;
-
-            for (Map<String, Object> registerMap : batch) {
-                if (Boolean.TRUE.equals(registerMap.get("isDeleted"))) continue;
-
-                String id = stringValue(registerMap.get("id"));
-                String serviceCode = stringValue(registerMap.get("serviceCode"));
-                if (id.isBlank() || serviceCode.isBlank()) continue;
-
-                String key = id + "::" + serviceCode;
-                if (seen.contains(key)) continue;
-                seen.add(key);
-
-                registers.add(new RegisterData(
-                        id,
-                        serviceCode,
-                        firstNonBlank(stringValue(registerMap.get("name")), serviceCode),
-                        stringValue(registerMap.get("localityCode")),
-                        asMapList(registerMap.get("attendees")),
-                        asMapList(registerMap.get("staff"))
-                ));
+        LinkedHashSet<String> effectiveLocalityCodes = new LinkedHashSet<>();
+        if (localityCodes != null) {
+            for (String localityCode : localityCodes) {
+                if (localityCode == null) continue;
+                String trimmed = localityCode.trim();
+                if (!trimmed.isBlank()) effectiveLocalityCodes.add(trimmed);
             }
+        }
+        if (effectiveLocalityCodes.isEmpty()) {
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.MISSING_REQUIRED_FIELD,
+                    ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "localityCode"),
+                    new RuntimeException("localityCode is required to search attendance registers for campaign: " + campaignId));
+        }
 
-            if (batch.size() < REGISTER_SEARCH_LIMIT) break;
+        for (String localityCode : effectiveLocalityCodes) {
+            for (int offset = 0; offset <= 10000; offset += REGISTER_SEARCH_LIMIT) {
+                StringBuilder url = new StringBuilder(config.getAttendanceRegisterSearchUrl());
+                url.append("?tenantId=").append(tenantId)
+                        .append("&referenceId=").append(campaignId)
+                        .append("&localityCode=").append(localityCode)
+                        .append("&limit=").append(REGISTER_SEARCH_LIMIT)
+                        .append("&offset=").append(offset);
+
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("RequestInfo", requestInfo);
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> response = serviceRequestRepository.fetchResult(url, payload, Map.class);
+                List<Map<String, Object>> batch = asMapList(response != null ? response.get("attendanceRegister") : null);
+                if (batch.isEmpty()) break;
+
+                for (Map<String, Object> registerMap : batch) {
+                    if (Boolean.TRUE.equals(registerMap.get("isDeleted"))) continue;
+
+                    String id = stringValue(registerMap.get("id"));
+                    String serviceCode = stringValue(registerMap.get("serviceCode"));
+                    if (id.isBlank() || serviceCode.isBlank()) continue;
+
+                    String key = id + "::" + serviceCode;
+                    if (seen.contains(key)) continue;
+                    seen.add(key);
+
+                    registers.add(new RegisterData(
+                            id,
+                            serviceCode,
+                            firstNonBlank(stringValue(registerMap.get("name")), serviceCode),
+                            stringValue(registerMap.get("localityCode")),
+                            asMapList(registerMap.get("attendees")),
+                            asMapList(registerMap.get("staff"))
+                    ));
+                }
+
+                if (batch.size() < REGISTER_SEARCH_LIMIT) break;
+            }
         }
 
         return registers;
+    }
+
+    private List<String> resolveRegisterSearchLocalityCodes(
+            GenerateResource generateResource,
+            CampaignSearchResponse.CampaignDetail campaign
+    ) {
+        LinkedHashSet<String> localityCodes = new LinkedHashSet<>();
+
+        Map<String, Object> additionalDetails = generateResource.getAdditionalDetails();
+        if (additionalDetails != null) {
+            addLocalityCode(localityCodes, additionalDetails.get("localityCode"));
+
+            Object localityCodesObj = additionalDetails.get("localityCodes");
+            if (localityCodesObj instanceof List<?>) {
+                for (Object code : (List<?>) localityCodesObj) {
+                    addLocalityCode(localityCodes, code);
+                }
+            }
+
+            Object boundariesObj = additionalDetails.get("boundaries");
+            if (boundariesObj instanceof List<?>) {
+                for (Object boundary : (List<?>) boundariesObj) {
+                    if (boundary instanceof CampaignSearchResponse.BoundaryDetail) {
+                        addLocalityCode(localityCodes, ((CampaignSearchResponse.BoundaryDetail) boundary).getCode());
+                    } else if (boundary instanceof Map<?, ?>) {
+                        addLocalityCode(localityCodes, ((Map<?, ?>) boundary).get("code"));
+                    }
+                }
+            }
+        }
+
+        if (campaign != null) {
+            addLocalityCode(localityCodes, campaign.getBoundaryCode());
+            if (campaign.getBoundaries() != null) {
+                for (CampaignSearchResponse.BoundaryDetail boundary : campaign.getBoundaries()) {
+                    if (boundary != null) addLocalityCode(localityCodes, boundary.getCode());
+                }
+            }
+        }
+
+        if (localityCodes.isEmpty()) {
+            String campaignId = campaign != null ? stringValue(campaign.getId()) : stringValue(generateResource.getReferenceId());
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.MISSING_REQUIRED_FIELD,
+                    ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "localityCode"),
+                    new RuntimeException("Unable to resolve localityCode from campaign boundaries for campaign: " + campaignId));
+        }
+
+        return new ArrayList<>(localityCodes);
+    }
+
+    private void addLocalityCode(Set<String> localityCodes, Object rawCode) {
+        if (rawCode == null) return;
+        String code = stringValue(rawCode);
+        if (!code.isBlank()) localityCodes.add(code);
+    }
+
+    private boolean isThreeTabSheet(String sheetName) {
+        return THREE_TAB_SHEETS.contains(sheetName);
+    }
+
+    private List<Map<String, Object>> buildThreeTabRowsForSheet(
+            String targetSheetName,
+            List<Map<String, Object>> allRows,
+            List<RegisterData> registers,
+            String campaignStartDate,
+            String campaignEndDate
+    ) {
+        Map<String, Map<String, Object>> dedupedRows = new LinkedHashMap<>();
+        Set<String> registersPresentInSheet = new HashSet<>();
+
+        for (Map<String, Object> row : allRows) {
+            String resolvedSheetName = resolveTargetSheetName(row);
+            if (!targetSheetName.equals(resolvedSheetName)) continue;
+            if (!containsUserMappingInput(row)) continue;
+
+            Map<String, Object> normalized = normalizeRowForThreeTabSheet(
+                    row, targetSheetName, campaignStartDate, campaignEndDate);
+            String registerCode = firstNonBlank(
+                    stringValue(normalized.get(REGISTER_CODE_COLUMN)),
+                    stringValue(normalized.get(REGISTER_ID_COLUMN))
+            );
+            if (!registerCode.isBlank()) {
+                registersPresentInSheet.add(registerCode);
+            }
+
+            String personKey = firstNonBlank(
+                    stringValue(normalized.get(WORKER_ID_COLUMN)),
+                    stringValue(normalized.get(USERNAME_COLUMN)),
+                    stringValue(normalized.get(USER_NAME_COLUMN)),
+                    "__unknown__"
+            );
+            String dedupeKey = registerCode + "::" + personKey;
+            Map<String, Object> existing = dedupedRows.get(dedupeKey);
+            dedupedRows.put(dedupeKey, existing == null ? normalized : mergeRows(existing, normalized));
+        }
+
+        for (RegisterData register : registers) {
+            String registerCode = stringValue(register.serviceCode);
+            if (registerCode.isBlank() || registersPresentInSheet.contains(registerCode)) continue;
+            dedupedRows.put(
+                    registerCode + "::__seed__",
+                    buildThreeTabSeedRow(register, targetSheetName)
+            );
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>(dedupedRows.values());
+        rows.sort((left, right) ->
+                compareByColumn(left, right, REGISTER_CODE_COLUMN, USER_NAME_COLUMN, WORKER_ID_COLUMN));
+        return rows;
+    }
+
+    private boolean containsUserMappingInput(Map<String, Object> row) {
+        return !firstNonBlank(
+                stringValue(row.get(USER_NAME_COLUMN)),
+                stringValue(row.get(WORKER_ID_COLUMN)),
+                stringValue(row.get(USERNAME_COLUMN))
+        ).isBlank();
+    }
+
+    private Map<String, Object> normalizeRowForThreeTabSheet(
+            Map<String, Object> row,
+            String targetSheetName,
+            String campaignStartDate,
+            String campaignEndDate
+    ) {
+        String registerCode = firstNonBlank(
+                stringValue(row.get(REGISTER_CODE_COLUMN)),
+                stringValue(row.get(REGISTER_ID_COLUMN))
+        );
+        String boundaryCode = firstNonBlank(
+                stringValue(row.get(BOUNDARY_CODE_MANDATORY_COLUMN)),
+                stringValue(row.get(BOUNDARY_CODE_COLUMN)),
+                stringValue(row.get(BOUNDARY_COLUMN))
+        );
+
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.put(REGISTER_CODE_COLUMN, registerCode);
+        normalized.put(REGISTER_NAME_COLUMN, stringValue(row.get(REGISTER_NAME_COLUMN)));
+        normalized.put(REGISTER_UUID_COLUMN, stringValue(row.get(REGISTER_UUID_COLUMN)));
+        normalized.put(WORKER_ID_COLUMN, stringValue(row.get(WORKER_ID_COLUMN)));
+        normalized.put(USER_NAME_COLUMN, stringValue(row.get(USER_NAME_COLUMN)));
+        normalized.put(USERNAME_COLUMN, stringValue(row.get(USERNAME_COLUMN)));
+        normalized.put(ROLE_COLUMN, extractRole(row));
+        normalized.put(BOUNDARY_COLUMN, firstNonBlank(stringValue(row.get(BOUNDARY_COLUMN)), boundaryCode));
+        normalized.put(BOUNDARY_CODE_MANDATORY_COLUMN, boundaryCode);
+        normalized.put(REGISTER_ID_COLUMN, registerCode);
+        normalized.put(ENROLLMENT_DATE_COLUMN, firstNonBlank(
+                normalizeSheetDateValue(row.get(ENROLLMENT_DATE_COLUMN)),
+                campaignStartDate
+        ));
+        normalized.put(DEENROLLMENT_DATE_COLUMN, firstNonBlank(
+                normalizeSheetDateValue(row.get(DEENROLLMENT_DATE_COLUMN)),
+                campaignEndDate
+        ));
+        if (WORKER_SHEET.equals(targetSheetName)) {
+            normalized.put(TEAM_CODE_COLUMN, stringValue(row.get(TEAM_CODE_COLUMN)));
+        }
+        return normalized;
+    }
+
+    private Map<String, Object> buildThreeTabSeedRow(
+            RegisterData register,
+            String targetSheetName
+    ) {
+        Map<String, Object> seed = new LinkedHashMap<>();
+        seed.put(REGISTER_CODE_COLUMN, stringValue(register.serviceCode));
+        seed.put(REGISTER_NAME_COLUMN, stringValue(register.name));
+        seed.put(REGISTER_UUID_COLUMN, stringValue(register.id));
+        seed.put(WORKER_ID_COLUMN, "");
+        seed.put(USER_NAME_COLUMN, "");
+        seed.put(USERNAME_COLUMN, "");
+        seed.put(ROLE_COLUMN, "");
+        seed.put(BOUNDARY_COLUMN, stringValue(register.localityCode));
+        seed.put(BOUNDARY_CODE_MANDATORY_COLUMN, stringValue(register.localityCode));
+        seed.put(REGISTER_ID_COLUMN, stringValue(register.serviceCode));
+        seed.put(ENROLLMENT_DATE_COLUMN, "");
+        seed.put(DEENROLLMENT_DATE_COLUMN, "");
+        if (WORKER_SHEET.equals(targetSheetName)) {
+            seed.put(TEAM_CODE_COLUMN, "");
+        }
+        return seed;
+    }
+
+    private String resolveTargetSheetName(Map<String, Object> row) {
+        String storedSheetName = stringValue(row.get("_sheetName"));
+        if (isThreeTabSheet(storedSheetName)) return storedSheetName;
+
+        List<String> roleCodes = extractRoleCodesForSheetRouting(row);
+        for (String roleCode : roleCodes) {
+            if (APPROVER_ROLE_CODES.contains(roleCode)) return APPROVER_SHEET;
+        }
+        for (String roleCode : roleCodes) {
+            if (MARKER_ROLE_CODES.contains(roleCode)) return MARKER_SHEET;
+        }
+        return WORKER_SHEET;
+    }
+
+    private List<String> extractRoleCodesForSheetRouting(Map<String, Object> row) {
+        List<String> roleCodes = new ArrayList<>();
+        for (String role : splitRoles(extractRole(row))) {
+            String normalized = role.toUpperCase(Locale.ROOT).trim();
+            if (!normalized.isBlank()) roleCodes.add(normalized);
+        }
+        return roleCodes;
+    }
+
+    private String normalizeSheetDateValue(Object value) {
+        String dateValue = stringValue(value);
+        if (dateValue.isBlank()) return "";
+
+        Long epochMillis = getLongValue(value);
+        if (epochMillis != null) {
+            return formatEpochIfPresent(epochMillis);
+        }
+        if (dateValue.matches("^\\d{2}-\\d{2}-\\d{4}$")) {
+            return dateValue;
+        }
+        if (dateValue.matches("^\\d{2}/\\d{2}/\\d{4}$")) {
+            return dateValue.replace('/', '-');
+        }
+        if (dateValue.matches("^\\d{4}-\\d{2}-\\d{2}.*$")) {
+            try {
+                LocalDate parsed = LocalDate.parse(dateValue.substring(0, 10), ISO_DATE_FORMAT);
+                return parsed.format(SHEET_DATE_FORMAT);
+            } catch (DateTimeParseException ignored) {
+                return dateValue;
+            }
+        }
+        return dateValue;
+    }
+
+    private List<ColumnDef> mergeRegisterColumnsForThreeTab(List<ColumnDef> schemaColumns) {
+        List<ColumnDef> merged = new ArrayList<>();
+        merged.add(ColumnDef.builder()
+                .name(REGISTER_CODE_COLUMN)
+                .type("string")
+                .orderNumber(1)
+                .freezeColumn(true)
+                .width(22)
+                .build());
+        merged.add(ColumnDef.builder()
+                .name(REGISTER_NAME_COLUMN)
+                .type("string")
+                .orderNumber(2)
+                .width(36)
+                .build());
+        merged.add(ColumnDef.builder()
+                .name(REGISTER_UUID_COLUMN)
+                .type("string")
+                .orderNumber(3)
+                .width(42)
+                .build());
+
+        boolean hasRegisterId = false;
+        Set<String> namesSeen = new HashSet<>();
+        namesSeen.add(REGISTER_CODE_COLUMN);
+        namesSeen.add(REGISTER_NAME_COLUMN);
+        namesSeen.add(REGISTER_UUID_COLUMN);
+
+        if (schemaColumns == null) {
+            schemaColumns = Collections.emptyList();
+        }
+
+        for (ColumnDef column : schemaColumns) {
+            if (column == null || column.getName() == null) continue;
+            if (!namesSeen.add(column.getName())) continue;
+            if (REGISTER_ID_COLUMN.equals(column.getName())) {
+                hasRegisterId = true;
+                column.setHideColumn(true);
+            }
+            merged.add(column);
+        }
+
+        if (!hasRegisterId) {
+            merged.add(ColumnDef.builder()
+                    .name(REGISTER_ID_COLUMN)
+                    .type("string")
+                    .orderNumber(9999)
+                    .hideColumn(true)
+                    .width(1)
+                    .build());
+        }
+
+        return merged;
     }
 
     private boolean containsMappedRows(List<Map<String, Object>> rows) {
@@ -306,6 +642,7 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
                 ));
                 row.put(WORKER_ID_COLUMN, personId);
                 row.put(ROLE_COLUMN, role);
+                row.put(TEAM_CODE_COLUMN, stringValue(attendee.get("tag")));
                 row.put(BOUNDARY_COLUMN, register.localityCode);
                 row.put(ENROLLMENT_DATE_COLUMN, firstNonBlank(
                         formatEpochIfPresent(getLongValue(attendee.get("enrollmentDate"))),
@@ -343,6 +680,7 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
                 ));
                 row.put(WORKER_ID_COLUMN, personId);
                 row.put(ROLE_COLUMN, role);
+                row.put(TEAM_CODE_COLUMN, "");
                 row.put(BOUNDARY_COLUMN, register.localityCode);
                 row.put(ENROLLMENT_DATE_COLUMN, firstNonBlank(
                         formatEpochIfPresent(getLongValue(staff.get("enrollmentDate"))),
@@ -409,6 +747,7 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
         row.put(USER_NAME_COLUMN, stringValue(rawData.get(USER_NAME_COLUMN)));
         row.put(WORKER_ID_COLUMN, stringValue(rawData.get(WORKER_ID_COLUMN)));
         row.put(ROLE_COLUMN, extractRole(rawData));
+        row.put(TEAM_CODE_COLUMN, stringValue(rawData.get(TEAM_CODE_COLUMN)));
         row.put(BOUNDARY_COLUMN, firstNonBlank(
                 stringValue(rawData.get(BOUNDARY_COLUMN)),
                 stringValue(rawData.get(BOUNDARY_CODE_MANDATORY_COLUMN)),
@@ -432,6 +771,7 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
         row.put(USER_NAME_COLUMN, "");
         row.put(WORKER_ID_COLUMN, "");
         row.put(ROLE_COLUMN, "");
+        row.put(TEAM_CODE_COLUMN, "");
         row.put(BOUNDARY_COLUMN, "");
         row.put(ENROLLMENT_DATE_COLUMN, campaignStartDate);
         row.put(DEENROLLMENT_DATE_COLUMN, campaignEndDate);

@@ -41,6 +41,11 @@ export const downloadRequestSchema = {
             "maxLength": 128,
             "minLength": 1
         },
+        "localityCode": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+        },
         "forceUpdate": {
             "type": "string"
         }

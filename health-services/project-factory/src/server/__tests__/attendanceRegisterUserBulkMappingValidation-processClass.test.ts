@@ -35,7 +35,7 @@ describe("attendanceRegisterUserBulkMapping validation class", () => {
         attendeeValidationMock.mockReset();
     });
 
-    it("groups rows by register and delegates validation per register", async () => {
+    it("groups rows by register across 3 tabs and delegates validation per register", async () => {
         jest.mocked(httpRequest).mockResolvedValue({
             Individual: [
                 { id: "ind-1", userDetails: { username: "usr-1" }, name: { givenName: "A" } },
@@ -43,9 +43,11 @@ describe("attendanceRegisterUserBulkMapping validation class", () => {
             ],
         });
 
+        let delegatedTeamCode = "";
         attendeeValidationMock.mockImplementation(async (_resourceDetails: any, localizedSheetData: any) => {
             const workerRows = localizedSheetData?.HCM_REGISTER_WORKER_SHEET || [];
             for (const row of workerRows) {
+                if (!delegatedTeamCode) delegatedTeamCode = row[bulkAttendanceColumnKeys.teamCode];
                 row["#status#"] = "UPDATED";
             }
             return {};
@@ -57,47 +59,40 @@ describe("attendanceRegisterUserBulkMapping validation class", () => {
             requestInfo: { apiId: "hcm" },
         };
         const wholeSheetData: any = {
-            HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET: [
+            HCM_REGISTER_WORKER_SHEET: [
                 {
                     "!row#number!": 3,
                     [bulkAttendanceColumnKeys.registerCode]: "REG-001",
                     [bulkAttendanceColumnKeys.workerId]: "ind-1",
                     [bulkAttendanceColumnKeys.userName]: "A",
-                    [bulkAttendanceColumnKeys.role]: "WORKER",
+                    [bulkAttendanceColumnKeys.teamCode]: "TEAM-1",
                 },
                 {
                     "!row#number!": 4,
                     [bulkAttendanceColumnKeys.registerCode]: "REG-002",
                     [bulkAttendanceColumnKeys.workerId]: "ind-2",
                     [bulkAttendanceColumnKeys.userName]: "B",
-                    [bulkAttendanceColumnKeys.role]: "WORKER",
                 },
             ],
+            HCM_REGISTER_MARKER_SHEET: [],
+            HCM_REGISTER_APPROVER_SHEET: [],
         };
 
         const result = await TemplateClass.process(resourceDetails, wholeSheetData, {}, {});
 
         expect(attendeeValidationMock).toHaveBeenCalledTimes(2);
-        expect(result.HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET.data[0]["#status#"]).toBe("UPDATED");
-        expect(result.HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET.data[1]["#status#"]).toBe("UPDATED");
+        expect(delegatedTeamCode).toBe("TEAM-1");
+        expect(result.HCM_REGISTER_WORKER_SHEET.data[0]["#status#"]).toBe("UPDATED");
+        expect(result.HCM_REGISTER_WORKER_SHEET.data[1]["#status#"]).toBe("UPDATED");
         expect(resourceDetails.additionalDetails?.resolvedIndividualIds).toEqual({
             "usr-1": "ind-1",
             "usr-2": "ind-2",
         });
     });
 
-    it("propagates invalid rows into sheetErrors for pre-validation gate", async () => {
+    it("propagates invalid rows into sheetErrors with source tab name", async () => {
         jest.mocked(httpRequest).mockResolvedValue({
-            Individual: [{ id: "ind-1", userDetails: { username: "usr-1" }, name: { givenName: "A" } }],
-        });
-
-        attendeeValidationMock.mockImplementation(async (_resourceDetails: any, localizedSheetData: any) => {
-            const workerRows = localizedSheetData?.HCM_REGISTER_WORKER_SHEET || [];
-            for (const row of workerRows) {
-                row["#status#"] = "INVALID";
-                row["#errorDetails#"] = "Register not found";
-            }
-            return {};
+            Individual: [],
         });
 
         const resourceDetails: any = {
@@ -106,23 +101,23 @@ describe("attendanceRegisterUserBulkMapping validation class", () => {
             requestInfo: { apiId: "hcm" },
         };
         const wholeSheetData: any = {
-            HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET: [
+            HCM_REGISTER_WORKER_SHEET: [
                 {
                     "!row#number!": 3,
-                    [bulkAttendanceColumnKeys.registerCode]: "REG-001",
                     [bulkAttendanceColumnKeys.workerId]: "ind-1",
                     [bulkAttendanceColumnKeys.userName]: "A",
-                    [bulkAttendanceColumnKeys.role]: "WORKER",
                 },
             ],
+            HCM_REGISTER_MARKER_SHEET: [],
+            HCM_REGISTER_APPROVER_SHEET: [],
         };
 
         await TemplateClass.process(resourceDetails, wholeSheetData, {}, {});
 
         expect(resourceDetails.additionalDetails.sheetErrors).toEqual([
             {
-                sheetName: "HCM_ATTENDANCE_REGISTER_USER_BULK_MAPPING_SHEET",
-                errorDetails: "Register not found",
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
+                errorDetails: "Register code is required",
             },
         ]);
     });
