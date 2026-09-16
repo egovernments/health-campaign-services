@@ -189,7 +189,11 @@ public class ProjectTaskTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_ID) : null)
                 .memberCount(beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null)
-                .age(beneficiaryInfo.containsKey(AGE_IN_MONTHS) ? (Integer) beneficiaryInfo.get(AGE_IN_MONTHS) : null)
+                // IndividualService exposes the computed age (in months) under AGE, while task additionalFields
+                // use AGE_IN_MONTHS; accept either so the individual-service path is not silently dropped.
+                .age(beneficiaryInfo.get(AGE_IN_MONTHS) != null ? (Integer) beneficiaryInfo.get(AGE_IN_MONTHS)
+                        : beneficiaryInfo.get(AGE) != null ? (Integer) beneficiaryInfo.get(AGE) : null)
+                .gender(beneficiaryInfo.get(GENDER) != null ? beneficiaryInfo.get(GENDER).toString() : null)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .build();
@@ -207,9 +211,12 @@ public class ProjectTaskTransformationService {
 //            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
 //            addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
 //        }
-        if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
+        // height and disabilityType are independent individual attributes; do not require both to be present
+        if (beneficiaryInfo.get(HEIGHT) != null) {
             additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
+        }
+        if (beneficiaryInfo.get(DISABILITY_TYPE) != null) {
+            additionalDetails.put(DISABILITY_TYPE, (String) beneficiaryInfo.get(DISABILITY_TYPE));
         }
 
         if (beneficiaryInfo.containsKey("additionalFields")) {
