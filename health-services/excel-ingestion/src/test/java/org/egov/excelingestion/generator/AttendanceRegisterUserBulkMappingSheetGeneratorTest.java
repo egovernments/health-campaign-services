@@ -58,6 +58,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
         when(config.getServerZoneId()).thenReturn(ZoneId.of("UTC"));
         when(config.getHealthIndividualHost()).thenReturn("http://individual.local/");
         when(config.getHealthIndividualSearchPath()).thenReturn("individual/v1/_search");
+        when(config.getDefaultHeaderColor()).thenReturn("#93c47d");
         generator = new AttendanceRegisterUserBulkMappingSheetGenerator(
                 mdmsService,
                 campaignService,
@@ -233,7 +234,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
         assertEquals("WORKER", mapped.get("HCM_ADMIN_CONSOLE_USER_ROLE"));
         assertEquals("TEAM-501", mapped.get("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"));
         assertEquals("ADMIN", mapped.get("HCM_ADMIN_CONSOLE_BOUNDARY_NAME"));
-        assertEquals("05-03-2026", mapped.get("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"));
+        assertEquals("01-03-2026", mapped.get("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"));
         assertEquals("17-03-2026", mapped.get("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"));
 
         Map<String, Object> registerOnly = rows.get(1);
@@ -254,6 +255,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
 
         CampaignSearchResponse.CampaignDetail campaign = CampaignSearchResponse.CampaignDetail.builder()
                 .id("cmp-123")
+                .projectId("prj-123")
                 .campaignNumber("CMP-123")
                 .boundaries(List.of(CampaignSearchResponse.BoundaryDetail.builder().code("LOC-123").build()))
                 .build();
@@ -287,8 +289,57 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
         verify(serviceRequestRepository, atLeastOnce()).fetchResult(urlCaptor.capture(), any(), eq(Map.class));
         assertTrue(
                 urlCaptor.getAllValues().stream().anyMatch((uri) ->
-                        uri.toString().contains("referenceId=cmp-123")
+                        uri.toString().contains("referenceId=prj-123")
                                 && uri.toString().contains("localityCode=LOC-123"))
+        );
+    }
+
+    @Test
+    void generateSheetData_fallsBackToCampaignIdWhenProjectIdMissing() {
+        when(config.getAttendanceRegisterSearchUrl()).thenReturn("http://attendance.local/attendance/v1/_search");
+        when(mdmsService.searchMDMS(any(), eq("bednet"), eq(ProcessingConstants.MDMS_SCHEMA_CODE), any(), eq(1), eq(0)))
+                .thenReturn(List.of(Map.of(
+                        "data", Map.of("properties", Map.of("stringProperties", List.of()))
+                )));
+        when(schemaColumnDefUtil.convertSchemaToColumnDefs(any())).thenReturn(Collections.emptyList());
+
+        CampaignSearchResponse.CampaignDetail campaign = CampaignSearchResponse.CampaignDetail.builder()
+                .id("cmp-fallback")
+                .campaignNumber("CMP-FALLBACK")
+                .boundaries(List.of(CampaignSearchResponse.BoundaryDetail.builder().code("LOC-F").build()))
+                .build();
+        when(campaignService.searchCampaignById(eq("cmp-fallback"), eq("bednet"), any())).thenReturn(campaign);
+        when(campaignService.searchCampaignDataByType(
+                eq("attendanceRegisterAttendee"),
+                eq(ProcessingConstants.STATUS_COMPLETED),
+                eq("CMP-FALLBACK"),
+                eq("bednet"),
+                any()
+        )).thenReturn(Collections.emptyList());
+
+        when(serviceRequestRepository.fetchResult(any(StringBuilder.class), any(), eq(Map.class)))
+                .thenReturn(Map.of("attendanceRegister", Collections.emptyList()));
+
+        SheetGenerationConfig sheetConfig = SheetGenerationConfig.builder()
+                .sheetName("HCM_REGISTER_WORKER_SHEET")
+                .schemaName("attendance-register-attendee-worker")
+                .build();
+        GenerateResource resource = GenerateResource.builder()
+                .tenantId("bednet")
+                .type("attendanceRegisterUserBulkMapping")
+                .hierarchyType("ADMIN")
+                .referenceId("cmp-fallback")
+                .referenceType("campaign")
+                .build();
+
+        generator.generateSheetData(sheetConfig, resource, new RequestInfo(), Collections.emptyMap());
+
+        ArgumentCaptor<StringBuilder> urlCaptor = ArgumentCaptor.forClass(StringBuilder.class);
+        verify(serviceRequestRepository, atLeastOnce()).fetchResult(urlCaptor.capture(), any(), eq(Map.class));
+        assertTrue(
+                urlCaptor.getAllValues().stream().anyMatch((uri) ->
+                        uri.toString().contains("referenceId=cmp-fallback")
+                                && uri.toString().contains("localityCode=LOC-F"))
         );
     }
 
@@ -314,6 +365,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
 
         CampaignSearchResponse.CampaignDetail campaign = CampaignSearchResponse.CampaignDetail.builder()
                 .id("cmp-123")
+                .projectId("prj-123")
                 .campaignNumber("CMP-123")
                 .startDate(1777593600000L) // 01-05-2026 UTC
                 .endDate(1778976000000L)   // 17-05-2026 UTC
@@ -335,7 +387,7 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
                     put("UserName", "worker.one");
                     put("HCM_ADMIN_CONSOLE_USER_ROLE", "DISTRIBUTOR");
                     put("HCM_ADMIN_CONSOLE_BOUNDARY_NAME", "ADMIN");
-                    put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", "01/05/2026");
+                    put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", "10/05/2026");
                     put("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE", "17-05-2026");
                     put("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE", "TEAM-A");
                 }}),
@@ -422,6 +474,9 @@ class AttendanceRegisterUserBulkMappingSheetGeneratorTest {
         assertEquals("HCM_ATTENDANCE_REGISTER_CODE", workerColumns.get(0).getName());
         assertEquals("HCM_ATTENDANCE_REGISTER_NAME", workerColumns.get(1).getName());
         assertEquals("HCM_ATTENDANCE_REGISTER_UUID", workerColumns.get(2).getName());
+        assertEquals("#93c47d", workerColumns.get(0).getColorHex());
+        assertEquals("#93c47d", workerColumns.get(1).getColorHex());
+        assertEquals("#93c47d", workerColumns.get(2).getColorHex());
         ColumnDef registerIdColumn = workerColumns.stream()
                 .filter(col -> "HCM_ATTENDANCE_REGISTER_ID".equals(col.getName()))
                 .findFirst()

@@ -135,6 +135,9 @@ export class TemplateClass {
                         // Strip internal persistence fields before returning in output
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
                         const { _registerServiceCode, _sheetName: _sn, _denrollmentDate, ...outputRow } = r.data;
+                        if (typeof startDate === "number" && Number.isFinite(startDate)) {
+                            outputRow["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = formatEpochAsSheetDate(startDate);
+                        }
                         // De-enrolled people stay listed — the date is shown rather than hidden. Surfaces
                         // de-enrolments done outside the console, which never touched the sheet cell.
                         if (r.denrollmentDate != null) {

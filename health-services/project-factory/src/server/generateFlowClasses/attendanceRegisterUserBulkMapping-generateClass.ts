@@ -120,8 +120,19 @@ export class TemplateClass {
         const campaignStartDate = this.formatEpochIfPresent(campaign?.startDate);
         const campaignEndDate = this.formatEpochIfPresent(campaign?.endDate);
 
+        const registerSearchReferenceId = this.resolveRegisterSearchReferenceId(
+            campaignId,
+            campaign,
+            responseToSend?.additionalDetails
+        );
         const localityCodes = this.resolveRegisterSearchLocalityCodes(campaign, responseToSend?.additionalDetails);
-        const registers = await this.fetchCampaignRegisters(campaignId, tenantId, localityCodes, responseToSend?.requestInfo);
+        const registers = await this.fetchCampaignRegisters(
+            registerSearchReferenceId,
+            campaignId,
+            tenantId,
+            localityCodes,
+            responseToSend?.requestInfo
+        );
         const registerByServiceCode = new Map<string, RegisterData>();
         const registerById = new Map<string, RegisterData>();
         for (const register of registers) {
@@ -275,6 +286,7 @@ export class TemplateClass {
     }
 
     private static async fetchCampaignRegisters(
+        registerSearchReferenceId: string,
         campaignId: string,
         tenantId: string,
         localityCodes: string[],
@@ -304,7 +316,7 @@ export class TemplateClass {
                     { RequestInfo },
                     {
                         tenantId,
-                        referenceId: campaignId,
+                        referenceId: registerSearchReferenceId,
                         localityCode,
                         limit: ATTENDANCE_REGISTER_SEARCH_LIMIT,
                         offset
@@ -336,6 +348,27 @@ export class TemplateClass {
         }
 
         return registers;
+    }
+
+    private static resolveRegisterSearchReferenceId(
+        campaignId: string,
+        campaign: any,
+        additionalDetails?: Record<string, unknown>
+    ): string {
+        const campaignProjectId = this.asText(campaign?.projectId);
+        if (campaignProjectId) {
+            return campaignProjectId;
+        }
+
+        const requestProjectId = this.asText(additionalDetails?.projectId);
+        if (requestProjectId) {
+            return requestProjectId;
+        }
+
+        logger.warn(
+            `Campaign ${campaignId} has no projectId; falling back to campaignId for attendance register search`
+        );
+        return campaignId;
     }
 
     private static resolveRegisterSearchLocalityCodes(
@@ -451,8 +484,8 @@ export class TemplateClass {
             register.localityCode
         );
         row[ENROLLMENT_DATE_COLUMN] = this.firstNonBlank(
-            this.normalizeSheetDateIfPresent(row[ENROLLMENT_DATE_COLUMN]),
-            campaignStartDate
+            campaignStartDate,
+            this.normalizeSheetDateIfPresent(row[ENROLLMENT_DATE_COLUMN])
         );
         row[DEENROLLMENT_DATE_COLUMN] = this.firstNonBlank(
             this.normalizeSheetDateIfPresent(syncedDeenrollmentDate),
@@ -490,8 +523,8 @@ export class TemplateClass {
             [BOUNDARY_COLUMN]: register.localityCode,
             [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
             [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                this.formatEpochIfPresent(attendee?.enrollmentDate),
-                campaignStartDate
+                campaignStartDate,
+                this.formatEpochIfPresent(attendee?.enrollmentDate)
             ),
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
                 this.formatEpochIfPresent(attendee?.denrollmentDate),
@@ -527,8 +560,8 @@ export class TemplateClass {
             [BOUNDARY_COLUMN]: register.localityCode,
             [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
             [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                this.formatEpochIfPresent(staff?.enrollmentDate),
-                campaignStartDate
+                campaignStartDate,
+                this.formatEpochIfPresent(staff?.enrollmentDate)
             ),
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
                 this.formatEpochIfPresent(staff?.denrollmentDate),
@@ -603,9 +636,9 @@ export class TemplateClass {
 
     private static registerColumns(): { [columnName: string]: ColumnProperties } {
         return {
-            [REGISTER_CODE_COLUMN]: { orderNumber: 0.01, width: 22, freezeColumn: true },
-            [REGISTER_NAME_COLUMN]: { orderNumber: 0.02, width: 36 },
-            [REGISTER_UUID_COLUMN]: { orderNumber: 0.03, width: 42 },
+            [REGISTER_CODE_COLUMN]: { orderNumber: 0.01, width: 22, freezeColumn: true, color: "#93c47d" },
+            [REGISTER_NAME_COLUMN]: { orderNumber: 0.02, width: 36, color: "#93c47d" },
+            [REGISTER_UUID_COLUMN]: { orderNumber: 0.03, width: 42, color: "#93c47d" },
             // Hidden helper column used by attendee ingest flow; keep out of visible bulk template to avoid duplicate "Register ID".
             [REGISTER_ID_COLUMN]: { hideColumn: true },
         };
