@@ -125,8 +125,9 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
         String campaignStartDate = formatEpochIfPresent(campaign.getStartDate());
         String campaignEndDate = formatEpochIfPresent(campaign.getEndDate());
 
+        String registerSearchReferenceId = resolveRegisterSearchReferenceId(campaignId, generateResource, campaign);
         List<String> localityCodes = resolveRegisterSearchLocalityCodes(generateResource, campaign);
-        List<RegisterData> registers = fetchCampaignRegisters(campaignId, tenantId, requestInfo, localityCodes);
+        List<RegisterData> registers = fetchCampaignRegisters(registerSearchReferenceId, campaignId, tenantId, requestInfo, localityCodes);
         Map<String, RegisterData> registerByServiceCode = new HashMap<>();
         Map<String, RegisterData> registerById = new HashMap<>();
         for (RegisterData register : registers) {
@@ -231,6 +232,7 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
     }
 
     private List<RegisterData> fetchCampaignRegisters(
+            String registerSearchReferenceId,
             String campaignId,
             String tenantId,
             RequestInfo requestInfo,
@@ -257,7 +259,7 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
             for (int offset = 0; offset <= 10000; offset += REGISTER_SEARCH_LIMIT) {
                 StringBuilder url = new StringBuilder(config.getAttendanceRegisterSearchUrl());
                 url.append("?tenantId=").append(tenantId)
-                        .append("&referenceId=").append(campaignId)
+                        .append("&referenceId=").append(registerSearchReferenceId)
                         .append("&localityCode=").append(localityCode)
                         .append("&limit=").append(REGISTER_SEARCH_LIMIT)
                         .append("&offset=").append(offset);
@@ -444,8 +446,8 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
         normalized.put(BOUNDARY_CODE_MANDATORY_COLUMN, boundaryCode);
         normalized.put(REGISTER_ID_COLUMN, registerCode);
         normalized.put(ENROLLMENT_DATE_COLUMN, firstNonBlank(
-                normalizeSheetDateValue(row.get(ENROLLMENT_DATE_COLUMN)),
-                campaignStartDate
+                campaignStartDate,
+                normalizeSheetDateValue(row.get(ENROLLMENT_DATE_COLUMN))
         ));
         normalized.put(DEENROLLMENT_DATE_COLUMN, firstNonBlank(
                 normalizeSheetDateValue(row.get(DEENROLLMENT_DATE_COLUMN)),
@@ -529,6 +531,7 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
     }
 
     private List<ColumnDef> mergeRegisterColumnsForThreeTab(List<ColumnDef> schemaColumns) {
+        String headerColor = config.getDefaultHeaderColor() != null ? config.getDefaultHeaderColor() : "#93c47d";
         List<ColumnDef> merged = new ArrayList<>();
         merged.add(ColumnDef.builder()
                 .name(REGISTER_CODE_COLUMN)
@@ -536,18 +539,21 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
                 .orderNumber(1)
                 .freezeColumn(true)
                 .width(22)
+                .colorHex(headerColor)
                 .build());
         merged.add(ColumnDef.builder()
                 .name(REGISTER_NAME_COLUMN)
                 .type("string")
                 .orderNumber(2)
                 .width(36)
+                .colorHex(headerColor)
                 .build());
         merged.add(ColumnDef.builder()
                 .name(REGISTER_UUID_COLUMN)
                 .type("string")
                 .orderNumber(3)
                 .width(42)
+                .colorHex(headerColor)
                 .build());
 
         boolean hasRegisterId = false;
@@ -645,8 +651,8 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
                 row.put(TEAM_CODE_COLUMN, stringValue(attendee.get("tag")));
                 row.put(BOUNDARY_COLUMN, register.localityCode);
                 row.put(ENROLLMENT_DATE_COLUMN, firstNonBlank(
-                        formatEpochIfPresent(getLongValue(attendee.get("enrollmentDate"))),
-                        campaignStartDate
+                        campaignStartDate,
+                        formatEpochIfPresent(getLongValue(attendee.get("enrollmentDate")))
                 ));
                 row.put(DEENROLLMENT_DATE_COLUMN, firstNonBlank(
                         formatEpochIfPresent(getLongValue(attendee.get("denrollmentDate"))),
@@ -683,8 +689,8 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
                 row.put(TEAM_CODE_COLUMN, "");
                 row.put(BOUNDARY_COLUMN, register.localityCode);
                 row.put(ENROLLMENT_DATE_COLUMN, firstNonBlank(
-                        formatEpochIfPresent(getLongValue(staff.get("enrollmentDate"))),
-                        campaignStartDate
+                        campaignStartDate,
+                        formatEpochIfPresent(getLongValue(staff.get("enrollmentDate")))
                 ));
                 row.put(DEENROLLMENT_DATE_COLUMN, firstNonBlank(
                         formatEpochIfPresent(getLongValue(staff.get("denrollmentDate"))),
@@ -754,8 +760,8 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
                 stringValue(rawData.get(BOUNDARY_CODE_COLUMN))
         ));
         row.put(ENROLLMENT_DATE_COLUMN, firstNonBlank(
-                stringValue(rawData.get(ENROLLMENT_DATE_COLUMN)),
-                campaignStartDate
+                campaignStartDate,
+                normalizeSheetDateValue(rawData.get(ENROLLMENT_DATE_COLUMN))
         ));
         row.put(DEENROLLMENT_DATE_COLUMN, deEnrollmentDate);
         return row;
@@ -901,6 +907,28 @@ public class AttendanceRegisterUserBulkMappingSheetGenerator implements IExcelPo
                 ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "campaignId"),
                 new RuntimeException("campaignId is required in referenceId or additionalDetails"));
         return "";
+    }
+
+    private String resolveRegisterSearchReferenceId(
+            String campaignId,
+            GenerateResource generateResource,
+            CampaignSearchResponse.CampaignDetail campaign
+    ) {
+        String campaignProjectId = campaign != null ? stringValue(campaign.getProjectId()) : "";
+        if (!campaignProjectId.isBlank()) {
+            return campaignProjectId;
+        }
+
+        Map<String, Object> additionalDetails = generateResource.getAdditionalDetails();
+        if (additionalDetails != null) {
+            String requestProjectId = stringValue(additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_PROJECT_ID));
+            if (!requestProjectId.isBlank()) {
+                return requestProjectId;
+            }
+        }
+
+        log.warn("Campaign {} has no projectId; falling back to campaignId for attendance register search", campaignId);
+        return campaignId;
     }
 
     private List<ColumnDef> fetchSchemaColumnDefs(String schemaName, String tenantId, RequestInfo requestInfo) {

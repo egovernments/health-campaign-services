@@ -12,6 +12,7 @@ jest.mock('../utils/logger', () => ({
 jest.mock('../utils/campaignUtils', () => ({ getLocalizedName: jest.fn((key: string) => key) }));
 
 jest.mock('../utils/genericUtils', () => ({
+    getCurrentProcesses: jest.fn(),
     getRelatedDataWithCampaign: jest.fn(),
     throwError: jest.fn(),
 }));
@@ -22,6 +23,9 @@ jest.mock('../utils/cryptUtils', () => ({ decrypt: jest.fn() }));
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 
 import { TemplateClass } from '../generateFlowClasses/attendanceRegisterAttendee-generateClass';
+import { searchProjectTypeCampaignService } from '../service/campaignManageService';
+import { getCurrentProcesses, getRelatedDataWithCampaign } from '../utils/genericUtils';
+import { httpRequest } from '../utils/request';
 
 const SERVICE_CODE = 'MZ_01_REG';
 const CURRENT_UUID = 'reg-uuid-new';
@@ -114,5 +118,72 @@ describe("default attendance campaign dates", () => {
 
         expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("05-04-2026");
         expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("30-04-2026");
+    });
+});
+
+describe("stored attendee rows", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it("uses campaign start date for enrollment when returning stored rows", async () => {
+        const startDate = Date.UTC(2026, 4, 1, 0, 0, 0, 0); // 01-05-2026
+        const endDate = Date.UTC(2026, 4, 31, 0, 0, 0, 0); // 31-05-2026
+
+        jest.mocked(searchProjectTypeCampaignService).mockResolvedValue({
+            CampaignDetails: [{
+                id: "cmp-1",
+                hierarchyType: "ADMIN",
+                campaignNumber: "CMP-1",
+                startDate,
+                endDate,
+                processes: [],
+            }]
+        } as any);
+
+        jest.mocked(getCurrentProcesses as any).mockResolvedValue([{
+            processName: "attendanceRegisterCreation",
+            status: "completed",
+        }]);
+
+        jest.mocked(httpRequest).mockResolvedValue({
+            attendanceRegister: [{
+                id: "reg-1",
+                serviceCode: SERVICE_CODE,
+                localityCode: "ADMIN",
+            }]
+        } as any);
+
+        jest.mocked(getRelatedDataWithCampaign).mockResolvedValue([
+            {
+                data: {
+                    _registerServiceCode: SERVICE_CODE,
+                    _sheetName: "HCM_REGISTER_WORKER_SHEET",
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "W-1",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Stored Worker",
+                    UserName: "stored.worker",
+                    HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: "17-05-2026",
+                    HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE: "31-05-2026",
+                },
+                uniqueIdAfterProcess: null,
+                denrollmentDate: null,
+            }
+        ] as any);
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            {
+                tenantId: "bednet",
+                campaignId: "cmp-1",
+                additionalDetails: { registerId: "reg-1" },
+                requestInfo: {},
+            },
+            {}
+        );
+
+        const workerRows = sheetMap["HCM_REGISTER_WORKER_SHEET"].data as Record<string, string>[];
+        expect(workerRows).toHaveLength(1);
+        expect(workerRows[0]["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("01-05-2026");
+        expect(workerRows[0]["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("31-05-2026");
     });
 });

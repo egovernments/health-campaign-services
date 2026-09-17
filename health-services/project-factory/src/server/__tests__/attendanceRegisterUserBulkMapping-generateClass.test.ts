@@ -61,6 +61,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
+                projectId: "prj-1",
                 campaignNumber: "CMP-1",
                 startDate: campaignStart,
                 endDate: campaignEnd,
@@ -128,6 +129,9 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerDynamicColumns[REGISTER_ID_COLUMN]?.hideColumn).toBe(true);
         expect(markerDynamicColumns[REGISTER_ID_COLUMN]?.hideColumn).toBe(true);
         expect(approverDynamicColumns[REGISTER_ID_COLUMN]?.hideColumn).toBe(true);
+        expect(workerDynamicColumns.HCM_ATTENDANCE_REGISTER_CODE?.color).toBe("#93c47d");
+        expect(workerDynamicColumns.HCM_ATTENDANCE_REGISTER_NAME?.color).toBe("#93c47d");
+        expect(workerDynamicColumns.HCM_ATTENDANCE_REGISTER_UUID?.color).toBe("#93c47d");
 
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
         const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
@@ -157,7 +161,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             expect.anything(),
             expect.objectContaining({
                 tenantId: "bednet",
-                referenceId: "cmp-1",
+                referenceId: "prj-1",
                 localityCode: "ADMIN"
             })
         );
@@ -170,6 +174,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
+                projectId: "prj-2",
                 campaignNumber: "CMP-2",
                 startDate: campaignStart,
                 endDate: campaignEnd,
@@ -216,11 +221,12 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
     });
 
     it("normalizes stored slash-separated dates to dash format in bulk rows", async () => {
-        const campaignStart = Date.UTC(2026, 2, 1);
+        const campaignStart = undefined;
         const campaignEnd = Date.UTC(2026, 2, 31);
 
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
+                projectId: "prj-4",
                 campaignNumber: "CMP-4",
                 startDate: campaignStart,
                 endDate: campaignEnd,
@@ -272,6 +278,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
+                projectId: "prj-3",
                 campaignNumber: "CMP-3",
                 startDate: campaignStart,
                 endDate: campaignEnd,
@@ -338,7 +345,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-501");
         expect(workerRows[0].UserName).toBe("anaya.patel");
         expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_TEAM_CODE).toBe("TEAM-501");
-        expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("05-03-2026");
+        expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("01-03-2026");
         expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE).toBe("20-03-2026");
 
         expect(workerRows[1].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-777");
@@ -350,7 +357,13 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
     it("prefers request localityCode when provided", async () => {
         mockSearchCampaign.mockResolvedValue({
-            CampaignDetails: [{ campaignNumber: "CMP-L", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [{ code: "ADMIN" }] }]
+            CampaignDetails: [{
+                projectId: "prj-locality",
+                campaignNumber: "CMP-L",
+                startDate: Date.UTC(2026, 0, 1),
+                endDate: Date.UTC(2026, 0, 2),
+                boundaries: [{ code: "ADMIN" }]
+            }]
         } as any);
         mockGetRelatedData.mockResolvedValue([] as any);
         mockHttpRequest.mockResolvedValue({ attendanceRegister: [] } as any);
@@ -366,8 +379,37 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             expect.anything(),
             expect.objectContaining({
                 tenantId: "bednet",
-                referenceId: "cmp-locality",
+                referenceId: "prj-locality",
                 localityCode: "WARD-22"
+            })
+        );
+    });
+
+    it("falls back to campaignId when campaign projectId is unavailable", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                campaignNumber: "CMP-F",
+                startDate: Date.UTC(2026, 0, 1),
+                endDate: Date.UTC(2026, 0, 2),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+        mockGetRelatedData.mockResolvedValue([] as any);
+        mockHttpRequest.mockResolvedValue({ attendanceRegister: [] } as any);
+
+        await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-fallback", requestInfo: {} },
+            {}
+        );
+
+        expect(mockHttpRequest).toHaveBeenCalledWith(
+            expect.stringContaining("/attendance/v1/_search"),
+            expect.anything(),
+            expect.objectContaining({
+                tenantId: "bednet",
+                referenceId: "cmp-fallback",
+                localityCode: "ADMIN"
             })
         );
     });
