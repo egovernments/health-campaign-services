@@ -1,6 +1,6 @@
 const mockConfig = {
     values: {
-        validateCampaignIdInMetadata: false,
+        validateCampaignIdInMetadata: true,
     },
 };
 
@@ -47,60 +47,23 @@ jest.mock("../utils/logger", () => ({
     },
 }));
 
-import { validateFileCmapaignIdInMetaData } from "../utils/excelUtils";
+import * as ExcelJS from "exceljs";
+import { enrichTemplateMetaData, getLocaleFromWorkbook, validateFileCmapaignIdInMetaData } from "../utils/excelUtils";
+
+const BULK_MAPPING_TYPE = "attendanceRegisterUserBulkMapping";
 
 describe("validateFileCmapaignIdInMetaData", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockConfig.values.validateCampaignIdInMetadata = false;
-    });
-
-    it("allows missing metadata for attendance bulk mapping when strict campaign metadata validation is disabled", () => {
-        expect(() =>
-            validateFileCmapaignIdInMetaData(
-                {},
-                "cmp-1",
-                "attendanceRegisterUserBulkMapping"
-            )
-        ).not.toThrow();
-        expect(mockThrowError).not.toHaveBeenCalled();
-    });
-
-    it("allows invalid metadata format for attendance bulk mapping when strict campaign metadata validation is disabled", () => {
-        expect(() =>
-            validateFileCmapaignIdInMetaData(
-                { keywords: "en_BEDNET" },
-                "cmp-1",
-                "attendanceRegisterUserBulkMapping"
-            )
-        ).not.toThrow();
-        expect(mockThrowError).not.toHaveBeenCalled();
-    });
-
-    it("still rejects missing metadata for non-bulk types", () => {
-        expect(() =>
-            validateFileCmapaignIdInMetaData(
-                {},
-                "cmp-1",
-                "attendanceRegisterAttendeeValidation"
-            )
-        ).toThrow("The template doesn't have campaign metadata. Please upload the generated template only.");
-        expect(mockThrowError).toHaveBeenCalledWith(
-            "FILE",
-            400,
-            "INVALID_TEMPLATE",
-            "The template doesn't have campaign metadata. Please upload the generated template only."
-        );
-    });
-
-    it("rejects missing metadata for bulk mapping when strict campaign metadata validation is enabled", () => {
         mockConfig.values.validateCampaignIdInMetadata = true;
+    });
 
+    it("rejects files with no metadata in strict mode", () => {
         expect(() =>
             validateFileCmapaignIdInMetaData(
                 {},
                 "cmp-1",
-                "attendanceRegisterUserBulkMapping"
+                BULK_MAPPING_TYPE
             )
         ).toThrow("The template doesn't have campaign metadata. Please upload the generated template only.");
         expect(mockThrowError).toHaveBeenCalledWith(
@@ -109,5 +72,62 @@ describe("validateFileCmapaignIdInMetaData", () => {
             "INVALID_TEMPLATE",
             "The template doesn't have campaign metadata. Please upload the generated template only."
         );
+    });
+
+    it("passes strict validation when keywords are stripped but metadata sheet exists", () => {
+        const workbook = new ExcelJS.Workbook();
+        enrichTemplateMetaData(workbook, "en_BEDNET", "cmp-1", BULK_MAPPING_TYPE);
+        workbook.keywords = undefined as any;
+
+        expect(() =>
+            validateFileCmapaignIdInMetaData(
+                workbook,
+                "cmp-1",
+                BULK_MAPPING_TYPE
+            )
+        ).not.toThrow();
+        expect(mockThrowError).not.toHaveBeenCalled();
+    });
+
+    it("fails strict validation when sheet metadata campaign does not match", () => {
+        const workbook = new ExcelJS.Workbook();
+        enrichTemplateMetaData(workbook, "en_BEDNET", "cmp-1", BULK_MAPPING_TYPE);
+        workbook.keywords = undefined as any;
+
+        expect(() =>
+            validateFileCmapaignIdInMetaData(
+                workbook,
+                "cmp-2",
+                BULK_MAPPING_TYPE
+            )
+        ).toThrow("The template doesn't have matching campaign metadata. Please upload the generated template for the current campaign only.");
+        expect(mockThrowError).toHaveBeenCalledWith(
+            "FILE",
+            400,
+            "INVALID_TEMPLATE",
+            "The template doesn't have matching campaign metadata. Please upload the generated template for the current campaign only."
+        );
+    });
+
+    it("reads locale from metadata sheet when keywords are stripped", () => {
+        const workbook = new ExcelJS.Workbook();
+        enrichTemplateMetaData(workbook, "en_BEDNET", "cmp-1", BULK_MAPPING_TYPE);
+        workbook.keywords = undefined as any;
+
+        expect(getLocaleFromWorkbook(workbook)).toBe("en_BEDNET");
+    });
+
+    it("does not create metadata sheet for non-bulk templates", () => {
+        const workbook = new ExcelJS.Workbook();
+        enrichTemplateMetaData(workbook, "en_BEDNET", "cmp-1", "facility");
+
+        expect(workbook.getWorksheet("_hcm_template_meta_")).toBeUndefined();
+        expect(() =>
+            validateFileCmapaignIdInMetaData(
+                workbook,
+                "cmp-1",
+                "facility"
+            )
+        ).not.toThrow();
     });
 });
