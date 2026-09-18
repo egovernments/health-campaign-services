@@ -40,12 +40,16 @@ In short: *"something happened — figure out who to message, in their language,
 
 This service is **driven almost entirely by Kafka events**, not by public REST calls. There is no beneficiary-facing or client-facing API. The HTTP endpoints that do exist are **operational/diagnostic only**.
 
+The full contract lives in
+[`docs/health-api-specs/contracts/health-notification.yml`](../../docs/health-api-specs/contracts/health-notification.yml)
+— view it at [editor.swagger.io](https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/health-campaign-services/master/docs/health-api-specs/contracts/health-notification.yml).
+
 **REST entry points (operational):**
 
 | Endpoint | Purpose |
 |---|---|
 | `POST /health-notification-service/notification/v1/_cache/refresh` | Reloads the MDMS notification config and localization templates into the in-memory cache without a restart (`CacheController`). |
-| `POST /health-notification-service/test/v1/stock/_notify` | Test-only — replays a raw stock Kafka payload through the push flow. Active only under the `hns-local` profile (`TestNotificationController`); not enabled in deployed environments. |
+| `POST /health-notification-service/test/v1/stock/_notify` | Diagnostic — replays a raw stock Kafka payload through the push flow and really sends. `TestNotificationController` carries no `@Profile`, so despite its javadoc it is active in every environment. |
 
 **Kafka entry points (the real work):**
 
