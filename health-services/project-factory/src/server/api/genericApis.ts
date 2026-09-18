@@ -356,7 +356,12 @@ async function createAndUploadFile(
   tenantId?: any
 ) {
   if (request?.body?.RequestInfo && request?.query?.campaignId) {
-    enrichTemplateMetaData(updatedWorkbook, getLocaleFromRequestInfo(request?.body?.RequestInfo), request?.query?.campaignId);
+    enrichTemplateMetaData(
+      updatedWorkbook,
+      getLocaleFromRequestInfo(request?.body?.RequestInfo),
+      request?.query?.campaignId,
+      request?.query?.type
+    );
   }
   const buffer = await updatedWorkbook.xlsx.writeBuffer();
 

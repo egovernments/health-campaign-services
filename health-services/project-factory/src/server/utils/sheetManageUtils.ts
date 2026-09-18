@@ -133,7 +133,7 @@ export async function generateResource(responseToSend: any, templateConfig: any)
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(responseToSend?.locale, responseToSend?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
         const workBook = await createBasicTemplateViaConfig(responseToSend, templateConfig, localizationMap);
-        enrichTemplateMetaData(workBook, responseToSend?.locale, responseToSend?.campaignId);
+        enrichTemplateMetaData(workBook, responseToSend?.locale, responseToSend?.campaignId, responseToSend?.type);
         const fileResponse = await createAndUploadFileWithOutRequest(workBook, responseToSend?.tenantId);
         responseToSend.fileStoreid = fileResponse?.[0]?.fileStoreId;
         if (!responseToSend.fileStoreid) throw new Error("FileStoreId not created.");
@@ -164,7 +164,7 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
         await processRequest(ResourceDetails, workBook, templateConfig, localizationMap);
-        enrichTemplateMetaData(workBook, locale, ResourceDetails?.campaignId);
+        enrichTemplateMetaData(workBook, locale, ResourceDetails?.campaignId, ResourceDetails?.type);
         const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResourceDetails?.tenantId);
         ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
         if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
@@ -216,7 +216,7 @@ export function checkAllRowsConsistency(jsonData: any) {
 
 /** Core processing pipeline: loads schemas, invokes the type's process class, then writes/styles/locks output sheets. */
 export async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
-    validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId);
+    validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId, ResourceDetails?.type);
     const wholeSheetData: any = {};
     const sheetsToRemove: string[] = [];
     for (const sheet of templateConfig?.sheets || []) {

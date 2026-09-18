@@ -73,10 +73,10 @@ export async function validateFileMetaDataViaFileUrl(fileUrl: string, expectedLo
   }
 }
 
-/** Rejects an uploaded template unless its keywords carry a locale#campaignId matching the current campaign. */
+/** Rejects an uploaded template unless it carries a locale#campaignId metadata pair matching the current campaign. */
 export const validateFileMetadata = (workbook: any, expectedLocale: string, expectedCampaignId: string) => {
-  const keywords = workbook?.keywords;
-  if (!keywords || !keywords.includes("#")) {
+  const metadata = resolveTemplateMetadata(workbook);
+  if (!metadata.locale && !metadata.campaignId) {
     throwError(
       "FILE",
       400,
@@ -85,9 +85,7 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
     );
   }
 
-  const [templateLocale, templateCampaignId] = keywords.split("#");
-
-  if (!templateLocale || !templateCampaignId) {
+  if (!metadata.locale || !metadata.campaignId) {
     throwError(
       "FILE",
       400,
@@ -96,7 +94,7 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
     );
   }
 
-  if (templateLocale !== expectedLocale) {
+  if (metadata.locale !== expectedLocale) {
     throwError(
       "FILE",
       400,
@@ -105,7 +103,7 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
     );
   }
 
-  if (templateCampaignId !== expectedCampaignId && config.values.validateCampaignIdInMetadata) {
+  if (metadata.campaignId !== expectedCampaignId && config.values.validateCampaignIdInMetadata) {
     throwError(
       "FILE",
       400,
@@ -115,10 +113,70 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
   }
 };
 
-/** Validates only the campaignId portion of a template's keyword metadata against the expected campaign. */
-export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaignId: string) => {
-  const keywords = workbook?.keywords;
-  if (!keywords || !keywords.includes("#")) {
+const TEMPLATE_METADATA_SHEET_NAME = "_hcm_template_meta_";
+const TEMPLATE_METADATA_MARKER = "__HCM_TEMPLATE_METADATA__";
+
+const isBulkMappingResourceType = (type: unknown): boolean =>
+  typeof type === "string" && type.includes("attendanceRegisterUserBulkMapping");
+
+const cellValueToText = (value: unknown): string => {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") {
+    const objectValue: any = value;
+    if (typeof objectValue.text === "string") return objectValue.text.trim();
+    if (objectValue.result !== undefined && objectValue.result !== null) return String(objectValue.result).trim();
+  }
+  return String(value).trim();
+};
+
+const parseEncodedMetadata = (rawValue: unknown): { locale: string | null; campaignId: string | null } => {
+  const encoded = typeof rawValue === "string" ? rawValue.trim() : "";
+  if (!encoded || !encoded.includes("#")) {
+    return { locale: null, campaignId: null };
+  }
+  const [localeRaw, campaignIdRaw] = encoded.split("#");
+  const locale = localeRaw?.trim() || "";
+  const campaignId = campaignIdRaw?.trim() || "";
+  return {
+    locale: locale || null,
+    campaignId: campaignId || null,
+  };
+};
+
+const resolveMetadataSheet = (workbook: any): ExcelJS.Worksheet | null => {
+  const directSheet = workbook?.getWorksheet?.(TEMPLATE_METADATA_SHEET_NAME);
+  if (directSheet && cellValueToText(directSheet.getCell("A1")?.value) === TEMPLATE_METADATA_MARKER) {
+    return directSheet;
+  }
+  for (const worksheet of workbook?.worksheets || []) {
+    if (cellValueToText(worksheet.getCell("A1")?.value) === TEMPLATE_METADATA_MARKER) {
+      return worksheet;
+    }
+  }
+  return null;
+};
+
+const resolveTemplateMetadata = (workbook: any): { locale: string | null; campaignId: string | null } => {
+  const fromKeywords = parseEncodedMetadata(workbook?.keywords);
+  const metadataSheet = resolveMetadataSheet(workbook);
+  const fromSheet = parseEncodedMetadata(metadataSheet ? cellValueToText(metadataSheet.getCell("A2")?.value) : "");
+  return {
+    locale: fromKeywords.locale || fromSheet.locale,
+    campaignId: fromKeywords.campaignId || fromSheet.campaignId,
+  };
+};
+
+const upsertTemplateMetadataSheet = (workbook: any, locale: string, campaignId: string): void => {
+  const metadataSheet: any = resolveMetadataSheet(workbook) || workbook.addWorksheet(TEMPLATE_METADATA_SHEET_NAME);
+  metadataSheet.getCell("A1").value = TEMPLATE_METADATA_MARKER;
+  metadataSheet.getCell("A2").value = `${locale}#${campaignId}`;
+  metadataSheet.state = "hidden";
+};
+
+/** Validates the campaignId portion of template metadata against the expected campaign. */
+export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaignId: string, resourceType?: string) => {
+  const metadata = resolveTemplateMetadata(workbook);
+  if (!metadata.locale && !metadata.campaignId) {
     throwError(
       "FILE",
       400,
@@ -127,9 +185,7 @@ export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaign
     );
   }
 
-  const [templateLocale, templateCampaignId] = keywords.split("#");
-
-  if (!templateLocale || !templateCampaignId) {
+  if (!metadata.locale || !metadata.campaignId) {
     throwError(
       "FILE",
       400,
@@ -138,7 +194,7 @@ export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaign
     );
   }
 
-  if (templateCampaignId !== expectedCampaignId && config.values.validateCampaignIdInMetadata) {
+  if (metadata.campaignId !== expectedCampaignId && config.values.validateCampaignIdInMetadata) {
     throwError(
       "FILE",
       400,
@@ -149,21 +205,18 @@ export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaign
 };
 
 
-export function enrichTemplateMetaData(updatedWorkbook: any, locale: string, campaignId: string) {
+export function enrichTemplateMetaData(updatedWorkbook: any, locale: string, campaignId: string, resourceType?: string) {
   logger.info("Enriching template metadata...");
-  updatedWorkbook.keywords = `${locale}#${campaignId}`
+  updatedWorkbook.keywords = `${locale}#${campaignId}`;
+  if (isBulkMappingResourceType(resourceType) || resolveMetadataSheet(updatedWorkbook)) {
+    upsertTemplateMetadataSheet(updatedWorkbook, locale, campaignId);
+  }
   logger.info("Enriched template metadata");
 }
 
 export function getLocaleFromWorkbook(workbook: any): string | null {
   logger.info("Extracting locale from workbook...");
-
-  if (!workbook?.keywords) {
-    logger.warn("No keywords found in workbook. Returning null.");
-    return null;
-  }
-
-  const locale = workbook.keywords.split("#")[0]?.trim();
+  const locale = resolveTemplateMetadata(workbook).locale;
 
   logger.info("Locale extracted:", locale);
   return locale || null;
