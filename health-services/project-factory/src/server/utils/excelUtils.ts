@@ -115,10 +115,20 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
   }
 };
 
+const isBulkMappingResourceType = (type: unknown): boolean =>
+  typeof type === "string" && type.includes("attendanceRegisterUserBulkMapping");
+
+const allowMissingCampaignMetadata = (resourceType: unknown): boolean =>
+  isBulkMappingResourceType(resourceType) && !config.values.validateCampaignIdInMetadata;
+
 /** Validates only the campaignId portion of a template's keyword metadata against the expected campaign. */
-export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaignId: string) => {
+export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaignId: string, resourceType?: string) => {
   const keywords = workbook?.keywords;
   if (!keywords || !keywords.includes("#")) {
+    if (allowMissingCampaignMetadata(resourceType)) {
+      logger.warn(`Workbook keywords metadata missing for type=${resourceType}; continuing with structural validation.`);
+      return;
+    }
     throwError(
       "FILE",
       400,
@@ -130,6 +140,10 @@ export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaign
   const [templateLocale, templateCampaignId] = keywords.split("#");
 
   if (!templateLocale || !templateCampaignId) {
+    if (allowMissingCampaignMetadata(resourceType)) {
+      logger.warn(`Workbook keywords metadata invalid for type=${resourceType}; continuing with structural validation.`);
+      return;
+    }
     throwError(
       "FILE",
       400,
