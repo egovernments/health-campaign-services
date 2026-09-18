@@ -334,7 +334,10 @@ describe("TemplateClass.process date range validation", () => {
         HCM_REGISTER_APPROVER_SHEET: [],
     };
 
-    const mockHttpForValidationFlow = (registerOverrides?: Partial<{ startDate: number; endDate: number }>) => {
+    const mockHttpForValidationFlow = (
+        registerOverrides?: Partial<{ startDate: number; endDate: number }>,
+        enrollments?: { attendees?: any[]; staff?: any[] }
+    ) => {
         const registerPayload = {
             id: "register-uuid-1",
             campaignNumber: "CMP-1",
@@ -342,6 +345,8 @@ describe("TemplateClass.process date range validation", () => {
             endDate: registerEndDate,
             ...registerOverrides,
         };
+        const attendeeEntries = enrollments?.attendees || [];
+        const staffEntries = enrollments?.staff || [];
 
         jest.mocked(httpRequest).mockImplementation(async (_url: any, body: any, params: any) => {
             if (body?.MdmsCriteria) {
@@ -361,10 +366,17 @@ describe("TemplateClass.process date range validation", () => {
                 };
             }
             if (body?.attendees) {
-                return { attendees: [] };
+                return { attendees: attendeeEntries };
             }
             if (body?.staff) {
-                return { staff: [] };
+                const requestedTypes = Array.isArray(body?.staff?.staffTypes)
+                    ? new Set(body.staff.staffTypes)
+                    : null;
+                return {
+                    staff: requestedTypes
+                        ? staffEntries.filter((entry: any) => requestedTypes.has(entry?.staffType))
+                        : staffEntries
+                };
             }
             return {};
         });
@@ -461,5 +473,87 @@ describe("TemplateClass.process date range validation", () => {
         const processedRow = result.HCM_REGISTER_WORKER_SHEET.data[0];
         expect(processedRow["#status#"]).toBe("INVALID");
         expect(processedRow["#errorDetails#"]).toContain("HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE");
+    });
+
+    test("treats campaign prefilled dates as placeholders for existing rows in bulk flow", async () => {
+        mockHttpForValidationFlow(
+            undefined,
+            {
+                attendees: [{
+                    individualId: "ind-usr-4",
+                    registerId: "register-uuid-1",
+                    enrollmentDate: Date.UTC(2026, 3, 5, 0, 0, 0, 0),
+                    denrollmentDate: null
+                }]
+            }
+        );
+
+        const wholeSheetData = {
+            HCM_REGISTER_WORKER_SHEET: [{
+                "!row#number!": 6,
+                HCM_ATTENDANCE_REGISTER_ID: "REG-001",
+                UserName: "usr-4",
+                HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: "01/04/2026", // campaign start prefill
+                HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE: "10/04/2026", // campaign end prefill
+                HCM_ATTENDANCE_ATTENDEE_TEAM_CODE: "TEAM-4",
+            }],
+            ...emptyOtherSheets,
+        };
+
+        const result = await TemplateClass.process(
+            {
+                ...baseResourceDetails,
+                type: "attendanceRegisterUserBulkMappingValidation",
+                additionalDetails: {}
+            },
+            wholeSheetData,
+            {},
+            {}
+        );
+
+        const processedRow = result.HCM_REGISTER_WORKER_SHEET.data[0];
+        expect(processedRow["#status#"]).toBeUndefined();
+        expect(processedRow["#errorDetails#"]).toBeUndefined();
+    });
+
+    test("keeps immutable-date error for non-bulk attendee flow", async () => {
+        mockHttpForValidationFlow(
+            undefined,
+            {
+                attendees: [{
+                    individualId: "ind-usr-5",
+                    registerId: "register-uuid-1",
+                    enrollmentDate: Date.UTC(2026, 3, 5, 0, 0, 0, 0),
+                    denrollmentDate: null
+                }]
+            }
+        );
+
+        const wholeSheetData = {
+            HCM_REGISTER_WORKER_SHEET: [{
+                "!row#number!": 7,
+                HCM_ATTENDANCE_REGISTER_ID: "REG-001",
+                UserName: "usr-5",
+                HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: "01/04/2026",
+                HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE: "10/04/2026",
+                HCM_ATTENDANCE_ATTENDEE_TEAM_CODE: "TEAM-5",
+            }],
+            ...emptyOtherSheets,
+        };
+
+        const result = await TemplateClass.process(
+            {
+                ...baseResourceDetails,
+                type: "attendanceRegisterAttendeeValidation",
+                additionalDetails: {}
+            },
+            wholeSheetData,
+            {},
+            {}
+        );
+
+        const processedRow = result.HCM_REGISTER_WORKER_SHEET.data[0];
+        expect(processedRow["#status#"]).toBe("INVALID");
+        expect(processedRow["#errorDetails#"]).toContain("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE");
     });
 });
