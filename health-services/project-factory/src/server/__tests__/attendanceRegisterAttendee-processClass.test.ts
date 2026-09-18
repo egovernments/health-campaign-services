@@ -149,6 +149,63 @@ function callCollectStaffOperation(
     return { staffToCreate, staffToDelete };
 }
 
+describe("bulk campaign-date placeholder normalization", () => {
+    beforeEach(() => {
+        (TemplateClass as any).tzFormatter = null;
+        mockServerTimezone.value = "Asia/Kolkata";
+    });
+
+    test("treats campaign start/end prefill as no-op for existing rows in bulk flow", () => {
+        const enrollmentDateEpoch = (TemplateClass as any).parseDate("01/04/2026");
+        const deEnrollmentDateEpoch = (TemplateClass as any).parseDateEndOfDay("10/04/2026");
+        const normalized = (TemplateClass as any).normalizeBulkPrefilledDatesForExisting(
+            true,
+            { id: "att-1" },
+            enrollmentDateEpoch,
+            deEnrollmentDateEpoch,
+            Date.UTC(2026, 3, 1, 0, 0, 0, 0),
+            Date.UTC(2026, 3, 10, 0, 0, 0, 0)
+        );
+
+        expect(normalized).toEqual({
+            enrollmentDateEpoch: null,
+            deEnrollmentDateEpoch: null
+        });
+    });
+
+    test("keeps campaign prefill dates for new rows in bulk flow", () => {
+        const enrollmentDateEpoch = (TemplateClass as any).parseDate("01/04/2026");
+        const deEnrollmentDateEpoch = (TemplateClass as any).parseDateEndOfDay("10/04/2026");
+        const normalized = (TemplateClass as any).normalizeBulkPrefilledDatesForExisting(
+            true,
+            null,
+            enrollmentDateEpoch,
+            deEnrollmentDateEpoch,
+            Date.UTC(2026, 3, 1, 0, 0, 0, 0),
+            Date.UTC(2026, 3, 10, 0, 0, 0, 0)
+        );
+
+        expect(normalized.enrollmentDateEpoch).toBe(enrollmentDateEpoch);
+        expect(normalized.deEnrollmentDateEpoch).toBe(deEnrollmentDateEpoch);
+    });
+
+    test("keeps non-default edited dates for existing rows in bulk flow", () => {
+        const enrollmentDateEpoch = (TemplateClass as any).parseDate("05/04/2026");
+        const deEnrollmentDateEpoch = (TemplateClass as any).parseDateEndOfDay("09/04/2026");
+        const normalized = (TemplateClass as any).normalizeBulkPrefilledDatesForExisting(
+            true,
+            { id: "att-1" },
+            enrollmentDateEpoch,
+            deEnrollmentDateEpoch,
+            Date.UTC(2026, 3, 1, 0, 0, 0, 0),
+            Date.UTC(2026, 3, 10, 0, 0, 0, 0)
+        );
+
+        expect(normalized.enrollmentDateEpoch).toBe(enrollmentDateEpoch);
+        expect(normalized.deEnrollmentDateEpoch).toBe(deEnrollmentDateEpoch);
+    });
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // A. collectAttendeeOperation
 // ═══════════════════════════════════════════════════════════════════════════

@@ -76,6 +76,9 @@ export class TemplateClass {
 
         const campaign = await this.getCampaignDetails(resourceDetails);
         const campaignNumber = campaign?.campaignNumber;
+        const isBulkMappingFlow = this.isBulkMappingResourceType(resourceDetails?.type);
+        const campaignStartDate = this.toEpochOrNull(campaign?.startDate);
+        const campaignEndDate = this.toEpochOrNull(campaign?.endDate);
 
         const sheetRows: Map<string, any[]> = new Map();
         for (const name of SHEET_NAMES) {
@@ -187,8 +190,16 @@ export class TemplateClass {
                 if (isWorkerSheet) {
                     const attendeesMap: Map<string, any> = registerData?.attendeesMap || new Map();
                     const existing = attendeesMap.get(individualId);
+                    const normalizedDates = this.normalizeBulkPrefilledDatesForExisting(
+                        isBulkMappingFlow,
+                        existing,
+                        enrollmentDateEpoch,
+                        deEnrollmentDateEpoch,
+                        campaignStartDate,
+                        campaignEndDate
+                    );
                     this.collectAttendeeOperation(
-                        existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode || "",
+                        existing, normalizedDates.enrollmentDateEpoch, normalizedDates.deEnrollmentDateEpoch, teamCode || "",
                         tenantId, registerUuid, individualId, row,
                         attendeesToCreate, attendeesToDelete, attendeesToUpdateTag, localizationMap,
                         registerData
@@ -198,8 +209,16 @@ export class TemplateClass {
                     const staffMap: Map<string, any> = registerData?.staffMap || new Map();
                     const staffKey = `${individualId}_${staffType}`;
                     const existing = staffMap.get(staffKey);
+                    const normalizedDates = this.normalizeBulkPrefilledDatesForExisting(
+                        isBulkMappingFlow,
+                        existing,
+                        enrollmentDateEpoch,
+                        deEnrollmentDateEpoch,
+                        campaignStartDate,
+                        campaignEndDate
+                    );
                     this.collectStaffOperation(
-                        existing, enrollmentDateEpoch, deEnrollmentDateEpoch,
+                        existing, normalizedDates.enrollmentDateEpoch, normalizedDates.deEnrollmentDateEpoch,
                         tenantId, registerUuid, individualId, staffType, row,
                         staffToCreate, staffToDelete, localizationMap,
                         registerData
@@ -949,6 +968,54 @@ export class TemplateClass {
             return null;
         }
         return this.endOfDayEpochInTz(year, month, day);
+    }
+
+    private static isBulkMappingResourceType(type: unknown): boolean {
+        if (typeof type !== "string") return false;
+        return type.includes("attendanceRegisterUserBulkMapping");
+    }
+
+    private static toEpochOrNull(value: unknown): number | null {
+        if (value === null || value === undefined || value === "") return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    private static normalizeBulkPrefilledDatesForExisting(
+        isBulkMappingFlow: boolean,
+        existing: any,
+        enrollmentDateEpoch: number | null,
+        deEnrollmentDateEpoch: number | null,
+        campaignStartDate: number | null,
+        campaignEndDate: number | null
+    ): { enrollmentDateEpoch: number | null; deEnrollmentDateEpoch: number | null } {
+        if (!isBulkMappingFlow || !existing) {
+            return { enrollmentDateEpoch, deEnrollmentDateEpoch };
+        }
+
+        let normalizedEnrollmentDate = enrollmentDateEpoch;
+        let normalizedDeEnrollmentDate = deEnrollmentDateEpoch;
+
+        if (
+            normalizedEnrollmentDate !== null
+            && campaignStartDate !== null
+            && this.sameDateInTz(normalizedEnrollmentDate, campaignStartDate)
+        ) {
+            normalizedEnrollmentDate = null;
+        }
+
+        if (
+            normalizedDeEnrollmentDate !== null
+            && campaignEndDate !== null
+            && this.sameDateInTz(normalizedDeEnrollmentDate, campaignEndDate)
+        ) {
+            normalizedDeEnrollmentDate = null;
+        }
+
+        return {
+            enrollmentDateEpoch: normalizedEnrollmentDate,
+            deEnrollmentDateEpoch: normalizedDeEnrollmentDate
+        };
     }
 
     private static getCellAsString(value: any): string {

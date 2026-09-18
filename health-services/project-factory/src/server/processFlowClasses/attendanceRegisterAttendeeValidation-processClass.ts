@@ -81,6 +81,7 @@ export class TemplateClass {
         const campaignNumber = campaign?.campaignNumber;
         const campaignStartDate = this.toEpochOrNull(campaign?.startDate);
         const campaignEndDate = this.toEpochOrNull(campaign?.endDate);
+        const isBulkMappingFlow = this.isBulkMappingResourceType(resourceDetails?.type);
         const campaignStartParts = campaignStartDate !== null ? this.epochToDatePartsInTz(campaignStartDate) : null;
         const campaignEndParts = campaignEndDate !== null ? this.epochToDatePartsInTz(campaignEndDate) : null;
         logger.info(`Attendee validation context — campaignNumber=${campaignNumber}, registerId=${registerId}, totalRows=${allRows.length}`);
@@ -149,13 +150,19 @@ export class TemplateClass {
             const enrollmentDateRaw = row[attendanceColumnKeys.ENROLLMENT_DATE];
             const deEnrollmentDateRaw = row[attendanceColumnKeys.DEENROLLMENT_DATE];
 
-            if (enrollmentDateRaw !== null && enrollmentDateRaw !== undefined && enrollmentDateRaw !== "") {
-                const parsed = this.parseDate(enrollmentDateRaw);
-                if (parsed === null) {
+            const hasEnrollmentDateInput = enrollmentDateRaw !== null && enrollmentDateRaw !== undefined && enrollmentDateRaw !== "";
+            const hasDeEnrollmentDateInput = deEnrollmentDateRaw !== null && deEnrollmentDateRaw !== undefined && deEnrollmentDateRaw !== "";
+            const parsedEnrollmentDate = hasEnrollmentDateInput ? this.parseDate(enrollmentDateRaw) : null;
+            const parsedDeEnrollmentDate = hasDeEnrollmentDateInput ? this.parseDate(deEnrollmentDateRaw) : null;
+            const isCampaignStartPrefill = this.isCampaignDefaultDate(parsedEnrollmentDate, campaignStartDate);
+            const isCampaignEndPrefill = this.isCampaignDefaultDate(parsedDeEnrollmentDate, campaignEndDate);
+
+            if (hasEnrollmentDateInput) {
+                if (parsedEnrollmentDate === null) {
                     logger.debug(`Row ${row["!row#number!"]}: invalid enrollment date format — raw='${enrollmentDateRaw}', type=${typeof enrollmentDateRaw}`);
                     this.addError(row, attendanceErrorKeys.INVALID_DATE_FORMAT, localizationMap);
-                } else {
-                    const parsedParts = this.epochToDatePartsInTz(parsed);
+                } else if (!(isBulkMappingFlow && isCampaignStartPrefill)) {
+                    const parsedParts = this.epochToDatePartsInTz(parsedEnrollmentDate);
                     if (this.isDateOutsideRange(parsedParts, campaignStartParts, campaignEndParts)) {
                         logger.debug(
                             `Row ${row["!row#number!"]}: enrollment date out of campaign range — `
@@ -176,13 +183,12 @@ export class TemplateClass {
                 }
             }
 
-            if (deEnrollmentDateRaw !== null && deEnrollmentDateRaw !== undefined && deEnrollmentDateRaw !== "") {
-                const parsedDeEnroll = this.parseDate(deEnrollmentDateRaw);
-                if (parsedDeEnroll === null) {
+            if (hasDeEnrollmentDateInput) {
+                if (parsedDeEnrollmentDate === null) {
                     logger.debug(`Row ${row["!row#number!"]}: invalid de-enrollment date format — raw='${deEnrollmentDateRaw}', type=${typeof deEnrollmentDateRaw}`);
                     this.addError(row, attendanceErrorKeys.INVALID_DATE_FORMAT, localizationMap);
-                } else {
-                    const deEnrollParts = this.epochToDatePartsInTz(parsedDeEnroll);
+                } else if (!(isBulkMappingFlow && isCampaignEndPrefill)) {
+                    const deEnrollParts = this.epochToDatePartsInTz(parsedDeEnrollmentDate);
                     if (this.isDateOutsideRange(deEnrollParts, campaignStartParts, campaignEndParts)) {
                         logger.debug(
                             `Row ${row["!row#number!"]}: de-enrollment date out of campaign range — `
@@ -201,12 +207,9 @@ export class TemplateClass {
                         this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
                     }
                     // De-enrollment date must not be before enrollment date
-                    if (enrollmentDateRaw !== null && enrollmentDateRaw !== undefined && enrollmentDateRaw !== "") {
-                        const parsedEnroll = this.parseDate(enrollmentDateRaw);
-                        if (parsedEnroll !== null && parsedDeEnroll < parsedEnroll) {
-                            logger.debug(`Row ${row["!row#number!"]}: de-enrollment date (${parsedDeEnroll}) before enrollment date (${parsedEnroll}), registerId=${registerId}`);
-                            this.addError(row, attendanceErrorKeys.DEENROLLMENT_BEFORE_ENROLLMENT, localizationMap);
-                        }
+                    if (parsedEnrollmentDate !== null && parsedDeEnrollmentDate < parsedEnrollmentDate) {
+                        logger.debug(`Row ${row["!row#number!"]}: de-enrollment date (${parsedDeEnrollmentDate}) before enrollment date (${parsedEnrollmentDate}), registerId=${registerId}`);
+                        this.addError(row, attendanceErrorKeys.DEENROLLMENT_BEFORE_ENROLLMENT, localizationMap);
                     }
                 }
             }
@@ -221,10 +224,8 @@ export class TemplateClass {
             if (!individualId) continue;
 
             const isWorkerSheet = sheetName === WORKER_SHEET;
-            const enrollmentDateEpoch = (enrollmentDateRaw !== null && enrollmentDateRaw !== undefined && enrollmentDateRaw !== "")
-                ? this.parseDate(enrollmentDateRaw) : null;
-            const deEnrollmentDateEpoch = (deEnrollmentDateRaw !== null && deEnrollmentDateRaw !== undefined && deEnrollmentDateRaw !== "")
-                ? this.parseDate(deEnrollmentDateRaw) : null;
+            let enrollmentDateEpoch = parsedEnrollmentDate;
+            let deEnrollmentDateEpoch = parsedDeEnrollmentDate;
             const teamCode = isWorkerSheet ? this.getCellAsString(row[attendanceColumnKeys.TEAM_CODE]) : "";
 
             // Look up existing record in current register and check for active enrollment in other registers.
@@ -241,6 +242,15 @@ export class TemplateClass {
                 const allStaffEntries: any[] = staffEnrollmentsMap.get(`${individualId}_${staffType}`) || [];
                 existing = registerUuid ? allStaffEntries.find((e: any) => e.registerId === registerUuid) || null : null;
                 activeInOtherRegister = registerUuid ? allStaffEntries.find((e: any) => e.registerId !== registerUuid && !e.denrollmentDate) || null : null;
+            }
+
+            if (isBulkMappingFlow && existing) {
+                if (isCampaignStartPrefill) {
+                    enrollmentDateEpoch = null;
+                }
+                if (isCampaignEndPrefill) {
+                    deEnrollmentDateEpoch = null;
+                }
             }
 
             // A1/D1: no fields provided for new record — skip, nothing to validate
@@ -639,6 +649,16 @@ export class TemplateClass {
         if (value === null || value === undefined || value === "") return null;
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    private static isBulkMappingResourceType(type: unknown): boolean {
+        if (typeof type !== "string") return false;
+        return type.includes("attendanceRegisterUserBulkMapping");
+    }
+
+    private static isCampaignDefaultDate(inputDateEpoch: number | null, campaignDateEpoch: number | null): boolean {
+        if (inputDateEpoch === null || campaignDateEpoch === null) return false;
+        return this.sameDateInTz(inputDateEpoch, campaignDateEpoch);
     }
 
     // ── Date parsing ────────────────────────────────────────────────────────
