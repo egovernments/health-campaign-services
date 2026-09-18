@@ -49,7 +49,7 @@ The full contract lives in
 | Endpoint | Purpose |
 |---|---|
 | `POST /health-notification-service/notification/v1/_cache/refresh` | Reloads the MDMS notification config and localization templates into the in-memory cache without a restart (`CacheController`). |
-| `POST /health-notification-service/test/v1/stock/_notify` | Diagnostic — replays a raw stock Kafka payload through the push flow and really sends. `TestNotificationController` carries no `@Profile`, so despite its javadoc it is active in every environment. |
+| `POST /health-notification-service/test/v1/stock/_notify` | Test-only — replays a raw stock Kafka payload through the push flow. Active only under the `hns-local` profile (`TestNotificationController`); not enabled in deployed environments. |
 
 **Kafka entry points (the real work):**
 
