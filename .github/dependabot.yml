@@ -1,0 +1,142 @@
+# Dependabot configuration
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Addresses the OpenSSF Scorecard "Dependency-Update-Tool" check and feeds the
+# "Vulnerabilities" check by keeping dependencies current.
+#
+# Updates are grouped per ecosystem to keep the pull request volume reviewable
+# across this multi-module repository. Security-relevant updates are separated
+# from routine version bumps so they can be prioritised.
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # GitHub Actions — keeps the SHA-pinned actions in .github/workflows current.
+  # Dependabot rewrites the pinned SHA and updates the trailing version comment.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      actions-all:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # Maven — all Java services and shared libraries.
+  # A single entry with a glob covers every module without one block per pom.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "maven"
+    directories:
+      - "/core-services/*"
+      - "/health-services/*"
+      - "/health-services/libraries/*"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "java"
+    groups:
+      # Patch-level bumps are low risk; batch them into one pull request.
+      maven-patch:
+        update-types:
+          - "patch"
+      # Spring is upgraded as a unit to avoid mismatched module versions.
+      spring:
+        patterns:
+          - "org.springframework*:*"
+          - "org.springframework.boot:*"
+          - "org.springframework.cloud:*"
+      maven-minor:
+        update-types:
+          - "minor"
+
+  # ---------------------------------------------------------------------------
+  # npm — Node.js services.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "npm"
+    directories:
+      - "/analytics/auth-proxy"
+      - "/health-services/boundary-management"
+      - "/health-services/project-factory"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "javascript"
+    groups:
+      npm-dev:
+        dependency-type: "development"
+      npm-production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ---------------------------------------------------------------------------
+  # pip — airflow trigger service.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "pip"
+    directory: "/utilities/airflow-trigger-service/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-all:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # Docker — base images in build/ and per-service Dockerfiles.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "docker"
+    directories:
+      - "/build/maven"
+      - "/build/maven-java17"
+      - "/analytics/auth-proxy"
+      - "/health-services/boundary-management"
+      - "/health-services/project-factory"
+      - "/health-services/egov-notification-push"
+      - "/health-services/libraries/*"
+      - "/utilities/airflow-trigger-service/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(docker)"
+    labels:
+      - "dependencies"
+      - "docker"
