@@ -286,6 +286,11 @@ export const resourceTypes = {
     unifiedConsoleResources: "unified-console-resources"
 }
 
+// additionalDetails keys recording a campaign's clone lineage. Set once when the clone is created and
+// never re-sent by the console (which rebuilds additionalDetails from a fixed key set), so update must
+// preserve them rather than let the payload replace them away.
+export const campaignLineageKeys = ["cloneFrom", "clonedCampaignId"] as const;
+
 // Per-sheet validation status keys (from excel-ingestion)
 export const additionalDetailKeys = {
     validationStatus: "validationStatus",

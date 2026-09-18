@@ -42,6 +42,7 @@ import {
 } from "./transforms/searchResponseConstructor";
 import {
   allProcesses,
+  campaignLineageKeys,
   campaignStatuses,
   dataRowStatuses,
   generatedResourceStatuses,
@@ -1229,8 +1230,20 @@ async function enrichAndPersistCampaignForUpdate(
   const existingAdditionalForUpdate = request?.body?.CampaignDetails?.additionalDetails
     ?? ExistingCampaignDetails?.additionalDetails
     ?? {};
+  // A payload that rebuilds additionalDetails replaces it wholesale. Clone lineage must survive that:
+  // excel-ingestion matches an inherited template against the cloned-from campaign, so losing
+  // clonedCampaignId turns the next parse into IMMUTABLE_IDENTITY_MISMATCH.
+  const persistedAdditional = ExistingCampaignDetails?.additionalDetails || {};
+  const preservedLineage: any = {};
+  for (const key of campaignLineageKeys) {
+    if (persistedAdditional?.[key] && !existingAdditionalForUpdate?.[key]) {
+      preservedLineage[key] = persistedAdditional[key];
+      logger.info(`Preserved ${key} on campaign update; payload omitted it`);
+    }
+  }
   request.body.CampaignDetails.additionalDetails = {
     ...existingAdditionalForUpdate,
+    ...preservedLineage,
     locale: existingAdditionalForUpdate.locale || getLocaleFromRequestInfo(request?.body?.RequestInfo),
   };
   request.body.CampaignDetails.auditDetails = {
