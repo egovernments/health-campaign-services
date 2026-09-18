@@ -140,4 +140,58 @@ describe("attendanceRegisterUserBulkMapping process class", () => {
         expect((delegatedSheetData?.HCM_REGISTER_WORKER_SHEET || []).length).toBe(0);
         expect(result.HCM_REGISTER_MARKER_SHEET.data[0]["#status#"]).toBe("CREATED");
     });
+
+    it("keeps actionable rows from every register when delegating to attendee process", async () => {
+        jest.mocked(httpRequest).mockResolvedValue({
+            Individual: [
+                { id: "ind-1", userDetails: { username: "usr-1" }, name: { givenName: "One" } },
+                { id: "ind-2", userDetails: { username: "usr-2" }, name: { givenName: "Two" } },
+            ],
+        });
+
+        attendeeProcessMock.mockImplementation(async (_resourceDetails: any, localizedSheetData: any) => {
+            for (const row of localizedSheetData?.HCM_REGISTER_WORKER_SHEET || []) {
+                row["#status#"] = "UPDATED";
+            }
+            return {};
+        });
+
+        const resourceDetails: any = {
+            tenantId: "bednet",
+            additionalDetails: {},
+            requestInfo: { apiId: "hcm" },
+        };
+        const wholeSheetData: any = {
+            HCM_REGISTER_WORKER_SHEET: [
+                {
+                    "!row#number!": 3,
+                    [bulkAttendanceColumnKeys.registerCode]: "REG-001",
+                    [bulkAttendanceColumnKeys.userName]: "One",
+                    [bulkAttendanceColumnKeys.workerId]: "ind-1",
+                },
+                {
+                    "!row#number!": 4,
+                    [bulkAttendanceColumnKeys.registerCode]: "REG-002",
+                    [bulkAttendanceColumnKeys.userName]: "Two",
+                    [bulkAttendanceColumnKeys.workerId]: "ind-2",
+                },
+            ],
+            HCM_REGISTER_MARKER_SHEET: [],
+            HCM_REGISTER_APPROVER_SHEET: [],
+        };
+
+        const result = await TemplateClass.process(resourceDetails, wholeSheetData, {}, {});
+        const delegatedSheetData = attendeeProcessMock.mock.calls[0][1];
+        const delegatedRows = delegatedSheetData?.HCM_REGISTER_WORKER_SHEET || [];
+
+        expect(attendeeProcessMock).toHaveBeenCalledTimes(1);
+        expect(delegatedRows).toHaveLength(2);
+        expect(delegatedRows.map((row: any) => row.HCM_ATTENDANCE_REGISTER_ID)).toEqual(["REG-001", "REG-002"]);
+        expect(result.HCM_REGISTER_WORKER_SHEET.data[0]["#status#"]).toBe("UPDATED");
+        expect(result.HCM_REGISTER_WORKER_SHEET.data[1]["#status#"]).toBe("UPDATED");
+        expect(resourceDetails.additionalDetails?.resolvedIndividualIds).toEqual({
+            "usr-1": "ind-1",
+            "usr-2": "ind-2",
+        });
+    });
 });

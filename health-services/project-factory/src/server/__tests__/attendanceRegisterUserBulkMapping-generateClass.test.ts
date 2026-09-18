@@ -220,6 +220,51 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(1);
     });
 
+    it("resolves register from serviceCode-prefixed uniqueIdAfterProcess when register columns are absent", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-2b",
+                campaignNumber: "CMP-2B",
+                startDate: Date.UTC(2026, 1, 1),
+                endDate: Date.UTC(2026, 1, 15),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        mockHttpRequest.mockResolvedValue({
+            attendanceRegister: [{ id: "reg-uuid-123", serviceCode: "REG-123", name: "Register 123", localityCode: "ADMIN" }]
+        } as any);
+
+        mockGetRelatedData.mockResolvedValue([
+            {
+                campaignNumber: "CMP-2B",
+                type: "attendanceRegisterAttendee",
+                uniqueIdentifier: "row-123",
+                status: "completed",
+                uniqueIdAfterProcess: "REG-123_user.123_worker",
+                isDeleted: false,
+                denrollmentDate: null,
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-123",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "User 123",
+                    UserName: "user.123"
+                }
+            }
+        ] as any);
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-2b", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        expect(workerRows).toHaveLength(1);
+        expect(workerRows[0].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-123");
+        expect(workerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-123");
+        expect(workerRows[0].UserName).toBe("user.123");
+    });
+
     it("normalizes stored slash-separated dates to dash format in bulk rows", async () => {
         const campaignStart = undefined;
         const campaignEnd = Date.UTC(2026, 2, 31);
@@ -353,6 +398,123 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         expect((sheetMap[MARKER_SHEET].data as any[])).toHaveLength(2);
         expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(2);
+    });
+
+    it("supplements partial stored mappings with live attendance rows for missing registers", async () => {
+        const campaignEnd = Date.UTC(2026, 3, 30);
+
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-5",
+                campaignNumber: "CMP-5",
+                startDate: undefined,
+                endDate: campaignEnd,
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        mockGetRelatedData.mockResolvedValue([
+            {
+                campaignNumber: "CMP-5",
+                type: "attendanceRegisterAttendee",
+                uniqueIdentifier: "row-worker-5",
+                status: "completed",
+                uniqueIdAfterProcess: "reg-uuid-1_ind-1_worker",
+                isDeleted: false,
+                denrollmentDate: null,
+                data: {
+                    _registerServiceCode: "REG-001",
+                    _sheetName: WORKER_SHEET,
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-1",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Alice Worker",
+                    UserName: "alice.worker",
+                    HCM_ATTENDANCE_ATTENDEE_TEAM_CODE: "TEAM-1",
+                    HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: ""
+                }
+            }
+        ] as any);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-uuid-1",
+                            serviceCode: "REG-001",
+                            name: "Register 001",
+                            localityCode: "ADMIN",
+                            attendees: [],
+                            staff: []
+                        },
+                        {
+                            id: "reg-uuid-2",
+                            serviceCode: "REG-002",
+                            name: "Register 002",
+                            localityCode: "ADMIN",
+                            attendees: [
+                                {
+                                    individualId: "ind-9",
+                                    tag: "TEAM-9",
+                                    enrollmentDate: Date.UTC(2026, 3, 2),
+                                    denrollmentDate: null
+                                }
+                            ],
+                            staff: [
+                                {
+                                    userId: "ind-10",
+                                    staffType: "OWNER",
+                                    enrollmentDate: Date.UTC(2026, 3, 3),
+                                    denrollmentDate: null,
+                                    additionalDetails: { staffName: "Marker Nine" }
+                                }
+                            ]
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        {
+                            id: "ind-9",
+                            name: { givenName: "Nina", familyName: "Khan" },
+                            userDetails: { username: "nina.khan" }
+                        },
+                        {
+                            id: "ind-10",
+                            name: { givenName: "Mark", familyName: "Owner" },
+                            userDetails: { username: "mark.owner" }
+                        }
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-5", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        const approverRows = sheetMap[APPROVER_SHEET].data as Record<string, string>[];
+
+        expect(workerRows).toHaveLength(2);
+        expect(workerRows[0].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-001");
+        expect(workerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-1");
+        expect(workerRows[1].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-002");
+        expect(workerRows[1].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-9");
+        expect(workerRows[1].UserName).toBe("nina.khan");
+        expect(workerRows[1].HCM_ATTENDANCE_ATTENDEE_TEAM_CODE).toBe("TEAM-9");
+
+        expect(markerRows).toHaveLength(2);
+        expect(markerRows[1].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-002");
+        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-10");
+        expect(markerRows[1].UserName).toBe("mark.owner");
+
+        expect(approverRows).toHaveLength(2);
     });
 
     it("prefers request localityCode when provided", async () => {
