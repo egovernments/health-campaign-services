@@ -1,6 +1,7 @@
 package org.egov.household.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -82,7 +83,7 @@ public class IndividualService {
                     individualSearchRequest,
                     IndividualBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching individuals list: {}", e.getMessage());
+            log.error("error while fetching individuals list: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching individuals list");
         }
     }
@@ -90,6 +91,22 @@ public class IndividualService {
     public Individual validateIndividual(HouseholdMember householdMember,
                                          IndividualBulkResponse searchResponse,
                                          Map<HouseholdMember, List<Error>> errorDetailsMap) {
+        // Default behaviour: emit INDIVIDUAL_NOT_FOUND when the individual is absent from the search response.
+        return validateIndividual(householdMember, searchResponse, errorDetailsMap, false);
+    }
+
+    /**
+     * Resolves the individual referenced by the household member from the search response.
+     *
+     * @param suppressNotFound when true, the search + resolution still run (so the caller can still back-fill
+     *                         individualId from the returned Individual when it IS found), but the
+     *                         persister-lag-prone INDIVIDUAL_NOT_FOUND error is NOT emitted when it is absent.
+     *                         Driven by the household.member.relationship.validation flag being OFF.
+     */
+    public Individual validateIndividual(HouseholdMember householdMember,
+                                         IndividualBulkResponse searchResponse,
+                                         Map<HouseholdMember, List<Error>> errorDetailsMap,
+                                         boolean suppressNotFound) {
         log.info("validating individual for household member with id: {} and client reference id: {}",
                 householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
 
@@ -101,6 +118,12 @@ public class IndividualService {
             }
         }).collect(Collectors.toList());
         if(individuals.isEmpty()){
+            if (suppressNotFound) {
+                log.info("individual not found for household member with id: {} and client reference id: {}, "
+                                + "but INDIVIDUAL_NOT_FOUND suppressed (relationship validation disabled)",
+                        householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
+                return null;
+            }
             Error error = Error.builder().errorMessage(INDIVIDUAL_NOT_FOUND_MESSAGE)
                     .errorCode(INDIVIDUAL_NOT_FOUND)
                     .type(Error.ErrorType.NON_RECOVERABLE)

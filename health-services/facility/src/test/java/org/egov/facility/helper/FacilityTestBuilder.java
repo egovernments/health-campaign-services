@@ -7,10 +7,10 @@ import org.egov.common.models.facility.Facility;
 
 public class FacilityTestBuilder {
 
-    private final Facility.FacilityBuilder builder;
+    private final Facility.FacilityBuilder<Facility, ?> builder;
 
     public FacilityTestBuilder() {
-        this.builder = Facility.builder();
+        this.builder = (Facility.FacilityBuilder<Facility, ?>) Facility.builder();
     }
 
     public static FacilityTestBuilder builder() {

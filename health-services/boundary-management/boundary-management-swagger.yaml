@@ -1,0 +1,399 @@
+openapi: 3.0.0
+info:
+  title: Boundary Management Service API
+  description: REST API for managing boundary entities, relationships, and hierarchy definitions in project-factory
+  version: 1.0.0
+
+paths:
+  /v1/_process:
+    post:
+      tags:
+        - Boundary Management
+      summary: Process boundary data
+      description: Process boundary data upload and validation
+      operationId: processBoundary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoundaryProcessRequest'
+            example:
+              RequestInfo:
+                apiId: "boundary-service"
+                msgId: "1635749281000|en_IN"
+                userInfo:
+                  id: 1
+                  uuid: "11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43"
+                  userName: "admin"
+                  tenantId: "mz"
+              ResourceDetails:
+                referenceId: "ref-id-456"
+                type: "boundary"
+                hierarchyType: "ADMIN"
+                tenantId: "mz"
+                fileStoreId: "file-store-id-123"
+                action: "create"
+      responses:
+        '200':
+          description: Boundary processing completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoundaryProcessResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/_generate:
+    post:
+      tags:
+        - Boundary Management
+      summary: Generate boundary template
+      description: Generate boundary template files for download
+      operationId: generateBoundary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoundaryGenerateRequest'
+            example:
+              RequestInfo:
+                apiId: "boundary-service"
+                msgId: "1635749281000|en_IN"
+                userInfo:
+                  id: 1
+                  uuid: "11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43"
+                  userName: "admin"
+                  tenantId: "mz"
+              ResourceDetails:
+                referenceId: "ref-id-789"
+                type: "boundary"
+                hierarchyType: "ADMIN"
+                tenantId: "mz"
+      responses:
+        '200':
+          description: Boundary template generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoundaryGenerateResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/_process-search:
+    post:
+      tags:
+        - Boundary Management
+      summary: Search boundary resources
+      description: Search boundary resource data based on criteria
+      operationId: processBoundarySearch
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "mz"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoundarySearchRequest'
+            example:
+              RequestInfo:
+                apiId: "boundary-service"
+                msgId: "1635749281000|en_IN"
+                userInfo:
+                  id: 1
+                  uuid: "11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43"
+                  userName: "admin"
+                  tenantId: "mz"
+      responses:
+        '200':
+          description: Boundary resources found successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoundarySearchResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/_generate-search:
+    post:
+      tags:
+        - Boundary Management
+      summary: Download boundary data
+      description: Download boundary data files
+      operationId: generateBoundarySearch
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "mz"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoundaryDownloadRequest'
+            example:
+              RequestInfo:
+                apiId: "boundary-service"
+                msgId: "1635749281000|en_IN"
+                userInfo:
+                  id: 1
+                  uuid: "11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43"
+                  userName: "admin"
+                  tenantId: "mz"
+      responses:
+        '200':
+          description: Boundary data downloaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoundaryDownloadResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    RequestInfo:
+      type: object
+      required:
+        - apiId
+        - msgId
+      properties:
+        apiId:
+          type: string
+          example: "boundary-service"
+        msgId:
+          type: string
+          example: "1635749281000|en_IN"
+        authToken:
+          type: string
+        userInfo:
+          $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        uuid:
+          type: string
+          example: "11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43"
+        userName:
+          type: string
+          example: "admin"
+        name:
+          type: string
+          example: "System Administrator"
+        mobileNumber:
+          type: string
+          example: "9999999999"
+        emailId:
+          type: string
+          example: "admin@digit.org"
+        tenantId:
+          type: string
+          example: "mz"
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "System Administrator"
+        code:
+          type: string
+          example: "SYSTEM_ADMINISTRATOR"
+        tenantId:
+          type: string
+          example: "mz"
+
+    ResourceDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "resource-detail-id-123"
+        referenceId:
+          type: string
+          example: "ref-id-456"
+        type:
+          type: string
+          example: "boundary"
+        hierarchyType:
+          type: string
+          example: "ADMIN"
+        tenantId:
+          type: string
+          example: "mz"
+        fileStoreId:
+          type: string
+          example: "file-store-id-123"
+        action:
+          type: string
+          enum: [create, validate]
+          example: "create"
+        status:
+          type: string
+          enum: [inprogress, completed, failed, invalid]
+          example: "completed"
+        additionalDetails:
+          type: object
+
+    BoundaryProcessRequest:
+      type: object
+      required:
+        - RequestInfo
+        - ResourceDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ResourceDetails'
+
+    BoundaryProcessResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ResourceDetails'
+
+    BoundaryGenerateRequest:
+      type: object
+      required:
+        - RequestInfo
+        - ResourceDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ResourceDetails'
+
+    BoundaryGenerateResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ResourceDetails'
+
+    BoundarySearchRequest:
+      type: object
+      required:
+        - RequestInfo
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+
+    BoundarySearchResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceDetails'
+
+    BoundaryDownloadRequest:
+      type: object
+      required:
+        - RequestInfo
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+
+    BoundaryDownloadResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        GeneratedResource:
+          type: object
+          properties:
+            fileStoreId:
+              type: string
+              example: "file-store-id-456"
+            url:
+              type: string
+              example: "https://filestore.digit.org/files/download/file-store-id-456"
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+          example: "boundary-service"
+        ver:
+          type: string
+          example: "1.0"
+        ts:
+          type: integer
+          format: int64
+          example: 1635749281000
+        resMsgId:
+          type: string
+          example: "uief87324"
+        msgId:
+          type: string
+          example: "1635749281000|en_IN"
+        status:
+          type: string
+          enum: [SUCCESSFUL, FAILED]
+          example: "SUCCESSFUL"
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "INVALID_REQUEST"
+        message:
+          type: string
+          example: "Invalid request parameters"
+        description:
+          type: string
+          example: "The request contains invalid or missing parameters"
+        params:
+          type: array
+          items:
+            type: string

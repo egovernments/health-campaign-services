@@ -1,0 +1,399 @@
+import Error from "./error.interface"
+
+export const CONSTANTS: any = {
+    ERROR_CODES: {
+        COMMON: {
+            UNKNOWN_ERROR: "Unknown error. Check logs",
+            IDGEN_ERROR: "Error during generating campaign number",
+            VALIDATION_ERROR: "Validation error",
+            INTERNAL_SERVER_ERROR: "Internal server error",
+            INVALID_PAGINATION: "Invalid pagination",
+            KAFKA_ERROR: "Some error occured in kafka",
+            SCHEMA_ERROR: " Schema related error",
+            RESPONSE_NOT_FOUND_ERROR: "Response not found",
+            GENERATE_ERROR: "Error while generating user/facility/boundary",
+            VALIDATION_ERROR_MISSING_RESOURCE : "All resource files should be uploaded",
+            LOCALISATION_ERROR: "Error occurred during localisation message retrieval",
+            VALIDATION_ERROR_CHILD_EXIST:"A child campaign is already active for this parent",
+            VALIDATION_ERROR_PRODUCT_VARIANT: "Invalid product variant",
+            VALIDATION_ERROR_MISSING_TARGET_FILE: "A new boundary file must be provided when changing boundaries from the parent campaign.",
+            VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE: "Unified console template is not valid. Please correct the errors and try again.",
+            PROCESS_UPDATE_ERROR: "Error updating the process status",
+        },
+        FILE: {
+            SHEET_MISSING_ERROR: "Some sheet or empty in Uploaded file, please check the file",
+            INVALID_FILE: "No download URL returned for the given fileStoreId",
+            INVALID_SHEETNAME: "Invalid sheet name",
+            STATUS_FILE_CREATION_ERROR: "Error in creating status file",
+            FETCHING_SHEET_ERROR: "Error occured while fetching sheet data",
+            INVALID_FILE_ERROR: "Invalid file",
+            DOWNLOAD_URL_NOT_FOUND: "Not any download URL returned for the given fileStoreId",
+            INVALID_FILE_FORMAT: "The uploaded file is not a valid excel file (xlsx or xls).",
+            INVALID_COLUMNS: "Columns are invalid",
+            FETCHING_COLUMN_ERROR: "Error fetching Column Headers From Schema",
+            INVALID_FILE_WITH_GAP: "The uploaded file has gap in rows, please remove the gap and upload again",
+            EXTRA_SHEET_ERROR: "Extra sheet(s) found in the uploaded file"
+        },
+        FACILITY: {
+            FACILITY_SEARCH_FAILED: "Search failed for facility. Check logs",
+        },
+        CAMPAIGN: {
+            CAMPAIGN_SEARCH_ERROR: "Error in campaign search",
+            CAMPAIGNNAME_MISMATCH: "CampaignName is not matching",
+            CAMPAIGN_NOT_FOUND: "Campaign not found",
+            GENERATION_REQUIRE: "First generate then download",
+            RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
+            RESOURCE_MAPPING_ERROR: "Some error occured during mapping",
+            RESOURCE_CREATION_TIMED_OUT: "Resources creation timed out.",
+            RESOURCE_MAPPING_TIMED_OUT: "Mappings timed out.",
+            CAMPAIGN_NAME_ERROR: "Campaign name already exists",
+            CAMPAIGN_NAME_NOT_MATCHING_PARENT_ERROR: "Campaign name different from parent Campaign",
+            CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
+            PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
+            INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
+            RESOURCES_CONSOLIDATION_ERROR : "Error while consolidating resources in Campaign Update Flow ",
+            VALIDATION_ERROR_ACTIVE_ROW: "At least one active row is required",
+            VALIDATION_ERROR_USERNAME_FORMAT: "User name can be alphanumeric only",
+            VALIDATION_ERROR_CAMPAIGN_ID: "CampaignId not found or invalid",
+            VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state",
+            END_DATE_BEFORE_START_DATE: "endDate must be at least one day after startDate",
+            START_DATE_IN_PAST: "startDate cannot be today or past date"
+        },
+        BOUNDARY: {
+            BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
+            BOUNDARY_HIERARCHY_INSERT_ERROR: "Insert boundary hierarchy level wise",
+            BOUNDARY_SEARCH_ERROR: "Error in boundary search. Check boundary codes",
+            BOUNDARY_NOT_FOUND: "Boundary not found",
+            BOUNDARY_SHEET_HEADER_ERROR: "Boundary sheet header error",
+            BOUNDARY_ENTITY_CREATE_ERROR: "Some error occured during boundary entity creation",
+            BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
+            BOUNDARY_TARGET_ERROR: "Target either not present or invalid value",
+            BOUNDARY_CONFIRMATION_FAILED: "Error in boundary creation and persistence",
+            BOUNDARY_SHEET_UPLOADED_INVALID_ERROR: "Error in the boundary data uploaded",
+            BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR: "First Column Of Boundary Sheet uploaded should be unique as it is the root of hierarchy"
+        },
+        PROJECT: {
+            PROJECT_CREATION_FAILED: "Error occured in project creation",
+            PROJECT_SEARCH_ERROR: "Error occured during project search , check projectId",
+            PROJECT_UPDATE_ERROR: "Error occured during project update , check projectId",
+            PROJECT_CREATION_ERROR: "Some error occured during project creation",
+            PROJECT_CONFIRMATION_FAILED: "Error occured in project creation and persistence",
+            PROJECT_STAFF_SEARCH_ERROR: "Error occured during project search , check projectId and staffId",
+            PROJECT_FACILITY_SEARCH_ERROR: "Error occured during project search , check projectId and facilityId",
+            PROJECT_FACILITY_DELETE_ERROR: "Error occured while deleting project facility mapping",
+            PROJECT_STAFF_DELETE_ERROR: "Error occured while deleting project staff mapping"
+        },
+        MDMS: {
+            INVALID_README_CONFIG: "Invalid readme config",
+            MDMS_DATA_NOT_FOUND_ERROR: "Mdms Data not present"
+        },
+        DATA:{
+            DATA_CREATE_ERROR : "Error while creating resource data"
+        }
+    }
+}
+
+export const headingMapping: any = {
+    "userWithBoundary": "USERWITHBOUNDARY_README_MAINHEADER",
+    "facilityWithBoundary": "FACILITYWITHBOUNDARY_README_MAINHEADER",
+    "boundary": "BOUNDARY_README_MAINHEADER"
+}
+
+const unknownError = "Unknown Error. Check Logs";
+
+
+const getMessage = (key: any) => {
+    const errors = CONSTANTS.ERROR_CODES;
+
+    for (const moduleKey in errors) {
+        for (const errorKey in errors[moduleKey]) {
+            if (key === errorKey) {
+                return errors[moduleKey][errorKey];
+            }
+        }
+    }
+
+    return unknownError;
+}
+
+export const campaignStatuses: any = {
+    drafted: "drafted",
+    started: "creating",
+    inprogress: "created",
+    failed: "failed",
+    cancelled : "cancelled"
+}
+
+export const resourceDataStatuses: any = {
+    failed: "failed",
+    completed: "completed",
+    invalid: "invalid",
+    started: "validation-started",
+    accepted: "data-accepted"
+}
+
+export const resourceDetailsStatuses = {
+    failed: "failed",
+    completed: "completed",
+    inprogress: "inprogress"
+}
+
+export const dataRowStatuses = {
+    failed: "failed",
+    completed: "completed",
+    pending: "pending"
+}
+
+export const mappingStatuses = {
+    toBeMapped : "toBeMapped",
+    mapped : "mapped",
+    toBeDeMapped : "toBeDeMapped",
+    deMapped : "deMapped",
+    // `failed` is map-direction; demap failures get their own value so the
+    // reconciler can reset each toward its original intent without heuristics.
+    failed : "failed",
+    deMapFailed : "deMapFailed",
+    // Mapping was not attempted because its dependency (e.g. the user
+    // referenced by a project-staff mapping) was never created. Treated
+    // as resolved by the mapping monitor — does not block campaign success.
+    skipped : "skipped"
+}
+
+export const processStatuses = {
+    failed : "failed",
+    pending : "pending",
+    completed : "completed"
+}
+
+export const allProcesses = {
+    facilityCreation : "CAMPAIGN_FACILITY_CREATION_PROCESS",
+    userCreation : "CAMPAIGN_USER_CREATION_PROCESS",
+    projectCreation : "CAMPAIGN_PROJECT_CREATION_PROCESS",
+    facilityMapping : "CAMPAIGN_FACILITY_MAPPING_PROCESS",
+    userMapping : "CAMPAIGN_USER_MAPPING_PROCESS",
+    resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS",
+    userCredGeneration : "CAMPAIGN_USER_CRED_GENERATION_PROCESS",
+    attendanceRegisterCreation : "CAMPAIGN_ATTENDANCE_REGISTER_CREATION_PROCESS",
+    attendanceRegisterAttendeeCreation : "CAMPAIGN_ATTENDANCE_REGISTER_ATTENDEE_CREATION_PROCESS",
+}
+
+export const sheetDataRowStatuses = {
+    INVALID: "INVALID",
+    CREATED: "CREATED",
+    SKIPPED: "SKIPPED",
+    EXISTING: "EXISTING",
+    UPDATED: "UPDATED",
+    FAILED: "FAILED"
+}
+
+// Attendance Register Attendee — Sheet Names
+export const attendanceSheetNames = {
+    WORKER: "HCM_REGISTER_WORKER_SHEET",
+    MARKER: "HCM_REGISTER_MARKER_SHEET",
+    APPROVER: "HCM_REGISTER_APPROVER_SHEET",
+};
+
+// Attendance Register Attendee — Column Keys
+export const attendanceColumnKeys = {
+    REGISTER_ID: "HCM_ATTENDANCE_REGISTER_ID",
+    ENROLLMENT_DATE: "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE",
+    DEENROLLMENT_DATE: "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE",
+    TEAM_CODE: "HCM_ATTENDANCE_ATTENDEE_TEAM_CODE",
+    USERNAME: "UserName",
+};
+
+// Attendance Register Attendee — Staff Types
+export const attendanceStaffTypes = {
+    OWNER: "OWNER",
+    APPROVER: "APPROVER",
+};
+
+// Attendance Register Attendee — Localization / Error Keys
+export const attendanceErrorKeys = {
+    REGISTER_NOT_FOUND: "HCM_ATTENDANCE_ATTENDEE_REGISTER_NOT_FOUND",
+    REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN: "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN",
+    INVALID_DATE_FORMAT: "HCM_ATTENDANCE_ATTENDEE_INVALID_DATE_FORMAT",
+    DATE_OUT_OF_RANGE: "HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE",
+    DEENROLLMENT_BEFORE_ENROLLMENT: "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_BEFORE_ENROLLMENT",
+    USER_NOT_FOUND: "HCM_ATTENDANCE_ATTENDEE_USER_NOT_FOUND",
+    ENROLLMENT_DATE_REQUIRED: "HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED",
+    CANNOT_CHANGE_ENROLLMENT_DATE: "HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE",
+    CANNOT_CHANGE_DEENROLLMENT_DATE: "HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE",
+    ALREADY_ENROLLED_IN_ANOTHER_REGISTER: "HCM_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER",
+};
+
+// Attendance — Additional Details Cache Keys
+export const attendanceCacheKeys = {
+    RESOLVED_INDIVIDUAL_IDS: "resolvedIndividualIds",
+};
+
+
+export const generatedResourceStatuses: any = {
+    inprogress: "inprogress",
+    failed: "failed",
+    completed: "completed",
+    expired: "expired"
+}
+
+export const processTrackTypes = {
+    validation: "validation",
+    triggerResourceCreation: "trigger-resource-creation",
+    facilityCreation: "facility-creation",
+    staffCreation: "staff-creation",
+    targetAndDeliveryRulesCreation: "target-and-delivery-rules-creation",
+    confirmingResourceCreation: "confirming-resource-creation",
+    prepareResourceForMapping: "prepare-resource-for-mapping",
+    validateMappingResource: "validate-mapping-resource",
+    staffMapping: "staff-mapping",
+    resourceMapping: "resource-mapping",
+    facilityMapping: "facility-mapping",
+    campaignCreation: "campaign-creation",
+    error: "error"
+}
+
+export const processTrackForUi = [
+    processTrackTypes.facilityCreation,
+    processTrackTypes.staffCreation,
+    processTrackTypes.targetAndDeliveryRulesCreation,
+    processTrackTypes.staffMapping,
+    processTrackTypes.resourceMapping,
+    processTrackTypes.facilityMapping,
+    processTrackTypes.campaignCreation,
+    processTrackTypes.error
+];
+
+
+export const processTrackStatuses = {
+    inprogress: "inprogress",
+    completed: "completed",
+    toBeCompleted: "toBeCompleted",
+    failed: "failed",
+}
+
+export const resourceStatuses = {
+    toCreate: "toCreate",
+    creating: "creating",
+    completed: "completed",
+    failed: "failed"
+}
+
+export const usageColumnStatus = {
+    active: "Active",
+    inactive: "Inactive"
+}
+
+export const resourceTypes = {
+    unifiedConsoleResources: "unified-console-resources"
+}
+
+// Per-sheet validation status keys (from excel-ingestion)
+export const additionalDetailKeys = {
+    validationStatus: "validationStatus",
+    userSheetStatus: "userSheetStatus",
+    boundarySheetStatus: "boundarySheetStatus",
+    facilitySheetStatus: "facilitySheetStatus",
+} as const;
+
+// Sheet validation status values
+export const sheetValidationStatuses = {
+    valid: "valid",
+    invalid: "invalid",
+} as const;
+
+// Campaign data row field names
+export const campaignDataRowFields = {
+    status: "#status#",
+    errorDetails: "#errorDetails#",
+} as const;
+
+// User credential fields (authentication)
+export const userCredentialFields = {
+    userName: "UserName",
+    password: "Password",
+    userServiceUuids: "UserService Uuids",
+} as const;
+
+// User data field names in campaign data
+export const userDataFields = {
+    workerId: "HCM_ADMIN_CONSOLE_USER_WORKER_ID",
+    name: "HCM_ADMIN_CONSOLE_USER_NAME",
+    payeePhoneNumber: "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
+    paymentProvider: "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
+    payeeName: "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
+    bankAccount: "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
+    bankCode: "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
+    beneficiaryCode: "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE",
+    boundaryCode: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+    boundaryCodeMandatory: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
+    boundaryName: "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
+} as const;
+
+// MDMS schema code for template validation
+export const mdmsSchemaCodeConfig = {
+    schemaCode: "HCM-ADMIN-CONSOLE.schemas",
+} as const;
+
+// Schema validation and template loading log tags
+export const schemaValidationLogTags = {
+    optionalSheetNotFound: "[OPTIONAL_SHEET_MISSING]",
+    optionalSchemaMissing: "[MDMS_SCHEMA_MISSING]",
+    requiredSchemaMissing: "[MDMS_SCHEMA_ERROR]",
+} as const;
+
+// HTTP status codes
+export const httpStatusCodes = {
+    badRequest: 400,
+    conflict: 409,
+    internalServerError: 500,
+} as const;
+
+// Error module names for throwError
+export const errorModules = {
+    common: "COMMON",
+    file: "FILE",
+} as const;
+
+// Error codes for concurrent upload and validation
+export const errorCodes = {
+    campaignProcessingInProgress: "CAMPAIGN_PROCESSING_IN_PROGRESS",
+    validationError: "VALIDATION_ERROR",
+    processingFailed: "PROCESSING_FAILED",
+    validationErrorUnifiedConsoleTemplate: "VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE",
+    hrmsPhoneReusedDifferentUser: "HRMS_PHONE_REUSED_DIFFERENT_USER",
+} as const;
+
+// Error worksheet name in credential xlsx
+export const errorWorksheetName = "HCM_ADMIN_CONSOLE_USER_ERRORS";
+
+/** Resolves a module/key pair to a structured Error, falling back to UNKNOWN_ERROR when unmapped. */
+export const getErrorCodes = (module: string, key: string): Error => {
+    const message = CONSTANTS.ERROR_CODES?.[module]?.[key] || getMessage(key)
+
+    const code = message == unknownError ? "UNKNOWN_ERROR" : key
+
+    return {
+        code: code,
+        notFound: true,
+        message: message
+    }
+}
+
+/**
+ * Attendance sheet refresh state. Shared because the read path in resourceDetailsService decides
+ * whether a refresh runs at all, and attendanceSheetUtils writes it — the two must not drift.
+ */
+/**
+ * The de-enrolment date lives inside the row's own data rather than in a column: only attendees
+ * carry one, unlike isDeleted, which is the table's general soft-delete flag. It is an internal
+ * key, so every path that emits a sheet strips it like the other _-prefixed fields.
+ */
+export const attendanceSyncDataKeys = {
+  denrollmentDate: "_denrollmentDate",
+} as const;
+
+export const attendanceSheetRefresh = {
+    additionalDetailsKey: "attendanceRefresh",
+    statePending: "pending",
+    stateInProgress: "inProgress",
+    resourceTypes: ["attendanceRegister", "attendanceRegisterAttendee"],
+};

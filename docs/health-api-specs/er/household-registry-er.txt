@@ -1,0 +1,63 @@
+Table address {
+  id varchar [pk]
+  tenantId varchar
+  clientReferenceId varchar(64)
+  doorNo varchar(64)
+  latitude double
+  longitude double
+  locationAccuracy int
+  type varchar(64)
+  addressLine1 varchar(256)
+  addressLine2 varchar(256)
+  landmark varchar(256)
+  city varchar(256)
+  pincode varchar(64)
+  buildingName varchar(256)
+  street varchar(256)
+  // additionalDetails json
+  localityCode varchar(64) //Reference to master data
+  wardcode varchar(256)
+  // createdBy varchar(64)
+  // createdTime bigint
+  // lastModifiedBy varchar(64)
+  // lastModifiedTime bigint
+  // rowVersion bigint
+  // isDeleted bool
+}
+
+Table household {
+  id varchar [pk]
+  tenantId varchar
+  clientReferenceId varchar(64)
+  numberOfMembers int
+  addressId varchar [ref: > address.id]
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table household_member {
+  id varchar [pk]
+  tenantId varchar
+  clientreferenceid varchar(64)
+  individualId varchar(64) //[ref: > individual.id]
+  individualClientReferenceId varchar(64) //[ref: > individual.id]
+  householdId varchar(64) [ref: > household.id]
+  householdClientReferenceId varchar(64) [ref: > household.clientreferenceid]
+  isHeadOfHousehold bool
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+  clientCreatedBy varchar(64)
+  clientCreatedTime bigint
+  clientLastModifiedBy varchar(64)
+  clientLastModifiedTime bigint
+}

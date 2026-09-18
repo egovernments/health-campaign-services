@@ -30,6 +30,8 @@ public class ErrorCode {
 
     public static final String SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG = "Attribute Value provided against the attribute definition of type multi value list must be an instance of list";
 
+    public static final String SERVICE_REQUEST_ATTRIBUTE_INVALID_BOOLEAN_VALUE_MSG = "Attribute Value provided against the attribute definition of type boolean must be an instance of boolean";
+
     public static final String INVALID_SIZE_OF_INPUT_CODE = "INVALID_SIZE_OF_INPUT_CODE";
 
     public static final String INVALID_SIZE_OF_TEXT_MSG = "Text value cannot be of length greater than configured length ";
@@ -61,4 +63,39 @@ public class ErrorCode {
     public static final String INVALID_REGEX_ERR_CODE = "INVALID_REGEX_ERR_CODE";
 
     public static final String INVALID_REGEX_ERR_MSG = "The provided regex failed to compile for attribute definition with code - ";
+
+    public static final String SERVICE_DEFINITION_NOT_EXIST_ERR_CODE = "SERVICE_DEFINITION_NOT_EXIST_ERR_CODE";
+
+    public static final String SERVICE_DEFINITION_NOT_EXIST_ERR_MSG = "Provided tenantId and code unique combination does not exist";
+
+    public static final String SERVICE_DOES_NOT_EXIST_ERR_CODE = "SERVICE_NOT_EXIST_ERR_CODE";
+
+    public static final String SERVICE_DOES_NOT_EXIST_ERR_MSG = "Service does not exist";
+
+    public static final String SERVICE_ALREADY_EXISTS_ERR_CODE = "SERVICE_ALREADY_EXISTS_ERR_CODE";
+
+    public static final String SERVICE_ALREADY_EXISTS_FOR_CLIENT_ID_ERR_MSG = "Service corresponding to the client id already exists";
+
+    public static final String SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE = "SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE";
+
+    public static final String SERVICE_ATTRIBUTE_VALUE_DOES_NOT_EXIST_ERR_MSG = "Service attribute value does not exist";
+
+    public static final String SERVICE_ATTRIBUTE_VALUE_DUPLICATE_ERR_MSG = "Service attribute value id is duplicated";
+
+    public static final String SERVICE_ATTRIBUTE_VALUE_ALREADY_EXISTS_ERR_MSG = "Service attribute value code is already existing but no id is passed";
+
+    public static final String VALID_SERVICE_EXIST_ERR_CODE = "VALID_SERVICE_EXIST_ERR_CODE";
+
+    public static final String VALID_SERVICE_EXIST_ERR_MSG = "Valid Service exists corresponding to Service Definition";
+
+    public static final String VALID_SERVICE_DOES_NOT_EXIST_ERR_CODE = "VALID_SERVICE_DOES_NOT_EXIST_ERR_CODE";
+
+    public static final String VALID_SERVICE_DOES_NOT_EXIST_ERR_MSG = "Valid Service doesnt exists corresponding to Service Definition";
+
+    public static final String INACTIVE_SERVICE_DEFINITION_ERR_CODE = "INACTIVE_SERVICE_DEFINITION_ERR_CODE";
+
+    public static final String INACTIVE_SERVICE_DEFINITION_ERR_MSG = "Inactive Service Definition cannot be updated";
+
+    public static final String INVALID_TENANT_ID_ERR_CODE = "INVALID_TENANT_ID";
+
 }

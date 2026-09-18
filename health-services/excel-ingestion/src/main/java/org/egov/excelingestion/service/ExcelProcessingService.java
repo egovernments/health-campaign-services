@@ -1,0 +1,449 @@
+package org.egov.excelingestion.service;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
+import org.egov.excelingestion.web.models.mdms.ProcessSheetData;
+import org.egov.excelingestion.web.models.ProcessorSheetConfig;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.util.BoundaryCodeResolver;
+import org.egov.excelingestion.util.RequestInfoConverter;
+import org.egov.excelingestion.util.EnrichmentUtil;
+import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.web.models.ProcessResource;
+import org.egov.excelingestion.web.models.ProcessResourceRequest;
+import org.egov.excelingestion.web.models.ValidationError;
+import org.egov.excelingestion.web.models.ValidationColumnInfo;
+import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.*;
+
+@Service
+@Slf4j
+public class ExcelProcessingService {
+
+    private final ValidationService validationService;
+    private final SchemaValidationService schemaValidationService;
+    private final ConfigBasedProcessingService configBasedProcessingService;
+    private final FileStoreService fileStoreService;
+    private final LocalizationService localizationService;
+    private final RequestInfoConverter requestInfoConverter;
+    private final RestTemplate restTemplate;
+    private final CustomExceptionHandler exceptionHandler;
+    private final ExcelIngestionConfig config;
+    private final EnrichmentUtil enrichmentUtil;
+    private final MDMSConfigService mdmsConfigService;
+    private final ExcelUtil excelUtil;
+    private final ImmutableJoinService immutableJoinService;
+    private final BoundaryCodeResolver boundaryCodeResolver;
+
+    public ExcelProcessingService(ValidationService validationService,
+                                  SchemaValidationService schemaValidationService,
+                                  ConfigBasedProcessingService configBasedProcessingService,
+                                  FileStoreService fileStoreService,
+                                  LocalizationService localizationService,
+                                  RequestInfoConverter requestInfoConverter,
+                                  RestTemplate restTemplate,
+                                  CustomExceptionHandler exceptionHandler,
+                                  ExcelIngestionConfig config,
+                                  EnrichmentUtil enrichmentUtil,
+                                  MDMSConfigService mdmsConfigService,
+                                  ExcelUtil excelUtil,
+                                  ImmutableJoinService immutableJoinService,
+                                  BoundaryCodeResolver boundaryCodeResolver) {
+        this.validationService = validationService;
+        this.schemaValidationService = schemaValidationService;
+        this.configBasedProcessingService = configBasedProcessingService;
+        this.fileStoreService = fileStoreService;
+        this.localizationService = localizationService;
+        this.requestInfoConverter = requestInfoConverter;
+        this.restTemplate = restTemplate;
+        this.exceptionHandler = exceptionHandler;
+        this.config = config;
+        this.enrichmentUtil = enrichmentUtil;
+        this.mdmsConfigService = mdmsConfigService;
+        this.excelUtil = excelUtil;
+        this.immutableJoinService = immutableJoinService;
+        this.boundaryCodeResolver = boundaryCodeResolver;
+    }
+
+    /**
+     * Processes the uploaded Excel file, validates data, and adds error columns
+     */
+    public ProcessResource processExcelFile(ProcessResourceRequest request) {
+        log.info("Starting Excel file processing for type: {}", request.getResourceDetails().getType());
+
+        ProcessResource resource = request.getResourceDetails();
+
+
+        try {
+            // Extract locale and create localization maps
+            String locale = resource.getLocale() != null ? resource.getLocale()
+                    : requestInfoConverter.extractLocale(request.getRequestInfo());
+            String tenantId = resource.getTenantId();
+            String hierarchyType = resource.getHierarchyType();
+
+            Map<String, String> mergedLocalizationMap = new HashMap<>();
+
+            // Get boundary hierarchy localization if hierarchyType is provided
+            if (hierarchyType != null && !hierarchyType.trim().isEmpty()) {
+                String boundaryModule = "hcm-boundary-" + hierarchyType.toLowerCase();
+                Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
+                        tenantId, boundaryModule, locale, request.getRequestInfo());
+                mergedLocalizationMap.putAll(boundaryLocalizationMap);
+            }
+
+            // Get schema localization for field names
+            String schemaModule = "hcm-admin-schemas";
+            Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
+                    tenantId, schemaModule, locale, request.getRequestInfo());
+            mergedLocalizationMap.putAll(schemaLocalizationMap);
+
+            // Download and validate the Excel file
+            try (Workbook workbook = fileStoreService.downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
+
+                // Fail fast on oversized sheets BEFORE the expensive parse/validate/persist work,
+                // turning a potential OOM into a clean, localizable business error.
+                enforceMaxRowLimit(workbook);
+
+                // Pre-validate schemas and fetch them before data validation using config-based approach
+                Map<String, Map<String, Object>> preValidatedSchemas = configBasedProcessingService.preValidateAndFetchSchemas(
+                        workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
+
+                // Reconstruct authoritative pre-filled values from the generated baseline (unprotected join
+                // mode) BEFORE validation, so validation/processors/persistence all see server-authoritative
+                // immutable data. No-op for legacy/protected files (no embedded generationId).
+                Map<String, Map<String, Object>> sheetNameToSchema = new HashMap<>();
+                for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    String sheetName = workbook.getSheetAt(i).getSheetName();
+                    if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
+                        continue;
+                    }
+                    Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(),
+                            mergedLocalizationMap, preValidatedSchemas, request.getRequestInfo(), tenantId);
+
+                    sheetNameToSchema.put(sheetName, schema != null ? schema : new HashMap<>());
+                }
+                List<ValidationError> immutableJoinWarnings = new ArrayList<>();
+                Map<String, Set<String>> immutableColumnsBySheet =
+                        immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema,
+                                request.getRequestInfo(), immutableJoinWarnings, mergedLocalizationMap);
+                if (immutableColumnsBySheet == null) {
+                    immutableColumnsBySheet = Collections.emptyMap();
+                }
+
+                // Resolve boundary codes for user-entered rows from the workbook's own lookup mapping.
+                // Scaffold-less templates carry no per-row VLOOKUP formulas, so blank code cells are
+                // filled here (after the join restored authoritative prefilled values, before
+                // validation). Legacy files' formula-evaluated codes are non-blank and left untouched.
+                boundaryCodeResolver.resolveBlankBoundaryCodes(workbook, resource);
+
+                // Validate data and collect errors with localization. Cells reconstructed from the trusted
+                // baseline (always-immutable columns on existing rows) are skipped - they came verbatim from
+                // an already-valid generated template, so re-validating them is wasted work.
+                List<ValidationError> validationErrors = validateExcelData(workbook, resource,
+                        request.getRequestInfo(), mergedLocalizationMap, preValidatedSchemas, immutableColumnsBySheet);
+
+                // Surface server-managed-cell revert warnings (non-failing; status=valid) alongside errors,
+                // so a user who edited a locked cell sees "your edit was reverted" without failing the row.
+                if (!immutableJoinWarnings.isEmpty()) {
+                    validationErrors.addAll(immutableJoinWarnings);
+                }
+
+                // Process each sheet: only add validation columns to sheets with errors
+                Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
+                for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    Sheet sheet = workbook.getSheetAt(i);
+                    String sheetName = sheet.getSheetName();
+
+                    // Skip hidden sheets (wrapped in _h_ prefix and suffix)
+                    if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
+                        log.debug("Skipping hidden sheet in validation column processing: {}", sheetName);
+                        continue;
+                    }
+
+                    // Step 1: Regular MDMS schema validation for all sheets (if errors exist)
+                    List<ValidationError> sheetErrors = validationErrors.stream()
+                            .filter(error -> sheetName.equals(error.getSheetName()))
+                            .toList();
+
+                    // Only add validation columns if there are errors for this sheet
+                    if (!sheetErrors.isEmpty()) {
+                        // Clean up validation formatting from template (processed files should only show error columns)
+                        validationService.removeValidationFormatting(sheet);
+
+                        // Add validation columns with localization
+                        ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet, mergedLocalizationMap);
+                        columnInfoMap.put(sheetName, columnInfo);
+
+                        // Process the validation errors
+                        validationService.processValidationErrors(sheet, sheetErrors, columnInfo, mergedLocalizationMap);
+                    }
+
+                    // Convert sheet data to get row count - CACHED VERSION
+                    List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                            resource.getFileStoreId(), sheetName, sheet);
+
+                    // Enrich resource additionalDetails with error count and status for this sheet
+                    enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors);
+
+                    // Enrich resource additionalDetails with row count for this sheet
+                    enrichmentUtil.enrichRowCountInAdditionalDetails(resource, sheetData.size());
+                }
+
+                // Step 2: Process workbook with configured processors (once per workbook, not per sheet)
+                configBasedProcessingService.processWorkbookWithProcessor(
+                        workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
+
+                // Step 3: Handle post-processing (persistence and event publishing) - MOVED AFTER PROCESSORS
+                for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    Sheet sheet = workbook.getSheetAt(i);
+                    String sheetName = sheet.getSheetName();
+
+                    if (configBasedProcessingService.isHiddenSheet(sheetName)) {
+                        continue; // Skip hidden sheets
+                    }
+
+                    // Convert sheet data again for post-processing (after processors have run) - CACHED VERSION
+                    List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                            resource.getFileStoreId(), sheetName, sheet);
+
+                    configBasedProcessingService.handlePostProcessing(
+                            sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData, request.getRequestInfo());
+                }
+
+                // Upload the processed Excel file
+                String processedFileStoreId = uploadProcessedExcel(workbook, resource);
+
+                // Update resource with results (error counts already enriched during processing)
+                ProcessResource updatedResource = updateResourceWithResults(resource, processedFileStoreId);
+
+                return updatedResource;
+            }
+        } catch (IOException e) {
+            log.error("Error processing Excel file for ID: {}", resource.getId(), e);
+            resource.setStatus(ProcessingConstants.STATUS_FAILED);
+            exceptionHandler.throwCustomException(ErrorConstants.EXCEL_PROCESSING_ERROR,
+                    ErrorConstants.EXCEL_PROCESSING_ERROR_MESSAGE, e);
+        }
+        return null; // This should never be reached due to exception above
+    }
+
+
+    /**
+     * Fail-fast guardrail: rejects the upload if any visible sheet has more data rows than
+     * the configured maximum. Uses {@link ExcelUtil#findActualLastRowWithData(Sheet)} which only
+     * probes the tail of the sheet (no full parse), so the check is cheap and runs before the
+     * expensive validate/persist pipeline.
+     */
+    private void enforceMaxRowLimit(Workbook workbook) {
+        int maxRows = config.getMaxProcessRowLimit();
+
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet sheet = workbook.getSheetAt(i);
+            String sheetName = sheet.getSheetName();
+
+            // Skip hidden helper sheets (canonical _h_…_h_ check)
+            if (configBasedProcessingService.isHiddenSheet(sheetName)) {
+                continue;
+            }
+
+            // Rows 0 and 1 are the technical + localized header rows; data starts at row 2.
+            int actualLastRow = ExcelUtil.findActualLastRowWithData(sheet);
+            int dataRows = actualLastRow >= 2 ? actualLastRow - 1 : 0;
+
+            if (dataRows > maxRows) {
+                log.warn("Sheet '{}' has {} data rows, exceeding max allowed {}", sheetName, dataRows, maxRows);
+                String message = ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED_MESSAGE
+                        .replace("{0}", sheetName)
+                        .replace("{1}", String.valueOf(maxRows));
+                exceptionHandler.throwCustomException(ErrorConstants.EXCEL_ROW_LIMIT_EXCEEDED, message);
+            }
+        }
+    }
+
+    /**
+     * Validates data in all sheets of the workbook using pre-fetched schemas
+     */
+    private List<ValidationError> validateExcelData(Workbook workbook, ProcessResource resource,
+                                                    org.egov.common.contract.request.RequestInfo requestInfo, Map<String, String> localizationMap,
+                                                    Map<String, Map<String, Object>> preValidatedSchemas,
+                                                    Map<String, Set<String>> immutableColumnsBySheet) {
+        List<ValidationError> allErrors = new ArrayList<>();
+
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet sheet = workbook.getSheetAt(i);
+            String sheetName = sheet.getSheetName();
+
+            // Skip hidden sheets (wrapped in _h_ prefix and suffix)
+            if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
+                log.info("Skipping validation for hidden sheet: {}", sheetName);
+                continue;
+            }
+
+            log.info("Validating sheet: {}", sheetName);
+
+            // Convert sheet data to List<Map> format for schema validation - CACHED VERSION
+            List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                    resource.getFileStoreId(), sheetName, sheet);
+
+            // Get schema for this sheet from pre-validated schemas
+            Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(), localizationMap, preValidatedSchemas, requestInfo, resource.getTenantId());
+
+            // Perform schema validation with pre-fetched schema. Skip re-validating always-immutable cells
+            // on existing rows (reconstructed from the trusted baseline by the immutable-join step).
+            Set<String> immutableSkipColumns = immutableColumnsBySheet.getOrDefault(sheetName, Collections.emptySet());
+            List<ValidationError> schemaErrors = schemaValidationService.validateDataWithPreFetchedSchema(
+                    sheetData, sheetName, schema, localizationMap, immutableSkipColumns);
+
+            allErrors.addAll(schemaErrors);
+        }
+
+        return validationService.mergeErrors(allErrors);
+    }
+
+    /**
+     * Helper method to get schema for a sheet from pre-validated schemas
+     */
+    private Map<String, Object> getSchemaForSheet(String sheetName, String type,
+                                                  Map<String, String> localizationMap,
+                                                  Map<String, Map<String, Object>> preValidatedSchemas,
+                                                  org.egov.common.contract.request.RequestInfo requestInfo,
+                                                  String tenantId) {
+        try {
+            // Get processor configuration
+            ExcelIngestionProcessData processData = mdmsConfigService.getExcelIngestionProcessConfig(requestInfo, tenantId, type);
+            if (processData == null || processData.getSheets() == null) {
+                return null;
+            }
+
+            List<ProcessorSheetConfig> configs = new ArrayList<>();
+            for (ProcessSheetData sheetData : processData.getSheets()) {
+                configs.add(new ProcessorSheetConfig(
+                        sheetData.getSheetName(),
+                        sheetData.getSchemaName(),
+                        sheetData.getProcessorClass(),
+                        sheetData.getParseEnabled() != null ? sheetData.getParseEnabled() : true
+                ));
+            }
+
+            // Find the schema name for this sheet
+            for (ProcessorSheetConfig sheetConfig : configs) {
+                String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
+                if (localizedName.equals(sheetName)) {
+                    String schemaName = sheetConfig.getSchemaName();
+                    if (schemaName != null && preValidatedSchemas.containsKey(schemaName)) {
+                        return preValidatedSchemas.get(schemaName);
+                    }
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error getting schema for sheet {}: {}", sheetName, e.getMessage(), e);
+        }
+
+        return null;
+    }
+
+    /**
+     * Get localized sheet name with configurable character limit
+     */
+    private String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
+        String localizedName = sheetKey;
+
+        if (localizationMap != null && localizationMap.containsKey(sheetKey)) {
+            localizedName = localizationMap.get(sheetKey);
+        }
+
+        int maxLength = config.getSheetNameMaxLength();
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
+        }
+
+        return localizedName;
+    }
+
+
+    /**
+     * Uploads the processed Excel file to file store
+     */
+    private String uploadProcessedExcel(Workbook workbook, ProcessResource resource) throws IOException {
+        log.info("Starting workbook write for resource: {}", resource.getId());
+        long startTime = System.currentTimeMillis();
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream(8 * 1024 * 1024)) { // Pre-allocate 8MB for large Excel files
+
+
+            log.info("Writing workbook to stream for resource: {}", resource.getId());
+            workbook.write(outputStream);
+            outputStream.flush(); // Ensure all POI buffers are flushed
+
+            long writeTime = System.currentTimeMillis() - startTime;
+            log.info("Workbook write completed in {}ms for resource: {}", writeTime, resource.getId());
+
+            byte[] excelBytes = outputStream.toByteArray();
+            log.info("Generated Excel file size: {}KB for resource: {}", excelBytes.length / 1024, resource.getId());
+
+            String fileName = String.format("processed_%s_%s_%d.xlsx",
+                    resource.getType(),
+                    resource.getReferenceId(),
+                    System.currentTimeMillis());
+
+            long totalTime = System.currentTimeMillis() - startTime;
+            log.info("Total upload preparation time: {}ms for resource: {}", totalTime, resource.getId());
+
+            return fileStoreService.uploadFile(excelBytes, resource.getTenantId(), fileName);
+        }
+    }
+
+    /**
+     * Updates resource with processing results
+     * Error counts and validation status are already enriched during processing
+     */
+    private ProcessResource updateResourceWithResults(ProcessResource resource, String processedFileStoreId) {
+
+        // Processing is complete, so status is PROCESSED regardless of validation errors
+        String processStatus = ProcessingConstants.STATUS_PROCESSED;
+
+        // Ensure additionalDetails exists (should already be populated by enrichment utility)
+        Map<String, Object> additionalDetails = resource.getAdditionalDetails();
+        if (additionalDetails == null) {
+            additionalDetails = new HashMap<>();
+        }
+
+        // Update audit details
+        AuditDetails auditDetails = resource.getAuditDetails();
+        if (auditDetails == null) {
+            auditDetails = new AuditDetails();
+            auditDetails.setCreatedTime(System.currentTimeMillis());
+        }
+        auditDetails.setLastModifiedTime(System.currentTimeMillis());
+
+        return ProcessResource.builder()
+                .id(resource.getId())
+                .tenantId(resource.getTenantId())
+                .type(resource.getType())
+                .hierarchyType(resource.getHierarchyType())
+                .referenceId(resource.getReferenceId())
+                .fileStoreId(resource.getFileStoreId())
+                .processedFileStoreId(processedFileStoreId)
+                .status(processStatus)
+                .additionalDetails(additionalDetails)
+                .auditDetails(auditDetails)
+                .build();
+    }
+
+}

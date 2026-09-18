@@ -107,6 +107,7 @@ public class NotificationService {
             ServiceWrapper serviceWrapper = ServiceWrapper.builder().service(request.getService()).workflow(request.getWorkflow()).build();
             String applicationStatus = request.getService().getApplicationStatus();
             String action = request.getWorkflow().getAction();
+            String tenantId = request.getService().getTenantId();
 
             if (!(NOTIFICATION_ENABLE_FOR_STATUS.contains(action+"_"+applicationStatus))) {
                 log.info("Notification Disabled For State :" + applicationStatus);
@@ -152,7 +153,7 @@ public class NotificationService {
                         for(String msg : entry.getValue()) {
                             EventRequest eventRequest = enrichEventRequest(request, msg);
                             if (eventRequest != null) {
-                                notificationUtil.sendEventNotification(eventRequest);
+                                notificationUtil.sendEventNotification(tenantId, eventRequest);
                             }
                         }
                     }
@@ -166,7 +167,7 @@ public class NotificationService {
                                 List<SMSRequest> smsRequests = new ArrayList<>();
                                 smsRequests = enrichSmsRequest(citizenMobileNumber, msg);
                                 if (!CollectionUtils.isEmpty(smsRequests)) {
-                                    notificationUtil.sendSMS(smsRequests);
+                                    notificationUtil.sendSMS(tenantId, smsRequests);
                                 }
                             }
                         }
@@ -175,7 +176,7 @@ public class NotificationService {
                                 List<SMSRequest> smsRequests = new ArrayList<>();
                                 smsRequests = enrichSmsRequest(employeeMobileNumber, msg);
                                 if (!CollectionUtils.isEmpty(smsRequests)) {
-                                    notificationUtil.sendSMS(smsRequests);
+                                    notificationUtil.sendSMS(tenantId, smsRequests);
                                 }
                             }
                         }
@@ -698,7 +699,7 @@ public class NotificationService {
 
         String localisationMessageForPlaceholder =  notificationUtil.getLocalizationMessages(request.getService().getTenantId(), request.getRequestInfo(),COMMON_MODULE);
         //HRSMS CALL
-        StringBuilder url = hrmsUtils.getHRMSURI(request.getWorkflow().getAssignes());
+        StringBuilder url = hrmsUtils.getHRMSURI(request.getService().getTenantId(), request.getWorkflow().getAssignes());
         RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(request.getRequestInfo()).build();
         Object response = serviceRequestRepository.fetchResult(url, requestInfoWrapper);
 
