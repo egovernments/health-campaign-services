@@ -11,9 +11,10 @@ import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils";
 import config from '../config/index'
-import {callGenerate, triggerGenerate } from "../utils/generateUtils";
-import { generatedResourceStatuses } from "../config/constants";
+import {callGenerate } from "../utils/generateUtils";
 import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
+import { generateDataService as generateTemplateDataService } from "./sheetManageService";
+import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 
 
 const generateDataService = async (request: express.Request) => {
@@ -23,28 +24,32 @@ const generateDataService = async (request: express.Request) => {
     return request?.body?.generatedResource;
 };
 
+const sheetManageGenerationTypes = new Set<string>([
+    "facility",
+    "user",
+    "boundary",
+    "userCredential",
+    "attendanceRegisterUserBulkMapping",
+]);
+
 
 const downloadDataService = async (request: express.Request) => {
     await validateDownloadRequest(request);
     logger.info("VALIDATED THE DATA DOWNLOAD REQUEST");
 
-    var type = String(request.query.type);
-    const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
+    const type = String(request.query.type);
+    const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
+    let responseData = await searchGeneratedResources(request?.query, locale);
     const resourceDetails = await getResourceDetails(request);
+    const hasRequestedGeneratedId = Boolean(request?.query?.id);
+    const tenantId = String(request?.query?.tenantId || "");
+    const hierarchyType = String(request?.query?.hierarchyType || "");
+    const campaignId = String(request?.query?.campaignId || "");
+    const localityCode = request?.query?.localityCode ? String(request?.query?.localityCode) : undefined;
+    const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "null";
 
-    // No completed resource found (or last attempt failed) — auto-trigger generation.
-    if (
-        !responseData ||
-        (responseData.length === 0 && !request?.query?.id) ||
-        responseData?.[0]?.status === generatedResourceStatuses.failed
-    ) {
-        logger.error(`No data of type '${type}' with status 'Completed' or the provided ID is present in the database.`)
-        const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
-        logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}`)
-        const tenantId = String(request?.query?.tenantId);
-        const hierarchyType = String(request?.query?.hierarchyType);
-        const campaignId = String(request?.query?.campaignId);
-        const localityCode = request?.query?.localityCode ? String(request?.query?.localityCode) : undefined;
+    if (!hasRequestedGeneratedId) {
+        logger.info(`Generating fresh template for download — campaignId=${campaignId}, type=${type}`);
 
         let isMicroplan = false;
         try {
@@ -52,7 +57,23 @@ const downloadDataService = async (request: express.Request) => {
         } catch (e) {
             throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
         }
-        if (isMicroplan) {
+
+        if (!isMicroplan && sheetManageGenerationTypes.has(type)) {
+            const generateTemplateQuery: GenerateTemplateQuery = {
+                type,
+                tenantId,
+                hierarchyType,
+                campaignId,
+                ...(localityCode ? { localityCode } : {}),
+            };
+            const generatedResource = await generateTemplateDataService(
+                generateTemplateQuery,
+                userUuid,
+                locale,
+                request?.body?.RequestInfo
+            );
+            responseData = generatedResource ? [generatedResource] : [];
+        } else {
             const newRequestToGenerate = {
                 ...request,
                 query: {
@@ -66,31 +87,23 @@ const downloadDataService = async (request: express.Request) => {
                 }
             };
             await callGenerate(newRequestToGenerate, type);
-        } else {
-            triggerGenerate(
-                type,
-                tenantId,
-                hierarchyType,
-                campaignId,
-                request?.body?.RequestInfo?.userInfo?.uuid || "null",
-                locale,
-                request?.body?.RequestInfo,
-                localityCode
-            );
+            if (Array.isArray(newRequestToGenerate?.body?.generatedResource) && newRequestToGenerate.body.generatedResource.length > 0) {
+                responseData = newRequestToGenerate.body.generatedResource;
+            } else {
+                responseData = await searchGeneratedResources(newRequestToGenerate?.query, locale);
+            }
         }
     }
 
-
-        if (resourceDetails != null && responseData != null && responseData.length > 0) {
-            responseData[0].additionalDetails = {
-                ...(responseData[0].additionalDetails || {}),
-                ...(resourceDetails?.additionalDetails || {})
-            };
-        }
-
-
-        return responseData;
+    if (resourceDetails != null && responseData != null && responseData.length > 0) {
+        responseData[0].additionalDetails = {
+            ...(responseData[0].additionalDetails || {}),
+            ...(resourceDetails?.additionalDetails || {})
+        };
     }
+
+    return responseData;
+}
 
 const getBoundaryDataService = async (
     request: express.Request, enableCaching = false) => {
