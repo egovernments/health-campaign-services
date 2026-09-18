@@ -12,6 +12,7 @@ import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils";
 import config from '../config/index'
 import {callGenerate } from "../utils/generateUtils";
+import { generatedResourceStatuses } from "../config/constants";
 import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
 import { generateDataService as generateTemplateDataService } from "./sheetManageService";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
@@ -25,12 +26,56 @@ const generateDataService = async (request: express.Request) => {
 };
 
 const sheetManageGenerationTypes = new Set<string>([
-    "facility",
-    "user",
-    "boundary",
-    "userCredential",
     "attendanceRegisterUserBulkMapping",
 ]);
+
+const downloadGeneratedStatusPollIntervalMs = 1000;
+const downloadGeneratedStatusPollMaxAttempts = 45;
+const staleInProgressResourceThresholdMs = 5 * 60 * 1000;
+
+function toEpoch(value: unknown): number {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+        const parsed = parseInt(value, 10);
+        return Number.isFinite(parsed) ? parsed : NaN;
+    }
+    return NaN;
+}
+
+function isStaleInProgressResource(resource: any): boolean {
+    if (resource?.status !== generatedResourceStatuses.inprogress) return false;
+    const createdTime = toEpoch(resource?.auditDetails?.createdTime);
+    if (!Number.isFinite(createdTime)) return false;
+    return Date.now() - createdTime > staleInProgressResourceThresholdMs;
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForGeneratedResourceTerminalStatus(
+    requestQuery: any,
+    locale: string,
+    generatedResourceId: string
+): Promise<any | null> {
+    for (let attempt = 0; attempt < downloadGeneratedStatusPollMaxAttempts; attempt++) {
+        const generatedResources = await searchGeneratedResources(
+            { ...requestQuery, id: generatedResourceId },
+            locale
+        );
+        const generatedResource = generatedResources?.[0];
+        const status = generatedResource?.status;
+
+        if (status === generatedResourceStatuses.completed || status === generatedResourceStatuses.failed) {
+            return generatedResource;
+        }
+
+        if (attempt < downloadGeneratedStatusPollMaxAttempts - 1) {
+            await sleep(downloadGeneratedStatusPollIntervalMs);
+        }
+    }
+    return null;
+}
 
 
 const downloadDataService = async (request: express.Request) => {
@@ -49,48 +94,69 @@ const downloadDataService = async (request: express.Request) => {
     const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "null";
 
     if (!hasRequestedGeneratedId) {
-        logger.info(`Generating fresh template for download — campaignId=${campaignId}, type=${type}`);
+        const latestResource = responseData?.[0];
+        const hasFreshInProgressResource =
+            latestResource?.status === generatedResourceStatuses.inprogress
+            && !isStaleInProgressResource(latestResource);
 
-        let isMicroplan = false;
-        try {
-            isMicroplan = await isCampaignIdOfMicroplan(tenantId, campaignId);
-        } catch (e) {
-            throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
-        }
-
-        if (!isMicroplan && sheetManageGenerationTypes.has(type)) {
-            const generateTemplateQuery: GenerateTemplateQuery = {
-                type,
-                tenantId,
-                hierarchyType,
-                campaignId,
-                ...(localityCode ? { localityCode } : {}),
-            };
-            const generatedResource = await generateTemplateDataService(
-                generateTemplateQuery,
-                userUuid,
-                locale,
-                request?.body?.RequestInfo
-            );
-            responseData = generatedResource ? [generatedResource] : [];
+        if (hasFreshInProgressResource) {
+            logger.info(`Found active in-progress generation id=${latestResource.id}; reusing it.`);
         } else {
-            const newRequestToGenerate = {
-                ...request,
-                query: {
-                    ...request.query,
+            if (latestResource?.status === generatedResourceStatuses.inprogress) {
+                logger.warn(`Found stale in-progress generation id=${latestResource.id}; creating a fresh one.`);
+            } else {
+                logger.info(`Generating fresh template for download — campaignId=${campaignId}, type=${type}`);
+            }
+
+            let isMicroplan = false;
+            try {
+                isMicroplan = await isCampaignIdOfMicroplan(tenantId, campaignId);
+            } catch (e) {
+                throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
+            }
+
+            if (!isMicroplan && sheetManageGenerationTypes.has(type)) {
+                const generateTemplateQuery: GenerateTemplateQuery = {
                     type,
                     tenantId,
                     hierarchyType,
                     campaignId,
-                    localityCode,
-                    forceUpdate: 'true'
-                }
-            };
-            await callGenerate(newRequestToGenerate, type);
-            if (Array.isArray(newRequestToGenerate?.body?.generatedResource) && newRequestToGenerate.body.generatedResource.length > 0) {
-                responseData = newRequestToGenerate.body.generatedResource;
+                    ...(localityCode ? { localityCode } : {}),
+                };
+                const generatedResource = await generateTemplateDataService(
+                    generateTemplateQuery,
+                    userUuid,
+                    locale,
+                    request?.body?.RequestInfo
+                );
+                responseData = generatedResource ? [generatedResource] : [];
             } else {
-                responseData = await searchGeneratedResources(newRequestToGenerate?.query, locale);
+                const newRequestToGenerate = {
+                    ...request,
+                    query: {
+                        ...request.query,
+                        type,
+                        tenantId,
+                        hierarchyType,
+                        campaignId,
+                        localityCode,
+                        forceUpdate: 'true'
+                    }
+                };
+                await callGenerate(newRequestToGenerate, type);
+                if (Array.isArray(newRequestToGenerate?.body?.generatedResource) && newRequestToGenerate.body.generatedResource.length > 0) {
+                    responseData = newRequestToGenerate.body.generatedResource;
+                } else {
+                    responseData = await searchGeneratedResources(newRequestToGenerate?.query, locale);
+                }
+            }
+        }
+
+        const generatedResourceId = responseData?.[0]?.id;
+        if (generatedResourceId && responseData?.[0]?.status === generatedResourceStatuses.inprogress) {
+            const terminalResource = await waitForGeneratedResourceTerminalStatus(request?.query, locale, generatedResourceId);
+            if (terminalResource) {
+                responseData = [terminalResource];
             }
         }
     }

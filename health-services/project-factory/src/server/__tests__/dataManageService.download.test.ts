@@ -113,6 +113,13 @@ const NEW_RESOURCE = {
     type: "attendanceRegisterUserBulkMapping",
     fileStoreid: null,
     additionalDetails: {},
+    auditDetails: { createdTime: Date.now(), lastModifiedTime: Date.now(), createdBy: "u", lastModifiedBy: "u" },
+};
+
+const COMPLETED_NEW_RESOURCE = {
+    ...NEW_RESOURCE,
+    status: "completed",
+    fileStoreid: "new-file",
 };
 
 function buildRequest(overrides: Record<string, any> = {}) {
@@ -145,7 +152,9 @@ describe("downloadDataService always-fresh behavior", () => {
     });
 
     it("always regenerates bulk template when id is not provided", async () => {
-        mockSearchGeneratedResources.mockResolvedValue([OLD_RESOURCE]);
+        mockSearchGeneratedResources
+            .mockResolvedValueOnce([OLD_RESOURCE])
+            .mockResolvedValueOnce([COMPLETED_NEW_RESOURCE]);
         mockGenerateTemplateDataService.mockResolvedValue(NEW_RESOURCE);
 
         const request = buildRequest();
@@ -163,7 +172,7 @@ describe("downloadDataService always-fresh behavior", () => {
             "en_BEDNET",
             request.body.RequestInfo
         );
-        expect(result).toEqual([NEW_RESOURCE]);
+        expect(result).toEqual([COMPLETED_NEW_RESOURCE]);
         expect(mockCallGenerate).not.toHaveBeenCalled();
     });
 
@@ -181,7 +190,7 @@ describe("downloadDataService always-fresh behavior", () => {
 
     it("uses legacy generator for types not supported by sheet-manage generation", async () => {
         const old = { ...OLD_RESOURCE, type: "facilityWithBoundary" };
-        const newer = { ...NEW_RESOURCE, type: "facilityWithBoundary", id: "new-facility-gen-id" };
+        const newer = { ...COMPLETED_NEW_RESOURCE, type: "facilityWithBoundary", id: "new-facility-gen-id" };
         mockSearchGeneratedResources.mockResolvedValueOnce([old]).mockResolvedValueOnce([newer]);
 
         const result = await downloadDataService(
@@ -193,5 +202,45 @@ describe("downloadDataService always-fresh behavior", () => {
         expect(generatedRequest.query.forceUpdate).toBe("true");
         expect(result).toEqual([newer]);
         expect(mockGenerateTemplateDataService).not.toHaveBeenCalled();
+    });
+
+    it("reuses active in-progress resource instead of creating another one", async () => {
+        const inProgressExisting = {
+            ...NEW_RESOURCE,
+            id: "existing-inprogress-id",
+            fileStoreid: null,
+            auditDetails: { createdTime: Date.now(), lastModifiedTime: Date.now(), createdBy: "u", lastModifiedBy: "u" },
+        };
+        const completedExisting = {
+            ...inProgressExisting,
+            status: "completed",
+            fileStoreid: "existing-completed-file",
+        };
+        mockSearchGeneratedResources
+            .mockResolvedValueOnce([inProgressExisting])
+            .mockResolvedValueOnce([completedExisting]);
+
+        const result = await downloadDataService(buildRequest());
+
+        expect(result).toEqual([completedExisting]);
+        expect(mockGenerateTemplateDataService).not.toHaveBeenCalled();
+        expect(mockCallGenerate).not.toHaveBeenCalled();
+    });
+
+    it("regenerates when latest in-progress resource is stale", async () => {
+        const staleInProgress = {
+            ...NEW_RESOURCE,
+            id: "stale-inprogress-id",
+            auditDetails: { createdTime: 1, lastModifiedTime: 1, createdBy: "u", lastModifiedBy: "u" },
+        };
+        mockSearchGeneratedResources
+            .mockResolvedValueOnce([staleInProgress])
+            .mockResolvedValueOnce([COMPLETED_NEW_RESOURCE]);
+        mockGenerateTemplateDataService.mockResolvedValue(NEW_RESOURCE);
+
+        const result = await downloadDataService(buildRequest());
+
+        expect(mockGenerateTemplateDataService).toHaveBeenCalledTimes(1);
+        expect(result).toEqual([COMPLETED_NEW_RESOURCE]);
     });
 });
