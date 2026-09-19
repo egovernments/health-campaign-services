@@ -428,6 +428,8 @@ export class TemplateClass {
                         tenantId,
                         referenceId: registerSearchReferenceId,
                         localityCode,
+                        includeAttendee: true,
+                        includeStaff: true,
                         limit: ATTENDANCE_REGISTER_SEARCH_LIMIT,
                         offset
                     }

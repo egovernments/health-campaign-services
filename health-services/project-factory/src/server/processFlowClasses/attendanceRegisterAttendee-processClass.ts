@@ -758,7 +758,12 @@ export class TemplateClass {
             const window = registerServiceCodes.slice(i, i + parallelLimit);
             const responses = await Promise.all(
                 window.map(code =>
-                    httpRequest(url, { RequestInfo }, { tenantId, serviceCode: code })
+                    httpRequest(url, { RequestInfo }, {
+                        tenantId,
+                        serviceCode: code,
+                        includeAttendee: true,
+                        includeStaff: true
+                    })
                         .then((res: any) => ({ code, res }))
                         .catch((err: any) => {
                             logger.warn(`Error fetching register for serviceCode ${code}: ${err?.message}`);
