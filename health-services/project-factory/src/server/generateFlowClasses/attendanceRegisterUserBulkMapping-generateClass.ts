@@ -156,15 +156,14 @@ export class TemplateClass {
             campaignEndDate
         );
 
-        const outputRowsBySheetName = this.containsMappedRows(rowsFromStoredData)
-            ? rowsFromStoredData
-            : await this.buildRowsFromAttendanceState(
-                registers,
-                tenantId,
-                responseToSend?.requestInfo,
-                campaignStartDate,
-                campaignEndDate
-            );
+        const outputRowsBySheetName = await this.buildOutputRowsBySheetName(
+            rowsFromStoredData,
+            registers,
+            tenantId,
+            responseToSend?.requestInfo,
+            campaignStartDate,
+            campaignEndDate
+        );
 
         this.ensureSeedRowsPerRegisterPerSheet(outputRowsBySheetName, registers);
 
@@ -283,6 +282,117 @@ export class TemplateClass {
         }
 
         return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+    }
+
+    private static async buildOutputRowsBySheetName(
+        rowsFromStoredData: RowsBySheetName,
+        registers: RegisterData[],
+        tenantId: string,
+        requestInfo: RequestInfo | undefined,
+        campaignStartDate: string,
+        campaignEndDate: string
+    ): Promise<RowsBySheetName> {
+        if (!registers.length) {
+            return rowsFromStoredData;
+        }
+
+        const mappedRegisterCodes = this.collectMappedRegisterServiceCodes(rowsFromStoredData);
+        if (!mappedRegisterCodes.size) {
+            return this.buildRowsFromAttendanceState(
+                registers,
+                tenantId,
+                requestInfo,
+                campaignStartDate,
+                campaignEndDate
+            );
+        }
+
+        const hasRegistersMissingFromStoredMappings = registers.some(
+            (register) => !mappedRegisterCodes.has(register.serviceCode)
+        );
+        if (!hasRegistersMissingFromStoredMappings) {
+            return rowsFromStoredData;
+        }
+
+        logger.info(
+            `Stored attendee mappings cover ${mappedRegisterCodes.size}/${registers.length} registers; `
+            + "supplementing remaining registers from attendance state"
+        );
+        const rowsFromAttendanceState = await this.buildRowsFromAttendanceState(
+            registers,
+            tenantId,
+            requestInfo,
+            campaignStartDate,
+            campaignEndDate
+        );
+
+        return this.mergeRowsBySheetName(rowsFromStoredData, rowsFromAttendanceState);
+    }
+
+    private static collectMappedRegisterServiceCodes(rowsBySheetName: RowsBySheetName): Set<string> {
+        const registerServiceCodes = new Set<string>();
+        for (const sheetName of SHEET_NAMES) {
+            for (const row of rowsBySheetName.get(sheetName) || []) {
+                const hasMappedPerson = Boolean(this.firstNonBlank(
+                    row[WORKER_ID_COLUMN],
+                    row[USERNAME_COLUMN],
+                    row[USER_NAME_COLUMN]
+                ));
+                if (!hasMappedPerson) continue;
+
+                const registerServiceCode = this.firstNonBlank(
+                    row[REGISTER_ID_COLUMN],
+                    row[REGISTER_CODE_COLUMN]
+                );
+                if (!registerServiceCode) continue;
+                registerServiceCodes.add(registerServiceCode);
+            }
+        }
+        return registerServiceCodes;
+    }
+
+    private static mergeRowsBySheetName(
+        primaryRowsBySheetName: RowsBySheetName,
+        fallbackRowsBySheetName: RowsBySheetName
+    ): RowsBySheetName {
+        const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
+        const mergeSourceRows = (rowsBySheetName: RowsBySheetName, preferIncomingValues: boolean) => {
+            for (const sheetName of SHEET_NAMES) {
+                const dedupedRows = dedupedRowsBySheetName.get(sheetName);
+                if (!dedupedRows) continue;
+                for (const row of rowsBySheetName.get(sheetName) || []) {
+                    const dedupeKey = this.dedupeKeyForGeneratedRow(sheetName, row);
+                    if (!dedupeKey) continue;
+                    const existing = dedupedRows.get(dedupeKey);
+                    if (!existing) {
+                        dedupedRows.set(dedupeKey, { ...row });
+                        continue;
+                    }
+                    const mergedRow = preferIncomingValues
+                        ? this.mergeRows(row, existing)
+                        : this.mergeRows(existing, row);
+                    dedupedRows.set(dedupeKey, mergedRow);
+                }
+            }
+        };
+
+        mergeSourceRows(fallbackRowsBySheetName, false);
+        mergeSourceRows(primaryRowsBySheetName, true);
+
+        return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+    }
+
+    private static dedupeKeyForGeneratedRow(sheetName: string, row: BulkRow): string | null {
+        const registerServiceCode = this.firstNonBlank(
+            row[REGISTER_ID_COLUMN],
+            row[REGISTER_CODE_COLUMN]
+        );
+        if (!registerServiceCode) return null;
+        const rowRecord = this.asRecord(row);
+        const personIdentity = rowRecord
+            ? this.personIdentity(rowRecord, "__seed__")
+            : "__seed__";
+        return `${registerServiceCode}::${sheetName}::${personIdentity}`;
     }
 
     private static async fetchCampaignRegisters(
@@ -437,6 +547,8 @@ export class TemplateClass {
         if (registerIdFromIdentity) {
             const byId = registerById.get(registerIdFromIdentity);
             if (byId) return byId;
+            const byServiceCode = registerByServiceCode.get(registerIdFromIdentity);
+            if (byServiceCode) return byServiceCode;
         }
 
         return null;
