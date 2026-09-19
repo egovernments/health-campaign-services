@@ -131,7 +131,8 @@ export class TemplateClass {
             campaignId,
             tenantId,
             localityCodes,
-            responseToSend?.requestInfo
+            responseToSend?.requestInfo,
+            campaignNumber
         );
         const registerByServiceCode = new Map<string, RegisterData>();
         const registerById = new Map<string, RegisterData>();
@@ -400,7 +401,8 @@ export class TemplateClass {
         campaignId: string,
         tenantId: string,
         localityCodes: string[],
-        requestInfo?: RequestInfo
+        requestInfo?: RequestInfo,
+        campaignNumber?: string
     ): Promise<RegisterData[]> {
         const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
         const RequestInfo = requestInfo || {};
@@ -428,6 +430,9 @@ export class TemplateClass {
                         tenantId,
                         referenceId: registerSearchReferenceId,
                         localityCode,
+                        isChildrenRequired: true,
+                        includeAttendee: true,
+                        includeStaff: true,
                         limit: ATTENDANCE_REGISTER_SEARCH_LIMIT,
                         offset
                     }
@@ -440,6 +445,60 @@ export class TemplateClass {
                     const id = String(item?.id || "").trim();
                     const serviceCode = String(item?.serviceCode || "").trim();
                     if (!id || !serviceCode) continue;
+                    const key = `${id}::${serviceCode}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    registers.push({
+                        id,
+                        serviceCode,
+                        name: String(item?.name || serviceCode).trim(),
+                        localityCode: String(item?.localityCode || "").trim(),
+                        attendees: Array.isArray(item?.attendees) ? item.attendees : [],
+                        staff: Array.isArray(item?.staff) ? item.staff : []
+                    });
+                }
+
+                if (batch.length < ATTENDANCE_REGISTER_SEARCH_LIMIT) break;
+            }
+        }
+
+        const normalizedCampaignNumber = this.asText(campaignNumber);
+        const shouldSupplementFromCampaignSearch = Boolean(normalizedCampaignNumber)
+            && (registers.length === 0 || (registers.length <= 1 && effectiveLocalityCodes.length > 1));
+        if (shouldSupplementFromCampaignSearch) {
+            logger.info(
+                `Sparse register result (${registers.length} register(s) across ${effectiveLocalityCodes.length} locality code(s)); `
+                + `supplementing with campaignNumber=${normalizedCampaignNumber} search`
+            );
+
+            for (let offset = 0; offset <= ATTENDANCE_REGISTER_SEARCH_LIMIT * 10; offset += ATTENDANCE_REGISTER_SEARCH_LIMIT) {
+                const response = await httpRequest(
+                    url,
+                    { RequestInfo },
+                    {
+                        tenantId,
+                        campaignNumber: normalizedCampaignNumber,
+                        includeAttendee: true,
+                        includeStaff: true,
+                        limit: ATTENDANCE_REGISTER_SEARCH_LIMIT,
+                        offset
+                    }
+                );
+                const batch = Array.isArray(response?.attendanceRegister) ? response.attendanceRegister : [];
+                if (batch.length === 0) break;
+
+                for (const item of batch) {
+                    if (item?.isDeleted === true) continue;
+                    const id = String(item?.id || "").trim();
+                    const serviceCode = String(item?.serviceCode || "").trim();
+                    if (!id || !serviceCode) continue;
+
+                    const itemCampaignNumber = this.asText(item?.campaignNumber);
+                    const itemReferenceId = this.asText(item?.referenceId);
+                    const matchesCampaign = itemCampaignNumber === normalizedCampaignNumber;
+                    const matchesReference = itemReferenceId === registerSearchReferenceId;
+                    if (!matchesCampaign && !matchesReference) continue;
+
                     const key = `${id}::${serviceCode}`;
                     if (seen.has(key)) continue;
                     seen.add(key);

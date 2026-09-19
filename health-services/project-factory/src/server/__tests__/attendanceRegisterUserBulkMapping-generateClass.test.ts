@@ -162,7 +162,10 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             expect.objectContaining({
                 tenantId: "bednet",
                 referenceId: "prj-1",
-                localityCode: "ADMIN"
+                localityCode: "ADMIN",
+                isChildrenRequired: true,
+                includeAttendee: true,
+                includeStaff: true
             })
         );
     });
@@ -542,7 +545,104 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             expect.objectContaining({
                 tenantId: "bednet",
                 referenceId: "prj-locality",
-                localityCode: "WARD-22"
+                localityCode: "WARD-22",
+                isChildrenRequired: true
+            })
+        );
+    });
+
+    it("supplements sparse locality matches using campaign-number search", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-sparse",
+                campaignNumber: "CMP-SPARSE",
+                startDate: Date.UTC(2026, 0, 1),
+                endDate: Date.UTC(2026, 0, 31),
+                boundaries: [{ code: "ADMIN" }, { code: "WARD-1" }]
+            }]
+        } as any);
+        mockGetRelatedData.mockResolvedValue([] as any);
+
+        mockHttpRequest.mockImplementation(async (_url: string, _body: any, params: any) => {
+            if (params?.campaignNumber === "CMP-SPARSE") {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-uuid-1",
+                            serviceCode: "REG-001",
+                            name: "Register 001",
+                            localityCode: "WARD-1-DH-1",
+                            campaignNumber: "CMP-SPARSE",
+                            referenceId: "prj-sparse",
+                            attendees: [],
+                            staff: []
+                        },
+                        {
+                            id: "reg-uuid-2",
+                            serviceCode: "REG-002",
+                            name: "Register 002",
+                            localityCode: "WARD-1-DH-2",
+                            campaignNumber: "CMP-SPARSE",
+                            referenceId: "prj-sparse",
+                            attendees: [],
+                            staff: []
+                        },
+                        {
+                            id: "reg-uuid-other",
+                            serviceCode: "REG-OTHER",
+                            name: "Register Other",
+                            localityCode: "OTHER",
+                            campaignNumber: "CMP-OTHER",
+                            referenceId: "prj-other",
+                            attendees: [],
+                            staff: []
+                        }
+                    ]
+                } as any;
+            }
+
+            if (params?.localityCode === "WARD-1") {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-uuid-1",
+                            serviceCode: "REG-001",
+                            name: "Register 001",
+                            localityCode: "WARD-1-DH-1",
+                            campaignNumber: "CMP-SPARSE",
+                            referenceId: "prj-sparse",
+                            attendees: [],
+                            staff: []
+                        }
+                    ]
+                } as any;
+            }
+
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            {
+                tenantId: "bednet",
+                campaignId: "cmp-sparse",
+                requestInfo: {},
+                additionalDetails: { localityCode: "WARD-1" }
+            },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        expect(workerRows).toHaveLength(2);
+        expect(workerRows.map((row) => row.HCM_ATTENDANCE_REGISTER_CODE)).toEqual(["REG-001", "REG-002"]);
+        expect(workerRows.find((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-OTHER")).toBeUndefined();
+
+        expect(mockHttpRequest).toHaveBeenCalledWith(
+            expect.stringContaining("/attendance/v1/_search"),
+            expect.anything(),
+            expect.objectContaining({
+                tenantId: "bednet",
+                campaignNumber: "CMP-SPARSE"
             })
         );
     });
