@@ -27,6 +27,7 @@ jest.mock("../utils/genericUtils", () => ({
     enrichResourceDetails: jest.fn(),
     getLocalizedMessagesHandler: jest.fn(),
     searchGeneratedResources: jest.fn(),
+    searchAllGeneratedResources: jest.fn(),
     processGenerate: jest.fn(),
     throwError: (...args: any[]) => mockThrowError(...args),
     searchCampaignData: jest.fn(),
@@ -71,11 +72,14 @@ jest.mock("../utils/redisUtils", () => ({
     checkRedisConnection: jest.fn().mockResolvedValue(false),
 }));
 
+const mockConfig = {
+    cacheTime: 300,
+    cacheValues: { resetCache: false },
+    generatedResource: { reuseWindowMs: 30000 },
+};
+
 jest.mock("../config/index", () => ({
-    default: {
-        cacheTime: 300,
-        cacheValues: { resetCache: false },
-    },
+    default: mockConfig,
     __esModule: true,
 }));
 
@@ -88,12 +92,13 @@ jest.mock("../service/sheetManageService", () => ({
 }));
 
 import { downloadDataService } from "../service/dataManageService";
-import { searchGeneratedResources } from "../utils/genericUtils";
+import { searchGeneratedResources, searchAllGeneratedResources } from "../utils/genericUtils";
 import { validateDownloadRequest } from "../validators/campaignValidators";
 import { generateDataService as generateTemplateDataService } from "../service/sheetManageService";
 import { callGenerate } from "../utils/generateUtils";
 
 const mockSearchGeneratedResources = searchGeneratedResources as jest.Mock;
+const mockSearchAllGeneratedResources = searchAllGeneratedResources as jest.Mock;
 const mockValidateDownloadRequest = validateDownloadRequest as jest.Mock;
 const mockGenerateTemplateDataService = generateTemplateDataService as jest.Mock;
 const mockCallGenerate = callGenerate as jest.Mock;
@@ -149,12 +154,13 @@ describe("downloadDataService always-fresh behavior", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockValidateDownloadRequest.mockResolvedValue(undefined);
+        mockConfig.generatedResource.reuseWindowMs = 30000;
+        mockSearchAllGeneratedResources.mockResolvedValue([]);
     });
 
     it("always regenerates bulk template when id is not provided", async () => {
-        mockSearchGeneratedResources
-            .mockResolvedValueOnce([OLD_RESOURCE])
-            .mockResolvedValueOnce([COMPLETED_NEW_RESOURCE]);
+        mockSearchAllGeneratedResources.mockResolvedValue([OLD_RESOURCE]);
+        mockSearchGeneratedResources.mockResolvedValue([COMPLETED_NEW_RESOURCE]);
         mockGenerateTemplateDataService.mockResolvedValue(NEW_RESOURCE);
 
         const request = buildRequest();
@@ -191,7 +197,8 @@ describe("downloadDataService always-fresh behavior", () => {
     it("uses legacy generator for types not supported by sheet-manage generation", async () => {
         const old = { ...OLD_RESOURCE, type: "facilityWithBoundary" };
         const newer = { ...COMPLETED_NEW_RESOURCE, type: "facilityWithBoundary", id: "new-facility-gen-id" };
-        mockSearchGeneratedResources.mockResolvedValueOnce([old]).mockResolvedValueOnce([newer]);
+        mockSearchAllGeneratedResources.mockResolvedValue([old]);
+        mockSearchGeneratedResources.mockResolvedValue([newer]);
 
         const result = await downloadDataService(
             buildRequest({ query: { type: "facilityWithBoundary" } })
@@ -209,6 +216,7 @@ describe("downloadDataService always-fresh behavior", () => {
             ...NEW_RESOURCE,
             id: "existing-inprogress-id",
             fileStoreid: null,
+            additionalDetails: { localityCode: "loc-1" },
             auditDetails: { createdTime: Date.now(), lastModifiedTime: Date.now(), createdBy: "u", lastModifiedBy: "u" },
         };
         const completedExisting = {
@@ -216,11 +224,95 @@ describe("downloadDataService always-fresh behavior", () => {
             status: "completed",
             fileStoreid: "existing-completed-file",
         };
-        mockSearchGeneratedResources
-            .mockResolvedValueOnce([inProgressExisting])
-            .mockResolvedValueOnce([completedExisting]);
+        mockSearchAllGeneratedResources.mockResolvedValue([inProgressExisting]);
+        mockSearchGeneratedResources.mockResolvedValue([completedExisting]);
 
         const result = await downloadDataService(buildRequest());
+
+        expect(result).toEqual([completedExisting]);
+        expect(mockGenerateTemplateDataService).not.toHaveBeenCalled();
+        expect(mockCallGenerate).not.toHaveBeenCalled();
+    });
+
+    it("does not reuse an in-progress generation belonging to a different locality", async () => {
+        const otherLocalityInProgress = {
+            ...NEW_RESOURCE,
+            id: "other-locality-inprogress-id",
+            fileStoreid: null,
+            additionalDetails: { localityCode: "loc-2" },
+            auditDetails: { createdTime: Date.now(), lastModifiedTime: Date.now(), createdBy: "u", lastModifiedBy: "u" },
+        };
+        mockSearchAllGeneratedResources.mockResolvedValue([otherLocalityInProgress]);
+        mockSearchGeneratedResources.mockResolvedValue([COMPLETED_NEW_RESOURCE]);
+        mockGenerateTemplateDataService.mockResolvedValue(NEW_RESOURCE);
+
+        const result = await downloadDataService(buildRequest());
+
+        expect(mockGenerateTemplateDataService).toHaveBeenCalledWith(
+            expect.objectContaining({ localityCode: "loc-1" }),
+            "user-1",
+            "en_BEDNET",
+            expect.anything()
+        );
+        expect(result).not.toEqual([otherLocalityInProgress]);
+    });
+
+    it("does not reuse an in-progress generation that records no locality when one is requested", async () => {
+        const unknownLocalityInProgress = {
+            ...NEW_RESOURCE,
+            id: "unknown-locality-inprogress-id",
+            fileStoreid: null,
+            additionalDetails: {},
+            auditDetails: { createdTime: Date.now(), lastModifiedTime: Date.now(), createdBy: "u", lastModifiedBy: "u" },
+        };
+        mockSearchAllGeneratedResources.mockResolvedValue([unknownLocalityInProgress]);
+        mockSearchGeneratedResources.mockResolvedValue([COMPLETED_NEW_RESOURCE]);
+        mockGenerateTemplateDataService.mockResolvedValue(NEW_RESOURCE);
+
+        await downloadDataService(buildRequest());
+
+        expect(mockGenerateTemplateDataService).toHaveBeenCalled();
+    });
+
+    it("does not reuse a locality-scoped generation for a campaign-wide request", async () => {
+        const localityInProgress = {
+            ...NEW_RESOURCE,
+            id: "locality-inprogress-id",
+            fileStoreid: null,
+            additionalDetails: { localityCode: "loc-1" },
+            auditDetails: { createdTime: Date.now(), lastModifiedTime: Date.now(), createdBy: "u", lastModifiedBy: "u" },
+        };
+        mockSearchAllGeneratedResources.mockResolvedValue([localityInProgress]);
+        mockSearchGeneratedResources.mockResolvedValue([COMPLETED_NEW_RESOURCE]);
+        mockGenerateTemplateDataService.mockResolvedValue(NEW_RESOURCE);
+
+        await downloadDataService(buildRequest({ query: { localityCode: undefined } }));
+
+        expect(mockGenerateTemplateDataService).toHaveBeenCalledWith(
+            expect.not.objectContaining({ localityCode: expect.anything() }),
+            "user-1",
+            "en_BEDNET",
+            expect.anything()
+        );
+    });
+
+    it("reuses a campaign-wide in-progress generation for a campaign-wide request", async () => {
+        const campaignWideInProgress = {
+            ...NEW_RESOURCE,
+            id: "campaign-wide-inprogress-id",
+            fileStoreid: null,
+            additionalDetails: {},
+            auditDetails: { createdTime: Date.now(), lastModifiedTime: Date.now(), createdBy: "u", lastModifiedBy: "u" },
+        };
+        const completedExisting = {
+            ...campaignWideInProgress,
+            status: "completed",
+            fileStoreid: "campaign-wide-file",
+        };
+        mockSearchAllGeneratedResources.mockResolvedValue([campaignWideInProgress]);
+        mockSearchGeneratedResources.mockResolvedValue([completedExisting]);
+
+        const result = await downloadDataService(buildRequest({ query: { localityCode: undefined } }));
 
         expect(result).toEqual([completedExisting]);
         expect(mockGenerateTemplateDataService).not.toHaveBeenCalled();
@@ -231,11 +323,11 @@ describe("downloadDataService always-fresh behavior", () => {
         const staleInProgress = {
             ...NEW_RESOURCE,
             id: "stale-inprogress-id",
+            additionalDetails: { localityCode: "loc-1" },
             auditDetails: { createdTime: 1, lastModifiedTime: 1, createdBy: "u", lastModifiedBy: "u" },
         };
-        mockSearchGeneratedResources
-            .mockResolvedValueOnce([staleInProgress])
-            .mockResolvedValueOnce([COMPLETED_NEW_RESOURCE]);
+        mockSearchAllGeneratedResources.mockResolvedValue([staleInProgress]);
+        mockSearchGeneratedResources.mockResolvedValue([COMPLETED_NEW_RESOURCE]);
         mockGenerateTemplateDataService.mockResolvedValue(NEW_RESOURCE);
 
         const result = await downloadDataService(buildRequest());

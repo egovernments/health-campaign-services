@@ -3,6 +3,7 @@ import { attendanceColumnKeys, attendanceSheetNames, dataRowStatuses } from "../
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { CampaignDataRow } from "../config/models/campaignDataRow";
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { formatEpochAsSheetDate } from "../utils/attendanceIdentityUtils";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
@@ -10,7 +11,6 @@ import { logger } from "../utils/logger";
 import { httpRequest } from "../utils/request";
 
 const ATTENDEE_DATA_TYPE = "attendanceRegisterAttendee";
-const ATTENDANCE_REGISTER_SEARCH_LIMIT = 200;
 const INDIVIDUAL_SEARCH_BATCH_SIZE = 100;
 const MAX_ROLE_COLUMNS = 5;
 const STAFF_TYPE_APPROVER = "APPROVER";
@@ -120,19 +120,13 @@ export class TemplateClass {
         const campaignStartDate = this.formatEpochIfPresent(campaign?.startDate);
         const campaignEndDate = this.formatEpochIfPresent(campaign?.endDate);
 
-        const registerSearchReferenceId = this.resolveRegisterSearchReferenceId(
-            campaignId,
-            campaign,
-            responseToSend?.additionalDetails
-        );
-        const localityCodes = this.resolveRegisterSearchLocalityCodes(campaign, responseToSend?.additionalDetails);
+        const localityCodes = this.resolveRegisterSearchLocalityCodes(responseToSend?.additionalDetails);
         const registers = await this.fetchCampaignRegisters(
-            registerSearchReferenceId,
-            campaignId,
             tenantId,
+            String(responseToSend?.hierarchyType || "").trim(),
+            campaignNumber,
             localityCodes,
-            responseToSend?.requestInfo,
-            campaignNumber
+            responseToSend?.requestInfo
         );
         const registerByServiceCode = new Map<string, RegisterData>();
         const registerById = new Map<string, RegisterData>();
@@ -397,151 +391,206 @@ export class TemplateClass {
     }
 
     private static async fetchCampaignRegisters(
-        registerSearchReferenceId: string,
-        campaignId: string,
         tenantId: string,
+        hierarchyType: string,
+        campaignNumber: string,
         localityCodes: string[],
-        requestInfo?: RequestInfo,
-        campaignNumber?: string
+        requestInfo?: RequestInfo
     ): Promise<RegisterData[]> {
-        const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
-        const RequestInfo = requestInfo || {};
-        const seen = new Set<string>();
-        const registers: RegisterData[] = [];
         const effectiveLocalityCodes = Array.from(
             new Set(localityCodes.map((code) => String(code || "").trim()).filter(Boolean))
         );
 
         if (!effectiveLocalityCodes.length) {
-            throwError(
-                "CAMPAIGN",
-                400,
-                "LOCALITY_CODE_REQUIRED",
-                `localityCode is required to search attendance registers for campaign ${campaignId}`
-            );
+            return this.searchRegistersByCampaignNumber(tenantId, campaignNumber, requestInfo);
         }
 
-        for (const localityCode of effectiveLocalityCodes) {
-            for (let offset = 0; offset <= 10000; offset += ATTENDANCE_REGISTER_SEARCH_LIMIT) {
-                const response = await httpRequest(
-                    url,
-                    { RequestInfo },
-                    {
-                        tenantId,
-                        referenceId: registerSearchReferenceId,
-                        localityCode,
-                        isChildrenRequired: true,
-                        includeAttendee: true,
-                        includeStaff: true,
-                        limit: ATTENDANCE_REGISTER_SEARCH_LIMIT,
-                        offset
-                    }
-                );
-                const batch = Array.isArray(response?.attendanceRegister) ? response.attendanceRegister : [];
-                if (batch.length === 0) break;
+        const subtreeCodes = await this.resolveLocalitySubtreeCodes(
+            tenantId,
+            hierarchyType,
+            effectiveLocalityCodes,
+            requestInfo
+        );
+        const referenceIds = await this.resolveProjectIdsForBoundaries(campaignNumber, tenantId, subtreeCodes);
 
-                for (const item of batch) {
-                    if (item?.isDeleted === true) continue;
-                    const id = String(item?.id || "").trim();
-                    const serviceCode = String(item?.serviceCode || "").trim();
-                    if (!id || !serviceCode) continue;
-                    const key = `${id}::${serviceCode}`;
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    registers.push({
-                        id,
-                        serviceCode,
-                        name: String(item?.name || serviceCode).trim(),
-                        localityCode: String(item?.localityCode || "").trim(),
-                        attendees: Array.isArray(item?.attendees) ? item.attendees : [],
-                        staff: Array.isArray(item?.staff) ? item.staff : []
-                    });
-                }
-
-                if (batch.length < ATTENDANCE_REGISTER_SEARCH_LIMIT) break;
-            }
-        }
-
-        const normalizedCampaignNumber = this.asText(campaignNumber);
-        const shouldSupplementFromCampaignSearch = Boolean(normalizedCampaignNumber)
-            && (registers.length === 0 || (registers.length <= 1 && effectiveLocalityCodes.length > 1));
-        if (shouldSupplementFromCampaignSearch) {
+        if (!referenceIds.length) {
             logger.info(
-                `Sparse register result (${registers.length} register(s) across ${effectiveLocalityCodes.length} locality code(s)); `
-                + `supplementing with campaignNumber=${normalizedCampaignNumber} search`
+                `No created projects found under locality code(s) ${effectiveLocalityCodes.join(", ")} `
+                + `for campaign ${campaignNumber}; returning no registers`
             );
+            return [];
+        }
 
-            for (let offset = 0; offset <= ATTENDANCE_REGISTER_SEARCH_LIMIT * 10; offset += ATTENDANCE_REGISTER_SEARCH_LIMIT) {
+        return this.searchRegistersByReferenceIds(tenantId, referenceIds, requestInfo);
+    }
+
+    /** Expands each requested locality to itself plus every descendant boundary code, so registers created below it are still found. */
+    private static async resolveLocalitySubtreeCodes(
+        tenantId: string,
+        hierarchyType: string,
+        localityCodes: string[],
+        requestInfo?: RequestInfo
+    ): Promise<string[]> {
+        const codes = new Set<string>(localityCodes);
+
+        for (const localityCode of localityCodes) {
+            const response: any = await searchBoundaryRelationshipData(
+                tenantId,
+                hierarchyType,
+                true,
+                false,
+                true,
+                localityCode,
+                requestInfo
+            );
+            this.collectBoundaryCodes(response?.TenantBoundary?.[0]?.boundary, codes);
+        }
+
+        logger.info(`Resolved ${codes.size} boundary code(s) under ${localityCodes.length} requested locality code(s)`);
+        return Array.from(codes);
+    }
+
+    private static collectBoundaryCodes(nodes: any, codes: Set<string>): void {
+        if (!Array.isArray(nodes)) return;
+        for (const node of nodes) {
+            const code = this.asText(node?.code);
+            if (code) codes.add(code);
+            this.collectBoundaryCodes(node?.children, codes);
+        }
+    }
+
+    /** Maps boundary codes to the project ids campaign_data recorded when each boundary's project was created. */
+    private static async resolveProjectIdsForBoundaries(
+        campaignNumber: string,
+        tenantId: string,
+        boundaryCodes: string[]
+    ): Promise<string[]> {
+        const wanted = new Set(boundaryCodes);
+        const boundaryRows = await getRelatedDataWithCampaign(
+            "boundary",
+            campaignNumber,
+            tenantId,
+            dataRowStatuses.completed
+        ) as CampaignDataRow[];
+
+        const projectIds = new Set<string>();
+        for (const row of Array.isArray(boundaryRows) ? boundaryRows : []) {
+            const boundaryCode = this.asText(row?.uniqueIdentifier);
+            const projectId = this.asText(row?.uniqueIdAfterProcess);
+            if (boundaryCode && projectId && wanted.has(boundaryCode)) {
+                projectIds.add(projectId);
+            }
+        }
+        return Array.from(projectIds);
+    }
+
+    private static async searchRegistersByReferenceIds(
+        tenantId: string,
+        referenceIds: string[],
+        requestInfo?: RequestInfo
+    ): Promise<RegisterData[]> {
+        const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
+        const RequestInfo = requestInfo || {};
+        const pageLimit = config.attendanceRegister.registerSearchPageLimit;
+        const chunkSize = config.attendanceRegister.registerSearchReferenceIdChunkSize;
+        const seen = new Set<string>();
+        const registers: RegisterData[] = [];
+        let searchCalls = 0;
+
+        for (let index = 0; index < referenceIds.length; index += chunkSize) {
+            // Criteria binds via @ModelAttribute from query params, so the list travels comma-separated
+            const chunk = referenceIds.slice(index, index + chunkSize).join(",");
+            for (let offset = 0; ; offset += pageLimit) {
                 const response = await httpRequest(
                     url,
                     { RequestInfo },
                     {
                         tenantId,
-                        campaignNumber: normalizedCampaignNumber,
+                        referenceIds: chunk,
                         includeAttendee: true,
                         includeStaff: true,
-                        limit: ATTENDANCE_REGISTER_SEARCH_LIMIT,
+                        limit: pageLimit,
                         offset
                     }
                 );
+                searchCalls++;
                 const batch = Array.isArray(response?.attendanceRegister) ? response.attendanceRegister : [];
                 if (batch.length === 0) break;
-
-                for (const item of batch) {
-                    if (item?.isDeleted === true) continue;
-                    const id = String(item?.id || "").trim();
-                    const serviceCode = String(item?.serviceCode || "").trim();
-                    if (!id || !serviceCode) continue;
-
-                    const itemCampaignNumber = this.asText(item?.campaignNumber);
-                    const itemReferenceId = this.asText(item?.referenceId);
-                    const matchesCampaign = itemCampaignNumber === normalizedCampaignNumber;
-                    const matchesReference = itemReferenceId === registerSearchReferenceId;
-                    if (!matchesCampaign && !matchesReference) continue;
-
-                    const key = `${id}::${serviceCode}`;
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    registers.push({
-                        id,
-                        serviceCode,
-                        name: String(item?.name || serviceCode).trim(),
-                        localityCode: String(item?.localityCode || "").trim(),
-                        attendees: Array.isArray(item?.attendees) ? item.attendees : [],
-                        staff: Array.isArray(item?.staff) ? item.staff : []
-                    });
-                }
-
-                if (batch.length < ATTENDANCE_REGISTER_SEARCH_LIMIT) break;
+                this.collectRegisters(batch, seen, registers);
+                if (batch.length < pageLimit) break;
             }
         }
 
+        logger.info(
+            `Fetched ${registers.length} register(s) via ${searchCalls} referenceIds search call(s) `
+            + `across ${referenceIds.length} project id(s)`
+        );
         return registers;
     }
 
-    private static resolveRegisterSearchReferenceId(
-        campaignId: string,
-        campaign: any,
-        additionalDetails?: Record<string, unknown>
-    ): string {
-        const campaignProjectId = this.asText(campaign?.projectId);
-        if (campaignProjectId) {
-            return campaignProjectId;
+    private static async searchRegistersByCampaignNumber(
+        tenantId: string,
+        campaignNumber: string,
+        requestInfo?: RequestInfo
+    ): Promise<RegisterData[]> {
+        const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
+        const RequestInfo = requestInfo || {};
+        const pageLimit = config.attendanceRegister.registerSearchPageLimit;
+        const seen = new Set<string>();
+        const registers: RegisterData[] = [];
+        let searchCalls = 0;
+
+        for (let offset = 0; ; offset += pageLimit) {
+            const response = await httpRequest(
+                url,
+                { RequestInfo },
+                {
+                    tenantId,
+                    campaignNumber,
+                    includeAttendee: true,
+                    includeStaff: true,
+                    limit: pageLimit,
+                    offset
+                }
+            );
+            searchCalls++;
+            const batch = Array.isArray(response?.attendanceRegister) ? response.attendanceRegister : [];
+            if (batch.length === 0) break;
+            this.collectRegisters(batch, seen, registers);
+            if (batch.length < pageLimit) break;
         }
 
-        const requestProjectId = this.asText(additionalDetails?.projectId);
-        if (requestProjectId) {
-            return requestProjectId;
-        }
-
-        logger.warn(
-            `Campaign ${campaignId} has no projectId; falling back to campaignId for attendance register search`
+        logger.info(
+            `Fetched ${registers.length} register(s) via ${searchCalls} campaignNumber-scoped search call(s)`
         );
-        return campaignId;
+        return registers;
+    }
+
+    private static collectRegisters(
+        batch: any[],
+        seen: Set<string>,
+        registers: RegisterData[]
+    ): void {
+        for (const item of batch) {
+            if (item?.isDeleted === true) continue;
+            const id = String(item?.id || "").trim();
+            const serviceCode = String(item?.serviceCode || "").trim();
+            if (!id || !serviceCode) continue;
+            const key = `${id}::${serviceCode}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            registers.push({
+                id,
+                serviceCode,
+                name: String(item?.name || serviceCode).trim(),
+                localityCode: String(item?.localityCode || "").trim(),
+                attendees: Array.isArray(item?.attendees) ? item.attendees : [],
+                staff: Array.isArray(item?.staff) ? item.staff : []
+            });
+        }
     }
 
     private static resolveRegisterSearchLocalityCodes(
-        campaign: any,
         additionalDetails?: Record<string, unknown>
     ): string[] {
         const codes = new Set<string>();
@@ -553,12 +602,6 @@ export class TemplateClass {
                 this.addLocalityCode(codes, code);
             }
         }
-
-        const campaignBoundaries = Array.isArray(campaign?.boundaries) ? campaign.boundaries : [];
-        for (const boundary of campaignBoundaries) {
-            this.addLocalityCode(codes, boundary?.code);
-        }
-        this.addLocalityCode(codes, campaign?.boundaryCode);
 
         return Array.from(codes);
     }

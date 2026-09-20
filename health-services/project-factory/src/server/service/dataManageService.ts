@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError, searchCampaignData, searchMappingData } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, searchAllGeneratedResources, processGenerate, throwError, searchCampaignData, searchMappingData } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -15,6 +15,7 @@ import {callGenerate } from "../utils/generateUtils";
 import { generatedResourceStatuses } from "../config/constants";
 import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
 import { generateDataService as generateTemplateDataService } from "./sheetManageService";
+import { localityKeyOf } from "../utils/generatedResourceUtils";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 
@@ -52,6 +53,29 @@ function isStaleInProgressResource(resource: any): boolean {
     return Date.now() - createdTime > staleInProgressResourceThresholdMs;
 }
 
+// Falls back to createdTime so a row without a completion stamp yields a shorter window, never a longer one
+function completionEpoch(resource: any): number {
+    const completedAt = toEpoch(resource?.auditDetails?.lastModifiedTime);
+    if (Number.isFinite(completedAt)) return completedAt;
+    return toEpoch(resource?.auditDetails?.createdTime);
+}
+
+function isReusableCompletedResource(resource: any): boolean {
+    if (resource?.status !== generatedResourceStatuses.completed) return false;
+    if (!resource?.fileStoreid) return false;
+    const reuseWindowMs = config?.generatedResource?.reuseWindowMs ?? 0;
+    if (reuseWindowMs <= 0) return false;
+    const completedAt = completionEpoch(resource);
+    if (!Number.isFinite(completedAt)) return false;
+    return Date.now() - completedAt <= reuseWindowMs;
+}
+
+function newestForLocality(resources: any[], localityKey: string | null): any {
+    return (Array.isArray(resources) ? resources : [])
+        .filter((resource) => localityKeyOf(resource) === localityKey)
+        .sort((a, b) => toEpoch(b?.auditDetails?.createdTime) - toEpoch(a?.auditDetails?.createdTime))[0];
+}
+
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -87,23 +111,41 @@ const downloadDataService = async (request: express.Request) => {
 
     const type = String(request.query.type);
     const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
-    let responseData = await searchGeneratedResources(request?.query, locale);
-    const resourceDetails = await getResourceDetails(request);
     const hasRequestedGeneratedId = Boolean(request?.query?.id);
+    let responseData = hasRequestedGeneratedId ? await searchGeneratedResources(request?.query, locale) : [];
+    const resourceDetails = await getResourceDetails(request);
     const tenantId = String(request?.query?.tenantId || "");
     const hierarchyType = String(request?.query?.hierarchyType || "");
     const campaignId = String(request?.query?.campaignId || "");
     const localityCode = request?.query?.localityCode ? String(request?.query?.localityCode) : undefined;
+    const forceUpdate = String(request?.query?.forceUpdate || "") === "true";
     const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "null";
 
     if (!hasRequestedGeneratedId) {
-        const latestResource = responseData?.[0];
+        const requestLocalityKey = localityKeyOf({ additionalDetails: { localityCode } });
+        const candidates = await searchAllGeneratedResources(
+            {
+                tenantId,
+                type,
+                hierarchyType,
+                campaignId,
+                status: `${generatedResourceStatuses.completed},${generatedResourceStatuses.inprogress}`
+            },
+            locale
+        );
+        const latestResource = newestForLocality(candidates || [], requestLocalityKey);
         const hasFreshInProgressResource =
             latestResource?.status === generatedResourceStatuses.inprogress
             && !isStaleInProgressResource(latestResource);
+        const hasReusableCompletedResource =
+            !forceUpdate && isReusableCompletedResource(latestResource);
 
-        if (hasFreshInProgressResource) {
-            logger.info(`Found active in-progress generation id=${latestResource.id}; reusing it.`);
+        if (hasFreshInProgressResource || hasReusableCompletedResource) {
+            responseData = [latestResource];
+            logger.info(
+                `Reusing generation id=${latestResource.id} status=${latestResource.status} `
+                + `for localityCode=${requestLocalityKey}.`
+            );
         } else {
             if (latestResource?.status === generatedResourceStatuses.inprogress) {
                 logger.warn(`Found stale in-progress generation id=${latestResource.id}; creating a fresh one.`);

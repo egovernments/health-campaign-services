@@ -17,6 +17,7 @@ import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore } from "../api/coreApis";
 import { EnrichProcessConfigUtil } from "./EnrichProcessConfigUtil";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
+import { localityKeyOf } from "./generatedResourceUtils";
 
 /** Expires any prior generated resources for this key and produces a fresh in-progress record to track template generation. */
 export async function initializeGenerateAndGetResponse(
@@ -26,9 +27,11 @@ export async function initializeGenerateAndGetResponse(
     campaignId: string,
     userUuid: string,
     locale: string = config.localisation.defaultLocale,
-    requestInfo?: RequestInfo
+    requestInfo?: RequestInfo,
+    additionalDetails: Record<string, unknown> = {}
 ) {
     const currentTime = Date.now();
+    const localityKey = localityKeyOf({ additionalDetails });
 
     const getResourcesByStatus = (status: string) =>
         searchAllGeneratedResources({ tenantId, type, hierarchyType, status, campaignId }, locale);
@@ -38,7 +41,13 @@ export async function initializeGenerateAndGetResponse(
         getResourcesByStatus(generatedResourceStatuses.inprogress),
     ]);
 
-    const expiredResources = [...markAsExpired(completed, currentTime, userUuid), ...markAsExpired(inProgress, currentTime, userUuid)];
+    const sameLocality = (resources: any[]) =>
+        (Array.isArray(resources) ? resources : []).filter((resource) => localityKeyOf(resource) === localityKey);
+
+    const expiredResources = [
+        ...markAsExpired(sameLocality(completed), currentTime, userUuid),
+        ...markAsExpired(sameLocality(inProgress), currentTime, userUuid)
+    ];
 
     if (expiredResources.length > 0) {
         await produceModifiedMessages(
@@ -56,7 +65,7 @@ export async function initializeGenerateAndGetResponse(
         campaignId,
         locale,
         status: generatedResourceStatuses.inprogress,
-        additionalDetails: {},
+        additionalDetails,
         requestInfo,
         auditDetails: {
             createdTime: currentTime,
@@ -138,6 +147,11 @@ export async function generateResource(responseToSend: any, templateConfig: any)
         responseToSend.fileStoreid = fileResponse?.[0]?.fileStoreId;
         if (!responseToSend.fileStoreid) throw new Error("FileStoreId not created.");
         responseToSend.status = generatedResourceStatuses.completed;
+        responseToSend.auditDetails = {
+            ...(responseToSend.auditDetails || {}),
+            lastModifiedTime: Date.now(),
+            lastModifiedBy: responseToSend?.auditDetails?.createdBy
+        };
         await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC, responseToSend?.tenantId);
     } catch (error) {
         console.log(error)

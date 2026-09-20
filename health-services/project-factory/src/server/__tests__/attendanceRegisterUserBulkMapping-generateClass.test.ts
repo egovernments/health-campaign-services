@@ -1,20 +1,30 @@
+const mockConfig = {
+    host: {
+        attendanceHost: "http://attendance.local",
+        healthIndividualHost: "http://individual.local/"
+    },
+    paths: {
+        attendanceRegisterSearch: "/attendance/v1/_search",
+        healthIndividualSearch: "individual/v1/_search"
+    },
+    appTimezone: "UTC",
+    attendanceRegister: {
+        registerSearchPageLimit: 200,
+        registerSearchReferenceIdChunkSize: 100
+    }
+};
+
 jest.mock("../config", () => ({
     __esModule: true,
-    default: {
-        host: {
-            attendanceHost: "http://attendance.local",
-            healthIndividualHost: "http://individual.local/"
-        },
-        paths: {
-            attendanceRegisterSearch: "/attendance/v1/_search",
-            healthIndividualSearch: "individual/v1/_search"
-        },
-        appTimezone: "UTC"
-    }
+    default: mockConfig
 }));
 
 jest.mock("../utils/logger", () => ({
     logger: { info: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() }
+}));
+
+jest.mock("../api/coreApis", () => ({
+    searchBoundaryRelationshipData: jest.fn()
 }));
 
 jest.mock("../service/campaignManageService", () => ({
@@ -36,6 +46,7 @@ jest.mock("../utils/genericUtils", () => ({
 }));
 
 import { TemplateClass } from "../generateFlowClasses/attendanceRegisterUserBulkMapping-generateClass";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { httpRequest } from "../utils/request";
@@ -50,9 +61,26 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
     const mockSearchCampaign = jest.mocked(searchProjectTypeCampaignService);
     const mockGetRelatedData = jest.mocked(getRelatedDataWithCampaign);
     const mockHttpRequest = jest.mocked(httpRequest);
+    const mockBoundaryRelationship = jest.mocked(searchBoundaryRelationshipData);
+
+    const boundaryTree = (nodes: any[]) => ({ TenantBoundary: [{ boundary: nodes }] } as any);
+    const boundaryRow = (code: string, projectId: string | null) => ({
+        type: "boundary",
+        uniqueIdentifier: code,
+        uniqueIdAfterProcess: projectId,
+        status: "completed",
+        isDeleted: false,
+        data: {}
+    });
+    const routeRelatedData = (boundaryRows: any[], attendeeRows: any[] = []) =>
+        mockGetRelatedData.mockImplementation(async (type: string) =>
+            (type === "boundary" ? boundaryRows : attendeeRows) as any
+        );
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockConfig.attendanceRegister.registerSearchPageLimit = 200;
+        mockConfig.attendanceRegister.registerSearchReferenceIdChunkSize = 100;
     });
 
     it("generates 3 attendee tabs with prepended register columns and register seed rows", async () => {
@@ -161,12 +189,15 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             expect.anything(),
             expect.objectContaining({
                 tenantId: "bednet",
-                referenceId: "prj-1",
-                localityCode: "ADMIN",
-                isChildrenRequired: true,
+                campaignNumber: "CMP-1",
                 includeAttendee: true,
                 includeStaff: true
             })
+        );
+        expect(mockHttpRequest).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ localityCode: "ADMIN" })
         );
     });
 
@@ -520,159 +551,277 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(approverRows).toHaveLength(2);
     });
 
-    it("prefers request localityCode when provided", async () => {
+    it("searches registers by the project ids of the requested locality subtree", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
-                projectId: "prj-locality",
                 campaignNumber: "CMP-L",
                 startDate: Date.UTC(2026, 0, 1),
                 endDate: Date.UTC(2026, 0, 2),
                 boundaries: [{ code: "ADMIN" }]
             }]
         } as any);
+        mockBoundaryRelationship.mockResolvedValue(boundaryTree([
+            { code: "WARD-22", children: [{ code: "WARD-22-DH-1", children: [] }] }
+        ]));
+        routeRelatedData([
+            boundaryRow("WARD-22", "prj-ward22"),
+            boundaryRow("WARD-22-DH-1", "prj-dh1"),
+            boundaryRow("OTHER-WARD", "prj-other")
+        ]);
+        mockHttpRequest.mockResolvedValue({ attendanceRegister: [] } as any);
+
+        await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-locality", hierarchyType: "ADMIN", requestInfo: {}, additionalDetails: { localityCode: "WARD-22" } },
+            {}
+        );
+
+        expect(mockBoundaryRelationship).toHaveBeenCalledWith(
+            "bednet", "ADMIN", true, false, true, "WARD-22", expect.anything()
+        );
+        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
+        const params = mockHttpRequest.mock.calls[0][2] as any;
+        expect(params.referenceIds.split(",").sort()).toEqual(["prj-dh1", "prj-ward22"]);
+        expect(params.localityCode).toBeUndefined();
+        expect(params.referenceId).toBeUndefined();
+        expect(params.campaignNumber).toBeUndefined();
+    });
+
+    it("finds registers created on a descendant boundary, not just the requested one", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{ campaignNumber: "CMP-D", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [] }]
+        } as any);
+        mockBoundaryRelationship.mockResolvedValue(boundaryTree([
+            { code: "WARD-1", children: [{ code: "WARD-1-DH-1", children: [] }] }
+        ]));
+        routeRelatedData([boundaryRow("WARD-1-DH-1", "prj-deep")]);
+        mockHttpRequest.mockResolvedValue({
+            attendanceRegister: [
+                { id: "reg-deep", serviceCode: "REG-DEEP", name: "Deep", localityCode: "WARD-1-DH-1", attendees: [], staff: [] }
+            ]
+        } as any);
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-deep", hierarchyType: "ADMIN", requestInfo: {}, additionalDetails: { localityCode: "WARD-1" } },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        expect(workerRows.map((row) => row[REGISTER_CODE_COLUMN])).toEqual(["REG-DEEP"]);
+    });
+
+    it("batches the register search when the subtree has more project ids than the chunk size", async () => {
+        mockConfig.attendanceRegister.registerSearchReferenceIdChunkSize = 2;
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{ campaignNumber: "CMP-B", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [] }]
+        } as any);
+        mockBoundaryRelationship.mockResolvedValue(boundaryTree([
+            { code: "W", children: [{ code: "W-1" }, { code: "W-2" }, { code: "W-3" }, { code: "W-4" }] }
+        ]));
+        routeRelatedData([
+            boundaryRow("W-1", "p1"), boundaryRow("W-2", "p2"),
+            boundaryRow("W-3", "p3"), boundaryRow("W-4", "p4")
+        ]);
+        mockHttpRequest.mockResolvedValue({ attendanceRegister: [] } as any);
+
+        await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-batch", hierarchyType: "ADMIN", requestInfo: {}, additionalDetails: { localityCode: "W" } },
+            {}
+        );
+
+        expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+        const sent = mockHttpRequest.mock.calls.map((call) => (call[2] as any).referenceIds);
+        expect(sent).toEqual(["p1,p2", "p3,p4"]);
+    });
+
+    it("skips boundaries whose project has not been created yet", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{ campaignNumber: "CMP-P", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [] }]
+        } as any);
+        mockBoundaryRelationship.mockResolvedValue(boundaryTree([
+            { code: "W", children: [{ code: "W-1" }, { code: "W-2" }] }
+        ]));
+        routeRelatedData([boundaryRow("W-1", "p1"), boundaryRow("W-2", null)]);
+        mockHttpRequest.mockResolvedValue({ attendanceRegister: [] } as any);
+
+        await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-pending", hierarchyType: "ADMIN", requestInfo: {}, additionalDetails: { localityCode: "W" } },
+            {}
+        );
+
+        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
+        expect((mockHttpRequest.mock.calls[0][2] as any).referenceIds).toBe("p1");
+    });
+
+    it("returns no registers and makes no register call when the subtree has no created projects", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{ campaignNumber: "CMP-N", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [] }]
+        } as any);
+        mockBoundaryRelationship.mockResolvedValue(boundaryTree([{ code: "W-EMPTY", children: [] }]));
+        routeRelatedData([]);
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-empty", hierarchyType: "ADMIN", requestInfo: {}, additionalDetails: { localityCode: "W-EMPTY" } },
+            {}
+        );
+
+        expect(mockHttpRequest).not.toHaveBeenCalled();
+        expect((sheetMap[WORKER_SHEET].data as any[]).length).toBe(0);
+    });
+
+    it("does not need campaign projectId for a locality-scoped download", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{ campaignNumber: "CMP-NOPRJ", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [] }]
+        } as any);
+        mockBoundaryRelationship.mockResolvedValue(boundaryTree([{ code: "WARD-9", children: [] }]));
+        routeRelatedData([boundaryRow("WARD-9", "prj-ward9")]);
+        mockHttpRequest.mockResolvedValue({ attendanceRegister: [] } as any);
+
+        await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-noprj", hierarchyType: "ADMIN", requestInfo: {}, additionalDetails: { localityCode: "WARD-9" } },
+            {}
+        );
+
+        expect((mockHttpRequest.mock.calls[0][2] as any).referenceIds).toBe("prj-ward9");
+    });
+
+    it("searches once by campaignNumber when no localityCode is supplied, never per boundary", async () => {
+        const boundaries = Array.from({ length: 1000 }, (_unused, index) => ({ code: `WARD-${index}` }));
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-wide",
+                campaignNumber: "CMP-WIDE",
+                startDate: Date.UTC(2026, 0, 1),
+                endDate: Date.UTC(2026, 0, 2),
+                boundaries
+            }]
+        } as any);
         mockGetRelatedData.mockResolvedValue([] as any);
         mockHttpRequest.mockResolvedValue({ attendanceRegister: [] } as any);
 
         await TemplateClass.generate(
             {},
-            { tenantId: "bednet", campaignId: "cmp-locality", requestInfo: {}, additionalDetails: { localityCode: "WARD-22" } },
+            { tenantId: "bednet", campaignId: "cmp-wide", requestInfo: {} },
             {}
         );
 
+        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
         expect(mockHttpRequest).toHaveBeenCalledWith(
             expect.stringContaining("/attendance/v1/_search"),
             expect.anything(),
-            expect.objectContaining({
-                tenantId: "bednet",
-                referenceId: "prj-locality",
-                localityCode: "WARD-22",
-                isChildrenRequired: true
-            })
+            expect.objectContaining({ tenantId: "bednet", campaignNumber: "CMP-WIDE", offset: 0 })
         );
     });
 
-    it("supplements sparse locality matches using campaign-number search", async () => {
+    it("paginates a campaign-wide search to exhaustion with no register ceiling", async () => {
+        mockConfig.attendanceRegister.registerSearchPageLimit = 2;
+        const totalPages = 12;
+
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
-                projectId: "prj-sparse",
-                campaignNumber: "CMP-SPARSE",
+                projectId: "prj-pages",
+                campaignNumber: "CMP-PAGES",
                 startDate: Date.UTC(2026, 0, 1),
-                endDate: Date.UTC(2026, 0, 31),
-                boundaries: [{ code: "ADMIN" }, { code: "WARD-1" }]
+                endDate: Date.UTC(2026, 0, 2),
+                boundaries: []
             }]
         } as any);
         mockGetRelatedData.mockResolvedValue([] as any);
 
         mockHttpRequest.mockImplementation(async (_url: string, _body: any, params: any) => {
-            if (params?.campaignNumber === "CMP-SPARSE") {
-                return {
-                    attendanceRegister: [
-                        {
-                            id: "reg-uuid-1",
-                            serviceCode: "REG-001",
-                            name: "Register 001",
-                            localityCode: "WARD-1-DH-1",
-                            campaignNumber: "CMP-SPARSE",
-                            referenceId: "prj-sparse",
-                            attendees: [],
-                            staff: []
-                        },
-                        {
-                            id: "reg-uuid-2",
-                            serviceCode: "REG-002",
-                            name: "Register 002",
-                            localityCode: "WARD-1-DH-2",
-                            campaignNumber: "CMP-SPARSE",
-                            referenceId: "prj-sparse",
-                            attendees: [],
-                            staff: []
-                        },
-                        {
-                            id: "reg-uuid-other",
-                            serviceCode: "REG-OTHER",
-                            name: "Register Other",
-                            localityCode: "OTHER",
-                            campaignNumber: "CMP-OTHER",
-                            referenceId: "prj-other",
-                            attendees: [],
-                            staff: []
-                        }
-                    ]
-                } as any;
+            if (params?.campaignNumber !== "CMP-PAGES") return { attendanceRegister: [] } as any;
+            const page = Math.floor((params.offset || 0) / 2);
+            if (page >= totalPages) return { attendanceRegister: [] } as any;
+            const isLastPage = page === totalPages - 1;
+            const registers = [{
+                id: `reg-uuid-${page}-a`,
+                serviceCode: `REG-${page}-A`,
+                name: `Register ${page} A`,
+                localityCode: `WARD-${page}`,
+                attendees: [],
+                staff: []
+            }];
+            if (!isLastPage) {
+                registers.push({
+                    id: `reg-uuid-${page}-b`,
+                    serviceCode: `REG-${page}-B`,
+                    name: `Register ${page} B`,
+                    localityCode: `WARD-${page}`,
+                    attendees: [],
+                    staff: []
+                });
             }
-
-            if (params?.localityCode === "WARD-1") {
-                return {
-                    attendanceRegister: [
-                        {
-                            id: "reg-uuid-1",
-                            serviceCode: "REG-001",
-                            name: "Register 001",
-                            localityCode: "WARD-1-DH-1",
-                            campaignNumber: "CMP-SPARSE",
-                            referenceId: "prj-sparse",
-                            attendees: [],
-                            staff: []
-                        }
-                    ]
-                } as any;
-            }
-
-            return { attendanceRegister: [] } as any;
+            return { attendanceRegister: registers } as any;
         });
 
         const sheetMap = await TemplateClass.generate(
             {},
-            {
-                tenantId: "bednet",
-                campaignId: "cmp-sparse",
-                requestInfo: {},
-                additionalDetails: { localityCode: "WARD-1" }
-            },
+            { tenantId: "bednet", campaignId: "cmp-pages", requestInfo: {} },
             {}
         );
 
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
-        expect(workerRows).toHaveLength(2);
-        expect(workerRows.map((row) => row.HCM_ATTENDANCE_REGISTER_CODE)).toEqual(["REG-001", "REG-002"]);
-        expect(workerRows.find((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-OTHER")).toBeUndefined();
-
-        expect(mockHttpRequest).toHaveBeenCalledWith(
-            expect.stringContaining("/attendance/v1/_search"),
-            expect.anything(),
-            expect.objectContaining({
-                tenantId: "bednet",
-                campaignNumber: "CMP-SPARSE"
-            })
-        );
+        expect(workerRows).toHaveLength(totalPages * 2 - 1);
+        expect(mockHttpRequest).toHaveBeenCalledTimes(totalPages);
     });
 
-    it("falls back to campaignId when campaign projectId is unavailable", async () => {
+    it("dedupes registers repeated across pages and skips deleted ones", async () => {
+        mockConfig.attendanceRegister.registerSearchPageLimit = 2;
+
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
-                campaignNumber: "CMP-F",
+                projectId: "prj-dupe",
+                campaignNumber: "CMP-DUPE",
                 startDate: Date.UTC(2026, 0, 1),
                 endDate: Date.UTC(2026, 0, 2),
-                boundaries: [{ code: "ADMIN" }]
+                boundaries: []
             }]
         } as any);
         mockGetRelatedData.mockResolvedValue([] as any);
-        mockHttpRequest.mockResolvedValue({ attendanceRegister: [] } as any);
 
-        await TemplateClass.generate(
+        const duplicate = {
+            id: "reg-uuid-1",
+            serviceCode: "REG-001",
+            name: "Register 001",
+            localityCode: "WARD-1",
+            attendees: [],
+            staff: []
+        };
+
+        mockHttpRequest.mockImplementation(async (_url: string, _body: any, params: any) => {
+            if (params?.campaignNumber !== "CMP-DUPE") return { attendanceRegister: [] } as any;
+            if ((params.offset || 0) === 0) {
+                return {
+                    attendanceRegister: [
+                        duplicate,
+                        {
+                            id: "reg-uuid-deleted",
+                            serviceCode: "REG-DELETED",
+                            name: "Register Deleted",
+                            localityCode: "WARD-2",
+                            isDeleted: true,
+                            attendees: [],
+                            staff: []
+                        }
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [duplicate] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
             {},
-            { tenantId: "bednet", campaignId: "cmp-fallback", requestInfo: {} },
+            { tenantId: "bednet", campaignId: "cmp-dupe", requestInfo: {} },
             {}
         );
 
-        expect(mockHttpRequest).toHaveBeenCalledWith(
-            expect.stringContaining("/attendance/v1/_search"),
-            expect.anything(),
-            expect.objectContaining({
-                tenantId: "bednet",
-                referenceId: "cmp-fallback",
-                localityCode: "ADMIN"
-            })
-        );
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        expect(workerRows.map((row) => row[REGISTER_CODE_COLUMN])).toEqual(["REG-001"]);
     });
+
 });

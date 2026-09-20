@@ -9,6 +9,10 @@ if (!HOST) {
 const config = {
   batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 100,
   cacheTime: 300,
+  generatedResource: {
+    // Repeat downloads inside this window reuse the finished file instead of regenerating; 0 disables reuse
+    reuseWindowMs: process.env.GENERATED_RESOURCE_REUSE_WINDOW_MS ? parseInt(process.env.GENERATED_RESOURCE_REUSE_WINDOW_MS, 10) : 30000,
+  },
   isProduction: process.env ? true : false,
   token: "",
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
@@ -159,6 +163,8 @@ const config = {
     serviceCodeParallelSearchLimit: process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT, 10) : 50,
     attendeeSearchPageSize: process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE, 10) : 100,
     staffSearchPageSize: process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE, 10) : 100,
+    registerSearchPageLimit: process.env.ATTENDANCE_REGISTER_SEARCH_PAGE_LIMIT ? parseInt(process.env.ATTENDANCE_REGISTER_SEARCH_PAGE_LIMIT, 10) : 200,
+    registerSearchReferenceIdChunkSize: process.env.ATTENDANCE_REGISTER_SEARCH_REFERENCE_ID_CHUNK_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_SEARCH_REFERENCE_ID_CHUNK_SIZE, 10) : 100,
 
     attendeePersistBatchSize: process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE, 10) : 100,
     // Identities per de-enrolment UPDATE, so one bulk event cannot become a single huge statement

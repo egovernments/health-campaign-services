@@ -17,17 +17,14 @@ export async function generateDataService(generateRequestQuery: GenerateTemplate
     hierarchyType = String(hierarchyType);
     campaignId = String(campaignId);
     const generationTemplateConfig = JSON.parse(JSON.stringify(generationtTemplateConfigs?.[String(type)]));
-    const responseToSend = await initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, locale, requestInfo);
-    const additionalDetails: Record<string, unknown> = { ...(responseToSend?.additionalDetails || {}) };
+    const additionalDetails: Record<string, unknown> = {};
     if (generateRequestQuery.registerId) {
         additionalDetails.registerId = generateRequestQuery.registerId;
     }
     if (generateRequestQuery.localityCode) {
         additionalDetails.localityCode = generateRequestQuery.localityCode;
     }
-    if (Object.keys(additionalDetails).length > 0) {
-        responseToSend.additionalDetails = additionalDetails;
-    }
+    const responseToSend = await initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, locale, requestInfo, additionalDetails);
     generateResource(responseToSend, generationTemplateConfig);
     return responseToSend;
 }
