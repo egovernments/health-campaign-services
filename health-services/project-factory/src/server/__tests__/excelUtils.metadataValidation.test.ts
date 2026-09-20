@@ -74,15 +74,20 @@ describe("validateFileCmapaignIdInMetaData", () => {
         );
     });
 
-    it("allows attendance-register compatibility fallback when metadata is missing", () => {
+    it("rejects attendance-register templates with no metadata", () => {
         expect(() =>
             validateFileCmapaignIdInMetaData(
                 {},
                 "cmp-1",
                 "attendanceRegister"
             )
-        ).not.toThrow();
-        expect(mockThrowError).not.toHaveBeenCalled();
+        ).toThrow("The template doesn't have campaign metadata. Please upload the generated template only.");
+        expect(mockThrowError).toHaveBeenCalledWith(
+            "FILE",
+            400,
+            "INVALID_TEMPLATE",
+            "The template doesn't have campaign metadata. Please upload the generated template only."
+        );
     });
 
     it("passes strict validation when keywords are stripped but metadata sheet exists", () => {

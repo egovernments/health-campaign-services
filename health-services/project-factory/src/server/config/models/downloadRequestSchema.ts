@@ -18,6 +18,8 @@ export const downloadRequestSchema = {
                 "facilityWithBoundary",
                 "userWithBoundary",
                 "userCredential",
+                "attendanceRegister",
+                "attendanceRegisterAttendee",
                 "attendanceRegisterUserBulkMapping"
             ]
         },
