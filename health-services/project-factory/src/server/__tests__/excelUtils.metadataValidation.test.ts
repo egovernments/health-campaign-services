@@ -63,7 +63,23 @@ describe("validateFileCmapaignIdInMetaData", () => {
             validateFileCmapaignIdInMetaData(
                 {},
                 "cmp-1",
-                BULK_MAPPING_TYPE
+                "facility"
+            )
+        ).toThrow("The template doesn't have campaign metadata. Please upload the generated template only.");
+        expect(mockThrowError).toHaveBeenCalledWith(
+            "FILE",
+            400,
+            "INVALID_TEMPLATE",
+            "The template doesn't have campaign metadata. Please upload the generated template only."
+        );
+    });
+
+    it("rejects attendance-register templates with no metadata", () => {
+        expect(() =>
+            validateFileCmapaignIdInMetaData(
+                {},
+                "cmp-1",
+                "attendanceRegister"
             )
         ).toThrow("The template doesn't have campaign metadata. Please upload the generated template only.");
         expect(mockThrowError).toHaveBeenCalledWith(

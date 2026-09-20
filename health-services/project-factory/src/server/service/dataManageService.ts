@@ -16,6 +16,7 @@ import { generatedResourceStatuses } from "../config/constants";
 import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
 import { generateDataService as generateTemplateDataService } from "./sheetManageService";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
+import { normalizeControllerProcessType } from "../utils/processTypeUtils";
 
 
 const generateDataService = async (request: express.Request) => {
@@ -26,6 +27,8 @@ const generateDataService = async (request: express.Request) => {
 };
 
 const sheetManageGenerationTypes = new Set<string>([
+    "attendanceRegister",
+    "attendanceRegisterAttendee",
     "attendanceRegisterUserBulkMapping",
 ]);
 
@@ -79,10 +82,17 @@ async function waitForGeneratedResourceTerminalStatus(
 
 
 const downloadDataService = async (request: express.Request) => {
+    const incomingType = String(request?.query?.type || "");
+    const normalizedType = normalizeControllerProcessType(incomingType);
+    if (normalizedType !== incomingType) {
+        logger.warn(`Normalized incoming download type from '${incomingType}' to '${normalizedType}' for /v1/data/_download`);
+    }
+    (request.query as any).type = normalizedType;
+
     await validateDownloadRequest(request);
     logger.info("VALIDATED THE DATA DOWNLOAD REQUEST");
 
-    const type = String(request.query.type);
+    const type = normalizedType;
     const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
     let responseData = await searchGeneratedResources(request?.query, locale);
     const resourceDetails = await getResourceDetails(request);
