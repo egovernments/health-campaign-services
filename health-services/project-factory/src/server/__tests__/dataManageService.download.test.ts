@@ -243,36 +243,4 @@ describe("downloadDataService always-fresh behavior", () => {
         expect(mockGenerateTemplateDataService).toHaveBeenCalledTimes(1);
         expect(result).toEqual([COMPLETED_NEW_RESOURCE]);
     });
-
-    it("normalizes attendance register download alias and uses legacy generator path", async () => {
-        const oldAttendanceResource = {
-            ...OLD_RESOURCE,
-            id: "old-attendance-id",
-            type: "attendanceRegister",
-        };
-        const completedAttendanceResource = {
-            ...COMPLETED_NEW_RESOURCE,
-            id: "new-attendance-id",
-            type: "attendanceRegister",
-            fileStoreid: "new-attendance-file",
-        };
-
-        mockSearchGeneratedResources
-            .mockResolvedValueOnce([oldAttendanceResource])
-            .mockResolvedValueOnce([completedAttendanceResource]);
-
-        const request = buildRequest({
-            query: { type: "attendanceRegister-validation" }
-        });
-        const result = await downloadDataService(request);
-
-        expect(request.query.type).toBe("attendanceRegister");
-        expect(mockValidateDownloadRequest).toHaveBeenCalledWith(request);
-        expect(mockCallGenerate).toHaveBeenCalledTimes(1);
-        const generatedRequest = mockCallGenerate.mock.calls[0][0];
-        expect(generatedRequest.query.type).toBe("attendanceRegister");
-        expect(generatedRequest.query.forceUpdate).toBe("true");
-        expect(result).toEqual([completedAttendanceResource]);
-        expect(mockGenerateTemplateDataService).not.toHaveBeenCalled();
-    });
 });

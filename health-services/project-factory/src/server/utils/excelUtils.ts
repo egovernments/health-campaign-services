@@ -116,7 +116,6 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 
 const TEMPLATE_METADATA_SHEET_NAME = "_hcm_template_meta_";
 const TEMPLATE_METADATA_MARKER = "__HCM_TEMPLATE_METADATA__";
-const LEGACY_TEMPLATE_META_SHEET_NAME = "_h_Meta_h_";
 
 const cellValueToText = (value: unknown): string => {
   if (value === null || value === undefined) return "";
@@ -163,20 +162,6 @@ const resolveTemplateMetadata = (workbook: any): { locale: string | null; campai
     locale: fromKeywords.locale || fromSheet.locale,
     campaignId: fromKeywords.campaignId || fromSheet.campaignId,
   };
-};
-
-export const getTemplateMetadata = (workbook: any): { locale: string | null; campaignId: string | null } =>
-  resolveTemplateMetadata(workbook);
-
-/**
- * Legacy excel-ingestion templates stamp generation id in hidden sheet `_h_Meta_h_` cell A1.
- * Used to recover campaign metadata via generated-files lookup when modern metadata is absent.
- */
-export const getLegacyTemplateGenerationId = (workbook: any): string | null => {
-  const legacyMetaSheet = workbook?.getWorksheet?.(LEGACY_TEMPLATE_META_SHEET_NAME);
-  if (!legacyMetaSheet) return null;
-  const generationId = cellValueToText(legacyMetaSheet.getCell("A1")?.value);
-  return generationId || null;
 };
 
 const upsertTemplateMetadataSheet = (workbook: any, locale: string, campaignId: string): void => {
@@ -229,7 +214,7 @@ export function enrichTemplateMetaData(updatedWorkbook: any, locale: string, cam
 
 export function getLocaleFromWorkbook(workbook: any): string | null {
   logger.info("Extracting locale from workbook...");
-  const locale = getTemplateMetadata(workbook).locale;
+  const locale = resolveTemplateMetadata(workbook).locale;
 
   logger.info("Locale extracted:", locale);
   return locale || null;

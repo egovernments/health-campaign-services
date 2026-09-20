@@ -16,7 +16,7 @@ import { generatedResourceStatuses } from "../config/constants";
 import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
 import { generateDataService as generateTemplateDataService } from "./sheetManageService";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
-import { normalizeControllerProcessType } from "../utils/processTypeUtils";
+import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 
 
 const generateDataService = async (request: express.Request) => {
@@ -26,9 +26,11 @@ const generateDataService = async (request: express.Request) => {
     return request?.body?.generatedResource;
 };
 
-const sheetManageGenerationTypes = new Set<string>([
-    "attendanceRegisterUserBulkMapping",
-]);
+// boundary stays on the legacy generate flow, which owns the per-level tab splitting the v2 class has no equivalent for.
+const legacyOwnedGenerationTypes = new Set<string>(["boundary"]);
+const sheetManageGenerationTypes = new Set<string>(
+    Object.keys(generationtTemplateConfigs).filter((type) => !legacyOwnedGenerationTypes.has(type))
+);
 
 const downloadGeneratedStatusPollIntervalMs = 1000;
 const downloadGeneratedStatusPollMaxAttempts = 45;
@@ -80,17 +82,10 @@ async function waitForGeneratedResourceTerminalStatus(
 
 
 const downloadDataService = async (request: express.Request) => {
-    const incomingType = String(request?.query?.type || "");
-    const normalizedType = normalizeControllerProcessType(incomingType);
-    if (normalizedType !== incomingType) {
-        logger.warn(`Normalized incoming download type from '${incomingType}' to '${normalizedType}' for /v1/data/_download`);
-    }
-    (request.query as any).type = normalizedType;
-
     await validateDownloadRequest(request);
     logger.info("VALIDATED THE DATA DOWNLOAD REQUEST");
 
-    const type = normalizedType;
+    const type = String(request.query.type);
     const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
     let responseData = await searchGeneratedResources(request?.query, locale);
     const resourceDetails = await getResourceDetails(request);
