@@ -243,49 +243,4 @@ describe("downloadDataService always-fresh behavior", () => {
         expect(mockGenerateTemplateDataService).toHaveBeenCalledTimes(1);
         expect(result).toEqual([COMPLETED_NEW_RESOURCE]);
     });
-
-    it("normalizes attendance register download alias to canonical type", async () => {
-        const oldAttendanceResource = {
-            ...OLD_RESOURCE,
-            id: "old-attendance-id",
-            type: "attendanceRegister",
-        };
-        const newAttendanceResource = {
-            ...NEW_RESOURCE,
-            id: "new-attendance-id",
-            type: "attendanceRegister",
-        };
-        const completedAttendanceResource = {
-            ...newAttendanceResource,
-            status: "completed",
-            fileStoreid: "new-attendance-file",
-        };
-
-        mockSearchGeneratedResources
-            .mockResolvedValueOnce([oldAttendanceResource])
-            .mockResolvedValueOnce([completedAttendanceResource]);
-        mockGenerateTemplateDataService.mockResolvedValue(newAttendanceResource);
-
-        const request = buildRequest({
-            query: { type: "attendanceRegister-validation" }
-        });
-        const result = await downloadDataService(request);
-
-        expect(request.query.type).toBe("attendanceRegister");
-        expect(mockValidateDownloadRequest).toHaveBeenCalledWith(request);
-        expect(mockGenerateTemplateDataService).toHaveBeenCalledWith(
-            {
-                type: "attendanceRegister",
-                tenantId: "bednet",
-                hierarchyType: "ADMIN",
-                campaignId: "cmp-1",
-                localityCode: "loc-1",
-            },
-            "user-1",
-            "en_BEDNET",
-            request.body.RequestInfo
-        );
-        expect(result).toEqual([completedAttendanceResource]);
-        expect(mockCallGenerate).not.toHaveBeenCalled();
-    });
 });

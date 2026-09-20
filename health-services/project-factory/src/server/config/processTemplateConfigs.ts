@@ -105,8 +105,7 @@ export const processTemplateConfigs: any = {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
                 lockWholeSheet: true
             }
-        ],
-        passFromController: true
+        ]
     },
     attendanceRegisterValidation: {
         sheets: [
@@ -143,8 +142,7 @@ export const processTemplateConfigs: any = {
                 validateRowsGap: true,
                 schemaName: "attendance-register-attendee-approver"
             }
-        ],
-        passFromController: true
+        ]
     },
     attendanceRegisterAttendeeValidation: {
         sheets: [

@@ -7,7 +7,7 @@ import { callMdmsSchema, createAndUploadFileWithOutRequest, getJsonDataWithUnloc
 import { getLocalizedMessagesHandlerViaLocale, handledropdownthingsUnLocalised, searchAllGeneratedResources, throwError } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
-import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExcelWorkbookFromFileURL, getLegacyTemplateGenerationId, getLocaleFromWorkbook, getTemplateMetadata, manageMultiSelectUnlocalised, updateFontNameToRoboto, validateFileCmapaignIdInMetaData } from "./excelUtils";
+import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExcelWorkbookFromFileURL, getLocaleFromWorkbook, manageMultiSelectUnlocalised, updateFontNameToRoboto, validateFileCmapaignIdInMetaData } from "./excelUtils";
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
@@ -17,9 +17,6 @@ import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore } from "../api/coreApis";
 import { EnrichProcessConfigUtil } from "./EnrichProcessConfigUtil";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
-import { executeQuery, getTableName } from "./db";
-
-const excelIngestionGeneratedFilesTableName = "eg_ex_in_generated_files";
 
 /** Expires any prior generated resources for this key and produces a fresh in-progress record to track template generation. */
 export async function initializeGenerateAndGetResponse(
@@ -217,65 +214,8 @@ export function checkAllRowsConsistency(jsonData: any) {
 }
 
 
-/**
- * If project-factory template metadata is absent, try recovering campaign metadata from the
- * legacy excel-ingestion meta sheet (`_h_Meta_h_` -> generationId in A1) by looking up the
- * generation row in `eg_ex_in_generated_files`.
- */
-async function enrichTemplateMetadataFromLegacyGenerationIfPossible(workBook: any, resourceDetails: any): Promise<void> {
-    const existingMetadata = getTemplateMetadata(workBook);
-    if (existingMetadata?.locale && existingMetadata?.campaignId) return;
-
-    const legacyGenerationId = getLegacyTemplateGenerationId(workBook);
-    if (!legacyGenerationId) return;
-
-    const tenantId = String(resourceDetails?.tenantId || "");
-    if (!tenantId) return;
-
-    const tableName = getTableName(excelIngestionGeneratedFilesTableName, tenantId);
-    try {
-        const queryResult = await executeQuery(
-            `SELECT referenceid, referencetype, locale
-             FROM ${tableName}
-             WHERE tenantid = $1 AND id = $2
-             ORDER BY createdtime DESC
-             LIMIT 1`,
-            [tenantId, legacyGenerationId]
-        );
-        const row = queryResult?.rows?.[0];
-        if (!row) {
-            logger.warn(`Legacy generation id ${legacyGenerationId} not found in ${tableName}; cannot recover template metadata.`);
-            return;
-        }
-
-        const referenceId = typeof row.referenceid === "string" ? row.referenceid.trim() : "";
-        const referenceType = typeof row.referencetype === "string" ? row.referencetype.trim().toLowerCase() : "";
-
-        const canUseReferenceAsCampaignId =
-            referenceId
-            && (referenceType === "campaign" || (!referenceType && referenceId === String(resourceDetails?.campaignId || "")));
-        if (!canUseReferenceAsCampaignId) {
-            logger.warn(
-                `Legacy generation id ${legacyGenerationId} resolved to referenceType='${referenceType || "unknown"}' ` +
-                `referenceId='${referenceId || "unknown"}'; cannot map to campaign metadata.`
-            );
-            return;
-        }
-
-        const localeFromGeneration = typeof row.locale === "string" ? row.locale.trim() : "";
-        const resolvedLocale = localeFromGeneration || config.localisation.defaultLocale;
-        enrichTemplateMetaData(workBook, resolvedLocale, referenceId, resourceDetails?.type);
-        logger.info(`Recovered template metadata from legacy generation id ${legacyGenerationId} for campaign ${referenceId}.`);
-    } catch (error: any) {
-        logger.warn(
-            `Failed to recover template metadata from legacy generation id ${legacyGenerationId}: ${error?.message || String(error)}`
-        );
-    }
-}
-
 /** Core processing pipeline: loads schemas, invokes the type's process class, then writes/styles/locks output sheets. */
 export async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
-    await enrichTemplateMetadataFromLegacyGenerationIfPossible(workBook, ResourceDetails);
     validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId, ResourceDetails?.type);
     const wholeSheetData: any = {};
     const sheetsToRemove: string[] = [];
@@ -861,7 +801,7 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
 
 /** Throws unless the type has a controller-passable process template config (guards the create endpoint). */
 export function filterResourceDetailType(type : string){
-    const templateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(type)]));
+    const templateConfig = processTemplateConfigs?.[String(type)];
     if(!templateConfig?.passFromController){
         throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} not found or invalid`);
     }

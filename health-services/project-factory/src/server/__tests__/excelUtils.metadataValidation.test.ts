@@ -48,7 +48,7 @@ jest.mock("../utils/logger", () => ({
 }));
 
 import * as ExcelJS from "exceljs";
-import { enrichTemplateMetaData, getLegacyTemplateGenerationId, getLocaleFromWorkbook, validateFileCmapaignIdInMetaData } from "../utils/excelUtils";
+import { enrichTemplateMetaData, getLocaleFromWorkbook, validateFileCmapaignIdInMetaData } from "../utils/excelUtils";
 
 const BULK_MAPPING_TYPE = "attendanceRegisterUserBulkMapping";
 
@@ -152,13 +152,5 @@ describe("validateFileCmapaignIdInMetaData", () => {
                 "facility"
             )
         ).not.toThrow();
-    });
-
-    it("reads legacy generation id from _h_Meta_h_ sheet", () => {
-        const workbook = new ExcelJS.Workbook();
-        const legacyMetaSheet = workbook.addWorksheet("_h_Meta_h_");
-        legacyMetaSheet.getCell("A1").value = "cb342506-95a1-4c79-82b8-204fc7eb7d36";
-
-        expect(getLegacyTemplateGenerationId(workbook)).toBe("cb342506-95a1-4c79-82b8-204fc7eb7d36");
     });
 });
