@@ -174,7 +174,15 @@ const upsertTemplateMetadataSheet = (workbook: any, locale: string, campaignId: 
 /** Validates the campaignId portion of template metadata against the expected campaign. */
 export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaignId: string, resourceType?: string) => {
   const metadata = resolveTemplateMetadata(workbook);
+  const allowMissingTemplateMetadata = isAttendanceRegisterFamilyType(resourceType);
+
   if (!metadata.locale && !metadata.campaignId) {
+    if (allowMissingTemplateMetadata) {
+      logger.warn(
+        `Template metadata missing for resource type ${resourceType}; allowing compatibility fallback for attendance register flow.`
+      );
+      return;
+    }
     throwError(
       "FILE",
       400,
@@ -184,6 +192,12 @@ export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaign
   }
 
   if (!metadata.locale || !metadata.campaignId) {
+    if (allowMissingTemplateMetadata) {
+      logger.warn(
+        `Template metadata incomplete for resource type ${resourceType}; allowing compatibility fallback for attendance register flow.`
+      );
+      return;
+    }
     throwError(
       "FILE",
       400,
