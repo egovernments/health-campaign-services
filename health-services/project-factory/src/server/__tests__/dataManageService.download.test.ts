@@ -244,27 +244,22 @@ describe("downloadDataService always-fresh behavior", () => {
         expect(result).toEqual([COMPLETED_NEW_RESOURCE]);
     });
 
-    it("normalizes attendance register download alias to canonical type", async () => {
+    it("normalizes attendance register download alias and uses legacy generator path", async () => {
         const oldAttendanceResource = {
             ...OLD_RESOURCE,
             id: "old-attendance-id",
             type: "attendanceRegister",
         };
-        const newAttendanceResource = {
-            ...NEW_RESOURCE,
+        const completedAttendanceResource = {
+            ...COMPLETED_NEW_RESOURCE,
             id: "new-attendance-id",
             type: "attendanceRegister",
-        };
-        const completedAttendanceResource = {
-            ...newAttendanceResource,
-            status: "completed",
             fileStoreid: "new-attendance-file",
         };
 
         mockSearchGeneratedResources
             .mockResolvedValueOnce([oldAttendanceResource])
             .mockResolvedValueOnce([completedAttendanceResource]);
-        mockGenerateTemplateDataService.mockResolvedValue(newAttendanceResource);
 
         const request = buildRequest({
             query: { type: "attendanceRegister-validation" }
@@ -273,19 +268,11 @@ describe("downloadDataService always-fresh behavior", () => {
 
         expect(request.query.type).toBe("attendanceRegister");
         expect(mockValidateDownloadRequest).toHaveBeenCalledWith(request);
-        expect(mockGenerateTemplateDataService).toHaveBeenCalledWith(
-            {
-                type: "attendanceRegister",
-                tenantId: "bednet",
-                hierarchyType: "ADMIN",
-                campaignId: "cmp-1",
-                localityCode: "loc-1",
-            },
-            "user-1",
-            "en_BEDNET",
-            request.body.RequestInfo
-        );
+        expect(mockCallGenerate).toHaveBeenCalledTimes(1);
+        const generatedRequest = mockCallGenerate.mock.calls[0][0];
+        expect(generatedRequest.query.type).toBe("attendanceRegister");
+        expect(generatedRequest.query.forceUpdate).toBe("true");
         expect(result).toEqual([completedAttendanceResource]);
-        expect(mockCallGenerate).not.toHaveBeenCalled();
+        expect(mockGenerateTemplateDataService).not.toHaveBeenCalled();
     });
 });

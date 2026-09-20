@@ -27,8 +27,6 @@ const generateDataService = async (request: express.Request) => {
 };
 
 const sheetManageGenerationTypes = new Set<string>([
-    "attendanceRegister",
-    "attendanceRegisterAttendee",
     "attendanceRegisterUserBulkMapping",
 ]);
 
