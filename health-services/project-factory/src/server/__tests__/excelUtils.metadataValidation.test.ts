@@ -117,7 +117,14 @@ describe("validateFileCmapaignIdInMetaData", () => {
         expect(getLocaleFromWorkbook(workbook)).toBe("en_BEDNET");
     });
 
-    it("does not create metadata sheet for non-bulk templates", () => {
+    it("creates metadata sheet for attendance-register templates", () => {
+        const workbook = new ExcelJS.Workbook();
+        enrichTemplateMetaData(workbook, "en_BEDNET", "cmp-1", "attendanceRegister");
+
+        expect(workbook.getWorksheet("_hcm_template_meta_")).toBeDefined();
+    });
+
+    it("does not create metadata sheet for non-attendance templates", () => {
         const workbook = new ExcelJS.Workbook();
         enrichTemplateMetaData(workbook, "en_BEDNET", "cmp-1", "facility");
 

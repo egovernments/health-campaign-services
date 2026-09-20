@@ -8,6 +8,7 @@ import { getLocaleFromRequest } from "../../utils/localisationUtils";
 import { GenerateTemplateQuery, generateTemplateQuerySchema } from "../../models/GenerateTemplateQuery";
 import { ResourceDetails, resourceDetailsSchema } from "../../config/models/resourceDetailsSchema";
 import { filterResourceDetailType } from "../../utils/sheetManageUtils";
+import { normalizeControllerProcessType } from "../../utils/processTypeUtils";
 
 class SheetManageController {
     public path = "/v2/data";
@@ -76,6 +77,12 @@ class SheetManageController {
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
             ResourceDetails.requestInfo = req.body?.RequestInfo;
+            const incomingType = ResourceDetails.type;
+            const normalizedType = normalizeControllerProcessType(incomingType);
+            if (normalizedType !== incomingType) {
+                logger.warn(`Normalized incoming process type from '${incomingType}' to '${normalizedType}' for /v2/data/_process`);
+            }
+            ResourceDetails.type = normalizedType;
             filterResourceDetailType(ResourceDetails.type);
 
             // Check for concurrent upload to same campaign (409 guard)

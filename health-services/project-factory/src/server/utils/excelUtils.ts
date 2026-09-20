@@ -7,6 +7,7 @@ import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColu
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { usageColumnStatus } from "../config/constants";
+import { isAttendanceRegisterFamilyType } from "./processTypeUtils";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -116,9 +117,6 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 const TEMPLATE_METADATA_SHEET_NAME = "_hcm_template_meta_";
 const TEMPLATE_METADATA_MARKER = "__HCM_TEMPLATE_METADATA__";
 
-const isBulkMappingResourceType = (type: unknown): boolean =>
-  typeof type === "string" && type.includes("attendanceRegisterUserBulkMapping");
-
 const cellValueToText = (value: unknown): string => {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") {
@@ -208,7 +206,7 @@ export const validateFileCmapaignIdInMetaData = (workbook: any, expectedCampaign
 export function enrichTemplateMetaData(updatedWorkbook: any, locale: string, campaignId: string, resourceType?: string) {
   logger.info("Enriching template metadata...");
   updatedWorkbook.keywords = `${locale}#${campaignId}`;
-  if (isBulkMappingResourceType(resourceType) || resolveMetadataSheet(updatedWorkbook)) {
+  if (isAttendanceRegisterFamilyType(resourceType) || resolveMetadataSheet(updatedWorkbook)) {
     upsertTemplateMetadataSheet(updatedWorkbook, locale, campaignId);
   }
   logger.info("Enriched template metadata");
