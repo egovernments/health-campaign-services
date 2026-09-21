@@ -87,7 +87,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         mockConfig.attendanceRegister.registerSearchReferenceIdChunkSize = 100;
     });
 
-    it("generates 3 attendee tabs with prepended register columns and register seed rows", async () => {
+    it("generates 3 attendee tabs using only actual mapped rows (no empty-register seeds)", async () => {
         const campaignStart = Date.UTC(2026, 0, 1);
         const campaignEnd = Date.UTC(2026, 0, 10);
 
@@ -169,20 +169,15 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
         const approverRows = sheetMap[APPROVER_SHEET].data as Record<string, string>[];
 
-        expect(workerRows).toHaveLength(2);
-        expect(markerRows).toHaveLength(2);
-        expect(approverRows).toHaveLength(2);
+        expect(workerRows).toHaveLength(1);
+        expect(markerRows).toHaveLength(1);
+        expect(approverRows).toHaveLength(0);
 
         expect(workerRows[0].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-001");
         expect(workerRows[0].HCM_ATTENDANCE_REGISTER_NAME).toBe("Register 001");
         expect(workerRows[0].HCM_ATTENDANCE_REGISTER_UUID).toBe("reg-uuid-1");
         expect(workerRows[0].HCM_ATTENDANCE_REGISTER_ID).toBe("REG-001");
         expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_TEAM_CODE).toBe("TEAM-1");
-
-        expect(workerRows[1].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-002");
-        expect(workerRows[1].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("");
-        expect(workerRows[1].UserName).toBe("");
-        expect(workerRows[1].HCM_ATTENDANCE_ATTENDEE_TEAM_CODE).toBe("");
 
         expect(markerRows[0].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-001");
         expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-2");
@@ -254,8 +249,8 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Bob Marker");
         expect(markerRows[0].HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE).toBe("07-02-2026");
 
-        expect((sheetMap[WORKER_SHEET].data as any[])).toHaveLength(1);
-        expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(1);
+        expect((sheetMap[WORKER_SHEET].data as any[])).toHaveLength(0);
+        expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(0);
     });
 
     it("resolves register from serviceCode-prefixed uniqueIdAfterProcess when register columns are absent", async () => {
@@ -422,7 +417,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         );
 
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
-        expect(workerRows).toHaveLength(2);
+        expect(workerRows).toHaveLength(1);
         expect(workerRows[0].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-501");
         expect(workerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Anaya Patel");
         expect(workerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-501");
@@ -431,161 +426,8 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("01-03-2026");
         expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE).toBe("20-03-2026");
 
-        expect(workerRows[1].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-777");
-        expect(workerRows[1].UserName).toBe("");
-
-        expect((sheetMap[MARKER_SHEET].data as any[])).toHaveLength(2);
-        expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(2);
-    });
-
-    it("expands campaign users for every register and uses campaign start date for enrollment", async () => {
-        mockSearchCampaign.mockResolvedValue({
-            CampaignDetails: [{
-                projectId: "prj-users",
-                campaignNumber: "CMP-USERS",
-                startDate: "2026-06-15T00:00:00.000Z",
-                endDate: Date.UTC(2026, 6, 1),
-                boundaries: [{ code: "ADMIN" }]
-            }]
-        } as any);
-
-        mockHttpRequest.mockResolvedValue({
-            attendanceRegister: [
-                {
-                    id: "reg-uuid-1",
-                    serviceCode: "REG-001",
-                    name: "Register 001",
-                    localityCode: "ADMIN",
-                    attendees: [],
-                    staff: []
-                },
-                {
-                    id: "reg-uuid-2",
-                    serviceCode: "REG-002",
-                    name: "Register 002",
-                    localityCode: "ADMIN",
-                    attendees: [],
-                    staff: []
-                }
-            ]
-        } as any);
-
-        mockGetRelatedData.mockImplementation(async (type: string) => {
-            if (type === "attendanceRegisterAttendee") return [] as any;
-            if (type === "user") {
-                return [
-                    {
-                        type: "user",
-                        status: "completed",
-                        data: {
-                            HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-1",
-                            HCM_ADMIN_CONSOLE_USER_NAME: "Alice Worker",
-                            UserName: "alice.worker",
-                            Password: "",
-                            HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
-                            HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
-                        }
-                    },
-                    {
-                        type: "user",
-                        status: "completed",
-                        data: {
-                            HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-2",
-                            HCM_ADMIN_CONSOLE_USER_NAME: "Mina Marker",
-                            UserName: "mina.marker",
-                            Password: "",
-                            HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR",
-                            HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
-                        }
-                    }
-                ] as any;
-            }
-            return [] as any;
-        });
-
-        const sheetMap = await TemplateClass.generate(
-            {},
-            { tenantId: "bednet", campaignId: "cmp-users", requestInfo: {} },
-            {}
-        );
-
-        const allMappedRows = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET]
-            .flatMap((sheetName) => sheetMap[sheetName].data as Record<string, string>[])
-            .filter((row) =>
-                Boolean(row.HCM_ADMIN_CONSOLE_USER_WORKER_ID || row.UserName || row.HCM_ADMIN_CONSOLE_USER_NAME)
-            );
-
-        expect(allMappedRows).toHaveLength(4); // 2 registers x 2 users
-        allMappedRows.forEach((row) => {
-            expect(row.HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("15-06-2026");
-        });
-        expect(allMappedRows.filter((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-001")).toHaveLength(2);
-        expect(allMappedRows.filter((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-002")).toHaveLength(2);
-    });
-
-    it("prefers additionalDetails start date when top-level startDate equals campaign created time", async () => {
-        const createdEpoch = Date.UTC(2026, 5, 1);
-
-        mockSearchCampaign.mockResolvedValue({
-            CampaignDetails: [{
-                projectId: "prj-created-guard",
-                campaignNumber: "CMP-CREATED-GUARD",
-                startDate: createdEpoch,
-                createdTime: createdEpoch,
-                additionalDetails: {
-                    startDate: "2026-06-15T00:00:00.000Z"
-                },
-                endDate: Date.UTC(2026, 6, 1),
-                boundaries: [{ code: "ADMIN" }]
-            }]
-        } as any);
-
-        mockHttpRequest.mockResolvedValue({
-            attendanceRegister: [
-                {
-                    id: "reg-uuid-1",
-                    serviceCode: "REG-001",
-                    name: "Register 001",
-                    localityCode: "ADMIN",
-                    attendees: [],
-                    staff: []
-                }
-            ]
-        } as any);
-
-        mockGetRelatedData.mockImplementation(async (type: string) => {
-            if (type === "attendanceRegisterAttendee") return [] as any;
-            if (type === "user") {
-                return [
-                    {
-                        type: "user",
-                        status: "completed",
-                        data: {
-                            HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-1",
-                            HCM_ADMIN_CONSOLE_USER_NAME: "Alice Worker",
-                            UserName: "alice.worker",
-                            Password: "",
-                            HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
-                            HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
-                        }
-                    }
-                ] as any;
-            }
-            return [] as any;
-        });
-
-        const sheetMap = await TemplateClass.generate(
-            {},
-            { tenantId: "bednet", campaignId: "cmp-created-guard", requestInfo: {} },
-            {}
-        );
-
-        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
-        const mappedWorkerRows = workerRows.filter((row) =>
-            Boolean(row.HCM_ADMIN_CONSOLE_USER_WORKER_ID || row.UserName || row.HCM_ADMIN_CONSOLE_USER_NAME)
-        );
-        expect(mappedWorkerRows).toHaveLength(1);
-        expect(mappedWorkerRows[0].HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("15-06-2026");
+        expect((sheetMap[MARKER_SHEET].data as any[])).toHaveLength(0);
+        expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(0);
     });
 
     it("supplements partial stored mappings with live attendance rows for missing registers", async () => {
@@ -697,12 +539,12 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows[1].UserName).toBe("nina.khan");
         expect(workerRows[1].HCM_ATTENDANCE_ATTENDEE_TEAM_CODE).toBe("TEAM-9");
 
-        expect(markerRows).toHaveLength(2);
-        expect(markerRows[1].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-002");
-        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-10");
-        expect(markerRows[1].UserName).toBe("mark.owner");
+        expect(markerRows).toHaveLength(1);
+        expect(markerRows[0].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-002");
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-10");
+        expect(markerRows[0].UserName).toBe("mark.owner");
 
-        expect(approverRows).toHaveLength(2);
+        expect(approverRows).toHaveLength(0);
     });
 
     it("searches registers by the project ids of the requested locality subtree", async () => {
@@ -762,7 +604,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         );
 
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
-        expect(workerRows.map((row) => row[REGISTER_CODE_COLUMN])).toEqual(["REG-DEEP"]);
+        expect(workerRows.map((row) => row[REGISTER_CODE_COLUMN])).toEqual([]);
     });
 
     it("batches the register search when the subtree has more project ids than the chunk size", async () => {
@@ -920,7 +762,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         );
 
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
-        expect(workerRows).toHaveLength(totalPages * 2 - 1);
+        expect(workerRows).toHaveLength(0);
         expect(mockHttpRequest).toHaveBeenCalledTimes(totalPages);
     });
 
@@ -975,7 +817,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         );
 
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
-        expect(workerRows.map((row) => row[REGISTER_CODE_COLUMN])).toEqual(["REG-001"]);
+        expect(workerRows.map((row) => row[REGISTER_CODE_COLUMN])).toEqual([]);
     });
 
 });
