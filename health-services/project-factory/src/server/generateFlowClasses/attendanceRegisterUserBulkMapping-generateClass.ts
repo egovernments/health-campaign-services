@@ -275,28 +275,6 @@ export class TemplateClass {
             return rowsFromStoredData;
         }
 
-        const mappedRegisterCodes = this.collectMappedRegisterServiceCodes(rowsFromStoredData);
-        if (!mappedRegisterCodes.size) {
-            return this.buildRowsFromAttendanceState(
-                registers,
-                tenantId,
-                requestInfo,
-                campaignStartDate,
-                campaignEndDate
-            );
-        }
-
-        const hasRegistersMissingFromStoredMappings = registers.some(
-            (register) => !mappedRegisterCodes.has(register.serviceCode)
-        );
-        if (!hasRegistersMissingFromStoredMappings) {
-            return rowsFromStoredData;
-        }
-
-        logger.info(
-            `Stored attendee mappings cover ${mappedRegisterCodes.size}/${registers.length} registers; `
-            + "supplementing remaining registers from attendance state"
-        );
         const rowsFromAttendanceState = await this.buildRowsFromAttendanceState(
             registers,
             tenantId,
@@ -305,29 +283,10 @@ export class TemplateClass {
             campaignEndDate
         );
 
+        // Stored campaign rows can contain only a subset of tab-wise mappings for a register
+        // (for example marker rows exist but worker rows are absent). Always merge with the
+        // live register attendance snapshot to backfill missing per-sheet rows.
         return this.mergeRowsBySheetName(rowsFromStoredData, rowsFromAttendanceState);
-    }
-
-    private static collectMappedRegisterServiceCodes(rowsBySheetName: RowsBySheetName): Set<string> {
-        const registerServiceCodes = new Set<string>();
-        for (const sheetName of SHEET_NAMES) {
-            for (const row of rowsBySheetName.get(sheetName) || []) {
-                const hasMappedPerson = Boolean(this.firstNonBlank(
-                    row[WORKER_ID_COLUMN],
-                    row[USERNAME_COLUMN],
-                    row[USER_NAME_COLUMN]
-                ));
-                if (!hasMappedPerson) continue;
-
-                const registerServiceCode = this.firstNonBlank(
-                    row[REGISTER_ID_COLUMN],
-                    row[REGISTER_CODE_COLUMN]
-                );
-                if (!registerServiceCode) continue;
-                registerServiceCodes.add(registerServiceCode);
-            }
-        }
-        return registerServiceCodes;
     }
 
     private static mergeRowsBySheetName(
