@@ -547,7 +547,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(approverRows).toHaveLength(0);
     });
 
-    it("searches registers by the project ids of the requested locality subtree", async () => {
+    it("ignores localityCode and searches registers campaign-wide", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
                 campaignNumber: "CMP-L",
@@ -572,18 +572,22 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
-        expect(mockBoundaryRelationship).toHaveBeenCalledWith(
-            "bednet", "ADMIN", true, false, true, "WARD-22", expect.anything()
-        );
+        expect(mockBoundaryRelationship).not.toHaveBeenCalled();
         expect(mockHttpRequest).toHaveBeenCalledTimes(1);
-        const params = mockHttpRequest.mock.calls[0][2] as any;
-        expect(params.referenceIds.split(",").sort()).toEqual(["prj-dh1", "prj-ward22"]);
-        expect(params.localityCode).toBeUndefined();
-        expect(params.referenceId).toBeUndefined();
-        expect(params.campaignNumber).toBeUndefined();
+        expect(mockHttpRequest).toHaveBeenCalledWith(
+            expect.stringContaining("/attendance/v1/_search"),
+            expect.anything(),
+            expect.objectContaining({
+                tenantId: "bednet",
+                campaignNumber: "CMP-L",
+                includeAttendee: true,
+                includeStaff: true
+            })
+        );
+        expect((mockHttpRequest.mock.calls[0][2] as any).referenceIds).toBeUndefined();
     });
 
-    it("finds registers created on a descendant boundary, not just the requested one", async () => {
+    it("uses campaign-wide search even when localityCode points to a parent boundary", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{ campaignNumber: "CMP-D", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [] }]
         } as any);
@@ -603,6 +607,8 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
+        expect(mockBoundaryRelationship).not.toHaveBeenCalled();
+        expect((mockHttpRequest.mock.calls[0][2] as any).campaignNumber).toBe("CMP-D");
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
         expect(workerRows.map((row) => row[REGISTER_CODE_COLUMN])).toEqual([]);
     });
@@ -627,9 +633,11 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
-        expect(mockHttpRequest).toHaveBeenCalledTimes(2);
-        const sent = mockHttpRequest.mock.calls.map((call) => (call[2] as any).referenceIds);
-        expect(sent).toEqual(["p1,p2", "p3,p4"]);
+        expect(mockBoundaryRelationship).not.toHaveBeenCalled();
+        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
+        const params = mockHttpRequest.mock.calls[0][2] as any;
+        expect(params.campaignNumber).toBe("CMP-B");
+        expect(params.referenceIds).toBeUndefined();
     });
 
     it("skips boundaries whose project has not been created yet", async () => {
@@ -648,11 +656,14 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
+        expect(mockBoundaryRelationship).not.toHaveBeenCalled();
         expect(mockHttpRequest).toHaveBeenCalledTimes(1);
-        expect((mockHttpRequest.mock.calls[0][2] as any).referenceIds).toBe("p1");
+        const params = mockHttpRequest.mock.calls[0][2] as any;
+        expect(params.campaignNumber).toBe("CMP-P");
+        expect(params.referenceIds).toBeUndefined();
     });
 
-    it("returns no registers and makes no register call when the subtree has no created projects", async () => {
+    it("returns no registers when the locality subtree has no created projects but still keeps campaign-wide discovery", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{ campaignNumber: "CMP-N", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [] }]
         } as any);
@@ -665,7 +676,9 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
-        expect(mockHttpRequest).not.toHaveBeenCalled();
+        expect(mockBoundaryRelationship).not.toHaveBeenCalled();
+        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
+        expect((mockHttpRequest.mock.calls[0][2] as any).campaignNumber).toBe("CMP-N");
         expect((sheetMap[WORKER_SHEET].data as any[]).length).toBe(0);
     });
 
@@ -683,7 +696,11 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
-        expect((mockHttpRequest.mock.calls[0][2] as any).referenceIds).toBe("prj-ward9");
+        expect(mockBoundaryRelationship).not.toHaveBeenCalled();
+        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
+        const params = mockHttpRequest.mock.calls[0][2] as any;
+        expect(params.campaignNumber).toBe("CMP-NOPRJ");
+        expect(params.referenceIds).toBeUndefined();
     });
 
     it("searches once by campaignNumber when no localityCode is supplied, never per boundary", async () => {

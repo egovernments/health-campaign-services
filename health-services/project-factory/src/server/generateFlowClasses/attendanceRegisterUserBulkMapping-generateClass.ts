@@ -381,12 +381,20 @@ export class TemplateClass {
         localityCodes: string[],
         requestInfo?: RequestInfo
     ): Promise<RegisterData[]> {
+        // Bulk download must always include the full campaign register set.
+        // Locality-derived discovery is treated as a supplemental source only.
+        const campaignWideRegisters = await this.searchRegistersByCampaignNumber(
+            tenantId,
+            campaignNumber,
+            requestInfo
+        );
+
         const effectiveLocalityCodes = Array.from(
             new Set(localityCodes.map((code) => String(code || "").trim()).filter(Boolean))
         );
 
         if (!effectiveLocalityCodes.length) {
-            return this.searchRegistersByCampaignNumber(tenantId, campaignNumber, requestInfo);
+            return campaignWideRegisters;
         }
 
         const subtreeCodes = await this.resolveLocalitySubtreeCodes(
@@ -400,12 +408,35 @@ export class TemplateClass {
         if (!referenceIds.length) {
             logger.info(
                 `No created projects found under locality code(s) ${effectiveLocalityCodes.join(", ")} `
-                + `for campaign ${campaignNumber}; returning no registers`
+                + `for campaign ${campaignNumber}; using campaign-wide register discovery`
             );
-            return [];
+            return campaignWideRegisters;
         }
 
-        return this.searchRegistersByReferenceIds(tenantId, referenceIds, requestInfo);
+        const localityScopedRegisters = await this.searchRegistersByReferenceIds(tenantId, referenceIds, requestInfo);
+        return this.mergeRegisterSets(campaignWideRegisters, localityScopedRegisters);
+    }
+
+    private static mergeRegisterSets(
+        primary: RegisterData[],
+        secondary: RegisterData[]
+    ): RegisterData[] {
+        const merged: RegisterData[] = [];
+        const seen = new Set<string>();
+        const addRegister = (register: RegisterData) => {
+            const id = this.asText(register?.id);
+            const serviceCode = this.asText(register?.serviceCode);
+            if (!id || !serviceCode) return;
+            const key = `${id}::${serviceCode}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            merged.push(register);
+        };
+
+        for (const register of primary || []) addRegister(register);
+        for (const register of secondary || []) addRegister(register);
+
+        return merged;
     }
 
     /** Expands each requested locality to itself plus every descendant boundary code, so registers created below it are still found. */
@@ -587,7 +618,15 @@ export class TemplateClass {
             }
         }
 
-        return Array.from(codes);
+        const requestedLocalityCodes = Array.from(codes);
+        if (requestedLocalityCodes.length) {
+            logger.info(
+                "Ignoring localityCode for attendanceRegisterUserBulkMapping generation; "
+                + "register discovery is campaign-wide"
+            );
+        }
+
+        return [];
     }
 
     private static addLocalityCode(codes: Set<string>, rawCode: unknown): void {

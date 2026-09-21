@@ -5,6 +5,9 @@ if (!HOST) {
   process.exit(1);
 }
 
+const detectedSystemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const defaultAppTimezone = process.env.TZ || detectedSystemTimezone || "UTC";
+
 // Application configuration
 const config = {
   batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 100,
@@ -17,7 +20,7 @@ const config = {
   token: "",
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   prefixForMicroplanCampaigns: "MP",
-  appTimezone: process.env.APP_TIMEZONE || "UTC",
+  appTimezone: process.env.APP_TIMEZONE || defaultAppTimezone,
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   isEnvironmentCentralInstance: process.env.IS_ENVIRONMENT_CENTRAL_INSTANCE === "true",
