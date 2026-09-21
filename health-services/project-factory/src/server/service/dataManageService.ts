@@ -36,6 +36,9 @@ const sheetManageGenerationTypes = new Set<string>(
 const downloadGeneratedStatusPollIntervalMs = 1000;
 const downloadGeneratedStatusPollMaxAttempts = 45;
 const staleInProgressResourceThresholdMs = 5 * 60 * 1000;
+const ALWAYS_FRESH_DOWNLOAD_TYPES = new Set<string>([
+    "attendanceRegisterUserBulkMapping"
+]);
 
 function toEpoch(value: unknown): number {
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -120,6 +123,7 @@ const downloadDataService = async (request: express.Request) => {
     const localityCode = request?.query?.localityCode ? String(request?.query?.localityCode) : undefined;
     const forceUpdate = String(request?.query?.forceUpdate || "") === "true";
     const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "null";
+    const shouldBypassReuse = ALWAYS_FRESH_DOWNLOAD_TYPES.has(type);
 
     if (!hasRequestedGeneratedId) {
         const requestLocalityKey = localityKeyOf({ additionalDetails: { localityCode } });
@@ -135,10 +139,13 @@ const downloadDataService = async (request: express.Request) => {
         );
         const latestResource = newestForLocality(candidates || [], requestLocalityKey);
         const hasFreshInProgressResource =
-            latestResource?.status === generatedResourceStatuses.inprogress
+            !shouldBypassReuse
+            && latestResource?.status === generatedResourceStatuses.inprogress
             && !isStaleInProgressResource(latestResource);
         const hasReusableCompletedResource =
-            !forceUpdate && isReusableCompletedResource(latestResource);
+            !shouldBypassReuse
+            && !forceUpdate
+            && isReusableCompletedResource(latestResource);
 
         if (hasFreshInProgressResource || hasReusableCompletedResource) {
             responseData = [latestResource];
@@ -148,7 +155,10 @@ const downloadDataService = async (request: express.Request) => {
             );
         } else {
             if (latestResource?.status === generatedResourceStatuses.inprogress) {
-                logger.warn(`Found stale in-progress generation id=${latestResource.id}; creating a fresh one.`);
+                const reason = shouldBypassReuse
+                    ? "reuse disabled for this type"
+                    : "stale in-progress resource";
+                logger.warn(`Found in-progress generation id=${latestResource.id}; creating a fresh one (${reason}).`);
             } else {
                 logger.info(`Generating fresh template for download — campaignId=${campaignId}, type=${type}`);
             }
