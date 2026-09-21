@@ -111,6 +111,12 @@ export class TemplateClass {
 
         const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         const campaign = campaignResp?.CampaignDetails?.[0];
+        logger.info("ENROLL-DEBUG " + JSON.stringify({
+            topStart: campaign?.startDate,
+            addlStart: campaign?.additionalDetails?.startDate,
+            created: campaign?.auditDetails?.createdTime ?? campaign?.createdTime,
+            cycleStarts: (campaign?.deliveryRules || []).flatMap((r: any) => (r?.cycles || []).map((c: any) => c?.startDate)),
+        }));
         if (!campaign) {
             throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found");
         }
@@ -121,6 +127,7 @@ export class TemplateClass {
         }
 
         const campaignStartDate = this.resolveCampaignStartDate(campaign);
+        logger.info(`ENROLL-DEBUG resolved campaignStartDate=${campaignStartDate}`);
         const campaignEndDate = this.resolveCampaignEndDate(campaign);
 
         const localityCodes = this.resolveRegisterSearchLocalityCodes(responseToSend?.additionalDetails);
@@ -144,6 +151,12 @@ export class TemplateClass {
             tenantId,
             dataRowStatuses.completed
         ) as CampaignDataRow[];
+        const campaignUserRows = await getRelatedDataWithCampaign(
+            USER_DATA_TYPE,
+            campaignNumber,
+            tenantId,
+            dataRowStatuses.completed
+        ) as CampaignDataRow[];
         const rowsFromStoredData = this.buildRowsFromStoredMappings(
             registers,
             Array.isArray(attendeeRows) ? attendeeRows : [],
@@ -155,6 +168,7 @@ export class TemplateClass {
 
         const outputRowsBySheetName = await this.buildOutputRowsBySheetName(
             rowsFromStoredData,
+            Array.isArray(campaignUserRows) ? campaignUserRows : [],
             registers,
             tenantId,
             campaignNumber,
@@ -298,6 +312,7 @@ export class TemplateClass {
 
     private static async buildOutputRowsBySheetName(
         rowsFromStoredData: RowsBySheetName,
+        campaignUserRows: CampaignDataRow[],
         registers: RegisterData[],
         tenantId: string,
         campaignNumber: string,
@@ -309,6 +324,19 @@ export class TemplateClass {
             return rowsFromStoredData;
         }
 
+        const rowsFromCampaignUsers = this.buildRowsFromCampaignUsers(
+            registers,
+            campaignUserRows,
+            campaignStartDate,
+            campaignEndDate
+        );
+        let combinedRowsBySheetName = rowsFromStoredData;
+        if (this.containsMappedRows(rowsFromCampaignUsers)) {
+            // Stored attendee rows remain authoritative for persisted edits; campaign-user rows
+            // provide the baseline for register prefill before attendance activation.
+            combinedRowsBySheetName = this.mergeRowsBySheetName(rowsFromStoredData, rowsFromCampaignUsers);
+        }
+
         const rowsFromAttendanceState = await this.buildRowsFromAttendanceState(
             registers,
             tenantId,
@@ -318,41 +346,71 @@ export class TemplateClass {
             campaignEndDate
         );
 
-        const liveRowsCount = Array.from(rowsFromAttendanceState.values()).reduce((sum, rows) => sum + rows.length, 0);
-        if (liveRowsCount > 0) {
-            const storedRowsForMissingRegisters = this.filterStoredRowsForMissingLiveRegisters(
-                rowsFromAttendanceState,
-                rowsFromStoredData
-            );
-            return this.mergeRowsBySheetName(rowsFromAttendanceState, storedRowsForMissingRegisters);
+        if (this.containsMappedRows(combinedRowsBySheetName)) {
+            // Live rows should never shrink template population; they only supplement missing identities.
+            return this.mergeRowsBySheetName(combinedRowsBySheetName, rowsFromAttendanceState);
         }
 
-        // Legacy fallback only when live mappings are empty.
-        return this.mergeRowsBySheetName(rowsFromStoredData, new Map<string, BulkRow[]>());
+        return rowsFromAttendanceState;
     }
 
-    private static filterStoredRowsForMissingLiveRegisters(
-        liveRowsBySheetName: RowsBySheetName,
-        storedRowsBySheetName: RowsBySheetName
+    private static buildRowsFromCampaignUsers(
+        registers: RegisterData[],
+        campaignUserRows: CampaignDataRow[],
+        campaignStartDate: string,
+        campaignEndDate: string
     ): RowsBySheetName {
-        const liveRegisterKeys = new Set<string>();
-        for (const rows of liveRowsBySheetName.values()) {
-            for (const row of rows || []) {
-                const registerKey = this.rowRegisterKey(row);
-                if (registerKey) liveRegisterKeys.add(registerKey);
+        const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
+        if (!registers.length || !campaignUserRows.length) {
+            return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        }
+
+        const normalizedCampaignUsers = campaignUserRows.filter((entry) =>
+            this.asText(entry?.type).toLowerCase() === USER_DATA_TYPE
+        );
+
+        for (const register of registers) {
+            const registerKey = this.registerIdentity(register);
+            for (const userEntry of normalizedCampaignUsers) {
+                if (userEntry?.isDeleted) continue;
+                const rawData = this.asRecord(userEntry?.data);
+                if (!rawData) continue;
+
+                const personId = this.personIdentity(rawData, "__unknown__");
+                if (personId === "__unknown__") continue;
+
+                const sheetName = this.classifyCampaignUserToSheet(rawData);
+                if (!sheetName) continue;
+
+                const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
+                const row = this.buildCampaignUserRow(
+                    register,
+                    sheetName,
+                    rawData,
+                    campaignStartDate,
+                    campaignEndDate
+                );
+                dedupedRowsBySheetName.get(sheetName)?.set(dedupeKey, row);
             }
         }
 
-        const filteredStoredRowsBySheetName = new Map<string, BulkRow[]>();
+        return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+    }
+
+    private static containsMappedRows(rowsBySheetName: RowsBySheetName): boolean {
         for (const sheetName of SHEET_NAMES) {
-            const filteredRows = (storedRowsBySheetName.get(sheetName) || []).filter((row) => {
-                const registerKey = this.rowRegisterKey(row);
-                if (!registerKey) return false;
-                return !liveRegisterKeys.has(registerKey);
-            });
-            filteredStoredRowsBySheetName.set(sheetName, filteredRows);
+            const rows = rowsBySheetName.get(sheetName) || [];
+            for (const row of rows) {
+                if (this.firstNonBlank(
+                    row[WORKER_ID_COLUMN],
+                    row[USERNAME_COLUMN],
+                    row[USER_NAME_COLUMN]
+                )) {
+                    return true;
+                }
+            }
         }
-        return filteredStoredRowsBySheetName;
+        return false;
     }
 
     private static mergeRowsBySheetName(
@@ -825,6 +883,58 @@ export class TemplateClass {
         return row;
     }
 
+    private static buildCampaignUserRow(
+        register: RegisterData,
+        sheetName: string,
+        rawData: Record<string, unknown>,
+        campaignStartDate: string,
+        campaignEndDate: string
+    ): BulkRow {
+        const roleCodes = this.extractRoleCodes(rawData);
+        const encryptedUsername = this.asText(rawData[USERNAME_COLUMN]);
+        const encryptedPassword = this.asText(rawData[PASSWORD_COLUMN]);
+        const boundaryCode = this.firstNonBlank(
+            this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
+            this.asText(rawData[BOUNDARY_CODE_COLUMN]),
+            register.localityCode
+        );
+
+        const row: BulkRow = {
+            [REGISTER_CODE_COLUMN]: register.serviceCode,
+            [REGISTER_NAME_COLUMN]: register.name,
+            [REGISTER_UUID_COLUMN]: register.id,
+            [REGISTER_ID_COLUMN]: register.serviceCode,
+            [WORKER_ID_COLUMN]: this.asText(rawData[WORKER_ID_COLUMN]),
+            [USER_NAME_COLUMN]: this.asText(rawData[USER_NAME_COLUMN]),
+            [USERNAME_COLUMN]: encryptedUsername ? decrypt(encryptedUsername) : "",
+            [PASSWORD_COLUMN]: encryptedPassword ? decrypt(encryptedPassword) : "",
+            [BOUNDARY_COLUMN]: this.firstNonBlank(
+                this.asText(rawData[BOUNDARY_COLUMN]),
+                this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
+                this.asText(rawData[BOUNDARY_CODE_COLUMN]),
+                register.localityCode
+            ),
+            [BOUNDARY_CODE_MANDATORY_COLUMN]: boundaryCode,
+            [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
+                campaignStartDate,
+                this.normalizeSheetDateIfPresent(this.asText(rawData[ENROLLMENT_DATE_COLUMN]))
+            ),
+            [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
+                this.normalizeSheetDateIfPresent(this.asText(rawData[DEENROLLMENT_DATE_COLUMN])),
+                campaignEndDate
+            ),
+        };
+        this.assignRoleColumns(row, roleCodes);
+
+        if (sheetName === WORKER_SHEET) {
+            row[TEAM_CODE_COLUMN] = this.asText(rawData[TEAM_CODE_COLUMN]);
+        } else {
+            delete row[TEAM_CODE_COLUMN];
+        }
+
+        return row;
+    }
+
     private static createEmptyDedupedRowsBySheetName(): DedupedRowsBySheetName {
         return new Map<string, Map<string, BulkRow>>(SHEET_NAMES.map((sheetName) => [sheetName, new Map<string, BulkRow>()]));
     }
@@ -868,6 +978,10 @@ export class TemplateClass {
         if (roleCodes.some((role) => MARKER_ROLE_CODES.has(role))) return MARKER_SHEET;
         if (roleCodes.some((role) => WORKER_ROLE_CODES.has(role))) return WORKER_SHEET;
         return null;
+    }
+
+    private static classifyCampaignUserToSheet(rawData: Record<string, unknown>): string | null {
+        return this.sheetNameFromRoleCodes(this.extractRoleCodes(rawData));
     }
 
     private static displayNameFromStaff(staff: AttendanceStaffRow | undefined): string {
