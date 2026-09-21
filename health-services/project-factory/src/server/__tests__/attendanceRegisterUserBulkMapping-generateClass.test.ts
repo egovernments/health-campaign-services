@@ -1,4 +1,5 @@
 const mockConfig = {
+    basesecret: "unit-test-secret",
     host: {
         attendanceHost: "http://attendance.local",
         healthIndividualHost: "http://individual.local/"
@@ -72,10 +73,13 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         isDeleted: false,
         data: {}
     });
-    const routeRelatedData = (boundaryRows: any[], attendeeRows: any[] = []) =>
-        mockGetRelatedData.mockImplementation(async (type: string) =>
-            (type === "boundary" ? boundaryRows : attendeeRows) as any
-        );
+    const routeRelatedData = (boundaryRows: any[], attendeeRows: any[] = [], userRows: any[] = []) =>
+        mockGetRelatedData.mockImplementation(async (type: string) => {
+            if (type === "boundary") return boundaryRows as any;
+            if (type === "attendanceRegisterAttendee") return attendeeRows as any;
+            if (type === "user") return userRows as any;
+            return [] as any;
+        });
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -432,6 +436,91 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         expect((sheetMap[MARKER_SHEET].data as any[])).toHaveLength(2);
         expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(2);
+    });
+
+    it("expands campaign users for every register and uses campaign start date for enrollment", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-users",
+                campaignNumber: "CMP-USERS",
+                startDate: "2026-06-15T00:00:00.000Z",
+                endDate: Date.UTC(2026, 6, 1),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        mockHttpRequest.mockResolvedValue({
+            attendanceRegister: [
+                {
+                    id: "reg-uuid-1",
+                    serviceCode: "REG-001",
+                    name: "Register 001",
+                    localityCode: "ADMIN",
+                    attendees: [],
+                    staff: []
+                },
+                {
+                    id: "reg-uuid-2",
+                    serviceCode: "REG-002",
+                    name: "Register 002",
+                    localityCode: "ADMIN",
+                    attendees: [],
+                    staff: []
+                }
+            ]
+        } as any);
+
+        mockGetRelatedData.mockImplementation(async (type: string) => {
+            if (type === "attendanceRegisterAttendee") return [] as any;
+            if (type === "user") {
+                return [
+                    {
+                        type: "user",
+                        status: "completed",
+                        data: {
+                            HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-1",
+                            HCM_ADMIN_CONSOLE_USER_NAME: "Alice Worker",
+                            UserName: "alice.worker",
+                            Password: "",
+                            HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                            HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
+                        }
+                    },
+                    {
+                        type: "user",
+                        status: "completed",
+                        data: {
+                            HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-2",
+                            HCM_ADMIN_CONSOLE_USER_NAME: "Mina Marker",
+                            UserName: "mina.marker",
+                            Password: "",
+                            HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR",
+                            HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
+                        }
+                    }
+                ] as any;
+            }
+            return [] as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-users", requestInfo: {} },
+            {}
+        );
+
+        const allMappedRows = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET]
+            .flatMap((sheetName) => sheetMap[sheetName].data as Record<string, string>[])
+            .filter((row) =>
+                Boolean(row.HCM_ADMIN_CONSOLE_USER_WORKER_ID || row.UserName || row.HCM_ADMIN_CONSOLE_USER_NAME)
+            );
+
+        expect(allMappedRows).toHaveLength(4); // 2 registers x 2 users
+        allMappedRows.forEach((row) => {
+            expect(row.HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("15-06-2026");
+        });
+        expect(allMappedRows.filter((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-001")).toHaveLength(2);
+        expect(allMappedRows.filter((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-002")).toHaveLength(2);
     });
 
     it("supplements partial stored mappings with live attendance rows for missing registers", async () => {
