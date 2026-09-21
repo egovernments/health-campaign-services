@@ -1140,10 +1140,26 @@ export class TemplateClass {
     private static resolveCampaignStartDate(campaign: any): string {
         const fromCycles = this.resolveCampaignDateFromCycles(campaign, "startDate", "min");
         if (fromCycles) return fromCycles;
-        return this.firstNonBlank(
-            this.formatEpochIfPresent(campaign?.startDate),
-            this.formatEpochIfPresent(this.asRecord(campaign?.additionalDetails)?.startDate)
+        const fromAdditionalDetails = this.formatEpochIfPresent(this.asRecord(campaign?.additionalDetails)?.startDate);
+        const fromTopLevel = this.formatEpochIfPresent(campaign?.startDate);
+        const createdDate = this.formatEpochIfPresent(
+            this.firstNonBlank(
+                this.asText(campaign?.auditDetails?.createdTime),
+                this.asText(campaign?.createdTime)
+            )
         );
+
+        if (fromTopLevel && createdDate && fromTopLevel === createdDate) {
+            if (fromAdditionalDetails && fromAdditionalDetails !== createdDate) {
+                return fromAdditionalDetails;
+            }
+            logger.warn(
+                `Campaign startDate matches createdTime (${createdDate}); ignoring as enrollment prefill source for bulk template`
+            );
+            return "";
+        }
+
+        return this.firstNonBlank(fromTopLevel, fromAdditionalDetails);
     }
 
     private static resolveCampaignEndDate(campaign: any): string {

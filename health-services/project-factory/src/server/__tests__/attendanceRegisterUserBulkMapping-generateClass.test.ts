@@ -523,6 +523,71 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(allMappedRows.filter((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-002")).toHaveLength(2);
     });
 
+    it("prefers additionalDetails start date when top-level startDate equals campaign created time", async () => {
+        const createdEpoch = Date.UTC(2026, 5, 1);
+
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-created-guard",
+                campaignNumber: "CMP-CREATED-GUARD",
+                startDate: createdEpoch,
+                createdTime: createdEpoch,
+                additionalDetails: {
+                    startDate: "2026-06-15T00:00:00.000Z"
+                },
+                endDate: Date.UTC(2026, 6, 1),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        mockHttpRequest.mockResolvedValue({
+            attendanceRegister: [
+                {
+                    id: "reg-uuid-1",
+                    serviceCode: "REG-001",
+                    name: "Register 001",
+                    localityCode: "ADMIN",
+                    attendees: [],
+                    staff: []
+                }
+            ]
+        } as any);
+
+        mockGetRelatedData.mockImplementation(async (type: string) => {
+            if (type === "attendanceRegisterAttendee") return [] as any;
+            if (type === "user") {
+                return [
+                    {
+                        type: "user",
+                        status: "completed",
+                        data: {
+                            HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-1",
+                            HCM_ADMIN_CONSOLE_USER_NAME: "Alice Worker",
+                            UserName: "alice.worker",
+                            Password: "",
+                            HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                            HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
+                        }
+                    }
+                ] as any;
+            }
+            return [] as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-created-guard", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        const mappedWorkerRows = workerRows.filter((row) =>
+            Boolean(row.HCM_ADMIN_CONSOLE_USER_WORKER_ID || row.UserName || row.HCM_ADMIN_CONSOLE_USER_NAME)
+        );
+        expect(mappedWorkerRows).toHaveLength(1);
+        expect(mappedWorkerRows[0].HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("15-06-2026");
+    });
+
     it("supplements partial stored mappings with live attendance rows for missing registers", async () => {
         const campaignEnd = Date.UTC(2026, 3, 30);
 
