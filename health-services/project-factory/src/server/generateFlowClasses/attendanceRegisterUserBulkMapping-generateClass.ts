@@ -618,7 +618,15 @@ export class TemplateClass {
             }
         }
 
-        return Array.from(codes);
+        const requestedLocalityCodes = Array.from(codes);
+        if (requestedLocalityCodes.length) {
+            logger.info(
+                "Ignoring localityCode for attendanceRegisterUserBulkMapping generation; "
+                + "register discovery is campaign-wide"
+            );
+        }
+
+        return [];
     }
 
     private static addLocalityCode(codes: Set<string>, rawCode: unknown): void {
