@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_project_beneficiary_beneficiaryClientReferenceId ON project_beneficiary(beneficiaryClientReferenceId);

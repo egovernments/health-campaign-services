@@ -28,7 +28,7 @@ public class ProjectTaskIndexV1 {
     @JsonProperty("productVariant")
     private String productVariant;
     @JsonProperty("quantity")
-    private Long quantity;
+    private Double quantity;
     @JsonProperty("deliveredTo")
     private String deliveredTo;
     @JsonProperty("isDelivered")
@@ -57,4 +57,6 @@ public class ProjectTaskIndexV1 {
     private Long createdTime;
     @JsonProperty("lastModifiedTime")
     private Long lastModifiedTime;
+    @JsonProperty("isDeleted")
+    private boolean isDeleted;
 }

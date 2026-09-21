@@ -1,5 +1,6 @@
 package org.egov.project.validator;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
@@ -35,11 +36,11 @@ public class RowVersionValidatorTest {
 
     @Test
     @DisplayName("Should add to error details if row version mismatch found")
-    void shouldAddToErrorDetailsIfRowVersionMismatchFound() {
+    void shouldAddToErrorDetailsIfRowVersionMismatchFound() throws InvalidTenantIdException {
         ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
                 .withProjectResourceId("some-id").withRequestInfo().build();
         request.getProjectResource().get(0).setRowVersion(2);
-        when(projectResourceRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(projectResourceRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(ProjectResourceTestBuilder.builder()
                         .withProjectResource().withId("some-id").build()));
 
@@ -50,11 +51,11 @@ public class RowVersionValidatorTest {
 
     @Test
     @DisplayName("Should not add to error details if row version is similar")
-    void shouldNotAddToErrorDetailsIfRowVersionIsSimilar() {
+    void shouldNotAddToErrorDetailsIfRowVersionIsSimilar() throws InvalidTenantIdException {
         ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
                 .withProjectResourceId("some-id").withRequestInfo().build();
         request.getProjectResource().get(0).setRowVersion(1);
-        when(projectResourceRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(projectResourceRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(ProjectResourceTestBuilder.builder()
                         .withProjectResource().withId("some-id").build()));
 

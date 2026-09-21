@@ -10,8 +10,8 @@ import org.apache.commons.lang3.time.DateUtils;
 import org.hibernate.validator.constraints.Email;
 import org.springframework.util.CollectionUtils;
 
-import javax.validation.constraints.Pattern;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;

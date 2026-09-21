@@ -7,7 +7,7 @@ serviceMaps:
       isTransaction: true
       queryMaps:
 
-        - query: INSERT INTO eg_pgr_service_v2(id, tenantid, servicecode, servicerequestid, description, accountid, additionaldetails, applicationstatus, rating, source, createdby, createdtime, lastmodifiedby, lastmodifiedtime, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO eg_pgr_service_v2(id, tenantid, servicecode, hierarchytype, servicerequestid, description, accountid, additionaldetails, applicationstatus, rating, source, createdby, createdtime, lastmodifiedby, lastmodifiedtime, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: service
           jsonMaps:
             - jsonPath: $.service.id
@@ -15,6 +15,8 @@ serviceMaps:
             - jsonPath: $.service.tenantId
 
             - jsonPath: $.service.serviceCode
+
+            - jsonPath: $.service.hierarchyType
 
             - jsonPath: $.service.serviceRequestId
 

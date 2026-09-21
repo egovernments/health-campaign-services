@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.TimeZone;
 
@@ -102,6 +102,9 @@ public class PGRConfiguration {
 
     @Value("${pgr.kafka.create.topic}")
     private String createTopic;
+
+    @Value("${pgr.kafka.create.pgr.topic}")
+    private String createPgrTopic;
 
     @Value("${pgr.kafka.migration.persister.topic}")
     private String batchCreateTopic;

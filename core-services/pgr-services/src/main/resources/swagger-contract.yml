@@ -224,6 +224,12 @@ components:
           description: Unique Code of the service defination (from service defination master)
           minLength: 2
           maxLength: 64
+        hierarchyType:
+          type: string
+          description: The boundary hierarchy type against which the boundary code in the address is resolved. Mandatory while creating or updating a complaint.
+          minLength: 2
+          maxLength: 64
+          example: ADMIN, REVENUE etc
         serviceRequestId:
           type: string
           readOnly: true
@@ -261,6 +267,7 @@ components:
       required:
       - tenantId
       - serviceCode
+      - hierarchyType
     ServiceRequest:
       type: object
       description: Request object to fetch the report data

@@ -1,7 +1,7 @@
 package org.egov.pgr.annotation;
 
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 
 public class AdditionalDetailValidator  implements ConstraintValidator<CharacterConstraint, Object> {
 

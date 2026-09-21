@@ -2,6 +2,7 @@ package org.egov.individual.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualBulkResponse;
@@ -15,8 +16,8 @@ import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.service.IndividualService;
-import org.egov.individual.web.models.IndividualSearch;
-import org.egov.individual.web.models.IndividualSearchRequest;
+import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearchRequest;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +35,7 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -163,7 +165,7 @@ class IndividualApiControllerTest {
                 any(String.class),
                 any(Long.class),
                 any(Boolean.class),
-                any(RequestInfo.class))).thenReturn(Collections.singletonList(responseIndividual));
+                any(RequestInfo.class))).thenReturn(SearchResponse.<Individual>builder().response(Collections.singletonList(responseIndividual)).build());
 
         MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType
