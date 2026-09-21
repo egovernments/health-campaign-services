@@ -2,11 +2,16 @@ const mockConfig = {
     basesecret: "unit-test-secret",
     host: {
         attendanceHost: "http://attendance.local",
-        healthIndividualHost: "http://individual.local/"
+        healthIndividualHost: "http://individual.local/",
+        hrmsHost: "http://hrms.local/"
     },
     paths: {
         attendanceRegisterSearch: "/attendance/v1/_search",
-        healthIndividualSearch: "individual/v1/_search"
+        healthIndividualSearch: "individual/v1/_search",
+        hrmsEmployeeSearch: "health-hrms/employees/_search"
+    },
+    hrms: {
+        hrmsParallelSearchLimit: 100
     },
     appTimezone: "UTC",
     attendanceRegister: {
@@ -475,6 +480,81 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(0);
     });
 
+    it("retains campaign-user coverage for all registers even when live attendance is partial", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-partial",
+                campaignNumber: "CMP-PARTIAL",
+                startDate: Date.UTC(2026, 3, 1),
+                endDate: Date.UTC(2026, 3, 30),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [], [
+            {
+                uniqueIdentifier: "ind-template",
+                uniqueIdAfterProcess: "ind-template",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-template",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Template User",
+                    UserName: "template.user",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                    HCM_ATTENDANCE_ATTENDEE_TEAM_CODE: "TEAM-T"
+                }
+            }
+        ]);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-partial-1",
+                            serviceCode: "REG-P1",
+                            name: "Register P1",
+                            localityCode: "ADMIN",
+                            attendees: [{ individualId: "ind-live-1", tag: "TEAM-L1", enrollmentDate: Date.UTC(2026, 3, 2), denrollmentDate: null }],
+                            staff: []
+                        },
+                        {
+                            id: "reg-partial-2",
+                            serviceCode: "REG-P2",
+                            name: "Register P2",
+                            localityCode: "ADMIN",
+                            attendees: [],
+                            staff: []
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        { id: "ind-live-1", name: { givenName: "Live", familyName: "User" }, userDetails: { username: "live.user" } }
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-partial", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        const registerCodes = Array.from(new Set(workerRows.map((row) => row.HCM_ATTENDANCE_REGISTER_CODE)));
+
+        expect(registerCodes).toEqual(["REG-P1", "REG-P2"]);
+        expect(workerRows.some((row) =>
+            row.HCM_ATTENDANCE_REGISTER_CODE === "REG-P2"
+            && row.HCM_ADMIN_CONSOLE_USER_WORKER_ID === "ind-template"
+        )).toBe(true);
+    });
+
     it("supplements partial stored mappings with live attendance rows for missing registers", async () => {
         const campaignEnd = Date.UTC(2026, 3, 30);
 
@@ -738,8 +818,8 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID)).toEqual(["ind-w1", "ind-w2"]);
 
         expect(markerRows).toHaveLength(2);
-        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Marker One");
-        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Marker Two");
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker One");
+        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker Two");
     });
 
     it("includes only role-eligible marker/approver staff and excludes admin-role staff", async () => {
