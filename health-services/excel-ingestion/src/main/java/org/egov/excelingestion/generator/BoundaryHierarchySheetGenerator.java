@@ -111,7 +111,8 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             // Fetch and merge existing campaign data for targets if reference ID is provided
             String referenceId = generateResource.getReferenceId();
             if (referenceId != null && !referenceId.isEmpty()) {
-                String campaignNumber = getCampaignNumberFromReferenceId(referenceId, generateResource.getTenantId(), requestInfo);
+                String campaignNumber = campaignService.resolveDataSourceCampaignNumber(referenceId, ProcessingConstants.CAMPAIGN_DATA_TYPE_BOUNDARY,
+                        generateResource.getTenantId(), requestInfo);
                 if (campaignNumber != null && !campaignNumber.isEmpty()) {
                     boundaryData = mergeExistingCampaignData(boundaryData, campaignNumber, 
                             generateResource.getTenantId(), requestInfo, schemaColumns);
@@ -281,24 +282,6 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
         return data;
     }
     
-    private String getCampaignNumberFromReferenceId(String referenceId, String tenantId, RequestInfo requestInfo) {
-        try {
-            log.info("Searching campaign by reference ID: {}", referenceId);
-            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
-            
-            if (campaign != null) {
-                String campaignNumber = campaign.getCampaignNumber();
-                log.info("Found campaign number: {} for reference ID: {}", campaignNumber, referenceId);
-                return campaignNumber;
-            } else {
-                log.warn("No campaign found for reference ID: {}", referenceId);
-                return null;
-            }
-        } catch (Exception e) {
-            log.error("Error fetching campaign for reference ID {}: {}", referenceId, e.getMessage());
-            return null;
-        }
-    }
     
     private List<Map<String, Object>> mergeExistingCampaignData(List<Map<String, Object>> boundaryData, 
                                                                String campaignNumber, String tenantId, 

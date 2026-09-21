@@ -299,6 +299,123 @@ public class CampaignService {
     /**
      * Build campaign search URL from configuration
      */
+    /**
+     * Which campaign's stored data pre-fills a generated sheet, and whether that is a clone reading its
+     * source. Callers on the clone path use the flag to fail closed: a pre-fill error there must fail the
+     * generation, not emit an empty, unstamped sheet that the immutable-join check would then trust.
+     */
+    public static final class DataSource {
+        private final String campaignNumber;
+        private final boolean fromCloneSource;
+
+        public DataSource(String campaignNumber, boolean fromCloneSource) {
+            this.campaignNumber = campaignNumber;
+            this.fromCloneSource = fromCloneSource;
+        }
+
+        public String getCampaignNumber() {
+            return campaignNumber;
+        }
+
+        public boolean isFromCloneSource() {
+            return fromCloneSource;
+        }
+    }
+
+    /**
+     * Resolves which campaign's stored data should pre-fill a generated sheet.
+     *
+     * <p>Normally that is the campaign itself. A clone is the exception: until it has been uploaded it
+     * owns no data of its own, because everything the operator expects to see still belongs to the
+     * campaign it was cloned from. Without this, a clone's template comes out empty and the operator
+     * either re-types everything or works on the parent's uploaded file — and rows on that file were
+     * never written by the server, so they carry no row id and the immutable-join check has nothing to
+     * compare them against. Pre-filling them here is what makes them protected.
+     *
+     * <p>The fallback is deliberately conditional on the clone owning <em>nothing</em> of this type, in
+     * ANY status: campaign data rows are written when the clone's own upload is processed, so a single
+     * row means the clone has uploaded and its own rows are authoritative — a row the operator deleted on
+     * purpose stays deleted instead of being restored from the source on the next generation. Resolution
+     * is one hop: a clone of a never-uploaded clone reads that clone's (empty) data, not the grandparent.
+     *
+     * @return the data source, or null if the reference cannot be resolved (the generators treat null as
+     *         "nothing to pre-fill", exactly like the per-generator lookups this replaces)
+     */
+    public DataSource resolveDataSource(String referenceId, String type, String tenantId, RequestInfo requestInfo) {
+        // Parity with the per-generator lookups this replaces: they caught every failure and returned null,
+        // which the generators treat as "no campaign data to merge". searchCampaignById throws on a miss or
+        // an HTTP failure, so without this guard the boundary sheet generation would fail outright.
+        CampaignSearchResponse.CampaignDetail campaign;
+        try {
+            campaign = searchCampaignById(referenceId, tenantId, requestInfo);
+        } catch (Exception e) {
+            log.error("Error fetching campaign for reference ID {}: {}", referenceId, e.getMessage());
+            return null;
+        }
+        if (campaign == null) {
+            log.warn("No campaign found for reference ID: {}", referenceId);
+            return null;
+        }
+        String ownNumber = campaign.getCampaignNumber();
+        String clonedCampaignId = campaign.getAdditionalDetails() == null
+                ? null
+                : campaign.getAdditionalDetails().getClonedCampaignId();
+        boolean isClone = clonedCampaignId != null && !clonedCampaignId.trim().isEmpty()
+                && !clonedCampaignId.trim().equals(referenceId);
+
+        if (ownNumber == null || ownNumber.isEmpty()) {
+            if (isClone) {
+                log.warn("Clone {} has no campaign number yet; its sheet will be generated without the source data", referenceId);
+            }
+            return new DataSource(ownNumber, false);
+        }
+        if (!isClone) {
+            return new DataSource(ownNumber, false);
+        }
+
+        try {
+            java.util.List<Map<String, Object>> own =
+                    searchCampaignDataByType(type, null, ownNumber, tenantId, requestInfo);
+            if (own != null && !own.isEmpty()) {
+                return new DataSource(ownNumber, false);
+            }
+        } catch (Exception e) {
+            // Reading the clone source after an unreadable own-data check could restore rows the operator
+            // cleared, which is worse than generating the sheet we generate today.
+            log.error("Could not determine whether campaign {} owns {} data; using its own data: {}",
+                    ownNumber, type, e.getMessage(), e);
+            return new DataSource(ownNumber, false);
+        }
+
+        // searchCampaignById throws rather than returning null when the campaign is missing. A clone whose
+        // source has since been removed must still get a sheet, so any failure here falls back to the
+        // clone's own (empty) data instead of failing the whole generation.
+        CampaignSearchResponse.CampaignDetail source;
+        try {
+            source = searchCampaignById(clonedCampaignId.trim(), tenantId, requestInfo);
+        } catch (Exception e) {
+            log.warn("Clone source {} of campaign {} could not be resolved ({}); generating from its own data",
+                    clonedCampaignId, ownNumber, e.getMessage());
+            return new DataSource(ownNumber, false);
+        }
+        if (source == null || source.getCampaignNumber() == null || source.getCampaignNumber().isEmpty()) {
+            log.warn("Clone source {} of campaign {} has no campaign number; generating from its own data",
+                    clonedCampaignId, ownNumber);
+            return new DataSource(ownNumber, false);
+        }
+
+        log.info("Campaign {} owns no {} data; pre-filling from clone source {}",
+                ownNumber, type, source.getCampaignNumber());
+        return new DataSource(source.getCampaignNumber(), true);
+    }
+
+    /** Convenience for callers that only need the number (see {@link #resolveDataSource}). */
+    public String resolveDataSourceCampaignNumber(String referenceId, String type, String tenantId,
+                                                  RequestInfo requestInfo) {
+        DataSource dataSource = resolveDataSource(referenceId, type, tenantId, requestInfo);
+        return dataSource == null ? null : dataSource.getCampaignNumber();
+    }
+
     private String buildCampaignSearchUrl() {
         String baseUrl = config.getCampaignHost();
         return baseUrl + CAMPAIGN_SEARCH_ENDPOINT;

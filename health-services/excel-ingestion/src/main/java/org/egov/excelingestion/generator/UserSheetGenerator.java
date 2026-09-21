@@ -158,18 +158,21 @@ public class UserSheetGenerator implements ISheetGenerator {
         return null;
     }
     
-    private List<Map<String, Object>> fetchExistingUserData(GenerateResource generateResource, 
-                                                           RequestInfo requestInfo) {
+    List<Map<String, Object>> fetchExistingUserData(GenerateResource generateResource,
+                                                   RequestInfo requestInfo) {
         String referenceId = generateResource.getReferenceId();
         if (referenceId == null || referenceId.isEmpty()) {
             log.info("No reference ID provided for user sheet");
             return null; // Headers-only sheet
         }
-        
+
+        boolean fromCloneSource = false;
         try {
-            // Get campaign number from reference ID
-            String campaignNumber = getCampaignNumberFromReferenceId(referenceId, 
-                    generateResource.getTenantId(), requestInfo);
+            // Which campaign's stored users pre-fill this sheet (the clone source for a never-uploaded clone)
+            CampaignService.DataSource dataSource = campaignService.resolveDataSource(referenceId,
+                    ProcessingConstants.CAMPAIGN_DATA_TYPE_USER, generateResource.getTenantId(), requestInfo);
+            String campaignNumber = dataSource == null ? null : dataSource.getCampaignNumber();
+            fromCloneSource = dataSource != null && dataSource.isFromCloneSource();
             
             if (campaignNumber == null || campaignNumber.isEmpty()) {
                 log.info("No campaign found for reference ID: {}", referenceId);
@@ -224,29 +227,20 @@ public class UserSheetGenerator implements ISheetGenerator {
             return null; // Headers-only sheet
             
         } catch (Exception e) {
+            if (fromCloneSource) {
+                // Fail closed. A headers-only sheet here would carry no row ids, and the clone's edited rows
+                // would then pass validation — the exact gap pre-filling from the source exists to close. A
+                // failed generation is visible to the operator; an empty template that looks complete is not.
+                // Scope: this guards the ERROR path only. A source that genuinely holds no rows in the clone's
+                // boundaries still yields a headers-only sheet, which is correct — there is nothing to protect.
+                throw new RuntimeException("Failed to pre-fill the user sheet for clone " + referenceId
+                        + " from its source campaign: " + e.getMessage(), e);
+            }
             log.error("Error fetching existing user data: {}", e.getMessage());
             return null; // Headers-only sheet on error
         }
     }
     
-    private String getCampaignNumberFromReferenceId(String referenceId, String tenantId, RequestInfo requestInfo) {
-        try {
-            log.info("Searching campaign by reference ID: {}", referenceId);
-            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
-            
-            if (campaign != null) {
-                String campaignNumber = campaign.getCampaignNumber();
-                log.info("Found campaign number: {} for reference ID: {}", campaignNumber, referenceId);
-                return campaignNumber;
-            } else {
-                log.warn("No campaign found for reference ID: {}", referenceId);
-                return null;
-            }
-        } catch (Exception e) {
-            log.error("Error fetching campaign for reference ID {}: {}", referenceId, e.getMessage());
-            return null;
-        }
-    }
     
     /**
      * Decrypt passwords and usernames in user data using CryptoService (handles 500 limit)

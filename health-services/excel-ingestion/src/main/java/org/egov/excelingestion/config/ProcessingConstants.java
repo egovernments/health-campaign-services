@@ -9,6 +9,12 @@ public class ProcessingConstants {
     public static final String MDMS_ATTENDANCE_REGISTER_ATTENDEE_CONFIG_NAME = "attendanceRegisterAttendee";
 
     // Column Keys
+    // Campaign data types the sheet generators pre-fill from. They are the values project-factory stores
+    // against campaign data rows; the clone data-source resolution keys on them, so they must not drift.
+    public static final String CAMPAIGN_DATA_TYPE_BOUNDARY = "boundary";
+    public static final String CAMPAIGN_DATA_TYPE_FACILITY = "facility";
+    public static final String CAMPAIGN_DATA_TYPE_USER = "user";
+
     public static final String BOUNDARY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String WORKER_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
 

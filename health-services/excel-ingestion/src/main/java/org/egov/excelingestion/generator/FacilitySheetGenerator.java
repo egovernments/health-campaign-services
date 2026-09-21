@@ -170,18 +170,21 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         return null;
     }
     
-    private List<Map<String, Object>> fetchExistingFacilityData(GenerateResource generateResource, 
-                                                                RequestInfo requestInfo) {
+    List<Map<String, Object>> fetchExistingFacilityData(GenerateResource generateResource,
+                                                       RequestInfo requestInfo) {
         String referenceId = generateResource.getReferenceId();
         if (referenceId == null || referenceId.isEmpty()) {
             log.info("No reference ID provided for facility sheet");
             return null; // Headers-only sheet
         }
         
+        boolean fromCloneSource = false;
         try {
-            // Get campaign number from reference ID
-            String campaignNumber = getCampaignNumberFromReferenceId(referenceId, 
-                    generateResource.getTenantId(), requestInfo);
+            // Which campaign's stored facilities pre-fill this sheet (the clone source for a never-uploaded clone)
+            CampaignService.DataSource dataSource = campaignService.resolveDataSource(referenceId,
+                    ProcessingConstants.CAMPAIGN_DATA_TYPE_FACILITY, generateResource.getTenantId(), requestInfo);
+            String campaignNumber = dataSource == null ? null : dataSource.getCampaignNumber();
+            fromCloneSource = dataSource != null && dataSource.isFromCloneSource();
             
             if (campaignNumber == null || campaignNumber.isEmpty()) {
                 log.info("No campaign found for reference ID: {}", referenceId);
@@ -216,6 +219,13 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             return mergedData;
             
         } catch (Exception e) {
+            if (fromCloneSource) {
+                // Fail closed, for the same reason as the user sheet: an empty, unstamped facility sheet on a
+                // clone would let edits to the source's facility rows pass validation unnoticed. Error path
+                // only — a source with no facility rows legitimately yields the registry facilities alone.
+                throw new RuntimeException("Failed to pre-fill the facility sheet for clone " + referenceId
+                        + " from its source campaign: " + e.getMessage(), e);
+            }
             log.error("Error fetching facility data: {}", e.getMessage(), e);
             return null; // Headers-only sheet on error
         }
@@ -516,22 +526,4 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         return result;
     }
     
-    private String getCampaignNumberFromReferenceId(String referenceId, String tenantId, RequestInfo requestInfo) {
-        try {
-            log.info("Searching campaign by reference ID: {}", referenceId);
-            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
-            
-            if (campaign != null) {
-                String campaignNumber = campaign.getCampaignNumber();
-                log.info("Found campaign number: {} for reference ID: {}", campaignNumber, referenceId);
-                return campaignNumber;
-            } else {
-                log.warn("No campaign found for reference ID: {}", referenceId);
-                return null;
-            }
-        } catch (Exception e) {
-            log.error("Error fetching campaign for reference ID {}: {}", referenceId, e.getMessage());
-            return null;
-        }
-    }
 }

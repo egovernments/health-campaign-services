@@ -43,6 +43,7 @@ import {
 import {
   allProcesses,
   campaignStatuses,
+  cloneLineageKeys,
   dataRowStatuses,
   generatedResourceStatuses,
   headingMapping,
@@ -1194,6 +1195,41 @@ function enrichInnerCampaignDetails(
     requestBody?.CampaignDetails?.boundaries || [];
 }
 
+/**
+ * Clone lineage is stamped once at create and is server-owned: every downstream clone behaviour
+ * (borrowing the parent sheet, HRMS reuse suppression, app-config and checklist cloning, and
+ * excel-ingestion's identity check for the borrowed parent workbook) keys off it. The console's
+ * details/finalize payload builders send a partial additionalDetails, and the update merge below
+ * replaces the persisted object wholesale, so without this a clone silently loses cloneFrom and
+ * clonedCampaignId between validation and launch and excel-ingestion then rejects the borrowed
+ * workbook with IMMUTABLE_IDENTITY_MISMATCH.
+ *
+ * Returns the persisted lineage keys to re-apply on top of the incoming additionalDetails. A persisted
+ * non-empty value always wins; a payload cannot re-point or clear lineage through this endpoint.
+ * Child campaigns of the ongoing-update flow are never clones (project-factory carves them out on
+ * parentId everywhere else), so nothing is preserved for them.
+ */
+export function preservedCloneLineage(
+  incomingAdditionalDetails: any,
+  persistedAdditionalDetails: any,
+  persistedParentId?: string | null
+): Record<string, any> {
+  const preserved: Record<string, any> = {};
+  if (persistedParentId) {
+    return preserved;
+  }
+  for (const key of cloneLineageKeys) {
+    const persistedValue = persistedAdditionalDetails?.[key];
+    if (persistedValue !== undefined && persistedValue !== null && persistedValue !== "") {
+      if (incomingAdditionalDetails?.[key] !== persistedValue) {
+        logger.info(`Preserving clone lineage ${key}=${persistedValue} dropped by the update payload`);
+      }
+      preserved[key] = persistedValue;
+    }
+  }
+  return preserved;
+}
+
 async function enrichAndPersistCampaignForUpdate(
   request: any,
   firstPersist: boolean = false
@@ -1231,6 +1267,11 @@ async function enrichAndPersistCampaignForUpdate(
     ?? {};
   request.body.CampaignDetails.additionalDetails = {
     ...existingAdditionalForUpdate,
+    ...preservedCloneLineage(
+      existingAdditionalForUpdate,
+      ExistingCampaignDetails?.additionalDetails,
+      ExistingCampaignDetails?.parentId
+    ),
     locale: existingAdditionalForUpdate.locale || getLocaleFromRequestInfo(request?.body?.RequestInfo),
   };
   request.body.CampaignDetails.auditDetails = {
@@ -4306,6 +4347,7 @@ export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requ
 }
 
 export {
+  enrichAndPersistCampaignForUpdate,
   generateProcessedFileAndPersist,
   convertToTypeData,
   searchProjectCampaignResourcData,

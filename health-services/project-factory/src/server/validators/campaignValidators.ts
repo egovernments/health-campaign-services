@@ -18,7 +18,7 @@ import { CampaignResource } from "../config/models/resourceTypes";
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { campaignStatuses, resourceDataStatuses, resourceTypes, usageColumnStatus } from "../config/constants";
 import { getAllAllowedTypes } from "../config/resourceTypeRegistry";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
@@ -1113,8 +1113,121 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         if (!request?.body?.CampaignDetails?.isActive) {
             request.body.CampaignDetails.isActive = true;
         }
+        await prepareClonePayloadForCreate(request);
     }
     await validateCampaignBody(request, CampaignDetails, actionInUrl);
+}
+
+function isUnifiedSheetResource(resource: any): boolean {
+    return resource?.type === resourceTypes.unifiedConsoleResources || resource?.type === resourceTypes.unifiedConsole;
+}
+
+/**
+ * Prepares a clone's create payload so the clone generates, and the operator receives, a template of its own.
+ *
+ * The console builds a clone payload by spreading a My Campaigns grid row. Three things follow from that:
+ * - The list search omits boundaries, so the clone arrives with none, and the generation trigger is gated on
+ *   having them. Backfilling the source's boundaries is what lets a clone generate a template at all.
+ * - The row carries the parent's uploaded unified workbook as if it were the clone's own resource. Kept, the
+ *   console shows it as already uploaded, the operator downloads it instead of the generated template, and the
+ *   parent's operator-typed user rows arrive with no row id — nothing the immutable-join check can compare, so
+ *   edits to them pass validation. Only a resource proven to be inherited (same filestoreId as the source's own
+ *   unified resource) is dropped, and only on a draft: a single-shot create+launch keeps whatever it sent.
+ *   A never-uploaded clone still borrows the parent's sheet at launch (borrowUnifiedSheetFromCloneCampaign),
+ *   which keys on cloneFrom, and excel-ingestion pre-fills the template from clonedCampaignId — so the drop
+ *   requires BOTH keys; a clone carrying only one keeps the inherited file exactly as today. When the source cannot be read or
+ *   holds no unified resource to compare against, the payload is kept as sent and a warning is logged: the
+ *   check fails open, so an inherited file may remain attached in that (rare) case.
+ * - The unified-campaign flag decides which generation the trigger fires; it is inherited from the source when
+ *   the payload does not carry it, so a clone of a unified campaign cannot fall into the legacy generation.
+ * Failures are logged and skipped: nothing here may fail the create.
+ */
+export async function prepareClonePayloadForCreate(request: any): Promise<void> {
+    const CampaignDetails = request?.body?.CampaignDetails;
+    const cloneFrom = CampaignDetails?.additionalDetails?.cloneFrom;
+    const clonedCampaignId = CampaignDetails?.additionalDetails?.clonedCampaignId;
+    if (!CampaignDetails || CampaignDetails.parentId || (!cloneFrom && !clonedCampaignId)) {
+        return;
+    }
+    const lineage = clonedCampaignId || cloneFrom;
+    // An absent key means the caller never mentioned boundaries; an explicit [] means it wants none.
+    const needsBoundaries = CampaignDetails.boundaries === undefined;
+    const isDraft = CampaignDetails.action === "draft";
+    const ownUnifiedResources = Array.isArray(CampaignDetails.resources)
+        ? CampaignDetails.resources.filter(isUnifiedSheetResource)
+        : [];
+    // Both lineage keys are required: the launch-time borrow keys on cloneFrom, and excel-ingestion pre-fills
+    // the clone's template from clonedCampaignId. Dropping the inherited file when either is missing would
+    // leave the clone with a template that carries no parent data (older console tree writes cloneFrom only).
+    const mayDropInherited = isDraft && Boolean(cloneFrom) && Boolean(clonedCampaignId) && ownUnifiedResources.length > 0;
+    const needsUnifiedFlag = CampaignDetails.additionalDetails.isUnifiedCampaign === undefined;
+    if (!needsBoundaries && !mayDropInherited && !needsUnifiedFlag) {
+        return;
+    }
+
+    let source: any;
+    try {
+        // A campaignNumber lookup is ambiguous while a parent and its update child are both active — they
+        // share a number and the query has no ORDER BY — so prefer the id the console already sends.
+        // Both shapes return boundaries and resources: ids.length === 1 and campaignNumber each satisfy the
+        // search guard.
+        const searchResponse = await searchProjectTypeCampaignService(
+            clonedCampaignId
+                ? { tenantId: CampaignDetails?.tenantId, ids: [clonedCampaignId] }
+                : { tenantId: CampaignDetails?.tenantId, campaignNumber: cloneFrom }
+        );
+        source = searchResponse?.CampaignDetails?.[0];
+    } catch (error) {
+        logger.warn(`Failed to read clone source ${lineage}; creating the clone as sent: ${error}`);
+        if (mayDropInherited) {
+            logger.warn(`Clone of ${lineage} keeps ${ownUnifiedResources.length} unified sheet resource(s) that could not be checked against the source`);
+        }
+        return;
+    }
+    if (!source) {
+        logger.warn(`Clone source ${lineage} did not resolve to a campaign; creating the clone as sent`);
+        if (mayDropInherited) {
+            logger.warn(`Clone of ${lineage} keeps ${ownUnifiedResources.length} unified sheet resource(s) that could not be checked against the source`);
+        }
+        return;
+    }
+
+    if (needsBoundaries) {
+        if (Array.isArray(source.boundaries)) {
+            // Must run before processBasedOnAction computes the generation check, so the boundaries the
+            // trigger sees and the boundaries that get persisted are the same array.
+            CampaignDetails.boundaries = source.boundaries;
+            logger.info(`Backfilled ${source.boundaries.length} boundaries onto clone of ${lineage}`);
+        } else {
+            logger.warn(`Clone source ${lineage} carries no boundaries; the clone will be created without them`);
+        }
+    }
+
+    if (mayDropInherited) {
+        const inheritedFileStoreIds = new Set(
+            (Array.isArray(source.resources) ? source.resources : [])
+                .filter(isUnifiedSheetResource)
+                .map((resource: any) => resource?.filestoreId)
+                .filter(Boolean)
+        );
+        if (inheritedFileStoreIds.size === 0) {
+            logger.warn(`Clone source ${lineage} has no active unified sheet resource to compare against; keeping the clone's ${ownUnifiedResources.length} unified sheet resource(s) as sent`);
+        } else {
+            const kept = CampaignDetails.resources.filter(
+                (resource: any) => !(isUnifiedSheetResource(resource) && inheritedFileStoreIds.has(resource?.filestoreId))
+            );
+            const dropped = CampaignDetails.resources.length - kept.length;
+            if (dropped > 0) {
+                CampaignDetails.resources = kept;
+                logger.info(`Dropped ${dropped} unified sheet resource(s) inherited from ${lineage}; the clone will generate its own template`);
+            }
+        }
+    }
+
+    if (needsUnifiedFlag && source?.additionalDetails?.isUnifiedCampaign !== undefined) {
+        CampaignDetails.additionalDetails.isUnifiedCampaign = source.additionalDetails.isUnifiedCampaign;
+        logger.info(`Inherited isUnifiedCampaign=${source.additionalDetails.isUnifiedCampaign} onto clone of ${lineage}`);
+    }
 }
 
 async function validateProductVariant(request: any) {

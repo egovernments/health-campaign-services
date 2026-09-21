@@ -283,8 +283,16 @@ export const usageColumnStatus = {
 }
 
 export const resourceTypes = {
-    unifiedConsoleResources: "unified-console-resources"
+    unifiedConsoleResources: "unified-console-resources",
+    // The console's pre-transform name for the same resource (transformCreateData maps it to the one above).
+    unifiedConsole: "unified-console",
 }
+
+// additionalDetails keys recording which campaign a clone was created from. Server-owned: stamped by the
+// console at clone-create and never re-supplied on later updates, so an update payload that omits
+// additionalDetails must not be able to drop them. Both console trees write cloneFrom; only the newer one
+// writes clonedCampaignId, and excel-ingestion's identity check for a borrowed parent workbook needs it.
+export const cloneLineageKeys = ["cloneFrom", "clonedCampaignId"] as const;
 
 // Per-sheet validation status keys (from excel-ingestion)
 export const additionalDetailKeys = {
