@@ -9,6 +9,7 @@ import { formatEpochAsSheetDate } from "../utils/attendanceIdentityUtils";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import { httpRequest } from "../utils/request";
+import { decrypt } from "../utils/cryptUtils";
 
 const INDIVIDUAL_SEARCH_BATCH_SIZE = 100;
 const MAX_ROLE_COLUMNS = 5;
@@ -226,44 +227,62 @@ export class TemplateClass {
         }
 
         const profiles = await this.fetchIndividualProfiles(tenantId, Array.from(personIds), requestInfo);
-        const roleCodesByIndividualId = await this.fetchRoleCodesByIndividualId(campaignNumber, tenantId);
+        const roleCodesByIndividualId = await this.fetchRoleCodesByIndividualId(
+            campaignNumber,
+            tenantId,
+            Array.from(personIds),
+            requestInfo
+        );
 
         for (const register of registers) {
             const registerKey = this.registerIdentity(register);
-
+            const attendeeByPersonId = new Map<string, AttendanceAttendeeRow>();
             for (const attendee of register.attendees || []) {
                 const personId = this.asText(attendee?.individualId);
-                if (!personId) continue;
-                const roleCodes = roleCodesByIndividualId.get(personId) || [];
-                const roleSheet = this.sheetNameFromRoleCodes(roleCodes);
-                if (roleSheet && roleSheet !== WORKER_SHEET) continue;
-
-                const profile = profiles.get(personId);
-                const dedupeKey = `${registerKey}::${WORKER_SHEET}::${personId}`;
-                const row = this.buildAttendanceStateWorkerRow(
-                    register,
-                    attendee,
-                    profile,
-                    personId,
-                    roleCodes,
-                    campaignStartDate,
-                    campaignEndDate
-                );
-                dedupedRowsBySheetName.get(WORKER_SHEET)?.set(dedupeKey, row);
+                if (!personId || attendeeByPersonId.has(personId)) continue;
+                attendeeByPersonId.set(personId, attendee);
             }
-
+            const staffByPersonId = new Map<string, AttendanceStaffRow>();
             for (const staff of register.staff || []) {
                 const personId = this.asText(staff?.userId);
-                if (!personId) continue;
+                if (!personId || staffByPersonId.has(personId)) continue;
+                staffByPersonId.set(personId, staff);
+            }
+
+            const mappedPersonIds = new Set<string>([
+                ...Array.from(attendeeByPersonId.keys()),
+                ...Array.from(staffByPersonId.keys()),
+            ]);
+
+            for (const personId of mappedPersonIds) {
                 const roleCodes = roleCodesByIndividualId.get(personId) || [];
-                const sheetName = this.sheetNameFromRoleCodes(roleCodes);
-                if (sheetName !== MARKER_SHEET && sheetName !== APPROVER_SHEET) continue;
+                const attendee = attendeeByPersonId.get(personId);
+                const staff = staffByPersonId.get(personId);
+                const sheetName = this.sheetNameFromRoleCodes(roleCodes) || (attendee ? WORKER_SHEET : null);
+                if (!sheetName) continue;
 
                 const profile = profiles.get(personId);
                 const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
+
+                if (sheetName === WORKER_SHEET) {
+                    const row = this.buildAttendanceStateWorkerRow(
+                        register,
+                        attendee,
+                        staff,
+                        profile,
+                        personId,
+                        roleCodes,
+                        campaignStartDate,
+                        campaignEndDate
+                    );
+                    dedupedRowsBySheetName.get(WORKER_SHEET)?.set(dedupeKey, row);
+                    continue;
+                }
+
                 const row = this.buildAttendanceStateStaffRow(
                     register,
                     staff,
+                    attendee,
                     profile,
                     personId,
                     roleCodes,
@@ -299,9 +318,41 @@ export class TemplateClass {
             campaignEndDate
         );
 
-        // Live register->user mappings are the source of truth for register membership/tab routing.
-        // Stored campaign rows are merged as a fallback for any row that is not present in live state.
-        return this.mergeRowsBySheetName(rowsFromAttendanceState, rowsFromStoredData);
+        const liveRowsCount = Array.from(rowsFromAttendanceState.values()).reduce((sum, rows) => sum + rows.length, 0);
+        if (liveRowsCount > 0) {
+            const storedRowsForMissingRegisters = this.filterStoredRowsForMissingLiveRegisters(
+                rowsFromAttendanceState,
+                rowsFromStoredData
+            );
+            return this.mergeRowsBySheetName(rowsFromAttendanceState, storedRowsForMissingRegisters);
+        }
+
+        // Legacy fallback only when live mappings are empty.
+        return this.mergeRowsBySheetName(rowsFromStoredData, new Map<string, BulkRow[]>());
+    }
+
+    private static filterStoredRowsForMissingLiveRegisters(
+        liveRowsBySheetName: RowsBySheetName,
+        storedRowsBySheetName: RowsBySheetName
+    ): RowsBySheetName {
+        const liveRegisterKeys = new Set<string>();
+        for (const rows of liveRowsBySheetName.values()) {
+            for (const row of rows || []) {
+                const registerKey = this.rowRegisterKey(row);
+                if (registerKey) liveRegisterKeys.add(registerKey);
+            }
+        }
+
+        const filteredStoredRowsBySheetName = new Map<string, BulkRow[]>();
+        for (const sheetName of SHEET_NAMES) {
+            const filteredRows = (storedRowsBySheetName.get(sheetName) || []).filter((row) => {
+                const registerKey = this.rowRegisterKey(row);
+                if (!registerKey) return false;
+                return !liveRegisterKeys.has(registerKey);
+            });
+            filteredStoredRowsBySheetName.set(sheetName, filteredRows);
+        }
+        return filteredStoredRowsBySheetName;
     }
 
     private static mergeRowsBySheetName(
@@ -336,16 +387,21 @@ export class TemplateClass {
     }
 
     private static dedupeKeyForGeneratedRow(sheetName: string, row: BulkRow): string | null {
-        const registerServiceCode = this.firstNonBlank(
-            row[REGISTER_ID_COLUMN],
-            row[REGISTER_CODE_COLUMN]
-        );
-        if (!registerServiceCode) return null;
+        const registerKey = this.rowRegisterKey(row);
+        if (!registerKey) return null;
         const rowRecord = this.asRecord(row);
         const personIdentity = rowRecord
             ? this.personIdentity(rowRecord, "__seed__")
             : "__seed__";
-        return `${registerServiceCode}::${sheetName}::${personIdentity}`;
+        return `${registerKey}::${sheetName}::${personIdentity}`;
+    }
+
+    private static rowRegisterKey(row: BulkRow): string {
+        return this.firstNonBlank(
+            row[REGISTER_UUID_COLUMN],
+            row[REGISTER_ID_COLUMN],
+            row[REGISTER_CODE_COLUMN]
+        );
     }
 
     private static async fetchCampaignRegisters(
@@ -696,7 +752,8 @@ export class TemplateClass {
 
     private static buildAttendanceStateWorkerRow(
         register: RegisterData,
-        attendee: AttendanceAttendeeRow,
+        attendee: AttendanceAttendeeRow | undefined,
+        staff: AttendanceStaffRow | undefined,
         profile: IndividualProfile | undefined,
         personId: string,
         roleCodes: string[],
@@ -718,6 +775,7 @@ export class TemplateClass {
             [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
                 this.formatEpochIfPresent(attendee?.denrollmentDate),
+                this.formatEpochIfPresent(staff?.denrollmentDate),
                 campaignEndDate
             ),
             [TEAM_CODE_COLUMN]: this.asText(attendee?.tag),
@@ -728,7 +786,8 @@ export class TemplateClass {
 
     private static buildAttendanceStateStaffRow(
         register: RegisterData,
-        staff: AttendanceStaffRow,
+        staff: AttendanceStaffRow | undefined,
+        attendee: AttendanceAttendeeRow | undefined,
         profile: IndividualProfile | undefined,
         personId: string,
         roleCodes: string[],
@@ -755,6 +814,7 @@ export class TemplateClass {
             [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
                 this.formatEpochIfPresent(staff?.denrollmentDate),
+                this.formatEpochIfPresent(attendee?.denrollmentDate),
                 campaignEndDate
             ),
         };
@@ -804,7 +864,7 @@ export class TemplateClass {
         return null;
     }
 
-    private static displayNameFromStaff(staff: AttendanceStaffRow): string {
+    private static displayNameFromStaff(staff: AttendanceStaffRow | undefined): string {
         const additionalDetails = this.asRecord(staff?.additionalDetails);
         return this.firstNonBlank(
             this.asText(additionalDetails?.staffName),
@@ -923,9 +983,15 @@ export class TemplateClass {
 
     private static async fetchRoleCodesByIndividualId(
         campaignNumber: string,
-        tenantId: string
+        tenantId: string,
+        neededIndividualIds: string[],
+        requestInfo?: RequestInfo
     ): Promise<Map<string, string[]>> {
+        const neededIds = new Set(
+            neededIndividualIds.map((id) => this.asText(id)).filter(Boolean)
+        );
         const roleCodesByIndividualId = new Map<string, Set<string>>();
+        const usernames = new Set<string>();
         const userRows = await getRelatedDataWithCampaign(
             USER_DATA_TYPE,
             campaignNumber,
@@ -937,22 +1003,93 @@ export class TemplateClass {
             if (userRow?.isDeleted) continue;
             const rawData = this.asRecord(userRow?.data);
             if (!rawData) continue;
-            const individualId = this.firstNonBlank(
-                this.asText(rawData[WORKER_ID_COLUMN]),
-                this.asText(userRow?.uniqueIdAfterProcess),
-                this.asText(userRow?.uniqueIdentifier)
-            );
-            if (!individualId) continue;
 
             const roleCodes = this.extractRoleCodes(rawData);
             if (!roleCodes.length) continue;
-            const existing = roleCodesByIndividualId.get(individualId) || new Set<string>();
-            for (const roleCode of roleCodes) existing.add(roleCode);
-            roleCodesByIndividualId.set(individualId, existing);
+
+            const possibleIds = [
+                this.asText(rawData[WORKER_ID_COLUMN]),
+                this.asText(userRow?.uniqueIdAfterProcess),
+                this.asText(userRow?.uniqueIdentifier)
+            ];
+            for (const possibleId of possibleIds) {
+                if (!possibleId || !neededIds.has(possibleId)) continue;
+                const existing = roleCodesByIndividualId.get(possibleId) || new Set<string>();
+                for (const roleCode of roleCodes) existing.add(roleCode);
+                roleCodesByIndividualId.set(possibleId, existing);
+            }
+
+            const username = this.asText(decrypt(this.asText(rawData[USERNAME_COLUMN])));
+            if (username) usernames.add(username);
+        }
+
+        const unresolvedIndividualIds = Array.from(neededIds).filter((id) => !roleCodesByIndividualId.has(id));
+        if (unresolvedIndividualIds.length && usernames.size) {
+            const rolesFromHrms = await this.fetchRoleCodesByIndividualIdViaHrms(
+                tenantId,
+                Array.from(usernames),
+                requestInfo
+            );
+            for (const unresolvedIndividualId of unresolvedIndividualIds) {
+                const resolvedRoleCodes = rolesFromHrms.get(unresolvedIndividualId);
+                if (!resolvedRoleCodes?.length) continue;
+                const existing = roleCodesByIndividualId.get(unresolvedIndividualId) || new Set<string>();
+                for (const roleCode of resolvedRoleCodes) existing.add(roleCode);
+                roleCodesByIndividualId.set(unresolvedIndividualId, existing);
+            }
         }
 
         return new Map<string, string[]>(
             Array.from(roleCodesByIndividualId.entries()).map(([individualId, codes]) => [individualId, Array.from(codes)])
+        );
+    }
+
+    private static async fetchRoleCodesByIndividualIdViaHrms(
+        tenantId: string,
+        usernames: string[],
+        requestInfo?: RequestInfo
+    ): Promise<Map<string, string[]>> {
+        const roleCodesByIndividualId = new Map<string, Set<string>>();
+        if (!usernames.length) return new Map<string, string[]>();
+
+        const rootTenantId = tenantId.split(".")[0];
+        const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
+        const parallelLimit = Math.min(config.hrms.hrmsParallelSearchLimit, usernames.length);
+
+        for (let index = 0; index < usernames.length; index += parallelLimit) {
+            const window = usernames.slice(index, index + parallelLimit);
+            const employeesByUsername = await Promise.all(
+                window.map(async (username) => {
+                    const params = { tenantId: rootTenantId, limit: 2, offset: 0, codes: username };
+                    try {
+                        const response = await httpRequest(searchUrl, { RequestInfo: requestInfo || {} }, params);
+                        return Array.isArray(response?.Employees) ? response.Employees : [];
+                    } catch (error: any) {
+                        logger.warn(`HRMS role lookup failed for user ${username}: ${error?.message}`);
+                        return [];
+                    }
+                })
+            );
+
+            for (const employees of employeesByUsername) {
+                for (const employee of employees) {
+                    const individualId = this.asText(employee?.user?.uuid);
+                    if (!individualId) continue;
+                    const roleCodes = Array.isArray(employee?.user?.roles)
+                        ? employee.user.roles
+                            .map((role: any) => this.asText(role?.code).toUpperCase())
+                            .filter(Boolean)
+                        : [];
+                    if (!roleCodes.length) continue;
+                    const existing = roleCodesByIndividualId.get(individualId) || new Set<string>();
+                    for (const roleCode of roleCodes) existing.add(roleCode);
+                    roleCodesByIndividualId.set(individualId, existing);
+                }
+            }
+        }
+
+        return new Map<string, string[]>(
+            Array.from(roleCodesByIndividualId.entries()).map(([individualId, roleCodes]) => [individualId, Array.from(roleCodes)])
         );
     }
 
