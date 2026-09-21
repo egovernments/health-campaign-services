@@ -1010,6 +1010,84 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(approverRows[0].HCM_ADMIN_CONSOLE_USER_ROLE).toBe("PROXIMITY_SUPERVISOR");
     });
 
+    it("populates marker and approver tabs register-wise from attendance staff when campaign user roles are unavailable", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-staff-fallback",
+                campaignNumber: "CMP-STAFF-FALLBACK",
+                startDate: Date.UTC(2026, 6, 1),
+                endDate: Date.UTC(2026, 6, 31),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [], []);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-staff-1",
+                            serviceCode: "REG-S1",
+                            name: "Register Staff 1",
+                            localityCode: "ADMIN",
+                            attendees: [],
+                            staff: [
+                                { userId: "ind-m1", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 6, 2), denrollmentDate: null },
+                                { userId: "ind-a1", staffType: "APPROVER", enrollmentDate: Date.UTC(2026, 6, 2), denrollmentDate: null }
+                            ]
+                        },
+                        {
+                            id: "reg-staff-2",
+                            serviceCode: "REG-S2",
+                            name: "Register Staff 2",
+                            localityCode: "ADMIN",
+                            attendees: [],
+                            staff: [
+                                { userId: "ind-m2", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 6, 3), denrollmentDate: null },
+                                { userId: "ind-a2", staffType: "APPROVER", enrollmentDate: Date.UTC(2026, 6, 3), denrollmentDate: null }
+                            ]
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        { id: "ind-m1", name: { givenName: "Marker", familyName: "One" }, userDetails: { username: "marker.one" } },
+                        { id: "ind-a1", name: { givenName: "Approver", familyName: "One" }, userDetails: { username: "approver.one" } },
+                        { id: "ind-m2", name: { givenName: "Marker", familyName: "Two" }, userDetails: { username: "marker.two" } },
+                        { id: "ind-a2", name: { givenName: "Approver", familyName: "Two" }, userDetails: { username: "approver.two" } },
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-staff-fallback", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        const approverRows = sheetMap[APPROVER_SHEET].data as Record<string, string>[];
+
+        expect(workerRows).toHaveLength(0);
+
+        expect(markerRows).toHaveLength(2);
+        expect(markerRows.map((row) => row.HCM_ATTENDANCE_REGISTER_CODE)).toEqual(["REG-S1", "REG-S2"]);
+        expect(markerRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID)).toEqual(["ind-m1", "ind-m2"]);
+        expect(markerRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_ROLE)).toEqual(["TEAM_SUPERVISOR", "TEAM_SUPERVISOR"]);
+
+        expect(approverRows).toHaveLength(2);
+        expect(approverRows.map((row) => row.HCM_ATTENDANCE_REGISTER_CODE)).toEqual(["REG-S1", "REG-S2"]);
+        expect(approverRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID)).toEqual(["ind-a1", "ind-a2"]);
+        expect(approverRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_ROLE)).toEqual(["PROXIMITY_SUPERVISOR", "PROXIMITY_SUPERVISOR"]);
+    });
+
     it("ignores localityCode and searches registers campaign-wide", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{

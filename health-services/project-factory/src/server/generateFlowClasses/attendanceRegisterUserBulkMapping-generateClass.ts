@@ -1,5 +1,5 @@
 import config from "../config";
-import { attendanceColumnKeys, attendanceSheetNames, dataRowStatuses } from "../config/constants";
+import { attendanceColumnKeys, attendanceSheetNames, attendanceStaffTypes, dataRowStatuses } from "../config/constants";
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { CampaignDataRow } from "../config/models/campaignDataRow";
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
@@ -37,6 +37,8 @@ const WORKER_ROLE_CODES = new Set([
     "FIELD_SUPPORT",
     "HEALTH_FACILITY_WORKER",
 ]);
+const DEFAULT_MARKER_STAFF_ROLE_CODE = "TEAM_SUPERVISOR";
+const DEFAULT_APPROVER_STAFF_ROLE_CODE = "PROXIMITY_SUPERVISOR";
 
 const REGISTER_CODE_COLUMN = "HCM_ATTENDANCE_REGISTER_CODE";
 const REGISTER_NAME_COLUMN = "HCM_ATTENDANCE_REGISTER_NAME";
@@ -278,8 +280,18 @@ export class TemplateClass {
                 const roleCodes = roleCodesByIndividualId.get(personId) || [];
                 const attendee = attendeeByPersonId.get(personId);
                 const staff = staffByPersonId.get(personId);
-                const sheetName = this.sheetNameFromRoleCodes(roleCodes) || (attendee ? WORKER_SHEET : null);
+                const roleBasedSheetName = this.sheetNameFromRoleCodes(roleCodes);
+                const staffSheetFallback = roleCodes.length
+                    ? null
+                    : this.staffFallbackForAttendanceState(staff);
+                const sheetName = roleBasedSheetName
+                    || (attendee ? WORKER_SHEET : null)
+                    || staffSheetFallback?.sheetName
+                    || null;
                 if (!sheetName) continue;
+                const effectiveRoleCodes = roleCodes.length
+                    ? roleCodes
+                    : (staffSheetFallback?.roleCodes || []);
 
                 const profile = profiles.get(personId);
                 const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
@@ -291,7 +303,7 @@ export class TemplateClass {
                         staff,
                         profile,
                         personId,
-                        roleCodes,
+                        effectiveRoleCodes,
                         campaignStartDate,
                         campaignEndDate
                     );
@@ -305,7 +317,7 @@ export class TemplateClass {
                     attendee,
                     profile,
                     personId,
-                    roleCodes,
+                    effectiveRoleCodes,
                     campaignStartDate,
                     campaignEndDate
                 );
@@ -1161,6 +1173,26 @@ export class TemplateClass {
         if (roleCodes.some((role) => APPROVER_ROLE_CODES.has(role))) return APPROVER_SHEET;
         if (roleCodes.some((role) => MARKER_ROLE_CODES.has(role))) return MARKER_SHEET;
         if (roleCodes.some((role) => WORKER_ROLE_CODES.has(role))) return WORKER_SHEET;
+        return null;
+    }
+
+    private static staffFallbackForAttendanceState(
+        staff: AttendanceStaffRow | undefined
+    ): { sheetName: string; roleCodes: string[] } | null {
+        const staffType = this.asText(staff?.staffType).toUpperCase();
+        if (!staffType) return null;
+        if (staffType === attendanceStaffTypes.APPROVER) {
+            return {
+                sheetName: APPROVER_SHEET,
+                roleCodes: [DEFAULT_APPROVER_STAFF_ROLE_CODE],
+            };
+        }
+        if (staffType === attendanceStaffTypes.OWNER) {
+            return {
+                sheetName: MARKER_SHEET,
+                roleCodes: [DEFAULT_MARKER_STAFF_ROLE_CODE],
+            };
+        }
         return null;
     }
 
