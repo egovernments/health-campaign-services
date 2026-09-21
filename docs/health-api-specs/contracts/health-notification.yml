@@ -1,0 +1,149 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Health Notification Service
+  description: >
+    This module dispatches health campaign notifications. It is primarily Kafka-driven; the HTTP
+    surface below is limited to cache refresh and a stock notification simulator.
+  contact:
+    name: Digit
+    email: info@egovernments.org
+schemes:
+  - https
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  /health-notification-service/notification/v1/_cache/refresh:
+    post:
+      summary: >-
+        Refresh the notification cache
+      description: >-
+        Reload MDMS notification configs and localization messages for the state-level tenant.
+        Takes no request body.
+      tags:
+        - Cache
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/CacheRefreshResponse'
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /health-notification-service/test/v1/stock/_notify:
+    post:
+      summary: >-
+        Simulate a stock push notification
+      description: >-
+        Replay a raw stock Kafka payload through the notification pipeline. Diagnostic endpoint -
+        it builds the events and actually sends them.
+      parameters:
+        - name: Stock
+          in: body
+          description: The raw stock Kafka payload, as a JSON array of stock records.
+          required: true
+          schema:
+            type: array
+            items:
+              type: object
+      tags:
+        - Test
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/StockNotifyResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/StockNotifyResponse'
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+definitions:
+  CacheRefreshResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        example: 'Cache refreshed successfully'
+
+  StockNotifyResponse:
+    description: Outcome of the simulation, one entry per stock record.
+    type: object
+    properties:
+      status:
+        type: string
+        description: completed, or error when the payload could not be parsed.
+        example: 'completed'
+      totalRecords:
+        type: integer
+        description: Number of stock records in the payload.
+      results:
+        type: array
+        items:
+          $ref: '#/definitions/StockNotifyResult'
+      error:
+        type: string
+        description: Parse failure message. Present only when status is error.
+
+  StockNotifyResult:
+    type: object
+    properties:
+      id:
+        type: string
+        description: Id of the stock record.
+      schema:
+        type: string
+        description: additionalFields schema of the record.
+        example: 'Stock'
+      stockEntryType:
+        type: string
+        description: stockEntryType read from additionalFields.
+      status:
+        type: string
+        description: SENT, SKIPPED, NO_EVENTS or ERROR.
+        example: 'SENT'
+      reason:
+        type: string
+        description: Why the record was skipped or produced no events.
+      eventsBuilt:
+        type: integer
+        description: Number of notification events the adapter produced.
+      events:
+        type: array
+        items:
+          $ref: '#/definitions/NotificationEventSummary'
+      error:
+        type: string
+        description: Failure message. Present only when status is ERROR.
+
+  NotificationEventSummary:
+    description: A notification event built from a stock record.
+    type: object
+    properties:
+      eventType:
+        type: string
+      entityType:
+        type: string
+      templateCode:
+        type: string
+      recipientFacilityId:
+        type: string
+      locale:
+        type: string
+        example: 'en_MZ'
+      channel:
+        type: string
+      data:
+        type: object
+        additionalProperties:
+          type: string
+      placeholders:
+        type: object
