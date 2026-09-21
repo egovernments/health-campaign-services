@@ -614,6 +614,85 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         )).toBe(true);
     });
 
+    it("does not prefill marker or approver rows from campaign users when register staff is absent", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-staff-empty",
+                campaignNumber: "CMP-STAFF-EMPTY",
+                startDate: Date.UTC(2026, 4, 1),
+                endDate: Date.UTC(2026, 4, 31),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [], [
+            {
+                uniqueIdentifier: "ind-login",
+                uniqueIdAfterProcess: "ind-login",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-login",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "BEDNET-CM-1",
+                    UserName: "BEDNET-CM-1",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-appr",
+                uniqueIdAfterProcess: "ind-appr",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-appr",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Approver User",
+                    UserName: "approver.user",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "PROXIMITY_SUPERVISOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-worker",
+                uniqueIdAfterProcess: "ind-worker",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-worker",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Worker User",
+                    UserName: "worker.user",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN"
+                }
+            }
+        ]);
+
+        mockHttpRequest.mockResolvedValue({
+            attendanceRegister: [
+                {
+                    id: "reg-empty-1",
+                    serviceCode: "REG-E1",
+                    name: "Register Empty 1",
+                    localityCode: "ADMIN",
+                    attendees: [],
+                    staff: []
+                }
+            ]
+        } as any);
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-staff-empty", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        const approverRows = sheetMap[APPROVER_SHEET].data as Record<string, string>[];
+
+        expect(workerRows).toHaveLength(1);
+        expect(workerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-worker");
+        expect(markerRows).toHaveLength(0);
+        expect(approverRows).toHaveLength(0);
+    });
+
     it("does not cross-join campaign users across registers when boundary differs", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
@@ -981,7 +1060,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Marker Two");
     });
 
-    it("includes only role-eligible marker/approver staff and excludes admin-role staff", async () => {
+    it("maps attendance staff to marker/approver sheets by staffType even when user roles differ", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
                 projectId: "prj-role",
@@ -1006,7 +1085,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
                 uniqueIdAfterProcess: "ind-marker",
                 data: {
                     HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-marker",
-                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR"
                 }
             },
             {
@@ -1014,7 +1093,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
                 uniqueIdAfterProcess: "ind-approver",
                 data: {
                     HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-approver",
-                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "PROXIMITY_SUPERVISOR"
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
                 }
             }
         ]);
@@ -1059,9 +1138,10 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
         const approverRows = sheetMap[APPROVER_SHEET].data as Record<string, string>[];
 
-        expect(markerRows).toHaveLength(1);
-        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-marker");
+        expect(markerRows).toHaveLength(2);
+        expect(markerRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID).sort()).toEqual(["ind-admin", "ind-marker"]);
         expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_ROLE).toBe("TEAM_SUPERVISOR");
+        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_ROLE).toBe("TEAM_SUPERVISOR");
 
         expect(approverRows).toHaveLength(1);
         expect(approverRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-approver");
