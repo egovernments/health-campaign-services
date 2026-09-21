@@ -28,6 +28,7 @@ class AsyncGenerationServiceTest {
     @Mock private Producer producer;
     @Mock private KafkaTopicConfig kafkaTopicConfig;
     @Mock private EnrichmentUtil enrichmentUtil;
+    @Mock private CampaignCacheEvictor campaignCacheEvictor;
 
     private AsyncGenerationService asyncGenerationService;
 
@@ -35,7 +36,7 @@ class AsyncGenerationServiceTest {
     void setUp() {
         when(kafkaTopicConfig.getGenerationUpdateTopic()).thenReturn("test-update-topic");
         asyncGenerationService = new AsyncGenerationService(
-                excelWorkflowService, producer, kafkaTopicConfig, enrichmentUtil);
+                excelWorkflowService, producer, kafkaTopicConfig, enrichmentUtil, campaignCacheEvictor);
     }
 
     @Test

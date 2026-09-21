@@ -129,7 +129,8 @@ public class ConfigBasedGenerationService {
         }
         
         // Apply workbook settings
-        applyWorkbookSettings(workbook, processorConfig, firstVisibleSheetName, localizationMap, generateResource.getId(), generateResource.isUnprotectedJoinMode());
+        applyWorkbookSettings(workbook, processorConfig, firstVisibleSheetName, localizationMap,
+                generateResource.getId(), generateResource.isUnprotectedJoinMode(), generateResource.getLocale());
         
         // Convert to byte array. Pre-size the buffer (like the processing write path) so a
         // multi-MB template does not repeatedly double-and-copy its backing array while writing.
@@ -234,12 +235,28 @@ public class ConfigBasedGenerationService {
         }
     }
     
-    private void applyWorkbookSettings(XSSFWorkbook workbook, ProcessorGenerationConfig processorConfig, String activeSheetName, Map<String, String> localizationMap, String generationId, boolean unprotectedJoinMode) {
-        // Embed the generationId into a hidden metadata sheet so the upload path can re-fetch the
-        // authoritative baseline. Created BEFORE the hide loop below so the "_h_" auto-hide picks it up.
-        if (unprotectedJoinMode && generationId != null && !generationId.isEmpty()) {
-            Sheet metaSheet = workbook.createSheet(GenerationConstants.META_SHEET_NAME);
-            metaSheet.createRow(0).createCell(0).setCellValue(generationId);
+    private void applyWorkbookSettings(XSSFWorkbook workbook, ProcessorGenerationConfig processorConfig, String activeSheetName, Map<String, String> localizationMap, String generationId, boolean unprotectedJoinMode, String locale) {
+        // Embed per-file metadata into a hidden sheet. Created BEFORE the hide loop below so the
+        // "_h_" auto-hide picks it up.
+        //
+        // generationId (cell 0) stays gated on unprotectedJoinMode: it exists for the immutable-baseline
+        // join, which only runs for join-mode types, and ImmutableJoinService treats a present-but-
+        // unusable id as a fail-closed error. Stamping it more widely would change that contract.
+        //
+        // locale (cell 1) is stamped for EVERY generated file. Sheet names and column headers are
+        // written in this locale, so the upload path must re-read them in the same locale or sheet
+        // matching fails. It is independent of the generationId - either cell may be present alone.
+        boolean stampGenerationId = unprotectedJoinMode && generationId != null && !generationId.isEmpty();
+        boolean stampLocale = locale != null && !locale.isEmpty();
+        if (stampGenerationId || stampLocale) {
+            Row metaRow = workbook.createSheet(GenerationConstants.META_SHEET_NAME)
+                    .createRow(GenerationConstants.META_ROW_INDEX);
+            if (stampGenerationId) {
+                metaRow.createCell(GenerationConstants.META_GENERATION_ID_CELL_INDEX).setCellValue(generationId);
+            }
+            if (stampLocale) {
+                metaRow.createCell(GenerationConstants.META_LOCALE_CELL_INDEX).setCellValue(locale);
+            }
         }
 
         // Set zoom level

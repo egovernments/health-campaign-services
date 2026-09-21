@@ -26,9 +26,16 @@ public class GenerationConstants {
     public static final String GENERATION_ROW_NOT_MATERIALIZED_MESSAGE =
             "Generation record was not persisted in time; please retry";
 
-    // Hidden metadata sheet (and cell) carrying the generationId in unprotected join-mode files.
+    // Hidden metadata sheet carrying per-file metadata stamped at generation time.
     // The "_h_..._h_" name is auto-hidden at generation and auto-skipped by the processing pipeline.
     public static final String META_SHEET_NAME = "_h_Meta_h_";
+
+    // Fixed cell layout of the metadata sheet. Positional (not key/value) to stay byte-compatible
+    // with files generated before the locale cell existed, where row 0 / cell 0 held the generationId
+    // and nothing else. Never renumber these - older files in the wild depend on them.
+    public static final int META_ROW_INDEX = 0;
+    public static final int META_GENERATION_ID_CELL_INDEX = 0;
+    public static final int META_LOCALE_CELL_INDEX = 1;
 
     private GenerationConstants() {
         // Private constructor to prevent instantiation

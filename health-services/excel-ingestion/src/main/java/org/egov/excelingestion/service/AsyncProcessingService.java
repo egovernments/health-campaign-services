@@ -24,24 +24,31 @@ public class AsyncProcessingService {
     private final KafkaTopicConfig kafkaTopicConfig;
     private final ConfigBasedProcessingService configBasedProcessingService;
     private final RequestInfoConverter requestInfoConverter;
+    private final CampaignCacheEvictor campaignCacheEvictor;
 
     public AsyncProcessingService(ExcelProcessingService excelProcessingService,
                                 Producer producer,
                                 KafkaTopicConfig kafkaTopicConfig,
                                 ConfigBasedProcessingService configBasedProcessingService,
-                                RequestInfoConverter requestInfoConverter) {
+                                RequestInfoConverter requestInfoConverter,
+                                CampaignCacheEvictor campaignCacheEvictor) {
         this.excelProcessingService = excelProcessingService;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
         this.configBasedProcessingService = configBasedProcessingService;
         this.requestInfoConverter = requestInfoConverter;
+        this.campaignCacheEvictor = campaignCacheEvictor;
     }
 
     @Async("taskExecutor")
     public void processExcelAsync(ProcessResource processResource, RequestInfo requestInfo) {
         log.info("Starting async processing for id: {}", processResource.getId());
-        
+
         try {
+            // Drop stale campaign cache entries so validation runs against the latest campaign data.
+            campaignCacheEvictor.evictCampaign(processResource.getReferenceId(),
+                    processResource.getTenantId());
+
             // Create the request object for the processing service
             ProcessResourceRequest request = ProcessResourceRequest.builder()
                 .resourceDetails(processResource)

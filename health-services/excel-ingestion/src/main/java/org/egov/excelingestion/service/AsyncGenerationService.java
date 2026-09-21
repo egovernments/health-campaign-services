@@ -29,15 +29,18 @@ public class AsyncGenerationService {
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
     private final EnrichmentUtil enrichmentUtil;
+    private final CampaignCacheEvictor campaignCacheEvictor;
 
     public AsyncGenerationService(ExcelWorkflowService excelWorkflowService,
                                   Producer producer,
                                   KafkaTopicConfig kafkaTopicConfig,
-                                  EnrichmentUtil enrichmentUtil) {
+                                  EnrichmentUtil enrichmentUtil,
+                                  CampaignCacheEvictor campaignCacheEvictor) {
         this.excelWorkflowService = excelWorkflowService;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
         this.enrichmentUtil = enrichmentUtil;
+        this.campaignCacheEvictor = campaignCacheEvictor;
     }
 
     public void processGeneration(GenerateResource generateResource, RequestInfo requestInfo) {
@@ -46,6 +49,10 @@ public class AsyncGenerationService {
         markInProgress(generateResource, requestInfo);
 
         try {
+            // Drop stale campaign cache entries so this run reads the latest campaign data.
+            campaignCacheEvictor.evictCampaign(generateResource.getReferenceId(),
+                    generateResource.getTenantId());
+
             GenerateResourceRequest request = GenerateResourceRequest.builder()
                     .generateResource(generateResource)
                     .requestInfo(requestInfo)
