@@ -141,6 +141,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
                     HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-2",
                     HCM_ADMIN_CONSOLE_USER_NAME: "Bob Marker",
                     UserName: "bob.marker",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR",
                     HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: ""
                 }
             }
@@ -251,6 +252,50 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         expect((sheetMap[WORKER_SHEET].data as any[])).toHaveLength(0);
         expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(0);
+    });
+
+    it("drops marker rows that do not carry any role columns", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-no-role",
+                campaignNumber: "CMP-NOROLE",
+                startDate: Date.UTC(2026, 1, 1),
+                endDate: Date.UTC(2026, 1, 15),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        mockHttpRequest.mockResolvedValue({
+            attendanceRegister: [{ id: "reg-no-role", serviceCode: "REG-NOROLE", name: "Register No Role", localityCode: "ADMIN" }]
+        } as any);
+
+        mockGetRelatedData.mockResolvedValue([
+            {
+                campaignNumber: "CMP-NOROLE",
+                type: "attendanceRegisterAttendee",
+                uniqueIdentifier: "row-marker-no-role",
+                status: "completed",
+                uniqueIdAfterProcess: "reg-no-role_ind-99_marker",
+                isDeleted: false,
+                denrollmentDate: null,
+                data: {
+                    _registerServiceCode: "REG-NOROLE",
+                    _sheetName: MARKER_SHEET,
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-99",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Roleless Marker",
+                    UserName: "roleless.marker"
+                }
+            }
+        ] as any);
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-no-role", requestInfo: {} },
+            {}
+        );
+
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        expect(markerRows).toHaveLength(0);
     });
 
     it("resolves register from serviceCode-prefixed uniqueIdAfterProcess when register columns are absent", async () => {
@@ -1017,7 +1062,47 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
         expect(workerRows).toHaveLength(0);
-        expect(mockHttpRequest).toHaveBeenCalledTimes(totalPages);
+        expect(mockHttpRequest).toHaveBeenCalledTimes(totalPages + 1);
+    });
+
+    it("continues campaign-wide paging when service returns fewer rows than requested limit", async () => {
+        mockConfig.attendanceRegister.registerSearchPageLimit = 5;
+
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-cap",
+                campaignNumber: "CMP-CAP",
+                startDate: Date.UTC(2026, 0, 1),
+                endDate: Date.UTC(2026, 0, 2),
+                boundaries: []
+            }]
+        } as any);
+        mockGetRelatedData.mockResolvedValue([] as any);
+
+        const allRegisters = [
+            { id: "reg-cap-1", serviceCode: "REG-CAP-1", name: "Register 1", localityCode: "WARD-1", attendees: [], staff: [] },
+            { id: "reg-cap-2", serviceCode: "REG-CAP-2", name: "Register 2", localityCode: "WARD-2", attendees: [], staff: [] },
+            { id: "reg-cap-3", serviceCode: "REG-CAP-3", name: "Register 3", localityCode: "WARD-3", attendees: [], staff: [] },
+            { id: "reg-cap-4", serviceCode: "REG-CAP-4", name: "Register 4", localityCode: "WARD-4", attendees: [], staff: [] },
+            { id: "reg-cap-5", serviceCode: "REG-CAP-5", name: "Register 5", localityCode: "WARD-5", attendees: [], staff: [] }
+        ];
+
+        mockHttpRequest.mockImplementation(async (_url: string, _body: any, params: any) => {
+            if (params?.campaignNumber !== "CMP-CAP") return { attendanceRegister: [] } as any;
+            const offset = Number(params?.offset || 0);
+            const page = allRegisters.slice(offset, offset + 2); // service-imposed cap: max 2 rows per call
+            return { attendanceRegister: page } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-cap", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        expect(workerRows).toHaveLength(0);
+        expect(mockHttpRequest).toHaveBeenCalledTimes(4); // offsets: 0,2,4,5
     });
 
     it("dedupes registers repeated across pages and skips deleted ones", async () => {

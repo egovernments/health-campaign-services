@@ -585,7 +585,8 @@ export class TemplateClass {
         const registers: RegisterData[] = [];
         let searchCalls = 0;
 
-        for (let offset = 0; ; offset += pageLimit) {
+        let offset = 0;
+        while (true) {
             const response = await httpRequest(
                 url,
                 { RequestInfo },
@@ -601,8 +602,10 @@ export class TemplateClass {
             searchCalls++;
             const batch = Array.isArray(response?.attendanceRegister) ? response.attendanceRegister : [];
             if (batch.length === 0) break;
+            const before = registers.length;
             this.collectRegisters(batch, seen, registers);
-            if (batch.length < pageLimit) break;
+            if (registers.length === before) break;
+            offset += batch.length;
         }
 
         logger.info(
@@ -839,8 +842,11 @@ export class TemplateClass {
     private static toSheetMap(rowsBySheetName: RowsBySheetName): SheetMap {
         const sheetMap: SheetMap = {};
         for (const sheetName of SHEET_NAMES) {
+            const rows = rowsBySheetName.get(sheetName) || [];
             sheetMap[sheetName] = {
-                data: rowsBySheetName.get(sheetName) || [],
+                data: sheetName === MARKER_SHEET
+                    ? rows.filter((row) => this.extractRoleCodes(row).length > 0)
+                    : rows,
                 dynamicColumns: this.registerColumns()
             };
         }
