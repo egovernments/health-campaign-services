@@ -400,6 +400,64 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE).toBe("20-03-2026");
     });
 
+    it("prefills enrollment using the next calendar day when start epoch collapses to created day", async () => {
+        const campaignStart = 1789669800000; // 18-09-2026 00:00 in +05:30, appears as 17-09-2026 in UTC
+        const campaignEnd = Date.UTC(2026, 10, 1);
+        const createdTime = 1789652368751;
+
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-tz-shift",
+                campaignNumber: "CMP-TZ-SHIFT",
+                startDate: campaignStart,
+                endDate: campaignEnd,
+                boundaries: [{ code: "ADMIN" }],
+                auditDetails: { createdTime },
+                deliveryRules: [{
+                    cycles: [{
+                        startDate: campaignStart,
+                        endDate: campaignEnd
+                    }]
+                }]
+            }]
+        } as any);
+
+        mockHttpRequest.mockResolvedValue({
+            attendanceRegister: [{ id: "reg-uuid-tz", serviceCode: "REG-TZ", name: "Register TZ", localityCode: "ADMIN" }]
+        } as any);
+
+        mockGetRelatedData.mockResolvedValue([
+            {
+                campaignNumber: "CMP-TZ-SHIFT",
+                type: "attendanceRegisterAttendee",
+                uniqueIdentifier: "row-worker-tz",
+                status: "completed",
+                uniqueIdAfterProcess: "reg-uuid-tz_ind-tz_worker",
+                isDeleted: false,
+                denrollmentDate: null,
+                data: {
+                    _registerServiceCode: "REG-TZ",
+                    _sheetName: WORKER_SHEET,
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-tz",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Timezone Worker",
+                    UserName: "timezone.worker",
+                    HCM_ATTENDANCE_ATTENDEE_TEAM_CODE: "TEAM-TZ",
+                    HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: ""
+                }
+            }
+        ] as any);
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-tz-shift", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        expect(workerRows).toHaveLength(1);
+        expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("18-09-2026");
+    });
+
     it("falls back to live attendance mappings when campaign attendee rows are missing", async () => {
         const campaignStart = Date.UTC(2026, 2, 1);
         const campaignEnd = Date.UTC(2026, 2, 31);
