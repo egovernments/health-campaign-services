@@ -443,7 +443,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             }]
         } as any);
 
-        mockGetRelatedData.mockResolvedValue([
+        routeRelatedData([], [
             {
                 campaignNumber: "CMP-5",
                 type: "attendanceRegisterAttendee",
@@ -462,7 +462,24 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
                     HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: ""
                 }
             }
-        ] as any);
+        ], [
+            {
+                uniqueIdentifier: "ind-9",
+                uniqueIdAfterProcess: "ind-9",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-9",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-10",
+                uniqueIdAfterProcess: "ind-10",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-10",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                }
+            }
+        ]);
 
         mockHttpRequest.mockImplementation(async (url: string) => {
             if (url.includes("/attendance/v1/_search")) {
@@ -558,7 +575,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             }]
         } as any);
 
-        mockGetRelatedData.mockResolvedValue([
+        routeRelatedData([], [
             {
                 campaignNumber: "CMP-5B",
                 type: "attendanceRegisterAttendee",
@@ -591,7 +608,40 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
                     UserName: "stored.marker.two"
                 }
             }
-        ] as any);
+        ], [
+            {
+                uniqueIdentifier: "ind-w1",
+                uniqueIdAfterProcess: "ind-w1",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-w1",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-w2",
+                uniqueIdAfterProcess: "ind-w2",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-w2",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-m1",
+                uniqueIdAfterProcess: "ind-m1",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-m1",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-m2",
+                uniqueIdAfterProcess: "ind-m2",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-m2",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                }
+            }
+        ]);
 
         mockHttpRequest.mockImplementation(async (url: string) => {
             if (url.includes("/attendance/v1/_search")) {
@@ -643,8 +693,95 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID)).toEqual(["ind-w1", "ind-w2"]);
 
         expect(markerRows).toHaveLength(2);
-        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker One");
-        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker Two");
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Marker One");
+        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Marker Two");
+    });
+
+    it("includes only role-eligible marker/approver staff and excludes admin-role staff", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-role",
+                campaignNumber: "CMP-ROLE",
+                startDate: Date.UTC(2026, 5, 1),
+                endDate: Date.UTC(2026, 5, 30),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [], [
+            {
+                uniqueIdentifier: "ind-admin",
+                uniqueIdAfterProcess: "ind-admin",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-admin",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "ADMIN"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-marker",
+                uniqueIdAfterProcess: "ind-marker",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-marker",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-approver",
+                uniqueIdAfterProcess: "ind-approver",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-approver",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "PROXIMITY_SUPERVISOR"
+                }
+            }
+        ]);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-role-1",
+                            serviceCode: "REG-ROLE-1",
+                            name: "Register Role 1",
+                            localityCode: "ADMIN",
+                            attendees: [],
+                            staff: [
+                                { userId: "ind-admin", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 5, 2), denrollmentDate: null },
+                                { userId: "ind-marker", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 5, 2), denrollmentDate: null },
+                                { userId: "ind-approver", staffType: "APPROVER", enrollmentDate: Date.UTC(2026, 5, 2), denrollmentDate: null },
+                            ]
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        { id: "ind-admin", name: { givenName: "Admin", familyName: "User" }, userDetails: { username: "admin.user" } },
+                        { id: "ind-marker", name: { givenName: "Marker", familyName: "User" }, userDetails: { username: "marker.user" } },
+                        { id: "ind-approver", name: { givenName: "Approver", familyName: "User" }, userDetails: { username: "approver.user" } },
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-role", requestInfo: {} },
+            {}
+        );
+
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        const approverRows = sheetMap[APPROVER_SHEET].data as Record<string, string>[];
+
+        expect(markerRows).toHaveLength(1);
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-marker");
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_ROLE).toBe("TEAM_SUPERVISOR");
+
+        expect(approverRows).toHaveLength(1);
+        expect(approverRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-approver");
+        expect(approverRows[0].HCM_ADMIN_CONSOLE_USER_ROLE).toBe("PROXIMITY_SUPERVISOR");
     });
 
     it("ignores localityCode and searches registers campaign-wide", async () => {

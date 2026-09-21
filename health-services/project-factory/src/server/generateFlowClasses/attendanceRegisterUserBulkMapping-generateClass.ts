@@ -10,11 +10,10 @@ import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import { httpRequest } from "../utils/request";
 
-const ATTENDEE_DATA_TYPE = "attendanceRegisterAttendee";
 const INDIVIDUAL_SEARCH_BATCH_SIZE = 100;
 const MAX_ROLE_COLUMNS = 5;
-const STAFF_TYPE_APPROVER = "APPROVER";
-const STAFF_TYPE_OWNER = "OWNER";
+const ATTENDEE_DATA_TYPE = "attendanceRegisterAttendee";
+const USER_DATA_TYPE = "user";
 
 const WORKER_SHEET = attendanceSheetNames.WORKER;
 const MARKER_SHEET = attendanceSheetNames.MARKER;
@@ -25,11 +24,17 @@ const SHEET_NAMES = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET];
 const MARKER_ROLE_CODES = new Set([
     "WAREHOUSE_MANAGER",
     "TEAM_SUPERVISOR",
-    "CAMPAIGN_SUPERVISOR",
 ]);
 
 const APPROVER_ROLE_CODES = new Set([
     "PROXIMITY_SUPERVISOR",
+]);
+
+const WORKER_ROLE_CODES = new Set([
+    "DISTRIBUTOR",
+    "REGISTRAR",
+    "FIELD_SUPPORT",
+    "HEALTH_FACILITY_WORKER",
 ]);
 
 const REGISTER_CODE_COLUMN = "HCM_ATTENDANCE_REGISTER_CODE";
@@ -151,6 +156,7 @@ export class TemplateClass {
             rowsFromStoredData,
             registers,
             tenantId,
+            campaignNumber,
             responseToSend?.requestInfo,
             campaignStartDate,
             campaignEndDate
@@ -199,6 +205,7 @@ export class TemplateClass {
     private static async buildRowsFromAttendanceState(
         registers: RegisterData[],
         tenantId: string,
+        campaignNumber: string,
         requestInfo: RequestInfo | undefined,
         campaignStartDate: string,
         campaignEndDate: string
@@ -219,6 +226,7 @@ export class TemplateClass {
         }
 
         const profiles = await this.fetchIndividualProfiles(tenantId, Array.from(personIds), requestInfo);
+        const roleCodesByIndividualId = await this.fetchRoleCodesByIndividualId(campaignNumber, tenantId);
 
         for (const register of registers) {
             const registerKey = this.registerIdentity(register);
@@ -226,6 +234,9 @@ export class TemplateClass {
             for (const attendee of register.attendees || []) {
                 const personId = this.asText(attendee?.individualId);
                 if (!personId) continue;
+                const roleCodes = roleCodesByIndividualId.get(personId) || [];
+                const roleSheet = this.sheetNameFromRoleCodes(roleCodes);
+                if (roleSheet && roleSheet !== WORKER_SHEET) continue;
 
                 const profile = profiles.get(personId);
                 const dedupeKey = `${registerKey}::${WORKER_SHEET}::${personId}`;
@@ -234,6 +245,7 @@ export class TemplateClass {
                     attendee,
                     profile,
                     personId,
+                    roleCodes,
                     campaignStartDate,
                     campaignEndDate
                 );
@@ -243,8 +255,9 @@ export class TemplateClass {
             for (const staff of register.staff || []) {
                 const personId = this.asText(staff?.userId);
                 if (!personId) continue;
-                const sheetName = this.sheetNameFromStaffType(staff?.staffType);
-                if (!sheetName) continue;
+                const roleCodes = roleCodesByIndividualId.get(personId) || [];
+                const sheetName = this.sheetNameFromRoleCodes(roleCodes);
+                if (sheetName !== MARKER_SHEET && sheetName !== APPROVER_SHEET) continue;
 
                 const profile = profiles.get(personId);
                 const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
@@ -253,6 +266,7 @@ export class TemplateClass {
                     staff,
                     profile,
                     personId,
+                    roleCodes,
                     campaignStartDate,
                     campaignEndDate
                 );
@@ -267,6 +281,7 @@ export class TemplateClass {
         rowsFromStoredData: RowsBySheetName,
         registers: RegisterData[],
         tenantId: string,
+        campaignNumber: string,
         requestInfo: RequestInfo | undefined,
         campaignStartDate: string,
         campaignEndDate: string
@@ -278,15 +293,15 @@ export class TemplateClass {
         const rowsFromAttendanceState = await this.buildRowsFromAttendanceState(
             registers,
             tenantId,
+            campaignNumber,
             requestInfo,
             campaignStartDate,
             campaignEndDate
         );
 
-        // Stored campaign rows can contain only a subset of tab-wise mappings for a register
-        // (for example marker rows exist but worker rows are absent). Always merge with the
-        // live register attendance snapshot to backfill missing per-sheet rows.
-        return this.mergeRowsBySheetName(rowsFromStoredData, rowsFromAttendanceState);
+        // Live register->user mappings are the source of truth for register membership/tab routing.
+        // Stored campaign rows are merged as a fallback for any row that is not present in live state.
+        return this.mergeRowsBySheetName(rowsFromAttendanceState, rowsFromStoredData);
     }
 
     private static mergeRowsBySheetName(
@@ -684,11 +699,12 @@ export class TemplateClass {
         attendee: AttendanceAttendeeRow,
         profile: IndividualProfile | undefined,
         personId: string,
+        roleCodes: string[],
         campaignStartDate: string,
         campaignEndDate: string
     ): BulkRow {
         const username = this.firstNonBlank(profile?.username, personId);
-        return {
+        const row: BulkRow = {
             [REGISTER_CODE_COLUMN]: register.serviceCode,
             [REGISTER_NAME_COLUMN]: register.name,
             [REGISTER_UUID_COLUMN]: register.id,
@@ -706,6 +722,8 @@ export class TemplateClass {
             ),
             [TEAM_CODE_COLUMN]: this.asText(attendee?.tag),
         };
+        this.assignRoleColumns(row, roleCodes);
+        return row;
     }
 
     private static buildAttendanceStateStaffRow(
@@ -713,11 +731,12 @@ export class TemplateClass {
         staff: AttendanceStaffRow,
         profile: IndividualProfile | undefined,
         personId: string,
+        roleCodes: string[],
         campaignStartDate: string,
         campaignEndDate: string
     ): BulkRow {
         const username = this.firstNonBlank(profile?.username, personId);
-        return {
+        const row: BulkRow = {
             [REGISTER_CODE_COLUMN]: register.serviceCode,
             [REGISTER_NAME_COLUMN]: register.name,
             [REGISTER_UUID_COLUMN]: register.id,
@@ -739,6 +758,8 @@ export class TemplateClass {
                 campaignEndDate
             ),
         };
+        this.assignRoleColumns(row, roleCodes);
+        return row;
     }
 
     private static createEmptyDedupedRowsBySheetName(): DedupedRowsBySheetName {
@@ -776,10 +797,10 @@ export class TemplateClass {
         };
     }
 
-    private static sheetNameFromStaffType(staffType: unknown): string | null {
-        const normalized = this.asText(staffType).toUpperCase();
-        if (normalized === STAFF_TYPE_OWNER) return MARKER_SHEET;
-        if (normalized === STAFF_TYPE_APPROVER) return APPROVER_SHEET;
+    private static sheetNameFromRoleCodes(roleCodes: string[]): string | null {
+        if (roleCodes.some((role) => APPROVER_ROLE_CODES.has(role))) return APPROVER_SHEET;
+        if (roleCodes.some((role) => MARKER_ROLE_CODES.has(role))) return MARKER_SHEET;
+        if (roleCodes.some((role) => WORKER_ROLE_CODES.has(role))) return WORKER_SHEET;
         return null;
     }
 
@@ -797,6 +818,18 @@ export class TemplateClass {
             merged[key] = this.firstNonBlank(existing[key], value);
         }
         return merged;
+    }
+
+    private static assignRoleColumns(row: BulkRow, roleCodes: string[]): void {
+        const normalizedRoleCodes = Array.from(new Set(
+            roleCodes
+                .map((role) => this.asText(role).toUpperCase())
+                .filter(Boolean)
+        ));
+        row[ROLE_COLUMN] = normalizedRoleCodes.join(",");
+        for (let i = 1; i <= MAX_ROLE_COLUMNS; i++) {
+            row[`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${i}`] = normalizedRoleCodes[i - 1] || "";
+        }
     }
 
     private static extractRoleCodes(rawData: Record<string, unknown>): string[] {
@@ -886,6 +919,41 @@ export class TemplateClass {
         }
 
         return profiles;
+    }
+
+    private static async fetchRoleCodesByIndividualId(
+        campaignNumber: string,
+        tenantId: string
+    ): Promise<Map<string, string[]>> {
+        const roleCodesByIndividualId = new Map<string, Set<string>>();
+        const userRows = await getRelatedDataWithCampaign(
+            USER_DATA_TYPE,
+            campaignNumber,
+            tenantId,
+            dataRowStatuses.completed
+        ) as CampaignDataRow[];
+
+        for (const userRow of Array.isArray(userRows) ? userRows : []) {
+            if (userRow?.isDeleted) continue;
+            const rawData = this.asRecord(userRow?.data);
+            if (!rawData) continue;
+            const individualId = this.firstNonBlank(
+                this.asText(rawData[WORKER_ID_COLUMN]),
+                this.asText(userRow?.uniqueIdAfterProcess),
+                this.asText(userRow?.uniqueIdentifier)
+            );
+            if (!individualId) continue;
+
+            const roleCodes = this.extractRoleCodes(rawData);
+            if (!roleCodes.length) continue;
+            const existing = roleCodesByIndividualId.get(individualId) || new Set<string>();
+            for (const roleCode of roleCodes) existing.add(roleCode);
+            roleCodesByIndividualId.set(individualId, existing);
+        }
+
+        return new Map<string, string[]>(
+            Array.from(roleCodesByIndividualId.entries()).map(([individualId, codes]) => [individualId, Array.from(codes)])
+        );
     }
 
     private static displayNameFromIndividual(individual: Record<string, unknown>): string {
