@@ -99,7 +99,7 @@ type DedupedRowsBySheetName = Map<string, Map<string, BulkRow>>;
  * are reconstructed from live attendance state.
  */
 export class TemplateClass {
-    static async generate(_templateConfig: any, responseToSend: any, _localizationMap: any): Promise<SheetMap> {
+    static async generate(templateConfig: any, responseToSend: any, _localizationMap: any): Promise<SheetMap> {
         logger.info("Generating attendance register user bulk mapping template...");
 
         const tenantId = String(responseToSend?.tenantId || "").trim();
@@ -122,6 +122,10 @@ export class TemplateClass {
         }
 
         const campaignNumber = String(campaign?.campaignNumber || "").trim();
+        const hierarchyType = this.firstNonBlank(
+            this.asText(campaign?.hierarchyType),
+            this.asText(responseToSend?.hierarchyType)
+        );
         if (!campaignNumber) {
             throwError("CAMPAIGN", 400, "CAMPAIGN_NUMBER_MISSING", `Campaign ${campaignId} has no campaignNumber set`);
         }
@@ -171,6 +175,8 @@ export class TemplateClass {
             Array.isArray(campaignUserRows) ? campaignUserRows : [],
             registers,
             tenantId,
+            hierarchyType,
+            templateConfig,
             campaignNumber,
             responseToSend?.requestInfo,
             campaignStartDate,
@@ -315,6 +321,8 @@ export class TemplateClass {
         campaignUserRows: CampaignDataRow[],
         registers: RegisterData[],
         tenantId: string,
+        hierarchyType: string,
+        templateConfig: any,
         campaignNumber: string,
         requestInfo: RequestInfo | undefined,
         campaignStartDate: string,
@@ -324,18 +332,16 @@ export class TemplateClass {
             return rowsFromStoredData;
         }
 
-        const rowsFromCampaignUsers = this.buildRowsFromCampaignUsers(
+        const rowsFromCampaignUsers = await this.buildRowsFromCampaignUsers(
             registers,
             campaignUserRows,
             campaignStartDate,
-            campaignEndDate
+            campaignEndDate,
+            tenantId,
+            hierarchyType,
+            templateConfig,
+            requestInfo
         );
-        let combinedRowsBySheetName = rowsFromStoredData;
-        if (this.containsMappedRows(rowsFromCampaignUsers)) {
-            // Stored attendee rows remain authoritative for persisted edits; campaign-user rows
-            // provide the baseline for register prefill before attendance activation.
-            combinedRowsBySheetName = this.mergeRowsBySheetName(rowsFromStoredData, rowsFromCampaignUsers);
-        }
 
         const rowsFromAttendanceState = await this.buildRowsFromAttendanceState(
             registers,
@@ -346,20 +352,34 @@ export class TemplateClass {
             campaignEndDate
         );
 
-        if (this.containsMappedRows(combinedRowsBySheetName)) {
-            // Live rows should never shrink template population; they only supplement missing identities.
-            return this.mergeRowsBySheetName(combinedRowsBySheetName, rowsFromAttendanceState);
+        const rowsFromRegisterMappings = this.mergeRowsBySheetName(rowsFromAttendanceState, rowsFromStoredData);
+        const mappedRegisterKeys = this.collectMappedRegisterKeys(rowsFromRegisterMappings);
+        const campaignRowsForUnmappedRegisters = this.filterRowsForUnmappedRegisters(
+            rowsFromCampaignUsers,
+            mappedRegisterKeys
+        );
+
+        if (this.containsMappedRows(rowsFromRegisterMappings)) {
+            return this.mergeRowsBySheetName(rowsFromRegisterMappings, campaignRowsForUnmappedRegisters);
+        }
+
+        if (this.containsMappedRows(campaignRowsForUnmappedRegisters)) {
+            return campaignRowsForUnmappedRegisters;
         }
 
         return rowsFromAttendanceState;
     }
 
-    private static buildRowsFromCampaignUsers(
+    private static async buildRowsFromCampaignUsers(
         registers: RegisterData[],
         campaignUserRows: CampaignDataRow[],
         campaignStartDate: string,
-        campaignEndDate: string
-    ): RowsBySheetName {
+        campaignEndDate: string,
+        tenantId: string,
+        hierarchyType: string,
+        templateConfig: any,
+        requestInfo: RequestInfo | undefined
+    ): Promise<RowsBySheetName> {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
         if (!registers.length || !campaignUserRows.length) {
             return this.flattenRowsBySheetName(dedupedRowsBySheetName);
@@ -368,6 +388,27 @@ export class TemplateClass {
         const normalizedCampaignUsers = campaignUserRows.filter((entry) =>
             this.asText(entry?.type).toLowerCase() === USER_DATA_TYPE
         );
+        if (!normalizedCampaignUsers.length) {
+            return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        }
+
+        const getBoundaryFilter = (sheetName: string) =>
+            templateConfig?.sheets?.find((sheet: any) => sheet.sheetName === sheetName)?.boundaryFilter;
+        const allowedCodesCache = new Map<string, Set<string>>();
+        const getAllowedCodes = async (sheetName: string, localityCode: string): Promise<Set<string>> => {
+            const cacheKey = `${sheetName}::${localityCode}`;
+            const cached = allowedCodesCache.get(cacheKey);
+            if (cached) return cached;
+            const allowedCodes = await this.resolveAllowedBoundaryCodes(
+                tenantId,
+                hierarchyType,
+                localityCode,
+                getBoundaryFilter(sheetName),
+                requestInfo
+            );
+            allowedCodesCache.set(cacheKey, allowedCodes);
+            return allowedCodes;
+        };
 
         for (const register of registers) {
             const registerKey = this.registerIdentity(register);
@@ -381,6 +422,13 @@ export class TemplateClass {
 
                 const sheetName = this.classifyCampaignUserToSheet(rawData);
                 if (!sheetName) continue;
+                const boundaryCode = this.firstNonBlank(
+                    this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
+                    this.asText(rawData[BOUNDARY_CODE_COLUMN])
+                );
+                if (!boundaryCode) continue;
+                const allowedCodes = await getAllowedCodes(sheetName, register.localityCode);
+                if (!allowedCodes.has(boundaryCode)) continue;
 
                 const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
                 const row = this.buildCampaignUserRow(
@@ -395,6 +443,40 @@ export class TemplateClass {
         }
 
         return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+    }
+
+    private static collectMappedRegisterKeys(rowsBySheetName: RowsBySheetName): Set<string> {
+        const registerKeys = new Set<string>();
+        for (const sheetName of SHEET_NAMES) {
+            for (const row of rowsBySheetName.get(sheetName) || []) {
+                const hasMappedPerson = Boolean(this.firstNonBlank(
+                    row[WORKER_ID_COLUMN],
+                    row[USERNAME_COLUMN],
+                    row[USER_NAME_COLUMN]
+                ));
+                if (!hasMappedPerson) continue;
+                const registerKey = this.rowRegisterKey(row);
+                if (!registerKey) continue;
+                registerKeys.add(registerKey);
+            }
+        }
+        return registerKeys;
+    }
+
+    private static filterRowsForUnmappedRegisters(
+        rowsBySheetName: RowsBySheetName,
+        mappedRegisterKeys: Set<string>
+    ): RowsBySheetName {
+        const filteredRowsBySheetName = new Map<string, BulkRow[]>();
+        for (const sheetName of SHEET_NAMES) {
+            const filteredRows = (rowsBySheetName.get(sheetName) || []).filter((row) => {
+                const registerKey = this.rowRegisterKey(row);
+                if (!registerKey) return false;
+                return !mappedRegisterKeys.has(registerKey);
+            });
+            filteredRowsBySheetName.set(sheetName, filteredRows);
+        }
+        return filteredRowsBySheetName;
     }
 
     private static containsMappedRows(rowsBySheetName: RowsBySheetName): boolean {
@@ -559,6 +641,101 @@ export class TemplateClass {
             const code = this.asText(node?.code);
             if (code) codes.add(code);
             this.collectBoundaryCodes(node?.children, codes);
+        }
+    }
+
+    private static async resolveAllowedBoundaryCodes(
+        tenantId: string,
+        hierarchyType: string,
+        localityCode: string,
+        filter: any,
+        requestInfo?: RequestInfo
+    ): Promise<Set<string>> {
+        if (!filter || !filter.mode) return new Set([localityCode]);
+        if (filter.mode === "ANCESTOR_AND_SELF") {
+            return this.getBoundaryAncestorAndSelfCodes(tenantId, hierarchyType, localityCode, requestInfo);
+        }
+        if (filter.mode === "LEVEL_RANGE") {
+            return this.getBoundaryLevelRangeCodes(
+                tenantId,
+                hierarchyType,
+                localityCode,
+                filter.levelConfig || {},
+                requestInfo
+            );
+        }
+        logger.warn(`Unknown boundaryFilter mode '${filter.mode}', defaulting to self only`);
+        return new Set([localityCode]);
+    }
+
+    private static async getBoundaryAncestorAndSelfCodes(
+        tenantId: string,
+        hierarchyType: string,
+        localityCode: string,
+        requestInfo?: RequestInfo
+    ): Promise<Set<string>> {
+        const response = await searchBoundaryRelationshipData(
+            tenantId,
+            hierarchyType,
+            false,
+            true,
+            false,
+            localityCode,
+            requestInfo
+        );
+        const root = response?.TenantBoundary?.[0]?.boundary?.[0];
+        const codes = new Set<string>();
+        this.collectBoundaryCodesFromNode(root, codes);
+        return codes.size > 0 ? codes : new Set([localityCode]);
+    }
+
+    private static async getBoundaryLevelRangeCodes(
+        tenantId: string,
+        hierarchyType: string,
+        localityCode: string,
+        levelConfig: Record<string, string>,
+        requestInfo?: RequestInfo
+    ): Promise<Set<string>> {
+        const response = await searchBoundaryRelationshipData(
+            tenantId,
+            hierarchyType,
+            true,
+            false,
+            false,
+            localityCode,
+            requestInfo
+        );
+        const root = response?.TenantBoundary?.[0]?.boundary?.[0];
+        if (!root) return new Set([localityCode]);
+
+        const registerBoundaryType = this.asText(root?.boundaryType);
+        const deepestType = this.asText(levelConfig?.[registerBoundaryType]);
+        if (!deepestType) {
+            logger.info(`No levelConfig entry for boundary type '${registerBoundaryType}', using self only for locality ${localityCode}`);
+            return new Set([localityCode]);
+        }
+
+        const codes = new Set<string>();
+        this.collectDescendantsUntilLevel(root, deepestType, codes);
+        return codes.size > 0 ? codes : new Set([localityCode]);
+    }
+
+    private static collectDescendantsUntilLevel(node: any, deepestType: string, codes: Set<string>): void {
+        if (!node) return;
+        const code = this.asText(node?.code);
+        if (code) codes.add(code);
+        if (this.asText(node?.boundaryType) === deepestType) return;
+        for (const child of node.children || []) {
+            this.collectDescendantsUntilLevel(child, deepestType, codes);
+        }
+    }
+
+    private static collectBoundaryCodesFromNode(node: any, codes: Set<string>): void {
+        if (!node) return;
+        const code = this.asText(node?.code);
+        if (code) codes.add(code);
+        for (const child of node.children || []) {
+            this.collectBoundaryCodesFromNode(child, codes);
         }
     }
 
