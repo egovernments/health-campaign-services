@@ -303,7 +303,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows[0].UserName).toBe("user.123");
     });
 
-    it("normalizes stored slash-separated dates to dash format in bulk rows", async () => {
+    it("keeps enrollment empty when campaign start date is unavailable and normalizes de-enrollment format", async () => {
         const campaignStart = undefined;
         const campaignEnd = Date.UTC(2026, 2, 31);
 
@@ -351,7 +351,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
         expect(workerRows).toHaveLength(1);
-        expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("05-03-2026");
+        expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE).toBe("");
         expect(workerRows[0].HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE).toBe("20-03-2026");
     });
 
