@@ -122,8 +122,8 @@ export class TemplateClass {
             throwError("CAMPAIGN", 400, "CAMPAIGN_NUMBER_MISSING", `Campaign ${campaignId} has no campaignNumber set`);
         }
 
-        const campaignStartDate = this.formatEpochIfPresent(campaign?.startDate);
-        const campaignEndDate = this.formatEpochIfPresent(campaign?.endDate);
+        const campaignStartDate = this.resolveCampaignStartDate(campaign);
+        const campaignEndDate = this.resolveCampaignEndDate(campaign);
 
         const localityCodes = this.resolveRegisterSearchLocalityCodes(responseToSend?.additionalDetails);
         const registers = await this.fetchCampaignRegisters(
@@ -763,10 +763,7 @@ export class TemplateClass {
             row[BOUNDARY_CODE_COLUMN],
             register.localityCode
         );
-        row[ENROLLMENT_DATE_COLUMN] = this.firstNonBlank(
-            campaignStartDate,
-            this.normalizeSheetDateIfPresent(row[ENROLLMENT_DATE_COLUMN])
-        );
+        row[ENROLLMENT_DATE_COLUMN] = campaignStartDate;
         row[DEENROLLMENT_DATE_COLUMN] = this.firstNonBlank(
             this.normalizeSheetDateIfPresent(syncedDeenrollmentDate),
             this.normalizeSheetDateIfPresent(row[DEENROLLMENT_DATE_COLUMN]),
@@ -802,10 +799,7 @@ export class TemplateClass {
             [PASSWORD_COLUMN]: "",
             [BOUNDARY_COLUMN]: register.localityCode,
             [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
-            [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                campaignStartDate,
-                this.formatEpochIfPresent(attendee?.enrollmentDate)
-            ),
+            [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
                 this.formatEpochIfPresent(attendee?.denrollmentDate),
                 campaignEndDate
@@ -839,10 +833,7 @@ export class TemplateClass {
             [PASSWORD_COLUMN]: "",
             [BOUNDARY_COLUMN]: register.localityCode,
             [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
-            [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                campaignStartDate,
-                this.formatEpochIfPresent(staff?.enrollmentDate)
-            ),
+            [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
                 this.formatEpochIfPresent(staff?.denrollmentDate),
                 campaignEndDate
@@ -879,19 +870,16 @@ export class TemplateClass {
             [PASSWORD_COLUMN]: encryptedPassword ? decrypt(encryptedPassword) : "",
             ...Object.fromEntries(roleMultiSelectEntries),
             [BOUNDARY_COLUMN]: this.firstNonBlank(
-                this.asText(rawData[BOUNDARY_COLUMN]),
-                this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
-                this.asText(rawData[BOUNDARY_CODE_COLUMN]),
-                register.localityCode
+            this.asText(rawData[BOUNDARY_COLUMN]),
+            this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
+            this.asText(rawData[BOUNDARY_CODE_COLUMN]),
+            register.localityCode
             ),
             [BOUNDARY_CODE_MANDATORY_COLUMN]: boundaryCode,
-            [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-            campaignStartDate,
-                this.normalizeSheetDateIfPresent(this.asText(rawData[ENROLLMENT_DATE_COLUMN]))
-            ),
+            [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-                this.normalizeSheetDateIfPresent(this.asText(rawData[DEENROLLMENT_DATE_COLUMN])),
-                campaignEndDate
+            this.normalizeSheetDateIfPresent(this.asText(rawData[DEENROLLMENT_DATE_COLUMN])),
+            campaignEndDate
             ),
         };
 
@@ -1110,25 +1098,82 @@ export class TemplateClass {
     }
 
     private static formatEpochIfPresent(value: unknown): string {
-        if (value === null || value === undefined || value === "") return "";
+        const epoch = this.parseDateValueToEpoch(value);
+        if (epoch === null) return "";
+        return formatEpochAsSheetDate(epoch);
+    }
+
+    private static parseDateValueToEpoch(value: unknown): number | null {
+        if (value === null || value === undefined || value === "") return null;
+
         const asNumber = Number(value);
         if (Number.isFinite(asNumber)) {
-            return formatEpochAsSheetDate(asNumber);
+            return asNumber;
         }
 
         const raw = this.asText(value);
-        if (!raw) return "";
+        if (!raw) return null;
 
-        if (DASH_DATE_REGEX.test(raw)) return raw;
+        const dashDate = DASH_DATE_REGEX.exec(raw);
+        if (dashDate) {
+            const day = Number(dashDate[1]);
+            const month = Number(dashDate[2]);
+            const year = Number(dashDate[3]);
+            return Date.UTC(year, month - 1, day);
+        }
 
         const slashDate = SLASH_DATE_REGEX.exec(raw);
-        if (slashDate) return `${slashDate[1]}-${slashDate[2]}-${slashDate[3]}`;
+        if (slashDate) {
+            const day = Number(slashDate[1]);
+            const month = Number(slashDate[2]);
+            const year = Number(slashDate[3]);
+            return Date.UTC(year, month - 1, day);
+        }
 
         const parsedEpoch = Date.parse(raw);
         if (Number.isFinite(parsedEpoch)) {
-            return formatEpochAsSheetDate(parsedEpoch);
+            return parsedEpoch;
         }
-        return "";
+        return null;
+    }
+
+    private static resolveCampaignStartDate(campaign: any): string {
+        const fromCycles = this.resolveCampaignDateFromCycles(campaign, "startDate", "min");
+        if (fromCycles) return fromCycles;
+        return this.firstNonBlank(
+            this.formatEpochIfPresent(campaign?.startDate),
+            this.formatEpochIfPresent(this.asRecord(campaign?.additionalDetails)?.startDate)
+        );
+    }
+
+    private static resolveCampaignEndDate(campaign: any): string {
+        const fromCycles = this.resolveCampaignDateFromCycles(campaign, "endDate", "max");
+        if (fromCycles) return fromCycles;
+        return this.firstNonBlank(
+            this.formatEpochIfPresent(campaign?.endDate),
+            this.formatEpochIfPresent(this.asRecord(campaign?.additionalDetails)?.endDate)
+        );
+    }
+
+    private static resolveCampaignDateFromCycles(
+        campaign: any,
+        key: "startDate" | "endDate",
+        selection: "min" | "max"
+    ): string {
+        const deliveryRules = Array.isArray(campaign?.deliveryRules) ? campaign.deliveryRules : [];
+        const cycleEpochs: number[] = [];
+        for (const rule of deliveryRules) {
+            const cycles = Array.isArray(rule?.cycles) ? rule.cycles : [];
+            for (const cycle of cycles) {
+                const epoch = this.parseDateValueToEpoch(cycle?.[key]);
+                if (epoch !== null) cycleEpochs.push(epoch);
+            }
+        }
+        if (!cycleEpochs.length) return "";
+        const selectedEpoch = selection === "min"
+            ? Math.min(...cycleEpochs)
+            : Math.max(...cycleEpochs);
+        return formatEpochAsSheetDate(selectedEpoch);
     }
 
     private static normalizeSheetDateIfPresent(value: unknown): string {
