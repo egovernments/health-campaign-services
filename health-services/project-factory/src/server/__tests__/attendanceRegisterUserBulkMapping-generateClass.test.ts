@@ -1060,6 +1060,150 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Marker Two");
     });
 
+    it("prefers stored marker mappings over live staff mappings when stored roles are present", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-stored-priority",
+                campaignNumber: "CMP-STORED-PRIORITY",
+                startDate: Date.UTC(2026, 4, 1),
+                endDate: Date.UTC(2026, 4, 30),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [
+            {
+                campaignNumber: "CMP-STORED-PRIORITY",
+                type: "attendanceRegisterAttendee",
+                uniqueIdentifier: "row-marker-stored",
+                status: "completed",
+                uniqueIdAfterProcess: "reg-priority-1_ind-stored-marker_marker",
+                isDeleted: false,
+                denrollmentDate: null,
+                data: {
+                    _registerServiceCode: "REG-PRIORITY-1",
+                    _sheetName: MARKER_SHEET,
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-stored-marker",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Stored Marker",
+                    UserName: "stored.marker",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                }
+            }
+        ], []);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-priority-1",
+                            serviceCode: "REG-PRIORITY-1",
+                            name: "Register Priority 1",
+                            localityCode: "ADMIN",
+                            attendees: [],
+                            staff: [
+                                { userId: "ind-live-marker", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 4, 2), denrollmentDate: null }
+                            ]
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        { id: "ind-live-marker", name: { givenName: "Live", familyName: "Marker" }, userDetails: { username: "live.marker" } },
+                        { id: "ind-stored-marker", name: { givenName: "Stored", familyName: "Marker" }, userDetails: { username: "stored.marker" } }
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-stored-priority", requestInfo: {} },
+            {}
+        );
+
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        expect(markerRows).toHaveLength(1);
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-stored-marker");
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker");
+        expect(markerRows[0].UserName).toBe("stored.marker");
+    });
+
+    it("ignores stored rows stamped for old register instances that reuse service codes", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-register-recreated",
+                campaignNumber: "CMP-REGISTER-RECREATED",
+                startDate: Date.UTC(2026, 4, 1),
+                endDate: Date.UTC(2026, 4, 30),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [
+            {
+                campaignNumber: "CMP-REGISTER-RECREATED",
+                type: "attendanceRegisterAttendee",
+                uniqueIdentifier: "row-marker-old-instance",
+                status: "completed",
+                uniqueIdAfterProcess: "reg-old-uuid_ind-old-marker_marker",
+                isDeleted: false,
+                denrollmentDate: null,
+                data: {
+                    _registerServiceCode: "REG-REC-1",
+                    _sheetName: MARKER_SHEET,
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-old-marker",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Old Instance Marker",
+                    UserName: "old.marker",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                }
+            }
+        ], []);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-current-uuid",
+                            serviceCode: "REG-REC-1",
+                            name: "Register Recreated",
+                            localityCode: "ADMIN",
+                            attendees: [],
+                            staff: [
+                                { userId: "ind-live-marker", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 4, 2), denrollmentDate: null }
+                            ]
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        { id: "ind-live-marker", name: { givenName: "Live", familyName: "Marker" }, userDetails: { username: "live.marker" } },
+                        { id: "ind-old-marker", name: { givenName: "Old", familyName: "Marker" }, userDetails: { username: "old.marker" } }
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-register-recreated", requestInfo: {} },
+            {}
+        );
+
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        expect(markerRows).toHaveLength(1);
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-live-marker");
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Live Marker");
+        expect(markerRows[0].UserName).toBe("live.marker");
+    });
+
     it("maps attendance staff to marker/approver sheets by staffType even when user roles differ", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
