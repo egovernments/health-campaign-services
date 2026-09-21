@@ -226,6 +226,14 @@ export class TemplateClass {
         return this.flattenRowsBySheetName(dedupedRowsBySheetName);
     }
 
+    private static restrictCampaignFallbackToWorkerRows(rowsBySheetName: RowsBySheetName): RowsBySheetName {
+        return new Map<string, BulkRow[]>([
+            [WORKER_SHEET, rowsBySheetName.get(WORKER_SHEET) || []],
+            [MARKER_SHEET, []],
+            [APPROVER_SHEET, []],
+        ]);
+    }
+
     private static async buildRowsFromAttendanceState(
         registers: RegisterData[],
         tenantId: string,
@@ -272,57 +280,53 @@ export class TemplateClass {
                 staffByPersonId.set(personId, staff);
             }
 
-            const mappedPersonIds = new Set<string>([
-                ...Array.from(attendeeByPersonId.keys()),
-                ...Array.from(staffByPersonId.keys()),
-            ]);
-
-            for (const personId of mappedPersonIds) {
-                const roleCodes = roleCodesByIndividualId.get(personId) || [];
-                const attendee = attendeeByPersonId.get(personId);
-                const staff = staffByPersonId.get(personId);
-                const roleBasedSheetName = this.sheetNameFromRoleCodes(roleCodes);
-                const staffSheetFallback = roleCodes.length
-                    ? null
-                    : this.staffFallbackForAttendanceState(staff);
-                const sheetName = roleBasedSheetName
-                    || (attendee ? WORKER_SHEET : null)
-                    || staffSheetFallback?.sheetName
-                    || null;
-                if (!sheetName) continue;
-                const effectiveRoleCodes = roleCodes.length
-                    ? roleCodes
-                    : (staffSheetFallback?.roleCodes || []);
-
+            for (const [personId, attendee] of attendeeByPersonId.entries()) {
                 const profile = profiles.get(personId);
-                const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
-
-                if (sheetName === WORKER_SHEET) {
-                    const row = this.buildAttendanceStateWorkerRow(
-                        register,
-                        attendee,
-                        staff,
-                        profile,
-                        personId,
-                        effectiveRoleCodes,
-                        campaignStartDate,
-                        campaignEndDate
-                    );
-                    dedupedRowsBySheetName.get(WORKER_SHEET)?.set(dedupeKey, row);
-                    continue;
-                }
-
-                const row = this.buildAttendanceStateStaffRow(
+                const roleCodes = this.resolveAttendanceWorkerRoleCodes(
+                    roleCodesByIndividualId.get(personId) || []
+                );
+                const dedupeKey = `${registerKey}::${WORKER_SHEET}::${personId}`;
+                const row = this.buildAttendanceStateWorkerRow(
                     register,
-                    staff,
                     attendee,
+                    staffByPersonId.get(personId),
                     profile,
                     personId,
-                    effectiveRoleCodes,
+                    roleCodes,
                     campaignStartDate,
                     campaignEndDate
                 );
-                dedupedRowsBySheetName.get(sheetName)?.set(dedupeKey, row);
+                dedupedRowsBySheetName.get(WORKER_SHEET)?.set(dedupeKey, row);
+            }
+
+            const seenStaffIdentities = new Set<string>();
+            for (const staff of register.staff || []) {
+                const personId = this.asText(staff?.userId);
+                if (!personId) continue;
+                const staffType = this.asText(staff?.staffType).toUpperCase();
+                const staffIdentity = `${personId}::${staffType || "__UNKNOWN__"}`;
+                if (seenStaffIdentities.has(staffIdentity)) continue;
+                seenStaffIdentities.add(staffIdentity);
+
+                const staffSheet = this.resolveAttendanceStaffSheet(
+                    staffType,
+                    roleCodesByIndividualId.get(personId) || []
+                );
+                if (!staffSheet) continue;
+
+                const profile = profiles.get(personId);
+                const dedupeKey = `${registerKey}::${staffSheet.sheetName}::${personId}`;
+                const row = this.buildAttendanceStateStaffRow(
+                    register,
+                    staff,
+                    attendeeByPersonId.get(personId),
+                    profile,
+                    personId,
+                    staffSheet.roleCodes,
+                    campaignStartDate,
+                    campaignEndDate
+                );
+                dedupedRowsBySheetName.get(staffSheet.sheetName)?.set(dedupeKey, row);
             }
         }
 
@@ -373,9 +377,11 @@ export class TemplateClass {
             rowsFromAttendanceState,
             storedRowsForMissingLiveRegisterSheets
         );
-        const campaignRowsForUnmappedRegisterSheets = this.filterRowsForMissingRegisterSheets(
-            rowsFromCampaignUsers,
-            rowsFromRegisterMappings
+        const campaignRowsForUnmappedRegisterSheets = this.restrictCampaignFallbackToWorkerRows(
+            this.filterRowsForMissingRegisterSheets(
+                rowsFromCampaignUsers,
+                rowsFromRegisterMappings
+            )
         );
 
         if (this.containsMappedRows(rowsFromRegisterMappings)) {
@@ -1177,24 +1183,33 @@ export class TemplateClass {
         return null;
     }
 
-    private static staffFallbackForAttendanceState(
-        staff: AttendanceStaffRow | undefined
+    private static resolveAttendanceWorkerRoleCodes(roleCodes: string[]): string[] {
+        const workerRoleCodes = roleCodes.filter((role) => WORKER_ROLE_CODES.has(role));
+        return workerRoleCodes.length ? workerRoleCodes : roleCodes;
+    }
+
+    private static resolveAttendanceStaffSheet(
+        staffType: string,
+        roleCodes: string[]
     ): { sheetName: string; roleCodes: string[] } | null {
-        const staffType = this.asText(staff?.staffType).toUpperCase();
-        if (!staffType) return null;
         if (staffType === attendanceStaffTypes.APPROVER) {
+            const approverRoleCodes = roleCodes.filter((role) => APPROVER_ROLE_CODES.has(role));
             return {
                 sheetName: APPROVER_SHEET,
-                roleCodes: [DEFAULT_APPROVER_STAFF_ROLE_CODE],
+                roleCodes: approverRoleCodes.length ? approverRoleCodes : [DEFAULT_APPROVER_STAFF_ROLE_CODE],
             };
         }
         if (staffType === attendanceStaffTypes.OWNER) {
+            const markerRoleCodes = roleCodes.filter((role) => MARKER_ROLE_CODES.has(role));
             return {
                 sheetName: MARKER_SHEET,
-                roleCodes: [DEFAULT_MARKER_STAFF_ROLE_CODE],
+                roleCodes: markerRoleCodes.length ? markerRoleCodes : [DEFAULT_MARKER_STAFF_ROLE_CODE],
             };
         }
-        return null;
+
+        const roleBasedSheetName = this.sheetNameFromRoleCodes(roleCodes);
+        if (!roleBasedSheetName || roleBasedSheetName === WORKER_SHEET) return null;
+        return { sheetName: roleBasedSheetName, roleCodes };
     }
 
     private static classifyCampaignUserToSheet(rawData: Record<string, unknown>): string | null {
