@@ -501,6 +501,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
                     HCM_ADMIN_CONSOLE_USER_NAME: "Template User",
                     UserName: "template.user",
                     HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN",
                     HCM_ATTENDANCE_ATTENDEE_TEAM_CODE: "TEAM-T"
                 }
             }
@@ -553,6 +554,106 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             row.HCM_ATTENDANCE_REGISTER_CODE === "REG-P2"
             && row.HCM_ADMIN_CONSOLE_USER_WORKER_ID === "ind-template"
         )).toBe(true);
+    });
+
+    it("does not cross-join campaign users across registers when boundary differs", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-boundary-split",
+                campaignNumber: "CMP-SPLIT",
+                startDate: Date.UTC(2026, 4, 1),
+                endDate: Date.UTC(2026, 4, 31),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [], [
+            {
+                uniqueIdentifier: "ind-w1",
+                uniqueIdAfterProcess: "ind-w1",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-w1",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Worker One",
+                    UserName: "worker.one",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "WARD-1"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-w2",
+                uniqueIdAfterProcess: "ind-w2",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-w2",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Worker Two",
+                    UserName: "worker.two",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "WARD-2"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-w3",
+                uniqueIdAfterProcess: "ind-w3",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-w3",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Worker Three",
+                    UserName: "worker.three",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "WARD-2"
+                }
+            }
+        ]);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-split-1",
+                            serviceCode: "REG-S1",
+                            name: "Register Split 1",
+                            localityCode: "WARD-1",
+                            attendees: [],
+                            staff: []
+                        },
+                        {
+                            id: "reg-split-2",
+                            serviceCode: "REG-S2",
+                            name: "Register Split 2",
+                            localityCode: "WARD-2",
+                            attendees: [],
+                            staff: []
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return { Individual: [] } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-split", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        const register1Workers = workerRows
+            .filter((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-S1")
+            .map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID)
+            .sort();
+        const register2Workers = workerRows
+            .filter((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-S2")
+            .map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID)
+            .sort();
+
+        expect(workerRows).toHaveLength(3);
+        expect(register1Workers).toEqual(["ind-w1"]);
+        expect(register2Workers).toEqual(["ind-w2", "ind-w3"]);
     });
 
     it("supplements partial stored mappings with live attendance rows for missing registers", async () => {
@@ -818,8 +919,8 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID)).toEqual(["ind-w1", "ind-w2"]);
 
         expect(markerRows).toHaveLength(2);
-        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker One");
-        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker Two");
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Marker One");
+        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Marker Two");
     });
 
     it("includes only role-eligible marker/approver staff and excludes admin-role staff", async () => {
