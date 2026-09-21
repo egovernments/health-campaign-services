@@ -547,6 +547,106 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(approverRows).toHaveLength(0);
     });
 
+    it("supplements missing frontline worker rows even when registers already appear in marker rows", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-5b",
+                campaignNumber: "CMP-5B",
+                startDate: Date.UTC(2026, 4, 1),
+                endDate: Date.UTC(2026, 4, 30),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        mockGetRelatedData.mockResolvedValue([
+            {
+                campaignNumber: "CMP-5B",
+                type: "attendanceRegisterAttendee",
+                uniqueIdentifier: "row-marker-1",
+                status: "completed",
+                uniqueIdAfterProcess: "reg-uuid-1_ind-m1_marker",
+                isDeleted: false,
+                denrollmentDate: null,
+                data: {
+                    _registerServiceCode: "REG-001",
+                    _sheetName: MARKER_SHEET,
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-m1",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Stored Marker One",
+                    UserName: "stored.marker.one"
+                }
+            },
+            {
+                campaignNumber: "CMP-5B",
+                type: "attendanceRegisterAttendee",
+                uniqueIdentifier: "row-marker-2",
+                status: "completed",
+                uniqueIdAfterProcess: "reg-uuid-2_ind-m2_marker",
+                isDeleted: false,
+                denrollmentDate: null,
+                data: {
+                    _registerServiceCode: "REG-002",
+                    _sheetName: MARKER_SHEET,
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-m2",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Stored Marker Two",
+                    UserName: "stored.marker.two"
+                }
+            }
+        ] as any);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-uuid-1",
+                            serviceCode: "REG-001",
+                            name: "Register 001",
+                            localityCode: "ADMIN",
+                            attendees: [{ individualId: "ind-w1", tag: "TEAM-1", enrollmentDate: Date.UTC(2026, 4, 2), denrollmentDate: null }],
+                            staff: [{ userId: "ind-m1", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 4, 2), denrollmentDate: null }]
+                        },
+                        {
+                            id: "reg-uuid-2",
+                            serviceCode: "REG-002",
+                            name: "Register 002",
+                            localityCode: "ADMIN",
+                            attendees: [{ individualId: "ind-w2", tag: "TEAM-2", enrollmentDate: Date.UTC(2026, 4, 3), denrollmentDate: null }],
+                            staff: [{ userId: "ind-m2", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 4, 3), denrollmentDate: null }]
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        { id: "ind-w1", name: { givenName: "Worker", familyName: "One" }, userDetails: { username: "worker.one" } },
+                        { id: "ind-w2", name: { givenName: "Worker", familyName: "Two" }, userDetails: { username: "worker.two" } },
+                        { id: "ind-m1", name: { givenName: "Marker", familyName: "One" }, userDetails: { username: "marker.one" } },
+                        { id: "ind-m2", name: { givenName: "Marker", familyName: "Two" }, userDetails: { username: "marker.two" } },
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-5b", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+
+        expect(workerRows).toHaveLength(2);
+        expect(workerRows.map((row) => row.HCM_ATTENDANCE_REGISTER_CODE)).toEqual(["REG-001", "REG-002"]);
+        expect(workerRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_WORKER_ID)).toEqual(["ind-w1", "ind-w2"]);
+
+        expect(markerRows).toHaveLength(2);
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker One");
+        expect(markerRows[1].HCM_ADMIN_CONSOLE_USER_NAME).toBe("Stored Marker Two");
+    });
+
     it("ignores localityCode and searches registers campaign-wide", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
