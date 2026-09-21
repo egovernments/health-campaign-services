@@ -6,7 +6,6 @@ import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { formatEpochAsSheetDate } from "../utils/attendanceIdentityUtils";
-import { decrypt } from "../utils/cryptUtils";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import { httpRequest } from "../utils/request";
@@ -31,13 +30,6 @@ const MARKER_ROLE_CODES = new Set([
 
 const APPROVER_ROLE_CODES = new Set([
     "PROXIMITY_SUPERVISOR",
-]);
-
-const WORKER_ROLE_CODES = new Set([
-    "DISTRIBUTOR",
-    "REGISTRAR",
-    "FIELD_SUPPORT",
-    "HEALTH_FACILITY_WORKER",
 ]);
 
 const REGISTER_CODE_COLUMN = "HCM_ATTENDANCE_REGISTER_CODE";
@@ -146,13 +138,6 @@ export class TemplateClass {
             tenantId,
             dataRowStatuses.completed
         ) as CampaignDataRow[];
-        const campaignUserRows = await getRelatedDataWithCampaign(
-            "user",
-            campaignNumber,
-            tenantId,
-            dataRowStatuses.completed
-        ) as CampaignDataRow[];
-
         const rowsFromStoredData = this.buildRowsFromStoredMappings(
             registers,
             Array.isArray(attendeeRows) ? attendeeRows : [],
@@ -164,15 +149,12 @@ export class TemplateClass {
 
         const outputRowsBySheetName = await this.buildOutputRowsBySheetName(
             rowsFromStoredData,
-            Array.isArray(campaignUserRows) ? campaignUserRows : [],
             registers,
             tenantId,
             responseToSend?.requestInfo,
             campaignStartDate,
             campaignEndDate
         );
-
-        this.ensureSeedRowsPerRegisterPerSheet(outputRowsBySheetName, registers);
 
         const totalRows = Array.from(outputRowsBySheetName.values()).reduce((sum, rows) => sum + rows.length, 0);
         logger.info(`Built ${totalRows} rows for bulk mapping template (registers=${registers.length})`);
@@ -209,16 +191,6 @@ export class TemplateClass {
             if (!sheetRows) continue;
             const existing = sheetRows.get(dedupeKey);
             sheetRows.set(dedupeKey, existing ? this.mergeRows(existing, row) : row);
-        }
-
-        // If there are no mapped rows in campaign_data yet, include register seeds.
-        if (!this.containsMappedRows(this.flattenRowsBySheetName(dedupedRowsBySheetName))) {
-            for (const register of registers) {
-                for (const sheetName of SHEET_NAMES) {
-                    const seedKey = `${this.registerIdentity(register)}::${sheetName}::__seed__`;
-                    dedupedRowsBySheetName.get(sheetName)?.set(seedKey, this.buildSeedRow(register, sheetName));
-                }
-            }
         }
 
         return this.flattenRowsBySheetName(dedupedRowsBySheetName);
@@ -293,30 +265,17 @@ export class TemplateClass {
 
     private static async buildOutputRowsBySheetName(
         rowsFromStoredData: RowsBySheetName,
-        campaignUserRows: CampaignDataRow[],
         registers: RegisterData[],
         tenantId: string,
         requestInfo: RequestInfo | undefined,
         campaignStartDate: string,
         campaignEndDate: string
     ): Promise<RowsBySheetName> {
-        let combinedRowsBySheetName = rowsFromStoredData;
-        const rowsFromCampaignUsers = this.buildRowsFromCampaignUsers(
-            registers,
-            campaignUserRows,
-            campaignStartDate,
-            campaignEndDate
-        );
-        if (this.containsMappedRows(rowsFromCampaignUsers)) {
-            // Prefer persisted attendee rows over the generated user/register baseline.
-            combinedRowsBySheetName = this.mergeRowsBySheetName(rowsFromStoredData, rowsFromCampaignUsers);
-        }
-
         if (!registers.length) {
-            return combinedRowsBySheetName;
+            return rowsFromStoredData;
         }
 
-        const mappedRegisterCodes = this.collectMappedRegisterServiceCodes(combinedRowsBySheetName);
+        const mappedRegisterCodes = this.collectMappedRegisterServiceCodes(rowsFromStoredData);
         if (!mappedRegisterCodes.size) {
             return this.buildRowsFromAttendanceState(
                 registers,
@@ -331,7 +290,7 @@ export class TemplateClass {
             (register) => !mappedRegisterCodes.has(register.serviceCode)
         );
         if (!hasRegistersMissingFromStoredMappings) {
-            return combinedRowsBySheetName;
+            return rowsFromStoredData;
         }
 
         logger.info(
@@ -346,48 +305,7 @@ export class TemplateClass {
             campaignEndDate
         );
 
-        return this.mergeRowsBySheetName(combinedRowsBySheetName, rowsFromAttendanceState);
-    }
-
-    private static buildRowsFromCampaignUsers(
-        registers: RegisterData[],
-        campaignUserRows: CampaignDataRow[],
-        campaignStartDate: string,
-        campaignEndDate: string
-    ): RowsBySheetName {
-        const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
-        if (!registers.length || !campaignUserRows.length) {
-            return this.flattenRowsBySheetName(dedupedRowsBySheetName);
-        }
-
-        const normalizedCampaignUsers = campaignUserRows.filter((entry) =>
-            this.asText(entry?.type).toLowerCase() === "user"
-        );
-
-        for (const register of registers) {
-            const registerKey = this.registerIdentity(register);
-            for (const userEntry of normalizedCampaignUsers) {
-                const rawData = this.asRecord(userEntry?.data);
-                if (!rawData) continue;
-
-                const personId = this.personIdentity(rawData, "__unknown__");
-                if (personId === "__unknown__") continue;
-
-                const sheetName = this.classifyCampaignUserToSheet(rawData);
-                if (!sheetName) continue;
-                const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
-                const row = this.buildCampaignUserRow(
-                    register,
-                    sheetName,
-                    rawData,
-                    campaignStartDate,
-                    campaignEndDate
-                );
-                dedupedRowsBySheetName.get(sheetName)?.set(dedupeKey, row);
-            }
-        }
-
-        return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        return this.mergeRowsBySheetName(rowsFromStoredData, rowsFromAttendanceState);
     }
 
     private static collectMappedRegisterServiceCodes(rowsBySheetName: RowsBySheetName): Set<string> {
@@ -679,22 +597,6 @@ export class TemplateClass {
         }
     }
 
-    private static containsMappedRows(rowsBySheetName: RowsBySheetName): boolean {
-        for (const sheetName of SHEET_NAMES) {
-            const rows = rowsBySheetName.get(sheetName) || [];
-            for (const row of rows) {
-                if (this.firstNonBlank(
-                    row[WORKER_ID_COLUMN],
-                    row[USERNAME_COLUMN],
-                    row[USER_NAME_COLUMN]
-                )) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     private static resolveRegister(
         rawData: Record<string, unknown>,
         uniqueIdAfterProcess: string | null,
@@ -841,96 +743,6 @@ export class TemplateClass {
         };
     }
 
-    private static buildCampaignUserRow(
-        register: RegisterData,
-        sheetName: string,
-        rawData: Record<string, unknown>,
-        campaignStartDate: string,
-        campaignEndDate: string
-    ): BulkRow {
-        const roleCodes = this.extractRoleCodes(rawData);
-        const roleMultiSelectEntries = roleCodes.slice(0, MAX_ROLE_COLUMNS).map(
-            (code, index) => [`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${index + 1}`, code] as [string, string]
-        );
-        const encryptedUsername = this.asText(rawData[USERNAME_COLUMN]);
-        const encryptedPassword = this.asText(rawData[PASSWORD_COLUMN]);
-        const boundaryCode = this.firstNonBlank(
-            this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
-            this.asText(rawData[BOUNDARY_CODE_COLUMN]),
-            register.localityCode
-        );
-        const row: BulkRow = {
-            [REGISTER_CODE_COLUMN]: register.serviceCode,
-            [REGISTER_NAME_COLUMN]: register.name,
-            [REGISTER_UUID_COLUMN]: register.id,
-            [REGISTER_ID_COLUMN]: register.serviceCode,
-            [WORKER_ID_COLUMN]: this.asText(rawData[WORKER_ID_COLUMN]),
-            [USER_NAME_COLUMN]: this.asText(rawData[USER_NAME_COLUMN]),
-            [USERNAME_COLUMN]: encryptedUsername ? decrypt(encryptedUsername) : "",
-            [PASSWORD_COLUMN]: encryptedPassword ? decrypt(encryptedPassword) : "",
-            ...Object.fromEntries(roleMultiSelectEntries),
-            [BOUNDARY_COLUMN]: this.firstNonBlank(
-            this.asText(rawData[BOUNDARY_COLUMN]),
-            this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
-            this.asText(rawData[BOUNDARY_CODE_COLUMN]),
-            register.localityCode
-            ),
-            [BOUNDARY_CODE_MANDATORY_COLUMN]: boundaryCode,
-            [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
-            [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
-            this.normalizeSheetDateIfPresent(this.asText(rawData[DEENROLLMENT_DATE_COLUMN])),
-            campaignEndDate
-            ),
-        };
-
-        if (sheetName === WORKER_SHEET) {
-            row[TEAM_CODE_COLUMN] = this.asText(rawData[TEAM_CODE_COLUMN]);
-        } else {
-            delete row[TEAM_CODE_COLUMN];
-        }
-
-        return row;
-    }
-
-    private static buildSeedRow(register: RegisterData, sheetName: string): BulkRow {
-        const seedRow: BulkRow = {
-            [REGISTER_CODE_COLUMN]: register.serviceCode,
-            [REGISTER_NAME_COLUMN]: register.name,
-            [REGISTER_UUID_COLUMN]: register.id,
-            [REGISTER_ID_COLUMN]: register.serviceCode,
-            [USER_NAME_COLUMN]: "",
-            [WORKER_ID_COLUMN]: "",
-            [USERNAME_COLUMN]: "",
-            [PASSWORD_COLUMN]: "",
-            [BOUNDARY_COLUMN]: register.localityCode,
-            [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
-            [ENROLLMENT_DATE_COLUMN]: "",
-            [DEENROLLMENT_DATE_COLUMN]: "",
-        };
-        if (sheetName === WORKER_SHEET) {
-            seedRow[TEAM_CODE_COLUMN] = "";
-        }
-        return seedRow;
-    }
-
-    private static ensureSeedRowsPerRegisterPerSheet(rowsBySheetName: RowsBySheetName, registers: RegisterData[]): void {
-        for (const sheetName of SHEET_NAMES) {
-            const rows = rowsBySheetName.get(sheetName) || [];
-            const registersInSheet = new Set(rows.map((row) => this.firstNonBlank(
-                row[REGISTER_CODE_COLUMN],
-                row[REGISTER_ID_COLUMN]
-            )));
-
-            for (const register of registers) {
-                if (registersInSheet.has(register.serviceCode)) continue;
-                rows.push(this.buildSeedRow(register, sheetName));
-            }
-
-            rows.sort((left, right) => this.sortRows(left, right));
-            rowsBySheetName.set(sheetName, rows);
-        }
-    }
-
     private static createEmptyDedupedRowsBySheetName(): DedupedRowsBySheetName {
         return new Map<string, Map<string, BulkRow>>(SHEET_NAMES.map((sheetName) => [sheetName, new Map<string, BulkRow>()]));
     }
@@ -970,14 +782,6 @@ export class TemplateClass {
         const normalized = this.asText(staffType).toUpperCase();
         if (normalized === STAFF_TYPE_OWNER) return MARKER_SHEET;
         if (normalized === STAFF_TYPE_APPROVER) return APPROVER_SHEET;
-        return null;
-    }
-
-    private static classifyCampaignUserToSheet(rawData: Record<string, unknown>): string | null {
-        const roleCodes = this.extractRoleCodes(rawData);
-        if (roleCodes.some((role) => APPROVER_ROLE_CODES.has(role))) return APPROVER_SHEET;
-        if (roleCodes.some((role) => MARKER_ROLE_CODES.has(role))) return MARKER_SHEET;
-        if (roleCodes.some((role) => WORKER_ROLE_CODES.has(role))) return WORKER_SHEET;
         return null;
     }
 
@@ -1140,10 +944,26 @@ export class TemplateClass {
     private static resolveCampaignStartDate(campaign: any): string {
         const fromCycles = this.resolveCampaignDateFromCycles(campaign, "startDate", "min");
         if (fromCycles) return fromCycles;
-        return this.firstNonBlank(
-            this.formatEpochIfPresent(campaign?.startDate),
-            this.formatEpochIfPresent(this.asRecord(campaign?.additionalDetails)?.startDate)
+        const fromAdditionalDetails = this.formatEpochIfPresent(this.asRecord(campaign?.additionalDetails)?.startDate);
+        const fromTopLevel = this.formatEpochIfPresent(campaign?.startDate);
+        const createdDate = this.formatEpochIfPresent(
+            this.firstNonBlank(
+                this.asText(campaign?.auditDetails?.createdTime),
+                this.asText(campaign?.createdTime)
+            )
         );
+
+        if (fromTopLevel && createdDate && fromTopLevel === createdDate) {
+            if (fromAdditionalDetails && fromAdditionalDetails !== createdDate) {
+                return fromAdditionalDetails;
+            }
+            logger.warn(
+                `Campaign startDate matches createdTime (${createdDate}); ignoring as enrollment prefill source for bulk template`
+            );
+            return "";
+        }
+
+        return this.firstNonBlank(fromTopLevel, fromAdditionalDetails);
     }
 
     private static resolveCampaignEndDate(campaign: any): string {
