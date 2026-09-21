@@ -352,19 +352,25 @@ export class TemplateClass {
             campaignEndDate
         );
 
-        const rowsFromRegisterMappings = this.mergeRowsBySheetName(rowsFromAttendanceState, rowsFromStoredData);
-        const mappedRegisterKeys = this.collectMappedRegisterKeys(rowsFromRegisterMappings);
-        const campaignRowsForUnmappedRegisters = this.filterRowsForUnmappedRegisters(
+        const storedRowsForMissingLiveRegisterSheets = this.filterRowsForMissingRegisterSheets(
+            rowsFromStoredData,
+            rowsFromAttendanceState
+        );
+        const rowsFromRegisterMappings = this.mergeRowsBySheetName(
+            rowsFromAttendanceState,
+            storedRowsForMissingLiveRegisterSheets
+        );
+        const campaignRowsForUnmappedRegisterSheets = this.filterRowsForMissingRegisterSheets(
             rowsFromCampaignUsers,
-            mappedRegisterKeys
+            rowsFromRegisterMappings
         );
 
         if (this.containsMappedRows(rowsFromRegisterMappings)) {
-            return this.mergeRowsBySheetName(rowsFromRegisterMappings, campaignRowsForUnmappedRegisters);
+            return this.mergeRowsBySheetName(rowsFromRegisterMappings, campaignRowsForUnmappedRegisterSheets);
         }
 
-        if (this.containsMappedRows(campaignRowsForUnmappedRegisters)) {
-            return campaignRowsForUnmappedRegisters;
+        if (this.containsMappedRows(campaignRowsForUnmappedRegisterSheets)) {
+            return campaignRowsForUnmappedRegisterSheets;
         }
 
         return rowsFromAttendanceState;
@@ -445,8 +451,8 @@ export class TemplateClass {
         return this.flattenRowsBySheetName(dedupedRowsBySheetName);
     }
 
-    private static collectMappedRegisterKeys(rowsBySheetName: RowsBySheetName): Set<string> {
-        const registerKeys = new Set<string>();
+    private static collectMappedRegisterSheetKeys(rowsBySheetName: RowsBySheetName): Set<string> {
+        const registerSheetKeys = new Set<string>();
         for (const sheetName of SHEET_NAMES) {
             for (const row of rowsBySheetName.get(sheetName) || []) {
                 const hasMappedPerson = Boolean(this.firstNonBlank(
@@ -457,22 +463,23 @@ export class TemplateClass {
                 if (!hasMappedPerson) continue;
                 const registerKey = this.rowRegisterKey(row);
                 if (!registerKey) continue;
-                registerKeys.add(registerKey);
+                registerSheetKeys.add(`${sheetName}::${registerKey}`);
             }
         }
-        return registerKeys;
+        return registerSheetKeys;
     }
 
-    private static filterRowsForUnmappedRegisters(
+    private static filterRowsForMissingRegisterSheets(
         rowsBySheetName: RowsBySheetName,
-        mappedRegisterKeys: Set<string>
+        preferredRowsBySheetName: RowsBySheetName
     ): RowsBySheetName {
+        const mappedRegisterSheetKeys = this.collectMappedRegisterSheetKeys(preferredRowsBySheetName);
         const filteredRowsBySheetName = new Map<string, BulkRow[]>();
         for (const sheetName of SHEET_NAMES) {
             const filteredRows = (rowsBySheetName.get(sheetName) || []).filter((row) => {
                 const registerKey = this.rowRegisterKey(row);
                 if (!registerKey) return false;
-                return !mappedRegisterKeys.has(registerKey);
+                return !mappedRegisterSheetKeys.has(`${sheetName}::${registerKey}`);
             });
             filteredRowsBySheetName.set(sheetName, filteredRows);
         }
