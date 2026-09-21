@@ -575,12 +575,15 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(mockBoundaryRelationship).toHaveBeenCalledWith(
             "bednet", "ADMIN", true, false, true, "WARD-22", expect.anything()
         );
-        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
-        const params = mockHttpRequest.mock.calls[0][2] as any;
-        expect(params.referenceIds.split(",").sort()).toEqual(["prj-dh1", "prj-ward22"]);
-        expect(params.localityCode).toBeUndefined();
-        expect(params.referenceId).toBeUndefined();
-        expect(params.campaignNumber).toBeUndefined();
+        expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+        const paramsList = mockHttpRequest.mock.calls.map((call) => call[2] as any);
+        const campaignScopedCall = paramsList.find((params) => params?.campaignNumber === "CMP-L");
+        const localityScopedCall = paramsList.find((params) => typeof params?.referenceIds === "string");
+        expect(campaignScopedCall).toBeDefined();
+        expect(localityScopedCall?.referenceIds.split(",").sort()).toEqual(["prj-dh1", "prj-ward22"]);
+        expect(localityScopedCall?.localityCode).toBeUndefined();
+        expect(localityScopedCall?.referenceId).toBeUndefined();
+        expect(localityScopedCall?.campaignNumber).toBeUndefined();
     });
 
     it("finds registers created on a descendant boundary, not just the requested one", async () => {
@@ -627,8 +630,10 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
-        expect(mockHttpRequest).toHaveBeenCalledTimes(2);
-        const sent = mockHttpRequest.mock.calls.map((call) => (call[2] as any).referenceIds);
+        expect(mockHttpRequest).toHaveBeenCalledTimes(3);
+        const sent = mockHttpRequest.mock.calls
+            .map((call) => (call[2] as any).referenceIds)
+            .filter(Boolean);
         expect(sent).toEqual(["p1,p2", "p3,p4"]);
     });
 
@@ -648,11 +653,14 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
-        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
-        expect((mockHttpRequest.mock.calls[0][2] as any).referenceIds).toBe("p1");
+        expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+        const localityScopedCall = mockHttpRequest.mock.calls
+            .map((call) => call[2] as any)
+            .find((params) => typeof params?.referenceIds === "string");
+        expect(localityScopedCall?.referenceIds).toBe("p1");
     });
 
-    it("returns no registers and makes no register call when the subtree has no created projects", async () => {
+    it("returns no registers when the locality subtree has no created projects but still keeps campaign-wide discovery", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{ campaignNumber: "CMP-N", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 2), boundaries: [] }]
         } as any);
@@ -665,7 +673,8 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
-        expect(mockHttpRequest).not.toHaveBeenCalled();
+        expect(mockHttpRequest).toHaveBeenCalledTimes(1);
+        expect((mockHttpRequest.mock.calls[0][2] as any).campaignNumber).toBe("CMP-N");
         expect((sheetMap[WORKER_SHEET].data as any[]).length).toBe(0);
     });
 
@@ -683,7 +692,11 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
             {}
         );
 
-        expect((mockHttpRequest.mock.calls[0][2] as any).referenceIds).toBe("prj-ward9");
+        expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+        const localityScopedCall = mockHttpRequest.mock.calls
+            .map((call) => call[2] as any)
+            .find((params) => typeof params?.referenceIds === "string");
+        expect(localityScopedCall?.referenceIds).toBe("prj-ward9");
     });
 
     it("searches once by campaignNumber when no localityCode is supplied, never per boundary", async () => {
