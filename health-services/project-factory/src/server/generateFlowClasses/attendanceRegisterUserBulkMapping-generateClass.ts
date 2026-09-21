@@ -59,6 +59,7 @@ const TEAM_CODE_COLUMN = attendanceColumnKeys.TEAM_CODE;
 const DASH_DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
 const SLASH_DATE_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 const ISO_DATE_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}/;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 interface RegisterData {
     id: string;
@@ -1481,20 +1482,40 @@ export class TemplateClass {
     }
 
     private static resolveCampaignStartDate(campaign: any): string {
-        const fromCycles = this.resolveCampaignDateFromCycles(campaign, "startDate", "min");
-        if (fromCycles) return fromCycles;
-        const fromAdditionalDetails = this.formatEpochIfPresent(this.asRecord(campaign?.additionalDetails)?.startDate);
-        const fromTopLevel = this.formatEpochIfPresent(campaign?.startDate);
-        const createdDate = this.formatEpochIfPresent(
+        const createdEpoch = this.parseDateValueToEpoch(
             this.firstNonBlank(
                 this.asText(campaign?.auditDetails?.createdTime),
                 this.asText(campaign?.createdTime)
             )
         );
+        const createdDate = createdEpoch !== null ? formatEpochAsSheetDate(createdEpoch) : "";
+
+        const cycleStartEpoch = this.resolveCampaignDateEpochFromCycles(campaign, "startDate", "min");
+        if (cycleStartEpoch !== null) {
+            const adjustedCycleStartEpoch = this.adjustCampaignStartEpochForDateBoundary(cycleStartEpoch, createdEpoch);
+            return formatEpochAsSheetDate(adjustedCycleStartEpoch);
+        }
+
+        const fromAdditionalDetailsEpoch = this.parseDateValueToEpoch(this.asRecord(campaign?.additionalDetails)?.startDate);
+        const fromAdditionalDetails = fromAdditionalDetailsEpoch !== null
+            ? formatEpochAsSheetDate(fromAdditionalDetailsEpoch)
+            : "";
+        const fromTopLevelEpoch = this.parseDateValueToEpoch(campaign?.startDate);
+        const fromTopLevel = fromTopLevelEpoch !== null ? formatEpochAsSheetDate(fromTopLevelEpoch) : "";
 
         if (fromTopLevel && createdDate && fromTopLevel === createdDate) {
             if (fromAdditionalDetails && fromAdditionalDetails !== createdDate) {
                 return fromAdditionalDetails;
+            }
+            if (fromTopLevelEpoch !== null) {
+                const adjustedTopLevelEpoch = this.adjustCampaignStartEpochForDateBoundary(
+                    fromTopLevelEpoch,
+                    createdEpoch
+                );
+                const adjustedTopLevelDate = formatEpochAsSheetDate(adjustedTopLevelEpoch);
+                if (adjustedTopLevelDate && adjustedTopLevelDate !== createdDate) {
+                    return adjustedTopLevelDate;
+                }
             }
             logger.warn(
                 `Campaign startDate matches createdTime (${createdDate}); ignoring as enrollment prefill source for bulk template`
@@ -1502,7 +1523,11 @@ export class TemplateClass {
             return "";
         }
 
-        return this.firstNonBlank(fromTopLevel, fromAdditionalDetails);
+        const selectedEpoch = fromTopLevelEpoch ?? fromAdditionalDetailsEpoch;
+        if (selectedEpoch === null) return "";
+
+        const adjustedSelectedEpoch = this.adjustCampaignStartEpochForDateBoundary(selectedEpoch, createdEpoch);
+        return formatEpochAsSheetDate(adjustedSelectedEpoch);
     }
 
     private static resolveCampaignEndDate(campaign: any): string {
@@ -1519,6 +1544,16 @@ export class TemplateClass {
         key: "startDate" | "endDate",
         selection: "min" | "max"
     ): string {
+        const selectedEpoch = this.resolveCampaignDateEpochFromCycles(campaign, key, selection);
+        if (selectedEpoch === null) return "";
+        return formatEpochAsSheetDate(selectedEpoch);
+    }
+
+    private static resolveCampaignDateEpochFromCycles(
+        campaign: any,
+        key: "startDate" | "endDate",
+        selection: "min" | "max"
+    ): number | null {
         const deliveryRules = Array.isArray(campaign?.deliveryRules) ? campaign.deliveryRules : [];
         const cycleEpochs: number[] = [];
         for (const rule of deliveryRules) {
@@ -1528,11 +1563,27 @@ export class TemplateClass {
                 if (epoch !== null) cycleEpochs.push(epoch);
             }
         }
-        if (!cycleEpochs.length) return "";
-        const selectedEpoch = selection === "min"
+        if (!cycleEpochs.length) return null;
+        return selection === "min"
             ? Math.min(...cycleEpochs)
             : Math.max(...cycleEpochs);
-        return formatEpochAsSheetDate(selectedEpoch);
+    }
+
+    private static adjustCampaignStartEpochForDateBoundary(startEpoch: number, createdEpoch: number | null): number {
+        if (createdEpoch === null) return startEpoch;
+
+        const startDate = formatEpochAsSheetDate(startEpoch);
+        const createdDate = formatEpochAsSheetDate(createdEpoch);
+        if (!startDate || !createdDate || startDate !== createdDate) return startEpoch;
+        if (startEpoch <= createdEpoch) return startEpoch;
+        if ((startEpoch - createdEpoch) > ONE_DAY_MS) return startEpoch;
+
+        const adjustedStartEpoch = startEpoch + ONE_DAY_MS;
+        logger.info(
+            "ENROLL-DEBUG adjusted campaign start epoch by +1 day to preserve date-only boundary "
+            + `(startEpoch=${startEpoch}, createdEpoch=${createdEpoch})`
+        );
+        return adjustedStartEpoch;
     }
 
     private static normalizeSheetDateIfPresent(value: unknown): string {
