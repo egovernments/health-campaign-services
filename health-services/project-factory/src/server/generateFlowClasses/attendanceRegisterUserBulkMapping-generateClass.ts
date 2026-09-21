@@ -21,6 +21,7 @@ const MARKER_SHEET = attendanceSheetNames.MARKER;
 const APPROVER_SHEET = attendanceSheetNames.APPROVER;
 
 const SHEET_NAMES = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET];
+const NON_WORKER_SHEETS = [MARKER_SHEET, APPROVER_SHEET];
 
 const MARKER_ROLE_CODES = new Set([
     "WAREHOUSE_MANAGER",
@@ -201,6 +202,7 @@ export class TemplateClass {
         campaignEndDate: string
     ): RowsBySheetName {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
+        const hasStampedRowsByServiceCode = this.collectHasStampedRowsByServiceCode(attendeeRows);
 
         for (const attendeeRow of attendeeRows) {
             if (attendeeRow?.isDeleted) continue;
@@ -210,6 +212,15 @@ export class TemplateClass {
 
             const register = this.resolveRegister(rawData, attendeeRow?.uniqueIdAfterProcess, registerByServiceCode, registerById);
             if (!register) continue;
+
+            const rowServiceCode = this.storedRowServiceCode(rawData, register.serviceCode);
+            if (!this.belongsToRegisterInstance(
+                register,
+                attendeeRow?.uniqueIdAfterProcess,
+                hasStampedRowsByServiceCode.get(rowServiceCode) === true
+            )) {
+                continue;
+            }
 
             const sheetName = this.resolveSheetName(rawData);
             if (!sheetName) continue;
@@ -369,13 +380,31 @@ export class TemplateClass {
             campaignEndDate
         );
 
-        const storedRowsForMissingLiveRegisterSheets = this.filterRowsForMissingRegisterSheets(
-            rowsFromStoredData,
-            rowsFromAttendanceState
+        const workerRowsFromAttendanceState = this.sliceRowsBySheets(rowsFromAttendanceState, [WORKER_SHEET]);
+        const nonWorkerRowsFromAttendanceState = this.sliceRowsBySheets(rowsFromAttendanceState, NON_WORKER_SHEETS);
+        const workerRowsFromStoredData = this.sliceRowsBySheets(rowsFromStoredData, [WORKER_SHEET]);
+        const nonWorkerRowsFromStoredData = this.dropRolelessNonWorkerRows(
+            this.sliceRowsBySheets(rowsFromStoredData, NON_WORKER_SHEETS)
         );
+
+        const workerRowsFromRegisterMappings = this.mergeRowsBySheetName(
+            workerRowsFromAttendanceState,
+            this.filterRowsForMissingRegisterSheets(
+                workerRowsFromStoredData,
+                workerRowsFromAttendanceState
+            )
+        );
+        const nonWorkerRowsFromRegisterMappings = this.mergeRowsBySheetName(
+            nonWorkerRowsFromStoredData,
+            this.filterRowsForMissingRegisterSheets(
+                nonWorkerRowsFromAttendanceState,
+                nonWorkerRowsFromStoredData
+            )
+        );
+
         const rowsFromRegisterMappings = this.mergeRowsBySheetName(
-            rowsFromAttendanceState,
-            storedRowsForMissingLiveRegisterSheets
+            workerRowsFromRegisterMappings,
+            nonWorkerRowsFromRegisterMappings
         );
         const campaignRowsForUnmappedRegisterSheets = this.restrictCampaignFallbackToWorkerRows(
             this.filterRowsForMissingRegisterSheets(
@@ -957,6 +986,46 @@ export class TemplateClass {
         return null;
     }
 
+    private static collectHasStampedRowsByServiceCode(rows: CampaignDataRow[]): Map<string, boolean> {
+        const hasStampedRowsByServiceCode = new Map<string, boolean>();
+        for (const row of rows || []) {
+            if (row?.isDeleted) continue;
+            const rawData = this.asRecord(row?.data);
+            if (!rawData) continue;
+            const serviceCode = this.storedRowServiceCode(rawData);
+            if (!serviceCode) continue;
+
+            const existing = hasStampedRowsByServiceCode.get(serviceCode) === true;
+            if (existing) continue;
+            hasStampedRowsByServiceCode.set(
+                serviceCode,
+                Boolean(this.registerIdentityFromProcessStamp(row?.uniqueIdAfterProcess))
+            );
+        }
+        return hasStampedRowsByServiceCode;
+    }
+
+    private static storedRowServiceCode(rawData: Record<string, unknown>, fallback = ""): string {
+        return this.firstNonBlank(
+            this.asText(rawData["_registerServiceCode"]),
+            this.asText(rawData[REGISTER_ID_COLUMN]),
+            this.asText(rawData[REGISTER_CODE_COLUMN]),
+            fallback
+        );
+    }
+
+    private static belongsToRegisterInstance(
+        register: RegisterData,
+        uniqueIdAfterProcess: string | null | undefined,
+        hasStampedRowsForServiceCode: boolean
+    ): boolean {
+        const stamp = this.registerIdentityFromProcessStamp(uniqueIdAfterProcess);
+        if (stamp) {
+            return stamp === register.id || stamp === register.serviceCode;
+        }
+        return !hasStampedRowsForServiceCode;
+    }
+
     private static resolveSheetName(rawData: Record<string, unknown>): string | null {
         const storedSheetName = this.asText(rawData["_sheetName"]);
         if (SHEET_NAMES.includes(storedSheetName)) return storedSheetName;
@@ -1274,9 +1343,32 @@ export class TemplateClass {
         return this.firstNonBlank(register.id, register.serviceCode);
     }
 
+    private static registerIdentityFromProcessStamp(identity: string | null | undefined): string {
+        const normalizedIdentity = this.asText(identity);
+        const idx = normalizedIdentity.indexOf("_");
+        return idx > 0 ? normalizedIdentity.slice(0, idx).trim() : "";
+    }
+
     private static registerIdFromIdentity(identity: string): string {
-        const idx = identity.indexOf("_");
-        return idx > 0 ? identity.slice(0, idx).trim() : "";
+        return this.registerIdentityFromProcessStamp(identity);
+    }
+
+    private static sliceRowsBySheets(rowsBySheetName: RowsBySheetName, sheetNames: string[]): RowsBySheetName {
+        const wanted = new Set(sheetNames);
+        return new Map<string, BulkRow[]>([
+            [WORKER_SHEET, wanted.has(WORKER_SHEET) ? [...(rowsBySheetName.get(WORKER_SHEET) || [])] : []],
+            [MARKER_SHEET, wanted.has(MARKER_SHEET) ? [...(rowsBySheetName.get(MARKER_SHEET) || [])] : []],
+            [APPROVER_SHEET, wanted.has(APPROVER_SHEET) ? [...(rowsBySheetName.get(APPROVER_SHEET) || [])] : []],
+        ]);
+    }
+
+    private static dropRolelessNonWorkerRows(rowsBySheetName: RowsBySheetName): RowsBySheetName {
+        const withRoles = (rows: BulkRow[]) => rows.filter((row) => this.extractRoleCodes(row).length > 0);
+        return new Map<string, BulkRow[]>([
+            [WORKER_SHEET, []],
+            [MARKER_SHEET, withRoles(rowsBySheetName.get(MARKER_SHEET) || [])],
+            [APPROVER_SHEET, withRoles(rowsBySheetName.get(APPROVER_SHEET) || [])],
+        ]);
     }
 
     private static sortRows(a: BulkRow, b: BulkRow): number {
