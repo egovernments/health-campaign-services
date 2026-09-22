@@ -202,7 +202,8 @@ export class TemplateClass {
                         existing, normalizedDates.enrollmentDateEpoch, normalizedDates.deEnrollmentDateEpoch, teamCode || "",
                         tenantId, registerUuid, individualId, row,
                         attendeesToCreate, attendeesToDelete, attendeesToUpdateTag, localizationMap,
-                        registerData
+                        registerData,
+                        isBulkMappingFlow
                     );
                 } else {
                     const staffType = isMarkerSheet ? "OWNER" : "APPROVER";
@@ -221,7 +222,8 @@ export class TemplateClass {
                         existing, normalizedDates.enrollmentDateEpoch, normalizedDates.deEnrollmentDateEpoch,
                         tenantId, registerUuid, individualId, staffType, row,
                         staffToCreate, staffToDelete, localizationMap,
-                        registerData
+                        registerData,
+                        isBulkMappingFlow
                     );
                 }
             }
@@ -495,7 +497,8 @@ export class TemplateClass {
         attendeesToDelete: Array<{ payload: any; row: any }>,
         attendeesToUpdateTag: Array<{ payload: any; row: any }>,
         localizationMap: Record<string, string>,
-        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }
+        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> },
+        allowEnrollmentDateChangeForExisting: boolean = false
     ): void {
         // Clamp dates to register boundaries
         const regStart = registerData.register.startDate;
@@ -532,7 +535,9 @@ export class TemplateClass {
         // Existing attendee — already de-enrolled
         if (existing.denrollmentDate) {
             // Date immutability: reject if calendar dates differ (tolerates epoch differences from timezone migration)
-            if (clampedEnrollment !== null && existing.enrollmentDate != null
+            if (!allowEnrollmentDateChangeForExisting
+                && clampedEnrollment !== null
+                && existing.enrollmentDate != null
                 && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
@@ -545,7 +550,8 @@ export class TemplateClass {
             }
 
             // Populate row with existing final state (merge)
-            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(existing.enrollmentDate);
+            const mergedEnrollment = clampedEnrollment ?? existing.enrollmentDate;
+            if (mergedEnrollment != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(mergedEnrollment);
             if (existing.denrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = this.formatEpochAsDate(existing.denrollmentDate);
             const existingTag = existing.tag || "";
             row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = teamCode || existingTag || row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"];
@@ -563,7 +569,9 @@ export class TemplateClass {
         }
 
         // Active attendee — date immutability: reject if calendar date of enrollmentDate is changed
-        if (clampedEnrollment !== null && existing.enrollmentDate != null
+        if (!allowEnrollmentDateChangeForExisting
+            && clampedEnrollment !== null
+            && existing.enrollmentDate != null
             && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
             row["#status#"] = sheetDataRowStatuses.INVALID;
             row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
@@ -616,7 +624,8 @@ export class TemplateClass {
         staffToCreate: Array<{ payload: any; row: any }>,
         staffToDelete: Array<{ payload: any; row: any }>,
         localizationMap: Record<string, string>,
-        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }
+        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> },
+        allowEnrollmentDateChangeForExisting: boolean = false
     ): void {
         // Clamp dates to register boundaries
         const regStart = registerData.register.startDate;
@@ -653,7 +662,9 @@ export class TemplateClass {
         // Existing staff — already de-enrolled
         if (existing.denrollmentDate) {
             // Date immutability: reject if calendar dates differ (tolerates epoch differences from timezone migration)
-            if (clampedEnrollment !== null && existing.enrollmentDate != null
+            if (!allowEnrollmentDateChangeForExisting
+                && clampedEnrollment !== null
+                && existing.enrollmentDate != null
                 && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
@@ -664,14 +675,17 @@ export class TemplateClass {
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE", localizationMap) || "Cannot change de-enrollment date for this register";
                 return;
             }
-            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(existing.enrollmentDate);
+            const mergedStaffEnrollment = clampedEnrollment ?? existing.enrollmentDate;
+            if (mergedStaffEnrollment != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(mergedStaffEnrollment);
             if (existing.denrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = this.formatEpochAsDate(existing.denrollmentDate);
             row["#status#"] = sheetDataRowStatuses.CREATED;
             return;
         }
 
         // Active staff — date immutability: reject if calendar date of enrollmentDate is changed
-        if (clampedEnrollment !== null && existing.enrollmentDate != null
+        if (!allowEnrollmentDateChangeForExisting
+            && clampedEnrollment !== null
+            && existing.enrollmentDate != null
             && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
             row["#status#"] = sheetDataRowStatuses.INVALID;
             row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";

@@ -516,6 +516,47 @@ describe("TemplateClass.process date range validation", () => {
         expect(processedRow["#errorDetails#"]).toBeUndefined();
     });
 
+    test("allows enrollment date edits for existing rows in bulk mapping flow", async () => {
+        mockHttpForValidationFlow(
+            undefined,
+            {
+                attendees: [{
+                    individualId: "ind-usr-4b",
+                    registerId: "register-uuid-1",
+                    enrollmentDate: Date.UTC(2026, 3, 5, 0, 0, 0, 0),
+                    denrollmentDate: null
+                }]
+            }
+        );
+
+        const wholeSheetData = {
+            HCM_REGISTER_WORKER_SHEET: [{
+                "!row#number!": 6,
+                HCM_ATTENDANCE_REGISTER_ID: "REG-001",
+                UserName: "usr-4b",
+                HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: "06/04/2026",
+                HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE: "",
+                HCM_ATTENDANCE_ATTENDEE_TEAM_CODE: "TEAM-4",
+            }],
+            ...emptyOtherSheets,
+        };
+
+        const result = await TemplateClass.process(
+            {
+                ...baseResourceDetails,
+                type: "attendanceRegisterUserBulkMappingValidation",
+                additionalDetails: {}
+            },
+            wholeSheetData,
+            {},
+            {}
+        );
+
+        const processedRow = result.HCM_REGISTER_WORKER_SHEET.data[0];
+        expect(processedRow["#status#"]).toBeUndefined();
+        expect(processedRow["#errorDetails#"]).toBeUndefined();
+    });
+
     test("keeps immutable-date error for non-bulk attendee flow", async () => {
         mockHttpForValidationFlow(
             undefined,
