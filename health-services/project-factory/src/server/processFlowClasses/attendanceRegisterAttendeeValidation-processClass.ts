@@ -38,7 +38,7 @@ type DateParts = { year: number; month: number; day: number };
 /**
  * Validation process class for Attendance Register Attendee Mapping.
  * Validates date formats, date ranges, register ID presence, and truth-table business rules
- * (date immutability, enrollment required for new records).
+ * (enrollment required for new records).
  */
 export class TemplateClass {
     static async process(
@@ -275,7 +275,7 @@ export class TemplateClass {
                 teamCode,
                 row,
                 localizationMap,
-                isBulkMappingFlow
+                true
             );
         }
 
@@ -310,7 +310,7 @@ export class TemplateClass {
         teamCode: string,
         row: any,
         localizationMap: Record<string, string>,
-        allowEnrollmentDateChangeForExisting: boolean = false
+        allowEnrollmentDateChangeForExisting: boolean = true
     ): void {
         if (!existing) {
             // NEW record — Section A (attendee) or Section D (staff)

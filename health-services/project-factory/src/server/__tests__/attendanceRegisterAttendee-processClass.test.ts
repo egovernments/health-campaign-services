@@ -100,7 +100,7 @@ function callCollectAttendeeOperation(
     teamCode: string,
     row: any,
     registerData: any = REGISTER_DATA,
-    allowEnrollmentDateChangeForExisting: boolean = false
+    allowEnrollmentDateChangeForExisting: boolean = true
 ): { attendeesToCreate: any[]; attendeesToDelete: any[]; attendeesToUpdateTag: any[] } {
     const attendeesToCreate: any[] = [];
     const attendeesToDelete: any[] = [];
@@ -131,7 +131,7 @@ function callCollectStaffOperation(
     staffType: string,
     row: any,
     registerData: any = REGISTER_DATA,
-    allowEnrollmentDateChangeForExisting: boolean = false
+    allowEnrollmentDateChangeForExisting: boolean = true
 ): { staffToCreate: any[]; staffToDelete: any[] } {
     const staffToCreate: any[] = [];
     const staffToDelete: any[] = [];
@@ -326,25 +326,13 @@ describe("collectAttendeeOperation", () => {
         expect(attendeesToUpdateTag).toHaveLength(0);
     });
 
-    // ── Existing active attendees — enrollment date is immutable ─────────
+    // ── Existing active attendees — enrollment date can be edited ────────
 
-    test("A8: Existing active, enrollment changed → INVALID (date immutability)", () => {
+    test("A8: Existing active, enrollment changed → CREATED", () => {
         const row = makeRow();
         const existing = { id: "att-1", enrollmentDate: OLD_ENROLLMENT_EPOCH };
         const { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag } = callCollectAttendeeOperation(
             existing, ENROLLMENT_EPOCH, null, "", row
-        );
-        expect(row["#status#"]).toBe(sheetDataRowStatuses.INVALID);
-        expect(attendeesToCreate).toHaveLength(0);
-        expect(attendeesToDelete).toHaveLength(0);
-        expect(attendeesToUpdateTag).toHaveLength(0);
-    });
-
-    test("A8b: Existing active, enrollment changed with edit flag → CREATED", () => {
-        const row = makeRow();
-        const existing = { id: "att-1", enrollmentDate: OLD_ENROLLMENT_EPOCH };
-        const { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag } = callCollectAttendeeOperation(
-            existing, ENROLLMENT_EPOCH, null, "", row, REGISTER_DATA, true
         );
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
         expect(attendeesToCreate).toHaveLength(0);
@@ -372,16 +360,16 @@ describe("collectAttendeeOperation", () => {
         expect(attendeesToUpdateTag[0].payload.tag).toBe("T2");
     });
 
-    test("A11: Existing active, enrollment + de-enrollment + tag changed → INVALID (enrollment date immutable)", () => {
+    test("A11: Existing active, enrollment + de-enrollment + tag changed → de-enrollment/tag operations queued", () => {
         const row = makeRow();
         const existing = { id: "att-1", enrollmentDate: OLD_ENROLLMENT_EPOCH, tag: "T1" };
         const { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag } = callCollectAttendeeOperation(
             existing, ENROLLMENT_EPOCH, DEENROLLMENT_EPOCH, "T2", row
         );
-        expect(row["#status#"]).toBe(sheetDataRowStatuses.INVALID);
+        expect(row["#status#"]).toBeUndefined();
         expect(attendeesToCreate).toHaveLength(0);
-        expect(attendeesToDelete).toHaveLength(0);
-        expect(attendeesToUpdateTag).toHaveLength(0);
+        expect(attendeesToDelete).toHaveLength(1);
+        expect(attendeesToUpdateTag).toHaveLength(1);
     });
 });
 
@@ -484,24 +472,13 @@ describe("collectStaffOperation", () => {
         expect(staffToDelete).toHaveLength(0);
     });
 
-    // ── Existing active staff — enrollment date is immutable ─────────────
+    // ── Existing active staff — enrollment date can be edited ────────────
 
-    test("B7: Existing active staff, enrollment changed → INVALID (date immutability)", () => {
+    test("B7: Existing active staff, enrollment changed → CREATED", () => {
         const row = makeRow();
         const existing = { id: "staff-1", enrollmentDate: OLD_ENROLLMENT_EPOCH, staffType: "OWNER" };
         const { staffToCreate, staffToDelete } = callCollectStaffOperation(
             existing, ENROLLMENT_EPOCH, null, "OWNER", row
-        );
-        expect(row["#status#"]).toBe(sheetDataRowStatuses.INVALID);
-        expect(staffToCreate).toHaveLength(0);
-        expect(staffToDelete).toHaveLength(0);
-    });
-
-    test("B7b: Existing active staff, enrollment changed with edit flag → CREATED", () => {
-        const row = makeRow();
-        const existing = { id: "staff-1", enrollmentDate: OLD_ENROLLMENT_EPOCH, staffType: "OWNER" };
-        const { staffToCreate, staffToDelete } = callCollectStaffOperation(
-            existing, ENROLLMENT_EPOCH, null, "OWNER", row, REGISTER_DATA, true
         );
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
         expect(staffToCreate).toHaveLength(0);

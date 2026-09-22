@@ -203,7 +203,7 @@ export class TemplateClass {
                         tenantId, registerUuid, individualId, row,
                         attendeesToCreate, attendeesToDelete, attendeesToUpdateTag, localizationMap,
                         registerData,
-                        isBulkMappingFlow
+                        true
                     );
                 } else {
                     const staffType = isMarkerSheet ? "OWNER" : "APPROVER";
@@ -223,7 +223,7 @@ export class TemplateClass {
                         tenantId, registerUuid, individualId, staffType, row,
                         staffToCreate, staffToDelete, localizationMap,
                         registerData,
-                        isBulkMappingFlow
+                        true
                     );
                 }
             }
@@ -498,7 +498,7 @@ export class TemplateClass {
         attendeesToUpdateTag: Array<{ payload: any; row: any }>,
         localizationMap: Record<string, string>,
         registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> },
-        allowEnrollmentDateChangeForExisting: boolean = false
+        allowEnrollmentDateChangeForExisting: boolean = true
     ): void {
         // Clamp dates to register boundaries
         const regStart = registerData.register.startDate;
@@ -625,7 +625,7 @@ export class TemplateClass {
         staffToDelete: Array<{ payload: any; row: any }>,
         localizationMap: Record<string, string>,
         registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> },
-        allowEnrollmentDateChangeForExisting: boolean = false
+        allowEnrollmentDateChangeForExisting: boolean = true
     ): void {
         // Clamp dates to register boundaries
         const regStart = registerData.register.startDate;

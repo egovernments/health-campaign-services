@@ -557,7 +557,7 @@ describe("TemplateClass.process date range validation", () => {
         expect(processedRow["#errorDetails#"]).toBeUndefined();
     });
 
-    test("keeps immutable-date error for non-bulk attendee flow", async () => {
+    test("allows enrollment date edits for non-bulk attendee flow", async () => {
         mockHttpForValidationFlow(
             undefined,
             {
@@ -594,7 +594,7 @@ describe("TemplateClass.process date range validation", () => {
         );
 
         const processedRow = result.HCM_REGISTER_WORKER_SHEET.data[0];
-        expect(processedRow["#status#"]).toBe("INVALID");
-        expect(processedRow["#errorDetails#"]).toContain("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE");
+        expect(processedRow["#status#"]).toBeUndefined();
+        expect(processedRow["#errorDetails#"]).toBeUndefined();
     });
 });
