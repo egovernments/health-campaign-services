@@ -1441,6 +1441,105 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(markerRows[0].UserName).toBe("USR-957854");
     });
 
+    it("backfills missing register markers from campaign users after requester owner rows are skipped", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-requester-owner-multi",
+                campaignNumber: "CMP-REQUESTER-OWNER-MULTI",
+                startDate: Date.UTC(2026, 7, 1),
+                endDate: Date.UTC(2026, 7, 31),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [], [
+            {
+                uniqueIdentifier: "ind-fallback-marker",
+                uniqueIdAfterProcess: "ind-fallback-marker",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-fallback-marker",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Fallback Marker",
+                    UserName: "fallback.marker",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN-1",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-dh",
+                uniqueIdAfterProcess: "ind-dh",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-dh",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "DH Marker",
+                    UserName: "USR-957854",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "ADMIN-2",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "TEAM_SUPERVISOR"
+                }
+            }
+        ]);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-req-1",
+                            serviceCode: "REG-REQ-1",
+                            name: "Register Requester 1",
+                            localityCode: "ADMIN-1",
+                            attendees: [],
+                            staff: [
+                                { userId: "ind-requester", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 7, 2), denrollmentDate: null }
+                            ]
+                        },
+                        {
+                            id: "reg-req-2",
+                            serviceCode: "REG-REQ-2",
+                            name: "Register Requester 2",
+                            localityCode: "ADMIN-2",
+                            attendees: [],
+                            staff: [
+                                { userId: "ind-requester", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 7, 2), denrollmentDate: null },
+                                { userId: "ind-dh", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 7, 2), denrollmentDate: null }
+                            ]
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        { id: "ind-requester", name: { givenName: "SMC", familyName: "Owner" }, userDetails: { username: "BEDNET-CM-1" } },
+                        { id: "ind-dh", name: { givenName: "DH", familyName: "Owner" }, userDetails: { username: "USR-957854" } }
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            {
+                tenantId: "bednet",
+                campaignId: "cmp-requester-owner-multi",
+                requestInfo: {
+                    userInfo: {
+                        userName: "BEDNET-CM-1"
+                    }
+                }
+            },
+            {}
+        );
+
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        expect(markerRows).toHaveLength(2);
+        expect(markerRows.map((row) => row.HCM_ATTENDANCE_REGISTER_CODE).sort()).toEqual(["REG-REQ-1", "REG-REQ-2"]);
+        expect(markerRows.map((row) => row.UserName)).not.toContain("BEDNET-CM-1");
+        expect(markerRows.find((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-REQ-1")?.UserName).toBe("fallback.marker");
+        expect(markerRows.find((row) => row.HCM_ATTENDANCE_REGISTER_CODE === "REG-REQ-2")?.UserName).toBe("USR-957854");
+    });
+
     it("ignores localityCode and searches registers campaign-wide", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{

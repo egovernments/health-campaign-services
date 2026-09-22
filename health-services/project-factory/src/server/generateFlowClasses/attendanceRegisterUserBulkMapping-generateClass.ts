@@ -94,6 +94,9 @@ interface IndividualProfile {
 type BulkRow = Record<string, string>;
 type RowsBySheetName = Map<string, BulkRow[]>;
 type DedupedRowsBySheetName = Map<string, Map<string, BulkRow>>;
+interface AttendanceStateBuildMeta {
+    skippedRequesterOwnerNoRolesRegisterKeys: Set<string>;
+}
 
 /**
  * Generates a bulk mapping workbook with the same 3 attendee tabs and columns,
@@ -291,7 +294,8 @@ export class TemplateClass {
         requestInfo: RequestInfo | undefined,
         requestingUsername: string,
         campaignStartDate: string,
-        campaignEndDate: string
+        campaignEndDate: string,
+        buildMeta?: AttendanceStateBuildMeta
     ): Promise<RowsBySheetName> {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
         if (!registers.length) return this.flattenRowsBySheetName(dedupedRowsBySheetName);
@@ -384,6 +388,7 @@ export class TemplateClass {
                     && profileUsername === normalizedRequestingUsername;
                 if (skipRequesterOwnerWithoutRoles) {
                     skippedRequesterOwnerWithoutRoles++;
+                    buildMeta?.skippedRequesterOwnerNoRolesRegisterKeys.add(registerKey);
                     if (staffResolutionSamples.length < 50) {
                         staffResolutionSamples.push({
                             registerCode: register.serviceCode,
@@ -470,6 +475,10 @@ export class TemplateClass {
             return rowsFromStoredData;
         }
 
+        const attendanceStateBuildMeta: AttendanceStateBuildMeta = {
+            skippedRequesterOwnerNoRolesRegisterKeys: new Set<string>()
+        };
+
         const rowsFromCampaignUsers = await this.buildRowsFromCampaignUsers(
             registers,
             campaignUserRows,
@@ -488,7 +497,8 @@ export class TemplateClass {
             requestInfo,
             this.asText((requestInfo as any)?.userInfo?.userName),
             campaignStartDate,
-            campaignEndDate
+            campaignEndDate,
+            attendanceStateBuildMeta
         );
         this.logBulkTrace("rows-from-attendance-state", {
             rowSummary: this.summarizeRowsBySheetName(rowsFromAttendanceState)
@@ -528,14 +538,27 @@ export class TemplateClass {
             workerRowsFromRegisterMappings,
             nonWorkerRowsFromRegisterMappings
         );
-        const campaignRowsForUnmappedRegisterSheets = this.restrictCampaignFallbackToWorkerRows(
-            this.filterRowsForMissingRegisterSheets(
-                rowsFromCampaignUsers,
-                rowsFromRegisterMappings
-            )
+        const campaignRowsForMissingRegisterSheets = this.filterRowsForMissingRegisterSheets(
+            rowsFromCampaignUsers,
+            rowsFromRegisterMappings
+        );
+        const campaignWorkerRowsForUnmappedRegisterSheets = this.restrictCampaignFallbackToWorkerRows(
+            campaignRowsForMissingRegisterSheets
+        );
+        const campaignNonWorkerRowsForSkippedRequesterOwnerRegisters = this.pickCampaignNonWorkerFallbackRows(
+            campaignRowsForMissingRegisterSheets,
+            attendanceStateBuildMeta.skippedRequesterOwnerNoRolesRegisterKeys,
+            this.asText((requestInfo as any)?.userInfo?.userName)
+        );
+        const campaignRowsForUnmappedRegisterSheets = this.mergeRowsBySheetName(
+            campaignWorkerRowsForUnmappedRegisterSheets,
+            campaignNonWorkerRowsForSkippedRequesterOwnerRegisters
         );
         this.logBulkTrace("rows-from-campaign-user-fallback", {
-            rowSummary: this.summarizeRowsBySheetName(campaignRowsForUnmappedRegisterSheets)
+            rowSummary: this.summarizeRowsBySheetName(campaignRowsForUnmappedRegisterSheets),
+            skippedRequesterOwnerNoRolesRegisterKeys: Array.from(
+                attendanceStateBuildMeta.skippedRequesterOwnerNoRolesRegisterKeys
+            )
         });
 
         if (this.containsMappedRows(rowsFromRegisterMappings)) {
@@ -1503,6 +1526,34 @@ export class TemplateClass {
             [WORKER_SHEET, []],
             [MARKER_SHEET, withRoles(rowsBySheetName.get(MARKER_SHEET) || [])],
             [APPROVER_SHEET, withRoles(rowsBySheetName.get(APPROVER_SHEET) || [])],
+        ]);
+    }
+
+    private static pickCampaignNonWorkerFallbackRows(
+        rowsBySheetName: RowsBySheetName,
+        eligibleRegisterKeys: Set<string>,
+        requestingUsername: string
+    ): RowsBySheetName {
+        if (!eligibleRegisterKeys.size) {
+            return new Map<string, BulkRow[]>([
+                [WORKER_SHEET, []],
+                [MARKER_SHEET, []],
+                [APPROVER_SHEET, []],
+            ]);
+        }
+
+        const normalizedRequestingUsername = this.asText(requestingUsername).toUpperCase();
+        const includeRow = (row: BulkRow): boolean => {
+            const registerKey = this.rowRegisterKey(row);
+            if (!registerKey || !eligibleRegisterKeys.has(registerKey)) return false;
+            if (!normalizedRequestingUsername) return true;
+            return this.asText(row[USERNAME_COLUMN]).toUpperCase() !== normalizedRequestingUsername;
+        };
+
+        return new Map<string, BulkRow[]>([
+            [WORKER_SHEET, []],
+            [MARKER_SHEET, (rowsBySheetName.get(MARKER_SHEET) || []).filter(includeRow)],
+            [APPROVER_SHEET, (rowsBySheetName.get(APPROVER_SHEET) || []).filter(includeRow)],
         ]);
     }
 
