@@ -11,7 +11,6 @@ import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
 import org.egov.excelingestion.web.models.mdms.ProcessSheetData;
 import org.egov.excelingestion.web.models.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.processor.IWorkbookProcessor;
 import org.egov.excelingestion.processor.ISheetDataProcessor;
 import org.egov.excelingestion.web.models.ProcessResource;
@@ -38,6 +37,8 @@ import java.util.Set;
 @Service
 @Slf4j
 public class ConfigBasedProcessingService {
+    private static final String TEMPLATE_METADATA_SHEET_NAME = "_hcm_template_meta_";
+    private static final String TEMPLATE_METADATA_MARKER = "__HCM_TEMPLATE_METADATA__";
 
     private final MDMSConfigService mdmsConfigService;
     private final CustomExceptionHandler exceptionHandler;
@@ -86,7 +87,7 @@ public class ConfigBasedProcessingService {
             String sheetName = sheet.getSheetName();
 
             // Skip hidden sheets
-            if (isHiddenSheet(sheetName)) {
+            if (isHiddenSheet(sheet)) {
                 log.info("Skipping hidden sheet: {}", sheetName);
                 continue;
             }
@@ -169,8 +170,9 @@ public class ConfigBasedProcessingService {
         // Get all non-hidden sheet names from workbook
         Set<String> workbookSheets = new HashSet<>();
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-            String name = workbook.getSheetAt(i).getSheetName();
-            if (!isHiddenSheet(name)) {
+            Sheet sheet = workbook.getSheetAt(i);
+            String name = sheet.getSheetName();
+            if (!isHiddenSheet(sheet)) {
                 workbookSheets.add(name);
             }
         }
@@ -230,8 +232,29 @@ public class ConfigBasedProcessingService {
     /**
      * Check if a sheet is a hidden sheet
      */
+    public boolean isHiddenSheet(Sheet sheet) {
+        if (sheet == null) return false;
+        final String sheetName = sheet.getSheetName();
+
+        if (isHiddenSheet(sheetName)) return true;
+
+        Workbook workbook = sheet.getWorkbook();
+        if (workbook != null) {
+            int sheetIndex = workbook.getSheetIndex(sheet);
+            if (sheetIndex >= 0 && (workbook.isSheetHidden(sheetIndex) || workbook.isSheetVeryHidden(sheetIndex))) {
+                return true;
+            }
+        }
+
+        org.apache.poi.ss.usermodel.Row markerRow = sheet.getRow(0);
+        String marker = markerRow == null ? "" : ExcelUtil.getCellValueAsString(markerRow.getCell(0));
+        return TEMPLATE_METADATA_MARKER.equals(marker == null ? "" : marker.trim());
+    }
+
     public boolean isHiddenSheet(String sheetName) {
-        return sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_");
+        if (sheetName == null) return false;
+        return (sheetName.startsWith("_h_") && sheetName.endsWith("_h_"))
+                || TEMPLATE_METADATA_SHEET_NAME.equals(sheetName);
     }
 
     /**

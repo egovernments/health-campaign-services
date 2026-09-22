@@ -128,10 +128,11 @@ public class ExcelProcessingService {
                 // immutable data. No-op for legacy/protected files (no embedded generationId).
                 Map<String, Map<String, Object>> sheetNameToSchema = new HashMap<>();
                 for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-                    String sheetName = workbook.getSheetAt(i).getSheetName();
-                    if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
+                    Sheet sheet = workbook.getSheetAt(i);
+                    if (configBasedProcessingService.isHiddenSheet(sheet)) {
                         continue;
                     }
+                    String sheetName = sheet.getSheetName();
                     Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(),
                             mergedLocalizationMap, preValidatedSchemas, request.getRequestInfo(), tenantId);
 
@@ -167,13 +168,12 @@ public class ExcelProcessingService {
                 Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
                 for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                     Sheet sheet = workbook.getSheetAt(i);
-                    String sheetName = sheet.getSheetName();
 
-                    // Skip hidden sheets (wrapped in _h_ prefix and suffix)
-                    if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
-                        log.debug("Skipping hidden sheet in validation column processing: {}", sheetName);
+                    if (configBasedProcessingService.isHiddenSheet(sheet)) {
+                        log.debug("Skipping hidden sheet in validation column processing: {}", sheet.getSheetName());
                         continue;
                     }
+                    String sheetName = sheet.getSheetName();
 
                     // Step 1: Regular MDMS schema validation for all sheets (if errors exist)
                     List<ValidationError> sheetErrors = validationErrors.stream()
@@ -211,11 +211,10 @@ public class ExcelProcessingService {
                 // Step 3: Handle post-processing (persistence and event publishing) - MOVED AFTER PROCESSORS
                 for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                     Sheet sheet = workbook.getSheetAt(i);
-                    String sheetName = sheet.getSheetName();
-
-                    if (configBasedProcessingService.isHiddenSheet(sheetName)) {
+                    if (configBasedProcessingService.isHiddenSheet(sheet)) {
                         continue; // Skip hidden sheets
                     }
+                    String sheetName = sheet.getSheetName();
 
                     // Convert sheet data again for post-processing (after processors have run) - CACHED VERSION
                     List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
@@ -254,12 +253,12 @@ public class ExcelProcessingService {
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            String sheetName = sheet.getSheetName();
 
             // Skip hidden helper sheets (canonical _h_…_h_ check)
-            if (configBasedProcessingService.isHiddenSheet(sheetName)) {
+            if (configBasedProcessingService.isHiddenSheet(sheet)) {
                 continue;
             }
+            String sheetName = sheet.getSheetName();
 
             // Rows 0 and 1 are the technical + localized header rows; data starts at row 2.
             int actualLastRow = ExcelUtil.findActualLastRowWithData(sheet);
@@ -286,13 +285,12 @@ public class ExcelProcessingService {
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            String sheetName = sheet.getSheetName();
 
-            // Skip hidden sheets (wrapped in _h_ prefix and suffix)
-            if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
-                log.info("Skipping validation for hidden sheet: {}", sheetName);
+            if (configBasedProcessingService.isHiddenSheet(sheet)) {
+                log.info("Skipping validation for hidden sheet: {}", sheet.getSheetName());
                 continue;
             }
+            String sheetName = sheet.getSheetName();
 
             log.info("Validating sheet: {}", sheetName);
 
