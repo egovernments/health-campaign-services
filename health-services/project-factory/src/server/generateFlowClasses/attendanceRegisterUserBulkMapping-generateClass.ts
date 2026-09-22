@@ -203,15 +203,27 @@ export class TemplateClass {
     ): RowsBySheetName {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
         const hasStampedRowsByServiceCode = this.collectHasStampedRowsByServiceCode(attendeeRows);
+        let skippedMissingRawData = 0;
+        let skippedRegisterResolution = 0;
+        let skippedRegisterInstance = 0;
+        let skippedSheetResolution = 0;
+        let acceptedRows = 0;
+        const acceptedNonWorkerSamples: Record<string, string>[] = [];
 
         for (const attendeeRow of attendeeRows) {
             if (attendeeRow?.isDeleted) continue;
 
             const rawData = this.asRecord(attendeeRow?.data);
-            if (!rawData) continue;
+            if (!rawData) {
+                skippedMissingRawData++;
+                continue;
+            }
 
             const register = this.resolveRegister(rawData, attendeeRow?.uniqueIdAfterProcess, registerByServiceCode, registerById);
-            if (!register) continue;
+            if (!register) {
+                skippedRegisterResolution++;
+                continue;
+            }
 
             const rowServiceCode = this.storedRowServiceCode(rawData, register.serviceCode);
             if (!this.belongsToRegisterInstance(
@@ -219,11 +231,15 @@ export class TemplateClass {
                 attendeeRow?.uniqueIdAfterProcess,
                 hasStampedRowsByServiceCode.get(rowServiceCode) === true
             )) {
+                skippedRegisterInstance++;
                 continue;
             }
 
             const sheetName = this.resolveSheetName(rawData);
-            if (!sheetName) continue;
+            if (!sheetName) {
+                skippedSheetResolution++;
+                continue;
+            }
 
             const row = this.buildMappedRow(register, sheetName, rawData, attendeeRow?.denrollmentDate, campaignStartDate, campaignEndDate);
             const dedupeKey = `${this.registerIdentity(register)}::${sheetName}::${this.personIdentity(rawData, attendeeRow?.uniqueIdentifier)}`;
@@ -232,9 +248,32 @@ export class TemplateClass {
             if (!sheetRows) continue;
             const existing = sheetRows.get(dedupeKey);
             sheetRows.set(dedupeKey, existing ? this.mergeRows(existing, row) : row);
+            acceptedRows++;
+            if (sheetName !== WORKER_SHEET && acceptedNonWorkerSamples.length < 30) {
+                acceptedNonWorkerSamples.push({
+                    registerCode: this.asText(row[REGISTER_CODE_COLUMN]),
+                    registerUuid: this.asText(row[REGISTER_UUID_COLUMN]),
+                    sheetName,
+                    workerId: this.asText(row[WORKER_ID_COLUMN]),
+                    userName: this.asText(row[USER_NAME_COLUMN]),
+                    username: this.asText(row[USERNAME_COLUMN]),
+                });
+            }
         }
 
-        return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        const rowsBySheetName = this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        this.logBulkTrace("stored-rows-build-summary", {
+            totalInputRows: Array.isArray(attendeeRows) ? attendeeRows.length : 0,
+            totalRegisters: registers.length,
+            acceptedRows,
+            skippedMissingRawData,
+            skippedRegisterResolution,
+            skippedRegisterInstance,
+            skippedSheetResolution,
+            rowSummary: this.summarizeRowsBySheetName(rowsBySheetName),
+            acceptedNonWorkerSamples,
+        });
+        return rowsBySheetName;
     }
 
     private static restrictCampaignFallbackToWorkerRows(rowsBySheetName: RowsBySheetName): RowsBySheetName {
@@ -255,6 +294,13 @@ export class TemplateClass {
     ): Promise<RowsBySheetName> {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
         if (!registers.length) return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        const staffResolutionSamples: Record<string, string>[] = [];
+        let staffRowsSeen = 0;
+        let skippedStaffWithoutPersonId = 0;
+        let skippedDuplicateStaffIdentity = 0;
+        let skippedStaffWithoutSheetResolution = 0;
+        let markerRowsBuilt = 0;
+        let approverRowsBuilt = 0;
 
         const personIds = new Set<string>();
         for (const register of registers) {
@@ -312,20 +358,43 @@ export class TemplateClass {
 
             const seenStaffIdentities = new Set<string>();
             for (const staff of register.staff || []) {
+                staffRowsSeen++;
                 const personId = this.asText(staff?.userId);
-                if (!personId) continue;
+                if (!personId) {
+                    skippedStaffWithoutPersonId++;
+                    continue;
+                }
                 const staffType = this.asText(staff?.staffType).toUpperCase();
                 const staffIdentity = `${personId}::${staffType || "__UNKNOWN__"}`;
-                if (seenStaffIdentities.has(staffIdentity)) continue;
+                if (seenStaffIdentities.has(staffIdentity)) {
+                    skippedDuplicateStaffIdentity++;
+                    continue;
+                }
                 seenStaffIdentities.add(staffIdentity);
 
+                const roleCodes = roleCodesByIndividualId.get(personId) || [];
                 const staffSheet = this.resolveAttendanceStaffSheet(
                     staffType,
-                    roleCodesByIndividualId.get(personId) || []
+                    roleCodes
                 );
-                if (!staffSheet) continue;
-
                 const profile = profiles.get(personId);
+                if (staffResolutionSamples.length < 50) {
+                    staffResolutionSamples.push({
+                        registerCode: register.serviceCode,
+                        registerUuid: register.id,
+                        personId,
+                        username: this.firstNonBlank(profile?.username, personId),
+                        staffType,
+                        resolvedSheet: staffSheet?.sheetName || "SKIPPED",
+                        roleCodes: roleCodes.join(","),
+                        resolvedRoleCodes: (staffSheet?.roleCodes || []).join(","),
+                    });
+                }
+                if (!staffSheet) {
+                    skippedStaffWithoutSheetResolution++;
+                    continue;
+                }
+
                 const dedupeKey = `${registerKey}::${staffSheet.sheetName}::${personId}`;
                 const row = this.buildAttendanceStateStaffRow(
                     register,
@@ -338,10 +407,25 @@ export class TemplateClass {
                     campaignEndDate
                 );
                 dedupedRowsBySheetName.get(staffSheet.sheetName)?.set(dedupeKey, row);
+                if (staffSheet.sheetName === MARKER_SHEET) markerRowsBuilt++;
+                if (staffSheet.sheetName === APPROVER_SHEET) approverRowsBuilt++;
             }
         }
 
-        return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        const rowsBySheetName = this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        this.logBulkTrace("attendance-state-build-summary", {
+            campaignNumber,
+            registerCount: registers.length,
+            staffRowsSeen,
+            skippedStaffWithoutPersonId,
+            skippedDuplicateStaffIdentity,
+            skippedStaffWithoutSheetResolution,
+            markerRowsBuilt,
+            approverRowsBuilt,
+            rowSummary: this.summarizeRowsBySheetName(rowsBySheetName),
+            staffResolutionSamples,
+        });
+        return rowsBySheetName;
     }
 
     private static async buildOutputRowsBySheetName(
@@ -379,6 +463,9 @@ export class TemplateClass {
             campaignStartDate,
             campaignEndDate
         );
+        this.logBulkTrace("rows-from-attendance-state", {
+            rowSummary: this.summarizeRowsBySheetName(rowsFromAttendanceState)
+        });
 
         const workerRowsFromAttendanceState = this.sliceRowsBySheets(rowsFromAttendanceState, [WORKER_SHEET]);
         const nonWorkerRowsFromAttendanceState = this.sliceRowsBySheets(rowsFromAttendanceState, NON_WORKER_SHEETS);
@@ -386,6 +473,10 @@ export class TemplateClass {
         const nonWorkerRowsFromStoredData = this.dropRolelessNonWorkerRows(
             this.sliceRowsBySheets(rowsFromStoredData, NON_WORKER_SHEETS)
         );
+        this.logBulkTrace("rows-from-stored-data", {
+            rowSummary: this.summarizeRowsBySheetName(rowsFromStoredData),
+            nonWorkerRowSummaryAfterRoleFilter: this.summarizeRowsBySheetName(nonWorkerRowsFromStoredData)
+        });
 
         const workerRowsFromRegisterMappings = this.mergeRowsBySheetName(
             workerRowsFromAttendanceState,
@@ -401,6 +492,10 @@ export class TemplateClass {
                 nonWorkerRowsFromStoredData
             )
         );
+        this.logBulkTrace("rows-after-register-mapping-merge", {
+            workerRowSummary: this.summarizeRowsBySheetName(workerRowsFromRegisterMappings),
+            nonWorkerRowSummary: this.summarizeRowsBySheetName(nonWorkerRowsFromRegisterMappings)
+        });
 
         const rowsFromRegisterMappings = this.mergeRowsBySheetName(
             workerRowsFromRegisterMappings,
@@ -412,15 +507,28 @@ export class TemplateClass {
                 rowsFromRegisterMappings
             )
         );
+        this.logBulkTrace("rows-from-campaign-user-fallback", {
+            rowSummary: this.summarizeRowsBySheetName(campaignRowsForUnmappedRegisterSheets)
+        });
 
         if (this.containsMappedRows(rowsFromRegisterMappings)) {
-            return this.mergeRowsBySheetName(rowsFromRegisterMappings, campaignRowsForUnmappedRegisterSheets);
+            const mergedRows = this.mergeRowsBySheetName(rowsFromRegisterMappings, campaignRowsForUnmappedRegisterSheets);
+            this.logBulkTrace("final-rows-from-register-mapping", {
+                rowSummary: this.summarizeRowsBySheetName(mergedRows)
+            });
+            return mergedRows;
         }
 
         if (this.containsMappedRows(campaignRowsForUnmappedRegisterSheets)) {
+            this.logBulkTrace("final-rows-from-campaign-fallback", {
+                rowSummary: this.summarizeRowsBySheetName(campaignRowsForUnmappedRegisterSheets)
+            });
             return campaignRowsForUnmappedRegisterSheets;
         }
 
+        this.logBulkTrace("final-rows-from-attendance-state", {
+            rowSummary: this.summarizeRowsBySheetName(rowsFromAttendanceState)
+        });
         return rowsFromAttendanceState;
     }
 
@@ -1369,6 +1477,39 @@ export class TemplateClass {
             [MARKER_SHEET, withRoles(rowsBySheetName.get(MARKER_SHEET) || [])],
             [APPROVER_SHEET, withRoles(rowsBySheetName.get(APPROVER_SHEET) || [])],
         ]);
+    }
+
+    private static summarizeRowsBySheetName(rowsBySheetName: RowsBySheetName): Record<string, unknown> {
+        const summary: Record<string, unknown> = {};
+        for (const sheetName of SHEET_NAMES) {
+            const rows = rowsBySheetName.get(sheetName) || [];
+            const uniqueRegisters = Array.from(new Set(
+                rows.map((row) => this.firstNonBlank(
+                    this.asText(row[REGISTER_CODE_COLUMN]),
+                    this.asText(row[REGISTER_UUID_COLUMN]),
+                    this.asText(row[REGISTER_ID_COLUMN])
+                )).filter(Boolean)
+            ));
+            const sampleRows = rows.slice(0, 20).map((row) => ({
+                registerCode: this.asText(row[REGISTER_CODE_COLUMN]),
+                registerUuid: this.asText(row[REGISTER_UUID_COLUMN]),
+                workerId: this.asText(row[WORKER_ID_COLUMN]),
+                userName: this.asText(row[USER_NAME_COLUMN]),
+                username: this.asText(row[USERNAME_COLUMN]),
+                roles: this.extractRoleCodes(row).join(","),
+            }));
+            summary[sheetName] = {
+                rowCount: rows.length,
+                uniqueRegisterCount: uniqueRegisters.length,
+                registers: uniqueRegisters.slice(0, 20),
+                sampleRows,
+            };
+        }
+        return summary;
+    }
+
+    private static logBulkTrace(event: string, payload: Record<string, unknown>): void {
+        logger.info(`BULK-MAP-TRACE ${event} ${JSON.stringify(payload)}`);
     }
 
     private static sortRows(a: BulkRow, b: BulkRow): number {
