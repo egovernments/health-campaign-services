@@ -29,6 +29,8 @@ import { httpRequest } from '../utils/request';
 
 const SERVICE_CODE = 'MZ_01_REG';
 const CURRENT_UUID = 'reg-uuid-new';
+const MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
+const APPROVER_SHEET = "HCM_REGISTER_APPROVER_SHEET";
 
 // The fields the filter reads back from campaign_data
 interface StoredRow {
@@ -118,6 +120,19 @@ describe("default attendance campaign dates", () => {
 
         expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("05-04-2026");
         expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("30-04-2026");
+    });
+});
+
+describe("role classification", () => {
+    it("classifies CAMPAIGN_SUPERVISOR into approver sheet", () => {
+        const sheet = (TemplateClass as any).classifyUserToSheet(["CAMPAIGN_SUPERVISOR"]);
+        expect(sheet).toBe(APPROVER_SHEET);
+    });
+
+    it("keeps approver precedence when campaign supervisor and marker roles coexist", () => {
+        const sheet = (TemplateClass as any).classifyUserToSheet(["TEAM_SUPERVISOR", "CAMPAIGN_SUPERVISOR"]);
+        expect(sheet).toBe(APPROVER_SHEET);
+        expect(sheet).not.toBe(MARKER_SHEET);
     });
 });
 

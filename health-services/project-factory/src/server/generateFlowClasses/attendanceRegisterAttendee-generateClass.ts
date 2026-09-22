@@ -12,8 +12,8 @@ import { httpRequest } from "../utils/request";
 import config from "../config";
 
 // Role codes for classifying users into sheets (priority order — first match wins)
-const APPROVER_ROLES = new Set(["PROXIMITY_SUPERVISOR"]);
-const MARKER_ROLES = new Set(["WAREHOUSE_MANAGER", "TEAM_SUPERVISOR", "CAMPAIGN_SUPERVISOR"]);
+const APPROVER_ROLES = new Set(["PROXIMITY_SUPERVISOR", "CAMPAIGN_SUPERVISOR"]);
+const MARKER_ROLES = new Set(["WAREHOUSE_MANAGER", "TEAM_SUPERVISOR"]);
 const WORKER_ROLES = new Set(["DISTRIBUTOR", "REGISTRAR", "FIELD_SUPPORT", "HEALTH_FACILITY_WORKER"]);
 
 const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
