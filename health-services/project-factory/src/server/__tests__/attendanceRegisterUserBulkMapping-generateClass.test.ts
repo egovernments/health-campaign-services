@@ -93,6 +93,13 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         mockConfig.attendanceRegister.registerSearchReferenceIdChunkSize = 100;
     });
 
+    it("classifies CAMPAIGN_SUPERVISOR into approver sheet for bulk mapping", () => {
+        const sheet = (TemplateClass as any).classifyCampaignUserToSheet({
+            HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "CAMPAIGN_SUPERVISOR"
+        });
+        expect(sheet).toBe(APPROVER_SHEET);
+    });
+
     it("generates 3 attendee tabs using only actual mapped rows (no empty-register seeds)", async () => {
         const campaignStart = Date.UTC(2026, 0, 1);
         const campaignEnd = Date.UTC(2026, 0, 10);

@@ -30,6 +30,7 @@ const MARKER_ROLE_CODES = new Set([
 
 const APPROVER_ROLE_CODES = new Set([
     "PROXIMITY_SUPERVISOR",
+    "CAMPAIGN_SUPERVISOR",
 ]);
 
 const WORKER_ROLE_CODES = new Set([
