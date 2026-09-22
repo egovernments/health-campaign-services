@@ -101,6 +101,7 @@ import {
 } from "./microplanIntergration";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { getLocaleFromRequest, getLocaleFromRequestInfo } from "./localisationUtils";
+import { resolveCloneSourceCampaign, unifiedSheetOf } from "./cloneSourceUtils";
 import { generateDataService } from "../service/sheetManageService";
 import { CampaignResource, toCampaignResource } from "../config/models/resourceTypes";
 import Localisation from "../controllers/localisationController/localisation.controller";
@@ -2438,9 +2439,12 @@ async function borrowUnifiedSheetFromCloneCampaign(campaignDetails: any): Promis
   const cloneFromNumber = campaignDetails?.additionalDetails?.cloneFrom;
   if (!cloneFromNumber) return false;
 
-  const resp = await searchProjectTypeCampaignService({ tenantId: campaignDetails.tenantId, campaignNumber: cloneFromNumber });
-  const cloneFromCampaign = resp?.CampaignDetails?.[0];
-  const cloneFromUnified = cloneFromCampaign?.resources?.find((r: any) => r?.type === resourceTypes.unifiedConsoleResources);
+  // Resolved exactly as the launch-time validation resolved it (id first, number fallback); if the two
+  // ever disagreed, validation would pass a clone whose borrow then finds nothing.
+  const cloneFromCampaign = await resolveCloneSourceCampaign(
+    campaignDetails.tenantId, cloneFromNumber, campaignDetails?.additionalDetails?.clonedCampaignId
+  );
+  const cloneFromUnified = unifiedSheetOf(cloneFromCampaign);
 
   if (!cloneFromUnified?.filestoreId) {
     logger.warn(`Clone source campaign ${cloneFromNumber} has no unified-console-resources; cannot borrow sheet`);

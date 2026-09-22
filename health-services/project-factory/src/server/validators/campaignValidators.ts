@@ -18,6 +18,7 @@ import { CampaignResource } from "../config/models/resourceTypes";
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { resolveCloneSourceCampaign, unifiedSheetOf } from "../utils/cloneSourceUtils";
 import { campaignStatuses, resourceDataStatuses, resourceTypes, usageColumnStatus } from "../config/constants";
 import { getAllAllowedTypes } from "../config/resourceTypeRegistry";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
@@ -793,7 +794,35 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
     }
 }
 
-async function validateProjectCampaignResources(resources: CampaignResource[] | undefined, request: any, CampaignDetails?: any) {
+/**
+ * Non-null when the campaign being launched is a clone (not an ongoing-update child) whose source campaign
+ * carries an active unified workbook. Lineage is read from the PERSISTED campaign first: the console's
+ * launch payload rebuilds additionalDetails from a fixed key set and never carries cloneFrom or
+ * clonedCampaignId, and the update enrichment that re-applies the persisted lineage runs only after this
+ * validation. validateById has already loaded the persisted row into request.body.ExistingCampaignDetails
+ * on every update, so that is the authoritative source; the payload is only a fallback for API clients.
+ * Resolution uses the same criteria and sheet selector as the launch-time borrow, so validation cannot
+ * pass on one reading of the source and the borrow fail on another (a change in between is still possible).
+ * Returns the source campaign number when the borrow will succeed, null otherwise. Never throws.
+ */
+async function borrowableCloneSource(request: any, CampaignDetails: any): Promise<string | null> {
+    const persisted = request?.body?.ExistingCampaignDetails;
+    const lineageOwner = persisted?.additionalDetails?.cloneFrom || persisted?.additionalDetails?.clonedCampaignId ? persisted : CampaignDetails;
+    const cloneFrom = lineageOwner?.additionalDetails?.cloneFrom;
+    const clonedCampaignId = lineageOwner?.additionalDetails?.clonedCampaignId;
+    if ((!cloneFrom && !clonedCampaignId) || persisted?.parentId || CampaignDetails?.parentId) {
+        return null;
+    }
+    // The borrow itself keys on cloneFrom, so a clone that only carries clonedCampaignId would pass here
+    // and then have nothing to borrow; require what the borrow requires.
+    if (!cloneFrom) {
+        return null;
+    }
+    const source = await resolveCloneSourceCampaign(CampaignDetails?.tenantId || persisted?.tenantId, cloneFrom, clonedCampaignId);
+    return unifiedSheetOf(source) ? String(cloneFrom) : null;
+}
+
+export async function validateProjectCampaignResources(resources: CampaignResource[] | undefined, request: any, CampaignDetails?: any) {
     const requiredTypes = ["user", "facility", "boundary"];
     // Use registry to allow all registered types (includes attendanceRegister, attendanceRegisterAttendee, etc.)
     const allowedTypes = Array.from(new Set([...requiredTypes, "unified-console-resources", ...getAllAllowedTypes()]));
@@ -833,6 +862,17 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
     // If it's a child campaign, skip resource validation — all resources will be copied from parent in DB
     if (CampaignDetails?.parentId) {
         logger.info(`Child campaign detected (parentId=${CampaignDetails.parentId}) - skipping resource validation, resources will be copied from parent`);
+        return;
+    }
+
+    // A clone that never uploaded a sheet of its own launches on its source's unified workbook: the launch
+    // path borrows it (borrowUnifiedSheetFromCloneCampaign) AFTER this validation runs. Before the clone
+    // stopped inheriting the parent's file at create, that inherited entry satisfied the check above; now
+    // the borrow has to be anticipated here, or the unchanged-clone launch is rejected for a file the
+    // launch itself would have attached. Only a source that actually holds a unified workbook qualifies.
+    const borrowFrom = await borrowableCloneSource(request, CampaignDetails);
+    if (borrowFrom) {
+        logger.info(`Clone of ${borrowFrom} has no sheet of its own; the launch will borrow the source's unified sheet - skipping resource validation`);
         return;
     }
 
@@ -1165,25 +1205,9 @@ export async function prepareClonePayloadForCreate(request: any): Promise<void> 
         return;
     }
 
-    let source: any;
-    try {
-        // A campaignNumber lookup is ambiguous while a parent and its update child are both active — they
-        // share a number and the query has no ORDER BY — so prefer the id the console already sends.
-        // Both shapes return boundaries and resources: ids.length === 1 and campaignNumber each satisfy the
-        // search guard.
-        const searchResponse = await searchProjectTypeCampaignService(
-            clonedCampaignId
-                ? { tenantId: CampaignDetails?.tenantId, ids: [clonedCampaignId] }
-                : { tenantId: CampaignDetails?.tenantId, campaignNumber: cloneFrom }
-        );
-        source = searchResponse?.CampaignDetails?.[0];
-    } catch (error) {
-        logger.warn(`Failed to read clone source ${lineage}; creating the clone as sent: ${error}`);
-        if (mayDropInherited) {
-            logger.warn(`Clone of ${lineage} keeps ${ownUnifiedResources.length} unified sheet resource(s) that could not be checked against the source`);
-        }
-        return;
-    }
+    // Same resolver as the launch-time validation and borrow (id first, campaignNumber fallback), so all
+    // three see the same source campaign. Both shapes return boundaries and resources.
+    const source = await resolveCloneSourceCampaign(CampaignDetails?.tenantId, cloneFrom, clonedCampaignId);
     if (!source) {
         logger.warn(`Clone source ${lineage} did not resolve to a campaign; creating the clone as sent`);
         if (mayDropInherited) {

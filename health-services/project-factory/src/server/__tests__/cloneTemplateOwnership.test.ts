@@ -35,6 +35,10 @@ jest.mock('../api/campaignApis', () => ({
 }));
 jest.mock('../api/genericApis', () => ({ getSheetData: jest.fn(), getTargetWorkbook: jest.fn() }));
 jest.mock('../api/healthApis', () => ({ fetchProductVariants: jest.fn() }));
+jest.mock('../utils/resourceDetailsUtils', () => ({
+    ...jest.requireActual('../utils/resourceDetailsUtils'),
+    searchResourceDetailsFromDB: jest.fn(async () => []),
+}));
 jest.mock('../utils/campaignUtils', () => ({
     generateProcessedFileAndPersist: jest.fn(),
     getFinalValidHeadersForTargetSheetAsPerCampaignType: jest.fn(),
@@ -72,7 +76,7 @@ jest.mock('../utils/genericUtils', () => {
 });
 
 
-import { prepareClonePayloadForCreate, validateProjectCampaignRequest } from '../validators/campaignValidators';
+import { prepareClonePayloadForCreate, validateProjectCampaignRequest, validateProjectCampaignResources } from '../validators/campaignValidators';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 
 const mockSearch = jest.mocked(searchProjectTypeCampaignService);
@@ -271,5 +275,66 @@ describe('a clone is set up to generate its own template', () => {
 
         expect(request.body.CampaignDetails.resources).toEqual(parentResources);
         expect(request.body.CampaignDetails.boundaries).toEqual(sourceBoundaries);
+    });
+});
+
+describe('launch-time resource validation anticipates the borrow for a never-uploaded clone', () => {
+    afterEach(() => jest.clearAllMocks());
+
+    const persistedClone = (extra: any = {}) => ({
+        id: 'clone-uuid', tenantId: TENANT, parentId: null,
+        additionalDetails: { cloneFrom: PARENT_NUMBER, clonedCampaignId: PARENT_ID, isUnifiedCampaign: true },
+        ...extra,
+    });
+    // What the react19 console sends at launch: additionalDetails rebuilt from a fixed key set, no lineage.
+    const consoleLaunchPayload = () => ({
+        id: 'clone-uuid', tenantId: TENANT, action: 'create',
+        additionalDetails: { beneficiaryType: 'INDIVIDUAL', key: 2, cycleData: {}, isUnifiedCampaign: true },
+    });
+    const withPersisted = (existing: any) => ({ body: { ExistingCampaignDetails: existing } });
+
+    it('passes a CONSOLE-shaped launch (no lineage in the payload) when the persisted clone has a source with a unified sheet', async () => {
+        mockSearch.mockImplementation(routeSearch as any);
+        await expect(validateProjectCampaignResources([{ type: 'attendanceRegister', filestoreId: 'x' }] as any, withPersisted(persistedClone()), consoleLaunchPayload())).resolves.toBeUndefined();
+        expect(mockSearch).toHaveBeenCalledWith({ tenantId: TENANT, ids: [PARENT_ID] });
+    });
+
+    it('CONTROL: the same console-shaped payload with no persisted row is rejected (the pass above comes from ExistingCampaignDetails)', async () => {
+        mockSearch.mockImplementation(routeSearch as any);
+        await expect(validateProjectCampaignResources([] as any, { body: {} }, consoleLaunchPayload())).rejects.toMatchObject({ code: 'VALIDATION_ERROR_MISSING_RESOURCE' });
+        expect(mockSearch).not.toHaveBeenCalled();
+    });
+
+    it('passes an API launch that carries lineage in the payload itself', async () => {
+        mockSearch.mockImplementation(routeSearch as any);
+        const payload = { tenantId: TENANT, id: 'clone-uuid', additionalDetails: { cloneFrom: PARENT_NUMBER, clonedCampaignId: PARENT_ID } };
+        await expect(validateProjectCampaignResources([] as any, { body: {} }, payload)).resolves.toBeUndefined();
+    });
+
+    it('still rejects when the source has no unified workbook to borrow', async () => {
+        mockSearch.mockImplementation(((criteria: any) =>
+            Promise.resolve({ CampaignDetails: [{ ...sourceCampaign, resources: [] }] })) as any);
+        await expect(validateProjectCampaignResources([] as any, withPersisted(persistedClone()), consoleLaunchPayload())).rejects.toMatchObject({ code: 'VALIDATION_ERROR_MISSING_RESOURCE' });
+    });
+
+    it('does not apply to an ongoing-update child, even one whose persisted row carries lineage', async () => {
+        await expect(validateProjectCampaignResources([] as any, withPersisted(persistedClone({ parentId: 'root-uuid' })), consoleLaunchPayload())).rejects.toMatchObject({ code: 'VALIDATION_ERROR_MISSING_RESOURCE' });
+        expect(mockSearch).not.toHaveBeenCalled();
+    });
+
+    it('does not apply to a clone that carries clonedCampaignId only (the borrow keys on cloneFrom)', async () => {
+        const existing = persistedClone({ additionalDetails: { clonedCampaignId: PARENT_ID } });
+        await expect(validateProjectCampaignResources([] as any, withPersisted(existing), consoleLaunchPayload())).rejects.toMatchObject({ code: 'VALIDATION_ERROR_MISSING_RESOURCE' });
+        expect(mockSearch).not.toHaveBeenCalled();
+    });
+
+    it('does not apply to a non-clone campaign', async () => {
+        await expect(validateProjectCampaignResources([] as any, withPersisted({ id: 'x', tenantId: TENANT, additionalDetails: {} }), { tenantId: TENANT, additionalDetails: {} })).rejects.toMatchObject({ code: 'VALIDATION_ERROR_MISSING_RESOURCE' });
+        expect(mockSearch).not.toHaveBeenCalled();
+    });
+
+    it('never throws from the source lookup itself', async () => {
+        mockSearch.mockRejectedValue(new Error('search exploded'));
+        await expect(validateProjectCampaignResources([] as any, withPersisted(persistedClone()), consoleLaunchPayload())).rejects.toMatchObject({ code: 'VALIDATION_ERROR_MISSING_RESOURCE' });
     });
 });
