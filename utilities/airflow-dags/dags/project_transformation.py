@@ -71,6 +71,13 @@ def _count_bronze_records(client, start_dt, end_dt) -> int:
     given id's dedup carry a different _ingested_at than the duplicate that
     actually fell inside [start_dt, end_dt) -- undercounting or pagination
     drift against _iter_bronze_chunks below, not just a cost tradeoff.
+
+    No FINAL also because a query with FINAL never uses a projection
+    (measured, airflow_dags/BRONZE_READ_SCALABILITY.md): this count, like
+    _iter_bronze_chunks, is meant to be served by stg_project's narrow
+    prj_ingested_at projection (ClickHouse_ddl/14_bronze_projections.sql),
+    which is ordered by _ingested_at, so the window predicate prunes to the
+    window's rows instead of scanning the whole table.
     """
     result = client.query(
         f"SELECT count() FROM {BRONZE_TABLE} "
@@ -104,6 +111,24 @@ def _iter_bronze_chunks(client, start_dt, end_dt, chunk_size: int):
     compared as whole milliseconds (toUnixTimestamp64Milli), an integer, for
     the same round-trip-exactness reason, so even that tiebreaker can't
     silently lose precision either.
+
+    Selects only id, tenant_id and _ingested_at -- exactly the columns of
+    stg_project's prj_ingested_at projection (ClickHouse_ddl/
+    14_bronze_projections.sql), which is ORDER BY _ingested_at. Every column
+    referenced here (SELECT, WHERE, cursor, ORDER BY) is in that projection,
+    and the projection prunes the window predicate where the base table's
+    (tenant_id, id) sort key cannot, so ClickHouse reads the window's rows
+    from the projection instead of scanning the whole table on every page.
+    Do not add data columns here (the projection becomes ineligible) and do
+    not add FINAL (a FINAL query never uses a projection). Each page still
+    reads the whole *window* (the ORDER BY id / LIMIT sort runs over the
+    pruned rows), which is why pagination stays id-ordered rather than
+    following the projection's time order: id-sorted pages hand
+    _fetch_enriched_project_rows contiguous (tenant_id, id) ranges, so its
+    FINAL lookup hits the base table's primary-key granules about once per
+    run in total instead of scattering across the whole table per chunk.
+    tenant_id is carried so that lookup can filter on the full sort-key
+    prefix.
     """
     cursor_id, cursor_ms = None, None
     while True:
@@ -116,7 +141,7 @@ def _iter_bronze_chunks(client, start_dt, end_dt, chunk_size: int):
 
         result = client.query(
             f"""
-            SELECT id, toUnixTimestamp64Milli(_ingested_at) AS ingested_at_ms
+            SELECT id, tenant_id, toUnixTimestamp64Milli(_ingested_at) AS ingested_at_ms
             FROM {BRONZE_TABLE}
             WHERE _ingested_at >= %(start_dt)s AND _ingested_at < %(end_dt)s
             {cursor_clause}
@@ -137,7 +162,7 @@ def _iter_bronze_chunks(client, start_dt, end_dt, chunk_size: int):
             return
 
 
-def _fetch_enriched_project_rows(client, project_ids: list[str]) -> list[dict]:
+def _fetch_enriched_project_rows(client, tenant_ids: list[str], project_ids: list[str]) -> list[dict]:
     """
     Left-joins this chunk's stg_project rows with their stg_project_address
     row (a project has zero or one address) and their stg_project_target
@@ -145,6 +170,41 @@ def _fetch_enriched_project_rows(client, project_ids: list[str]) -> list[dict]:
     type). No LIMIT on either join -- every address/target for every
     project_id passed in is returned, so nothing is cut off mid-project by a
     page boundary.
+
+    Read-path shape (ClickHouse_ddl/14_bronze_projections.sql):
+      - stg_project keeps FINAL. Its (tenant_id, id) sort key is exactly what
+        the WHERE filters on, so the primary key prunes to this chunk's
+        granules; and because _iter_bronze_chunks hands over id-sorted pages,
+        those granules are contiguous -- across a whole run the base table is
+        read about once in total, not once per chunk.
+      - The two join sides are NOT `FINAL` and NOT the bare tables: a FINAL
+        query never uses a projection, and both tables are sorted by their
+        own id, so `ON x.project_id = p.id` against the bare table can't
+        prune -- the right side of each join used to be read whole on every
+        chunk. Each is instead a subquery filtered on project_id (and
+        tenant_id), which is what its prj_by_project projection is ordered
+        by, and deduplicated with argMax on the table's own ReplacingMergeTree
+        version column, grouped by its RMT key -- the same "newest version
+        per key" FINAL returns. stg_project_address is RMT(_ingested_at)
+        keyed (tenant_id, id); stg_project_target is RMT(last_modified_time)
+        keyed (id) and has no tenant_id column at all. project_id sits in the
+        GROUP BY rather than under argMax because it is the immutable link
+        column the WHERE already filters on. Every column each subquery
+        touches must be in its projection, otherwise the projection is
+        silently ineligible -- extend the projection in 14 before adding a
+        column here.
+      - is_deleted is applied in HAVING, i.e. AFTER argMax, so a target whose
+        newest version is deleted drops out exactly as `FINAL ... ON
+        pt.is_deleted = false` did; the project itself still appears with an
+        empty target (an unmatched right side yields ''/0, as before).
+      - argMax results get latest_* aliases, never the source column's own
+        name: in ClickHouse an alias shadows the column everywhere in that
+        SELECT, so `argMax(x, v) AS x ... WHERE x IN (...)` would try to put
+        an aggregate into WHERE.
+      - Only semantic difference from FINAL joins: given two versions with an
+        identical version-column value, FINAL and argMax may each keep an
+        arbitrary one. CDC replays carry identical payloads, so it isn't
+        observable.
 
     stg_project_address and stg_project_target share several column names
     with stg_project verbatim (tenant_id, id, created_by, created_time,
@@ -174,18 +234,42 @@ def _fetch_enriched_project_rows(client, project_ids: list[str]) -> list[dict]:
             p.project_type         AS project_type,
             p.project_type_id      AS project_type_id,
             p.name                 AS name,
-            paddr.boundary      AS address_boundary,
-            pt.id               AS target_id,
-            pt.beneficiary_type AS target_beneficiary_type,
-            pt.target_no        AS target_target_no
+            paddr.latest_boundary      AS address_boundary,
+            pt.id                      AS target_id,
+            pt.latest_beneficiary_type AS target_beneficiary_type,
+            pt.latest_target_no        AS target_target_no
         FROM {BRONZE_TABLE} AS p FINAL
-        LEFT JOIN {PROJECT_ADDRESS_TABLE} AS paddr FINAL
+        LEFT JOIN
+        (
+            SELECT
+                tenant_id,
+                project_id,
+                id,
+                argMax(boundary, _ingested_at) AS latest_boundary
+            FROM {PROJECT_ADDRESS_TABLE}
+            WHERE tenant_id IN %(tenant_ids)s
+              AND project_id IN %(project_ids)s
+            GROUP BY tenant_id, project_id, id
+        ) AS paddr
             ON paddr.project_id = p.id AND paddr.tenant_id = p.tenant_id
-        LEFT JOIN {PROJECT_TARGET_TABLE} AS pt FINAL
-            ON pt.project_id = p.id AND pt.is_deleted = false
-        WHERE p.id IN %(project_ids)s
+        LEFT JOIN
+        (
+            SELECT
+                project_id,
+                id,
+                argMax(beneficiary_type, last_modified_time) AS latest_beneficiary_type,
+                argMax(target_no,        last_modified_time) AS latest_target_no,
+                argMax(is_deleted,       last_modified_time) AS latest_is_deleted
+            FROM {PROJECT_TARGET_TABLE}
+            WHERE project_id IN %(project_ids)s
+            GROUP BY project_id, id
+            HAVING latest_is_deleted = false
+        ) AS pt
+            ON pt.project_id = p.id
+        WHERE p.tenant_id IN %(tenant_ids)s
+          AND p.id IN %(project_ids)s
         """,
-        parameters={"project_ids": project_ids},
+        parameters={"tenant_ids": tenant_ids, "project_ids": project_ids},
     )
     return list(result.named_results())
 
@@ -487,8 +571,12 @@ def project_transformation():
                 chunk_num, len(chunk), rows_seen, total,
             )
 
-            project_ids = [row["id"] for row in chunk]
-            joined_rows = _fetch_enriched_project_rows(client, project_ids)
+            # dict.fromkeys only shortens the IN list when the window holds
+            # several ingested versions of one id (order preserved, so the
+            # chunk stays a contiguous id range); dedup itself is FINAL's job.
+            project_ids = list(dict.fromkeys(row["id"] for row in chunk))
+            tenant_ids = sorted({row["tenant_id"] for row in chunk})
+            joined_rows = _fetch_enriched_project_rows(client, tenant_ids, project_ids)
             if len(joined_rows) > chunk_size * JOIN_ROW_COUNT_WARNING_MULTIPLIER:
                 log.warning(
                     "project chunk %d: joined rows (%d) exceed %dx chunk_size (%d) "
