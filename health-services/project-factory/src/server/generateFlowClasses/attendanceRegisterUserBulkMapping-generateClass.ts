@@ -289,16 +289,19 @@ export class TemplateClass {
         tenantId: string,
         campaignNumber: string,
         requestInfo: RequestInfo | undefined,
+        requestingUsername: string,
         campaignStartDate: string,
         campaignEndDate: string
     ): Promise<RowsBySheetName> {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
         if (!registers.length) return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        const normalizedRequestingUsername = this.asText(requestingUsername).toUpperCase();
         const staffResolutionSamples: Record<string, string>[] = [];
         let staffRowsSeen = 0;
         let skippedStaffWithoutPersonId = 0;
         let skippedDuplicateStaffIdentity = 0;
         let skippedStaffWithoutSheetResolution = 0;
+        let skippedRequesterOwnerWithoutRoles = 0;
         let markerRowsBuilt = 0;
         let approverRowsBuilt = 0;
 
@@ -372,12 +375,34 @@ export class TemplateClass {
                 }
                 seenStaffIdentities.add(staffIdentity);
 
+                const profile = profiles.get(personId);
                 const roleCodes = roleCodesByIndividualId.get(personId) || [];
+                const profileUsername = this.asText(profile?.username).toUpperCase();
+                const skipRequesterOwnerWithoutRoles = Boolean(normalizedRequestingUsername)
+                    && staffType === attendanceStaffTypes.OWNER
+                    && roleCodes.length === 0
+                    && profileUsername === normalizedRequestingUsername;
+                if (skipRequesterOwnerWithoutRoles) {
+                    skippedRequesterOwnerWithoutRoles++;
+                    if (staffResolutionSamples.length < 50) {
+                        staffResolutionSamples.push({
+                            registerCode: register.serviceCode,
+                            registerUuid: register.id,
+                            personId,
+                            username: this.firstNonBlank(profile?.username, personId),
+                            staffType,
+                            resolvedSheet: "SKIPPED_REQUESTING_OWNER_NO_ROLES",
+                            roleCodes: "",
+                            resolvedRoleCodes: "",
+                        });
+                    }
+                    continue;
+                }
+
                 const staffSheet = this.resolveAttendanceStaffSheet(
                     staffType,
                     roleCodes
                 );
-                const profile = profiles.get(personId);
                 if (staffResolutionSamples.length < 50) {
                     staffResolutionSamples.push({
                         registerCode: register.serviceCode,
@@ -420,6 +445,7 @@ export class TemplateClass {
             skippedStaffWithoutPersonId,
             skippedDuplicateStaffIdentity,
             skippedStaffWithoutSheetResolution,
+            skippedRequesterOwnerWithoutRoles,
             markerRowsBuilt,
             approverRowsBuilt,
             rowSummary: this.summarizeRowsBySheetName(rowsBySheetName),
@@ -460,6 +486,7 @@ export class TemplateClass {
             tenantId,
             campaignNumber,
             requestInfo,
+            this.asText((requestInfo as any)?.userInfo?.userName),
             campaignStartDate,
             campaignEndDate
         );
