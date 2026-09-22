@@ -1370,6 +1370,77 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(approverRows.map((row) => row.HCM_ADMIN_CONSOLE_USER_ROLE)).toEqual(["PROXIMITY_SUPERVISOR", "PROXIMITY_SUPERVISOR"]);
     });
 
+    it("skips requester owner marker rows when requester has no mapped campaign roles", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-requester-owner",
+                campaignNumber: "CMP-REQUESTER-OWNER",
+                startDate: Date.UTC(2026, 7, 1),
+                endDate: Date.UTC(2026, 7, 31),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [], [
+            {
+                uniqueIdentifier: "ind-dh",
+                uniqueIdAfterProcess: "ind-dh",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-dh",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "WAREHOUSE_MANAGER"
+                }
+            }
+        ]);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-req-1",
+                            serviceCode: "REG-REQ-1",
+                            name: "Register Requester",
+                            localityCode: "ADMIN",
+                            attendees: [],
+                            staff: [
+                                { userId: "ind-requester", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 7, 2), denrollmentDate: null },
+                                { userId: "ind-dh", staffType: "OWNER", enrollmentDate: Date.UTC(2026, 7, 2), denrollmentDate: null }
+                            ]
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        { id: "ind-requester", name: { givenName: "SMC", familyName: "Owner" }, userDetails: { username: "BEDNET-CM-1" } },
+                        { id: "ind-dh", name: { givenName: "DH", familyName: "Owner" }, userDetails: { username: "USR-957854" } }
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            {
+                tenantId: "bednet",
+                campaignId: "cmp-requester-owner",
+                requestInfo: {
+                    userInfo: {
+                        userName: "BEDNET-CM-1"
+                    }
+                }
+            },
+            {}
+        );
+
+        const markerRows = sheetMap[MARKER_SHEET].data as Record<string, string>[];
+        expect(markerRows).toHaveLength(1);
+        expect(markerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-dh");
+        expect(markerRows[0].UserName).toBe("USR-957854");
+    });
+
     it("ignores localityCode and searches registers campaign-wide", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
