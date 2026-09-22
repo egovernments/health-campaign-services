@@ -300,6 +300,15 @@ def fetch_raw_events(
         FROM {raw_table}
         WHERE event_time >= {{start:DateTime64(3)}}
           AND event_time < {{end:DateTime64(3)}}
+          -- Deletes carry the row image in `before` and always have a null
+          -- `after`, so they can never produce a bronze row. Excluding them
+          -- here rather than dropping them later keeps the null-`after` check
+          -- at the end of this function meaningful: a null `after` on a
+          -- create/update is a genuinely malformed event worth failing on.
+          -- Consequence: bronze does not track deletions, so a hard-deleted
+          -- row persists here. Revisit if hard deletes become routine -- the
+          -- proper fix is an is_deleted column set from `before`.
+          AND JSONExtractString(raw, 'op') != 'd'
     """
 
     params = {
@@ -954,13 +963,16 @@ def process_table(
     logger.info("Duration           : %.2f seconds", duration)
     logger.info("=" * 80)
 
-    # Fail if any raw event has no `after` payload.
+    # Deletes are filtered out in fetch_raw_events, so anything arriving here
+    # with a null `after` is a create/update that should have carried a row
+    # image -- an anomaly, not an expected operation.
     # Allow with: "allow_null_after": True
     if total_skipped and not table_config.get("allow_null_after", False):
         raise ValueError(
             f"[{table_name}] {total_skipped} of {total_raw_rows} raw events had "
-            f"a null `after` payload and were dropped. Only CREATE/UPDATE events "
-            f"are expected here, and both carry a row image. Investigate the "
+            f"a null `after` payload and were dropped. Deletes are already "
+            f"excluded by the query, so these are CREATE/UPDATE events missing "
+            f"their row image, which is malformed. Investigate the "
             f"topic before re-running; set \"allow_null_after\": True on this "
             f"table in raw_event_bronze_config.py to accept the loss and "
             f"proceed."
