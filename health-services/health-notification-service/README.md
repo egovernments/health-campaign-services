@@ -40,6 +40,10 @@ In short: *"something happened — figure out who to message, in their language,
 
 This service is **driven almost entirely by Kafka events**, not by public REST calls. There is no beneficiary-facing or client-facing API. The HTTP endpoints that do exist are **operational/diagnostic only**.
 
+The full contract lives in
+[`docs/health-api-specs/contracts/health-notification.yml`](../../docs/health-api-specs/contracts/health-notification.yml)
+— view it at [editor.swagger.io](https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/health-campaign-services/master/docs/health-api-specs/contracts/health-notification.yml).
+
 **REST entry points (operational):**
 
 | Endpoint | Purpose |
