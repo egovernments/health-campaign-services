@@ -106,7 +106,11 @@ interface AttendanceStateBuildMeta {
  * are reconstructed from live attendance state.
  */
 export class TemplateClass {
-    static async generate(templateConfig: any, responseToSend: any, _localizationMap: any): Promise<SheetMap> {
+    static async generate(
+        templateConfig: any,
+        responseToSend: any,
+        localizationMap: Record<string, string> = {}
+    ): Promise<SheetMap> {
         logger.info("Generating attendance register user bulk mapping template...");
 
         const tenantId = String(responseToSend?.tenantId || "").trim();
@@ -174,7 +178,8 @@ export class TemplateClass {
             registerByServiceCode,
             registerById,
             campaignStartDate,
-            campaignEndDate
+            campaignEndDate,
+            localizationMap
         );
 
         const outputRowsBySheetName = await this.buildOutputRowsBySheetName(
@@ -187,7 +192,8 @@ export class TemplateClass {
             campaignNumber,
             responseToSend?.requestInfo,
             campaignStartDate,
-            campaignEndDate
+            campaignEndDate,
+            localizationMap
         );
 
         const totalRows = Array.from(outputRowsBySheetName.values()).reduce((sum, rows) => sum + rows.length, 0);
@@ -202,7 +208,8 @@ export class TemplateClass {
         registerByServiceCode: Map<string, RegisterData>,
         registerById: Map<string, RegisterData>,
         campaignStartDate: string,
-        campaignEndDate: string
+        campaignEndDate: string,
+        localizationMap: Record<string, string>
     ): RowsBySheetName {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
         const hasStampedRowsByServiceCode = this.collectHasStampedRowsByServiceCode(attendeeRows);
@@ -244,7 +251,15 @@ export class TemplateClass {
                 continue;
             }
 
-            const row = this.buildMappedRow(register, sheetName, rawData, attendeeRow?.denrollmentDate, campaignStartDate, campaignEndDate);
+            const row = this.buildMappedRow(
+                register,
+                sheetName,
+                rawData,
+                attendeeRow?.denrollmentDate,
+                campaignStartDate,
+                campaignEndDate,
+                localizationMap
+            );
             const dedupeKey = `${this.registerIdentity(register)}::${sheetName}::${this.personIdentity(rawData, attendeeRow?.uniqueIdentifier)}`;
 
             const sheetRows = dedupedRowsBySheetName.get(sheetName);
@@ -295,6 +310,7 @@ export class TemplateClass {
         requestingUsername: string,
         campaignStartDate: string,
         campaignEndDate: string,
+        localizationMap: Record<string, string>,
         buildMeta?: AttendanceStateBuildMeta
     ): Promise<RowsBySheetName> {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
@@ -358,7 +374,8 @@ export class TemplateClass {
                     personId,
                     roleCodes,
                     campaignStartDate,
-                    campaignEndDate
+                    campaignEndDate,
+                    localizationMap
                 );
                 dedupedRowsBySheetName.get(WORKER_SHEET)?.set(dedupeKey, row);
             }
@@ -434,7 +451,8 @@ export class TemplateClass {
                     personId,
                     staffSheet.roleCodes,
                     campaignStartDate,
-                    campaignEndDate
+                    campaignEndDate,
+                    localizationMap
                 );
                 dedupedRowsBySheetName.get(staffSheet.sheetName)?.set(dedupeKey, row);
                 if (staffSheet.sheetName === MARKER_SHEET) markerRowsBuilt++;
@@ -469,7 +487,8 @@ export class TemplateClass {
         campaignNumber: string,
         requestInfo: RequestInfo | undefined,
         campaignStartDate: string,
-        campaignEndDate: string
+        campaignEndDate: string,
+        localizationMap: Record<string, string>
     ): Promise<RowsBySheetName> {
         if (!registers.length) {
             return rowsFromStoredData;
@@ -487,7 +506,8 @@ export class TemplateClass {
             tenantId,
             hierarchyType,
             templateConfig,
-            requestInfo
+            requestInfo,
+            localizationMap
         );
 
         const rowsFromAttendanceState = await this.buildRowsFromAttendanceState(
@@ -498,6 +518,7 @@ export class TemplateClass {
             this.asText((requestInfo as any)?.userInfo?.userName),
             campaignStartDate,
             campaignEndDate,
+            localizationMap,
             attendanceStateBuildMeta
         );
         this.logBulkTrace("rows-from-attendance-state", {
@@ -590,7 +611,8 @@ export class TemplateClass {
         tenantId: string,
         hierarchyType: string,
         templateConfig: any,
-        requestInfo: RequestInfo | undefined
+        requestInfo: RequestInfo | undefined,
+        localizationMap: Record<string, string>
     ): Promise<RowsBySheetName> {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
         if (!registers.length || !campaignUserRows.length) {
@@ -648,7 +670,8 @@ export class TemplateClass {
                     sheetName,
                     rawData,
                     campaignStartDate,
-                    campaignEndDate
+                    campaignEndDate,
+                    localizationMap
                 );
                 dedupedRowsBySheetName.get(sheetName)?.set(dedupeKey, row);
             }
@@ -1200,7 +1223,8 @@ export class TemplateClass {
         rawData: Record<string, unknown>,
         syncedDeenrollmentDate: number | null,
         campaignStartDate: string,
-        campaignEndDate: string
+        campaignEndDate: string,
+        localizationMap: Record<string, string>
     ): BulkRow {
         const row: BulkRow = {};
         for (const [key, value] of Object.entries(rawData)) {
@@ -1219,12 +1243,17 @@ export class TemplateClass {
         row[WORKER_ID_COLUMN] = this.asText(row[WORKER_ID_COLUMN]);
         row[USERNAME_COLUMN] = this.asText(row[USERNAME_COLUMN]);
         row[PASSWORD_COLUMN] = this.asText(row[PASSWORD_COLUMN]);
-        row[BOUNDARY_COLUMN] = this.firstNonBlank(
-            row[BOUNDARY_COLUMN],
+        const rowBoundaryCode = this.firstNonBlank(
             row[BOUNDARY_CODE_MANDATORY_COLUMN],
             row[BOUNDARY_CODE_COLUMN],
             register.localityCode
         );
+        row[BOUNDARY_COLUMN] = this.resolveBoundaryDisplayName(
+            row[BOUNDARY_COLUMN],
+            rowBoundaryCode,
+            localizationMap
+        );
+        row[BOUNDARY_CODE_MANDATORY_COLUMN] = rowBoundaryCode;
         row[ENROLLMENT_DATE_COLUMN] = campaignStartDate;
         row[DEENROLLMENT_DATE_COLUMN] = this.firstNonBlank(
             this.normalizeSheetDateIfPresent(syncedDeenrollmentDate),
@@ -1249,7 +1278,8 @@ export class TemplateClass {
         personId: string,
         roleCodes: string[],
         campaignStartDate: string,
-        campaignEndDate: string
+        campaignEndDate: string,
+        localizationMap: Record<string, string>
     ): BulkRow {
         const username = this.firstNonBlank(profile?.username, personId);
         const row: BulkRow = {
@@ -1261,7 +1291,7 @@ export class TemplateClass {
             [WORKER_ID_COLUMN]: personId,
             [USERNAME_COLUMN]: username,
             [PASSWORD_COLUMN]: "",
-            [BOUNDARY_COLUMN]: register.localityCode,
+            [BOUNDARY_COLUMN]: this.resolveBoundaryDisplayName("", register.localityCode, localizationMap),
             [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
             [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
@@ -1283,7 +1313,8 @@ export class TemplateClass {
         personId: string,
         roleCodes: string[],
         campaignStartDate: string,
-        campaignEndDate: string
+        campaignEndDate: string,
+        localizationMap: Record<string, string>
     ): BulkRow {
         const username = this.firstNonBlank(profile?.username, personId);
         const row: BulkRow = {
@@ -1300,7 +1331,7 @@ export class TemplateClass {
             [WORKER_ID_COLUMN]: personId,
             [USERNAME_COLUMN]: username,
             [PASSWORD_COLUMN]: "",
-            [BOUNDARY_COLUMN]: register.localityCode,
+            [BOUNDARY_COLUMN]: this.resolveBoundaryDisplayName("", register.localityCode, localizationMap),
             [BOUNDARY_CODE_MANDATORY_COLUMN]: register.localityCode,
             [ENROLLMENT_DATE_COLUMN]: campaignStartDate,
             [DEENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
@@ -1318,7 +1349,8 @@ export class TemplateClass {
         sheetName: string,
         rawData: Record<string, unknown>,
         campaignStartDate: string,
-        campaignEndDate: string
+        campaignEndDate: string,
+        localizationMap: Record<string, string>
     ): BulkRow {
         const roleCodes = this.extractRoleCodes(rawData);
         const encryptedUsername = this.asText(rawData[USERNAME_COLUMN]);
@@ -1338,11 +1370,10 @@ export class TemplateClass {
             [USER_NAME_COLUMN]: this.asText(rawData[USER_NAME_COLUMN]),
             [USERNAME_COLUMN]: encryptedUsername ? decrypt(encryptedUsername) : "",
             [PASSWORD_COLUMN]: encryptedPassword ? decrypt(encryptedPassword) : "",
-            [BOUNDARY_COLUMN]: this.firstNonBlank(
+            [BOUNDARY_COLUMN]: this.resolveBoundaryDisplayName(
                 this.asText(rawData[BOUNDARY_COLUMN]),
-                this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
-                this.asText(rawData[BOUNDARY_CODE_COLUMN]),
-                register.localityCode
+                boundaryCode,
+                localizationMap
             ),
             [BOUNDARY_CODE_MANDATORY_COLUMN]: boundaryCode,
             [ENROLLMENT_DATE_COLUMN]: this.firstNonBlank(
@@ -1363,6 +1394,20 @@ export class TemplateClass {
         }
 
         return row;
+    }
+
+    private static resolveBoundaryDisplayName(
+        boundaryName: string,
+        boundaryCode: string,
+        localizationMap: Record<string, string>
+    ): string {
+        const explicitBoundaryName = this.asText(boundaryName);
+        if (explicitBoundaryName) return explicitBoundaryName;
+        const code = this.asText(boundaryCode);
+        if (!code) return "";
+        if (!localizationMap || !(code in localizationMap)) return code;
+        const localizedBoundaryName = this.asText(localizationMap[code]);
+        return localizedBoundaryName || code;
     }
 
     private static createEmptyDedupedRowsBySheetName(): DedupedRowsBySheetName {

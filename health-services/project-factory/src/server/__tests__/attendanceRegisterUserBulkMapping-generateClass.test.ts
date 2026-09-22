@@ -62,6 +62,7 @@ const MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
 const APPROVER_SHEET = "HCM_REGISTER_APPROVER_SHEET";
 const REGISTER_CODE_COLUMN = "HCM_ATTENDANCE_REGISTER_CODE";
 const REGISTER_ID_COLUMN = "HCM_ATTENDANCE_REGISTER_ID";
+const BOUNDARY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_NAME";
 
 describe("attendanceRegisterUserBulkMapping-generateClass", () => {
     const mockSearchCampaign = jest.mocked(searchProjectTypeCampaignService);
@@ -536,6 +537,67 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
 
         expect((sheetMap[MARKER_SHEET].data as any[])).toHaveLength(0);
         expect((sheetMap[APPROVER_SHEET].data as any[])).toHaveLength(0);
+    });
+
+    it("uses localized boundary names for frontline workers built from live attendance", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-boundary-localized",
+                campaignNumber: "CMP-BOUNDARY-LOCALIZED",
+                startDate: Date.UTC(2026, 2, 1),
+                endDate: Date.UTC(2026, 2, 31),
+                boundaries: [{ code: "ADMIN" }]
+            }]
+        } as any);
+
+        mockGetRelatedData.mockResolvedValue([] as any);
+
+        mockHttpRequest.mockImplementation(async (url: string) => {
+            if (url.includes("/attendance/v1/_search")) {
+                return {
+                    attendanceRegister: [
+                        {
+                            id: "reg-boundary-1",
+                            serviceCode: "REG-B1",
+                            name: "Register Boundary 1",
+                            localityCode: "WARD-1",
+                            attendees: [
+                                {
+                                    individualId: "ind-b1",
+                                    tag: "TEAM-B1",
+                                    enrollmentDate: Date.UTC(2026, 2, 5),
+                                    denrollmentDate: null
+                                }
+                            ],
+                            staff: []
+                        }
+                    ]
+                } as any;
+            }
+            if (url.includes("individual/v1/_search")) {
+                return {
+                    Individual: [
+                        {
+                            id: "ind-b1",
+                            name: { givenName: "Boundary", familyName: "Worker" },
+                            userDetails: { username: "boundary.worker" }
+                        }
+                    ]
+                } as any;
+            }
+            return { attendanceRegister: [] } as any;
+        });
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-boundary-localized", requestInfo: {} },
+            { "WARD-1": "Ward One" }
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        expect(workerRows).toHaveLength(1);
+        expect(workerRows[0][BOUNDARY_COLUMN]).toBe("Ward One");
+        expect(workerRows[0].HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY).toBe("WARD-1");
     });
 
     it("retains campaign-user coverage for all registers even when live attendance is partial", async () => {

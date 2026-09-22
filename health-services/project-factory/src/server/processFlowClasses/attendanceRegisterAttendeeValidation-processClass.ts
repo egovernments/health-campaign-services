@@ -38,7 +38,7 @@ type DateParts = { year: number; month: number; day: number };
 /**
  * Validation process class for Attendance Register Attendee Mapping.
  * Validates date formats, date ranges, register ID presence, and truth-table business rules
- * (date immutability, enrollment required for new records).
+ * (enrollment required for new records).
  */
 export class TemplateClass {
     static async process(
@@ -268,7 +268,15 @@ export class TemplateClass {
                 continue;
             }
 
-            this.validateTruthTableRules(existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode, row, localizationMap);
+            this.validateTruthTableRules(
+                existing,
+                enrollmentDateEpoch,
+                deEnrollmentDateEpoch,
+                teamCode,
+                row,
+                localizationMap,
+                true
+            );
         }
 
         const invalidCount = allRows.filter(({ row }) => row["#status#"] === sheetDataRowStatuses.INVALID).length;
@@ -301,7 +309,8 @@ export class TemplateClass {
         deEnrollmentDateEpoch: number | null,
         teamCode: string,
         row: any,
-        localizationMap: Record<string, string>
+        localizationMap: Record<string, string>,
+        allowEnrollmentDateChangeForExisting: boolean = true
     ): void {
         if (!existing) {
             // NEW record — Section A (attendee) or Section D (staff)
@@ -320,7 +329,9 @@ export class TemplateClass {
             // DE-ENROLLED record — Section C (attendee) or Section F (staff)
             // Enrollment date checked FIRST (per truth table C9)
             // Compare calendar dates in configured timezone (tolerates epoch differences from timezone migration)
-            if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
+            if (!allowEnrollmentDateChangeForExisting
+                && enrollmentDateEpoch !== null
+                && existing.enrollmentDate != null
                 && !this.sameDateInTz(enrollmentDateEpoch, existing.enrollmentDate)) {
                 // C3/C7/C9/C13/F3/F7
                 this.addError(row, attendanceErrorKeys.CANNOT_CHANGE_ENROLLMENT_DATE, localizationMap);
@@ -335,7 +346,9 @@ export class TemplateClass {
 
         // ACTIVE record — Section B (attendee) or Section E (staff)
         // Compare calendar dates in configured timezone (tolerates epoch differences from timezone migration)
-        if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
+        if (!allowEnrollmentDateChangeForExisting
+            && enrollmentDateEpoch !== null
+            && existing.enrollmentDate != null
             && !this.sameDateInTz(enrollmentDateEpoch, existing.enrollmentDate)) {
             // B3/B6/B10/B13/E3/E6
             this.addError(row, attendanceErrorKeys.CANNOT_CHANGE_ENROLLMENT_DATE, localizationMap);
