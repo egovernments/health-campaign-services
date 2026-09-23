@@ -1,22 +1,19 @@
 package org.egov.excelingestion.processor;
 
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.SchemaValidationService;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.util.BoundaryUtil;
-import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -25,8 +22,9 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Test cases for boundary validation in target sheets
- * Tests validateCampaignBoundaries method in BoundaryHierarchyTargetProcessor
+ * Tests validateCampaignBoundaries in BoundaryHierarchyTargetProcessor.
+ * A boundary mismatch aborts the upload with a named error code rather than writing a sheet error,
+ * so the code and message reach additionalDetails (HCMPRE-4496).
  */
 @ExtendWith(MockitoExtension.class)
 class BoundaryValidationTest {
@@ -54,244 +52,212 @@ class BoundaryValidationTest {
     @BeforeEach
     void setUp() throws Exception {
         targetProcessor = new BoundaryHierarchyTargetProcessor(
-            mdmsService, schemaValidationService, validationService, 
+            mdmsService, schemaValidationService, validationService,
             enrichmentUtil, exceptionHandler, excelUtil, campaignService, boundaryUtil
         );
-        
-        // Get private method for testing
+
+        // Mirror the real handler: turn the call into the exception it would actually throw
+        lenient().doAnswer(invocation -> {
+            throw new CustomException(invocation.getArgument(0), invocation.getArgument(1));
+        }).when(exceptionHandler).throwCustomException(anyString(), anyString());
+
         validateCampaignBoundariesMethod = BoundaryHierarchyTargetProcessor.class
-            .getDeclaredMethod("validateCampaignBoundaries", List.class, ProcessResource.class, 
+            .getDeclaredMethod("validateCampaignBoundaries", List.class, ProcessResource.class,
                               RequestInfo.class, Map.class);
         validateCampaignBoundariesMethod.setAccessible(true);
     }
 
+    /** Invokes the private method, unwrapping reflection so callers see the real exception. */
+    private void validate(List<Map<String, Object>> sheetData, ProcessResource resource,
+                          RequestInfo requestInfo, Map<String, String> localizationMap) throws Throwable {
+        try {
+            validateCampaignBoundariesMethod.invoke(targetProcessor, sheetData, resource, requestInfo, localizationMap);
+        } catch (InvocationTargetException e) {
+            throw e.getCause();
+        }
+    }
+
     @Test
-    void testBoundaryValidation_WithInvalidBoundaryCodes_ShouldAddErrorDetails() throws Exception {
-        // Given: Sheet data with boundary codes not in campaign
+    void invalidBoundaryCode_abortsWithNamedCodeAndTheOffendingRow() {
         List<Map<String, Object>> sheetData = Arrays.asList(
             createTargetRow("VALID_BOUNDARY_001", "Village A", "100", 3),
             createTargetRow("INVALID_BOUNDARY_999", "Invalid Village", "50", 4),
             createTargetRow("ANOTHER_INVALID_888", "Another Invalid", "75", 5)
         );
-        
         ProcessResource resource = createProcessResource();
         RequestInfo requestInfo = new RequestInfo();
-        Map<String, String> localizationMap = createLocalizationMap();
-        
-        // Mock campaign boundaries - only VALID_BOUNDARY_001 is in campaign
-        Set<String> validBoundaryCodes = Set.of("VALID_BOUNDARY_001", "CAMPAIGN_BOUNDARY_002");
+
         when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
-            resource.getId(), resource.getReferenceId(), resource.getTenantId(), 
-            resource.getHierarchyType(), requestInfo)).thenReturn(validBoundaryCodes);
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(Set.of("VALID_BOUNDARY_001", "CAMPAIGN_BOUNDARY_002"));
 
-        // When: Validate campaign boundaries
-        @SuppressWarnings("unchecked")
-        List<ValidationError> errors = (List<ValidationError>) validateCampaignBoundariesMethod
-            .invoke(targetProcessor, sheetData, resource, requestInfo, localizationMap);
+        CustomException thrown = assertThrows(CustomException.class,
+            () -> validate(sheetData, resource, requestInfo, createLocalizationMap()));
 
-        // Then: Should have errors for invalid boundary codes
-        assertNotNull(errors);
-        assertEquals(2, errors.size()); // Two invalid boundaries
-        
-        // Check first error (INVALID_BOUNDARY_999)
-        ValidationError error1 = errors.stream()
-            .filter(e -> e.getRowNumber() == 4)
-            .findFirst()
-            .orElse(null);
-        assertNotNull(error1);
-        assertEquals("invalid", error1.getStatus());
-        assertTrue(error1.getErrorDetails().contains("सीमा कोड अभियान में मौजूद नहीं है"));
-        
-        // Check second error (ANOTHER_INVALID_888)
-        ValidationError error2 = errors.stream()
-            .filter(e -> e.getRowNumber() == 5)
-            .findFirst()
-            .orElse(null);
-        assertNotNull(error2);
-        assertEquals("invalid", error2.getStatus());
-        assertTrue(error2.getErrorDetails().contains("सीमा कोड अभियान में मौजूद नहीं है"));
+        assertEquals("HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN_BOUNDARIES", thrown.getCode());
+        assertTrue(thrown.getMessage().contains("row 4"), thrown.getMessage());
     }
 
     @Test
-    void testBoundaryValidation_WithAllValidBoundaryCodes_ShouldReturnNoErrors() throws Exception {
-        // Given: Sheet data with all valid boundary codes
+    void allBoundariesValid_passesWithoutAborting() throws Throwable {
         List<Map<String, Object>> sheetData = Arrays.asList(
             createTargetRow("VALID_BOUNDARY_001", "Village A", "100", 3),
-            createTargetRow("VALID_BOUNDARY_002", "Village B", "150", 4),
-            createTargetRow("VALID_BOUNDARY_003", "Village C", "200", 5)
+            createTargetRow("VALID_BOUNDARY_002", "Village B", "150", 4)
         );
-        
         ProcessResource resource = createProcessResource();
         RequestInfo requestInfo = new RequestInfo();
-        Map<String, String> localizationMap = createLocalizationMap();
-        
-        // Mock campaign boundaries - all boundary codes are valid
-        Set<String> validBoundaryCodes = Set.of(
-            "VALID_BOUNDARY_001", "VALID_BOUNDARY_002", "VALID_BOUNDARY_003"
-        );
+
         when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
-            resource.getId(), resource.getReferenceId(), resource.getTenantId(), 
-            resource.getHierarchyType(), requestInfo)).thenReturn(validBoundaryCodes);
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(Set.of("VALID_BOUNDARY_001", "VALID_BOUNDARY_002"));
+        when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(Set.of("VALID_BOUNDARY_001", "VALID_BOUNDARY_002"));
 
-        // When: Validate campaign boundaries
-        @SuppressWarnings("unchecked")
-        List<ValidationError> errors = (List<ValidationError>) validateCampaignBoundariesMethod
-            .invoke(targetProcessor, sheetData, resource, requestInfo, localizationMap);
+        validate(sheetData, resource, requestInfo, createLocalizationMap());
 
-        // Then: Should have no errors
-        assertNotNull(errors);
-        assertTrue(errors.isEmpty());
+        verify(exceptionHandler, never()).throwCustomException(anyString(), anyString());
     }
 
     @Test
-    void testBoundaryValidation_WithMixedBoundaryCodes_ShouldOnlyFlagInvalid() throws Exception {
-        // Given: Sheet data with mix of valid and invalid boundary codes
-        List<Map<String, Object>> sheetData = Arrays.asList(
-            createTargetRow("VALID_BOUNDARY_001", "Valid Village", "100", 3),
-            createTargetRow("INVALID_BOUNDARY_999", "Invalid Village", "50", 4),
-            createTargetRow("VALID_BOUNDARY_002", "Another Valid Village", "125", 5),
-            createTargetRow("ANOTHER_INVALID_777", "Another Invalid", "75", 6)
+    void droppedCampaignBoundary_abortsWithMissingTargetsCode() {
+        // User deleted the row for VALID_BOUNDARY_002 but left every remaining code valid
+        List<Map<String, Object>> sheetData = List.of(
+            createTargetRow("VALID_BOUNDARY_001", "Village A", "100", 3)
         );
-        
         ProcessResource resource = createProcessResource();
         RequestInfo requestInfo = new RequestInfo();
-        Map<String, String> localizationMap = createLocalizationMap();
-        
-        // Mock campaign boundaries
-        Set<String> validBoundaryCodes = Set.of("VALID_BOUNDARY_001", "VALID_BOUNDARY_002");
+
         when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
-            resource.getId(), resource.getReferenceId(), resource.getTenantId(), 
-            resource.getHierarchyType(), requestInfo)).thenReturn(validBoundaryCodes);
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(Set.of("VALID_BOUNDARY_001", "VALID_BOUNDARY_002"));
+        when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(Set.of("VALID_BOUNDARY_001", "VALID_BOUNDARY_002"));
 
-        // When: Validate campaign boundaries
-        @SuppressWarnings("unchecked")
-        List<ValidationError> errors = (List<ValidationError>) validateCampaignBoundariesMethod
-            .invoke(targetProcessor, sheetData, resource, requestInfo, localizationMap);
+        CustomException thrown = assertThrows(CustomException.class,
+            () -> validate(sheetData, resource, requestInfo, createLocalizationMap()));
 
-        // Then: Should have errors only for invalid boundary codes
-        assertNotNull(errors);
-        assertEquals(2, errors.size());
-        
-        // Check that only invalid boundaries have errors
-        List<Integer> errorRows = errors.stream()
-            .map(ValidationError::getRowNumber)
-            .sorted()
-            .toList();
-        assertEquals(Arrays.asList(4, 6), errorRows); // Rows with invalid boundaries
+        assertEquals("HCM_TARGET_LOWEST_LEVEL_BOUNDARIES_MISSING", thrown.getCode());
+        assertTrue(thrown.getMessage().contains("VALID_BOUNDARY_002"), thrown.getMessage());
     }
 
     @Test
-    void testBoundaryValidation_WithEmptyBoundaryCode_ShouldSkipValidation() throws Exception {
-        // Given: Sheet data with empty/null boundary codes
+    void swappedBoundary_reportsTheMissingBoundaryFirst() {
+        // Replacing one boundary with another trips both rules; the missing check runs first
+        List<Map<String, Object>> sheetData = List.of(
+            createTargetRow("NOT_IN_CAMPAIGN", "Swapped in", "100", 3)
+        );
+        ProcessResource resource = createProcessResource();
+        RequestInfo requestInfo = new RequestInfo();
+
+        when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(Set.of("VALID_BOUNDARY_001"));
+        when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(Set.of("VALID_BOUNDARY_001"));
+
+        CustomException thrown = assertThrows(CustomException.class,
+            () -> validate(sheetData, resource, requestInfo, createLocalizationMap()));
+
+        assertEquals("HCM_TARGET_LOWEST_LEVEL_BOUNDARIES_MISSING", thrown.getCode());
+    }
+
+    @Test
+    void emptyBoundaryCodes_areLeftToSchemaValidation() throws Throwable {
         List<Map<String, Object>> sheetData = Arrays.asList(
             createTargetRow("", "Village with empty boundary", "100", 3),
             createTargetRow(null, "Village with null boundary", "150", 4),
             createTargetRow("VALID_BOUNDARY_001", "Valid Village", "200", 5)
         );
-        
         ProcessResource resource = createProcessResource();
         RequestInfo requestInfo = new RequestInfo();
-        Map<String, String> localizationMap = createLocalizationMap();
-        
-        // Mock campaign boundaries
-        Set<String> validBoundaryCodes = Set.of("VALID_BOUNDARY_001");
+
         when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
-            resource.getId(), resource.getReferenceId(), resource.getTenantId(), 
-            resource.getHierarchyType(), requestInfo)).thenReturn(validBoundaryCodes);
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(Set.of("VALID_BOUNDARY_001"));
 
-        // When: Validate campaign boundaries
-        @SuppressWarnings("unchecked")
-        List<ValidationError> errors = (List<ValidationError>) validateCampaignBoundariesMethod
-            .invoke(targetProcessor, sheetData, resource, requestInfo, localizationMap);
+        validate(sheetData, resource, requestInfo, createLocalizationMap());
 
-        // Then: Should have no errors (empty/null boundaries are skipped)
-        assertNotNull(errors);
-        assertTrue(errors.isEmpty());
+        verify(exceptionHandler, never()).throwCustomException(anyString(), anyString());
     }
 
     @Test
-    void testBoundaryValidation_WithNoCampaignBoundaries_ShouldSkipValidation() throws Exception {
-        // Given: Sheet data with boundary codes but no campaign boundaries
-        List<Map<String, Object>> sheetData = Arrays.asList(
-            createTargetRow("BOUNDARY_001", "Village A", "100", 3),
-            createTargetRow("BOUNDARY_002", "Village B", "150", 4)
-        );
-        
-        ProcessResource resource = createProcessResource();
-        RequestInfo requestInfo = new RequestInfo();
-        Map<String, String> localizationMap = createLocalizationMap();
-        
-        // Mock empty campaign boundaries
-        Set<String> validBoundaryCodes = Collections.emptySet();
-        when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
-            resource.getId(), resource.getReferenceId(), resource.getTenantId(), 
-            resource.getHierarchyType(), requestInfo)).thenReturn(validBoundaryCodes);
-
-        // When: Validate campaign boundaries
-        @SuppressWarnings("unchecked")
-        List<ValidationError> errors = (List<ValidationError>) validateCampaignBoundariesMethod
-            .invoke(targetProcessor, sheetData, resource, requestInfo, localizationMap);
-
-        // Then: Should validate and mark all boundaries as invalid (no valid boundaries to compare against)
-        assertNotNull(errors);
-        assertEquals(2, errors.size()); // Both boundaries are invalid since no valid campaign boundaries exist
-    }
-
-    @Test
-    void testBoundaryValidation_WithException_ShouldReturnEmptyErrors() throws Exception {
-        // Given: Sheet data with boundary codes
-        List<Map<String, Object>> sheetData = Arrays.asList(
+    void campaignLookupFailure_skipsValidationInsteadOfBlamingTheUser() throws Throwable {
+        List<Map<String, Object>> sheetData = List.of(
             createTargetRow("BOUNDARY_001", "Village A", "100", 3)
         );
-        
         ProcessResource resource = createProcessResource();
         RequestInfo requestInfo = new RequestInfo();
-        Map<String, String> localizationMap = createLocalizationMap();
-        
-        // Mock exception from boundary util
+
         when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
-            resource.getId(), resource.getReferenceId(), resource.getTenantId(), 
-            resource.getHierarchyType(), requestInfo)).thenThrow(new RuntimeException("Boundary service error"));
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenThrow(new RuntimeException("Boundary service error"));
 
-        // When: Validate campaign boundaries
-        @SuppressWarnings("unchecked")
-        List<ValidationError> errors = (List<ValidationError>) validateCampaignBoundariesMethod
-            .invoke(targetProcessor, sheetData, resource, requestInfo, localizationMap);
+        validate(sheetData, resource, requestInfo, createLocalizationMap());
 
-        // Then: Should handle exception gracefully and return empty errors
-        assertNotNull(errors);
-        assertTrue(errors.isEmpty());
+        verify(exceptionHandler, never()).throwCustomException(anyString(), anyString());
     }
 
     @Test
-    void testBoundaryValidation_WithLocalization_ShouldUseLocalizedErrorMessage() throws Exception {
-        // Given: Sheet data with invalid boundary code
-        List<Map<String, Object>> sheetData = Arrays.asList(
-            createTargetRow("INVALID_BOUNDARY", "Invalid Village", "100", 3)
+    void manyMissingBoundaries_areTruncatedInTheMessage() {
+        List<Map<String, Object>> sheetData = List.of(
+            createTargetRow("VALID_BOUNDARY_001", "Village A", "100", 3)
         );
-        
         ProcessResource resource = createProcessResource();
         RequestInfo requestInfo = new RequestInfo();
-        
-        // Custom localization map with different message
+
+        Set<String> campaignBoundaries = new HashSet<>();
+        campaignBoundaries.add("VALID_BOUNDARY_001");
+        for (int i = 0; i < 10; i++) {
+            campaignBoundaries.add("MISSING_" + i);
+        }
+        when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(campaignBoundaries);
+        when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo))
+            .thenReturn(campaignBoundaries);
+
+        CustomException thrown = assertThrows(CustomException.class,
+            () -> validate(sheetData, resource, requestInfo, createLocalizationMap()));
+
+        assertEquals("HCM_TARGET_LOWEST_LEVEL_BOUNDARIES_MISSING", thrown.getCode());
+        assertTrue(thrown.getMessage().endsWith("..."), thrown.getMessage());
+    }
+
+    @Test
+    void missingBoundaryNamesInTheMessageAreLocalized() {
+        List<Map<String, Object>> sheetData = List.of(
+            createTargetRow("VALID_BOUNDARY_001", "Village A", "100", 3)
+        );
+        ProcessResource resource = createProcessResource();
+        RequestInfo requestInfo = new RequestInfo();
+
         Map<String, String> localizationMap = new HashMap<>();
-        localizationMap.put("HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN_BOUNDARIES", "Custom boundary error message");
-        
-        // Mock campaign boundaries (empty to make boundary invalid)
-        Set<String> validBoundaryCodes = Set.of("VALID_BOUNDARY_ONLY");
+        localizationMap.put("MISSING_BOUNDARY", "Aldeia Desconhecida");
+
         when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(any(), any(), any(), any(), any()))
-            .thenReturn(validBoundaryCodes);
+            .thenReturn(Set.of("VALID_BOUNDARY_001", "MISSING_BOUNDARY"));
+        when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(any(), any(), any(), any(), any()))
+            .thenReturn(Set.of("VALID_BOUNDARY_001", "MISSING_BOUNDARY"));
 
-        // When: Validate campaign boundaries
-        @SuppressWarnings("unchecked")
-        List<ValidationError> errors = (List<ValidationError>) validateCampaignBoundariesMethod
-            .invoke(targetProcessor, sheetData, resource, requestInfo, localizationMap);
+        CustomException thrown = assertThrows(CustomException.class,
+            () -> validate(sheetData, resource, requestInfo, localizationMap));
 
-        // Then: Should use custom localized error message
-        assertNotNull(errors);
-        assertEquals(1, errors.size());
-        ValidationError error = errors.get(0);
-        assertTrue(error.getErrorDetails().contains("Custom boundary error message"));
+        assertTrue(thrown.getMessage().contains("Aldeia Desconhecida"), thrown.getMessage());
     }
 
     // Helper methods
@@ -303,7 +269,7 @@ class BoundaryValidationTest {
         row.put("__actualRowNumber__", rowNumber);
         return row;
     }
-    
+
     private ProcessResource createProcessResource() {
         return ProcessResource.builder()
                 .id("test-process-id")
@@ -313,10 +279,8 @@ class BoundaryValidationTest {
                 .type("target-microplan-ingestion")
                 .build();
     }
-    
+
     private Map<String, String> createLocalizationMap() {
-        Map<String, String> localizationMap = new HashMap<>();
-        localizationMap.put("HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN_BOUNDARIES", "सीमा कोड अभियान में मौजूद नहीं है");
-        return localizationMap;
+        return new HashMap<>();
     }
 }
