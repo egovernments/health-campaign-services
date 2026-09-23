@@ -116,6 +116,15 @@ public class ImmutableJoinService {
                                        Map<String, Map<String, Object>> sheetNameToSchema,
                                        RequestInfo requestInfo,
                                        List<ValidationError> warningsOut, Map<String, String> localizationMap) {
+        return applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, requestInfo,
+                warningsOut, localizationMap, localizationMap);
+    }
+
+    public Map<String, Set<String>> applyImmutableBaseline(Workbook uploadedWorkbook, ProcessResource resource,
+                                       Map<String, Map<String, Object>> sheetNameToSchema,
+                                       RequestInfo requestInfo,
+                                       List<ValidationError> warningsOut, Map<String, String> localizationMap,
+                                       Map<String, String> errorLocalizationMap) {
         // Scope: only the join-mode template families (unified-console, attendanceRegister,
         // attendanceRegisterAttendee) use join-mode. Any other type is processed as before, with no
         // baseline reconstruction.
@@ -127,7 +136,8 @@ public class ImmutableJoinService {
         String generationId = readGenerationId(uploadedWorkbook);
         if (generationId == null || generationId.trim().isEmpty()) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID,
-                    ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID_MESSAGE);
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID,
+                            ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID_MESSAGE));
             return Collections.emptyMap();
         }
         generationId = generationId.trim();
@@ -139,13 +149,17 @@ public class ImmutableJoinService {
             baselineGen = generatedFileRepository.findByGenerationId(generationId, resource.getTenantId());
         } catch (InvalidTenantIdException e) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND,
-                    ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE.replace("{0}", generationId), e);
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND,
+                            ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE,
+                            generationId), e);
             return Collections.emptyMap();
         }
         if (baselineGen == null || baselineGen.getFileStoreId() == null
                 || baselineGen.getFileStoreId().isEmpty()) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND,
-                    ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE.replace("{0}", generationId));
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND,
+                            ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE,
+                            generationId));
             return Collections.emptyMap();
         }
 
@@ -178,7 +192,8 @@ public class ImmutableJoinService {
             log.info("Upload sheet is belong to the cloned campaign ");
         } else {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
-                    ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
+                            ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE));
             return Collections.emptyMap();
         }
 
@@ -190,7 +205,7 @@ public class ImmutableJoinService {
 
             for (Map.Entry<String, Map<String, Object>> entry : sheetNameToSchema.entrySet()) {
                 Set<String> restored = joinSheet(entry.getKey(), entry.getValue(), uploadedWorkbook, baselineWorkbook,
-                        baselineGen.getFileStoreId(), resource, warningsOut, localizationMap);
+                        baselineGen.getFileStoreId(), resource, warningsOut, localizationMap, errorLocalizationMap);
                 if (!restored.isEmpty()) {
                     immutableColumnsBySheet.put(entry.getKey(), restored);
                 }
@@ -199,7 +214,8 @@ public class ImmutableJoinService {
             throw ce; // fail-closed business errors propagate as-is
         } catch (Exception e) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_BASELINE_READ_ERROR,
-                    ErrorConstants.IMMUTABLE_BASELINE_READ_ERROR_MESSAGE, e);
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_BASELINE_READ_ERROR,
+                            ErrorConstants.IMMUTABLE_BASELINE_READ_ERROR_MESSAGE), e);
         }
         return immutableColumnsBySheet;
     }
@@ -214,7 +230,8 @@ public class ImmutableJoinService {
     private Set<String> joinSheet(String sheetName, Map<String, Object> schemaMap,
                            Workbook uploadedWorkbook, Workbook baselineWorkbook,
                            String baselineFileStoreId, ProcessResource resource,
-                           List<ValidationError> warningsOut, Map<String, String> localizationMap) {
+                           List<ValidationError> warningsOut, Map<String, String> localizationMap,
+                           Map<String, String> errorLocalizationMap) {
         Sheet uploadedSheet = uploadedWorkbook.getSheet(sheetName);
         Sheet baselineSheet = baselineWorkbook.getSheet(sheetName);
         if (uploadedSheet == null || baselineSheet == null) {
@@ -259,7 +276,8 @@ public class ImmutableJoinService {
         // the server-authoritative data. Without this, a tampered locked cell stays visible and unflagged
         // in the processed file even though validation/persistence used the correct baseline value.
         Map<String, Integer> uploadedColIndex = headerIndex(uploadedSheet);
-        SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut, localizationMap);
+        SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut,
+                localizationMap, errorLocalizationMap);
 
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
@@ -271,12 +289,16 @@ public class ImmutableJoinService {
             if (baseRow == null) {
                 // row-id present but unknown to baseline -> a forged/disguised existing row
                 exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID,
-                        ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID_MESSAGE.replace("{0}", sheetName));
+                        localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID,
+                            ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID_MESSAGE,
+                                sheetName));
             }
             if (!seen.add(rid)) {
                 // Two uploaded rows claim the same baseline identity (a duplicated pre-filled row).
                 exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID,
-                        ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID_MESSAGE.replace("{0}", sheetName));
+                        localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID,
+                            ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID_MESSAGE,
+                                sheetName));
             }
             // Reconstruct every immutable column AND its expanded _MULTISELECT_* child columns from the
             // baseline, overwriting whatever the file contains. We iterate the BASELINE row's own keys so
@@ -345,7 +367,9 @@ public class ImmutableJoinService {
         // deleted (or its id wiped to disguise an edit as a new row).
         if (seen.size() < baselineByRowId.size()) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_ORPHAN_ROWS,
-                    ErrorConstants.IMMUTABLE_ORPHAN_ROWS_MESSAGE.replace("{0}", sheetName));
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_ORPHAN_ROWS,
+                            ErrorConstants.IMMUTABLE_ORPHAN_ROWS_MESSAGE,
+                            sheetName));
         }
 
         log.info("Immutable-baseline join applied on sheet '{}': {} existing rows reconstructed from baseline",
@@ -445,10 +469,9 @@ public class ImmutableJoinService {
             log.info("Immutable-join REJECTED upload: sheet '{}' row {} column '{}' changed from baseline",
                     sj.sheetName, poiRowIdx + 1, col);
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
-                    ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE
-                            .replace("{0}", sj.sheetName)
-                            .replace("{1}", String.valueOf(poiRowIdx + 1))
-                            .replace("{2}", col));
+                    localizedError(sj.errorLocalizationMap, ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                            ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE,
+                            sj.sheetName, String.valueOf(poiRowIdx + 1), col));
         }
 
         upRow.put(col, value);
@@ -517,14 +540,17 @@ public class ImmutableJoinService {
         final String sheetName;
         final List<ValidationError> warnings;
         final Map<String, String> localizationMap;
+        final Map<String, String> errorLocalizationMap;
 
         SheetJoin(Sheet sheet, Map<String, Integer> colIndex, String sheetName,
-                  List<ValidationError> warnings, Map<String, String> localizationMap) {
+                  List<ValidationError> warnings, Map<String, String> localizationMap,
+                  Map<String, String> errorLocalizationMap) {
             this.sheet = sheet;
             this.colIndex = colIndex;
             this.sheetName = sheetName;
             this.warnings = warnings;
             this.localizationMap = localizationMap;
+            this.errorLocalizationMap = errorLocalizationMap;
         }
     }
 
@@ -547,6 +573,25 @@ public class ImmutableJoinService {
         }
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    /**
+     * Resolves an upload-error message from the request-locale localization map, falling back to the
+     * English text in {@link ErrorConstants} when the localization service has no entry for the code.
+     *
+     * <p>Placeholders are substituted on BOTH branches on purpose:
+     * {@code LocalizationUtil.getLocalizedMessage} only substitutes when the key was found, which
+     * would leave raw {@code {0}} markers in the fallback text.
+     */
+    private static String localizedError(Map<String, String> messages, String code, String defaultMessage,
+                                         String... params) {
+        String message = LocalizationUtil.getLocalizedMessage(messages, code, defaultMessage);
+        for (int i = 0; i < params.length; i++) {
+            if (params[i] != null) {
+                message = message.replace("{" + i + "}", params[i]);
+            }
+        }
+        return message;
     }
 
     private static boolean equalsNullSafe(String a, String b) {

@@ -343,13 +343,75 @@ class ExcelProcessingServiceTest {
         // getSchemaForSheet("TestSheet") -> mdmsConfigService not stubbed -> null -> sheet has NO schema.
         // Capture the sheet map handed to the join, then stop processing right after.
         ArgumentCaptor<Map<String, Map<String, Object>>> captor = ArgumentCaptor.forClass(Map.class);
-        when(immutableJoinService.applyImmutableBaseline(any(), any(), captor.capture(), any(), any(), any()))
+        when(immutableJoinService.applyImmutableBaseline(any(), any(), captor.capture(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("stop after join"));
 
         assertThrows(RuntimeException.class, () -> excelProcessingService.processExcelFile(request));
 
         assertTrue(captor.getValue().containsKey("TestSheet"),
                 "a visible no-schema sheet must still be included in the immutable-join sheet list");
+    }
+
+    /**
+     * Sheet names and headers must be localized in the locale the workbook was GENERATED in, because
+     * they are matched by exact string equality. Upload errors, however, are read by the person doing
+     * the upload, so they must come from the REQUEST locale. When the two differ the service has to
+     * fetch hcm-admin-schemas twice and hand the request-locale copy to the immutable join.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void uploadErrors_useRequestLocale_notWorkbookGenerationLocale() {
+        Workbook workbook = createWorkbookWithDataRows(1);
+        stampGenerationLocale(workbook, "pt_MZ");          // file was generated in pt_MZ
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString())).thenReturn(workbook);
+        when(config.getMaxProcessRowLimit()).thenReturn(100000);
+        // requestInfoConverter.extractLocale -> "en_IN" (stubbed in setUp), so the two locales differ.
+
+        Map<String, String> workbookLocaleMessages = Map.of("MARKER", "pt_MZ copy");
+        Map<String, String> requestLocaleMessages = Map.of("MARKER", "en_IN copy");
+        when(localizationService.getLocalizedMessages(any(), eq("hcm-admin-schemas"), eq("pt_MZ"), any()))
+                .thenReturn(workbookLocaleMessages);
+        when(localizationService.getLocalizedMessages(any(), eq("hcm-admin-schemas"), eq("en_IN"), any()))
+                .thenReturn(requestLocaleMessages);
+
+        ArgumentCaptor<Map<String, String>> sheetMessages = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, String>> errorMessages = ArgumentCaptor.forClass(Map.class);
+        when(immutableJoinService.applyImmutableBaseline(any(), any(), any(), any(), any(),
+                sheetMessages.capture(), errorMessages.capture()))
+                .thenThrow(new RuntimeException("stop after join"));
+
+        assertThrows(RuntimeException.class, () -> excelProcessingService.processExcelFile(request));
+
+        assertEquals("pt_MZ copy", sheetMessages.getValue().get("MARKER"),
+                "sheet/column names must stay in the workbook's generation locale");
+        assertEquals("en_IN copy", errorMessages.getValue().get("MARKER"),
+                "upload errors must be resolved in the uploading user's request locale");
+    }
+
+    /** Same locale on both sides must not cost a second localization round-trip. */
+    @Test
+    void sameLocale_doesNotRefetchLocalizationForErrors() {
+        Workbook workbook = createWorkbookWithDataRows(1);
+        stampGenerationLocale(workbook, "en_IN");          // identical to the request locale
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString())).thenReturn(workbook);
+        when(config.getMaxProcessRowLimit()).thenReturn(100000);
+        when(immutableJoinService.applyImmutableBaseline(any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("stop after join"));
+
+        assertThrows(RuntimeException.class, () -> excelProcessingService.processExcelFile(request));
+
+        verify(localizationService, times(1))
+                .getLocalizedMessages(any(), eq("hcm-admin-schemas"), eq("en_IN"), any());
+    }
+
+    /** Writes the generation locale into the hidden metadata sheet the way generation stamps it. */
+    private void stampGenerationLocale(Workbook workbook, String locale) {
+        Sheet meta = workbook.createSheet(
+                org.egov.excelingestion.constants.GenerationConstants.META_SHEET_NAME);
+        meta.createRow(org.egov.excelingestion.constants.GenerationConstants.META_ROW_INDEX)
+                .createCell(org.egov.excelingestion.constants.GenerationConstants.META_LOCALE_CELL_INDEX)
+                .setCellValue(locale);
+        workbook.setSheetHidden(workbook.getSheetIndex(meta), true);
     }
 
     private Workbook createTestWorkbook() {

@@ -246,6 +246,28 @@ class ImmutableJoinServiceTest {
             CustomException ex = assertThrows(CustomException.class, this::run);
             assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode(),
                     "a changed pre-filled cell is rejected, not reverted");
+            assertFalse(ex.getMessage().contains("Generic error:"), "error is not repeated");
+            assertTrue(ex.getMessage().contains("sheet 'Users', row 3, column 'name'"),
+                    "the packaged fallback retains the original context when a translation is absent");
+        }
+
+        @Test
+        void rejectOnChange_usesLocalizedErrorWithCellDetails() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> messages = Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                    "Localized sheet {0}, row {1}, column {2}");
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Collections.emptyMap(), messages));
+
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+            assertEquals("Localized sheet Users, row 3, column name", ex.getMessage());
         }
 
         // reject-on-change: an unchanged pre-filled row with only the EDITABLE column edited passes (no throw).

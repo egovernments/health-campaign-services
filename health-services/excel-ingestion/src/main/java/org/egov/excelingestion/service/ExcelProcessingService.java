@@ -136,6 +136,13 @@ public class ExcelProcessingService {
                         tenantId, schemaModule, locale, request.getRequestInfo());
                 mergedLocalizationMap.putAll(schemaLocalizationMap);
 
+                // The workbook locale is required to read its sheet names. Upload errors are shown
+                // to the current user, so resolve those messages in the request locale instead.
+                Map<String, String> errorLocalizationMap = Objects.equals(requestLocale, locale)
+                        ? schemaLocalizationMap
+                        : localizationService.getLocalizedMessages(
+                                tenantId, schemaModule, requestLocale, request.getRequestInfo());
+
                 // Fail fast on oversized sheets BEFORE the expensive parse/validate/persist work,
                 // turning a potential OOM into a clean, localizable business error.
                 enforceMaxRowLimit(workbook);
@@ -161,7 +168,8 @@ public class ExcelProcessingService {
                 List<ValidationError> immutableJoinWarnings = new ArrayList<>();
                 Map<String, Set<String>> immutableColumnsBySheet =
                         immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema,
-                                request.getRequestInfo(), immutableJoinWarnings, mergedLocalizationMap);
+                                request.getRequestInfo(), immutableJoinWarnings, mergedLocalizationMap,
+                                errorLocalizationMap);
                 if (immutableColumnsBySheet == null) {
                     immutableColumnsBySheet = Collections.emptyMap();
                 }
