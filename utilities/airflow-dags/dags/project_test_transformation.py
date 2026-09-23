@@ -1,5 +1,5 @@
 """
-project_transformation_sql_test.py
+project_test_transformation.py
 
 TEST twin of project_transformation.py for the `project` entity. Same bronze
 inputs, same boundary-service calls from Python, same silver row semantics --
@@ -7,8 +7,8 @@ but the per-row flatten + write runs inside ClickHouse as one
 INSERT ... SELECT per slice instead of in Python.
 
 Writes to analytics.project_entity_sql_test (created AS project_entity), never
-to project_entity, so the two can be diffed. Manual trigger only, not part of
-entity_transformation_order. Conf: {"start_time", "end_time"} as the
+to project_entity, so the two can be diffed. Triggered by the orchestrator when the entity name `project_test` is in
+entity_transformation_order (dag_id = <entity>_transformation), or by hand. Conf: {"start_time", "end_time"} as the
 orchestrator sends, plus optional "truncate_target": true.
 
 How a run works
@@ -25,10 +25,13 @@ How a run works
 Measurements and design rationale: airflow_dags/PROJECTION_COMPARISON_REPORT.md, section 7.
 
 Conventions in this file
-    - Table names and query structure are Python f-strings; VALUES are bound by
-      clickhouse-connect with %(name)s placeholders (Python %-formatting), so SQL
-      text must never contain a bare '%': use modulo(), and escape embedded
-      literals with sql_string_literal().
+    - Per-slice SQL is rendered fully in Python (tenant, id bounds, window and the
+      VALUES rows as explicit literals via sql_string_literal / sql_datetime_literal)
+      and sent without driver-side parameter binding: clickhouse-connect 0.11 (the
+      cluster image) does not bind %(name)s parameters in client.command(), while
+      1.x (local venv) does. Only plan_slices uses %(name)s binding, through
+      client.query(), which both versions support -- that is also why it says
+      modulo() instead of the percent operator.
     - Silver columns are declared once in SILVER_COLUMNS as (column, expression)
       pairs; both halves of the INSERT are generated from that list. To add a
       column, add one pair (and the column to project_entity's DDL).
@@ -136,14 +139,6 @@ class Slice:
         end = self.end_project_id if self.end_project_id is not None else "end"
         return f"tenant={self.tenant_id} [{self.first_project_id}, {end})"
 
-    def query_parameters(self, window: TimeWindow) -> dict:
-        return {
-            "start_dt": window.start,
-            "end_dt": window.end,
-            "tenant_id": self.tenant_id,
-            "first_project_id": self.first_project_id,
-            "end_project_id": self.end_project_id,
-        }
 
 
 @dataclass(frozen=True)
@@ -159,10 +154,22 @@ class SliceResult:
 # SQL building blocks
 # =============================================================================
 
+def sql_string_literal(value: str) -> str:
+    """Single-quoted ClickHouse string literal."""
+    escaped = str(value).replace("\\", "\\\\").replace("'", "\\'")
+    return f"'{escaped}'"
+
+
+def sql_datetime_literal(moment: pendulum.DateTime) -> str:
+    """DateTime64 literal pinned to UTC, so the window means the same thing
+    whatever the server's timezone is."""
+    return f"toDateTime64('{moment.in_timezone('UTC').format('YYYY-MM-DD HH:mm:ss.SSSSSS')}', 6, 'UTC')"
+
+
 class SliceFilter:
     """
-    Renders the WHERE clause that restricts each bronze table to one slice.
-    Every fragment binds the same parameters (see Slice.query_parameters).
+    Renders the WHERE clause that restricts each bronze table to one slice,
+    with the slice's tenant, id bounds and the run's window as literals.
 
     The id range gives primary-key / projection pruning; the extra
     `IN in_window_project_ids` keeps exact window semantics (only ids ingested
@@ -170,40 +177,44 @@ class SliceFilter:
     join hash tables to in-window projects even when the range is sparse.
     """
 
-    def __init__(self, slice_: Slice):
-        self._has_upper_bound = slice_.end_project_id is not None
+    def __init__(self, slice_: Slice, window: TimeWindow):
+        self.tenant = sql_string_literal(slice_.tenant_id)
+        self._first_id = sql_string_literal(slice_.first_project_id)
+        self._end_id = sql_string_literal(slice_.end_project_id) if slice_.end_project_id is not None else None
+        self._window_start = sql_datetime_literal(window.start)
+        self._window_end = sql_datetime_literal(window.end)
 
     def _upper_bound(self, column: str) -> str:
-        return f" AND {column} < %(end_project_id)s" if self._has_upper_bound else ""
+        return f" AND {column} < {self._end_id}" if self._end_id is not None else ""
 
     @property
     def in_window_project_ids(self) -> str:
         """Subquery of this slice's project ids; touches only prj_ingested_at columns."""
         return (
             f"(SELECT id FROM {BRONZE_PROJECT_TABLE} "
-            f"WHERE _ingested_at >= %(start_dt)s AND _ingested_at < %(end_dt)s "
-            f"AND tenant_id = %(tenant_id)s AND id >= %(first_project_id)s{self._upper_bound('id')} "
+            f"WHERE _ingested_at >= {self._window_start} AND _ingested_at < {self._window_end} "
+            f"AND tenant_id = {self.tenant} AND id >= {self._first_id}{self._upper_bound('id')} "
             f"GROUP BY id)"
         )
 
     def projects(self) -> str:
         """For stg_project aliased as p."""
         return (
-            f"p.tenant_id = %(tenant_id)s AND p.id >= %(first_project_id)s{self._upper_bound('p.id')} "
+            f"p.tenant_id = {self.tenant} AND p.id >= {self._first_id}{self._upper_bound('p.id')} "
             f"AND p.id IN {self.in_window_project_ids}"
         )
 
     def addresses(self) -> str:
         """For stg_project_address (has tenant_id; keyed by project_id)."""
         return (
-            f"tenant_id = %(tenant_id)s AND project_id >= %(first_project_id)s{self._upper_bound('project_id')} "
+            f"tenant_id = {self.tenant} AND project_id >= {self._first_id}{self._upper_bound('project_id')} "
             f"AND project_id IN {self.in_window_project_ids}"
         )
 
     def targets(self) -> str:
         """For stg_project_target (no tenant_id column; keyed by project_id)."""
         return (
-            f"project_id >= %(first_project_id)s{self._upper_bound('project_id')} "
+            f"project_id >= {self._first_id}{self._upper_bound('project_id')} "
             f"AND project_id IN {self.in_window_project_ids}"
         )
 
@@ -263,13 +274,6 @@ WHERE hierarchy_type != '' AND boundary_code != ''
 """
 
 
-def sql_string_literal(value: str) -> str:
-    """Single-quoted ClickHouse literal, escaped for the literal and for the
-    %-formatting clickhouse-connect applies afterwards."""
-    escaped = str(value).replace("\\", "\\\\").replace("'", "\\'").replace("%", "%%")
-    return f"'{escaped}'"
-
-
 def boundary_levels_values_sql(resolved_levels: dict) -> str:
     """
     The Python -> ClickHouse hand-off for one slice: the API-resolved levels,
@@ -305,15 +309,16 @@ def boundary_levels_values_sql(resolved_levels: dict) -> str:
 # boundary levels VALUES table. JSON output reproduces json.dumps byte-for-byte
 # (", " between items, ": " after keys, doseIndex before cycleIndex).
 
-# Reusable expressions, referenced by name from SILVER_COLUMNS. Rendered as the
-# query's WITH clause.
-SILVER_HELPER_EXPRESSIONS: list[tuple[str, str]] = [
+def silver_helper_expressions(tenant_literal: str) -> list[tuple[str, str]]:
+    """Reusable expressions, referenced by name from SILVER_COLUMNS. Rendered as
+    the query's WITH clause. tenant_literal scopes the product sku lookup."""
+    return [
     ("day_ms", f"toInt64({DAY_MILLIS})"),
     ("max_task_dates", f"toInt64({MAX_TASK_DATES})"),
     # _resolve_product_names: bronze-only sku lookup for the slice's tenant, one map per query
     ("sku_by_variant_id",
      f"(SELECT mapFromArrays(groupArray(id), groupArray(sku)) FROM {BRONZE_PRODUCT_VARIANT_TABLE} FINAL "
-     f"WHERE tenant_id = %(tenant_id)s)"),
+     f"WHERE tenant_id = {tenant_literal})"),
     # _get_project_type_resource_ids
     ("resource_ids",
      "arrayFilter(v -> v != '', arrayMap(r -> JSONExtractString(r, 'productVariantId'), "
@@ -335,7 +340,7 @@ SILVER_HELPER_EXPRESSIONS: list[tuple[str, str]] = [
     # _resolve_target_duration_fields: Python int() truncates toward zero
     ("duration_days",
      "if(j.start_date != 0 AND j.end_date != 0, toInt32(trunc((j.end_date - j.start_date) / day_ms)), toInt32(0))"),
-]
+    ]
 
 # (silver column, SQL expression) in project_entity's column order. Both the
 # INSERT column list and the SELECT list are generated from this.
@@ -379,7 +384,9 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
 def insert_slice_sql(slice_filter: SliceFilter, boundary_levels_values: str) -> str:
     """The whole per-slice INSERT ... SELECT: bronze joins -> flatten -> write."""
     insert_columns = ",\n    ".join(column for column, _ in SILVER_COLUMNS)
-    with_clause = ",\n    ".join(f"{expression} AS {name}" for name, expression in SILVER_HELPER_EXPRESSIONS)
+    with_clause = ",\n    ".join(
+        f"{expression} AS {name}" for name, expression in silver_helper_expressions(slice_filter.tenant)
+    )
     # Output columns are positional (INSERT maps by position); the comment line
     # above each expression names the silver column it feeds.
     select_list = ",\n".join(f"    -- {column}\n    {expression}" for column, expression in SILVER_COLUMNS)
@@ -487,11 +494,7 @@ def plan_slices(client, window: TimeWindow, slice_size: int) -> list[Slice]:
 def fetch_boundary_keys(client, window: TimeWindow, slice_: Slice) -> dict[tuple[str, str], set[str]]:
     """Returns {(tenant_id, hierarchy_type): {boundary_codes}}, the input shape
     egov_api_utils.resolve_boundary_levels expects."""
-    result = client.query(
-        boundary_keys_sql(SliceFilter(slice_)),
-        parameters=slice_.query_parameters(window),
-        settings=CLICKHOUSE_LOOKUP_SETTINGS,
-    )
+    result = client.query(boundary_keys_sql(SliceFilter(slice_, window)), settings=CLICKHOUSE_LOOKUP_SETTINGS)
     lookup_keys: dict[tuple[str, str], set[str]] = {}
     for row in result.named_results():
         lookup_keys.setdefault((row["tenant_id"], row["hierarchy_type"]), set()).add(row["boundary_code"])
@@ -499,10 +502,13 @@ def fetch_boundary_keys(client, window: TimeWindow, slice_: Slice) -> dict[tuple
 
 
 def insert_slice(client, window: TimeWindow, slice_: Slice, resolved_levels: dict) -> int:
-    """Runs the slice's INSERT ... SELECT; returns rows written."""
-    sql = insert_slice_sql(SliceFilter(slice_), boundary_levels_values_sql(resolved_levels))
-    summary = client.command(sql, parameters=slice_.query_parameters(window), settings=CLICKHOUSE_INSERT_SETTINGS)
-    return int(getattr(summary, "written_rows", 0) or 0)
+    """Runs the slice's INSERT ... SELECT; returns rows written, measured as the
+    test table's row-count delta (this DAG is the table's only writer, and the
+    delta works on every clickhouse-connect version, unlike QuerySummary)."""
+    rows_before = count_test_table_rows(client)
+    sql = insert_slice_sql(SliceFilter(slice_, window), boundary_levels_values_sql(resolved_levels))
+    client.command(sql, settings=CLICKHOUSE_INSERT_SETTINGS)
+    return count_test_table_rows(client) - rows_before
 
 
 def count_test_table_rows(client) -> int:
@@ -545,7 +551,7 @@ def process_slice(client, window: TimeWindow, slice_: Slice) -> SliceResult:
     max_active_runs=1,
     tags=["bronze-to-silver", "project", "sql-test"],
 )
-def project_transformation_sql_test():
+def project_test_transformation():
 
     @task
     def parse_time_window(**context) -> dict:
@@ -613,4 +619,4 @@ def project_transformation_sql_test():
     transform_bronze_to_silver_sql(parse_time_window())
 
 
-project_transformation_sql_test()
+project_test_transformation()
