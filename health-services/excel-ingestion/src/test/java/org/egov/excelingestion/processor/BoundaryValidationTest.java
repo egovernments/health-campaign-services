@@ -260,6 +260,44 @@ class BoundaryValidationTest {
         assertTrue(thrown.getMessage().contains("Aldeia Desconhecida"), thrown.getMessage());
     }
 
+    /**
+     * HCMPRE-4496, the reported flow: a template generated when the campaign had one village is
+     * re-uploaded after a second village was added to the draft. Real codes from unified-dev
+     * campaign CMP-2026-09-23-007885.
+     */
+    @Test
+    void sheetGeneratedBeforeABoundaryWasAdded_abortsNamingTheNewBoundary() {
+        String bangawaa = "BOUNDARYTEST138_NI_01_01_02_BANGAWAA";
+        String bagidara = "BOUNDARYTEST138_NI_01_01_01_BAGIDARA";
+
+        // The old template: one row, the only village the campaign had when it was generated
+        List<Map<String, Object>> sheetData = List.of(
+            createTargetRow(bangawaa, "Bangawaa", "100", 3)
+        );
+        ProcessResource resource = createProcessResource();
+        RequestInfo requestInfo = new RequestInfo();
+
+        // The campaign as it stands now: the user added Bagidara
+        Set<String> campaignNow = Set.of(bangawaa, bagidara);
+        when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo)).thenReturn(campaignNow);
+        when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
+            resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+            resource.getHierarchyType(), requestInfo)).thenReturn(campaignNow);
+
+        CustomException thrown = assertThrows(CustomException.class,
+            () -> validate(sheetData, resource, requestInfo, createLocalizationMap()));
+
+        assertEquals("HCM_TARGET_LOWEST_LEVEL_BOUNDARIES_MISSING", thrown.getCode());
+        // Exact text that lands in additionalDetails.errorMessage (no localisation entry in this test,
+        // so the code stands in for the village name; in dev/uat it resolves to "Bagidara").
+        assertTrue(thrown.getMessage().startsWith(
+                "Lowest level boundaries missing in this sheet are: " + bagidara), thrown.getMessage());
+        // the village that IS in the sheet must not be reported as missing
+        assertFalse(thrown.getMessage().contains(bangawaa), thrown.getMessage());
+    }
+
     // Helper methods
     private Map<String, Object> createTargetRow(String boundaryCode, String boundaryName, String target, int rowNumber) {
         Map<String, Object> row = new HashMap<>();
