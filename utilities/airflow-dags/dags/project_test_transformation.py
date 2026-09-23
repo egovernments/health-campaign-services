@@ -57,7 +57,7 @@ from egov_api_utils import (  # noqa: E402
 
 log = logging.getLogger(__name__)
 
-DAG_ID = "project_transformation_sql_test"
+DAG_ID = "project_test_transformation"
 
 BRONZE_PROJECT_TABLE = "analytics.stg_project"
 BRONZE_ADDRESS_TABLE = "analytics.stg_project_address"
