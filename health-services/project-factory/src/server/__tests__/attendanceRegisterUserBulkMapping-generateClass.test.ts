@@ -863,6 +863,92 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(register2Workers).toEqual(["ind-w2", "ind-w3"]);
     });
 
+    it("maps approvers from ancestor boundaries while keeping worker boundary matching strict", async () => {
+        mockSearchCampaign.mockResolvedValue({
+            CampaignDetails: [{
+                projectId: "prj-approver-ancestor",
+                campaignNumber: "CMP-APPROVER-ANCESTOR",
+                startDate: Date.UTC(2026, 4, 1),
+                endDate: Date.UTC(2026, 4, 31),
+                boundaries: [{ code: "STATE-1" }]
+            }]
+        } as any);
+
+        routeRelatedData([], [], [
+            {
+                uniqueIdentifier: "ind-worker-parent",
+                uniqueIdAfterProcess: "ind-worker-parent",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-worker-parent",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Worker Parent",
+                    UserName: "worker.parent",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "DISTRIBUTOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "LGA-1"
+                }
+            },
+            {
+                uniqueIdentifier: "ind-approver-parent",
+                uniqueIdAfterProcess: "ind-approver-parent",
+                type: "user",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-approver-parent",
+                    HCM_ADMIN_CONSOLE_USER_NAME: "Approver Parent",
+                    UserName: "approver.parent",
+                    HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_1: "PROXIMITY_SUPERVISOR",
+                    HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: "LGA-1"
+                }
+            }
+        ]);
+
+        mockBoundaryRelationship.mockResolvedValue(boundaryTree([
+            {
+                code: "LGA-1",
+                boundaryType: "LGA",
+                children: [
+                    { code: "DH-1", boundaryType: "DISTRIBUTION_HUB", children: [] }
+                ]
+            }
+        ]));
+
+        mockHttpRequest.mockResolvedValue({
+            attendanceRegister: [
+                {
+                    id: "reg-ancestor-1",
+                    serviceCode: "REG-A1",
+                    name: "Register Ancestor 1",
+                    localityCode: "DH-1",
+                    attendees: [],
+                    staff: []
+                }
+            ]
+        } as any);
+
+        const sheetMap = await TemplateClass.generate(
+            {},
+            { tenantId: "bednet", campaignId: "cmp-approver-ancestor", hierarchyType: "ADMIN", requestInfo: {} },
+            {}
+        );
+
+        const workerRows = sheetMap[WORKER_SHEET].data as Record<string, string>[];
+        const approverRows = sheetMap[APPROVER_SHEET].data as Record<string, string>[];
+
+        expect(workerRows).toHaveLength(0);
+        expect(approverRows).toHaveLength(1);
+        expect(approverRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-approver-parent");
+        expect(approverRows[0].HCM_ATTENDANCE_REGISTER_CODE).toBe("REG-A1");
+        expect(mockBoundaryRelationship).toHaveBeenCalledTimes(1);
+        expect(mockBoundaryRelationship).toHaveBeenCalledWith(
+            "bednet",
+            "ADMIN",
+            false,
+            true,
+            false,
+            "DH-1",
+            {}
+        );
+    });
+
     it("supplements partial stored mappings with live attendance rows for missing registers", async () => {
         const campaignEnd = Date.UTC(2026, 3, 30);
 

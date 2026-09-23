@@ -691,7 +691,7 @@ export class TemplateClass {
         }
 
         const getBoundaryFilter = (sheetName: string) =>
-            templateConfig?.sheets?.find((sheet: any) => sheet.sheetName === sheetName)?.boundaryFilter;
+            this.resolveCampaignUserBoundaryFilter(sheetName, templateConfig);
         const allowedCodesCache = new Map<string, Set<string>>();
         const getAllowedCodes = async (sheetName: string, localityCode: string): Promise<Set<string>> => {
             const cacheKey = `${sheetName}::${localityCode}`;
@@ -1032,6 +1032,21 @@ export class TemplateClass {
         }
         logger.warn(`Unknown boundaryFilter mode '${filter.mode}', defaulting to self only`);
         return new Set([localityCode]);
+    }
+
+    private static resolveCampaignUserBoundaryFilter(sheetName: string, templateConfig: any): any {
+        const configuredFilter = templateConfig?.sheets?.find(
+            (sheet: any) => sheet.sheetName === sheetName
+        )?.boundaryFilter;
+        if (configuredFilter) {
+            return configuredFilter;
+        }
+        if (sheetName === APPROVER_SHEET) {
+            // Approvers are often configured at ancestor boundaries (LGA/State),
+            // while registers live at lower levels (e.g., Distribution Hub).
+            return { mode: "ANCESTOR_AND_SELF" };
+        }
+        return undefined;
     }
 
     private static async getBoundaryAncestorAndSelfCodes(
