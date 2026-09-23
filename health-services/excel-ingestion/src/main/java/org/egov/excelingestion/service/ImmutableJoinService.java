@@ -616,7 +616,11 @@ public class ImmutableJoinService {
         if (!parent.equals(col)) {
             String localizedParent = LocalizationUtil.getLocalizedMessage(messages, parent, null);
             if (localizedParent != null && !localizedParent.isEmpty()) {
-                return localizedParent + col.substring(parent.length());
+                // Match the convention the catalogue itself uses for these
+                // ("..._USER_ROLE_MULTISELECT_2" -> "User Role 2") so ANY multi-select column reads
+                // correctly without needing a per-child entry seeded for it.
+                String index = col.substring(parent.length() + MULTISELECT_MARKER.length());
+                return index.isEmpty() ? localizedParent : localizedParent + " " + index;
             }
         }
         return col; // no translation available - the key is still better than a blank

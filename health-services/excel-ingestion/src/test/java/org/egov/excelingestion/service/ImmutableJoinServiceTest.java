@@ -297,6 +297,31 @@ class ImmutableJoinServiceTest {
             assertFalse(ex.getMessage().contains("name,"), "the technical key must not leak into the message");
         }
 
+        /**
+         * Nothing about the fix is tied to one column. A different immutable column resolves through
+         * the same generic lookup - no per-column handling anywhere.
+         */
+        @Test
+        void rejectOnChange_localizesAnyColumnNotJustOne() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "Real Name", "village", "TAMPERED",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of(
+                    "name", "Nome do utilizador",
+                    "village", "Aldeia");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization,
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "col={2}")));
+
+            assertEquals("col=Aldeia", ex.getMessage());
+        }
+
         /** No translation for the header: the key is still better than a blank. */
         @Test
         void rejectOnChange_fallsBackToTheTechnicalKeyWhenTheColumnIsNotLocalized() {
