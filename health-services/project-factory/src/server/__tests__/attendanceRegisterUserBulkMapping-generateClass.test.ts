@@ -683,7 +683,7 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         )).toBe(true);
     });
 
-    it("does not prefill marker or approver rows from campaign users when register staff is absent", async () => {
+    it("prefills approver rows (but not marker rows) from campaign users when register staff is absent", async () => {
         mockSearchCampaign.mockResolvedValue({
             CampaignDetails: [{
                 projectId: "prj-staff-empty",
@@ -759,7 +759,8 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows).toHaveLength(1);
         expect(workerRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-worker");
         expect(markerRows).toHaveLength(0);
-        expect(approverRows).toHaveLength(0);
+        expect(approverRows).toHaveLength(1);
+        expect(approverRows[0].HCM_ADMIN_CONSOLE_USER_WORKER_ID).toBe("ind-appr");
     });
 
     it("does not cross-join campaign users across registers when boundary differs", async () => {
