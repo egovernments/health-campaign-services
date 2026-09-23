@@ -270,6 +270,51 @@ class ImmutableJoinServiceTest {
             assertEquals("Localized sheet Users, row 3, column name", ex.getMessage());
         }
 
+        /**
+         * Column headers are technical keys, so a raw one in the message leaves the user reading
+         * HCM_ADMIN_CONSOLE_USER_ROLE instead of "User Role". The display name must come from the
+         * WORKBOOK's localization map - that is the locale the header row they are looking at was
+         * written in - while the sentence around it stays in the request locale.
+         */
+        @Test
+        void rejectOnChange_localizesTheColumnNameFromTheWorkbookLocale() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of("name", "Nome do utilizador");
+            Map<String, String> errorLocalization = Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                    "Coluna {2} na folha {0}, linha {1}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization, errorLocalization));
+
+            assertEquals("Coluna Nome do utilizador na folha Users, linha 3", ex.getMessage());
+            assertFalse(ex.getMessage().contains("name,"), "the technical key must not leak into the message");
+        }
+
+        /** No translation for the header: the key is still better than a blank. */
+        @Test
+        void rejectOnChange_fallsBackToTheTechnicalKeyWhenTheColumnIsNotLocalized() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Collections.emptyMap(),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "col={2}")));
+
+            assertEquals("col=name", ex.getMessage());
+        }
+
         // reject-on-change: an unchanged pre-filled row with only the EDITABLE column edited passes (no throw).
         @Test
         void rejectOnChange_onlyEditableChanged_passes() {

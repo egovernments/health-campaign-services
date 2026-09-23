@@ -471,7 +471,8 @@ public class ImmutableJoinService {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
                     localizedError(sj.errorLocalizationMap, ErrorConstants.IMMUTABLE_CELL_TAMPERED,
                             ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE,
-                            sj.sheetName, String.valueOf(poiRowIdx + 1), col));
+                            sj.sheetName, String.valueOf(poiRowIdx + 1),
+                            localizedColumn(sj.localizationMap, col)));
         }
 
         upRow.put(col, value);
@@ -583,6 +584,44 @@ public class ImmutableJoinService {
      * {@code LocalizationUtil.getLocalizedMessage} only substitutes when the key was found, which
      * would leave raw {@code {0}} markers in the fallback text.
      */
+    /**
+     * Display name for a column header inside a user-facing message.
+     *
+     * <p>Sheet headers are stored as technical keys (row 0), so inserting one raw into an error leaves
+     * the user reading {@code HCM_ADMIN_CONSOLE_USER_ROLE} instead of "User Role". This resolves any
+     * column generically - there is no per-column special-casing - using the same
+     * lookup-then-fall-back-to-the-key convention the generator uses when it writes the localized
+     * header row.
+     *
+     * <p>Deliberately uses the WORKBOOK's localization map, not the request-locale one: the name has to
+     * match the header the user is actually looking at in the file they uploaded, which was written in
+     * the generation locale. The surrounding sentence stays in the request locale.
+     *
+     * <p>Expanded multi-select children ({@code PARENT_MULTISELECT_2}) have no key of their own, so the
+     * parent is localized and the child suffix preserved.
+     *
+     * <p>NOTE: this is for DISPLAY text only. {@code ValidationError.columnName} must keep the technical
+     * key - it is looked up against a row-0-derived index to highlight the offending cell
+     * (UserValidationProcessor), and a localized value would never match.
+     */
+    private static String localizedColumn(Map<String, String> messages, String col) {
+        if (col == null || col.isEmpty()) {
+            return col;
+        }
+        String direct = LocalizationUtil.getLocalizedMessage(messages, col, null);
+        if (direct != null && !direct.isEmpty()) {
+            return direct;
+        }
+        String parent = parentColumnOf(col);
+        if (!parent.equals(col)) {
+            String localizedParent = LocalizationUtil.getLocalizedMessage(messages, parent, null);
+            if (localizedParent != null && !localizedParent.isEmpty()) {
+                return localizedParent + col.substring(parent.length());
+            }
+        }
+        return col; // no translation available - the key is still better than a blank
+    }
+
     private static String localizedError(Map<String, String> messages, String code, String defaultMessage,
                                          String... params) {
         String message = LocalizationUtil.getLocalizedMessage(messages, code, defaultMessage);
