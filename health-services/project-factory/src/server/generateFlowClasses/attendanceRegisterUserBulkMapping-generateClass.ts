@@ -173,6 +173,17 @@ export class TemplateClass {
             tenantId,
             dataRowStatuses.completed
         ) as CampaignDataRow[];
+        this.logBulkTrace("generation-input-summary", {
+            tenantId,
+            campaignId,
+            campaignNumber,
+            hierarchyType,
+            localityCodesRequested: localityCodes,
+            registerCount: registers.length,
+            registerSamples: this.summarizeRegisters(registers),
+            attendeeRowsCount: Array.isArray(attendeeRows) ? attendeeRows.length : 0,
+            campaignUserRowsCount: Array.isArray(campaignUserRows) ? campaignUserRows.length : 0,
+        });
         const rowsFromStoredData = this.buildRowsFromStoredMappings(
             registers,
             Array.isArray(attendeeRows) ? attendeeRows : [],
@@ -295,11 +306,11 @@ export class TemplateClass {
         return rowsBySheetName;
     }
 
-    private static restrictCampaignFallbackToWorkerRows(rowsBySheetName: RowsBySheetName): RowsBySheetName {
+    private static restrictCampaignFallbackToWorkerAndApproverRows(rowsBySheetName: RowsBySheetName): RowsBySheetName {
         return new Map<string, BulkRow[]>([
             [WORKER_SHEET, rowsBySheetName.get(WORKER_SHEET) || []],
             [MARKER_SHEET, []],
-            [APPROVER_SHEET, []],
+            [APPROVER_SHEET, rowsBySheetName.get(APPROVER_SHEET) || []],
         ]);
     }
 
@@ -325,6 +336,18 @@ export class TemplateClass {
         let skippedRequesterOwnerWithoutRoles = 0;
         let markerRowsBuilt = 0;
         let approverRowsBuilt = 0;
+        const perRegisterBuildStats = new Map<string, {
+            registerCode: string;
+            registerUuid: string;
+            attendeeRowsBuilt: number;
+            markerRowsBuilt: number;
+            approverRowsBuilt: number;
+            staffRowsSeen: number;
+            skippedStaffWithoutPersonId: number;
+            skippedDuplicateStaffIdentity: number;
+            skippedStaffWithoutSheetResolution: number;
+            skippedRequesterOwnerWithoutRoles: number;
+        }>();
 
         const personIds = new Set<string>();
         for (const register of registers) {
@@ -348,6 +371,19 @@ export class TemplateClass {
 
         for (const register of registers) {
             const registerKey = this.registerIdentity(register);
+            const perRegister = perRegisterBuildStats.get(registerKey) || {
+                registerCode: register.serviceCode,
+                registerUuid: register.id,
+                attendeeRowsBuilt: 0,
+                markerRowsBuilt: 0,
+                approverRowsBuilt: 0,
+                staffRowsSeen: 0,
+                skippedStaffWithoutPersonId: 0,
+                skippedDuplicateStaffIdentity: 0,
+                skippedStaffWithoutSheetResolution: 0,
+                skippedRequesterOwnerWithoutRoles: 0,
+            };
+            perRegisterBuildStats.set(registerKey, perRegister);
             const attendeeByPersonId = new Map<string, AttendanceAttendeeRow>();
             for (const attendee of register.attendees || []) {
                 const personId = this.asText(attendee?.individualId);
@@ -379,20 +415,24 @@ export class TemplateClass {
                     localizationMap
                 );
                 dedupedRowsBySheetName.get(WORKER_SHEET)?.set(dedupeKey, row);
+                perRegister.attendeeRowsBuilt++;
             }
 
             const seenStaffIdentities = new Set<string>();
             for (const staff of register.staff || []) {
                 staffRowsSeen++;
+                perRegister.staffRowsSeen++;
                 const personId = this.asText(staff?.userId);
                 if (!personId) {
                     skippedStaffWithoutPersonId++;
+                    perRegister.skippedStaffWithoutPersonId++;
                     continue;
                 }
                 const staffType = this.asText(staff?.staffType).toUpperCase();
                 const staffIdentity = `${personId}::${staffType || "__UNKNOWN__"}`;
                 if (seenStaffIdentities.has(staffIdentity)) {
                     skippedDuplicateStaffIdentity++;
+                    perRegister.skippedDuplicateStaffIdentity++;
                     continue;
                 }
                 seenStaffIdentities.add(staffIdentity);
@@ -406,6 +446,7 @@ export class TemplateClass {
                     && profileUsername === normalizedRequestingUsername;
                 if (skipRequesterOwnerWithoutRoles) {
                     skippedRequesterOwnerWithoutRoles++;
+                    perRegister.skippedRequesterOwnerWithoutRoles++;
                     buildMeta?.skippedRequesterOwnerNoRolesRegisterKeys.add(registerKey);
                     if (staffResolutionSamples.length < 50) {
                         staffResolutionSamples.push({
@@ -440,6 +481,7 @@ export class TemplateClass {
                 }
                 if (!staffSheet) {
                     skippedStaffWithoutSheetResolution++;
+                    perRegister.skippedStaffWithoutSheetResolution++;
                     continue;
                 }
 
@@ -456,8 +498,14 @@ export class TemplateClass {
                     localizationMap
                 );
                 dedupedRowsBySheetName.get(staffSheet.sheetName)?.set(dedupeKey, row);
-                if (staffSheet.sheetName === MARKER_SHEET) markerRowsBuilt++;
-                if (staffSheet.sheetName === APPROVER_SHEET) approverRowsBuilt++;
+                if (staffSheet.sheetName === MARKER_SHEET) {
+                    markerRowsBuilt++;
+                    perRegister.markerRowsBuilt++;
+                }
+                if (staffSheet.sheetName === APPROVER_SHEET) {
+                    approverRowsBuilt++;
+                    perRegister.approverRowsBuilt++;
+                }
             }
         }
 
@@ -473,6 +521,7 @@ export class TemplateClass {
             markerRowsBuilt,
             approverRowsBuilt,
             rowSummary: this.summarizeRowsBySheetName(rowsBySheetName),
+            perRegisterBuildStats: Array.from(perRegisterBuildStats.values()).slice(0, 200),
             staffResolutionSamples,
         });
         return rowsBySheetName;
@@ -564,7 +613,7 @@ export class TemplateClass {
             rowsFromCampaignUsers,
             rowsFromRegisterMappings
         );
-        const campaignWorkerRowsForUnmappedRegisterSheets = this.restrictCampaignFallbackToWorkerRows(
+        const campaignWorkerRowsForUnmappedRegisterSheets = this.restrictCampaignFallbackToWorkerAndApproverRows(
             campaignRowsForMissingRegisterSheets
         );
         const campaignNonWorkerRowsForSkippedRequesterOwnerRegisters = this.pickCampaignNonWorkerFallbackRows(
@@ -620,6 +669,20 @@ export class TemplateClass {
             return this.flattenRowsBySheetName(dedupedRowsBySheetName);
         }
 
+        let campaignUserRowsSeen = 0;
+        let skippedDeletedRows = 0;
+        let skippedMissingRawData = 0;
+        let skippedUnknownPerson = 0;
+        let skippedUnclassifiedRole = 0;
+        let skippedMissingBoundaryCode = 0;
+        let skippedBoundaryMismatch = 0;
+        let acceptedRows = 0;
+        const acceptedRowsBySheet: Record<string, number> = {
+            [WORKER_SHEET]: 0,
+            [MARKER_SHEET]: 0,
+            [APPROVER_SHEET]: 0,
+        };
+
         const normalizedCampaignUsers = campaignUserRows.filter((entry) =>
             this.asText(entry?.type).toLowerCase() === USER_DATA_TYPE
         );
@@ -648,22 +711,41 @@ export class TemplateClass {
         for (const register of registers) {
             const registerKey = this.registerIdentity(register);
             for (const userEntry of normalizedCampaignUsers) {
-                if (userEntry?.isDeleted) continue;
+                campaignUserRowsSeen++;
+                if (userEntry?.isDeleted) {
+                    skippedDeletedRows++;
+                    continue;
+                }
                 const rawData = this.asRecord(userEntry?.data);
-                if (!rawData) continue;
+                if (!rawData) {
+                    skippedMissingRawData++;
+                    continue;
+                }
 
                 const personId = this.personIdentity(rawData, "__unknown__");
-                if (personId === "__unknown__") continue;
+                if (personId === "__unknown__") {
+                    skippedUnknownPerson++;
+                    continue;
+                }
 
                 const sheetName = this.classifyCampaignUserToSheet(rawData);
-                if (!sheetName) continue;
+                if (!sheetName) {
+                    skippedUnclassifiedRole++;
+                    continue;
+                }
                 const boundaryCode = this.firstNonBlank(
                     this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
                     this.asText(rawData[BOUNDARY_CODE_COLUMN])
                 );
-                if (!boundaryCode) continue;
+                if (!boundaryCode) {
+                    skippedMissingBoundaryCode++;
+                    continue;
+                }
                 const allowedCodes = await getAllowedCodes(sheetName, register.localityCode);
-                if (!allowedCodes.has(boundaryCode)) continue;
+                if (!allowedCodes.has(boundaryCode)) {
+                    skippedBoundaryMismatch++;
+                    continue;
+                }
 
                 const dedupeKey = `${registerKey}::${sheetName}::${personId}`;
                 const row = this.buildCampaignUserRow(
@@ -675,10 +757,26 @@ export class TemplateClass {
                     localizationMap
                 );
                 dedupedRowsBySheetName.get(sheetName)?.set(dedupeKey, row);
+                acceptedRows++;
+                acceptedRowsBySheet[sheetName] = (acceptedRowsBySheet[sheetName] || 0) + 1;
             }
         }
 
-        return this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        const rowsBySheetName = this.flattenRowsBySheetName(dedupedRowsBySheetName);
+        this.logBulkTrace("campaign-user-build-summary", {
+            registerCount: registers.length,
+            campaignUserRowsSeen,
+            acceptedRows,
+            acceptedRowsBySheet,
+            skippedDeletedRows,
+            skippedMissingRawData,
+            skippedUnknownPerson,
+            skippedUnclassifiedRole,
+            skippedMissingBoundaryCode,
+            skippedBoundaryMismatch,
+            rowSummary: this.summarizeRowsBySheetName(rowsBySheetName),
+        });
+        return rowsBySheetName;
     }
 
     private static collectMappedRegisterSheetKeys(rowsBySheetName: RowsBySheetName): Set<string> {
@@ -788,6 +886,12 @@ export class TemplateClass {
         localityCodes: string[],
         requestInfo?: RequestInfo
     ): Promise<RegisterData[]> {
+        this.logBulkTrace("register-fetch-start", {
+            tenantId,
+            campaignNumber,
+            hierarchyType,
+            localityCodesRequested: localityCodes,
+        });
         // Bulk download must always include the full campaign register set.
         // Locality-derived discovery is treated as a supplemental source only.
         const campaignWideRegisters = await this.searchRegistersByCampaignNumber(
@@ -801,6 +905,12 @@ export class TemplateClass {
         );
 
         if (!effectiveLocalityCodes.length) {
+            this.logBulkTrace("register-fetch-complete", {
+                mode: "campaignWideOnly",
+                campaignWideRegisterCount: campaignWideRegisters.length,
+                finalRegisterCount: campaignWideRegisters.length,
+                registerSamples: this.summarizeRegisters(campaignWideRegisters),
+            });
             return campaignWideRegisters;
         }
 
@@ -817,11 +927,30 @@ export class TemplateClass {
                 `No created projects found under locality code(s) ${effectiveLocalityCodes.join(", ")} `
                 + `for campaign ${campaignNumber}; using campaign-wide register discovery`
             );
+            this.logBulkTrace("register-fetch-complete", {
+                mode: "campaignWideFallback_noReferenceIds",
+                campaignWideRegisterCount: campaignWideRegisters.length,
+                effectiveLocalityCodes,
+                subtreeCodeCount: subtreeCodes.length,
+                finalRegisterCount: campaignWideRegisters.length,
+                registerSamples: this.summarizeRegisters(campaignWideRegisters),
+            });
             return campaignWideRegisters;
         }
 
         const localityScopedRegisters = await this.searchRegistersByReferenceIds(tenantId, referenceIds, requestInfo);
-        return this.mergeRegisterSets(campaignWideRegisters, localityScopedRegisters);
+        const merged = this.mergeRegisterSets(campaignWideRegisters, localityScopedRegisters);
+        this.logBulkTrace("register-fetch-complete", {
+            mode: "campaignWidePlusLocality",
+            campaignWideRegisterCount: campaignWideRegisters.length,
+            localityScopedRegisterCount: localityScopedRegisters.length,
+            effectiveLocalityCodes,
+            subtreeCodeCount: subtreeCodes.length,
+            referenceIdCount: referenceIds.length,
+            finalRegisterCount: merged.length,
+            registerSamples: this.summarizeRegisters(merged),
+        });
+        return merged;
     }
 
     private static mergeRegisterSets(
@@ -1630,6 +1759,17 @@ export class TemplateClass {
             };
         }
         return summary;
+    }
+
+    private static summarizeRegisters(registers: RegisterData[]): Array<Record<string, unknown>> {
+        return registers.slice(0, 100).map((register) => ({
+            registerCode: register.serviceCode,
+            registerUuid: register.id,
+            registerName: register.name,
+            localityCode: register.localityCode,
+            attendeeCount: Array.isArray(register.attendees) ? register.attendees.length : 0,
+            staffCount: Array.isArray(register.staff) ? register.staff.length : 0,
+        }));
     }
 
     private static logBulkTrace(event: string, payload: Record<string, unknown>): void {
