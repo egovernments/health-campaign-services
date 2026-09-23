@@ -36,17 +36,38 @@ public class AttendanceRegisterService {
 
     private static Map<String, String> attendeesIdUserIdCache = new ConcurrentHashMap<>();
 
+    private final Map<String, String> searchUserUuidByTenant;
+
     public AttendanceRegisterService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, UserService userService, IndividualService individualService, TransformerErrorProducer errorProducer) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
         this.userService = userService;
         this.individualService = individualService;
         this.errorProducer = errorProducer;
+        this.searchUserUuidByTenant = parseSearchUserUuid(stockConfiguration.getAttendanceRegisterSearchUserUuid());
+    }
+
+    private static Map<String, String> parseSearchUserUuid(String config) {
+        Map<String, String> byTenant = new HashMap<>();
+        if (config == null || config.trim().isEmpty()) {
+            return byTenant;
+        }
+        for (String pair : config.split(",")) {
+            String[] parts = pair.trim().split(":", 2);
+            if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
+                byTenant.put(parts[0].trim(), parts[1].trim());
+            }
+        }
+        return byTenant;
+    }
+
+    String resolveSearchUserUuid(String tenantId, String createdUserUuid) {
+        return searchUserUuidByTenant.getOrDefault(tenantId, createdUserUuid);
     }
 
 
     public AttendanceRegister findAttendanceRegisterById(String registerId, String tenantId, String createdUserUuid) {
-        Long userServiceId = userService.getUserServiceId(tenantId, createdUserUuid);
+        Long userServiceId = userService.getUserServiceId(tenantId, resolveSearchUserUuid(tenantId, createdUserUuid));
         RequestInfo requestInfo = RequestInfo.builder().userInfo(User.builder().uuid("transformer-uuid").id(userServiceId).build()).build();
 
         try {
