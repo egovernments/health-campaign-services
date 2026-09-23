@@ -85,6 +85,9 @@ public class TransformerProperties {
     @Value("${egov.search.attendance.register.url}")
     private String attendanceRegisterSearchUrl;
 
+    @Value("${transformer.attendance.register.search.user.uuid:}")
+    private String attendanceRegisterSearchUserUuid;
+
     @Value("${egov.product.host}")
     private String productHost;
 
