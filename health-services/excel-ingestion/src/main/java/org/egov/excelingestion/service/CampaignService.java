@@ -134,6 +134,40 @@ public class CampaignService {
     }
 
     /**
+     * Extract the configured delivery resource (product variant) names from the campaign's delivery
+     * rules. Names are deduplicated preserving configuration order. Returns an empty list when the
+     * campaign has no delivery rules or no resources configured, so callers can fall back to the
+     * static target schema.
+     *
+     * Deliberately NOT cached: delivery rules are edited throughout campaign setup, and template
+     * generation must always see the latest resources — a cached empty snapshot (taken before the
+     * delivery step was saved) would silently produce static target columns for up to the cache TTL.
+     * The internal searchCampaignById call is same-bean, so it bypasses the campaignDetail cache and
+     * this always performs a fresh campaign search.
+     */
+    public java.util.List<String> getDeliveryResourceNamesFromCampaign(String campaignId, String tenantId, RequestInfo requestInfo) {
+        CampaignSearchResponse.CampaignDetail campaign = searchCampaignById(campaignId, tenantId, requestInfo);
+        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
+        if (campaign != null && campaign.getDeliveryRules() != null) {
+            for (Map<String, Object> rule : campaign.getDeliveryRules()) {
+                Object resources = rule.get("resources");
+                if (resources instanceof java.util.List) {
+                    for (Object res : (java.util.List<?>) resources) {
+                        if (res instanceof Map) {
+                            Object name = ((Map<?, ?>) res).get("name");
+                            if (name instanceof String && !((String) name).trim().isEmpty()) {
+                                names.add(((String) name).trim());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        log.info("Found {} configured delivery resources for campaign: {}", names.size(), campaignId);
+        return new java.util.ArrayList<>(names);
+    }
+
+    /**
      * Generic method to search campaign data by unique identifiers
      * Returns List of campaign data records that match the criteria
      * 

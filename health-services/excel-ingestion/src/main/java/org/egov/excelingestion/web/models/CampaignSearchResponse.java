@@ -9,6 +9,7 @@ import org.egov.common.contract.response.ResponseInfo;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Campaign search response model
@@ -39,6 +40,7 @@ public class CampaignSearchResponse {
         private String boundaryCode;
         private String campaignNumber;
         private List<BoundaryDetail> boundaries;
+        private List<Map<String, Object>> deliveryRules;
         private AdditionalDetails additionalDetails;
     }
 
