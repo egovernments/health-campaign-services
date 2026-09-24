@@ -72,6 +72,8 @@ async function validateBoundarySheetData(request: any, fileUrl: any, localizatio
     // validate boundary names contain only allowed characters (reject [] {} <> etc.; allow letters of any
     // language plus the punctuation that occurs in real place names)
     validateBoundaryNameCharacters(boundaryData, localizedHierarchy);
+    // validate that no boundary above the lowest level is left without a child anywhere in the sheet
+    validateForMissingChildEntries(boundaryData, localizedHierarchy, localizedBoundaryTab);
 }
 
 function validateForRootElementExists(boundaryData: any[], hierachy: any[], sheetName: string) {
@@ -168,6 +170,110 @@ function validateBoundaryNameCharacters(boundaryData: any[], localizedHierarchy:
             `Boundary names contain characters that are not allowed. ` +
             `Allowed: letters (any language), numbers, spaces and ' & - / . ( ) _ , : ; @ + ! ? . ` +
             `Problems: ${shown.join("; ")}${extra}`
+        );
+    }
+}
+
+// An N-level hierarchy must actually reach level N on every branch: a boundary that sits above the
+// lowest level and has NO child anywhere in the sheet is silently lossy downstream, not merely untidy.
+// excel-ingestion's BoundaryHierarchySheetGenerator only emits target-sheet rows for boundaries that
+// carry a value at the LAST hierarchy level ("Only include boundaries that have data at the last level
+// (leaf boundaries)"), so a branch that stops early produces zero target rows - no target can be set and
+// no delivery is planned for it, with no error anywhere. Before this check the upload returned 200 /
+// status "completed" and the loss was invisible until someone noticed the missing rows.
+//
+// Completeness is judged per DISTINCT NODE across the whole sheet, not per row. Rows that merely restate
+// an ancestor (a, then a>b, then a>b>c) are fine - a and a>b each have a child on a later row. Only a
+// node that no row ever extends is reported.
+const MAX_REPORTED_MISSING_CHILDREN = 20;
+
+// Same path-aware node identity the codegen uses (boundaryKeyOf / __path in genericUtils): level and
+// value joined by \u0000, ancestors joined by \u0001. Two boundaries sharing a name under different
+// parents must stay distinct, and the same boundary restated on many rows must collapse to one node.
+// Boundary names cannot contain these separators - validateBoundaryNameCharacters (run just above)
+// rejects control characters outright.
+const NODE_FIELD_SEPARATOR = "\u0000";
+const NODE_LEVEL_SEPARATOR = "\u0001";
+
+function validateForMissingChildEntries(boundaryData: any[], localizedHierarchy: any[], sheetName: string) {
+    const levelCount = localizedHierarchy?.length || 0;
+    // A single-level hierarchy has no "next level", so the rule is vacuous.
+    if (levelCount < 2 || !boundaryData?.length) return;
+
+    const parentsWithAChild = new Set<string>();
+    // pathKey -> the node that some row bottoms out at. Only these can ever be childless; a node that
+    // appears purely as an ancestor column is by construction already in parentsWithAChild.
+    const deepestNodes = new Map<string, { levelIndex: number, labels: string[], rowNumber: any }>();
+
+    for (const row of boundaryData) {
+        const labels: string[] = [];
+        let hasInternalGap = false;
+        for (let i = 0; i < levelCount; i++) {
+            const raw = row?.[localizedHierarchy[i]];
+            // Cells are not canonically trimmed until updateBoundaryData, which runs later and only in the
+            // async flow - so " " arrives here truthy and would otherwise become a phantom node distinct
+            // from the real one. String() because numeric cells stay JS numbers through the parse path,
+            // and a level literally named 0 must count as populated rather than blank.
+            const value = (raw === undefined || raw === null) ? "" : String(raw).trim();
+            if (value === "") {
+                // A populated cell to the RIGHT of a blank one is a different defect, already owned by
+                // validateBoundarySheetDataInCreateFlow. Skip the row rather than invent a parent for it.
+                for (let j = i + 1; j < levelCount; j++) {
+                    const later = row?.[localizedHierarchy[j]];
+                    if (later !== undefined && later !== null && String(later).trim() !== "") {
+                        hasInternalGap = true;
+                        break;
+                    }
+                }
+                break;
+            }
+            labels.push(value);
+        }
+        if (labels.length === 0) continue;
+
+        let pathKey = "";
+        for (let i = 0; i < labels.length; i++) {
+            pathKey += (i > 0 ? NODE_LEVEL_SEPARATOR : "") + localizedHierarchy[i] + NODE_FIELD_SEPARATOR + labels[i];
+            if (i < labels.length - 1) parentsWithAChild.add(pathKey);
+        }
+        // The parent->child facts above are recorded even for a gapped row: a blank further right does
+        // not make "a has a child b" any less true, and dropping them let the message accuse a parent
+        // whose child is plainly sitting in the sheet. Only the row's TERMINAL node is withheld - a
+        // gapped row is a different defect and must not also be reported as a childless leaf here.
+        if (hasInternalGap) continue;
+        if (!deepestNodes.has(pathKey)) {
+            deepestNodes.set(pathKey, {
+                levelIndex: labels.length - 1,
+                labels: labels.slice(),
+                rowNumber: row?.["!row#number!"]
+            });
+        }
+    }
+
+    const problems: string[] = [];
+    let problemCount = 0;
+    // Map preserves insertion order, so offenders come out in sheet order without a sort. Array.from is
+    // required, not stylistic: tsconfig targets es5 with downlevelIteration off, so iterating a Map
+    // directly is a TS2802 compile error - same reason genericApis.ts:192 wraps its keys() walk.
+    for (const [pathKey, node] of Array.from(deepestNodes.entries())) {
+        if (node.levelIndex >= levelCount - 1) continue;   // already at the lowest level - nothing owed
+        if (parentsWithAChild.has(pathKey)) continue;      // some other row does extend below it
+        problemCount++;
+        if (problems.length < MAX_REPORTED_MISSING_CHILDREN) {
+            problems.push(
+                `Row ${node.rowNumber}: ${localizedHierarchy[node.levelIndex]} "${node.labels[node.levelIndex]}" ` +
+                `(${node.labels.join(" > ")}) has no ${localizedHierarchy[node.levelIndex + 1]} under it anywhere in the sheet`
+            );
+        }
+    }
+
+    if (problemCount > 0) {
+        const extra = problemCount > MAX_REPORTED_MISSING_CHILDREN
+            ? ` ... and ${problemCount - MAX_REPORTED_MISSING_CHILDREN} more` : "";
+        throwError(
+            "BOUNDARY", 400, "MISSING_CHILD_BOUNDARY",
+            `Invalid Boundary Sheet ${sheetName}. The following boundaries have no child at the next level: ` +
+            `${problems.join("; ")}${extra}`
         );
     }
 }
