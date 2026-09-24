@@ -291,14 +291,14 @@ public class ImmutableJoinService {
                 exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID,
                         localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID,
                             ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID_MESSAGE,
-                                sheetName));
+                                localizedName(localizationMap, sheetName)));
             }
             if (!seen.add(rid)) {
                 // Two uploaded rows claim the same baseline identity (a duplicated pre-filled row).
                 exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID,
                         localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID,
                             ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID_MESSAGE,
-                                sheetName));
+                                localizedName(localizationMap, sheetName)));
             }
             // Reconstruct every immutable column AND its expanded _MULTISELECT_* child columns from the
             // baseline, overwriting whatever the file contains. We iterate the BASELINE row's own keys so
@@ -369,7 +369,7 @@ public class ImmutableJoinService {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_ORPHAN_ROWS,
                     localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_ORPHAN_ROWS,
                             ErrorConstants.IMMUTABLE_ORPHAN_ROWS_MESSAGE,
-                            sheetName));
+                            localizedName(localizationMap, sheetName)));
         }
 
         log.info("Immutable-baseline join applied on sheet '{}': {} existing rows reconstructed from baseline",
@@ -471,8 +471,9 @@ public class ImmutableJoinService {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
                     localizedError(sj.errorLocalizationMap, ErrorConstants.IMMUTABLE_CELL_TAMPERED,
                             ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE,
-                            sj.sheetName, String.valueOf(poiRowIdx + 1),
-                            localizedColumn(sj.localizationMap, col)));
+                            localizedName(sj.localizationMap, sj.sheetName),
+                            String.valueOf(poiRowIdx + 1),
+                            localizedName(sj.localizationMap, col)));
         }
 
         upRow.put(col, value);
@@ -604,7 +605,7 @@ public class ImmutableJoinService {
      * key - it is looked up against a row-0-derived index to highlight the offending cell
      * (UserValidationProcessor), and a localized value would never match.
      */
-    private static String localizedColumn(Map<String, String> messages, String col) {
+    private static String localizedName(Map<String, String> messages, String col) {
         if (col == null || col.isEmpty()) {
             return col;
         }

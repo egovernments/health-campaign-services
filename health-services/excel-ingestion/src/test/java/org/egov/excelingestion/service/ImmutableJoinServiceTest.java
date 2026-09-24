@@ -322,6 +322,47 @@ class ImmutableJoinServiceTest {
             assertEquals("col=Aldeia", ex.getMessage());
         }
 
+        /**
+         * The SHEET name is a technical key too. It must resolve to its display name exactly like the
+         * column does, and for every error that names a sheet - not only the tamper one.
+         */
+        @Test
+        void rejectOnChange_localizesTheSheetNameAsWellAsTheColumn() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of(
+                    "Users", "Lista de Utilizadores",
+                    "name", "Nome do utilizador");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization,
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0} coluna={2}")));
+
+            assertEquals("folha=Lista de Utilizadores coluna=Nome do utilizador", ex.getMessage());
+        }
+
+        /** Sheet-name localization must apply to the row-level errors too, not just the tamper one. */
+        @Test
+        void orphanRows_localizesTheSheetName() {
+            Map<String, Object> base1 = row(ROW_ID, "r1", "name", "A", ROW_NUM, 3);
+            Map<String, Object> base2 = row(ROW_ID, "r2", "name", "B", ROW_NUM, 4);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "A", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base1, base2)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Map.of("Users", "Lista de Utilizadores"),
+                            Map.of(ErrorConstants.IMMUTABLE_ORPHAN_ROWS, "folha={0}")));
+
+            assertEquals("folha=Lista de Utilizadores", ex.getMessage());
+        }
+
         /** No translation for the header: the key is still better than a blank. */
         @Test
         void rejectOnChange_fallsBackToTheTechnicalKeyWhenTheColumnIsNotLocalized() {
