@@ -71,7 +71,14 @@ public class IdGenerationConsumer {
      *
      * @param message The message payload as a Map
      */
-    @KafkaListener(topics = "${kafka.topics.consumer.bulk.create.topic}")
+    /* each record here can take seconds (50k-id chunk); small polls + generous interval
+       keep processing time between poll() calls under max.poll.interval so the consumer
+       is not evicted and chunks are not redelivered on large (1M+) requests */
+    @KafkaListener(topics = "${kafka.topics.consumer.bulk.create.topic}",
+            properties = {
+                    "max.poll.records=${kafka.consumer.bulk.create.max.poll.records:10}",
+                    "max.poll.interval.ms=${kafka.consumer.bulk.create.max.poll.interval.ms:600000}"
+            })
     public void consumeIDPoolCreationAsyncRequest(Map<String, Object> message) {
         try {
             IDPoolGenerationKafkaRequest request = objectMapper.convertValue(message, IDPoolGenerationKafkaRequest.class);
