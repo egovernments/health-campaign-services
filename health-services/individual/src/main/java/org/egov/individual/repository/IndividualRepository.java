@@ -51,6 +51,26 @@ import static org.egov.individual.Constants.INVALID_TENANT_ID_MSG;
 @Slf4j
 public class IndividualRepository extends GenericRepository<Individual> {
 
+    /**
+     * The columns a team code selector may address. Nothing else can reach the SQL, so the
+     * selector cannot be used to inject a column name.
+     */
+    public enum SelectorColumn {
+        ID("id"),
+        USERNAME("username"),
+        USER_UUID("userUuid");
+
+        private final String column;
+
+        SelectorColumn(String column) {
+            this.column = column;
+        }
+
+        public String getColumn() {
+            return column;
+        }
+    }
+
     private final String cteQuery = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
     private final String calculateDistanceFromTwoWaypointsFormulaQuery = "( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
 
@@ -111,6 +131,49 @@ public class IndividualRepository extends GenericRepository<Individual> {
         objFound.addAll(individuals);
         putInCache(objFound);
         return SearchResponse.<Individual>builder().totalCount(totalCount).response(objFound).build();
+    }
+
+    /**
+     * Resolves selector values to individual ids for the team code APIs. Only individuals backed
+     * by an egov-user account are considered - team codes identify field staff, so beneficiaries
+     * and citizens must never be picked up by a username or userUuid that happens to collide.
+     *
+     * The test is "has both userId and userUuid" rather than isSystemUser, because isSystemUser is
+     * nullable and only ever read from the client payload, never set server side. Same reasoning as
+     * commit 1141682127, which moved IndividualService.restoreUserDetailsWhenRolesMissing off that
+     * flag for this workstream.
+     *
+     * Returns a lightweight projection rather than full Individual objects: the caller still has
+     * to load the ones it is going to write via findById, but resolution itself does not need the
+     * addresses, identifiers and skills that find() enriches, nor its total-count CTE.
+     *
+     * @param selectorColumn which column the values address; an enum, so the column name can never
+     *                       come from request input
+     * @return selector value -> the individual ids matching it, so the caller can tell a value
+     *         that matched nothing from one that matched several
+     */
+    public Map<String, List<String>> findSystemUserIdsBySelector(String tenantId, SelectorColumn selectorColumn,
+                                                                 List<String> values) throws InvalidTenantIdException {
+        if (CollectionUtils.isEmpty(values)) {
+            return Collections.emptyMap();
+        }
+        String query = String.format("SELECT id, %s AS selectorValue FROM %s.individual "
+                        + "WHERE tenantId = :tenantId AND isDeleted = false "
+                        + "AND userId IS NOT NULL AND userUuid IS NOT NULL "
+                        + "AND %s IN (:values)",
+                selectorColumn.getColumn(), SCHEMA_REPLACE_STRING, selectorColumn.getColumn());
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("tenantId", tenantId);
+        paramMap.put("values", values);
+
+        Map<String, List<String>> idsByValue = new LinkedHashMap<>();
+        this.namedParameterJdbcTemplate.query(query, paramMap, resultSet -> {
+            idsByValue.computeIfAbsent(resultSet.getString("selectorValue"), key -> new ArrayList<>())
+                    .add(resultSet.getString("id"));
+        });
+        return idsByValue;
     }
 
     /**

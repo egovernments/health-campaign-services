@@ -100,4 +100,22 @@ public class IndividualProperties {
     @Value("${individual.beneficiary.id.length}")
     private Integer beneficiaryIdLength;
 
+    @Value("${idgen.team.code.format:team.code}")
+    private String teamCodeIdFormat;
+
+    @Value("${individual.team.code.generate.max:100}")
+    private Integer teamCodeGenerateMax;
+
+    @Value("${individual.team.assign.batch.size:100}")
+    private Integer teamAssignBatchSize;
+
+    @Value("${individual.producer.team.code.save.topic}")
+    private String saveTeamCodeTopic;
+
+    @Value("${individual.producer.team.code.mapping.save.topic}")
+    private String saveTeamCodeMappingTopic;
+
+    @Value("${individual.producer.team.code.mapping.update.topic}")
+    private String updateTeamCodeMappingTopic;
+
 }

@@ -539,3 +539,74 @@ serviceMaps:
             - jsonPath: $.*.userId
             - jsonPath: $.*.userUuid
             - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves minted team codes
+      fromTopic: statea-save-individual-team-code-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.individual_team_code (id, teamCode, tenantId, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.teamCode
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Assigns a team code - ends the individual's other live memberships, then records the new one
+      fromTopic: statea-save-individual-team-code-mapping-topic
+      isTransaction: true
+      queryMaps:
+        # runs first: every other live membership for this individual is ended. Blind on the
+        # previous team code, so it needs nothing the publisher had to read back.
+        - query: UPDATE statea.individual_team_code_mapping SET status = 'UNASSIGNED', unassignedBy = ?, unassignedTime = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = COALESCE(rowVersion, 1) + 1 WHERE tenantId = ? AND individualId = ? AND isDeleted = false AND status = 'ASSIGNED' AND teamCode <> ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.individualId
+            - jsonPath: $.*.teamCode
+        - query: INSERT INTO statea.individual_team_code_mapping (id, tenantId, teamCode, individualId, userUuid, status, assignedBy, assignedTime, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.teamCode
+            - jsonPath: $.*.individualId
+            - jsonPath: $.*.userUuid
+            - jsonPath: $.*.status
+            - jsonPath: $.*.assignedBy
+            - jsonPath: $.*.assignedTime
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Removes an individual from every team - ends all live memberships, records nothing new
+      fromTopic: statea-update-individual-team-code-mapping-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.individual_team_code_mapping SET status = 'UNASSIGNED', unassignedBy = ?, unassignedTime = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = COALESCE(rowVersion, 1) + 1 WHERE tenantId = ? AND individualId = ? AND isDeleted = false AND status = 'ASSIGNED';
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.individualId
