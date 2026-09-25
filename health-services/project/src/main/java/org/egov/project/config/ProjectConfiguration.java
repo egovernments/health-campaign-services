@@ -123,6 +123,27 @@ public class ProjectConfiguration {
     @Value("${egov.search.individual.url}")
     private String individualServiceSearchUrl;
 
+    @Value("${egov.individual.team.search.url:/individual/team/v1/_search}")
+    private String individualTeamSearchUrl;
+
+    @Value("${project.beneficiary.team.mapping.kafka.create.topic}")
+    private String beneficiaryTeamMappingTopic;
+
+    @Value("${project.beneficiary.team.search.batch.size:1000}")
+    private Integer beneficiaryTeamSearchBatchSize;
+
+    @Value("${project.beneficiary.team.kafka.batch.size:100}")
+    private Integer beneficiaryTeamKafkaBatchSize;
+
+    @Value("${project.beneficiary.team.page.size:1000}")
+    private Integer beneficiaryTeamPageSize;
+
+    @Value("${project.beneficiary.team.relocate.page.size:1000}")
+    private Integer beneficiaryTeamRelocatePageSize;
+
+    @Value("${project.beneficiary.team.relocate.max.records:100000}")
+    private Integer beneficiaryTeamRelocateMaxRecords;
+
     @Value("${egov.facility.host}")
     private String facilityServiceHost;
 

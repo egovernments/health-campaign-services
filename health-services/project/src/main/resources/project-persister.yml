@@ -1172,3 +1172,26 @@ serviceMaps:
               type: JSON
               dbType: JSONB
             - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Appends a project beneficiary team mapping (assignment or relocation history)
+      fromTopic: statea-save-project-beneficiary-team-mapping-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.project_beneficiary_team_mapping (id, tenantId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, projectId, teamCode, previousTeamCode, relocationReason, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectBeneficiaryClientReferenceId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.teamCode
+            - jsonPath: $.*.previousTeamCode
+            - jsonPath: $.*.relocationReason
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
