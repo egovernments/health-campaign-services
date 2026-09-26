@@ -1358,6 +1358,16 @@ def _build_trajectory(cfg, g):
     # only files made cum_treated equal to TODAY, and that value is what the
     # Slack post presents as "Cumulative children treated (Days 1-N)".
     days_data   = _load_daily_totals_from_es(cfg) or _load_daily_totals_from_files(cfg)
+    # The ES loader has no target notion and emits target=0 per day; without a
+    # back-fill the chart's denominator (max daily target x campaign_days) is 0
+    # and every bar reads 0.0% no matter how many children were treated. In
+    # daily mode g["target"] is already the summed DAILY target.
+    daily_tgt = g.get("target") or 0
+    for d in days_data:
+        if not d.get("target"):
+            d["target"]   = daily_tgt
+            d["cov_pct"]  = d["treated"] / daily_tgt * 100 if daily_tgt else 0.0
+            d["coverage"] = f"{d['cov_pct']:.1f}%" if daily_tgt else "N/A"
     cum_treated = sum(d["treated"] for d in days_data)
     cum_target  = sum(d["target"]  for d in days_data)
     return {
