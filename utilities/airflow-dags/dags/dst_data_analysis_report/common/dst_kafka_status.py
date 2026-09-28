@@ -1,13 +1,22 @@
 """Run lifecycle events to Kafka — the MDMS-mode audit path (zero database).
 
 Adapted from the platform's common/kafka_status.py: same conventions (lazy
-singleton producer, never raises, tenant-prefixed topic on central instances),
-our fields (mode, slot, Drive folder instead of FileStore id). Consumed by egov-persister via one platform-side config YAML
-into a dst_report_metadata table — producers hold no DB credentials.
+singleton producer, never raises), our fields (mode, slot, Drive folder
+instead of FileStore id). Consumed by egov-persister via one platform-side
+config YAML into a dst_report_metadata table — producers hold no DB
+credentials.
+
+ONE topic, deliberately, including on central instances. The platform
+tenant-prefixes its topics because its persisters are sharded per tenant and
+write per-tenant PG schemas; our audit is one central table with tenant_id as
+a COLUMN (the event already carries it), so per-tenant fan-out bought nothing
+and cost a persister fromTopic list someone had to extend for every new
+tenant — plus a silent gap whenever the flag and the yml drifted apart
+(2026-09-28, kng central: prefixed events published into consumer-less
+topics). The producer therefore no longer reads IS_CENTRAL_INSTANCE_ENABLED.
 
 Env: KAFKA_BROKER (required to enable — silently skipped otherwise),
-DST_RUNS_TOPIC (default save-dst-report-metadata),
-IS_CENTRAL_INSTANCE_ENABLED (tenant-prefixes the topic when "true").
+DST_RUNS_TOPIC (default save-dst-report-metadata).
 """
 import datetime
 import json
@@ -51,9 +60,10 @@ def _get_producer():
 
 
 def _topic_for(tenant_id):
-    base = os.getenv("DST_RUNS_TOPIC", DEFAULT_TOPIC)
-    central = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
-    return f"{tenant_id}-{base}" if central and tenant_id else base
+    # Single topic regardless of tenant or central-instance flag — see the
+    # module docstring. tenant_id stays in the signature so the call site
+    # reads naturally and a future routing decision has the value in hand.
+    return os.getenv("DST_RUNS_TOPIC", DEFAULT_TOPIC)
 
 
 def push_run_event(status, conf, dag_run_id, step_failed="",

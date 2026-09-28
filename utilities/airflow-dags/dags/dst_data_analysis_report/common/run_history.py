@@ -125,7 +125,6 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
     else:
         error = ""
     drive_folder_url = "" if failed else marker.get("drive_folder_url", "")
-    drive_link = "" if failed else marker.get("drive_link", "")
     day = "" if failed else marker.get("day", "")
 
     # A degraded run SUCCEEDS - Airflow is green and on_failure_callback never
@@ -177,13 +176,25 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
 
     recorded = "kafka" if published else "none"
     if not published:
+        # "Delivered To" = where the report actually went, the question a
+        # human reading the log is answering. Empty on failure — nothing was
+        # delivered. Cumulative posts to both channels by design.
+        if failed:
+            delivered_to = ""
+        else:
+            channels = []
+            if mode in ("internal", "both", "cumulative"):
+                channels.append(str(row.get("slack_channel", "")).strip())
+            if mode in ("partner", "both", "cumulative"):
+                channels.append(str(row.get("slack_channel_partners", "")).strip())
+            delivered_to = ", ".join(dict.fromkeys(c for c in channels if c))
         with group_environment(group):
             from dst_data_analysis_report.pipeline.run_log import append_run_log
             ok = append_run_log(
                 conf.get("state_name", ""), row.get("campaign_name", ""), day,
                 "FAILED" if failed else "SUCCESS",
                 step_failed=step_failed, error=error,
-                drive_link=drive_folder_url or drive_link, mode=mode,
+                delivered_to=delivered_to, mode=mode,
                 tenant=conf.get("tenant", ""),
                 cycle_index=row.get("cycle_index", ""),
                 slot_date=conf.get("slot_date", ""),
