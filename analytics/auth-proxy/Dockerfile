@@ -18,16 +18,17 @@ RUN apt-get update \
 # Debian-based (glibc) to match the glibc runtime below - Alpine's musl-built native
 # addons (e.g. deasync) won't load on the distroless Debian runtime.
 FROM node:20-bookworm-slim AS build
+ARG WORK_DIR=.
 WORKDIR /usr/src/app
 
 # Build tooling required only to compile native addons; not present in the final image
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
+COPY ${WORK_DIR}/package*.json ./
 RUN npm ci --omit=dev
 
-COPY . .
+COPY ${WORK_DIR}/. .
 
 # ---- Runtime stage: distroless, no shell/package manager/OS utilities ----
 FROM gcr.io/distroless/nodejs20-debian12:nonroot
