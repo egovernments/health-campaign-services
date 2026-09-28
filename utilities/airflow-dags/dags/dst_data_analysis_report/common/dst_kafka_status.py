@@ -1,8 +1,8 @@
 """Run lifecycle events to Kafka — the MDMS-mode audit path (zero database).
 
 Adapted from the platform's common/kafka_status.py: same conventions (lazy
-singleton producer, never raises), our fields (mode, slot, Drive folder
-instead of FileStore id). Consumed by egov-persister via one platform-side
+singleton producer, never raises), our fields (mode, slot, delivered-to
+channels). Consumed by egov-persister via one platform-side
 config YAML into a dst_report_metadata table — producers hold no DB
 credentials.
 
@@ -67,7 +67,7 @@ def _topic_for(tenant_id):
 
 
 def push_run_event(status, conf, dag_run_id, step_failed="",
-                   drive_folder_url="", day=""):
+                   delivered_to="", day=""):
     """Publish one lifecycle event for a campaign run. Never raises —
     a Kafka hiccup must not fail a DAG task.
 
@@ -106,9 +106,10 @@ def push_run_event(status, conf, dag_run_id, step_failed="",
         # which stage died; the exception text stays in the Airflow task log,
         # reachable via dag_run_id
         "step_failed": step_failed or "",
-        # the campaign's Drive FOLDER, not one file: a run publishes six
-        # artifacts (2 docs, 3 sheets, chart) plus checkpoints in temp/
-        "drive_folder_url": drive_folder_url or "",
+        # the Slack channel id(s) the report was actually posted to (empty on
+        # failure) — replaced the old drive_folder_url: documents are
+        # delivered in Slack, so the destination is the audit-relevant fact
+        "delivered_to": delivered_to or "",
         "timestamp_ms": int(now.timestamp() * 1000),
     }
     topic = _topic_for(tenant_id)

@@ -127,6 +127,21 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
     drive_folder_url = "" if failed else marker.get("drive_folder_url", "")
     day = "" if failed else marker.get("day", "")
 
+    # "Delivered To" = the Slack channel id(s) the report actually went to —
+    # the question every audit reader asks. Computed ONCE here and recorded on
+    # both channels (Kafka event and Run Log tab) so the two stay
+    # field-for-field mirrors. Empty on failure: nothing was delivered.
+    # Cumulative posts to both channels by design.
+    if failed:
+        delivered_to = ""
+    else:
+        channels = []
+        if mode in ("internal", "both", "cumulative"):
+            channels.append(str(row.get("slack_channel", "")).strip())
+        if mode in ("partner", "both", "cumulative"):
+            channels.append(str(row.get("slack_channel_partners", "")).strip())
+        delivered_to = ", ".join(dict.fromkeys(c for c in channels if c))
+
     # A degraded run SUCCEEDS - Airflow is green and on_failure_callback never
     # fires - so without this the only trace was a spreadsheet cell nobody
     # reads, while a report with missing sync numbers or a placeholder
@@ -169,25 +184,13 @@ def record_outcome(conf, dag_run_id, marker, use_mdms, group_environment,
         published = push_run_event(
             "REPORT_FAILED" if failed else "REPORT_COMPLETED",
             conf, dag_run_id, step_failed=step_failed,
-            drive_folder_url=drive_folder_url, day=day)
+            delivered_to=delivered_to, day=day)
         if not published:
             log.warning("[finalize] Kafka publish did not land — falling back "
                         "to the Run Log tab so the outcome is not lost")
 
     recorded = "kafka" if published else "none"
     if not published:
-        # "Delivered To" = where the report actually went, the question a
-        # human reading the log is answering. Empty on failure — nothing was
-        # delivered. Cumulative posts to both channels by design.
-        if failed:
-            delivered_to = ""
-        else:
-            channels = []
-            if mode in ("internal", "both", "cumulative"):
-                channels.append(str(row.get("slack_channel", "")).strip())
-            if mode in ("partner", "both", "cumulative"):
-                channels.append(str(row.get("slack_channel_partners", "")).strip())
-            delivered_to = ", ".join(dict.fromkeys(c for c in channels if c))
         with group_environment(group):
             from dst_data_analysis_report.pipeline.run_log import append_run_log
             ok = append_run_log(
