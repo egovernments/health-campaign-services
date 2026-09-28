@@ -7,6 +7,8 @@ const envVariables = {
       process.env.EGOV_USER_HOST || "http://localhost:8081/",
     EGOV_USER_SEARCH:
       process.env.EGOV_USER_SEARCH || "user/_details",
+    EGOV_USER_FORWARD_HEADERS:
+      process.env.EGOV_USER_FORWARD_HEADERS || "x-correlation-id,tenantid,x-id-token",
     KIBANA_HOST:
       process.env.KIBANA_HOST || "http://localhost:30001/",
     KIBANA_BASE_PATH:

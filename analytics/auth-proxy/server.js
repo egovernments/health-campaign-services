@@ -15,14 +15,34 @@ let allowedContextPaths = envVariables.KIBANA_ACCEPTED_CONTEXT_UI_PATHS;
 let acceptedDomain = envVariables.KIBANA_ACCEPTED_DOMAIN_NAME;
 let excludeUrls = envVariables.KIBANA_EXCLUDE_URL_PATTERNS;
 
+const ID_TOKEN = 'x-id-token';
+const forwardHeaders = envVariables.EGOV_USER_FORWARD_HEADERS.split(",").map(h => h.trim().toLowerCase()).filter(Boolean);
+
+function getCookie(req, name) {
+    for (const part of (req.headers['cookie'] || '').split(';')) {
+        const i = part.indexOf('=');
+        if (i > 0 && part.slice(0, i).trim() === name)
+            return part.slice(i + 1).trim();
+    }
+}
+
+function userServiceHeaders(req) {
+    const headers = {};
+    forwardHeaders.filter(h => req.headers[h]).forEach(h => headers[h] = req.headers[h]);
+    const idToken = getCookie(req, ID_TOKEN);
+    if (idToken)
+        headers[ID_TOKEN] = idToken;
+    return headers;
+}
+
 // Authenticate token
-async function authenticateToken(token) {
+async function authenticateToken(token, req) {
     const url = envVariables.EGOV_USER_HOST + envVariables.EGOV_USER_SEARCH;
     const queryParams = { access_token: token };
 
     logger.info("Making API call to - " + url);
 
-    const isAuthenticated = await axios.post(url, null, { params: queryParams })
+    const isAuthenticated = await axios.post(url, null, { params: queryParams, headers: userServiceHeaders(req) })
         .then(response => {
             logger.info("User call response: ", response?.status, response?.data);
             return response.status === 200
@@ -133,7 +153,7 @@ app.use(async (req, res, next) => {
             res.status(401).send('Unauthorized: No auth token provided');
             return;
         }
-        const isAuthenticated = await  authenticateToken(authToken);
+        const isAuthenticated = await authenticateToken(authToken, req);
         logger.info("Is authenticated: ", isAuthenticated);
         if (!isAuthenticated) {
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
@@ -142,6 +162,15 @@ app.use(async (req, res, next) => {
     }
 
     logger.info("Continuing with request for kibana proxy");
+    next();
+});
+
+app.use((req, res, next) => {
+    delete req.headers[ID_TOKEN];
+    if (req.headers['cookie']) {
+        const cookie = req.headers['cookie'].split(';').filter(c => c.split('=')[0].trim() !== ID_TOKEN).join(';').trim();
+        if (cookie) req.headers['cookie'] = cookie; else delete req.headers['cookie'];
+    }
     next();
 });
 
