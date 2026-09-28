@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 # added still parses.
 _HEADER = ["Timestamp UTC", "Tenant", "State", "Campaign", "Cycle", "Day",
            "Slot Date", "Slot Time", "Mode", "Status", "Step Failed", "Error",
-           "Drive Folder", "DAG Run Id"]
+           "Delivered To", "DAG Run Id"]
 
 
 def _open_runlog_worksheet():
@@ -65,7 +65,7 @@ def _open_runlog_worksheet():
 
 
 def append_run_log(state_name, campaign_name, day, status, step_failed="",
-                   error="", drive_link="", mode="", tenant="", cycle_index="",
+                   error="", delivered_to="", mode="", tenant="", cycle_index="",
                    slot_date="", slot_time="", dag_run_id=""):
     """Append one outcome row. Returns True on success, False otherwise.
 
@@ -74,6 +74,12 @@ def append_run_log(state_name, campaign_name, day, status, step_failed="",
     are the SCHEDULED slot, not the moment of writing — a 17:00 slot that
     finishes at 17:04 must still read as the 17:00 slot, or the guard cannot
     tell whether that slot already produced a report.
+
+    delivered_to is the Slack channel id(s) the report was actually posted to
+    (empty on failure). It replaced the old Drive Folder URL column: the log is
+    read by campaign staff answering "did the report go out, and where?" — the
+    documents themselves are delivered in Slack, so a raw folder URL was noise,
+    while the destination channel was the one fact the row could not answer.
     """
     ws = _open_runlog_worksheet()
     if ws is None:
@@ -83,8 +89,8 @@ def append_run_log(state_name, campaign_name, day, status, step_failed="",
         ws.append_row(
             [now.strftime("%Y-%m-%d %H:%M"), tenant, state_name, campaign_name,
              str(cycle_index or ""), str(day), slot_date, slot_time, mode,
-             status, step_failed, str(error)[:300] if error else "",
-             drive_link or "", dag_run_id],
+             status, step_failed, str(error)[:500] if error else "",
+             delivered_to or "", dag_run_id],
             value_input_option="USER_ENTERED")
         log.info(f"[run-log] appended: {state_name} Day {day} -> {status}")
         return True
