@@ -1,0 +1,4 @@
+# Importable module, not a DAG file (glob syntax, same as ../.airflowignore).
+# It mentions "dag"/"airflow", so Airflow's safe-mode discovery would otherwise
+# import it standalone as a DAG candidate.
+sql_flatten_common.py
