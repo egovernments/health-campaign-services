@@ -251,7 +251,7 @@ public class ProjectBeneficiaryRepository extends GenericRepository<ProjectBenef
         }
         String sql = String.format("SELECT * FROM %s.project_beneficiary "
                 + "WHERE tenantId = :tenantId AND isDeleted = false "
-                + "AND createdBy IN (:userUuids) ", SCHEMA_REPLACE_STRING)
+                + "AND clientCreatedBy IN (:userUuids) ", SCHEMA_REPLACE_STRING)
                 + (projectId != null ? "AND projectId = :projectId " : "")
                 + (afterId != null ? "AND id > :afterId " : "")
                 + "ORDER BY id ASC LIMIT :limit";
