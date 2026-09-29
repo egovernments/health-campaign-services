@@ -42,6 +42,13 @@ Variables (all read at parse time except the window overrides)
                                        shared with the trigger orchestrator, same rules
     sql_test_database                  read by the twins (default `analytics`)
 
+Task pods (KubernetesExecutor) request TASK_POD_REQUESTS instead of the chart's
+0.5 CPU / 1 GiB: a task only plans slices, calls the eGov APIs and sends one
+INSERT at a time (measured on unified-dev: about 5 millicores and 290 MiB, max
+313 MiB), and the smaller request still schedules on a nearly full cluster. The
+limits stay as in the chart. Without the kubernetes client (local runs, no
+KubernetesExecutor) no override is set.
+
 A manual run may also pass {"start_time", "end_time", "truncate_target"} in
 dag_run.conf; conf wins over the override Variables. This file mentions
 airflow and dag, as safe-mode discovery requires.
@@ -63,6 +70,11 @@ from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils.dates import cron_presets
 from airflow.utils.types import DagRunType
 
+try:
+    from kubernetes.client import models as k8s
+except ImportError:  # local runs: no KubernetesExecutor, nothing to override
+    k8s = None
+
 _TWINS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "performance_test")
 sys.path.insert(0, _TWINS_DIR)
 import sql_flatten_common  # noqa: E402
@@ -79,6 +91,8 @@ WINDOW_START_OVERRIDE_VARIABLE = "bronze_to_silver_window_start_override"
 WINDOW_END_OVERRIDE_VARIABLE = "bronze_to_silver_window_end_override"
 TWIN_MODULE_SUFFIX = "_test_transformation"
 ENTITY_EXECUTION_TIMEOUT = timedelta(hours=2)
+TASK_POD_REQUESTS = {"cpu": "100m", "memory": "512Mi"}
+TASK_POD_LIMITS = {"cpu": "1", "memory": "2Gi"}
 
 
 def _resolve_schedule(raw: str) -> str | CronDataIntervalTimetable | None:
@@ -121,10 +135,19 @@ def _load_spec(entity: str):
     return spec
 
 
+def _task_pod_executor_config() -> dict:
+    """pod_override for the KubernetesExecutor's task container (named `base`)."""
+    if k8s is None:
+        return {}
+    resources = k8s.V1ResourceRequirements(requests=TASK_POD_REQUESTS, limits=TASK_POD_LIMITS)
+    return {"pod_override": k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base", resources=resources)]))}
+
+
 default_args = {
     "owner": "data-platform",
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
+    "executor_config": _task_pod_executor_config(),
 }
 
 with DAG(
