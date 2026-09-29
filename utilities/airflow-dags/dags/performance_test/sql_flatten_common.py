@@ -108,6 +108,12 @@ CLICKHOUSE_PLAN_SETTINGS = {
 }
 CLICKHOUSE_LOOKUP_SETTINGS = {"max_threads": 2}
 
+# task_orchestrator/ sets this False before importing the entity modules for
+# their SPECs; otherwise each import would also build that entity's twin DAG,
+# and Airflow would auto-register all of them under the orchestrator's file
+# (duplicate dag_ids next to the twins' own files).
+BUILD_DAGS = True
+
 
 # =============================================================================
 # Database prefix
@@ -971,9 +977,61 @@ def process_slice(spec: EntitySpec, client, window: TimeWindow, slice_: Slice) -
 # DAG factory
 # =============================================================================
 
+def run_transformation(spec: EntitySpec, time_window: dict) -> None:
+    """One whole run of an entity: plans the slices, then runs process_slice for
+    each and logs timings. `time_window` is the {start_time, end_time,
+    truncate_target} payload. Shared by the per-entity twin DAGs below and by
+    task_orchestrator/, which runs every entity as a task of one DAG. Filtered
+    on _ingested_at, not last_modified_time -- see airflow_dags/CLAUDE.md
+    "Bronze read window column"."""
+    window = TimeWindow.from_task_output(time_window)
+    slice_size = int(Variable.get(spec.slice_size_variable, default_var=spec.default_slice_size))
+    set_database(Variable.get(DATABASE_VARIABLE, default_var=DEFAULT_DATABASE))
+
+    client = get_clickhouse_client()
+    create_test_tables(spec, client, window.truncate_target)
+
+    planning_started = time.monotonic()
+    slices = plan_slices(spec, client, window, slice_size)
+    log.info(
+        "%s: %d slices (slice_size=%d) for [%s, %s) in database %s, planned in %.2fs",
+        spec.dag_id, len(slices), slice_size, window.start, window.end, _database,
+        time.monotonic() - planning_started,
+    )
+    if not slices:
+        return
+
+    total_written = 0
+    total_insert_seconds = 0.0
+    total_api_seconds = 0.0
+    for number, slice_ in enumerate(slices, start=1):
+        result = process_slice(spec, client, window, slice_)
+        total_written += result.written_rows
+        total_insert_seconds += result.insert_seconds
+        total_api_seconds += result.api_seconds
+        resolved = ", ".join(f"{alias} {count}" for alias, count in result.resolved.items()) or "no lookups"
+        log.info(
+            "%s slice %d/%d %s: resolved %s (api %.2fs), written_rows=%d (insert %.2fs), slice %.2fs",
+            spec.dag_id, number, len(slices), slice_.label, resolved,
+            result.api_seconds, result.written_rows, result.insert_seconds, result.total_seconds,
+        )
+
+    counts = "; ".join(
+        f"{table(target.test_table)} row count (no FINAL)={count_rows(client, table(target.test_table))}"
+        for target in spec.targets
+    )
+    log.info(
+        "%s: done. written_rows=%d over %d slices; insert total %.1fs, api total %.1fs; %s",
+        spec.dag_id, total_written, len(slices), total_insert_seconds, total_api_seconds, counts,
+    )
+
+
 def build_sql_test_dag(spec: EntitySpec):
     """Builds the two-task TaskFlow DAG (parse_time_window -> transform_bronze_to_silver_sql)
-    for an EntitySpec; the entity module assigns the result to a global."""
+    for an EntitySpec; the entity module assigns the result to a global.
+    Returns None when BUILD_DAGS is off (the module is being imported only for SPEC)."""
+    if not BUILD_DAGS:
+        return None
 
     @dag(
         dag_id=spec.dag_id,
@@ -1010,49 +1068,7 @@ def build_sql_test_dag(spec: EntitySpec):
 
         @task
         def transform_bronze_to_silver_sql(time_window: dict) -> None:
-            """Plans the slices, then runs process_slice for each and logs timings.
-            Filtered on _ingested_at, not last_modified_time -- see
-            airflow_dags/CLAUDE.md "Bronze read window column"."""
-            window = TimeWindow.from_task_output(time_window)
-            slice_size = int(Variable.get(spec.slice_size_variable, default_var=spec.default_slice_size))
-            set_database(Variable.get(DATABASE_VARIABLE, default_var=DEFAULT_DATABASE))
-
-            client = get_clickhouse_client()
-            create_test_tables(spec, client, window.truncate_target)
-
-            planning_started = time.monotonic()
-            slices = plan_slices(spec, client, window, slice_size)
-            log.info(
-                "%s: %d slices (slice_size=%d) for [%s, %s) in database %s, planned in %.2fs",
-                spec.dag_id, len(slices), slice_size, window.start, window.end, _database,
-                time.monotonic() - planning_started,
-            )
-            if not slices:
-                return
-
-            total_written = 0
-            total_insert_seconds = 0.0
-            total_api_seconds = 0.0
-            for number, slice_ in enumerate(slices, start=1):
-                result = process_slice(spec, client, window, slice_)
-                total_written += result.written_rows
-                total_insert_seconds += result.insert_seconds
-                total_api_seconds += result.api_seconds
-                resolved = ", ".join(f"{alias} {count}" for alias, count in result.resolved.items()) or "no lookups"
-                log.info(
-                    "%s slice %d/%d %s: resolved %s (api %.2fs), written_rows=%d (insert %.2fs), slice %.2fs",
-                    spec.dag_id, number, len(slices), slice_.label, resolved,
-                    result.api_seconds, result.written_rows, result.insert_seconds, result.total_seconds,
-                )
-
-            counts = "; ".join(
-                f"{table(target.test_table)} row count (no FINAL)={count_rows(client, table(target.test_table))}"
-                for target in spec.targets
-            )
-            log.info(
-                "%s: done. written_rows=%d over %d slices; insert total %.1fs, api total %.1fs; %s",
-                spec.dag_id, total_written, len(slices), total_insert_seconds, total_api_seconds, counts,
-            )
+            run_transformation(spec, time_window)
 
         transform_bronze_to_silver_sql(parse_time_window())
 
