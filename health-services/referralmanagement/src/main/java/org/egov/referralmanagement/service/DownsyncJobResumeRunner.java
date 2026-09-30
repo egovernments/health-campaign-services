@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
 import org.egov.referralmanagement.web.models.DownsyncGenerationJob;
@@ -24,6 +25,7 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
     @Autowired private DownsyncJobRegistry jobRegistry;
     @Autowired private JobHeartbeatScheduler heartbeat;
     @Autowired private ReferralManagementConfiguration config;
+    @Autowired private MasterDataService masterDataService;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -118,12 +120,36 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
                                 .locality(l.getLocality()).category("REGISTRY").build())
                         .toList();
 
-                List<LocalityDownsyncCriteria> projectCriteria = resumable.stream()
-                        .filter(l -> "PROJECT".equals(l.getCategory()))
+                // PROJECT rows need the campaign beneficiaryType from MDMS. If that lookup fails
+                // (MDMS down during a rollout, missing type config) the registry half must still
+                // run and the job must still reach a terminal state: mark the PROJECT localities
+                // FAILED with the reason instead of leaving them PENDING for the reclaimer loop.
+                List<DownsyncGenerationLocality> projectRows = resumable.stream()
+                        .filter(l -> "PROJECT".equals(l.getCategory())).toList();
+                String beneficiaryType = null;
+                if (!projectRows.isEmpty()) {
+                    try {
+                        beneficiaryType = resolveBeneficiaryType(job);
+                    } catch (Exception e) {
+                        String reason = "beneficiaryType unresolved on resume: " + e.getMessage();
+                        log.error("Job {} — {} — failing {} PROJECT localities, continuing with registry",
+                                job.getId(), reason, projectRows.size());
+                        long now = System.currentTimeMillis();
+                        for (DownsyncGenerationLocality l : projectRows) {
+                            jobRepository.updateLocalityCompleted(l.getTenantId(), l.getId(), "FAILED",
+                                    reason.length() > 2000 ? reason.substring(0, 2000) : reason, now);
+                        }
+                        projectRows = List.of();
+                    }
+                }
+                final String resolvedType = beneficiaryType;
+
+                List<LocalityDownsyncCriteria> projectCriteria = projectRows.stream()
                         .map(l -> LocalityDownsyncCriteria.builder()
                                 .localityRowId(l.getId()).tenantId(l.getTenantId())
-                                .projectId(l.getProjectId()).locality(l.getLocality())
-                                .rootProjectId(job.getProjectId()).category("PROJECT").build())
+                                .projectId(job.getProjectId()).locality(l.getLocality())
+                                .rootProjectId(job.getProjectId()).beneficiaryType(resolvedType)
+                                .category("PROJECT").build())
                         .toList();
 
                 log.info("Job {} — resuming {} registry + {} project localities",
@@ -165,5 +191,20 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
             heartbeat.stop(job.getId());
             jobRegistry.release(job.getTenantId(), job.getProjectId());
         }
+    }
+
+    /**
+     * PROJECT files need the campaign beneficiaryType (HOUSEHOLD | INDIVIDUAL) from MDMS.
+     * On resume there is no caller RequestInfo, so a minimal system RequestInfo is used.
+     * Throws on failure; the caller fails the PROJECT localities rather than guessing a branch,
+     * because a wrong branch would silently produce empty files.
+     */
+    private String resolveBeneficiaryType(DownsyncGenerationJob job) {
+        String typeCode = jobRepository.findProjectTypeCode(job.getTenantId(), job.getProjectId());
+        RequestInfo systemInfo = RequestInfo.builder()
+                .apiId("referralmanagement").msgId("downsync-resume-" + job.getId()).build();
+        String type = masterDataService.getBeneficiaryType(job.getTenantId(), typeCode, systemInfo);
+        log.info("Job {} — campaign root {} beneficiaryType={}", job.getId(), job.getProjectId(), type);
+        return type;
     }
 }
