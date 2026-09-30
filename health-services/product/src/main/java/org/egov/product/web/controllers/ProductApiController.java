@@ -33,9 +33,11 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import org.egov.requestvalidation.ValidateRequest;
 
 @jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
+@ValidateRequest
 @Controller
 @Validated
 public class ProductApiController {
