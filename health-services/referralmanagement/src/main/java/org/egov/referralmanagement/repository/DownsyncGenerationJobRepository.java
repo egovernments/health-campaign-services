@@ -232,13 +232,43 @@ public class DownsyncGenerationJobRepository {
             "JOIN {schema}.address a ON (h.addressid)::text = (a.id)::text " +
             "WHERE h.tenantid = :tenantId AND h.isdeleted = false AND a.localitycode IS NOT NULL";
 
-    private static final String FETCH_PROJECT_LOCALITY_MAPPING =
-            "SELECT pa.projectid, pa.boundary AS locality " +
-            "FROM {schema}.project_address pa " +
-            "JOIN {schema}.project p ON p.id = pa.projectid " +
-            "WHERE p.projecthierarchy LIKE '%' || :rootProjectId || '%' " +
-            "  AND p.id != :rootProjectId " +
-            "  AND pa.boundary IS NOT NULL";
+    /** Any project id in a campaign → the campaign root: first element of projecthierarchy, or the id itself for a root. */
+    private static final String RESOLVE_ROOT_PROJECT_ID =
+            "SELECT COALESCE(NULLIF(split_part(projecthierarchy, '.', 1), ''), id) " +
+            "FROM {schema}.project WHERE id = :projectId AND COALESCE(isDeleted, false) = false";
+
+    /** Number of projects strictly below the root. 0 ⇒ not a campaign root with children. */
+    private static final String COUNT_DESCENDANT_PROJECTS =
+            "SELECT COUNT(*) FROM {schema}.project " +
+            "WHERE COALESCE(isDeleted, false) = false AND projecthierarchy LIKE :rootProjectId || '.%'";
+
+    /** MDMS project-type code stored on the project row (HCM-PROJECT-TYPES.projectTypes[].code). */
+    private static final String FIND_PROJECT_TYPE_CODE =
+            "SELECT projecttype FROM {schema}.project WHERE id = :projectId AND COALESCE(isDeleted, false) = false";
+
+    /**
+     * Villages that need PROJECT files for a campaign: every locality where a campaign beneficiary
+     * lives (by the campaign's beneficiary type), plus localities with campaign HF referrals, plus
+     * village-level boundaries configured on the campaign's projects that actually have households.
+     * Keeps a campaign job scoped to its own footprint instead of every locality in the tenant.
+     */
+    private static String fetchCampaignLocalitiesSql(String beneficiaryType) {
+        String beneVillages = DownsyncSqlFragments.BENEFICIARY_TYPE_HOUSEHOLD.equals(DownsyncSqlFragments.normalize(beneficiaryType))
+                ? "SELECT mv.localitycode AS loc FROM {schema}.PROJECT_BENEFICIARY pb " +
+                  "JOIN {schema}.household_address_mv mv ON mv.clientReferenceId = pb.beneficiaryClientReferenceId AND mv.isdeleted = false " +
+                  "WHERE pb.isDeleted = false AND pb.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")"
+                : "SELECT mv.localitycode AS loc FROM {schema}.PROJECT_BENEFICIARY pb " +
+                  "JOIN {schema}.HOUSEHOLD_MEMBER hm ON hm.individualClientReferenceId = pb.beneficiaryClientReferenceId AND hm.isDeleted = false " +
+                  "JOIN {schema}.household_address_mv mv ON mv.clientReferenceId = hm.householdClientReferenceId AND mv.isdeleted = false " +
+                  "WHERE pb.isDeleted = false AND pb.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+        return "SELECT DISTINCT loc FROM (" + beneVillages +
+               " UNION SELECT hfr.localitycode FROM {schema}.HF_REFERRAL hfr " +
+               "   WHERE hfr.isdeleted = false AND hfr.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")" +
+               " UNION SELECT pa.boundary FROM {schema}.project_address pa " +
+               "   WHERE pa.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")" +
+               "   AND pa.boundary IN (SELECT DISTINCT localitycode FROM {schema}.household_address_mv WHERE isdeleted = false)" +
+               ") x WHERE loc IS NOT NULL ORDER BY loc";
+    }
 
     private static final String FIND_LATEST_FILE_END_TIME =
             "SELECT MAX(f.endTime) " +
@@ -286,56 +316,44 @@ public class DownsyncGenerationJobRepository {
             "  AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
             "  AND f.fileType = :fileType AND f.status = 'SUCCESS'";
 
-    // Reusable subquery: all beneficiary clientReferenceIds in a given project+locality
-    private static final String BENE_LOCALITY_SUBQUERY =
-            "SELECT pb.clientReferenceId FROM {schema}.PROJECT_BENEFICIARY pb " +
-            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
-            "AND pb.beneficiaryClientReferenceId IN (" +
-            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "  WHERE localitycode = :locality AND isdeleted = false " +
-            "  UNION " +
-            "  SELECT hm.individualClientReferenceId " +
-            "  FROM {schema}.HOUSEHOLD_MEMBER hm " +
-            "  WHERE hm.isDeleted = false " +
-            "  AND hm.householdClientReferenceId IN (" +
-            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "    WHERE localitycode = :locality AND isdeleted = false" +
-            "  )" +
-            ")";
+    // ── Project file staleness — campaign-wide + beneficiary-type aware ──────
+    // Parameters: :rootProjectId, :locality. See DownsyncSqlFragments for the design.
 
-    private static final String FIND_MAX_BENEFICIARY_MODIFIED_TIME =
-            "SELECT MAX(pb.lastmodifiedtime) FROM {schema}.PROJECT_BENEFICIARY pb " +
-            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
-            "AND pb.beneficiaryClientReferenceId IN (" +
-            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "  WHERE localitycode = :locality AND isdeleted = false " +
-            "  UNION " +
-            "  SELECT hm.individualClientReferenceId FROM {schema}.HOUSEHOLD_MEMBER hm " +
-            "  WHERE hm.isDeleted = false " +
-            "  AND hm.householdClientReferenceId IN (" +
-            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "    WHERE localitycode = :locality AND isdeleted = false" +
-            "  )" +
-            ")";
+    private static String maxBeneficiaryModifiedSql(String beneficiaryType) {
+        return "SELECT MAX(pb.lastmodifiedtime) FROM {schema}.PROJECT_BENEFICIARY pb " +
+               "WHERE pb.isDeleted = false " +
+               "AND pb.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ") " +
+               "AND pb.beneficiaryClientReferenceId IN (" +
+               DownsyncSqlFragments.beneficiaryRefsInLocality(beneficiaryType) + ")";
+    }
 
-    private static final String FIND_MAX_SIDE_EFFECT_MODIFIED_TIME =
-            "SELECT MAX(se.lastmodifiedtime) FROM {schema}.SIDE_EFFECT se " +
-            "WHERE se.isDeleted = false " +
-            "AND se.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+    private static String maxSideEffectModifiedSql(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT MAX(se.lastmodifiedtime) FROM {schema}.SIDE_EFFECT se " +
+               "JOIN village_bene vb ON vb.clientReferenceId = se.projectBeneficiaryClientReferenceId " +
+               "WHERE se.isDeleted = false";
+    }
 
-    private static final String FIND_MAX_REFERRAL_MODIFIED_TIME =
-            "SELECT MAX(r.lastmodifiedtime) FROM {schema}.REFERRAL r " +
-            "WHERE r.projectid = :projectId AND r.isDeleted = false " +
-            "AND r.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+    private static String maxReferralModifiedSql(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT MAX(r.lastmodifiedtime) FROM {schema}.REFERRAL r " +
+               "JOIN village_bene vb ON vb.clientReferenceId = r.projectBeneficiaryClientReferenceId " +
+               "WHERE r.isDeleted = false " +
+               "AND r.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+    }
 
     private static final String FIND_MAX_HF_REFERRAL_MODIFIED_TIME =
             "SELECT MAX(hfr.lastmodifiedtime) FROM {schema}.HF_REFERRAL hfr " +
-            "WHERE hfr.projectid = :projectId AND hfr.localitycode = :locality AND hfr.isdeleted = false";
+            "WHERE hfr.localitycode = :locality AND hfr.isdeleted = false " +
+            "AND hfr.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
 
-    private static final String FIND_MAX_TASK_MODIFIED_TIME =
-            "SELECT MAX(pt.lastmodifiedtime) FROM {schema}.PROJECT_TASK pt " +
-            "WHERE pt.projectId = :projectId AND pt.isDeleted = false " +
-            "AND pt.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+    private static String maxTaskModifiedSql(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT MAX(pt.lastmodifiedtime) FROM {schema}.PROJECT_TASK pt " +
+               "JOIN village_bene vb ON vb.clientReferenceId = pt.projectBeneficiaryClientReferenceId " +
+               "WHERE pt.isDeleted = false " +
+               "AND pt.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+    }
 
     private static final String REFRESH_HOUSEHOLD_ADDRESS_MV =
             "REFRESH MATERIALIZED VIEW CONCURRENTLY {schema}.household_address_mv";
@@ -346,15 +364,6 @@ public class DownsyncGenerationJobRepository {
     private static final String FIND_LAST_COMPLETED_JOB_TIME =
             "SELECT MAX(createdTime) FROM {schema}.downsync_generation_job " +
             "WHERE tenantId = :tenantId AND status IN ('COMPLETED','PARTIAL_FAILURE')";
-
-    private static final String FIND_LEAF_PROJECT_ID_FOR_LOCALITY =
-            "SELECT pa.projectid " +
-            "FROM {schema}.project_address pa " +
-            "JOIN {schema}.project p ON p.id = pa.projectid " +
-            "WHERE p.projecthierarchy LIKE '%' || :rootProjectId || '%' " +
-            "  AND p.id != :rootProjectId " +
-            "  AND pa.boundary = :locality " +
-            "LIMIT 1";
 
     /**
      * Returns the LATEST attempt per fileType, with that attempt's id + status.
@@ -907,11 +916,31 @@ public class DownsyncGenerationJobRepository {
                 new MapSqlParameterSource("tenantId", tenantId), String.class);
     }
 
-    /** Returns list of [projectId, locality] pairs for all leaf projects under rootProjectId. */
-    public List<String[]> fetchProjectLocalityMapping(String tenantId, String rootProjectId) {
-        return jdbcTemplate.query(resolveSql(FETCH_PROJECT_LOCALITY_MAPPING, tenantId),
-                new MapSqlParameterSource("rootProjectId", rootProjectId),
-                (rs, i) -> new String[]{rs.getString("projectid"), rs.getString("locality")});
+    /** Resolves any project id inside a campaign to the campaign root project id; null if the project does not exist. */
+    public String resolveRootProjectId(String tenantId, String projectId) {
+        List<String> rows = jdbcTemplate.queryForList(resolveSql(RESOLVE_ROOT_PROJECT_ID, tenantId),
+                new MapSqlParameterSource("projectId", projectId), String.class);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** Number of projects strictly below the root. 0 means the id is not a campaign root with children. */
+    public int countDescendantProjects(String tenantId, String rootProjectId) {
+        Integer n = jdbcTemplate.queryForObject(resolveSql(COUNT_DESCENDANT_PROJECTS, tenantId),
+                new MapSqlParameterSource("rootProjectId", rootProjectId), Integer.class);
+        return n == null ? 0 : n;
+    }
+
+    /** Localities that need PROJECT files for the campaign (see fetchCampaignLocalitiesSql). */
+    public List<String> fetchCampaignLocalities(String tenantId, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForList(resolveSql(fetchCampaignLocalitiesSql(beneficiaryType), tenantId),
+                new MapSqlParameterSource("rootProjectId", rootProjectId), String.class);
+    }
+
+    /** MDMS project-type code stored on the project row, or null. */
+    public String findProjectTypeCode(String tenantId, String projectId) {
+        List<String> rows = jdbcTemplate.queryForList(resolveSql(FIND_PROJECT_TYPE_CODE, tenantId),
+                new MapSqlParameterSource("projectId", projectId), String.class);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     /** Returns the endTime of the last successful generation of fileType for this locality, or null. */
@@ -994,50 +1023,40 @@ public class DownsyncGenerationJobRepository {
                 Long.class);
     }
 
-    public Long findMaxBeneficiaryModifiedTime(String tenantId, String locality, String projectId) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_BENEFICIARY_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
+    // ── Campaign-wide max-modified lookups (PROJECT file staleness) ───────────
+    // rootProjectId is the campaign root stored on the PROJECT locality row;
+    // beneficiaryType is the campaign's MDMS beneficiaryType (HOUSEHOLD | INDIVIDUAL).
+
+    private MapSqlParameterSource campaignLocalityParams(String tenantId, String locality, String rootProjectId) {
+        return new MapSqlParameterSource()
+                .addValue("tenantId", tenantId)
+                .addValue("locality", locality)
+                .addValue("rootProjectId", rootProjectId);
     }
 
-    public Long findMaxSideEffectModifiedTime(String tenantId, String locality, String projectId) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_SIDE_EFFECT_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
+    public Long findMaxBeneficiaryModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForObject(resolveSql(maxBeneficiaryModifiedSql(beneficiaryType), tenantId),
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
     }
 
-    public Long findMaxReferralModifiedTime(String tenantId, String locality, String projectId) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_REFERRAL_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
+    public Long findMaxSideEffectModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForObject(resolveSql(maxSideEffectModifiedSql(beneficiaryType), tenantId),
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
     }
 
-    public Long findMaxHfReferralModifiedTime(String tenantId, String locality, String projectId) {
+    public Long findMaxReferralModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForObject(resolveSql(maxReferralModifiedSql(beneficiaryType), tenantId),
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
+    }
+
+    public Long findMaxHfReferralModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
         return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_HF_REFERRAL_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
     }
 
-    public Long findMaxTaskModifiedTime(String tenantId, String locality, String projectId) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_TASK_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
-    }
-
-    /** Finds the leaf projectId for a given (rootProjectId, locality) pair. Used by DownsyncPregenService. */
-    public String findLeafProjectIdForLocality(String tenantId, String rootProjectId, String locality) {
-        List<String> rows = jdbcTemplate.queryForList(
-                resolveSql(FIND_LEAF_PROJECT_ID_FOR_LOCALITY, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("rootProjectId", rootProjectId)
-                        .addValue("locality", locality),
-                String.class);
-        return rows.isEmpty() ? null : rows.get(0);
+    public Long findMaxTaskModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForObject(resolveSql(maxTaskModifiedSql(beneficiaryType), tenantId),
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
     }
 
 }

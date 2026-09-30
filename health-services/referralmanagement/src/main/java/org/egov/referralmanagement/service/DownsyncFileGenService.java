@@ -15,6 +15,7 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
+import org.egov.referralmanagement.repository.DownsyncSqlFragments;
 import org.egov.referralmanagement.service.DownsyncS3Service.S3Result;
 import org.egov.referralmanagement.web.models.LocalityDownsyncCriteria;
 import org.egov.tracer.model.CustomException;
@@ -72,22 +73,6 @@ public class DownsyncFileGenService {
             "  (SELECT clientReferenceId FROM {schema}.household_address_mv " +
             "   WHERE localitycode = :locality AND isdeleted = false) " +
             "AND isDeleted = false";
-
-    private static final String LOCALITY_BENE_SUBQUERY =
-            "SELECT pb.clientReferenceId FROM {schema}.PROJECT_BENEFICIARY pb " +
-            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
-            "AND pb.beneficiaryClientReferenceId IN (" +
-            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "  WHERE localitycode = :locality AND isdeleted = false " +
-            "  UNION " +
-            "  SELECT hm.individualClientReferenceId " +
-            "  FROM {schema}.HOUSEHOLD_MEMBER hm " +
-            "  WHERE hm.isDeleted = false " +
-            "  AND hm.householdClientReferenceId IN (" +
-            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "    WHERE localitycode = :locality AND isdeleted = false" +
-            "  )" +
-            ")";
 
     private static final String INDIVIDUAL_QUERY =
             "SELECT ind.*," +
@@ -172,37 +157,40 @@ public class DownsyncFileGenService {
             "  )" +
             ") AND ind.isDeleted = false";
 
-    private static final String BENEFICIARY_QUERY =
-            "SELECT pb.* FROM {schema}.PROJECT_BENEFICIARY pb " +
-            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
-            "AND pb.beneficiaryClientReferenceId IN (" +
-            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "  WHERE localitycode = :locality AND isdeleted = false " +
-            "  UNION " +
-            "  SELECT hm.individualClientReferenceId " +
-            "  FROM {schema}.HOUSEHOLD_MEMBER hm " +
-            "  WHERE hm.isDeleted = false " +
-            "  AND hm.householdClientReferenceId IN (" +
-            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "    WHERE localitycode = :locality AND isdeleted = false" +
-            "  )" +
-            ")";
+    // ── PROJECT file queries — campaign-wide, beneficiary-type aware ─────────
+    // Built per locality because the beneficiary-reference branch depends on the
+    // campaign's MDMS beneficiaryType. Parameters: :rootProjectId, :locality.
+    // See DownsyncSqlFragments for the design notes and measured plans.
 
-    private static final String SIDE_EFFECT_QUERY =
-            "SELECT se.* FROM {schema}.SIDE_EFFECT se " +
-            "WHERE se.isDeleted = false " +
-            "AND se.projectBeneficiaryClientReferenceId IN (" + LOCALITY_BENE_SUBQUERY + ")";
+    static String beneficiaryQuery(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaries(beneficiaryType);
+    }
 
-    private static final String REFERRAL_QUERY =
-            "SELECT r.* FROM {schema}.REFERRAL r " +
-            "WHERE r.projectid = :projectId AND r.isDeleted = false " +
-            "AND r.projectBeneficiaryClientReferenceId IN (" + LOCALITY_BENE_SUBQUERY + ")";
+    static String sideEffectQuery(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT se.* FROM {schema}.SIDE_EFFECT se " +
+               "JOIN village_bene vb ON vb.clientReferenceId = se.projectBeneficiaryClientReferenceId " +
+               "WHERE se.isDeleted = false";
+    }
 
-    private static final String HF_REFERRAL_QUERY =
-            "SELECT * FROM {schema}.HF_REFERRAL " +
-            "WHERE projectid = :projectId AND localitycode = :locality AND isdeleted = false";
+    static String referralQuery(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT r.* FROM {schema}.REFERRAL r " +
+               "JOIN village_bene vb ON vb.clientReferenceId = r.projectBeneficiaryClientReferenceId " +
+               "WHERE r.isDeleted = false " +
+               "AND r.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+    }
 
-    private static final String TASK_QUERY =
+    static final String HF_REFERRAL_QUERY =
+            "SELECT hfr.* FROM {schema}.HF_REFERRAL hfr " +
+            "WHERE hfr.localitycode = :locality AND hfr.isdeleted = false " +
+            "AND hfr.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+
+    static String taskQuery(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) + TASK_QUERY_BODY;
+    }
+
+    private static final String TASK_QUERY_BODY =
             "SELECT pt.*," +
             "  CASE WHEN a.id IS NOT NULL THEN json_build_object(" +
             "    'id', a.id," +
@@ -226,9 +214,8 @@ public class DownsyncFileGenService {
             "  res_agg.resources_json" +
             " FROM {schema}.PROJECT_TASK pt" +
             " LEFT JOIN {schema}.ADDRESS a ON a.id = pt.addressId" +
-            " LEFT JOIN (" +
-            "   SELECT tr.taskId," +
-            "     json_agg(json_build_object(" +
+            " LEFT JOIN LATERAL (" +
+            "   SELECT json_agg(json_build_object(" +
             "       'id', tr.id," +
             "       'tenantId', tr.tenantId," +
             "       'clientReferenceId', tr.clientReferenceId," +
@@ -244,13 +231,11 @@ public class DownsyncFileGenService {
             "         'lastModifiedBy', tr.lastModifiedBy, 'lastModifiedTime', tr.lastModifiedTime)" +
             "     )) AS resources_json" +
             "   FROM {schema}.TASK_RESOURCE tr" +
-            "   JOIN {schema}.PROJECT_TASK pt2 ON pt2.id = tr.taskId" +
-            "     AND pt2.projectId = :projectId AND pt2.isDeleted = false" +
-            "   WHERE tr.isDeleted = false" +
-            "   GROUP BY tr.taskId" +
-            " ) res_agg ON res_agg.taskId = pt.id" +
-            " WHERE pt.projectId = :projectId AND pt.isDeleted = false" +
-            " AND pt.projectBeneficiaryClientReferenceId IN (" + LOCALITY_BENE_SUBQUERY + ")";
+            "   WHERE tr.taskId = pt.id AND tr.isDeleted = false" +
+            " ) res_agg ON true" +
+            " JOIN village_bene vb ON vb.clientReferenceId = pt.projectBeneficiaryClientReferenceId" +
+            " WHERE pt.isDeleted = false" +
+            " AND pt.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
 
     @Autowired private NamedParameterJdbcTemplate namedJdbcTemplate;
     @Autowired private MultiStateInstanceUtil multiStateInstanceUtil;
@@ -293,6 +278,7 @@ public class DownsyncFileGenService {
     @PostConstruct
     public void init() {
         validateDbPoolSize();
+        checkPostgresVersion();
         wardPool   = Executors.newFixedThreadPool(config.getWardPoolSize());
         readOnlyTx = new TransactionTemplate(txManager);
         readOnlyTx.setReadOnly(true);
@@ -313,6 +299,24 @@ public class DownsyncFileGenService {
      * Can be bypassed via {@code egov.downsync.pool.check.enabled=false} for local dev or
      * intentionally tiny deployments. Not recommended for production.
      */
+    /**
+     * PROJECT file queries use {@code WITH … AS MATERIALIZED}, which needs PostgreSQL 12+.
+     * Older servers would fail every BENE_AE_REF/TASKS file with a syntax error, so say so loudly at startup.
+     */
+    private void checkPostgresVersion() {
+        try {
+            Integer v = namedJdbcTemplate.getJdbcTemplate().queryForObject("SHOW server_version_num", Integer.class);
+            if (v != null && v < 120000) {
+                log.error("PostgreSQL server_version_num={} is below 120000 — downsync PROJECT file generation " +
+                          "requires PostgreSQL 12+ (MATERIALIZED CTE). PROJECT files will FAIL on this database.", v);
+            } else {
+                log.info("PostgreSQL server_version_num={} — MATERIALIZED CTE supported", v);
+            }
+        } catch (Exception e) {
+            log.warn("Could not determine PostgreSQL version at startup: {}", e.getMessage());
+        }
+    }
+
     private void validateDbPoolSize() {
         if (!config.isPoolCheckEnabled()) {
             log.warn("Downsync DB pool size check is DISABLED (egov.downsync.pool.check.enabled=false). " +
@@ -524,7 +528,8 @@ public class DownsyncFileGenService {
     public String getFileSkipReason(LocalityDownsyncCriteria c, String fileType) {
         String tenantId  = c.getTenantId();
         String locality  = c.getLocality();
-        String projectId = c.getProjectId();
+        String projectId = c.getProjectId();        // PROJECT rows: the campaign root
+        String beneficiaryType = c.getBeneficiaryType();
 
         Long lastEndTime = projectId == null
                 ? jobRepository.findLatestFileEndTime(tenantId, locality, fileType)
@@ -537,11 +542,11 @@ public class DownsyncFileGenService {
                     jobRepository.findMaxHhMemberModifiedTime(tenantId, locality));
             case "INDIVIDUALS" -> jobRepository.findMaxIndividualModifiedTime(tenantId, locality);
             case "BENE_AE_REF" -> maxOf(
-                    jobRepository.findMaxBeneficiaryModifiedTime(tenantId, locality, projectId),
-                    jobRepository.findMaxSideEffectModifiedTime(tenantId, locality, projectId),
-                    jobRepository.findMaxReferralModifiedTime(tenantId, locality, projectId),
-                    jobRepository.findMaxHfReferralModifiedTime(tenantId, locality, projectId));
-            case "TASKS"       -> jobRepository.findMaxTaskModifiedTime(tenantId, locality, projectId);
+                    jobRepository.findMaxBeneficiaryModifiedTime(tenantId, locality, projectId, beneficiaryType),
+                    jobRepository.findMaxSideEffectModifiedTime(tenantId, locality, projectId, beneficiaryType),
+                    jobRepository.findMaxReferralModifiedTime(tenantId, locality, projectId, beneficiaryType),
+                    jobRepository.findMaxHfReferralModifiedTime(tenantId, locality, projectId, beneficiaryType));
+            case "TASKS"       -> jobRepository.findMaxTaskModifiedTime(tenantId, locality, projectId, beneficiaryType);
             default            -> null;
         };
 
@@ -628,9 +633,10 @@ public class DownsyncFileGenService {
         String key = s3ProjectKey(c, "bene_ae_ref");
         try {
             S3Result s3 = s3Service.streamToS3(key, gzip -> {
-                long n = streamQuery(gzip, resolveSql(BENEFICIARY_QUERY, tid), projectLocalityParams(c), "PROJECT_BENEFICIARY");
-                n += streamQuery(gzip, resolveSql(SIDE_EFFECT_QUERY, tid), projectLocalityParams(c), "SIDE_EFFECT");
-                n += streamQuery(gzip, resolveSql(REFERRAL_QUERY, tid), projectLocalityParams(c), "REFERRAL");
+                String bt = c.getBeneficiaryType();
+                long n = streamQuery(gzip, resolveSql(beneficiaryQuery(bt), tid), projectLocalityParams(c), "PROJECT_BENEFICIARY");
+                n += streamQuery(gzip, resolveSql(sideEffectQuery(bt), tid), projectLocalityParams(c), "SIDE_EFFECT");
+                n += streamQuery(gzip, resolveSql(referralQuery(bt), tid), projectLocalityParams(c), "REFERRAL");
                 return n + streamQuery(gzip, resolveSql(HF_REFERRAL_QUERY, tid), projectLocalityParams(c), "HF_REFERRAL");
             });
             jobRepository.updateFileCompleted(tid, fileRowId, "SUCCESS",
@@ -648,7 +654,7 @@ public class DownsyncFileGenService {
         String key = s3ProjectKey(c, "tasks");
         try {
             S3Result s3 = s3Service.streamToS3(key, gzip ->
-                    streamQuery(gzip, resolveSql(TASK_QUERY, tid), projectLocalityParams(c), "PROJECT_TASK"));
+                    streamQuery(gzip, resolveSql(taskQuery(c.getBeneficiaryType()), tid), projectLocalityParams(c), "PROJECT_TASK"));
             jobRepository.updateFileCompleted(tid, fileRowId, "SUCCESS",
                     s3.rowCount() > 0 ? key : null, s3.rowCount(), s3.fileSize(), null, System.currentTimeMillis());
             return new FileResult("TASKS", true, s3.rowCount() > 0 ? key : null, s3.rowCount(), null);
@@ -1367,8 +1373,10 @@ public class DownsyncFileGenService {
         return Map.of("locality", c.getLocality());
     }
 
+    /** PROJECT file parameters: the campaign root (never a leaf project) and the village locality. */
     private Map<String, Object> projectLocalityParams(LocalityDownsyncCriteria c) {
-        return Map.of("projectId", c.getProjectId(), "locality", c.getLocality());
+        String root = c.getRootProjectId() != null ? c.getRootProjectId() : c.getProjectId();
+        return Map.of("rootProjectId", root, "locality", c.getLocality());
     }
 
     private String resolveSql(String template, String tenantId) {
