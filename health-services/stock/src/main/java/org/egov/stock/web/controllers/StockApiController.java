@@ -32,9 +32,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 
 import org.springframework.web.bind.annotation.RequestParam;
-import org.egov.requestvalidation.ValidateRequest;
 
-@ValidateRequest
 @Controller
 @RequestMapping("")
 public class StockApiController {

@@ -64,10 +64,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import static org.egov.project.util.ProjectConstants.INVALID_TENANT_ID_ERR_CODE;
-import org.egov.requestvalidation.ValidateRequest;
 
 
-@ValidateRequest
 @Controller
 @RequestMapping("")
 @Validated

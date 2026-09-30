@@ -24,13 +24,11 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.egov.requestvalidation.ValidateRequest;
 
 /**
  * Controller for handling user action-related requests.
  * Provides endpoints for creating, updating, and searching user actions.
  */
-@ValidateRequest
 @Controller
 @RequestMapping("/user-action")
 @Validated

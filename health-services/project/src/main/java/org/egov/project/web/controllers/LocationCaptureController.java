@@ -24,13 +24,11 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.egov.requestvalidation.ValidateRequest;
 
 /**
  * Controller for handling requests related to location capture tasks.
  * Provides endpoints for creating and searching location capture tasks.
  */
-@ValidateRequest
 @Controller
 @RequestMapping("/user-location")
 @Validated
