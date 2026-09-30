@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import org.egov.requestvalidation.ValidateRequest;
 
 /**
  * Daily activity summary report for the logged-in field worker.
@@ -28,6 +29,7 @@ import java.util.List;
  * The employee is always the caller (RequestInfo.userInfo.uuid) - a worker can only pull
  * their own summary. Reads run against the read replica.
  */
+@ValidateRequest
 @Controller
 @Validated
 public class SummaryReportApiController {
