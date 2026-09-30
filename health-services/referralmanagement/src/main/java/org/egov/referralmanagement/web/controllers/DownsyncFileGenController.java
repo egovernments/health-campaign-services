@@ -31,8 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import org.egov.requestvalidation.ValidateRequest;
 
 @Slf4j
+@ValidateRequest
 @Controller
 @RequestMapping("/downsync")
 @Validated
