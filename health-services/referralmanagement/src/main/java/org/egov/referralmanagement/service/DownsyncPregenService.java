@@ -26,15 +26,16 @@ public class DownsyncPregenService {
      *
      * Step 1 — Registry files (HH_MEMBERS + INDIVIDUALS): latest SUCCESS locality row
      *           where projectId IS NULL.
-     * Step 2 — Project files (BENE_AE_REF + TASKS): resolve leaf projectId from rootProjectId,
-     *           then fetch its SUCCESS locality row.
+     * Step 2 — Project files (BENE_AE_REF + TASKS): the request carries the worker's own
+     *           projectId (any level of the campaign). Resolve it to the campaign root and
+     *           fetch the root-scoped PROJECT files for the locality.
      *
      * Returns empty list if nothing found — caller falls through to live scan.
      */
     public List<DownsyncFileLink> getPregenLinks(DownsyncCriteria criteria) {
         String tenantId      = criteria.getTenantId();
         String locality      = criteria.getLocality();
-        String rootProjectId = criteria.getProjectId(); // treated as rootProjectId
+        String requestProjectId = criteria.getProjectId(); // worker's project — any level of the campaign
 
         long expiresAt = System.currentTimeMillis()
                 + (long) config.getPresignedUrlExpirySecs() * 1000;
@@ -45,15 +46,16 @@ public class DownsyncPregenService {
         for (DownsyncLocalityFile f : jobRepository.findLatestFilesForLocality(tenantId, null, locality))
             links.add(toLink(f, expiresAt));
 
-        // Step 2 — Project files (resolved leaf projectId)
-        if (StringUtils.hasText(rootProjectId)) {
-            String leafProjectId = jobRepository.findLeafProjectIdForLocality(tenantId, rootProjectId, locality);
-            if (leafProjectId != null) {
-                for (DownsyncLocalityFile f : jobRepository.findLatestFilesForLocality(tenantId, leafProjectId, locality))
+        // Step 2 — Project files (campaign root resolved from the worker's projectId)
+        String rootProjectId = null;
+        if (StringUtils.hasText(requestProjectId)) {
+            rootProjectId = jobRepository.resolveRootProjectId(tenantId, requestProjectId);
+            if (rootProjectId != null) {
+                for (DownsyncLocalityFile f : jobRepository.findLatestFilesForLocality(tenantId, rootProjectId, locality))
                     links.add(toLink(f, expiresAt));
             } else {
-                log.debug("No leaf project found for rootProjectId={} locality={} tenant={}",
-                        rootProjectId, locality, tenantId);
+                log.debug("Project {} not found — no PROJECT files for locality={} tenant={}",
+                        requestProjectId, locality, tenantId);
             }
         }
 

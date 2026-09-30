@@ -6,6 +6,7 @@ import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
 import org.egov.referralmanagement.service.DownsyncFileGenService;
 import org.egov.referralmanagement.service.DownsyncJobRegistry;
+import org.egov.referralmanagement.service.MasterDataService;
 import org.egov.referralmanagement.web.models.DownsyncFileGenRequest;
 import org.egov.referralmanagement.web.models.DownsyncFileGenResponse;
 import org.egov.referralmanagement.web.models.DownsyncGenerationJob;
@@ -41,6 +42,7 @@ public class DownsyncFileGenController {
     @Autowired private DownsyncFileGenService downsyncFileGenService;
     @Autowired private DownsyncGenerationJobRepository jobRepository;
     @Autowired private DownsyncJobRegistry jobRegistry;
+    @Autowired private MasterDataService masterDataService;
     @Autowired private org.egov.referralmanagement.service.JobHeartbeatScheduler heartbeat;
 
     @PostMapping("/v1/_generate")
@@ -58,6 +60,30 @@ public class DownsyncFileGenController {
                     .body(Map.of(
                             "code", "SERVICE_INITIALIZING",
                             "message", "Service is resuming interrupted jobs on startup. Try again in a few seconds."));
+        }
+
+        // ── Resolve campaign root + beneficiary type ──────────────────────────
+        // The caller may pass any project of the campaign (root, facility, village…).
+        // PROJECT files are always generated per campaign root, so normalise first;
+        // the beneficiary-type (HOUSEHOLD | INDIVIDUAL) comes from MDMS for the
+        // campaign's project type and selects the beneficiary-reference branch.
+        String beneficiaryType = null;
+        if (StringUtils.hasText(rootProjectId)) {
+            String resolvedRoot = jobRepository.resolveRootProjectId(tenantId, rootProjectId);
+            if (resolvedRoot == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("code", "PROJECT_NOT_FOUND",
+                                "message", "No project found for rootProjectId: " + rootProjectId));
+            }
+            if (!resolvedRoot.equals(rootProjectId)) {
+                log.info("rootProjectId {} normalised to campaign root {}", rootProjectId, resolvedRoot);
+                rootProjectId = resolvedRoot;
+            }
+            if (jobRepository.countDescendantProjects(tenantId, rootProjectId) == 0) {
+                // Single-level campaign: beneficiaries registered directly under the root.
+                // Every PROJECT query includes the root itself, so this is valid — just unusual.
+                log.warn("Campaign root {} has no child projects (single-level campaign)", rootProjectId);
+            }
         }
 
         // ── Gate 2: registry lock — a job already running for this tenant ─────
@@ -80,25 +106,48 @@ public class DownsyncFileGenController {
             }
         }
 
+        // ── Campaign beneficiary type (MDMS) — after the lock gates so a 409 never pays for it ──
+        // HOUSEHOLD | INDIVIDUAL selects the beneficiary-reference branch of every PROJECT query.
+        boolean withProject = StringUtils.hasText(rootProjectId);
+        if (withProject) {
+            try {
+                String typeCode = jobRepository.findProjectTypeCode(tenantId, rootProjectId);
+                beneficiaryType = masterDataService.getBeneficiaryType(tenantId, typeCode, request.getRequestInfo());
+            } catch (org.egov.tracer.model.CustomException e) {
+                // Data problem: missing type code / no MDMS entry / no beneficiaryType — caller must fix config.
+                log.error("Cannot resolve beneficiaryType for root {} tenant {}: {}", rootProjectId, tenantId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("code", "BENEFICIARY_TYPE_UNRESOLVED",
+                                "message", "Cannot resolve campaign beneficiaryType from MDMS for root " +
+                                        rootProjectId + ": " + e.getMessage()));
+            } catch (Exception e) {
+                // Transport / MDMS outage — transient, tell the caller to retry.
+                log.error("MDMS lookup failed for root {} tenant {}: {}", rootProjectId, tenantId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .header("Retry-After", "30")
+                        .body(Map.of("code", "BENEFICIARY_TYPE_LOOKUP_FAILED",
+                                "message", "MDMS beneficiaryType lookup failed for root " + rootProjectId +
+                                        "; retry later: " + e.getMessage()));
+            }
+            log.info("Campaign root {} beneficiaryType={}", rootProjectId, beneficiaryType);
+        }
+
         // ── Fetch localities ──────────────────────────────────────────────────
         List<String> allLocalities = jobRepository.fetchAllLocalities(tenantId);
         log.info("Resolved {} localities for tenant {}", allLocalities.size(), tenantId);
 
-        // Fetch project-locality mapping if rootProjectId present
-        List<String[]> projectLocPairs = List.of(); // [projectId, locality]
-        if (StringUtils.hasText(rootProjectId)) {
-            projectLocPairs = jobRepository.fetchProjectLocalityMapping(tenantId, rootProjectId);
-            if (projectLocPairs.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("code", "PROJECT_NOT_FOUND",
-                                "message", "No leaf projects found under rootProjectId: " + rootProjectId));
-            }
-        }
+        // PROJECT files: one per village inside the campaign's footprint (villages with
+        // campaign beneficiaries, campaign HF referrals, or campaign village boundaries),
+        // scoped to the campaign root. Other villages in the tenant get no PROJECT rows.
+        List<String> projectLocalities = withProject
+                ? jobRepository.fetchCampaignLocalities(tenantId, rootProjectId, beneficiaryType)
+                : List.of();
+        if (withProject) log.info("Campaign root {} covers {} localities", rootProjectId, projectLocalities.size());
 
         // ── Insert job row ────────────────────────────────────────────────────
         String jobId = UUID.randomUUID().toString();
         long now = System.currentTimeMillis();
-        int totalRequested = allLocalities.size() + projectLocPairs.size();
+        int totalRequested = allLocalities.size() + projectLocalities.size();
 
         // The partial unique index ux_downsync_generation_job_one_inprogress_per_tenant
         // enforces at-most-one IN_PROGRESS row per tenant. A concurrent /generate
@@ -146,23 +195,24 @@ public class DownsyncFileGenController {
 
         // ── Build and insert PROJECT locality + file rows ─────────────────────
         List<LocalityDownsyncCriteria> projectCriteria = new ArrayList<>();
-        for (String[] pair : projectLocPairs) {
-            String leafProjectId = pair[0];
-            String loc = pair[1];
-            String rowId = UUID.randomUUID().toString();
-            jobRepository.insertLocality(DownsyncGenerationLocality.builder()
-                    .id(rowId).jobId(jobId).tenantId(tenantId)
-                    .projectId(leafProjectId).locality(loc).category("PROJECT")
-                    .status("PENDING").createdTime(now).build());
-            for (String ft : DownsyncFileGenService.PROJECT_FILE_TYPES) {
-                jobRepository.insertFile(tenantId, DownsyncLocalityFile.builder()
-                        .id(UUID.randomUUID().toString()).localityRowId(rowId).jobId(jobId)
-                        .fileType(ft).status("PENDING").build());
+        if (withProject) {
+            for (String loc : projectLocalities) {
+                String rowId = UUID.randomUUID().toString();
+                jobRepository.insertLocality(DownsyncGenerationLocality.builder()
+                        .id(rowId).jobId(jobId).tenantId(tenantId)
+                        .projectId(rootProjectId).locality(loc).category("PROJECT")
+                        .status("PENDING").createdTime(now).build());
+                for (String ft : DownsyncFileGenService.PROJECT_FILE_TYPES) {
+                    jobRepository.insertFile(tenantId, DownsyncLocalityFile.builder()
+                            .id(UUID.randomUUID().toString()).localityRowId(rowId).jobId(jobId)
+                            .fileType(ft).status("PENDING").build());
+                }
+                projectCriteria.add(LocalityDownsyncCriteria.builder()
+                        .locality(loc).tenantId(tenantId).projectId(rootProjectId)
+                        .rootProjectId(rootProjectId).beneficiaryType(beneficiaryType)
+                        .localityRowId(rowId).category("PROJECT")
+                        .forceRefresh(request.isForceRefresh()).build());
             }
-            projectCriteria.add(LocalityDownsyncCriteria.builder()
-                    .locality(loc).tenantId(tenantId).projectId(leafProjectId)
-                    .rootProjectId(rootProjectId).localityRowId(rowId)
-                    .category("PROJECT").forceRefresh(request.isForceRefresh()).build());
         }
 
         // ── Acquire locks — after inserts, before async kick-off ─────────────

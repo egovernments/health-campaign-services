@@ -59,6 +59,7 @@ class DownsyncFileGenControllerSearchTest {
     @MockBean private DownsyncGenerationJobRepository jobRepository;
     @MockBean private DownsyncJobRegistry jobRegistry;
     @MockBean private JobHeartbeatScheduler heartbeat;
+    @MockBean private org.egov.referralmanagement.service.MasterDataService masterDataService;
     @MockBean private Producer producer;
 
     private static final String URL = "/downsync/v1/jobs/_search";

@@ -30,6 +30,7 @@ import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import static org.egov.referralmanagement.Constants.HCM_MASTER_PROJECTTYPE;
 import static org.egov.referralmanagement.Constants.HCM_MDMS_PROJECTTYPE_RES_PATH;
@@ -65,6 +66,30 @@ public class MasterDataService {
 		Project project = getProject(downsyncCriteria, info, projectId);
 
 		String projectCode = project.getProjectType(); // FIXME
+		return fetchProjectType(downsyncCriteria.getTenantId(), projectCode, info);
+	}
+
+	/**
+	 * Campaign beneficiary type (HOUSEHOLD | INDIVIDUAL) for an MDMS project-type code.
+	 * Used by the downsync file generator, which reads the code straight from the
+	 * project row and therefore needs no project-service round-trip.
+	 */
+	public String getBeneficiaryType(String tenantId, String projectTypeCode, RequestInfo info) {
+		if (!StringUtils.hasText(projectTypeCode)) {
+			throw new CustomException("PROJECT_TYPE_MISSING",
+					"Project row has no projectType code; cannot resolve beneficiaryType from MDMS");
+		}
+		LinkedHashMap<String, Object> projectType = fetchProjectType(tenantId, projectTypeCode, info);
+		Object beneficiaryType = projectType.get("beneficiaryType");
+		if (beneficiaryType == null || !StringUtils.hasText(beneficiaryType.toString())) {
+			throw new CustomException("BENEFICIARY_TYPE_MISSING",
+					"MDMS projectType '" + projectTypeCode + "' has no beneficiaryType");
+		}
+		return beneficiaryType.toString().trim().toUpperCase();
+	}
+
+	@SuppressWarnings("unchecked")
+	private LinkedHashMap<String, Object> fetchProjectType(String tenantId, String projectCode, RequestInfo info) {
 
 		/*
 		 * TODO FIXME code should get upgraded when next version of project is created with execution plan (project type master) in the additional details
@@ -87,7 +112,7 @@ public class MasterDataService {
 
 		MdmsCriteria mdmsCriteria = MdmsCriteria.builder()
 				.moduleDetails(Arrays.asList(moduleDetail))
-				.tenantId(downsyncCriteria.getTenantId().split("//.")[0])
+				.tenantId(tenantId.split("\\.")[0])   // state-level tenant for MDMS
 				.build();
 
 		MdmsCriteriaReq mdmsCriteriaReq = MdmsCriteriaReq.builder()
@@ -104,6 +129,10 @@ public class MasterDataService {
 			throw new CustomException("JSONPATH_ERROR", "Failed to parse mdms response");
 		}
 
+		if (projectTypeRes == null || projectTypeRes.isEmpty()) {
+			throw new CustomException("PROJECT_TYPE_NOT_FOUND",
+					"No MDMS projectType found with code '" + projectCode + "' for tenant " + tenantId);
+		}
 		return (LinkedHashMap<String, Object>) projectTypeRes.get(0);
 
 	}
