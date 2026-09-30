@@ -1,5 +1,5 @@
 import * as express from "express";
-import { createDataService, downloadDataService, generateDataService, searchDataService, searchCampaignDataService, searchMappingDataService } from "../../service/dataManageService";
+import { createDataService, downloadDataService, generateDataService, searchDataService, searchCampaignDataService, searchMappingDataService, searchDistributorsByDhService } from "../../service/dataManageService";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
 import { logger } from "../../utils/logger";
 
@@ -25,6 +25,7 @@ class dataManageController {
         this.router.post(`${this.path}/_search`, this.searchData);
         this.router.post(`${this.path}/campaign/_search`, this.searchCampaignData);
         this.router.post(`${this.path}/mapping/_search`, this.searchMappingData);
+        this.router.post(`${this.path}/distributor-by-dh/_search`, this.searchDistributorsByDh);
     }
     /**
 * Generates data based on the request and sends the response.
@@ -120,6 +121,23 @@ class dataManageController {
         try {
             logger.info(`RECEIVED A MAPPING DATA SEARCH REQUEST FOR TYPE :: ${request?.body?.SearchCriteria?.type}`);
             const result = await searchMappingDataService(request);
+            return sendResponse(response, result, request);
+        } catch (e: any) {
+            console.log(e)
+            logger.error(String(e))
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    }
+
+    /**
+     * Searches distributors grouped by DH boundary code.
+     * @param request The Express request object.
+     * @param response The Express response object.
+     */
+    searchDistributorsByDh = async (request: any, response: any) => {
+        try {
+            logger.info("RECEIVED A DISTRIBUTOR-BY-DH SEARCH REQUEST");
+            const result = await searchDistributorsByDhService(request);
             return sendResponse(response, result, request);
         } catch (e: any) {
             console.log(e)
