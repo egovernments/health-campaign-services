@@ -109,6 +109,14 @@ def _bool(val):
     return str(val).strip().upper() in ("TRUE", "YES", "1", "Y")
 
 
+def _tri_state(val):
+    """TRUE -> True, FALSE -> False, blank -> None ("use the default")."""
+    s = str(val or "").strip().upper()
+    if not s:
+        return None
+    return s in ("TRUE", "YES", "1", "Y", "ON")
+
+
 def _pad_cycle(val):
     # Sheets returns a numeric cell as 2 (or 2.0); ES cycleIndex is "02"
     s = str(val).strip()
@@ -298,6 +306,13 @@ def _validate_row(row, campaign_start, campaign_end, campaign_days):
             f"silently runs the SPAQ per-child pipeline over an ITN campaign and "
             f"produces a wrong-shaped report.")
 
+    for field in ("stock_report", "itn_scanner"):
+        raw_flag = str(row.get(field, "") or "").strip().upper()
+        if raw_flag and raw_flag not in _TRUE_WORDS + _FALSE_WORDS:
+            bad(f"{field} is {raw_flag!r}. Use TRUE or FALSE, or leave it "
+                f"blank to follow the deployment default. It changes what "
+                f"the stock section reports, so a typo must not guess.")
+
     raw_admin = str(row.get("is_admin_console", "") or "").strip().upper()
     if raw_admin and raw_admin not in _TRUE_WORDS + _FALSE_WORDS:
         bad(f"is_admin_console is {raw_admin!r}. Use TRUE or FALSE. It chooses "
@@ -474,6 +489,27 @@ def build(row):
         # DST_DUP_MATRIX overrides the checkout default per deployment.
         "dup_matrix": _bool(str(row.get("dup_matrix", "")).strip()
                             or _dup_matrix_default()),
+
+        # Optional stock stage (pipeline/stock.py). stock_report TRUE/FALSE turns
+        # it on/off for this campaign; blank (or no column) = None, which
+        # defers to DST_STOCK_REPORT. The other two override
+        # DST_STOCK_DATE_FIELD / DST_STOCK_BOUNDARY_LEVELS. All three are
+        # optional sheet columns.
+        "stock_report":          _tri_state(row.get("stock_report", "")),
+        # ITN only: TRUE = scanner model (Chad: bales, scans, codes), FALSE =
+        # no-scanner ledger (Borno); blank -> DST_STOCK_ITN_SCANNER, else
+        # auto-detected from the data.
+        # ITN only. itn_scanner: ONE column for every scanner choice — TRUE =
+        # scanner campaign (Chad: bednet code DQ ON, stock scanner model),
+        # FALSE / blank = no scanner (Borno: code DQ OFF, stock hub ledger).
+        # cdd_role: SMC AND ITN — the role of this campaign's CDDs on sync /
+        # staff records, used as typed (e.g. DISTRIBUTOR, DISTRIBUTOR_REGISTRAR);
+        # independent of itn_scanner; blank -> CDD_ROLE (SMC) / CDD_ROLE_ITN
+        # (ITN) from the dst_config Variable -> DISTRIBUTOR.
+        "itn_scanner":           _tri_state(row.get("itn_scanner", "")),
+        "cdd_role":              str(row.get("cdd_role", "")).strip().upper(),
+        "stock_date_field":      str(row.get("stock_date_field", "")).strip(),
+        "stock_boundary_levels": str(row.get("stock_boundary_levels", "")).strip(),
 
         # secondary product(s) counted alongside the primary drug — empty = disabled.
         # Legacy single string (age 3-59) OR a spec list (see _parse_secondary_products).

@@ -371,8 +371,15 @@ def run(cfg, docx_path, slack_text, partner_docx_path=None, mode="both"):
     if token and do_internal and channel:
         try:
             message = slack_text
+            # Internal-only addendum (eGov platform record-processing counts).
+            # MUST be appended here and nowhere else: the partner post below
+            # reuses the same slack_text, so anything set here never reaches
+            # the partner channel.
+            extra = str(cfg.get("slack_internal_extra", "") or "").strip()
+            if extra:
+                message = f"{message}\n\n{extra}"
             if drive_link:
-                message = f"{slack_text}\n\nFull report: {drive_link}"
+                message = f"{message}\n\nFull report: {drive_link}"
             _slack_post(channel, message, token)
             log.info(f"[notify] Slack post done -> {channel}")
         except Exception as e:

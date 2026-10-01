@@ -188,6 +188,37 @@ def _name_registry_modules(analyze_mod):
         mods.append(analyze_mod)
     return mods
 
+def _run_stock_stage(cfg, marker):
+    """Run pipeline/stock.py and record its outcome on the marker.
+
+    Off -> nothing recorded, the report is unchanged. On but zero stock
+    documents, or an error -> degraded, because the reader of an enabled
+    deployment expects a stock section and would otherwise get a report that
+    silently lacks one.
+    """
+    from dst_data_analysis_report.pipeline import stock
+
+    if not stock.enabled(cfg):
+        return
+    try:
+        produced = stock.run(cfg)
+    except Exception as e:
+        cfg.pop("stock_data", None)      # never render a half-built section
+        _degrade(marker, "stock",
+                 f"the STOCK section is MISSING from the report — the stock "
+                 f"step errored: {type(e).__name__}: {e}")
+        log.error(f"[runner] stock failed (non-fatal — report continues "
+                  f"without a stock section): {e}", exc_info=True)
+        return
+    if produced is None:
+        _degrade(marker, "stock", (
+            "the STOCK section is MISSING from the report — no stock "
+            "documents matched this campaign. Check campaign_number / "
+            "cycle_index on the sheet and that the stock app is in use"))
+        return
+    marker["stages"]["stock"] = "ok"
+
+
 def execute_campaign(row, mode="both"):
     """Run analyze -> cdd_sync -> report -> notify for one campaign row.
 
@@ -302,6 +333,12 @@ def execute_campaign(row, mode="both"):
                      f"step errored: {type(e).__name__}: {e}")
             log.error(f"[runner] cdd_sync failed (non-fatal — report continues "
                       f"without sync data): {e}", exc_info=True)
+
+        # OPTIONAL stock stage — the sheet's stock_report cell turns it on or
+        # off per campaign; blank defers to DST_STOCK_REPORT. Must run BEFORE report: report.py and
+        # report_itn.py render the stock section from cfg["stock_data"].
+        # Non-fatal like cdd_sync: the coverage report still goes out.
+        _run_stock_stage(cfg, marker)
 
         docx_path, partner_docx_path, slack_text = _run_stage(
             "report", lambda: report_mod.run(cfg), marker)

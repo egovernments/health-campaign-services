@@ -113,13 +113,20 @@ _DUP_KEYS = ("dup_su_sd", "dup_su_dd", "dup_du_sd", "dup_du_dd")
 
 def _campaign_filter(cfg):
     """
-    ITN campaign scoping. Confirmed for tenant 'chad': the task index carries the
-    campaign reference at Data.additionalDetails.projectReferenceId, NOT at a
-    top-level Data.campaignNumber field (unlike the SPAQ/AZM admin-console tenants).
+    ITN campaign scoping. The campaign reference lives in DIFFERENT places per
+    deployment: chad carries it at Data.additionalDetails.projectReferenceId
+    (confirmed live), while the NG admin-console tenants (e.g. Borno ITN 2026,
+    CMP-2026-09-21-000561) carry it at top-level Data.campaignNumber and have
+    NO projectReferenceId at all — filtering on one location only silently
+    matches zero docs on the other fleet. Match EITHER (same dual-location
+    pattern stock.py uses for projectTypeId).
     """
     if not cfg.get("campaign_number"):
         raise ValueError("campaign_number is required for ITN reporting")
-    return {"term": {"Data.additionalDetails.projectReferenceId.keyword": cfg["campaign_number"]}}
+    return {"bool": {"minimum_should_match": 1, "should": [
+        {"term": {"Data.campaignNumber.keyword": cfg["campaign_number"]}},
+        {"term": {"Data.additionalDetails.projectReferenceId.keyword": cfg["campaign_number"]}},
+    ]}}
 
 
 def _date_filter(cfg):
@@ -224,11 +231,17 @@ def _fetch_facility_rows(cfg):
         for doc in docs:
             bh  = doc.get("boundaryHierarchy") or {}
             bhc = doc.get("boundaryHierarchyCode") or {}
-            province = str(bh.get("province", "") or "").strip()
-            lga      = str(bh.get("district", "") or "").strip()
-            lga_code = str(bhc.get("district", "") or "").strip()
-            fac_name = str(bh.get("sppSfd", "") or "").strip()
-            fac_code = str(bhc.get("sppSfd", "") or "").strip()
+            # Boundary keys differ per deployment: chad uses province/district/
+            # sppSfd; the NG ITN hierarchy uses state/lga (and has NO facility
+            # tier — country/state/lga/ward/distributionHub/community). Read
+            # either, and where no facility tier exists, aggregate at LGA
+            # grain directly (fac == LGA) — the same grain the targets and
+            # report tables use.
+            province = str(bh.get("province") or bh.get("state") or "").strip()
+            lga      = str(bh.get("district") or bh.get("lga") or "").strip()
+            lga_code = str(bhc.get("district") or bhc.get("lga") or "").strip()
+            fac_name = str(bh.get("sppSfd") or "").strip() or lga
+            fac_code = str(bhc.get("sppSfd") or "").strip() or lga_code
             if not fac_code:
                 continue
 
@@ -444,7 +457,7 @@ def _fetch_dup_history(cfg, today_events):
         "Data.auditDetails.createdBy",
         "Data.additionalDetails.name", "Data.additionalDetails.familyNameOfIndividual",
         "Data.additionalDetails.memberCount", "Data.memberCount",
-        "Data.additionalDetails.administrativeArea", "Data.boundaryHierarchyCode.sppSfd",
+        "Data.additionalDetails.administrativeArea", "Data.boundaryHierarchyCode",
     ]
 
     history, seen_ids = [], set()
@@ -479,7 +492,9 @@ def _fetch_dup_history(cfg, today_events):
                     except (ValueError, TypeError):
                         members = None
                     area = str(add.get("administrativeArea") or "").strip()
-                    fac_code = str((d.get("boundaryHierarchyCode") or {}).get("sppSfd", "") or "").strip()
+                    _bhc = d.get("boundaryHierarchyCode") or {}
+                    fac_code = str(_bhc.get("sppSfd") or _bhc.get("district")
+                                   or _bhc.get("lga") or "").strip()
                     history.append({
                         "date": _norm_date(d.get(date_field)), "ts": created_ts,
                         "user": user, "fac": None, "hh": hh,
@@ -826,35 +841,71 @@ def _finalize_lga_rows(lga_rows, target_map):
 
 # ── Excel writing ──────────────────────────────────────────────────────────────
 
-# Duplicate-matrix columns are appended at the END (after the existing DQ block)
-# so every positional reader of the earlier columns — report_itn's row[:22] /
-# row[:15] unpacks and _load_all_days_perf_itn's r[5]/r[8]/r[11] — keeps working
-# against both pre-matrix and post-matrix files. Order must match _DUP_KEYS.
-# Empty cell = matrix not measured that run (gate off/failed), distinct from 0.
+# Duplicate-matrix columns are appended at the END (after the DQ block). The
+# first 18 LGA / 11 facility columns are position-stable across every layout;
+# the code block (flag-gated below) and dup block are resolved BY HEADER NAME in
+# report_itn's loaders, so old and new files both read correctly. Order must
+# match _DUP_KEYS. Empty cell = matrix not measured (gate off/failed), not 0.
 _DUP_HEADERS = [
     "Dup Same User Same Day", "Dup Same User Diff Day",
     "Dup Diff User Same Day", "Dup Diff User Diff Day",
 ]
 
-HEADERS = [
+# ── scanner vs no-scanner campaign (per campaign, sheet first) ──────────────
+# SCANNER campaign (Chad): bednets carry barcodes the app scans, so the bednet
+# code-entry DQ (Manual / Scanned / % Scanned / Missing Codes columns and the
+# Word code subsections) is meaningful. NO-SCANNER campaign (Borno): the app
+# has no code-capture step, so those columns would read "100% missing" — a
+# phantom DQ failure — and are left out. report_itn.py's loader resolves
+# columns BY HEADER NAME, so both layouts (and older files) read correctly.
+#
+# Resolution, first match wins:
+#   1. sheet cell itn_scanner   TRUE / FALSE        (per campaign)
+#   2. DST_BEDNET_CODES env     TRUE / FALSE        (per deployment, legacy key)
+#   3. BEDNET_CODES_DEFAULT     FALSE -> no-scanner (Borno)
+BEDNET_CODES_DEFAULT = "FALSE"
+
+def itn_scanner(cfg=None) -> bool:
+    """True for a scanner campaign (Chad), False for no-scanner (Borno)."""
+    choice = (cfg or {}).get("itn_scanner")
+    if choice is not None:
+        return bool(choice)
+    val = (os.getenv("DST_BEDNET_CODES", "").strip() or BEDNET_CODES_DEFAULT)
+    return val.upper() != "FALSE"
+
+_CODE_HEADERS = ["Manual Codes", "Scanned Codes", "% Scanned", "Missing Codes"]
+
+_LGA_BASE_HEADERS = [
     "#", "Province", "LGA", "Facilities",
     "Target Households", "Households Visited", "HH Coverage %",
     "Target Population", "Population Covered", "Pop Coverage %",
     "Target ITNs", "Nets Distributed", "ITN Coverage %",
     "Status", "Records", "Duplicate Records",
     "Missing HH Head", "Missing GPS",
-    "Manual Codes", "Scanned Codes", "% Scanned", "Missing Codes",
-] + _DUP_HEADERS
+]
 
 # Facility-level detail tab has NO target/coverage/status columns — no facility-
 # level target exists (see module docstring), so showing one would be fabricated.
-FACILITY_HEADERS = [
+_FACILITY_BASE_HEADERS = [
     "#", "Province", "LGA", "Health Facility",
     "Records", "Duplicate Records", "Households Visited",
     "Nets Distributed", "Population Covered",
     "Missing HH Head", "Missing GPS",
-    "Manual Codes", "Scanned Codes", "% Scanned", "Missing Codes",
-] + _DUP_HEADERS
+]
+
+
+def lga_headers(codes_on):
+    return _LGA_BASE_HEADERS + (_CODE_HEADERS if codes_on else []) + _DUP_HEADERS
+
+
+def facility_headers(codes_on):
+    return _FACILITY_BASE_HEADERS + (_CODE_HEADERS if codes_on else []) + _DUP_HEADERS
+
+
+# Module-level layouts for readers that only need the column ORDER of the
+# always-present base block (report_itn resolves the rest by header name).
+HEADERS = lga_headers(itn_scanner())
+FACILITY_HEADERS = facility_headers(itn_scanner())
 
 
 def _dm(v):
@@ -872,9 +923,25 @@ _DUP_FLAG_COLOR = {
 }
 
 
-def _row_values(r, idx):
+def _dup_measured(rows):
+    """True if the duplicate matrix was measured this run (any bucket non-None).
+    When it wasn't (dup_matrix off / classification failed), the four Dup columns
+    are omitted from the tab entirely instead of written as empty cells —
+    report_itn's loader resolves them by header name, so absence reads as
+    "not measured" exactly like an empty cell did."""
+    return any(r.get(k) is not None for r in rows for k in _DUP_KEYS)
+
+
+def _code_values(r, codes_on):
+    """The 4 bednet-code cells — emitted only for a scanner campaign."""
+    if not codes_on:
+        return []
     total_codes = r["manual_codes"] + r["scanned_codes"]
     pct_scanned = f"{r['scanned_codes']/total_codes*100:.1f}%" if total_codes else "N/A"
+    return [r["manual_codes"], r["scanned_codes"], pct_scanned, r["missing_codes"]]
+
+
+def _row_values(r, idx, dup_on=True, codes_on=False):
     return [
         idx, r["province"], r["lga"], r["facilities"],
         r["household_target"], r["households_visited"], f"{r['household_cov']:.1f}%",
@@ -882,20 +949,16 @@ def _row_values(r, idx):
         r["net_target"], r["nets_distributed"], f"{r['net_cov']:.1f}%",
         r["status"], r["records"], r["dup_records"],
         r["missing_hh_head"], r["missing_gps"],
-        r["manual_codes"], r["scanned_codes"], pct_scanned, r["missing_codes"],
-    ] + [_dm(r.get(k)) for k in _DUP_KEYS]
+    ] + _code_values(r, codes_on) + ([_dm(r.get(k)) for k in _DUP_KEYS] if dup_on else [])
 
 
-def _facility_row_values(r, idx):
-    total_codes = r["manual_codes"] + r["scanned_codes"]
-    pct_scanned = f"{r['scanned_codes']/total_codes*100:.1f}%" if total_codes else "N/A"
+def _facility_row_values(r, idx, dup_on=True, codes_on=False):
     return [
         idx, r["province"], r["lga"], r["facility_name"],
         r["records"], r.get("dup_records", 0), r["households_visited"],
         r["nets_distributed"], r["population_covered"],
         r["missing_hh_head"], r["missing_gps"],
-        r["manual_codes"], r["scanned_codes"], pct_scanned, r["missing_codes"],
-    ] + [_dm(r.get(k)) for k in _DUP_KEYS]
+    ] + _code_values(r, codes_on) + ([_dm(r.get(k)) for k in _DUP_KEYS] if dup_on else [])
 
 
 def _totals_row(rows):
@@ -925,8 +988,11 @@ def _totals_row(rows):
     }
 
 
-def _write_tab(ws, rows, banner_text):
-    ncols = len(HEADERS)
+def _write_tab(ws, rows, banner_text, codes_on=False):
+    dup_on = _dup_measured(rows)
+    all_hdrs = lga_headers(codes_on)
+    hdrs = all_hdrs if dup_on else all_hdrs[:len(all_hdrs) - len(_DUP_HEADERS)]
+    ncols = len(hdrs)
     last_col = get_column_letter(ncols)
 
     ws.merge_cells(f"A1:{last_col}1")
@@ -937,14 +1003,15 @@ def _write_tab(ws, rows, banner_text):
     banner.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 20
 
-    for ci, h in enumerate(HEADERS, 1):
+    for ci, h in enumerate(hdrs, 1):
         cell = ws.cell(row=2, column=ci, value=h)
         style_cell(cell, fill=HDR_FILL, bold=True, align="center", color="FFFFFF")
 
-    status_col = HEADERS.index("Status") + 1
-    dup_flag_cols = {HEADERS.index(h) + 1: c for h, c in _DUP_FLAG_COLOR.items()}
+    status_col = hdrs.index("Status") + 1
+    dup_flag_cols = ({hdrs.index(h) + 1: c for h, c in _DUP_FLAG_COLOR.items()}
+                     if dup_on else {})
     for ri, r in enumerate(rows, 1):
-        vals = _row_values(r, ri)
+        vals = _row_values(r, ri, dup_on, codes_on)
         for ci, val in enumerate(vals, 1):
             cell = ws.cell(row=ri + 2, column=ci, value=val)
             style_cell(cell, fill=WHITE_FILL, align="center")
@@ -957,7 +1024,7 @@ def _write_tab(ws, rows, banner_text):
     if rows:
         tot = _totals_row(rows)
         tot_row = len(rows) + 3
-        tot_vals = _row_values(tot, "")
+        tot_vals = _row_values(tot, "", dup_on, codes_on)
         for ci, val in enumerate(tot_vals, 1):
             cell = ws.cell(row=tot_row, column=ci, value=val)
             style_cell(cell, fill=TOTAL_FILL, bold=True, align="center")
@@ -972,8 +1039,12 @@ def _write_tab(ws, rows, banner_text):
         ws.column_dimensions[get_column_letter(ci)].width = 14
 
 
-def _write_facility_tab(ws, rows, banner_text):
-    ncols = len(FACILITY_HEADERS)
+def _write_facility_tab(ws, rows, banner_text, codes_on=False):
+    dup_on = _dup_measured(rows)
+    all_hdrs = facility_headers(codes_on)
+    hdrs = (all_hdrs if dup_on
+            else all_hdrs[:len(all_hdrs) - len(_DUP_HEADERS)])
+    ncols = len(hdrs)
     last_col = get_column_letter(ncols)
 
     ws.merge_cells(f"A1:{last_col}1")
@@ -984,13 +1055,14 @@ def _write_facility_tab(ws, rows, banner_text):
     banner.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 20
 
-    for ci, h in enumerate(FACILITY_HEADERS, 1):
+    for ci, h in enumerate(hdrs, 1):
         cell = ws.cell(row=2, column=ci, value=h)
         style_cell(cell, fill=HDR_FILL, bold=True, align="center", color="FFFFFF")
 
-    dup_flag_cols = {FACILITY_HEADERS.index(h) + 1: c for h, c in _DUP_FLAG_COLOR.items()}
+    dup_flag_cols = ({hdrs.index(h) + 1: c for h, c in _DUP_FLAG_COLOR.items()}
+                     if dup_on else {})
     for ri, r in enumerate(sorted(rows, key=lambda x: x["records"]), 1):
-        vals = _facility_row_values(r, ri)
+        vals = _facility_row_values(r, ri, dup_on, codes_on)
         for ci, val in enumerate(vals, 1):
             cell = ws.cell(row=ri + 2, column=ci, value=val)
             style_cell(cell, fill=WHITE_FILL, align="center")
@@ -1245,19 +1317,22 @@ def run(cfg):
     else:
         banner_text = "No data"
 
+    codes_on = itn_scanner(cfg)
+    log.info(f"[analyze_itn] {'SCANNER (bednet code columns ON)' if codes_on else 'NO-SCANNER (bednet code columns OFF)'} campaign")
+
     wb = Workbook()
     wb.remove(wb.active)
 
     ws_all = wb.create_sheet("ALL LGAS")
-    _write_tab(ws_all, rows, banner_text)
+    _write_tab(ws_all, rows, banner_text, codes_on)
 
     for band in BANDS:
         band_rows = [r for r in rows if r["status"] == band]
         ws = wb.create_sheet(band)
-        _write_tab(ws, band_rows, banner_text)
+        _write_tab(ws, band_rows, banner_text, codes_on)
 
     ws_fac = wb.create_sheet("FACILITY DETAIL")
-    _write_facility_tab(ws_fac, fac_rows, banner_text)
+    _write_facility_tab(ws_fac, fac_rows, banner_text, codes_on)
 
     # Household-level duplicate trace — one sheet per type (severity order),
     # each written only when it has rows (an empty tab would imply "checked,

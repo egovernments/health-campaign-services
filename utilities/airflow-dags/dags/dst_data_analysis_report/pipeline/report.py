@@ -480,7 +480,8 @@ def _extract_previous_conclusion(prev_report):
         return ""
     lines = [l.strip() for l in prev_report.split("\n") if l.strip()]
     for i, line in enumerate(lines):
-        if line.startswith("6.") and "Conclusion" in line:
+        # Conclusion is Section 7 when the stock section sits at 6
+        if line.startswith(("6.", "7.")) and "Conclusion" in line:
             snippet = " ".join(lines[i + 1: i + 5])
             return snippet[:400]
     return prev_report[:300]
@@ -1254,10 +1255,29 @@ def _build_report_doc(cfg, *, g, cov_pct, lga_d, facilities, hfs_active, lgas_to
                 align = WD_ALIGN_PARAGRAPH.LEFT if ci == 2 else WD_ALIGN_PARAGRAPH.CENTER
                 dat(row6.cells[ci], val, alt=alt, align=align)
 
-    # Section 6 — Conclusion (last section)
+    # Section 6 — Stock & Supply Chain (BOTH internal and partner docs, per
+    # user instruction 2026-09-17). Present only when the optional stock
+    # stage produced data — with the stage off, nothing below changes and
+    # Conclusion stays Section 6.
+    _concl_num = "6"
+    if cfg.get("stock_data"):
+        doc.add_paragraph()
+        from dst_data_analysis_report.pipeline.stock import build_stock_section
+        build_stock_section(doc, cfg, heading_num="6")
+        _concl_num = "7"
+
+    # Conclusion (last section)
     doc.add_paragraph()
-    add_heading(doc, "6.  Conclusion", 4)
-    add_para(doc, conclusion, size=10)
+    add_heading(doc, f"{_concl_num}.  Conclusion", 4)
+    # Deterministic stock one-liner woven into the same paragraph (both
+    # internal and partner docs, per user instruction 2026-09-17).
+    _concl_text = conclusion
+    if cfg.get("stock_data"):
+        from dst_data_analysis_report.pipeline.stock import stock_summary_line
+        _stock_line = stock_summary_line(cfg)
+        if _stock_line:
+            _concl_text = f"{conclusion.rstrip()} {_stock_line}"
+    add_para(doc, _concl_text, size=10)
 
     # Disclaimer — page footer (appears on every page)
     from datetime import timezone
@@ -1457,6 +1477,12 @@ def _generate_narratives(cfg, inputs, trajectory, prev_report):
         _slack_prompt(cfg, g, trajectory["cum_treated"], os.path.basename(cfg["docx_path"]),
                       sync_rows, sync_time_stats, prev_report),
         max_tokens=400)
+    # The deterministic stock one-liner is joined into the SAME paragraph.
+    if cfg.get("stock_data"):
+        from dst_data_analysis_report.pipeline.stock import stock_summary_line
+        _stock_line = stock_summary_line(cfg)
+        if _stock_line:
+            slack_narrative = f"{slack_narrative.rstrip()} {_stock_line}"
     slack_text = _slack_heading(cfg) + "\n\n" + slack_narrative
 
     return issues_data, conclusion, slack_text
@@ -1500,6 +1526,16 @@ def run(cfg):
 
     perf_link, sync_link = _publish_excels(cfg, inputs["perf_path"], inputs["sync_path"])
     issues_data, conclusion, slack_text = _generate_narratives(cfg, inputs, trajectory, prev_report)
+
+    # eGov platform error-tracer counts — INTERNAL ONLY, so it is hung on cfg for
+    # notify.py's main-channel branch rather than appended to slack_text (the
+    # partner post reuses slack_text verbatim). Flag-gated, non-fatal.
+    try:
+        from dst_data_analysis_report.pipeline import error_tracer
+        error_tracer.attach(cfg, records=inputs["g"].get("records"),
+                            cum_records=trajectory["cum_records"])
+    except Exception as e:
+        log.warning(f"[report] error tracer block skipped (non-fatal): {e}")
 
     render_params = dict(
         g=inputs["g"], cov_pct=inputs["cov_pct"], lga_d=inputs["lga_display"],
