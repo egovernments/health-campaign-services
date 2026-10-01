@@ -306,7 +306,7 @@ def _validate_row(row, campaign_start, campaign_end, campaign_days):
             f"silently runs the SPAQ per-child pipeline over an ITN campaign and "
             f"produces a wrong-shaped report.")
 
-    for field in ("stock_report", "stock_itn_scanner"):
+    for field in ("stock_report", "itn_scanner"):
         raw_flag = str(row.get(field, "") or "").strip().upper()
         if raw_flag and raw_flag not in _TRUE_WORDS + _FALSE_WORDS:
             bad(f"{field} is {raw_flag!r}. Use TRUE or FALSE, or leave it "
@@ -499,7 +499,14 @@ def build(row):
         # ITN only: TRUE = scanner model (Chad: bales, scans, codes), FALSE =
         # no-scanner ledger (Borno); blank -> DST_STOCK_ITN_SCANNER, else
         # auto-detected from the data.
-        "stock_itn_scanner":     _tri_state(row.get("stock_itn_scanner", "")),
+        # ITN only. itn_scanner: ONE column for every scanner choice — TRUE =
+        # scanner campaign (Chad: bednet code DQ ON, stock scanner model),
+        # FALSE / blank = no scanner (Borno: code DQ OFF, stock hub ledger).
+        # cdd_role: the sync-index role of this campaign's CDDs, used as typed
+        # (chad DISTRIBUTOR_REGISTRAR, Borno DISTRIBUTOR, ...); independent of
+        # itn_scanner; blank -> CDD_ROLE_ITN (Variable/env) -> DISTRIBUTOR.
+        "itn_scanner":           _tri_state(row.get("itn_scanner", "")),
+        "cdd_role":              str(row.get("cdd_role", "")).strip().upper(),
         "stock_date_field":      str(row.get("stock_date_field", "")).strip(),
         "stock_boundary_levels": str(row.get("stock_boundary_levels", "")).strip(),
 

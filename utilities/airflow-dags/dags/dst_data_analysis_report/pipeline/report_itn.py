@@ -51,37 +51,44 @@ def _load_perf_itn(path):
         wb.close()
         raise FileNotFoundError(f"'ALL LGAS' tab missing in {path} — analyze_itn.py may have failed")
     ws = wb["ALL LGAS"]
+    # Header row (row 2 — row 1 is the banner). The first 18 columns are
+    # position-stable across every file generation; the bednet-code block
+    # (flag-gated in analyze_itn, may be ABSENT) and the duplicate-matrix block
+    # (appended at the end, may be ABSENT on pre-matrix files) are resolved BY
+    # HEADER NAME so any layout reads correctly.
+    header = [str(c).strip() if c is not None else ""
+              for c in next(ws.iter_rows(min_row=2, max_row=2, values_only=True))]
     rows_raw = [
         r for r in ws.iter_rows(min_row=3, values_only=True)
         if r[2] and str(r[2]).strip() not in ("", "GRAND TOTAL")
     ]
     wb.close()
 
-    # col order (see analyze_itn.HEADERS):
-    # #, Province, LGA, Facilities, Target HH, HH Visited, HH Cov%,
-    # Target Pop, Pop Covered, Pop Cov%, Target ITN, Nets Distributed, ITN Cov%,
-    # Status, Records, Dup Records, Missing HH Head, Missing GPS,
-    # Manual Codes, Scanned Codes, % Scanned, Missing Codes,
-    # then (appended at the END — cols 22-25, may be ABSENT on pre-matrix files)
-    # the duplicate-matrix buckets in _DUP_MATRIX_KEYS order.
+    def col(name):
+        return header.index(name) if name in header else None
+
+    code_cols = {k: col(h) for k, h in (("manual_codes", "Manual Codes"),
+                                        ("scanned_codes", "Scanned Codes"),
+                                        ("missing_codes", "Missing Codes"))}
+    dup_cols  = [col(h) for h in ("Dup Same User Same Day", "Dup Same User Diff Day",
+                                  "Dup Diff User Same Day", "Dup Diff User Diff Day")]
     lga_d = {}
 
     for row in rows_raw:
-        # Pad short rows (older-generation files) so the fixed unpack below
-        # cannot raise — absent trailing columns read as None.
-        if len(row) < 22:
-            row = tuple(row) + (None,) * (22 - len(row))
         (_, province, lga, facs, hh_t, hh_v, hh_cov, pop_t, pop_c, pop_cov,
-         net_t, net_d, net_cov, status, records, dup, miss_hh, miss_gps,
-         manual_codes, scanned_codes, pct_scanned, miss_codes) = row[:22]
+         net_t, net_d, net_cov, status, records, dup, miss_hh, miss_gps) = row[:18]
+
+        def cell(idx):
+            return row[idx] if idx is not None and len(row) > idx else None
 
         def i(v): return int(v or 0)
 
         def dm(idx):
-            # Duplicate-matrix cell: absent column (old file) or empty cell
-            # (matrix off/failed that run) -> None ("not measured"), never a
-            # fabricated 0 — the doc section is omitted entirely on None.
-            v = row[idx] if len(row) > idx else None
+            # Duplicate-matrix cell: absent column (old file / codes-off layout
+            # shift is impossible — resolved by header) or empty cell (matrix
+            # off/failed that run) -> None ("not measured"), never a fabricated
+            # 0 — the doc section is omitted entirely on None.
+            v = cell(idx)
             if v is None or str(v).strip() == "":
                 return None
             try:
@@ -99,9 +106,10 @@ def _load_perf_itn(path):
             status=str(status or "").strip(),
             records=i(records), dup_records=i(dup),
             missing_hh_head=i(miss_hh), missing_gps=i(miss_gps),
-            manual_codes=i(manual_codes), scanned_codes=i(scanned_codes),
-            missing_codes=i(miss_codes),
-            **{k: dm(22 + n) for n, k in enumerate(_DUP_MATRIX_KEYS)},
+            manual_codes=i(cell(code_cols["manual_codes"])),
+            scanned_codes=i(cell(code_cols["scanned_codes"])),
+            missing_codes=i(cell(code_cols["missing_codes"])),
+            **{k: dm(dup_cols[n]) for n, k in enumerate(_DUP_MATRIX_KEYS)},
         )
 
     facilities = _load_facility_detail_itn(path)
@@ -127,12 +135,12 @@ def _load_facility_detail_itn(path):
 
     # col order (see analyze_itn.FACILITY_HEADERS):
     # #, Province, LGA, Health Facility, Records, Dup Records, Households Visited,
-    # Nets Distributed, Population Covered, Missing HH Head, Missing GPS,
-    # Manual Codes, Scanned Codes, % Scanned, Missing Codes
+    # Nets Distributed, Population Covered, Missing HH Head, Missing GPS
+    # (+ optional flag-gated code columns, unused here — first 11 are stable).
     facilities = []
     for row in rows_raw:
         (_, province, lga, fac, records, dup, hh_v, net_d, pop_c,
-         miss_hh, miss_gps, manual_codes, scanned_codes, pct_scanned, miss_codes) = row[:15]
+         miss_hh, miss_gps) = row[:11]
 
         def i(v): return int(v or 0)
 
@@ -157,6 +165,21 @@ def _grand_totals(lga_d):
 # Same key order as analyze_itn._DUP_KEYS / its appended _DUP_HEADERS columns —
 # kept in sync manually since this module reads the Excel, not analyze_itn.
 _DUP_MATRIX_KEYS = ("dup_su_sd", "dup_su_dd", "dup_du_sd", "dup_du_dd")
+
+# Bednet code-entry DQ (the "Bednet Code Entry Method" / "Missing Bednet Codes"
+# subsections + the Manual/Missing Codes columns of the per-LGA DQ table).
+# Chad's ITN app records codesScanned/manualCodes per delivery; deployments whose
+# app flow has NO code-capture step (verified for Borno: additionalDetails carries
+# neither field on any doc) would render "100% missing" — a phantom DQ failure,
+# not a field-team problem. Default FALSE = tables replaced by a one-line note.
+# Per campaign: a SCANNER campaign (Chad — sheet itn_scanner=TRUE, or the legacy
+# DST_BEDNET_CODES=TRUE) keeps the tables; NO-SCANNER (Borno, the default) does
+# not. One resolver for analyze_itn and this module: analyze_itn.itn_scanner.
+from dst_data_analysis_report.pipeline.analyze_itn import itn_scanner as _itn_scanner
+
+
+def _bednet_codes_enabled(cfg=None) -> bool:
+    return _itn_scanner(cfg)
 
 
 def _dup_matrix_totals(lga_d):
@@ -265,16 +288,30 @@ def _load_days_from_es_itn(cfg, elapsed_day):
         return []
     url, idx, auth = cfg["es_url"], cfg["ES_INDEX_TASK"], cfg["es_auth"]
     date_field = cfg.get("task_date_field", "taskDates")
+    # campaign scope lives in DIFFERENT places per deployment (chad:
+    # additionalDetails.projectReferenceId; NG: top-level campaignNumber) —
+    # match either, same as analyze_itn._campaign_filter
     scope = [
-        {"term": {"Data.additionalDetails.projectReferenceId.keyword": cfg["campaign_number"]}},
+        {"bool": {"minimum_should_match": 1, "should": [
+            {"term": {"Data.campaignNumber.keyword": cfg["campaign_number"]}},
+            {"term": {"Data.additionalDetails.projectReferenceId.keyword": cfg["campaign_number"]}},
+        ]}},
         {"term": {"Data.administrationStatus.keyword": "ADMINISTRATION_SUCCESS"}},
     ]
     days = []
     cum_hh = cum_pop = cum_nets = 0
     for day_num in range(1, elapsed_day + 1):
         d   = cfg["campaign_start"] + timedelta(days=day_num - 1)
-        rng = {"range": {f"Data.{date_field}": {
-            "gte": f"{d.isoformat()}T00:00:00.000Z", "lte": f"{d.isoformat()}T23:59:59.999Z"}}}
+        # bound format must match the field convention (same rule as
+        # stock._range_clause): taskDates is a plain yyyy-MM-dd date field —
+        # full ISO timestamps can silently match nothing on it
+        if date_field == "taskDates":
+            rng = {"range": {f"Data.{date_field}": {
+                "gte": d.isoformat(), "lte": d.isoformat()}}}
+        else:
+            rng = {"range": {f"Data.{date_field}": {
+                "gte": f"{d.isoformat()}T00:00:00.000Z",
+                "lte": f"{d.isoformat()}T23:59:59.999Z"}}}
         q = {"size": 0,
              "query": {"bool": {"filter": scope + [rng]}},
              "aggs": {
@@ -656,16 +693,19 @@ def _perf_table(doc, lga_d):
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if ci == 0 else WD_ALIGN_PARAGRAPH.CENTER
 
 
-def _dq_table_itn(doc, lga_d):
+def _dq_table_itn(doc, lga_d, codes_on=False):
     """Per-LGA DQ breakdown — mirrors report.py's _dq_table (3.2 in SPAQ)."""
-    header = ["LGA", "Duplicates", "Missing HH Head", "Missing GPS", "Manual Codes", "Missing Codes"]
+    header = ["LGA", "Duplicates", "Missing HH Head", "Missing GPS"]
+    if codes_on:
+        header += ["Manual Codes", "Missing Codes"]
     table  = doc.add_table(rows=1, cols=len(header))
     table.style = "Table Grid"
     for ci, h in enumerate(header):
         hdr(table.cell(0, ci), h)
     for ri, (dist, D) in enumerate(sorted(lga_d.items()), 1):
-        vals = [dist, D["dup_records"], D["missing_hh_head"], D["missing_gps"],
-                D["manual_codes"], D["missing_codes"]]
+        vals = [dist, D["dup_records"], D["missing_hh_head"], D["missing_gps"]]
+        if codes_on:
+            vals += [D["manual_codes"], D["missing_codes"]]
         row = table.add_row()
         alt = ri % 2 == 1
         for ci, val in enumerate(vals):
@@ -733,7 +773,8 @@ def _sync_section_itn(doc, sec_num, sync_lga_rows, sync_time_stats, sync_note,
                 dat(tr.cells[ci], val, alt=alt)
 
 
-def _dq_summary_table(doc, g, sec_num="3.5", dup_matrix=None, lga_d=None, perf_link=""):
+def _dq_summary_table(doc, g, sec_num="3.5", dup_matrix=None, lga_d=None, perf_link="",
+                      codes_on=False):
     total = g["hh_visited"] or 1
     # The flat "Duplicate Records" row appears only when the matrix wasn't
     # measured — otherwise its four-way breakdown (subsection .3) replaces it.
@@ -757,48 +798,61 @@ def _dq_summary_table(doc, g, sec_num="3.5", dup_matrix=None, lga_d=None, perf_l
         dat(row.cells[2], pct, alt=ri % 2 == 1)
     doc.add_paragraph()
 
-    # ITN-specific addition, no SPAQ/AZM equivalent — mirrors the campaign dashboard's own
-    # headline DQ metric: manual code entry is far more error/fraud-prone than barcode scanning.
-    total_codes = g["manual_codes"] + g["scanned_codes"]
-    pct_scanned = f"{g['scanned_codes']/total_codes*100:.2f}%" if total_codes else "N/A"
-    pct_manual  = f"{g['manual_codes']/total_codes*100:.2f}%" if total_codes else "N/A"
-    add_heading(doc, f"{sec_num}.1  Bednet Code Entry Method", 5)
-    code_table = doc.add_table(rows=1, cols=3)
-    code_table.style = "Table Grid"
-    hdr(code_table.cell(0, 0), "Entry Method")
-    hdr(code_table.cell(0, 1), "Count")
-    hdr(code_table.cell(0, 2), "% of Codes")
-    for ri, (label, count, pct) in enumerate([
-        ("Scanned", g["scanned_codes"], pct_scanned),
-        ("Manual",  g["manual_codes"],  pct_manual),
-    ], 1):
-        row = code_table.add_row()
-        dat(row.cells[0], label, alt=ri % 2 == 1, align=WD_ALIGN_PARAGRAPH.LEFT)
-        dat(row.cells[1], f"{count:,}", alt=ri % 2 == 1)
-        dat(row.cells[2], pct, alt=ri % 2 == 1)
-    doc.add_paragraph()
+    # Subsection numbers are assigned dynamically: when bednet-code capture is
+    # disabled (DST_BEDNET_CODES=FALSE) the two code subsections are omitted and
+    # Duplicate Distribution takes .1 instead of .3.
+    sub = 1
+    if codes_on:
+        # ITN-specific addition, no SPAQ/AZM equivalent — mirrors the campaign dashboard's own
+        # headline DQ metric: manual code entry is far more error/fraud-prone than barcode scanning.
+        total_codes = g["manual_codes"] + g["scanned_codes"]
+        pct_scanned = f"{g['scanned_codes']/total_codes*100:.2f}%" if total_codes else "N/A"
+        pct_manual  = f"{g['manual_codes']/total_codes*100:.2f}%" if total_codes else "N/A"
+        add_heading(doc, f"{sec_num}.{sub}  Bednet Code Entry Method", 5)
+        sub += 1
+        code_table = doc.add_table(rows=1, cols=3)
+        code_table.style = "Table Grid"
+        hdr(code_table.cell(0, 0), "Entry Method")
+        hdr(code_table.cell(0, 1), "Count")
+        hdr(code_table.cell(0, 2), "% of Codes")
+        for ri, (label, count, pct) in enumerate([
+            ("Scanned", g["scanned_codes"], pct_scanned),
+            ("Manual",  g["manual_codes"],  pct_manual),
+        ], 1):
+            row = code_table.add_row()
+            dat(row.cells[0], label, alt=ri % 2 == 1, align=WD_ALIGN_PARAGRAPH.LEFT)
+            dat(row.cells[1], f"{count:,}", alt=ri % 2 == 1)
+            dat(row.cells[2], pct, alt=ri % 2 == 1)
+        doc.add_paragraph()
 
-    # Missing Codes — records where a net was distributed but NEITHER scanned nor
-    # manually recorded (zero barcode documentation, untraceable in inventory).
-    # Distinct from the scanned-vs-manual RATIO above; denominator is total
-    # records, not total codes (a missing-codes record contributes 0 to either).
-    total_records = g["records"] or 1
-    pct_missing_codes = f"{g['missing_codes']/total_records*100:.2f}%"
-    add_heading(doc, f"{sec_num}.2  Missing Bednet Codes", 5)
-    miss_table = doc.add_table(rows=1, cols=3)
-    miss_table.style = "Table Grid"
-    hdr(miss_table.cell(0, 0), "Metric")
-    hdr(miss_table.cell(0, 1), "Count")
-    hdr(miss_table.cell(0, 2), "% of Records")
-    row = miss_table.add_row()
-    dat(row.cells[0], "Neither scanned nor manually entered", align=WD_ALIGN_PARAGRAPH.LEFT)
-    dat(row.cells[1], f"{g['missing_codes']:,}")
-    dat(row.cells[2], pct_missing_codes)
-    doc.add_paragraph()
+        # Missing Codes — records where a net was distributed but NEITHER scanned nor
+        # manually recorded (zero barcode documentation, untraceable in inventory).
+        # Distinct from the scanned-vs-manual RATIO above; denominator is total
+        # records, not total codes (a missing-codes record contributes 0 to either).
+        total_records = g["records"] or 1
+        pct_missing_codes = f"{g['missing_codes']/total_records*100:.2f}%"
+        add_heading(doc, f"{sec_num}.{sub}  Missing Bednet Codes", 5)
+        sub += 1
+        miss_table = doc.add_table(rows=1, cols=3)
+        miss_table.style = "Table Grid"
+        hdr(miss_table.cell(0, 0), "Metric")
+        hdr(miss_table.cell(0, 1), "Count")
+        hdr(miss_table.cell(0, 2), "% of Records")
+        row = miss_table.add_row()
+        dat(row.cells[0], "Neither scanned nor manually entered", align=WD_ALIGN_PARAGRAPH.LEFT)
+        dat(row.cells[1], f"{g['missing_codes']:,}")
+        dat(row.cells[2], pct_missing_codes)
+        doc.add_paragraph()
+    else:
+        add_para(doc, "Bednet code capture is not part of this campaign's app "
+                      "workflow — no scanned or manually entered code data exists, "
+                      "so the code entry tables are not shown.",
+                 size=8, color=GREY_RGB)
+        doc.add_paragraph()
 
     # Duplicate Distribution — rendered only when the matrix was measured.
     if dup_matrix is not None:
-        add_heading(doc, f"{sec_num}.3  Duplicate Distribution", 5)
+        add_heading(doc, f"{sec_num}.{sub}  Duplicate Distribution", 5)
         _dup_matrix_section(doc, dup_matrix, lga_d or {}, g["records"], perf_link=perf_link)
         doc.add_paragraph()
 
@@ -1177,7 +1231,7 @@ def _build_doc(cfg, *, g, hh_cov, pop_cov, net_cov, lga_d, facilities,
 
     if not partner:
         add_heading(doc, f"{dist_sec}.{sub}  Data Quality by LGA", 5); sub += 1
-        _dq_table_itn(doc, lga_d)
+        _dq_table_itn(doc, lga_d, codes_on=_bednet_codes_enabled(cfg))
         doc.add_paragraph()
 
     add_heading(doc, f"{dist_sec}.{sub}  Low Activity Facilities", 5); sub += 1
@@ -1197,7 +1251,8 @@ def _build_doc(cfg, *, g, hh_cov, pop_cov, net_cov, lga_d, facilities,
         # replacing the flat Duplicate Records row) and only when the matrix
         # was measured — None keeps the summary's classic shape.
         add_heading(doc, f"{dist_sec}.{sub}  Data Quality Summary", 5)
-        _dq_summary_table(doc, g, sec_num=f"{dist_sec}.{sub}",
+        _dq_summary_table(doc, g, codes_on=_bednet_codes_enabled(cfg),
+                          sec_num=f"{dist_sec}.{sub}",
                           dup_matrix=dup_matrix, lga_d=lga_d, perf_link=perf_link)
         doc.add_paragraph()
     sec += 1
@@ -1352,6 +1407,17 @@ def run(cfg):
         max_tokens=600,
     )
     _last = days_data[-1] if days_data else None
+    # eGov platform error-tracer counts — INTERNAL ONLY, hung on cfg for notify.py's
+    # main-channel branch (the partner post reuses slack_text verbatim). Non-fatal.
+    try:
+        from dst_data_analysis_report.pipeline import error_tracer
+        # ITN has no cumulative record count; cumulative households visited is
+        # the nearest equivalent denominator (one visit = one submitted record).
+        error_tracer.attach(
+            cfg, records=g.get("records"),
+            cum_records=(_last["cum_hh_visited"] if _last else g.get("hh_visited")))
+    except Exception as e:
+        log.warning(f"[report_itn] error tracer block skipped (non-fatal): {e}")
     slack_narrative = generate_narrative(
         _slack_prompt(cfg, g,
                       _last["cum_hh_visited"] if _last else g["hh_visited"],

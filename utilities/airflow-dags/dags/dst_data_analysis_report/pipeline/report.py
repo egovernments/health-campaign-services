@@ -1527,6 +1527,16 @@ def run(cfg):
     perf_link, sync_link = _publish_excels(cfg, inputs["perf_path"], inputs["sync_path"])
     issues_data, conclusion, slack_text = _generate_narratives(cfg, inputs, trajectory, prev_report)
 
+    # eGov platform error-tracer counts — INTERNAL ONLY, so it is hung on cfg for
+    # notify.py's main-channel branch rather than appended to slack_text (the
+    # partner post reuses slack_text verbatim). Flag-gated, non-fatal.
+    try:
+        from dst_data_analysis_report.pipeline import error_tracer
+        error_tracer.attach(cfg, records=inputs["g"].get("records"),
+                            cum_records=trajectory["cum_records"])
+    except Exception as e:
+        log.warning(f"[report] error tracer block skipped (non-fatal): {e}")
+
     render_params = dict(
         g=inputs["g"], cov_pct=inputs["cov_pct"], lga_d=inputs["lga_display"],
         facilities=inputs["facilities"],
