@@ -502,9 +502,10 @@ def build(row):
         # ITN only. itn_scanner: ONE column for every scanner choice — TRUE =
         # scanner campaign (Chad: bednet code DQ ON, stock scanner model),
         # FALSE / blank = no scanner (Borno: code DQ OFF, stock hub ledger).
-        # cdd_role: the sync-index role of this campaign's CDDs, used as typed
-        # (chad DISTRIBUTOR_REGISTRAR, Borno DISTRIBUTOR, ...); independent of
-        # itn_scanner; blank -> CDD_ROLE_ITN (Variable/env) -> DISTRIBUTOR.
+        # cdd_role: SMC AND ITN — the role of this campaign's CDDs on sync /
+        # staff records, used as typed (e.g. DISTRIBUTOR, DISTRIBUTOR_REGISTRAR);
+        # independent of itn_scanner; blank -> CDD_ROLE (SMC) / CDD_ROLE_ITN
+        # (ITN) from the dst_config Variable -> DISTRIBUTOR.
         "itn_scanner":           _tri_state(row.get("itn_scanner", "")),
         "cdd_role":              str(row.get("cdd_role", "")).strip().upper(),
         "stock_date_field":      str(row.get("stock_date_field", "")).strip(),
