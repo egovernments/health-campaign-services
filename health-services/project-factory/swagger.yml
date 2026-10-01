@@ -1875,16 +1875,13 @@ components:
                 items:
                   type: object
                   properties:
-                    workerId:
+                    uuid:
                       type: string
+                      description: Individual id of the distributor (attendance attendee identity). Empty when not yet processed.
                     userName:
                       type: string
                     name:
                       type: string
-                    roles:
-                      type: array
-                      items:
-                        type: string
         TotalCount:
           type: integer
           description: Total number of DH groups found

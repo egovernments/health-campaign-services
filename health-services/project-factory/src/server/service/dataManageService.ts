@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, searchAllGeneratedResources, processGenerate, throwError, searchCampaignData, searchMappingData } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, searchAllGeneratedResources, processGenerate, throwError, searchCampaignData, searchMappingData, getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -12,7 +12,7 @@ import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils";
 import config from '../config/index'
 import {callGenerate } from "../utils/generateUtils";
-import { attendanceSheetNames, generatedResourceStatuses } from "../config/constants";
+import { attendanceSheetNames, dataRowStatuses, generatedResourceStatuses } from "../config/constants";
 import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
 import { generateDataService as generateTemplateDataService } from "./sheetManageService";
 import { localityKeyOf } from "../utils/generatedResourceUtils";
@@ -48,6 +48,9 @@ const ROLE_COLUMN = "HCM_ADMIN_CONSOLE_USER_ROLE";
 const BOUNDARY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_NAME";
 const BOUNDARY_CODE_MANDATORY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
 const BOUNDARY_CODE_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
+const REGISTER_UUID_COLUMN = "HCM_ATTENDANCE_REGISTER_UUID";
+const ATTENDEE_DATA_TYPE = "attendanceRegisterAttendee";
+const ATTENDEE_IDENTITY_REGEX = /^([0-9a-f-]{36})_([0-9a-f-]{36})_\w+$/i;
 const MAX_ROLE_COLUMNS = 5;
 
 function toEpoch(value: unknown): number {
@@ -438,6 +441,25 @@ function extractRoleCodes(row: Record<string, unknown>): Set<string> {
     return roles;
 }
 
+function buildIndividualIdLookup(attendeeRows: unknown): Map<string, string> {
+    const lookup = new Map<string, string>();
+    if (!Array.isArray(attendeeRows)) return lookup;
+    for (const attendeeRow of attendeeRows) {
+        if (attendeeRow?.isDeleted) continue;
+        const match = ATTENDEE_IDENTITY_REGEX.exec(textValue(attendeeRow?.uniqueIdAfterProcess));
+        if (!match) continue;
+        const workerId = textValue(attendeeRow?.data?.[WORKER_ID_COLUMN]);
+        if (!workerId) continue;
+        lookup.set(`${match[1].toLowerCase()}::${workerId}`, match[2]);
+    }
+    return lookup;
+}
+
+function resolveDistributorUuid(row: Record<string, unknown>, workerId: string, individualIdLookup: Map<string, string>): string {
+    const registerUuid = textValue(row[REGISTER_UUID_COLUMN]).toLowerCase();
+    return individualIdLookup.get(`${registerUuid}::${workerId}`) ?? "";
+}
+
 const searchDistributorsByDhService = async (request: any) => {
     const searchCriteria = request?.body?.SearchCriteria;
     const pagination = request?.body?.Pagination;
@@ -498,10 +520,16 @@ const searchDistributorsByDhService = async (request: any) => {
         ? sheetMap[attendanceSheetNames.WORKER].data
         : [];
 
+    const campaignNumber = textValue(campaignDetail?.campaignNumber);
+    const attendeeRows = campaignNumber
+        ? await getRelatedDataWithCampaign(ATTENDEE_DATA_TYPE, campaignNumber, tenantId, dataRowStatuses.completed)
+        : [];
+    const individualIdLookup = buildIndividualIdLookup(attendeeRows);
+
     const distributorsByDh = new Map<string, {
         dhCode: string;
         dhName: string;
-        distributors: Array<{ workerId: string; userName: string; name: string; roles: string[] }>;
+        distributors: Array<{ uuid: string; userName: string; name: string }>;
         dedupe: Set<string>;
     }>();
 
@@ -517,7 +545,8 @@ const searchDistributorsByDhService = async (request: any) => {
         const workerId = textValue(row[WORKER_ID_COLUMN]);
         const userName = textValue(row[USERNAME_COLUMN]);
         const name = textValue(row[USER_NAME_COLUMN]);
-        const dedupeKey = `${workerId}::${userName}::${name}`;
+        const uuid = resolveDistributorUuid(row, workerId, individualIdLookup);
+        const dedupeKey = `${uuid || workerId}::${userName}::${name}`;
 
         let group = distributorsByDh.get(dhCode);
         if (!group) {
@@ -532,12 +561,7 @@ const searchDistributorsByDhService = async (request: any) => {
 
         if (group.dedupe.has(dedupeKey)) continue;
         group.dedupe.add(dedupeKey);
-        group.distributors.push({
-            workerId,
-            userName,
-            name,
-            roles: Array.from(roleCodes)
-        });
+        group.distributors.push({ uuid, userName, name });
     }
 
     const sortedGroups = Array.from(distributorsByDh.values())
