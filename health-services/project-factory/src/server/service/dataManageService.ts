@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, searchAllGeneratedResources, processGenerate, throwError, searchCampaignData, searchMappingData } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, searchAllGeneratedResources, processGenerate, throwError, searchCampaignData, searchMappingData, getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -12,7 +12,7 @@ import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils";
 import config from '../config/index'
 import {callGenerate } from "../utils/generateUtils";
-import { generatedResourceStatuses } from "../config/constants";
+import { attendanceSheetNames, dataRowStatuses, generatedResourceStatuses } from "../config/constants";
 import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
 import { generateDataService as generateTemplateDataService } from "./sheetManageService";
 import { localityKeyOf } from "../utils/generatedResourceUtils";
@@ -39,6 +39,19 @@ const staleInProgressResourceThresholdMs = 5 * 60 * 1000;
 const ALWAYS_FRESH_DOWNLOAD_TYPES = new Set<string>([
     "attendanceRegisterUserBulkMapping"
 ]);
+
+const DISTRIBUTOR_ROLE_CODE = "DISTRIBUTOR";
+const WORKER_ID_COLUMN = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
+const USERNAME_COLUMN = "UserName";
+const USER_NAME_COLUMN = "HCM_ADMIN_CONSOLE_USER_NAME";
+const ROLE_COLUMN = "HCM_ADMIN_CONSOLE_USER_ROLE";
+const BOUNDARY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_NAME";
+const BOUNDARY_CODE_MANDATORY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
+const BOUNDARY_CODE_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
+const REGISTER_UUID_COLUMN = "HCM_ATTENDANCE_REGISTER_UUID";
+const ATTENDEE_DATA_TYPE = "attendanceRegisterAttendee";
+const ATTENDEE_IDENTITY_REGEX = /^([0-9a-f-]{36})_([0-9a-f-]{36})_\w+$/i;
+const MAX_ROLE_COLUMNS = 5;
 
 function toEpoch(value: unknown): number {
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -408,6 +421,182 @@ const searchMappingDataService = async (request: any) => {
     }
 }
 
+function textValue(value: unknown): string {
+    return typeof value === "string" ? value.trim() : "";
+}
+
+function extractRoleCodes(row: Record<string, unknown>): Set<string> {
+    const roles = new Set<string>();
+    const roleString = textValue(row[ROLE_COLUMN]);
+    if (roleString) {
+        for (const role of roleString.split(",")) {
+            const normalized = textValue(role).toUpperCase();
+            if (normalized) roles.add(normalized);
+        }
+    }
+    for (let i = 1; i <= MAX_ROLE_COLUMNS; i++) {
+        const normalized = textValue(row[`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${i}`]).toUpperCase();
+        if (normalized) roles.add(normalized);
+    }
+    return roles;
+}
+
+function buildIndividualIdLookup(attendeeRows: unknown): Map<string, string> {
+    const lookup = new Map<string, string>();
+    if (!Array.isArray(attendeeRows)) return lookup;
+    for (const attendeeRow of attendeeRows) {
+        if (attendeeRow?.isDeleted) continue;
+        const match = ATTENDEE_IDENTITY_REGEX.exec(textValue(attendeeRow?.uniqueIdAfterProcess));
+        if (!match) continue;
+        const workerId = textValue(attendeeRow?.data?.[WORKER_ID_COLUMN]);
+        if (!workerId) continue;
+        lookup.set(`${match[1].toLowerCase()}::${workerId}`, match[2]);
+    }
+    return lookup;
+}
+
+function resolveDistributorUuid(row: Record<string, unknown>, workerId: string, individualIdLookup: Map<string, string>): string {
+    const registerUuid = textValue(row[REGISTER_UUID_COLUMN]).toLowerCase();
+    return individualIdLookup.get(`${registerUuid}::${workerId}`) ?? "";
+}
+
+const searchDistributorsByDhService = async (request: any) => {
+    const searchCriteria = request?.body?.SearchCriteria;
+    const pagination = request?.body?.Pagination;
+
+    if (!searchCriteria) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "SearchCriteria is required");
+    }
+
+    const tenantId = textValue(searchCriteria.tenantId);
+    if (!tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required in SearchCriteria");
+    }
+
+    const campaignId = textValue(searchCriteria.campaignId);
+    if (!campaignId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "campaignId is required in SearchCriteria");
+    }
+
+    if (searchCriteria.localityCodes && !Array.isArray(searchCriteria.localityCodes)) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "localityCodes must be an array");
+    }
+
+    // Lazy: a top-level import closes the campaignUtils -> dataManageService -> campaignManageService cycle.
+    const { searchProjectTypeCampaignService } = await import("./campaignManageService");
+    const { TemplateClass: AttendanceRegisterUserBulkMappingTemplateClass } =
+        await import("../generateFlowClasses/attendanceRegisterUserBulkMapping-generateClass");
+
+    const campaignResponse = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] }, request);
+    const campaignDetail = campaignResponse?.CampaignDetails?.[0];
+    if (!campaignDetail) {
+        throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", `Campaign not found for campaignId ${campaignId}`);
+    }
+
+    const hierarchyType = textValue(searchCriteria.hierarchyType) || textValue(campaignDetail?.hierarchyType);
+    if (!hierarchyType) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "hierarchyType is required in SearchCriteria or campaign");
+    }
+
+    const rawLocalityCodes = Array.isArray(searchCriteria.localityCodes) ? searchCriteria.localityCodes : [];
+    const requestedDhCodes = new Set(
+        rawLocalityCodes
+            .map((code: unknown) => textValue(code))
+            .filter(Boolean)
+    );
+
+    const sheetMap = await AttendanceRegisterUserBulkMappingTemplateClass.generate(
+        generationtTemplateConfigs.attendanceRegisterUserBulkMapping,
+        {
+            tenantId,
+            campaignId,
+            hierarchyType,
+            requestInfo: request?.body?.RequestInfo
+        },
+        {}
+    );
+
+    const workerRows = Array.isArray(sheetMap?.[attendanceSheetNames.WORKER]?.data)
+        ? sheetMap[attendanceSheetNames.WORKER].data
+        : [];
+
+    const campaignNumber = textValue(campaignDetail?.campaignNumber);
+    const attendeeRows = campaignNumber
+        ? await getRelatedDataWithCampaign(ATTENDEE_DATA_TYPE, campaignNumber, tenantId, dataRowStatuses.completed)
+        : [];
+    const individualIdLookup = buildIndividualIdLookup(attendeeRows);
+
+    const distributorsByDh = new Map<string, {
+        dhCode: string;
+        dhName: string;
+        distributors: Array<{ uuid: string; userName: string; name: string }>;
+        dedupe: Set<string>;
+    }>();
+
+    for (const rawRow of workerRows) {
+        const row = (rawRow || {}) as Record<string, unknown>;
+        const roleCodes = extractRoleCodes(row);
+        if (!roleCodes.has(DISTRIBUTOR_ROLE_CODE)) continue;
+
+        const dhCode = textValue(row[BOUNDARY_CODE_MANDATORY_COLUMN]) || textValue(row[BOUNDARY_CODE_COLUMN]);
+        if (!dhCode) continue;
+        if (requestedDhCodes.size > 0 && !requestedDhCodes.has(dhCode)) continue;
+
+        const workerId = textValue(row[WORKER_ID_COLUMN]);
+        const userName = textValue(row[USERNAME_COLUMN]);
+        const name = textValue(row[USER_NAME_COLUMN]);
+        const uuid = resolveDistributorUuid(row, workerId, individualIdLookup);
+        const dedupeKey = `${uuid || workerId}::${userName}::${name}`;
+
+        let group = distributorsByDh.get(dhCode);
+        if (!group) {
+            group = {
+                dhCode,
+                dhName: textValue(row[BOUNDARY_COLUMN]) || dhCode,
+                distributors: [],
+                dedupe: new Set<string>()
+            };
+            distributorsByDh.set(dhCode, group);
+        }
+
+        if (group.dedupe.has(dedupeKey)) continue;
+        group.dedupe.add(dedupeKey);
+        group.distributors.push({ uuid, userName, name });
+    }
+
+    const sortedGroups = Array.from(distributorsByDh.values())
+        .sort((a, b) => a.dhCode.localeCompare(b.dhCode))
+        .map((entry) => ({
+            dhCode: entry.dhCode,
+            dhName: entry.dhName,
+            distributors: entry.distributors
+        }));
+
+    let offset = 0;
+    let limit = sortedGroups.length || 100;
+    if (pagination) {
+        offset = pagination.offset || 0;
+        limit = pagination.limit || 100;
+        if (offset < 0) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "offset cannot be negative");
+        }
+        if (limit < 1 || limit > 1000) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "limit must be between 1 and 1000");
+        }
+    }
+
+    const pagedGroups = sortedGroups.slice(offset, offset + limit);
+
+    return {
+        DHDistributors: pagedGroups,
+        TotalCount: sortedGroups.length,
+        Pagination: {
+            offset,
+            limit
+        }
+    };
+}
+
 export {
     generateDataService,
     downloadDataService,
@@ -415,5 +604,6 @@ export {
     createDataService,
     searchDataService,
     searchCampaignDataService,
-    searchMappingDataService
+    searchMappingDataService,
+    searchDistributorsByDhService
 }

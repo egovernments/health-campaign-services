@@ -655,6 +655,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /v1/data/distributor-by-dh/_search:
+    post:
+      tags:
+        - Data Management (V1)
+      summary: Search Distributors by DH
+      description: |
+        Returns distributors grouped by DH boundary code for a campaign.
+      operationId: searchDistributorsByDh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchDistributorsByDhRequest'
+      responses:
+        '200':
+          description: Distributor-by-DH search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchDistributorsByDhResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # =======================
   # SHEET MANAGEMENT (V2 - Modern)
   # =======================
@@ -1778,6 +1804,87 @@ components:
         TotalCount:
           type: integer
           description: Total number of records found
+        Pagination:
+          type: object
+          properties:
+            offset:
+              type: integer
+            limit:
+              type: integer
+          description: Pagination information
+
+    SearchDistributorsByDhRequest:
+      type: object
+      required:
+        - RequestInfo
+        - SearchCriteria
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SearchCriteria:
+          type: object
+          required:
+            - tenantId
+            - campaignId
+          properties:
+            tenantId:
+              type: string
+              description: Tenant identifier (required)
+            campaignId:
+              type: string
+              description: Campaign identifier (required)
+            hierarchyType:
+              type: string
+              description: Hierarchy type; when omitted, campaign hierarchyType is used
+            localityCodes:
+              type: array
+              items:
+                type: string
+              description: Optional DH/locality codes filter
+        Pagination:
+          type: object
+          properties:
+            offset:
+              type: integer
+              minimum: 0
+              default: 0
+              description: Number of DH groups to skip
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 1000
+              default: 100
+              description: Maximum number of DH groups to return
+
+    SearchDistributorsByDhResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        DHDistributors:
+          type: array
+          items:
+            type: object
+            properties:
+              dhCode:
+                type: string
+              dhName:
+                type: string
+              distributors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    uuid:
+                      type: string
+                      description: Individual id of the distributor (attendance attendee identity). Empty when not yet processed.
+                    userName:
+                      type: string
+                    name:
+                      type: string
+        TotalCount:
+          type: integer
+          description: Total number of DH groups found
         Pagination:
           type: object
           properties:
