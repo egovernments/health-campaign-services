@@ -1224,8 +1224,23 @@ def _build_doc(cfg, *, g, hh_cov, pop_cov, net_cov, lga_d, facilities,
     doc.add_paragraph()
     sec += 1
 
+    # Stock & Supply Chain — both internal and partner docs (per user
+    # instruction 2026-09-17); present only when the stock stage produced data.
+    if cfg.get("stock_data"):
+        from dst_data_analysis_report.pipeline.stock import build_stock_section
+        build_stock_section(doc, cfg, heading_num=str(sec))
+        sec += 1
+
     add_heading(doc, f"{sec}.  Conclusion", 4)
-    add_para(doc, conclusion, size=10)
+    # Deterministic stock one-liner woven into the same paragraph (both
+    # internal and partner docs, per user instruction 2026-09-17).
+    _concl_text = conclusion
+    if cfg.get("stock_data"):
+        from dst_data_analysis_report.pipeline.stock import stock_summary_line
+        _stock_line = stock_summary_line(cfg)
+        if _stock_line:
+            _concl_text = f"{conclusion.rstrip()} {_stock_line}"
+    add_para(doc, _concl_text, size=10)
 
     from datetime import timezone
     extracted_at = datetime.now(timezone.utc).strftime("%H:%M UTC")
@@ -1346,6 +1361,12 @@ def run(cfg):
                       roster_ever_synced, roster_high),
         max_tokens=400,
     )
+    # The deterministic stock one-liner is joined into the SAME paragraph.
+    if cfg.get("stock_data"):
+        from dst_data_analysis_report.pipeline.stock import stock_summary_line
+        _stock_line = stock_summary_line(cfg)
+        if _stock_line:
+            slack_narrative = f"{slack_narrative.rstrip()} {_stock_line}"
     slack_text = (
         f"*{cfg['state_name']} — {cfg['campaign_name']}*\n\n"
         f"{slack_narrative}"

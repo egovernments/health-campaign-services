@@ -181,6 +181,11 @@ def validate_row(row):
     mopup = str(row.get("mopup_end_date", "")).strip()
     if mopup and not _parse_date(mopup):
         problems.append(f"mopup_end_date unparseable: {mopup!r}")
+    from dst_data_analysis_report.pipeline.config import _TRUE_WORDS, _FALSE_WORDS
+    for field in ("stock_report", "stock_itn_scanner"):
+        flag = str(row.get(field, "")).strip().upper()
+        if flag and flag not in _TRUE_WORDS + _FALSE_WORDS:
+            problems.append(f"{field} must be TRUE, FALSE or blank: {flag!r}")
     return problems
 
 
