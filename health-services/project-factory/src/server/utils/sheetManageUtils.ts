@@ -18,6 +18,7 @@ import { fetchFileFromFilestore } from "../api/coreApis";
 import { EnrichProcessConfigUtil } from "./EnrichProcessConfigUtil";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { localityKeyOf } from "./generatedResourceUtils";
+import { normalizeProcessType } from "./processTypeUtils";
 
 /** Expires any prior generated resources for this key and produces a fresh in-progress record to track template generation. */
 export async function initializeGenerateAndGetResponse(
@@ -173,6 +174,8 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
             locale = config.localisation.defaultLocale || "en_IN";
             logger.info(`Using fallback locale: ${locale}`);
         }
+
+        await ensureTemplateMetadataForKnownCampaign(workBook, locale, ResourceDetails?.campaignId, ResourceDetails?.type);
 
         const localizationMapHierarchy = ResourceDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId, getLocalisationModuleName(ResourceDetails?.hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId);
@@ -781,6 +784,28 @@ export async function enrichProcessTemplateConfig(ResourceDetails: any, processT
     }
 }
 
+/**
+ * Backfills missing template metadata for known campaign uploads.
+ * Keeps strict campaign mismatch checks intact; only repairs absent/invalid metadata.
+ */
+async function ensureTemplateMetadataForKnownCampaign(workBook: any, locale: string, campaignId: string, resourceType?: string) {
+    try {
+        validateFileCmapaignIdInMetaData(workBook, campaignId, resourceType);
+        return;
+    } catch (error: any) {
+        const description = String(error?.description || error?.message || "");
+        const isMissingMetadata =
+            description.includes("doesn't have campaign metadata") ||
+            description.includes("doesn't have valid campaign metadata");
+
+        if (!isMissingMetadata) throw error;
+
+        logger.warn(`Template metadata missing/invalid for ${resourceType}. Backfilling metadata and retrying validation.`);
+        enrichTemplateMetaData(workBook, locale, campaignId, resourceType);
+        validateFileCmapaignIdInMetaData(workBook, campaignId, resourceType);
+    }
+}
+
 /** Dry-runs the process pipeline under a validation config and throws if any sheet-level errors were collected. */
 export async function validateResourceDetailsBeforeProcess(validationProcessType : string, resourceDetails: any, localizationMap : any) {
     logger.info("Validating resource details before process main function...");
@@ -806,17 +831,23 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
         logger.info(`Using fallback locale for validation: ${locale}`);
     }
 
+    await ensureTemplateMetadataForKnownCampaign(workBook, locale, validationResourceDetails?.campaignId, validationResourceDetails?.type);
+
     await processRequest(validationResourceDetails, workBook, processTemplateConfig, localizationMap);
     if (validationResourceDetails?.additionalDetails?.sheetErrors?.length) {
         throwError("COMMON", 400, "VALIDATION_ERROR", JSON.stringify(validationResourceDetails?.additionalDetails?.sheetErrors));
     }
+
     logger.info("Validated resource details before process main function...");
 }
 
 /** Throws unless the type has a controller-passable process template config (guards the create endpoint). */
 export function filterResourceDetailType(type : string){
-    const templateConfig = processTemplateConfigs?.[String(type)];
+    const knownTypes = Object.keys(processTemplateConfigs || {});
+    const normalizedType = normalizeProcessType(String(type), knownTypes);
+    const templateConfig = processTemplateConfigs?.[String(normalizedType)];
     if(!templateConfig?.passFromController){
         throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} not found or invalid`);
     }
+    return normalizedType;
 }
