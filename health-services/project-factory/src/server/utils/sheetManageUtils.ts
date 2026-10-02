@@ -18,6 +18,7 @@ import { fetchFileFromFilestore } from "../api/coreApis";
 import { EnrichProcessConfigUtil } from "./EnrichProcessConfigUtil";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { localityKeyOf } from "./generatedResourceUtils";
+import { normalizeProcessType } from "./processTypeUtils";
 
 /** Expires any prior generated resources for this key and produces a fresh in-progress record to track template generation. */
 export async function initializeGenerateAndGetResponse(
@@ -815,8 +816,11 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
 
 /** Throws unless the type has a controller-passable process template config (guards the create endpoint). */
 export function filterResourceDetailType(type : string){
-    const templateConfig = processTemplateConfigs?.[String(type)];
+    const knownTypes = Object.keys(processTemplateConfigs || {});
+    const normalizedType = normalizeProcessType(String(type), knownTypes);
+    const templateConfig = processTemplateConfigs?.[String(normalizedType)];
     if(!templateConfig?.passFromController){
         throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} not found or invalid`);
     }
+    return normalizedType;
 }

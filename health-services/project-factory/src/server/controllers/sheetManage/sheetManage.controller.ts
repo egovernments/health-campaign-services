@@ -76,7 +76,7 @@ class SheetManageController {
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
             ResourceDetails.requestInfo = req.body?.RequestInfo;
-            filterResourceDetailType(ResourceDetails.type);
+            ResourceDetails.type = filterResourceDetailType(ResourceDetails.type);
 
             // Check for concurrent upload to same campaign (409 guard)
             if (ResourceDetails.campaignId) {

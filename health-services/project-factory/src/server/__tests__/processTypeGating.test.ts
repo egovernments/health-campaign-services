@@ -54,6 +54,7 @@ describe("filterResourceDetailType", () => {
         expect(captureError("attendanceRegisterValidation")).toBeNull();
         expect(captureError("attendanceRegisterAttendeeValidation")).toBeNull();
         expect(captureError("attendanceRegisterUserBulkMapping")).toBeNull();
+        expect(captureError("attendanceRegister-validation")).toBeNull();
     });
 });
 

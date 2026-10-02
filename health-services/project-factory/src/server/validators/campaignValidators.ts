@@ -37,6 +37,7 @@ import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 import addErrors from "ajv-errors";
+import { normalizeProcessType } from "../utils/processTypeUtils";
 
 
 function processBoundaryfromCampaignDetails(responseBoundaries: any[], request: any, boundaryItems: any[]) {
@@ -1369,7 +1370,7 @@ export async function validateResourceDetails(ResourceDetails : ResourceDetails)
     const campaignId = ResourceDetails?.campaignId;
     const tenantId = ResourceDetails?.tenantId;
     const fileStoreId = ResourceDetails?.fileStoreId;
-    validateTypeForProcess(type);
+    ResourceDetails.type = validateTypeForProcess(type);
     await validateHierarchyDefination(hierarchyType, tenantId);
     await validateCampaignViaId(campaignId, tenantId);
     try {
@@ -1415,9 +1416,11 @@ async function validateCampaignViaId(campaignId : string,tenantId : string) {
 function validateTypeForProcess(type : string){
     const config = JSON.parse(JSON.stringify(processTemplateConfigs));
     const types = Object.keys(config);
-    if(!types.includes(type)){
+    const normalizedType = normalizeProcessType(type, types);
+    if(!types.includes(normalizedType)){
         throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `type ${type} not found or invalid`);
     }
+    return normalizedType;
 }
 
 export async function validateGenerateQuery(generateTemplateQuery : GenerateTemplateQuery){

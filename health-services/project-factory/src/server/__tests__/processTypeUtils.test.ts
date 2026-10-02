@@ -1,4 +1,4 @@
-import { isAttendanceRegisterFamilyType } from "../utils/processTypeUtils";
+import { isAttendanceRegisterFamilyType, normalizeProcessType } from "../utils/processTypeUtils";
 
 describe("processTypeUtils", () => {
     describe("isAttendanceRegisterFamilyType", () => {
@@ -12,6 +12,24 @@ describe("processTypeUtils", () => {
             expect(isAttendanceRegisterFamilyType("facility")).toBe(false);
             expect(isAttendanceRegisterFamilyType(undefined)).toBe(false);
             expect(isAttendanceRegisterFamilyType(null)).toBe(false);
+        });
+    });
+
+    describe("normalizeProcessType", () => {
+        const knownTypes = [
+            "attendanceRegisterValidation",
+            "attendanceRegisterAttendeeValidation",
+            "attendanceRegisterUserBulkMappingValidation",
+        ];
+
+        it("normalizes hyphenated attendance validation aliases", () => {
+            expect(normalizeProcessType("attendanceRegister-validation", knownTypes)).toBe("attendanceRegisterValidation");
+            expect(normalizeProcessType("attendance-register-validation", knownTypes)).toBe("attendanceRegisterValidation");
+            expect(normalizeProcessType("attendanceRegister-user-bulk-mapping-validation", knownTypes)).toBe("attendanceRegisterUserBulkMappingValidation");
+        });
+
+        it("returns input unchanged when it is unknown", () => {
+            expect(normalizeProcessType("unknown-type", knownTypes)).toBe("unknown-type");
         });
     });
 });
