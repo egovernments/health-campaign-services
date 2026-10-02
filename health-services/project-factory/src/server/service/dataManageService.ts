@@ -48,9 +48,8 @@ const ROLE_COLUMN = "HCM_ADMIN_CONSOLE_USER_ROLE";
 const BOUNDARY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_NAME";
 const BOUNDARY_CODE_MANDATORY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
 const BOUNDARY_CODE_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
-const REGISTER_UUID_COLUMN = "HCM_ATTENDANCE_REGISTER_UUID";
-const ATTENDEE_DATA_TYPE = "attendanceRegisterAttendee";
-const ATTENDEE_IDENTITY_REGEX = /^([0-9a-f-]{36})_([0-9a-f-]{36})_\w+$/i;
+const USER_DATA_TYPE = "user";
+const USER_SERVICE_UUID_COLUMN = "UserService Uuids";
 const MAX_ROLE_COLUMNS = 5;
 
 function toEpoch(value: unknown): number {
@@ -441,23 +440,17 @@ function extractRoleCodes(row: Record<string, unknown>): Set<string> {
     return roles;
 }
 
-function buildIndividualIdLookup(attendeeRows: unknown): Map<string, string> {
+function buildUserUuidLookup(userRows: unknown): Map<string, string> {
     const lookup = new Map<string, string>();
-    if (!Array.isArray(attendeeRows)) return lookup;
-    for (const attendeeRow of attendeeRows) {
-        if (attendeeRow?.isDeleted) continue;
-        const match = ATTENDEE_IDENTITY_REGEX.exec(textValue(attendeeRow?.uniqueIdAfterProcess));
-        if (!match) continue;
-        const workerId = textValue(attendeeRow?.data?.[WORKER_ID_COLUMN]);
+    if (!Array.isArray(userRows)) return lookup;
+    for (const userRow of userRows) {
+        if (userRow?.isDeleted) continue;
+        const workerId = textValue(userRow?.data?.[WORKER_ID_COLUMN]);
         if (!workerId) continue;
-        lookup.set(`${match[1].toLowerCase()}::${workerId}`, match[2]);
+        const uuid = textValue(userRow?.uniqueIdAfterProcess) || textValue(userRow?.data?.[USER_SERVICE_UUID_COLUMN]);
+        if (uuid) lookup.set(workerId, uuid);
     }
     return lookup;
-}
-
-function resolveDistributorUuid(row: Record<string, unknown>, workerId: string, individualIdLookup: Map<string, string>): string {
-    const registerUuid = textValue(row[REGISTER_UUID_COLUMN]).toLowerCase();
-    return individualIdLookup.get(`${registerUuid}::${workerId}`) ?? "";
 }
 
 const searchDistributorsByDhService = async (request: any) => {
@@ -473,9 +466,9 @@ const searchDistributorsByDhService = async (request: any) => {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required in SearchCriteria");
     }
 
-    const campaignId = textValue(searchCriteria.campaignId);
-    if (!campaignId) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "campaignId is required in SearchCriteria");
+    const campaignName = textValue(searchCriteria.campaignName);
+    if (!campaignName) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "campaignName is required in SearchCriteria");
     }
 
     if (searchCriteria.localityCodes && !Array.isArray(searchCriteria.localityCodes)) {
@@ -487,11 +480,13 @@ const searchDistributorsByDhService = async (request: any) => {
     const { TemplateClass: AttendanceRegisterUserBulkMappingTemplateClass } =
         await import("../generateFlowClasses/attendanceRegisterUserBulkMapping-generateClass");
 
-    const campaignResponse = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] }, request);
-    const campaignDetail = campaignResponse?.CampaignDetails?.[0];
+    const campaignResponse = await searchProjectTypeCampaignService({ tenantId, campaignName }, request);
+    const matchedCampaigns: any[] = Array.isArray(campaignResponse?.CampaignDetails) ? campaignResponse.CampaignDetails : [];
+    const campaignDetail = matchedCampaigns.find((campaign) => !campaign?.parentId) ?? matchedCampaigns[0];
     if (!campaignDetail) {
-        throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", `Campaign not found for campaignId ${campaignId}`);
+        throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", `Campaign not found for campaignName ${campaignName}`);
     }
+    const campaignId = textValue(campaignDetail?.id);
 
     const hierarchyType = textValue(searchCriteria.hierarchyType) || textValue(campaignDetail?.hierarchyType);
     if (!hierarchyType) {
@@ -521,10 +516,10 @@ const searchDistributorsByDhService = async (request: any) => {
         : [];
 
     const campaignNumber = textValue(campaignDetail?.campaignNumber);
-    const attendeeRows = campaignNumber
-        ? await getRelatedDataWithCampaign(ATTENDEE_DATA_TYPE, campaignNumber, tenantId, dataRowStatuses.completed)
+    const userRows = campaignNumber
+        ? await getRelatedDataWithCampaign(USER_DATA_TYPE, campaignNumber, tenantId, dataRowStatuses.completed)
         : [];
-    const individualIdLookup = buildIndividualIdLookup(attendeeRows);
+    const userUuidLookup = buildUserUuidLookup(userRows);
 
     const distributorsByDh = new Map<string, {
         dhCode: string;
@@ -545,7 +540,7 @@ const searchDistributorsByDhService = async (request: any) => {
         const workerId = textValue(row[WORKER_ID_COLUMN]);
         const userName = textValue(row[USERNAME_COLUMN]);
         const name = textValue(row[USER_NAME_COLUMN]);
-        const uuid = resolveDistributorUuid(row, workerId, individualIdLookup);
+        const uuid = userUuidLookup.get(workerId) ?? "";
         const dedupeKey = `${uuid || workerId}::${userName}::${name}`;
 
         let group = distributorsByDh.get(dhCode);

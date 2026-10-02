@@ -1825,14 +1825,14 @@ components:
           type: object
           required:
             - tenantId
-            - campaignId
+            - campaignName
           properties:
             tenantId:
               type: string
               description: Tenant identifier (required)
-            campaignId:
+            campaignName:
               type: string
-              description: Campaign identifier (required)
+              description: Exact campaign name (required). When several campaigns share the name, the parent campaign is used.
             hierarchyType:
               type: string
               description: Hierarchy type; when omitted, campaign hierarchyType is used
@@ -1877,7 +1877,7 @@ components:
                   properties:
                     uuid:
                       type: string
-                      description: Individual id of the distributor (attendance attendee identity). Empty when not yet processed.
+                      description: User-service UUID of the distributor (from the processed user row). Empty when the user has not been processed yet.
                     userName:
                       type: string
                     name:
