@@ -730,6 +730,36 @@ export async function fetchUserNamesByUuid(
 }
 
 /**
+ * Resolve egov-user uuids by login userName; egov-user searches one userName per call, so lookups run in
+ * config-bounded parallel windows. Non-fatal: an unresolved or failed lookup leaves the userName out of the map.
+ */
+export async function fetchUserUuidsByUserName(
+    userNames: string[],
+    tenantId: string,
+    requestInfo: RequestInfo
+): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+    const unique = Array.from(new Set(userNames.filter(Boolean)));
+    const windowSize = Math.max(1, config.user.searchBatchSize);
+    for (let i = 0; i < unique.length; i += windowSize) {
+        await Promise.all(unique.slice(i, i + windowSize).map(async (userName) => {
+            try {
+                const response = await httpRequest(
+                    config.host.userHost + config.paths.userSearch,
+                    { RequestInfo: requestInfo, tenantId, userName },
+                    { tenantId }
+                );
+                const match = (response?.user ?? []).find((user: any) => user?.uuid && String(user?.userName) === userName);
+                if (match) result.set(userName, String(match.uuid));
+            } catch (err) {
+                logger.warn(`egov-user uuid lookup failed for a userName in batch starting at index ${i}: ${err}`);
+            }
+        }));
+    }
+    return result;
+}
+
+/**
  * Build a full-name string from the Individual service's Name sub-object so
  * we can compare against the sheet's single-column HCM_ADMIN_CONSOLE_USER_NAME.
  */

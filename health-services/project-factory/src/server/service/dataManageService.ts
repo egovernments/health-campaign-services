@@ -440,15 +440,31 @@ function extractRoleCodes(row: Record<string, unknown>): Set<string> {
     return roles;
 }
 
-function buildUserUuidLookup(userRows: unknown): Map<string, string> {
-    const lookup = new Map<string, string>();
+interface UserUuidLookup {
+    byWorkerId: Map<string, string>;
+    byUserName: Map<string, string>;
+}
+
+function decryptUserName(encrypted: string, decrypt: (value: string) => string): string {
+    try {
+        return textValue(decrypt(encrypted));
+    } catch {
+        return "";
+    }
+}
+
+/** Attendance sheets may carry the individual/user id instead of the upload worker id, so userName is a second key. */
+function buildUserUuidLookup(userRows: unknown, decrypt: (value: string) => string): UserUuidLookup {
+    const lookup: UserUuidLookup = { byWorkerId: new Map<string, string>(), byUserName: new Map<string, string>() };
     if (!Array.isArray(userRows)) return lookup;
     for (const userRow of userRows) {
         if (userRow?.isDeleted) continue;
-        const workerId = textValue(userRow?.data?.[WORKER_ID_COLUMN]);
-        if (!workerId) continue;
         const uuid = textValue(userRow?.uniqueIdAfterProcess) || textValue(userRow?.data?.[USER_SERVICE_UUID_COLUMN]);
-        if (uuid) lookup.set(workerId, uuid);
+        if (!uuid) continue;
+        const workerId = textValue(userRow?.data?.[WORKER_ID_COLUMN]);
+        if (workerId) lookup.byWorkerId.set(workerId, uuid);
+        const userName = decryptUserName(textValue(userRow?.data?.[USERNAME_COLUMN]), decrypt);
+        if (userName && !lookup.byUserName.has(userName)) lookup.byUserName.set(userName, uuid);
     }
     return lookup;
 }
@@ -466,9 +482,9 @@ const searchDistributorsByDhService = async (request: any) => {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required in SearchCriteria");
     }
 
-    const campaignName = textValue(searchCriteria.campaignName);
-    if (!campaignName) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "campaignName is required in SearchCriteria");
+    const requestedCampaignNumber = textValue(searchCriteria.campaignNumber);
+    if (!requestedCampaignNumber) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "campaignNumber is required in SearchCriteria");
     }
 
     if (searchCriteria.localityCodes && !Array.isArray(searchCriteria.localityCodes)) {
@@ -480,11 +496,11 @@ const searchDistributorsByDhService = async (request: any) => {
     const { TemplateClass: AttendanceRegisterUserBulkMappingTemplateClass } =
         await import("../generateFlowClasses/attendanceRegisterUserBulkMapping-generateClass");
 
-    const campaignResponse = await searchProjectTypeCampaignService({ tenantId, campaignName }, request);
+    const campaignResponse = await searchProjectTypeCampaignService({ tenantId, campaignNumber: requestedCampaignNumber }, request);
     const matchedCampaigns: any[] = Array.isArray(campaignResponse?.CampaignDetails) ? campaignResponse.CampaignDetails : [];
     const campaignDetail = matchedCampaigns.find((campaign) => !campaign?.parentId) ?? matchedCampaigns[0];
     if (!campaignDetail) {
-        throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", `Campaign not found for campaignName ${campaignName}`);
+        throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", `Campaign not found for campaignNumber ${requestedCampaignNumber}`);
     }
     const campaignId = textValue(campaignDetail?.id);
 
@@ -515,11 +531,10 @@ const searchDistributorsByDhService = async (request: any) => {
         ? sheetMap[attendanceSheetNames.WORKER].data
         : [];
 
-    const campaignNumber = textValue(campaignDetail?.campaignNumber);
-    const userRows = campaignNumber
-        ? await getRelatedDataWithCampaign(USER_DATA_TYPE, campaignNumber, tenantId, dataRowStatuses.completed)
-        : [];
-    const userUuidLookup = buildUserUuidLookup(userRows);
+    const userRows = await getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed);
+    // Lazy: cryptUtils derives its key from config at import time, which must not run for every importer of this service.
+    const { decrypt } = await import("../utils/cryptUtils");
+    const userUuidLookup = buildUserUuidLookup(userRows, decrypt);
 
     const distributorsByDh = new Map<string, {
         dhCode: string;
@@ -540,7 +555,7 @@ const searchDistributorsByDhService = async (request: any) => {
         const workerId = textValue(row[WORKER_ID_COLUMN]);
         const userName = textValue(row[USERNAME_COLUMN]);
         const name = textValue(row[USER_NAME_COLUMN]);
-        const uuid = userUuidLookup.get(workerId) ?? "";
+        const uuid = userUuidLookup.byWorkerId.get(workerId) ?? userUuidLookup.byUserName.get(userName) ?? "";
         const dedupeKey = `${uuid || workerId}::${userName}::${name}`;
 
         let group = distributorsByDh.get(dhCode);
@@ -557,6 +572,21 @@ const searchDistributorsByDhService = async (request: any) => {
         if (group.dedupe.has(dedupeKey)) continue;
         group.dedupe.add(dedupeKey);
         group.distributors.push({ uuid, userName, name });
+    }
+
+    const unresolvedUserNames = Array.from(distributorsByDh.values())
+        .flatMap((group) => group.distributors)
+        .filter((distributor) => !distributor.uuid && distributor.userName)
+        .map((distributor) => distributor.userName);
+    if (unresolvedUserNames.length > 0) {
+        // Lazy: userBatchHandler pulls in the user-creation stack, needed only when the campaign data missed a uuid.
+        const { fetchUserUuidsByUserName } = await import("../utils/userBatchHandler");
+        const uuidsByUserName = await fetchUserUuidsByUserName(unresolvedUserNames, tenantId, request?.body?.RequestInfo);
+        for (const group of distributorsByDh.values()) {
+            for (const distributor of group.distributors) {
+                if (!distributor.uuid) distributor.uuid = uuidsByUserName.get(distributor.userName) ?? "";
+            }
+        }
     }
 
     const sortedGroups = Array.from(distributorsByDh.values())
