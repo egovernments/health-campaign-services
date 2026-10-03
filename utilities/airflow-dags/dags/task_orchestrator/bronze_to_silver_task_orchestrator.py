@@ -26,6 +26,12 @@ Ordering and failure semantics
     - One entity failing does not stop the others (no task depends on
       another entity). all_entities_succeeded depends on every transform task,
       so the DAG run is still marked failed if any entity failed.
+    - Within an entity, a slice that fails is retried straight away; if it
+      fails again it is logged, the remaining slices still run, and the task
+      then fails listing the failed slices (sql_flatten_common.run_transformation).
+      Airflow then retries the task task_orchestrator_task_retries times,
+      re-running the entity for the whole window -- except when every failed
+      slice hit a size guard, which fails without retry (lower the chunk size).
     - An entity name with no twin module, or whose module fails to import,
       is skipped at parse time with a warning, like the trigger orchestrator
       skips an entity whose DAG isn't registered.
@@ -38,6 +44,9 @@ Variables (all read at parse time except the window overrides)
                                        double the hourly load
     task_orchestrator_max_active_tasks entities run at once; default 3 (1 = serial). Parse-time, so a
                                        change applies once the file is reparsed, to runs created after
+    task_orchestrator_task_retries     Airflow retries per task; default 1. Parse-time, same as above
+    bronze_to_silver_chunk_size        rows per slice, shared by every entity (and the Python DAGs);
+                                       default 5000
     bronze_to_silver_window_start_override / _end_override
                                        shared with the trigger orchestrator, same rules
     sql_test_database                  read by the twins (default `analytics`)
@@ -87,6 +96,8 @@ SCHEDULE_VARIABLE = "task_orchestrator_schedule"
 DEFAULT_SCHEDULE = "None"
 MAX_ACTIVE_TASKS_VARIABLE = "task_orchestrator_max_active_tasks"
 DEFAULT_MAX_ACTIVE_TASKS = 3
+RETRIES_VARIABLE = "task_orchestrator_task_retries"
+DEFAULT_RETRIES = 1
 WINDOW_START_OVERRIDE_VARIABLE = "bronze_to_silver_window_start_override"
 WINDOW_END_OVERRIDE_VARIABLE = "bronze_to_silver_window_end_override"
 TWIN_MODULE_SUFFIX = "_test_transformation"
@@ -135,6 +146,21 @@ def _load_spec(entity: str):
     return spec
 
 
+def _task_retries() -> int:
+    """Airflow retries per task from RETRIES_VARIABLE; a value that isn't a
+    non-negative integer falls back to DEFAULT_RETRIES with a warning."""
+    raw = Variable.get(RETRIES_VARIABLE, default_var=DEFAULT_RETRIES)
+    try:
+        retries = int(raw)
+    except (TypeError, ValueError):
+        retries = -1
+    if retries < 0:
+        log.warning("Variable '%s' = %r is not a non-negative integer; using %d.",
+                    RETRIES_VARIABLE, raw, DEFAULT_RETRIES)
+        return DEFAULT_RETRIES
+    return retries
+
+
 def _task_pod_executor_config() -> dict:
     """pod_override for the KubernetesExecutor's task container (named `base`)."""
     if k8s is None:
@@ -145,7 +171,7 @@ def _task_pod_executor_config() -> dict:
 
 default_args = {
     "owner": "data-platform",
-    "retries": 1,
+    "retries": _task_retries(),
     "retry_delay": timedelta(minutes=5),
     "executor_config": _task_pod_executor_config(),
 }

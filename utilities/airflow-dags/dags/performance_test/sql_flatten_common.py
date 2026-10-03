@@ -54,7 +54,7 @@ from typing import Callable
 
 import pendulum
 from airflow.decorators import dag, task
-from airflow.exceptions import AirflowFailException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models import Variable
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -71,7 +71,15 @@ log = logging.getLogger(__name__)
 
 DATABASE_VARIABLE = "sql_test_database"
 DEFAULT_DATABASE = "analytics"
+# One chunk size for every entity, shared with the Python DAGs (same Variable,
+# same default).
+SLICE_SIZE_VARIABLE = "bronze_to_silver_chunk_size"
 DEFAULT_SLICE_SIZE = 5000
+# A slice that raises is retried straight away (after a short pause for a
+# transient ClickHouse / eGov error); one that still fails is logged and
+# skipped, the run carries on, and the task fails at the end naming it.
+SLICE_ATTEMPTS = 2
+SLICE_RETRY_DELAY_SECONDS = 10
 # Inline VALUES tables per statement. Guards keep the rendered statement under
 # the 10 MB max_query_size set in clickhouse_utils: lower the slice size, don't
 # raise these.
@@ -810,15 +818,10 @@ class EntitySpec:
     slice_filter_class: type
     target: SilverTarget
     extra_targets: tuple[SilverTarget, ...] = ()   # a second silver table written per slice (service_task)
-    default_slice_size: int = DEFAULT_SLICE_SIZE
 
     @property
     def dag_id(self) -> str:
         return f"{self.entity}_transformation"
-
-    @property
-    def slice_size_variable(self) -> str:
-        return f"{self.python_entity}_sql_test_slice_size"
 
     @property
     def targets(self) -> tuple[SilverTarget, ...]:
@@ -862,7 +865,7 @@ FROM
     if size > MAX_INSERT_SQL_BYTES:
         raise AirflowFailException(
             f"{spec.dag_id}: rendered slice statement is {size} bytes, above MAX_INSERT_SQL_BYTES="
-            f"{MAX_INSERT_SQL_BYTES}; lower the {spec.slice_size_variable} Variable."
+            f"{MAX_INSERT_SQL_BYTES}; lower the {SLICE_SIZE_VARIABLE} Variable."
         )
     return sql
 
@@ -871,7 +874,7 @@ def render_lookup_values(spec: EntitySpec, lookup: Lookup, rows: list[list[str]]
     if len(rows) > MAX_INLINE_ROWS_PER_LOOKUP:
         raise AirflowFailException(
             f"{spec.dag_id}: slice resolved {len(rows)} `{lookup.alias}` rows, above "
-            f"MAX_INLINE_ROWS_PER_LOOKUP={MAX_INLINE_ROWS_PER_LOOKUP}; lower the {spec.slice_size_variable} Variable."
+            f"MAX_INLINE_ROWS_PER_LOOKUP={MAX_INLINE_ROWS_PER_LOOKUP}; lower the {SLICE_SIZE_VARIABLE} Variable."
         )
     return values_table_sql(lookup.columns, rows)
 
@@ -977,15 +980,44 @@ def process_slice(spec: EntitySpec, client, window: TimeWindow, slice_: Slice) -
 # DAG factory
 # =============================================================================
 
+def _process_slice_with_retry(spec: EntitySpec, client, window: TimeWindow, slice_: Slice,
+                              number: int, total: int) -> SliceResult | Exception:
+    """process_slice, retried straight away up to SLICE_ATTEMPTS in all. Returns
+    the last exception instead of raising it, so the caller can carry on with
+    the other slices. Re-running a slice is safe: blocks a failed INSERT already
+    wrote are duplicates the ReplacingMergeTree test tables collapse. Only
+    Exception is caught -- AirflowTaskTimeout (execution_timeout) and task
+    termination are BaseExceptions and still stop the task."""
+    for attempt in range(1, SLICE_ATTEMPTS + 1):
+        try:
+            return process_slice(spec, client, window, slice_)
+        except Exception as error:
+            if attempt == SLICE_ATTEMPTS:
+                log.exception("%s slice %d/%d %s: attempt %d/%d failed; giving up on this slice",
+                              spec.dag_id, number, total, slice_.label, attempt, SLICE_ATTEMPTS)
+                return error
+            log.exception("%s slice %d/%d %s: attempt %d/%d failed; retrying in %ds",
+                          spec.dag_id, number, total, slice_.label, attempt, SLICE_ATTEMPTS,
+                          SLICE_RETRY_DELAY_SECONDS)
+            time.sleep(SLICE_RETRY_DELAY_SECONDS)
+
+
 def run_transformation(spec: EntitySpec, time_window: dict) -> None:
     """One whole run of an entity: plans the slices, then runs process_slice for
-    each and logs timings. `time_window` is the {start_time, end_time,
-    truncate_target} payload. Shared by the per-entity twin DAGs below and by
-    task_orchestrator/, which runs every entity as a task of one DAG. Filtered
-    on _ingested_at, not last_modified_time -- see airflow_dags/CLAUDE.md
-    "Bronze read window column"."""
+    each (with an immediate retry) and logs timings. `time_window` is the
+    {start_time, end_time, truncate_target} payload. Shared by the per-entity
+    twin DAGs below and by task_orchestrator/, which runs every entity as a
+    task of one DAG. Filtered on _ingested_at, not last_modified_time -- see
+    airflow_dags/CLAUDE.md "Bronze read window column".
+
+    No slice is dropped silently: one that still fails after its retry is
+    logged, the remaining slices still run, and the task then fails listing
+    every failed slice, so the entity is re-run for this window. That failure
+    is retryable (AirflowException) unless every failed slice hit a size guard
+    (AirflowFailException), which a re-run with the same chunk size would hit
+    again."""
     window = TimeWindow.from_task_output(time_window)
-    slice_size = int(Variable.get(spec.slice_size_variable, default_var=spec.default_slice_size))
+    slice_size = int(Variable.get(SLICE_SIZE_VARIABLE, default_var=DEFAULT_SLICE_SIZE))
     set_database(Variable.get(DATABASE_VARIABLE, default_var=DEFAULT_DATABASE))
 
     client = get_clickhouse_client()
@@ -1004,8 +1036,12 @@ def run_transformation(spec: EntitySpec, time_window: dict) -> None:
     total_written = 0
     total_insert_seconds = 0.0
     total_api_seconds = 0.0
+    failed: list[tuple[Slice, Exception]] = []
     for number, slice_ in enumerate(slices, start=1):
-        result = process_slice(spec, client, window, slice_)
+        result = _process_slice_with_retry(spec, client, window, slice_, number, len(slices))
+        if isinstance(result, Exception):
+            failed.append((slice_, result))
+            continue
         total_written += result.written_rows
         total_insert_seconds += result.insert_seconds
         total_api_seconds += result.api_seconds
@@ -1021,9 +1057,25 @@ def run_transformation(spec: EntitySpec, time_window: dict) -> None:
         for target in spec.targets
     )
     log.info(
-        "%s: done. written_rows=%d over %d slices; insert total %.1fs, api total %.1fs; %s",
-        spec.dag_id, total_written, len(slices), total_insert_seconds, total_api_seconds, counts,
+        "%s: done. written_rows=%d over %d/%d slices; insert total %.1fs, api total %.1fs; %s",
+        spec.dag_id, total_written, len(slices) - len(failed), len(slices),
+        total_insert_seconds, total_api_seconds, counts,
     )
+
+    if failed:
+        listing = "\n".join(
+            f"  - {slice_.label}: {type(error).__name__}: {error}" for slice_, error in failed
+        )
+        rerun_conf = f'{{"start_time": "{time_window["start_time"]}", "end_time": "{time_window["end_time"]}"}}'
+        message = (
+            f"{spec.dag_id}: {len(failed)} of {len(slices)} slices failed after {SLICE_ATTEMPTS} attempts "
+            f"each for [{window.start}, {window.end}); {len(slices) - len(failed)} were written. Re-run entity "
+            f"'{spec.python_entity}' for this time range (conf {rerun_conf}).\nFailed slices:\n{listing}"
+        )
+        log.error(message)
+        if all(isinstance(error, AirflowFailException) for _, error in failed):
+            raise AirflowFailException(message + f"\nEvery failure was a size guard: lower {SLICE_SIZE_VARIABLE} first.")
+        raise AirflowException(message)
 
 
 def build_sql_test_dag(spec: EntitySpec):
