@@ -81,10 +81,19 @@ DEFAULT_SLICE_SIZE = 5000
 SLICE_ATTEMPTS = 2
 SLICE_RETRY_DELAY_SECONDS = 10
 # Inline VALUES tables per statement. Guards keep the rendered statement under
-# the 10 MB max_query_size set in clickhouse_utils: lower the slice size, don't
-# raise these.
+# the 10 MB max_query_size set in clickhouse_utils: don't raise these. A slice
+# that trips one is split in half (by driving-row count) and each half is
+# processed on its own, recursively, down to MAX_SLICE_SPLIT_DEPTH halvings;
+# the typical case is a driving row with many users (an attendance register's
+# attendees), where 5,000 rows can resolve more than 15,000 users.
 MAX_INLINE_ROWS_PER_LOOKUP = 15_000
 MAX_INSERT_SQL_BYTES = 9_000_000
+MAX_SLICE_SPLIT_DEPTH = 10
+
+
+class SliceTooLarge(AirflowFailException):
+    """A size guard rejected the slice before it was written. Retrying the same
+    slice cannot succeed; splitting it can (see _process_slice_adaptive)."""
 
 LEVEL_COLUMNS = [f"level_{ordinal}_code" for ordinal in BOUNDARY_LEVEL_ORDINALS]
 BOUNDARY_LEVELS_COLUMNS = ["tenant_id", "hierarchy_type", "boundary_code", *LEVEL_COLUMNS]
@@ -863,18 +872,18 @@ FROM
 """
     size = len(sql.encode())
     if size > MAX_INSERT_SQL_BYTES:
-        raise AirflowFailException(
+        raise SliceTooLarge(
             f"{spec.dag_id}: rendered slice statement is {size} bytes, above MAX_INSERT_SQL_BYTES="
-            f"{MAX_INSERT_SQL_BYTES}; lower the {SLICE_SIZE_VARIABLE} Variable."
+            f"{MAX_INSERT_SQL_BYTES}"
         )
     return sql
 
 
 def render_lookup_values(spec: EntitySpec, lookup: Lookup, rows: list[list[str]]) -> str:
     if len(rows) > MAX_INLINE_ROWS_PER_LOOKUP:
-        raise AirflowFailException(
+        raise SliceTooLarge(
             f"{spec.dag_id}: slice resolved {len(rows)} `{lookup.alias}` rows, above "
-            f"MAX_INLINE_ROWS_PER_LOOKUP={MAX_INLINE_ROWS_PER_LOOKUP}; lower the {SLICE_SIZE_VARIABLE} Variable."
+            f"MAX_INLINE_ROWS_PER_LOOKUP={MAX_INLINE_ROWS_PER_LOOKUP}"
         )
     return values_table_sql(lookup.columns, rows)
 
@@ -929,6 +938,34 @@ def plan_slices(spec: EntitySpec, client, window: TimeWindow, slice_size: int) -
         log.info("%s: tenant %s has %d %s rows in window -> %d slices",
                  spec.dag_id, row["tenant_id"], row["row_count"], spec.driving_table, len(starts))
     return slices
+
+
+def split_slice(spec: EntitySpec, client, window: TimeWindow, slice_: Slice) -> tuple[Slice, Slice] | None:
+    """Halves a slice at its median driving id (same row set as plan_slices:
+    this tenant, this id range, in-window, one row per id). None when the slice
+    has fewer than 2 rows and cannot be split."""
+    upper = "AND id < %(end_id)s" if slice_.end_id is not None else ""
+    result = client.query(
+        f"""
+        SELECT count() AS row_count, arraySort(groupArray(id))[intDiv(count(), 2) + 1] AS middle_id
+        FROM
+        (
+            SELECT id
+            FROM {table(spec.driving_table)}
+            WHERE tenant_id = %(tenant_id)s AND id >= %(first_id)s {upper}
+              AND _ingested_at >= %(start_dt)s AND _ingested_at < %(end_dt)s
+            GROUP BY id
+        )
+        """,
+        parameters={"tenant_id": slice_.tenant_id, "first_id": slice_.first_id, "end_id": slice_.end_id,
+                    "start_dt": window.start, "end_dt": window.end},
+        settings=CLICKHOUSE_PLAN_SETTINGS,
+    )
+    row_count, middle_id = result.result_rows[0]
+    if row_count < 2:
+        return None
+    return (Slice(slice_.tenant_id, slice_.first_id, middle_id),
+            Slice(slice_.tenant_id, middle_id, slice_.end_id))
 
 
 def fetch_lookup_keys(client, lookup: Lookup, slice_filter: SliceFilter) -> list[tuple]:
@@ -991,6 +1028,8 @@ def _process_slice_with_retry(spec: EntitySpec, client, window: TimeWindow, slic
     for attempt in range(1, SLICE_ATTEMPTS + 1):
         try:
             return process_slice(spec, client, window, slice_)
+        except SliceTooLarge as error:
+            return error  # the same slice would trip the guard again; the caller splits it
         except Exception as error:
             if attempt == SLICE_ATTEMPTS:
                 log.exception("%s slice %d/%d %s: attempt %d/%d failed; giving up on this slice",
@@ -1000,6 +1039,39 @@ def _process_slice_with_retry(spec: EntitySpec, client, window: TimeWindow, slic
                           spec.dag_id, number, total, slice_.label, attempt, SLICE_ATTEMPTS,
                           SLICE_RETRY_DELAY_SECONDS)
             time.sleep(SLICE_RETRY_DELAY_SECONDS)
+
+
+def _process_slice_adaptive(spec: EntitySpec, client, window: TimeWindow, slice_: Slice,
+                            number: int, total: int, depth: int = 0) -> SliceResult | Exception:
+    """_process_slice_with_retry, and if the slice trips a size guard, split it
+    in half and process each half the same way (a binary search for slices that
+    fit). Results of the halves are summed. Returns the exception when a slice
+    cannot be split further (one driving row) or MAX_SLICE_SPLIT_DEPTH is reached."""
+    result = _process_slice_with_retry(spec, client, window, slice_, number, total)
+    if not isinstance(result, SliceTooLarge):
+        return result
+    halves = split_slice(spec, client, window, slice_) if depth < MAX_SLICE_SPLIT_DEPTH else None
+    if halves is None:
+        log.error("%s slice %d/%d %s: %s; cannot split further (depth %d)",
+                  spec.dag_id, number, total, slice_.label, result, depth)
+        return result
+    log.warning("%s slice %d/%d %s: %s; splitting into two halves (depth %d)",
+                spec.dag_id, number, total, slice_.label, result, depth + 1)
+    parts = [_process_slice_adaptive(spec, client, window, half, number, total, depth + 1) for half in halves]
+    for part in parts:
+        if isinstance(part, Exception):
+            return part
+    resolved: dict[str, int] = {}
+    for part in parts:
+        for alias, count in part.resolved.items():
+            resolved[alias] = resolved.get(alias, 0) + count
+    return SliceResult(
+        resolved=resolved,
+        written_rows=sum(part.written_rows for part in parts),
+        api_seconds=sum(part.api_seconds for part in parts),
+        insert_seconds=sum(part.insert_seconds for part in parts),
+        total_seconds=sum(part.total_seconds for part in parts),
+    )
 
 
 def run_transformation(spec: EntitySpec, time_window: dict) -> None:
@@ -1012,10 +1084,12 @@ def run_transformation(spec: EntitySpec, time_window: dict) -> None:
 
     No slice is dropped silently: one that still fails after its retry is
     logged, the remaining slices still run, and the task then fails listing
-    every failed slice, so the entity is re-run for this window. That failure
-    is retryable (AirflowException) unless every failed slice hit a size guard
-    (AirflowFailException), which a re-run with the same chunk size would hit
-    again."""
+    every failed slice, so the entity is re-run for this window. A slice that
+    trips a size guard is split in half until the pieces fit
+    (_process_slice_adaptive), so a size-guard failure only remains for a single
+    driving row that is too large on its own. The task failure is retryable
+    (AirflowException) unless every failed slice was such a size guard
+    (AirflowFailException), which a re-run would hit again."""
     window = TimeWindow.from_task_output(time_window)
     slice_size = int(Variable.get(SLICE_SIZE_VARIABLE, default_var=DEFAULT_SLICE_SIZE))
     set_database(Variable.get(DATABASE_VARIABLE, default_var=DEFAULT_DATABASE))
@@ -1038,7 +1112,7 @@ def run_transformation(spec: EntitySpec, time_window: dict) -> None:
     total_api_seconds = 0.0
     failed: list[tuple[Slice, Exception]] = []
     for number, slice_ in enumerate(slices, start=1):
-        result = _process_slice_with_retry(spec, client, window, slice_, number, len(slices))
+        result = _process_slice_adaptive(spec, client, window, slice_, number, len(slices))
         if isinstance(result, Exception):
             failed.append((slice_, result))
             continue
@@ -1074,7 +1148,7 @@ def run_transformation(spec: EntitySpec, time_window: dict) -> None:
         )
         log.error(message)
         if all(isinstance(error, AirflowFailException) for _, error in failed):
-            raise AirflowFailException(message + f"\nEvery failure was a size guard: lower {SLICE_SIZE_VARIABLE} first.")
+            raise AirflowFailException(message + "\nEvery failure was a size guard on a slice that could not be split further.")
         raise AirflowException(message)
 
 

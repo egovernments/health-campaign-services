@@ -1,11 +1,22 @@
 """
 bronze_to_silver_task_orchestrator.py
 
-The SQL-side twins in ../performance_test/, run as TASKS of this one DAG
-instead of as separately triggered DAGs. For each entity in the order list
-this DAG has a `transform_<entity>` task that calls the twin's own
-`run_transformation(SPEC, window)` in-process -- the same code path as the
-twin DAG's transform task, so the output is identical.
+Two DAGs that run every entity's bronze-to-silver transform as TASKS of one
+DAG instead of as separately triggered DAGs, identical apart from the code each
+`transform_<entity>` task calls:
+
+    bronze_to_silver_task_orchestrator         the SQL-side twins in ../performance_test/:
+                                               `run_transformation(SPEC, window)`, the same
+                                               code path as the twin DAG's transform task
+    bronze_to_silver_python_task_orchestrator  the Python DAGs in ../ (<entity>_transformation.py):
+                                               their own `transform_bronze_to_silver` task
+                                               callable, called with the {start_time, end_time}
+                                               their `parse_time_window` would have produced
+
+Same Variables, parallelism, retries, timeout and pod requests for both, so the
+two can be benchmarked like for like. The Python modules are imported inside
+the task, not at parse time: importing one builds its DAG, which would otherwise
+be registered a second time under this file.
 
 Compared with bronze-to-silver_orcestrator.py (TriggerDagRunOperator per
 entity), per entity this drops: the REST-API existence / unpause check, the
@@ -84,7 +95,8 @@ try:
 except ImportError:  # local runs: no KubernetesExecutor, nothing to override
     k8s = None
 
-_TWINS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "performance_test")
+_DAGS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_TWINS_DIR = os.path.join(_DAGS_DIR, "performance_test")
 sys.path.insert(0, _TWINS_DIR)
 import sql_flatten_common  # noqa: E402
 from sql_flatten_common import run_transformation  # noqa: E402
@@ -101,6 +113,8 @@ DEFAULT_RETRIES = 1
 WINDOW_START_OVERRIDE_VARIABLE = "bronze_to_silver_window_start_override"
 WINDOW_END_OVERRIDE_VARIABLE = "bronze_to_silver_window_end_override"
 TWIN_MODULE_SUFFIX = "_test_transformation"
+PYTHON_MODULE_SUFFIX = "_transformation"
+PYTHON_TRANSFORM_TASK_ID = "transform_bronze_to_silver"
 ENTITY_EXECUTION_TIMEOUT = timedelta(hours=2)
 TASK_POD_REQUESTS = {"cpu": "100m", "memory": "512Mi"}
 TASK_POD_LIMITS = {"cpu": "1", "memory": "2Gi"}
@@ -146,6 +160,28 @@ def _load_spec(entity: str):
     return spec
 
 
+def _available_python_entities() -> list[str]:
+    """Entity names that have a Python DAG module in ../, e.g. `project_task`
+    for project_task_transformation.py (twins live elsewhere and are excluded)."""
+    paths = glob.glob(os.path.join(_DAGS_DIR, f"*{PYTHON_MODULE_SUFFIX}.py"))
+    names = (os.path.basename(path)[: -len(f"{PYTHON_MODULE_SUFFIX}.py")] for path in paths)
+    return sorted(name for name in names if not name.endswith("_test"))
+
+
+def run_python_transformation(entity: str, window: dict) -> None:
+    """Runs the Python DAG's own transform for one entity, in this task's process.
+    Its factory (`<entity>_transformation`) is called to get the DAG object, and
+    the TaskFlow task's python_callable is called with the window dict, exactly
+    as the DAG's parse_time_window would hand it over."""
+    if _DAGS_DIR not in sys.path:
+        sys.path.insert(0, _DAGS_DIR)
+    module_name = f"{entity}{PYTHON_MODULE_SUFFIX}"
+    module = importlib.import_module(module_name)
+    python_dag = getattr(module, module_name)()
+    transform = python_dag.get_task(PYTHON_TRANSFORM_TASK_ID).python_callable
+    transform({"start_time": window["start_time"], "end_time": window["end_time"]})
+
+
 def _task_retries() -> int:
     """Airflow retries per task from RETRIES_VARIABLE; a value that isn't a
     non-negative integer falls back to DEFAULT_RETRIES with a warning."""
@@ -176,88 +212,119 @@ default_args = {
     "executor_config": _task_pod_executor_config(),
 }
 
-with DAG(
-    dag_id="bronze_to_silver_task_orchestrator",
-    description="Runs every entity's SQL-side bronze-to-silver transform as a task of this one DAG.",
-    schedule=_resolve_schedule(Variable.get(SCHEDULE_VARIABLE, default_var=DEFAULT_SCHEDULE)),
-    start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
-    catchup=False,
-    max_active_runs=1,
-    max_active_tasks=int(Variable.get(MAX_ACTIVE_TASKS_VARIABLE, default_var=DEFAULT_MAX_ACTIVE_TASKS)),
-    default_args=default_args,
-    tags=["bronze-to-silver", "orchestrator", "sql-test"],
-) as dag:
 
-    entity_order = Variable.get(ENTITY_ORDER_VARIABLE, deserialize_json=True, default_var=None)
-    if entity_order is None:
-        entity_order = _available_entities()
-    specs = [(entity, spec) for entity in entity_order if (spec := _load_spec(entity)) is not None]
-    if not specs:
-        log.warning("'%s' has no runnable entities (Variable '%s' = %r).", dag.dag_id, ENTITY_ORDER_VARIABLE, entity_order)
+def _resolve_time_window(**context) -> dict:
+    """dag_run.conf {start_time, end_time} first (manual runs); then, for a
+    manual/backfill run or an @once schedule, the override Variables; else
+    this run's data_interval. Same guard against a forgotten override as
+    the trigger orchestrator."""
+    dag_run = context["dag_run"]
+    conf = dag_run.conf or {}
+    configured_schedule = Variable.get(SCHEDULE_VARIABLE, default_var=DEFAULT_SCHEDULE).strip().lower()
+    override_eligible = dag_run.run_type != DagRunType.SCHEDULED or configured_schedule == "@once"
 
-    @task
-    def resolve_time_window(**context) -> dict:
-        """dag_run.conf {start_time, end_time} first (manual runs); then, for a
-        manual/backfill run or an @once schedule, the override Variables; else
-        this run's data_interval. Same guard against a forgotten override as
-        the trigger orchestrator."""
-        dag_run = context["dag_run"]
-        conf = dag_run.conf or {}
-        configured_schedule = Variable.get(SCHEDULE_VARIABLE, default_var=DEFAULT_SCHEDULE).strip().lower()
-        override_eligible = dag_run.run_type != DagRunType.SCHEDULED or configured_schedule == "@once"
+    start_time = end_time = None
+    if conf.get("start_time") and conf.get("end_time"):
+        start_time, end_time = conf["start_time"], conf["end_time"]
+        log.info("using dag_run.conf window [%s, %s)", start_time, end_time)
+    elif override_eligible:
+        start_override = Variable.get(WINDOW_START_OVERRIDE_VARIABLE, default_var="").strip()
+        end_override = Variable.get(WINDOW_END_OVERRIDE_VARIABLE, default_var="").strip()
+        if start_override and end_override:
+            start_time, end_time = start_override, end_override
+            log.info("run_type='%s': using window override [%s, %s)", dag_run.run_type, start_time, end_time)
+        elif start_override or end_override:
+            log.warning("Only one of '%s'/'%s' is set; ignoring the partial override.",
+                        WINDOW_START_OVERRIDE_VARIABLE, WINDOW_END_OVERRIDE_VARIABLE)
 
-        start_time = end_time = None
-        if conf.get("start_time") and conf.get("end_time"):
-            start_time, end_time = conf["start_time"], conf["end_time"]
-            log.info("using dag_run.conf window [%s, %s)", start_time, end_time)
-        elif override_eligible:
-            start_override = Variable.get(WINDOW_START_OVERRIDE_VARIABLE, default_var="").strip()
-            end_override = Variable.get(WINDOW_END_OVERRIDE_VARIABLE, default_var="").strip()
-            if start_override and end_override:
-                start_time, end_time = start_override, end_override
-                log.info("run_type='%s': using window override [%s, %s)", dag_run.run_type, start_time, end_time)
-            elif start_override or end_override:
-                log.warning("Only one of '%s'/'%s' is set; ignoring the partial override.",
-                            WINDOW_START_OVERRIDE_VARIABLE, WINDOW_END_OVERRIDE_VARIABLE)
+    if start_time is None:
+        start_time = context["data_interval_start"].to_iso8601_string()
+        end_time = context["data_interval_end"].to_iso8601_string()
 
-        if start_time is None:
-            start_time = context["data_interval_start"].to_iso8601_string()
-            end_time = context["data_interval_end"].to_iso8601_string()
-
-        start_time = pendulum.parse(start_time).to_iso8601_string()
-        end_time = pendulum.parse(end_time).to_iso8601_string()
-        if start_time == end_time:
-            raise AirflowFailException(
-                f"Resolved window is zero-width ({start_time}). With schedule '{configured_schedule}' pass "
-                f"start_time/end_time in dag_run.conf or set both '{WINDOW_START_OVERRIDE_VARIABLE}' and "
-                f"'{WINDOW_END_OVERRIDE_VARIABLE}'."
-            )
-        return {"start_time": start_time, "end_time": end_time,
-                "truncate_target": bool(conf.get("truncate_target", False))}
-
-    time_window = resolve_time_window()
-
-    def _transform_task(entity: str, spec, priority_weight: int):
-        @task(
-            task_id=f"transform_{entity}",
-            priority_weight=priority_weight,
-            weight_rule="absolute",
-            execution_timeout=ENTITY_EXECUTION_TIMEOUT,
+    start_time = pendulum.parse(start_time).to_iso8601_string()
+    end_time = pendulum.parse(end_time).to_iso8601_string()
+    if start_time == end_time:
+        raise AirflowFailException(
+            f"Resolved window is zero-width ({start_time}). With schedule '{configured_schedule}' pass "
+            f"start_time/end_time in dag_run.conf or set both '{WINDOW_START_OVERRIDE_VARIABLE}' and "
+            f"'{WINDOW_END_OVERRIDE_VARIABLE}'."
         )
-        def transform(window: dict) -> None:
-            run_transformation(spec, window)
+    return {"start_time": start_time, "end_time": end_time,
+            "truncate_target": bool(conf.get("truncate_target", False))}
 
-        return transform
 
-    transform_tasks = [
-        _transform_task(entity, spec, priority_weight=len(specs) - position)(time_window)
-        for position, (entity, spec) in enumerate(specs)
-    ]
+def _build_dag(dag_id: str, description: str, tags: list[str], runners: list[tuple[str, object]]) -> DAG:
+    """One orchestrator DAG: resolve_time_window -> transform_<entity> (one per
+    runner, `runner(window)`) -> all_entities_succeeded."""
+    with DAG(
+        dag_id=dag_id,
+        description=description,
+        schedule=_resolve_schedule(Variable.get(SCHEDULE_VARIABLE, default_var=DEFAULT_SCHEDULE)),
+        start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+        catchup=False,
+        max_active_runs=1,
+        max_active_tasks=int(Variable.get(MAX_ACTIVE_TASKS_VARIABLE, default_var=DEFAULT_MAX_ACTIVE_TASKS)),
+        default_args=default_args,
+        tags=tags,
+    ) as built:
+        if not runners:
+            log.warning("'%s' has no runnable entities.", dag_id)
+        time_window = task(task_id="resolve_time_window")(_resolve_time_window)()
 
-    @task
-    def all_entities_succeeded() -> None:
-        """Runs only if every transform task succeeded; otherwise it ends
-        upstream_failed and the DAG run is marked failed."""
-        log.info("all %d entities succeeded", len(specs))
+        def _transform_task(entity: str, runner, priority_weight: int):
+            @task(
+                task_id=f"transform_{entity}",
+                priority_weight=priority_weight,
+                weight_rule="absolute",
+                execution_timeout=ENTITY_EXECUTION_TIMEOUT,
+            )
+            def transform(window: dict) -> None:
+                runner(window)
 
-    transform_tasks >> all_entities_succeeded()
+            return transform
+
+        transform_tasks = [
+            _transform_task(entity, runner, priority_weight=len(runners) - position)(time_window)
+            for position, (entity, runner) in enumerate(runners)
+        ]
+
+        @task
+        def all_entities_succeeded() -> None:
+            """Runs only if every transform task succeeded; otherwise it ends
+            upstream_failed and the DAG run is marked failed."""
+            log.info("all %d entities succeeded", len(runners))
+
+        transform_tasks >> all_entities_succeeded()
+    return built
+
+
+_entity_order = Variable.get(ENTITY_ORDER_VARIABLE, deserialize_json=True, default_var=None)
+
+
+def _sql_runner(spec):
+    return lambda window: run_transformation(spec, window)
+
+
+def _python_runner(entity: str):
+    return lambda window: run_python_transformation(entity, window)
+
+
+_sql_entities = _entity_order if _entity_order is not None else _available_entities()
+sql_dag = _build_dag(
+    "bronze_to_silver_task_orchestrator",
+    "Runs every entity's SQL-side bronze-to-silver transform as a task of this one DAG.",
+    ["bronze-to-silver", "orchestrator", "sql-test"],
+    [(entity, _sql_runner(spec)) for entity in _sql_entities if (spec := _load_spec(entity)) is not None],
+)
+
+_python_available = set(_available_python_entities())
+_python_entities = _entity_order if _entity_order is not None else sorted(_python_available)
+for _missing in [entity for entity in _python_entities if entity not in _python_available]:
+    log.warning("Entity '%s' has no Python DAG module %s%s.py in %s; skipping it.",
+                _missing, _missing, PYTHON_MODULE_SUFFIX, _DAGS_DIR)
+python_dag = _build_dag(
+    "bronze_to_silver_python_task_orchestrator",
+    "Runs every entity's Python DAG transform as a task of this one DAG (benchmark twin of the SQL orchestrator).",
+    ["bronze-to-silver", "orchestrator", "python"],
+    [(entity, _python_runner(entity)) for entity in _python_entities if entity in _python_available],
+)
