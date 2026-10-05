@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.egov.requestvalidation.ValidateRequest;
 
 /**
  * api's related to the IdGeneration Controller
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
  * @author Pavan Kumar Kamma
  * @author Sreejith K
  */
+@ValidateRequest
 @RestController
 @RequestMapping(path = "/id/")
 public class IdGenerationController {
