@@ -296,8 +296,8 @@
 
 "@egovernments/request-validation@1.0.0":
   version "1.0.0"
-  resolved "https://registry.npmjs.org/@egovernments/request-validation/-/request-validation-1.0.0.tgz#c04ed24cb60afb3451f8612588228bc8d994b54b"
-  integrity sha512-9eofktGTwOM24FmFFNrv3AdNkXtrJBZj51FCrIfW7gVOK0P+Gxf7ohuIAxHQ3shWYz9JGKHI4DbbTsdTE7oNIQ==
+  resolved "https://registry.npmjs.org/@egovernments/request-validation/-/request-validation-1.0.0.tgz#9f0205a16350332e034d423df389e08f9e3e47f8"
+  integrity sha512-FEHSy1IS2usqpCz3FZB15x+j1QNPq08yokWnVVyD3QBtRoya4DGXBDyCJ+nSJlOLBApKWmaNqpRQvTn0Cq/49Q==
 
 "@eslint/eslintrc@^0.2.2":
   version "0.2.2"
