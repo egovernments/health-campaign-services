@@ -28,8 +28,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.egov.egovsurveyservices.utils.SurveyServiceConstants.CITIZEN;
+import org.egov.requestvalidation.ValidateRequest;
 
 @Slf4j
+@ValidateRequest
 @RestController
 @RequestMapping("/egov-ss")
 public class SurveyController {

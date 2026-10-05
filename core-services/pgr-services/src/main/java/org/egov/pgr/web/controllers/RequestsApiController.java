@@ -31,9 +31,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.egov.pgr.util.PGRConstants.INVALID_TENANT_ID_ERR_CODE;
+import org.egov.requestvalidation.ValidateRequest;
 
 @jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
 
+@ValidateRequest
 @Controller
 @RequestMapping("/v2")
 @Slf4j

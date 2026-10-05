@@ -25,9 +25,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.egov.requestvalidation.ValidateRequest;
 
 @jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
 
+@ValidateRequest
 @Controller
 @RequestMapping("/mock")
 @Slf4j

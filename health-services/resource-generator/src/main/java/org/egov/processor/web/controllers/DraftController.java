@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import static org.egov.processor.config.ServiceConstants.DRAFT_RESPONSE;
+import org.egov.requestvalidation.ValidateRequest;
 
+@ValidateRequest
 @Controller
 public class DraftController {
 

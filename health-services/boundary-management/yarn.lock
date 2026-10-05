@@ -37,6 +37,11 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
+"@egovernments/request-validation@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.npmjs.org/@egovernments/request-validation/-/request-validation-1.0.0.tgz#c04ed24cb60afb3451f8612588228bc8d994b54b"
+  integrity sha512-9eofktGTwOM24FmFFNrv3AdNkXtrJBZj51FCrIfW7gVOK0P+Gxf7ohuIAxHQ3shWYz9JGKHI4DbbTsdTE7oNIQ==
+
 "@eslint/eslintrc@^0.2.2":
   version "0.2.2"
   resolved "https://registry.npmjs.org/@eslint/eslintrc/-/eslintrc-0.2.2.tgz"

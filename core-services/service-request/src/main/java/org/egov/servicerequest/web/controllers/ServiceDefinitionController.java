@@ -25,8 +25,10 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.egov.servicerequest.error.ErrorCode.INVALID_TENANT_ID_ERR_CODE;
+import org.egov.requestvalidation.ValidateRequest;
 
 @Slf4j
+@ValidateRequest
 @RestController
 @RequestMapping("/service")
 public class ServiceDefinitionController {

@@ -10,8 +10,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.egov.requestvalidation.ValidateRequest;
 
 @Validated
+@ValidateRequest
 @Controller
 @RequestMapping("plan")
 public class PlanFacilityController {

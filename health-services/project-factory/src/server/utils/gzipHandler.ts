@@ -1,5 +1,6 @@
 import { Request } from "express";
 import * as zlib from "zlib";
+import { requestValidation } from "./requestValidation";
 
 /** Reads a gzip-compressed request stream and replaces req.body with the decompressed JSON. */
 export const handleGzipRequest = async (req: Request): Promise<void> => {
@@ -12,23 +13,17 @@ export const handleGzipRequest = async (req: Request): Promise<void> => {
     });
 
     const gzipBuffer = Buffer.concat(buffers as Uint8Array[]);
+    let raw: Buffer;
     try {
-        const decompressedData = await decompressGzip(gzipBuffer);
-        req.body = decompressedData;
+        raw = await new Promise<Buffer>((resolve, reject) =>
+            zlib.gunzip(gzipBuffer as Uint8Array, (err, result) => (err ? reject(err) : resolve(result))));
     } catch (err: any) {
         throw new Error(`Failed to process Gzip data: ${err.message}`);
     }
-};
-
-const decompressGzip = (gzipBuffer: Buffer): Promise<any> => {
-    return new Promise((resolve, reject) => {
-        zlib.gunzip(gzipBuffer as Uint8Array, (err, result) => {
-            if (err) return reject(err);
-            try {
-                resolve(JSON.parse(result.toString()));
-            } catch (parseErr) {
-                reject(new Error("Invalid JSON format in decompressed data"));
-            }
-        });
-    });
+    requestValidation.inspectJsonBuffer(req, raw); // ENFORCE: throws a 400 RequestValidationError
+    try {
+        req.body = JSON.parse(raw.toString());
+    } catch (parseErr) {
+        throw new Error("Failed to process Gzip data: Invalid JSON format in decompressed data");
+    }
 };

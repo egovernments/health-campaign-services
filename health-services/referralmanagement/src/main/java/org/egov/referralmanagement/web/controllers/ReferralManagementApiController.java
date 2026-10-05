@@ -26,10 +26,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
 import org.springframework.web.bind.annotation.RequestParam;
+import org.egov.requestvalidation.ValidateRequest;
 
 /**
  * Referral Management Api Controller
  */
+@ValidateRequest
 @Controller
 @RequestMapping("")
 @Validated

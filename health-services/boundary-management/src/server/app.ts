@@ -11,6 +11,7 @@ import {
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
+import { requestValidation } from "./utils/requestValidation";
 import { startOrphanReconciler } from "./utils/reconcileOrphanResources";
 import { Server } from "http";
 
@@ -66,15 +67,18 @@ class App {
   }
 
   private initializeMiddlewares() {
+    this.app.use(requestValidation.beforeParsers);
     this.app.use(
-      bodyParser.json({ limit: config.app.incomingRequestPayloadLimit })
+      bodyParser.json({ limit: config.app.incomingRequestPayloadLimit, verify: requestValidation.jsonVerify })
     );
     this.app.use(
       bodyParser.urlencoded({
         limit: config.app.incomingRequestPayloadLimit,
         extended: true,
+        verify: requestValidation.formVerify,
       })
     );
+    this.app.use(requestValidation.afterParsers);
     this.app.use(requestMiddleware);
     this.app.use(errorLogger);
     this.app.use(errorResponder);

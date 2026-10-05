@@ -21,10 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.requestvalidation.ValidateRequest;
 
 /**
  * Home redirection to swagger api documentation 
  */
+@ValidateRequest
 @RestController
 @RequestMapping("/v1")
 @Slf4j
