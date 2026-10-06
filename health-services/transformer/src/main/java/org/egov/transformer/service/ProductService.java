@@ -41,6 +41,12 @@ public class ProductService {
         List<String> productNames = new ArrayList<>();
 
         productVariantIds.forEach(productVariantId -> {
+            // Tasks without resources (e.g. UNABLE_TO_DELIVER) get a placeholder resource with no product variant.
+            // ConcurrentHashMap rejects null keys, so skip the lookup instead of failing the whole task.
+            if (productVariantId == null) {
+                productNames.add(null);
+                return;
+            }
             if (productVariantVsNameCache != null && productVariantVsNameCache.containsKey(productVariantId)) {
                 log.info("Fetching Product Variant Name for the id: {} from transformer cache", productVariantId);
                 productNames.add(productVariantVsNameCache.get(productVariantId));
