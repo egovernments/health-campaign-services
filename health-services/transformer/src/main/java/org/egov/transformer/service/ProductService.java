@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
@@ -41,7 +42,13 @@ public class ProductService {
         List<String> productNames = new ArrayList<>();
 
         productVariantIds.forEach(productVariantId -> {
-            if (productVariantVsNameCache != null && productVariantVsNameCache.containsKey(productVariantId)) {
+            // Tasks without resources (e.g. UNABLE_TO_DELIVER) carry no product variant. ConcurrentHashMap
+            // rejects null keys, so skip them instead of failing the whole batch with an NPE.
+            if (StringUtils.isBlank(productVariantId)) {
+                log.debug("Skipping product variant name lookup for blank productVariantId");
+                return;
+            }
+            if (productVariantVsNameCache.containsKey(productVariantId)) {
                 log.info("Fetching Product Variant Name for the id: {} from transformer cache", productVariantId);
                 productNames.add(productVariantVsNameCache.get(productVariantId));
             } else {
