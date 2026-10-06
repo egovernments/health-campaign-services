@@ -2,8 +2,9 @@
 Slack notifications for the hcm_data_healer DAG: per-tenant run summary, task
 failure alerts and the run-timeout alert.
 
-Windows post to their MDMS slackChannels, else the ops channel (SLACK_CHANNEL);
-alerts go to the ops channel. Env: SLACK_TOKEN, SLACK_CHANNEL (no token = no post).
+Results post to each window's MDMS slackChannels (none = not posted). Alerts (failures,
+invalid entries, run notes) go only to SLACK_ALERT_CHANNEL. Env: SLACK_TOKEN,
+SLACK_ALERT_CHANNEL (no token = no post).
 Posting never raises, and each response is checked for "ok". Text is redacted
 (long digit runs and emails masked) because errors can echo beneficiary data.
 """
@@ -92,9 +93,10 @@ def _channels(value):
     return out
 
 
-def ops_channels(cfg=None):
-    """Return the ops channel(s) from SLACK_CHANNEL."""
-    return _channels((cfg or {}).get("SLACK_CHANNEL") if cfg is not None else os.getenv("SLACK_CHANNEL", ""))
+def alert_channels(cfg=None):
+    """Return the alert channel(s) from SLACK_ALERT_CHANNEL. Alerts never fall back to prod."""
+    return _channels((cfg or {}).get("SLACK_ALERT_CHANNEL") if cfg is not None
+                     else os.getenv("SLACK_ALERT_CHANNEL", ""))
 
 
 def _post(text, color, blocks, channels, token=None):
@@ -245,26 +247,40 @@ def tenant_message(tenant, windows, day, dag_run_id):
 
 
 def run_summary(day, roster, results, crashed, dag_run_id="", run_minutes=None):
-    """Post one message per tenant, plus a run-notes message to ops when needed.
+    """Post results to prod and every issue to the alert channel.
 
+    Results: one message per tenant to the windows' MDMS slackChannels (none = not posted).
+    Alerts (SLACK_ALERT_CHANNEL): failed windows, HCM rejections, unrecoverable records,
+    guardrail holds and run notes.
     Returns True only if every post was accepted."""
-    ops = ops_channels()
+    alerts = alert_channels()
     by_tenant = {}
     for r in results:
         by_tenant.setdefault(r["tenant"], []).append(r)
     all_ok = True
     for tenant, windows in by_tenant.items():
-        text, color, lines = tenant_message(tenant, windows, day, dag_run_id)
-        channels = _channels([c for r in windows for c in (r.get("slack_channels") or [])] or ops)
-        posted = _post(text, color, [_text("\n".join(lines))], channels)
-        all_ok &= len(posted) == len(channels)
-    notes = _detail_lines([], roster, crashed)
+        ran = [r for r in windows if r["status"] != "FAILED"]
+        if ran:
+            text, color, lines = tenant_message(tenant, ran, day, dag_run_id)
+            channels = _channels([c for r in ran for c in (r.get("slack_channels") or [])])
+            if not channels:
+                log.info(f"[slack] {tenant}: no slackChannels in MDMS - result not posted")
+                continue
+            posted = _post(text, color, [_text("\n".join(lines))], channels)
+            all_ok &= len(posted) == len(channels)
+    failed = [r for r in results if r["status"] == "FAILED"]
+    notes = [f"- {_campaign_name(r)} {r['start_date']} to {r['end_date']}: could not be processed"
+             f" ({redact(r.get('reason'), 160) or 'see the task log'})" for r in failed]
+    # windows that ran but had rejections, unrecoverable records or a guardrail hold
+    notes += _detail_lines([r for r in results if r["status"] != "FAILED"], roster, crashed)
     if notes:
         link = run_link(dag_run_id)
         footer = f"DAG run: {dag_run_id or '-'}" + (f"  |  {link}" if link else "")
-        posted = _post(f"HCM Data Healer | run notes | {day}", AMBER,
-                       [_text(f"*HCM Data Healer | Run notes | {day}*\n" + "\n".join(notes) + f"\n{footer}")], ops)
-        all_ok &= len(posted) == len(ops)
+        color = RED if failed or crashed else AMBER
+        posted = _post(f"HCM Data Healer | alerts | {day}", color,
+                       [_text(f"*HCM Data Healer | Alerts | {day}*\n" + "\n".join(notes) + f"\n{footer}")],
+                       alerts)
+        all_ok &= len(posted) == len(alerts)
     return bool(all_ok) and bool(by_tenant or notes)
 
 
@@ -287,7 +303,7 @@ def run_timeout_alert(context):
               _text("The run exceeded its time limit. Campaign windows still in progress were stopped and "
                     "are retried in the next run."),
               _context(f"Technical details: dag_run_id={run}  |  unfinished rows stay RUNNING in dst_healer_run")]
-    _post(f"Data Healer run timed out: {run}", RED, blocks, ops_channels(cfg), token=cfg.get("SLACK_TOKEN"))
+    _post(f"Data Healer run timed out: {run}", RED, blocks, alert_channels(cfg), token=cfg.get("SLACK_TOKEN"))
 
 
 def task_failure_alert(context):
@@ -313,5 +329,5 @@ def task_failure_alert(context):
             f"dag_run_id={getattr(dag_run, 'run_id', '?')}"]
     blocks.append(_context("Technical details: " + "  |  ".join(tech)
                            + (f"  |  <{log_url}|task log>" if log_url else "")))
-    _post(f"Data Healer task failed: {task_id} {label or ''}".strip(), RED, blocks, ops_channels(cfg),
+    _post(f"Data Healer task failed: {task_id} {label or ''}".strip(), RED, blocks, alert_channels(cfg),
           token=cfg.get("SLACK_TOKEN"))

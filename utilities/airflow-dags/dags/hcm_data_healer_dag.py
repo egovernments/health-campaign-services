@@ -266,8 +266,8 @@ def hcm_data_healer():
         from hcm_data_healer import notify
         roster = ti.xcom_pull(task_ids="get_campaigns_from_mdms", key="roster")
         if roster is None:
-            # Planning failed (already alerted); without this the run would end green.
-            raise RuntimeError("get_campaigns_from_mdms failed - nothing was healed tonight")
+            # Planning failed and already alerted: fail the run (else it ends green), no second alert.
+            raise AlreadyAlerted("get_campaigns_from_mdms failed - nothing was healed tonight")
         pushed = ti.xcom_pull(task_ids="heal_campaign", key="result") or []
         if isinstance(pushed, dict):
             pushed = [pushed]

@@ -40,8 +40,8 @@ KEYS = {
     "KAFKA_BROKER": (True, "Kafka bootstrap servers, comma separated"),
     # Slack
     "SLACK_TOKEN": (False, "bot token; without it nothing is posted"),
-    "SLACK_CHANNEL": (False, "ops channel(s), comma separated: full daily report, crash alerts, "
-                              "and windows with no slackChannels of their own"),
+    "SLACK_ALERT_CHANNEL": (False, "alert channel(s), comma separated: failures, invalid entries, "
+                                   "run notes. Results go to each MDMS entry's slackChannels"),
     "HEALER_AIRFLOW_BASE_URL": (False, "Airflow UI base URL for the 'View run' link in Slack"),
     # emergency stop
     "HEALER_PUSH_ENABLED": (False, "false = emergency stop: analyze + audit only"),
@@ -111,8 +111,10 @@ def preflight():
         problems.append("TENANT_ID must be one tenant (e.g. ba), not a list")
     if problems:
         raise ConfigError(f"{CONFIG_VARIABLE}: " + "; ".join(problems))
-    if not (os.getenv("SLACK_TOKEN", "").strip() and os.getenv("SLACK_CHANNEL", "").strip()):
-        log.warning("[config] SLACK_TOKEN/SLACK_CHANNEL not set - no summaries or alerts will be posted")
+    if not os.getenv("SLACK_TOKEN", "").strip():
+        log.warning("[config] SLACK_TOKEN not set - nothing will be posted to Slack")
+    if not os.getenv("SLACK_ALERT_CHANNEL", "").strip():
+        log.warning("[config] SLACK_ALERT_CHANNEL not set - alerts are logged only")
 
 
 def push_enabled():
