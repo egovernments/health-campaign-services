@@ -1,0 +1,52 @@
+{
+  "tenantId": "ng",
+  "code": "airflow-configs.dst-data-healer-config",
+  "description": "hcm_data_healer DAG: one entry per campaign window to reconcile, recover and push daily at 02:00 UTC",
+  "isActive": true,
+  "definition": {
+    "type": "object",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "properties": {
+      "rowIdentity": {
+        "type": "string",
+        "description": "<tenant>::<startDate>, unique"
+      },
+      "tenant": {
+        "type": "string",
+        "description": "central cluster: the tenant to heal, e.g. so (blank = TENANT_ID); single-tenant cluster: blank or TENANT_ID"
+      },
+      "campaignName": {
+        "type": "string",
+        "description": "optional display label used in Slack; the window is identified by tenant + startDate + endDate"
+      },
+      "startDate": {
+        "type": "string",
+        "description": "YYYY-MM-DD"
+      },
+      "endDate": {
+        "type": "string",
+        "description": "YYYY-MM-DD; blank = up to the settle cutoff (newest 3 days are never healed)"
+      },
+      "errorTracer": {
+        "type": "string",
+        "description": "YES/NO; blank = YES"
+      },
+      "slackChannels": {
+        "type": "string",
+        "description": "Slack channel ids for this window, comma separated, e.g. C0BDXCWCC3Z, C0ABC12345"
+      },
+      "active": {
+        "type": "string",
+        "description": "YES = include in the daily run"
+      }
+    },
+    "required": [
+      "rowIdentity",
+      "startDate",
+      "active"
+    ],
+    "x-unique": [
+      "rowIdentity"
+    ]
+  }
+}

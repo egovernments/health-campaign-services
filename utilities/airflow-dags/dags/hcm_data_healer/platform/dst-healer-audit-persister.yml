@@ -1,0 +1,86 @@
+# egov-persister config for the hcm_data_healer audit trail.
+# Producer: hcm_data_healer/audit.py. Tables: platform/dst_healer_audit.sql.
+#
+# Install: add this file to egov-persister's configs and create the tables once.
+# Topics are not tenant-prefixed; tenant_id is a column.
+#
+# dst_healer_run: the RUNNING event inserts the row, the final event updates it;
+# a late RUNNING event never overwrites a finished row.
+serviceMaps:
+  serviceName: dst-data-healer
+  mappings:
+    - version: 1.0
+      description: hcm_data_healer run (insert on start, update on finish)
+      fromTopic: save-dst-healer-run
+      isTransaction: true
+      queryMaps:
+        - query: >
+            INSERT INTO dst_healer_run
+            (dag_run_id, tenant_id, campaign_name, window_start,
+             window_end, error_tracer, status, failed_step, reason, found_total, created,
+             reindexed, already_present, failed, unrecoverable, started_at_ms, finished_at_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (dag_run_id, tenant_id, window_start) DO UPDATE SET
+              status = EXCLUDED.status, failed_step = EXCLUDED.failed_step,
+              reason = EXCLUDED.reason, found_total = EXCLUDED.found_total,
+              created = EXCLUDED.created, reindexed = EXCLUDED.reindexed,
+              already_present = EXCLUDED.already_present, failed = EXCLUDED.failed,
+              unrecoverable = EXCLUDED.unrecoverable, finished_at_ms = EXCLUDED.finished_at_ms
+            WHERE EXCLUDED.status <> 'RUNNING';
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.dag_run_id
+            - jsonPath: $.tenant_id
+            - jsonPath: $.campaign_name
+            - jsonPath: $.window_start
+            - jsonPath: $.window_end
+            - jsonPath: $.error_tracer
+            - jsonPath: $.status
+            - jsonPath: $.failed_step
+            - jsonPath: $.reason
+            - jsonPath: $.found_total
+            - jsonPath: $.created
+            - jsonPath: $.reindexed
+            - jsonPath: $.already_present
+            - jsonPath: $.failed
+            - jsonPath: $.unrecoverable
+            - jsonPath: $.started_at_ms
+            - jsonPath: $.finished_at_ms
+
+    - version: 1.0
+      description: hcm_data_healer problem records (one message = a batch of records)
+      fromTopic: save-dst-healer-record
+      isTransaction: true
+      queryMaps:
+        - query: >
+            INSERT INTO dst_healer_record
+            (record_id, dag_run_id, tenant_id, window_start, entity, client_reference_id, issue, found_in,
+             action, outcome, outcome_reason, payload, source_error_code, source_error_message,
+             source_error_time, source_api_url, source_doc_id, api_status, api_response,
+             recorded_at_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (record_id) DO NOTHING;
+          basePath: $.records.*
+          jsonMaps:
+            - jsonPath: $.records.*.record_id
+            - jsonPath: $.records.*.dag_run_id
+            - jsonPath: $.records.*.tenant_id
+            - jsonPath: $.records.*.window_start
+            - jsonPath: $.records.*.entity
+            - jsonPath: $.records.*.client_reference_id
+            - jsonPath: $.records.*.issue
+            - jsonPath: $.records.*.found_in
+            - jsonPath: $.records.*.action
+            - jsonPath: $.records.*.outcome
+            - jsonPath: $.records.*.outcome_reason
+            - jsonPath: $.records.*.payload
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.records.*.source_error_code
+            - jsonPath: $.records.*.source_error_message
+            - jsonPath: $.records.*.source_error_time
+            - jsonPath: $.records.*.source_api_url
+            - jsonPath: $.records.*.source_doc_id
+            - jsonPath: $.records.*.api_status
+            - jsonPath: $.records.*.api_response
+            - jsonPath: $.records.*.recorded_at_ms
