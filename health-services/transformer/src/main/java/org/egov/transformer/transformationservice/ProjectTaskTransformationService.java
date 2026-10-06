@@ -158,7 +158,7 @@ public class ProjectTaskTransformationService {
                 .taskClientReferenceId(task.getClientReferenceId())
                 .clientReferenceId(taskResource.getClientReferenceId())
                 .tenantId(tenantId)
-                .taskType("DELIVERY")
+                .taskType(getTaskType(task))
                 .status(task.getStatus())
                 .localityCode(localityCode)
                 .userName(userInfoMap.get(USERNAME))
@@ -317,6 +317,24 @@ public class ProjectTaskTransformationService {
             task.setResources(Collections.singletonList(taskResource));
         }
         return task;
+    }
+
+    /**
+     * Reads the task type sent by the app in additionalFields (e.g. UNABLE_TO_DELIVER). Older app versions
+     * do not send it, so a missing or blank value falls back to DELIVERY, which was the previous fixed value.
+     */
+    private String getTaskType(Task task) {
+        AdditionalFields additionalFields = task.getAdditionalFields();
+        if (additionalFields == null || CollectionUtils.isEmpty(additionalFields.getFields())) {
+            return DEFAULT_TASK_TYPE;
+        }
+        return additionalFields.getFields().stream()
+                .filter(field -> field != null && TASK_TYPE.equalsIgnoreCase(field.getKey()))
+                .map(Field::getValue)
+                .filter(StringUtils::isNotBlank)
+                .map(String::trim)
+                .findFirst()
+                .orElse(DEFAULT_TASK_TYPE);
     }
 
     private String getFieldStringValue(List<Field> fields, String key) {
