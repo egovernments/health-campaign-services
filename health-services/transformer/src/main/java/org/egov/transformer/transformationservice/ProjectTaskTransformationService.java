@@ -158,7 +158,7 @@ public class ProjectTaskTransformationService {
                 .taskClientReferenceId(task.getClientReferenceId())
                 .clientReferenceId(taskResource.getClientReferenceId())
                 .tenantId(tenantId)
-                .taskType("DELIVERY")
+                .taskType(getTaskType(task))
                 .status(task.getStatus())
                 .localityCode(localityCode)
                 .userName(userInfoMap.get(USERNAME))
@@ -317,6 +317,18 @@ public class ProjectTaskTransformationService {
             task.setResources(Collections.singletonList(taskResource));
         }
         return task;
+    }
+
+    /**
+     * Task type sent by the app in additionalFields (e.g. UNABLE_TO_DELIVER); DELIVERY when absent.
+     */
+    private String getTaskType(Task task) {
+        AdditionalFields additionalFields = task.getAdditionalFields();
+        if (additionalFields == null || CollectionUtils.isEmpty(additionalFields.getFields())) {
+            return DEFAULT_TASK_TYPE;
+        }
+        String taskType = getFieldStringValue(additionalFields.getFields(), TASK_TYPE);
+        return StringUtils.isBlank(taskType) ? DEFAULT_TASK_TYPE : taskType;
     }
 
     private String getFieldStringValue(List<Field> fields, String key) {
