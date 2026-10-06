@@ -86,6 +86,7 @@ public interface Constants {
     String LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
     String LOCALIZATION_MESSAGES_JSONPATH = "$.messages";
     String BOUNDARY_LOCALIZATION_PREWARM_FAILED = "BOUNDARY_LOCALIZATION_PREWARM_FAILED|";
+    String DEFAULT_BOUNDARY_LOCALIZATION_MODULE_PREFIX = "hcm-boundary-";
     String LOCALIZATION_MESSAGE_CODE = "code";
     String LOCALIZATION_MESSAGE = "message";
     String PREGNANTWOMEN = "pregnantWomen";
