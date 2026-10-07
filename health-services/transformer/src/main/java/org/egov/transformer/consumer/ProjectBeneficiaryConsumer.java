@@ -34,8 +34,8 @@ public class ProjectBeneficiaryConsumer {
         this.errorQueueProducer = errorQueueProducer;
     }
 
-    @KafkaListener(topics = {"${transformer.consumer.bulk.create.project.beneficiary.topic}",
-            "${transformer.consumer.bulk.update.project.beneficiary.topic}"})
+    @KafkaListener(topics = {"${transformer.consumer.project.beneficiary.create.topic}",
+            "${transformer.consumer.project.beneficiary.update.topic}"})
     public void consumeBeneficiary(ConsumerRecord<String, Object> payload,
                                    @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
