@@ -8,7 +8,9 @@ import org.egov.common.models.household.AdditionalFields;
 import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HouseholdMemberIndexV1;
@@ -19,8 +21,7 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -54,10 +55,65 @@ public class HouseholdMemberTransformationService {
     public void transform(List<HouseholdMember> householdMemberList) {
         log.info("transforming for HHM id's {}", householdMemberList.stream()
                 .map(HouseholdMember::getId).collect(Collectors.toList()));
+        push(householdMemberList.stream()
+                .map(householdMember -> transform(householdMember, null))
+                .collect(Collectors.toList()));
+    }
+
+    /**
+     * Re-indexes the household members of newly created / updated project beneficiaries with the beneficiary's
+     * project. Covers members that were created (and transformed) before their beneficiary existed; members created
+     * after the beneficiary resolve it themselves in {@link #transform(HouseholdMember, String)}.
+     */
+    public void transformForBeneficiaries(List<ProjectBeneficiary> projectBeneficiaries) {
+        Map<String, HouseholdMember> householdMembers = new LinkedHashMap<>();
+        Map<String, String> memberIdVsProjectId = new HashMap<>();
+        for (ProjectBeneficiary beneficiary : projectBeneficiaries) {
+            if (Boolean.TRUE.equals(beneficiary.getIsDeleted()) || StringUtils.isBlank(beneficiary.getProjectId())) {
+                continue;
+            }
+            for (HouseholdMember householdMember : searchMembersOfBeneficiary(beneficiary)) {
+                if (Boolean.TRUE.equals(householdMember.getIsDeleted())) {
+                    continue;
+                }
+                householdMembers.put(householdMember.getClientReferenceId(), householdMember);
+                memberIdVsProjectId.put(householdMember.getClientReferenceId(), beneficiary.getProjectId());
+            }
+        }
+        if (householdMembers.isEmpty()) {
+            return;
+        }
+        log.info("re-transforming HHM id's {} for project beneficiaries", householdMembers.values().stream()
+                .map(HouseholdMember::getId).collect(Collectors.toList()));
+        push(householdMembers.values().stream()
+                .map(householdMember -> transform(householdMember, memberIdVsProjectId.get(householdMember.getClientReferenceId())))
+                .collect(Collectors.toList()));
+    }
+
+    // the beneficiary is the household for household-based projects and the individual for individual-based ones
+    private List<HouseholdMember> searchMembersOfBeneficiary(ProjectBeneficiary beneficiary) {
+        String tenantId = beneficiary.getTenantId();
+        List<HouseholdMember> members = Collections.emptyList();
+        if (StringUtils.isNotBlank(beneficiary.getBeneficiaryId())) {
+            members = householdService.searchHouseholdMembers(HouseholdMemberSearch.builder()
+                    .householdId(beneficiary.getBeneficiaryId()).build(), tenantId);
+            if (members.isEmpty()) {
+                members = householdService.searchHouseholdMembers(HouseholdMemberSearch.builder()
+                        .individualId(beneficiary.getBeneficiaryId()).build(), tenantId);
+            }
+        } else if (StringUtils.isNotBlank(beneficiary.getBeneficiaryClientReferenceId())) {
+            members = householdService.searchHouseholdMembers(HouseholdMemberSearch.builder()
+                    .householdClientReferenceId(beneficiary.getBeneficiaryClientReferenceId()).build(), tenantId);
+            if (members.isEmpty()) {
+                members = householdService.searchHouseholdMembers(HouseholdMemberSearch.builder()
+                        .individualClientReferenceId(beneficiary.getBeneficiaryClientReferenceId()).build(), tenantId);
+            }
+        }
+        return members;
+    }
+
+    private void push(List<HouseholdMemberIndexV1> householdMemberIndexV1List) {
         String topic = transformerProperties.getTransformerProducerHouseholdMemberIndexV1Topic();
-        List<HouseholdMemberIndexV1> householdMemberIndexV1List = householdMemberList.stream()
-                .map(this::transform)
-                .collect(Collectors.toList());
         log.info("transformation success for HHM id's {}", householdMemberIndexV1List.stream()
                 .map(HouseholdMemberIndexV1::getHouseholdMember)
                 .map(HouseholdMember::getId)
@@ -65,14 +121,26 @@ public class HouseholdMemberTransformationService {
         producer.push(topic, householdMemberIndexV1List);
     }
 
-    private HouseholdMemberIndexV1 transform(HouseholdMember householdMember) {
+    private HouseholdMemberIndexV1 transform(HouseholdMember householdMember, String beneficiaryProjectId) {
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
         Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
-        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(householdMember.getAuditDetails().getCreatedBy(),householdMember.getTenantId());
+        // Resolve the project from the beneficiary of this member's individual (individual-based projects) or
+        // household (household-based projects); the creator's project-staff mapping is ambiguous when the user is
+        // staff of more than one project running at the same time.
+        ProjectInfo projectInfo = StringUtils.isNotBlank(beneficiaryProjectId)
+                ? projectService.getProjectInfoByProjectId(beneficiaryProjectId, householdMember.getTenantId())
+                : projectService.projectInfoFromBeneficiaryIds(
+                        Arrays.asList(householdMember.getIndividualId(), householdMember.getHouseholdId()), householdMember.getTenantId());
+        if (projectInfo == null) {
+            // member created before its beneficiary; re-indexed with the project once the beneficiary is created
+            log.info("No project beneficiary yet for HHM {} (individualId {}, householdId {}), indexing without project details",
+                    householdMember.getId(), householdMember.getIndividualId(), householdMember.getHouseholdId());
+            projectInfo = new ProjectInfo();
+        }
         String hierarchyType = projectInfo.getHierarchyType();
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());

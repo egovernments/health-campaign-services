@@ -282,6 +282,67 @@ public class ProjectService {
         return response.getProjectBeneficiaries();
     }
 
+    /**
+     * Resolves the project from the project beneficiary registered for the given beneficiary ids, tried in order
+     * (e.g. individual id for individual-based projects, then household id for household-based projects).
+     * Returns null if no beneficiary is found, so callers do not fall back to the user's project-staff mapping,
+     * which is ambiguous when the user is staff of more than one project.
+     */
+    public ProjectInfo projectInfoFromBeneficiaryIds(List<String> beneficiaryIds, String tenantId) {
+        for (String beneficiaryId : beneficiaryIds) {
+            if (StringUtils.isBlank(beneficiaryId)) {
+                continue;
+            }
+            List<ProjectBeneficiary> beneficiaries = searchBeneficiaryByBeneficiaryId(beneficiaryId, tenantId);
+            if (CollectionUtils.isEmpty(beneficiaries)) {
+                continue;
+            }
+            // the same beneficiary can be registered in more than one project; take the latest registration
+            ProjectBeneficiary beneficiary = beneficiaries.stream()
+                    .filter(b -> StringUtils.isNotBlank(b.getProjectId()) && !Boolean.TRUE.equals(b.getIsDeleted()))
+                    .max(Comparator.comparing(b -> b.getAuditDetails() != null && b.getAuditDetails().getCreatedTime() != null
+                            ? b.getAuditDetails().getCreatedTime() : 0L))
+                    .orElse(null);
+            if (beneficiary == null) {
+                continue;
+            }
+            if (beneficiaries.size() > 1) {
+                log.warn("Multiple project beneficiaries for beneficiaryId {}, using project {}", beneficiaryId, beneficiary.getProjectId());
+            }
+            return getProjectInfoByProjectId(beneficiary.getProjectId(), tenantId);
+        }
+        return null;
+    }
+
+    private List<ProjectBeneficiary> searchBeneficiaryByBeneficiaryId(String beneficiaryId, String tenantId) {
+        BeneficiarySearchRequest request = BeneficiarySearchRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projectBeneficiary(ProjectBeneficiarySearch.builder()
+                        .beneficiaryId(beneficiaryId).build())
+                .build();
+        BeneficiaryBulkResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectBeneficiarySearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    BeneficiaryBulkResponse.class);
+        } catch (Exception e) {
+            log.error("error while fetching beneficiary for beneficiaryId: {}, Exception: {}", beneficiaryId, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
+            return Collections.emptyList();
+        }
+        return response.getProjectBeneficiaries();
+    }
+
     public ProjectInfo projectDetailsFromUserId(String userId, String tenantId){
         if (userIdVsProjectIdCache.containsKey(userId)) {
             return getProjectInfoByProjectId(userIdVsProjectIdCache.get(userId), tenantId);

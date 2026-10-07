@@ -59,6 +59,34 @@ public class HouseholdService {
         return response.getHouseholds();
     }
 
+    public List<HouseholdMember> searchHouseholdMembers(HouseholdMemberSearch householdMemberSearch, String tenantId) {
+        HouseholdMemberSearchRequest request = HouseholdMemberSearchRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .householdMemberSearch(householdMemberSearch)
+                .build();
+        HouseholdMemberBulkResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getHouseholdHost())
+                    .append(transformerProperties.getHouseholdMemberSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    HouseholdMemberBulkResponse.class);
+        } catch (Exception e) {
+            log.error("Error while fetching household members for search: {}. ExceptionDetails: {}", householdMemberSearch, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
+            return Collections.emptyList();
+        }
+        return response.getHouseholdMembers() != null ? response.getHouseholdMembers() : Collections.emptyList();
+    }
+
     public void additionalFieldsToDetails(ObjectNode additionalDetails, Object additionalFields) {
         if (!(additionalFields instanceof List<?>)) {
             throw new IllegalArgumentException("additionalFields is not of the expected type List<Field>");

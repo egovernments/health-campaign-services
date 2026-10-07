@@ -1,0 +1,52 @@
+package org.egov.transformer.consumer;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.egov.common.models.project.ProjectBeneficiary;
+import org.egov.transformer.producer.TransformerErrorProducer;
+import org.egov.transformer.transformationservice.HouseholdMemberTransformationService;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.stereotype.Component;
+
+import java.util.Arrays;
+import java.util.List;
+
+@Component
+@Slf4j
+public class ProjectBeneficiaryConsumer {
+
+    private final ObjectMapper objectMapper;
+    private final HouseholdMemberTransformationService householdMemberTransformationService;
+    private final TransformerErrorProducer errorQueueProducer;
+
+    public ProjectBeneficiaryConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper,
+                                      HouseholdMemberTransformationService householdMemberTransformationService,
+                                      TransformerErrorProducer errorQueueProducer) {
+        this.objectMapper = objectMapper;
+        this.householdMemberTransformationService = householdMemberTransformationService;
+        this.errorQueueProducer = errorQueueProducer;
+    }
+
+    @KafkaListener(topics = {"${transformer.consumer.save.project.beneficiary.topic}",
+            "${transformer.consumer.update.project.beneficiary.topic}"})
+    public void consumeProjectBeneficiary(ConsumerRecord<String, Object> payload,
+                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            errorQueueProducer.withSourceTopic(topic, () -> {
+            List<ProjectBeneficiary> payloadList = Arrays.asList(objectMapper
+                    .readValue((String) payload.value(),
+                            ProjectBeneficiary[].class));
+            householdMemberTransformationService.transformForBeneficiaries(payloadList);
+            });
+        } catch (Exception exception) {
+            log.error("TRANSFORMER error in projectBeneficiaryConsumer {}", ExceptionUtils.getStackTrace(exception));
+            errorQueueProducer.sendToErrorTopic(payload.value(), topic, exception);
+        }
+    }
+
+}
