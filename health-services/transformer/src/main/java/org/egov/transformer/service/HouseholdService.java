@@ -57,7 +57,7 @@ public class HouseholdService {
             errorProducer.sendToErrorTopic(request, null, e);
             return Collections.emptyList();
         }
-        return response.getHouseholds();
+        return response != null && response.getHouseholds() != null ? response.getHouseholds() : Collections.emptyList();
     }
 
     public List<HouseholdMember> searchHouseholdMembers(HouseholdMemberSearch householdMemberSearch, String tenantId) {

@@ -258,4 +258,13 @@ public class TransformerProperties {
 
     @Value("${project.staff.index.name}")
     private String projectStaffIndexName;
+
+    @Value("${project.beneficiary.index.name}")
+    private String projectBeneficiaryIndexName;
+
+    @Value("${project.beneficiary.search.retry.count}")
+    private Integer projectBeneficiarySearchRetryCount;
+
+    @Value("${project.beneficiary.search.retry.delay.ms}")
+    private Long projectBeneficiarySearchRetryDelayMs;
 }
