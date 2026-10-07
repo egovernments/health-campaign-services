@@ -18,6 +18,7 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -48,11 +49,20 @@ public class HouseholdTransformationService {
     }
 
     public void transform(List<Household> householdList) {
+        transform(householdList, null);
+    }
+
+    /**
+     * Transforms households against the given project, used when the project is already known from the project
+     * beneficiary (household created before its beneficiary). When projectId is null the project is resolved from
+     * the household's beneficiary, falling back to the user's project-staff mapping.
+     */
+    public void transform(List<Household> householdList, String projectId) {
         log.info("transforming for HOUSEHOLD id's {}", householdList.stream()
                 .map(Household::getId).collect(Collectors.toList()));
         String topic = transformerProperties.getTransformerProducerBulkHouseholdIndexV1Topic();
         List<HouseholdIndexV1> householdIndexV1List = householdList.stream()
-                .map(this::transform)
+                .map(household -> transform(household, projectId))
                 .collect(Collectors.toList());
         log.info("transformation success for HOUSEHOLD id's {}", householdIndexV1List.stream()
                 .map(HouseholdIndexV1::getHousehold)
@@ -61,11 +71,11 @@ public class HouseholdTransformationService {
         producer.push(topic, householdIndexV1List);
     }
 
-    private HouseholdIndexV1 transform(Household household) {
+    private HouseholdIndexV1 transform(Household household, String projectId) {
         householdService.searchHousehold(household.getClientReferenceId(), household.getTenantId());
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
-        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());
+        ProjectInfo projectInfo = getProjectInfo(household, projectId);
 
         String localityCode;
         if (household.getAddress() != null
@@ -112,6 +122,26 @@ public class HouseholdTransformationService {
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         householdIndexV1.setAdditionalDetails(additionalDetails);
         return householdIndexV1;
+    }
+
+    // Project is resolved from the household's project beneficiary. The registering user's project-staff mapping is
+    // only a fallback (beneficiary not created yet) as the user can be staff of more than one project; the household
+    // is re-indexed with the beneficiary's project once the beneficiary is created.
+    private ProjectInfo getProjectInfo(Household household, String projectId) {
+        String tenantId = household.getTenantId();
+        ProjectInfo projectInfo = null;
+        if (StringUtils.isNotBlank(projectId)) {
+            projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
+        }
+        if (projectInfo == null || StringUtils.isBlank(projectInfo.getProjectId())) {
+            projectInfo = projectService.projectInfoFromBeneficiaryIds(Collections.singletonList(household.getId()), tenantId);
+        }
+        if (projectInfo == null) {
+            log.info("No project beneficiary yet for HOUSEHOLD {}, resolving project from the user's project staff", household.getId());
+            projectInfo = projectService.projectDetailsFromUserId(household.getClientAuditDetails().getLastModifiedBy(),
+                    tenantId, household.getClientAuditDetails().getCreatedTime());
+        }
+        return projectInfo;
     }
 
 }

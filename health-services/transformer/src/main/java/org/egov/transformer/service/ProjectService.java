@@ -26,6 +26,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
 
@@ -43,7 +44,8 @@ public class ProjectService {
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new ConcurrentHashMap<>();
     private static Map<String, ProjectInfo> projectIdVsProjectInfoCache = new ConcurrentHashMap<>();
-    private static Map<String, String> userIdVsProjectIdCache = new ConcurrentHashMap<>();
+    private static Map<String, CachedProjectStaff> userIdVsProjectStaffCache = new ConcurrentHashMap<>();
+    private static Map<String, Project> projectIdVsProjectCache = new ConcurrentHashMap<>();
     private static Map<String, ArrayNode> projectIdVsCycleInfoCache = new ConcurrentHashMap<>();
 
 
@@ -324,21 +326,18 @@ public class ProjectService {
                 ? response.getProjectBeneficiaries() : Collections.emptyList();
     }
 
-    public ProjectInfo projectDetailsFromUserId(String userId, String tenantId){
-        if (userIdVsProjectIdCache.containsKey(userId)) {
-            return getProjectInfoByProjectId(userIdVsProjectIdCache.get(userId), tenantId);
-        }
+    public ProjectInfo projectDetailsFromUserId(String userId, String tenantId) {
+        return projectDetailsFromUserId(userId, tenantId, null);
+    }
 
-        List<String> userIds = new ArrayList<>(Collections.singletonList(userId));
-        ProjectInfo projectInfo = new ProjectInfo();
-        List<ProjectStaff> projectStaffList = searchProjectStaff(userIds, tenantId);
-        ProjectStaff projectStaff = !CollectionUtils.isEmpty(projectStaffList) ? projectStaffList.get(0) : null;
-
-        if (ObjectUtils.isNotEmpty(projectStaff)) {
-            projectInfo = getProjectInfoByProjectId(projectStaff.getProjectId(), tenantId);
-            userIdVsProjectIdCache.put(userId, projectStaff.getProjectId());
-        }
-        return projectInfo;
+    /**
+     * Resolves the project of the record from the user's project-staff mapping. eventTime is when the record was
+     * captured, used to pick the right project when the user is staff of more than one project; when null the
+     * current time is used.
+     */
+    public ProjectInfo projectDetailsFromUserId(String userId, String tenantId, Long eventTime) {
+        String projectId = getProjectIdFromStaff(userId, tenantId, eventTime);
+        return projectId != null ? getProjectInfoByProjectId(projectId, tenantId) : new ProjectInfo();
     }
 
     public void addProjectDetailsForUserIdAndTenantId(ProjectInfo projectInfo, String userId, String tenantId) {
@@ -443,20 +442,127 @@ public class ProjectService {
     }
 
     public String getProjectIdFromStaff(String userId, String tenantId) {
-        if (userIdVsProjectIdCache.containsKey(userId)) {
-            return userIdVsProjectIdCache.get(userId);
-        }
-
-        List<String> userIds = new ArrayList<>(Collections.singletonList(userId));
-        List<ProjectStaff> projectStaffList = searchProjectStaff(userIds, tenantId);
-        ProjectStaff projectStaff = !CollectionUtils.isEmpty(projectStaffList) ? projectStaffList.get(0) : null;
-
-        if (ObjectUtils.isNotEmpty(projectStaff)) {
-            userIdVsProjectIdCache.put(userId, projectStaff.getProjectId());
-            return projectStaff.getProjectId();
-        }
-        return null;
+        return getProjectIdFromStaff(userId, tenantId, null);
     }
+
+    /**
+     * A user can be staff of more than one project (mapped to more than one campaign), so the first staff record
+     * returned by the search is not necessarily the project the record belongs to. The project whose staff mapping
+     * and project dates cover eventTime is used; if more than one does, the most recently started project.
+     */
+    public String getProjectIdFromStaff(String userId, String tenantId, Long eventTime) {
+        if (StringUtils.isBlank(userId) || StringUtils.isBlank(tenantId)) {
+            return null;
+        }
+        List<ProjectStaff> projectStaffList = getProjectStaff(userId, tenantId);
+        if (CollectionUtils.isEmpty(projectStaffList)) {
+            return null;
+        }
+        Set<String> projectIds = new LinkedHashSet<>();
+        projectStaffList.forEach(projectStaff -> projectIds.add(projectStaff.getProjectId()));
+        if (projectIds.size() == 1) {
+            return projectIds.iterator().next();
+        }
+
+        long time = eventTime != null && eventTime > 0 ? eventTime : System.currentTimeMillis();
+        Map<String, Project> projects = new HashMap<>();
+        projectIds.forEach(projectId -> projects.put(projectId, getProjectCached(projectId, tenantId)));
+        Comparator<ProjectStaff> latestStarted = Comparator
+                .comparing((ProjectStaff projectStaff) -> projectStartDate(projects.get(projectStaff.getProjectId())))
+                .thenComparing(projectStaff -> projectStaff.getAuditDetails() != null && projectStaff.getAuditDetails().getCreatedTime() != null
+                        ? projectStaff.getAuditDetails().getCreatedTime() : 0L);
+
+        List<ProjectStaff> activeAtTime = projectStaffList.stream()
+                .filter(projectStaff -> isWithin(time, projectStaff.getStartDate(), projectStaff.getEndDate()))
+                .filter(projectStaff -> {
+                    Project project = projects.get(projectStaff.getProjectId());
+                    return project != null && isWithin(time, project.getStartDate(), project.getEndDate());
+                })
+                .collect(Collectors.toList());
+        ProjectStaff selected;
+        if (!activeAtTime.isEmpty()) {
+            selected = Collections.max(activeAtTime, latestStarted);
+            if (activeAtTime.size() > 1) {
+                log.warn("User {} is staff of {} projects active at {}, using the latest started project {}",
+                        userId, activeAtTime.size(), time, selected.getProjectId());
+            }
+        } else {
+            // no project running at that time; take the latest project started before it, else the latest one
+            selected = projectStaffList.stream()
+                    .filter(projectStaff -> projectStartDate(projects.get(projectStaff.getProjectId())) <= time)
+                    .max(latestStarted)
+                    .orElse(Collections.max(projectStaffList, latestStarted));
+            log.warn("User {} is staff of projects {}, none active at {}, using project {}",
+                    userId, projectIds, time, selected.getProjectId());
+        }
+        log.info("User {} is staff of projects {}, resolved project {} for time {}", userId, projectIds, selected.getProjectId(), time);
+        return selected.getProjectId();
+    }
+
+    /**
+     * Drops the cached project-staff mappings of the user so that a new or updated mapping is picked up.
+     */
+    public void evictProjectStaffCache(String userId, String tenantId) {
+        if (StringUtils.isNotBlank(userId) && StringUtils.isNotBlank(tenantId)) {
+            userIdVsProjectStaffCache.remove(tenantId + ":" + userId);
+        }
+    }
+
+    // non-deleted staff mappings of the user, cached for transformer.project.staff.cache.ttl.minutes
+    private List<ProjectStaff> getProjectStaff(String userId, String tenantId) {
+        String key = tenantId + ":" + userId;
+        long ttlMillis = transformerProperties.getProjectStaffCacheTtlMinutes() != null
+                ? transformerProperties.getProjectStaffCacheTtlMinutes() * 60_000L : 0L;
+        CachedProjectStaff cached = userIdVsProjectStaffCache.get(key);
+        if (cached != null && System.currentTimeMillis() - cached.fetchedAt < ttlMillis) {
+            return cached.projectStaff;
+        }
+        List<ProjectStaff> projectStaffList = searchProjectStaff(Collections.singletonList(userId), tenantId);
+        if (CollectionUtils.isEmpty(projectStaffList)) {
+            // search failed or user not mapped yet, not cached so that a mapping created later is picked up
+            return Collections.emptyList();
+        }
+        List<ProjectStaff> activeProjectStaff = projectStaffList.stream()
+                .filter(projectStaff -> projectStaff != null && StringUtils.isNotBlank(projectStaff.getProjectId())
+                        && !Boolean.TRUE.equals(projectStaff.getIsDeleted()))
+                .collect(Collectors.toList());
+        if (!activeProjectStaff.isEmpty()) {
+            userIdVsProjectStaffCache.put(key, new CachedProjectStaff(activeProjectStaff, System.currentTimeMillis()));
+        }
+        return activeProjectStaff;
+    }
+
+    private Project getProjectCached(String projectId, String tenantId) {
+        Project project = projectIdVsProjectCache.get(projectId);
+        if (project == null) {
+            project = getProject(projectId, tenantId);
+            if (project != null) {
+                projectIdVsProjectCache.put(projectId, project);
+            }
+        }
+        return project;
+    }
+
+    private static long projectStartDate(Project project) {
+        return project != null && project.getStartDate() != null ? project.getStartDate() : 0L;
+    }
+
+    // null or non-positive dates are treated as open ended
+    private static boolean isWithin(long time, Long startDate, Long endDate) {
+        return (startDate == null || startDate <= 0 || startDate <= time)
+                && (endDate == null || endDate <= 0 || time <= endDate);
+    }
+
+    private static class CachedProjectStaff {
+        private final List<ProjectStaff> projectStaff;
+        private final long fetchedAt;
+
+        private CachedProjectStaff(List<ProjectStaff> projectStaff, long fetchedAt) {
+            this.projectStaff = projectStaff;
+            this.fetchedAt = fetchedAt;
+        }
+    }
+
     private List<ProjectStaff> searchProjectStaff(List<String> userId, String tenantId) {
         ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
                 .requestInfo(RequestInfo.builder()
@@ -477,7 +583,7 @@ public class ProjectService {
             ProjectStaffBulkResponse response = serviceRequestClient.fetchResult(uri,
                     request,
                     ProjectStaffBulkResponse.class);
-            return !response.getProjectStaff().isEmpty() ? response.getProjectStaff() : null;
+            return response != null && response.getProjectStaff() != null ? response.getProjectStaff() : Collections.emptyList();
         } catch (Exception e) {
             log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
             errorProducer.sendToErrorTopic(request, null, e);
