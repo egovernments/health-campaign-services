@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.egov.requestvalidation.ValidateRequest;
 
 /**
  * Test-only controller for simulating stock push notification flow.
@@ -30,6 +31,7 @@ import java.util.Map;
  *   POST /health-notification-service/test/v1/stock/_notify
  *   Body: the raw stock Kafka JSON array (same payload as the Kafka topic)
  */
+@ValidateRequest
 @RestController
 @RequestMapping("/test/v1/stock")
 @Slf4j
