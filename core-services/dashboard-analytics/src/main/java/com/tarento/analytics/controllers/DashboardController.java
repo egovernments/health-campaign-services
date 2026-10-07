@@ -39,7 +39,9 @@ import com.tarento.analytics.service.MetadataService;
 import com.tarento.analytics.utils.PathRoutes;
 import com.tarento.analytics.utils.ResponseGenerator;
 import org.springframework.web.multipart.MultipartFile;
+import org.egov.requestvalidation.ValidateRequest;
 
+@ValidateRequest
 @RestController
 @RequestMapping(PathRoutes.DashboardApi.DASHBOARD_ROOT_PATH)
 public class DashboardController {
