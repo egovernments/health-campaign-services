@@ -48,6 +48,30 @@ log = logging.getLogger(__name__)
 
 EXECUTE_TASK_ID = "execute_campaign_pipeline"
 
+# Raise CPU/memory for the heavy task only (ES extract, Excels, Word docs).
+# finalize_run and every other DAG keep the worker defaults. The container
+# name must be "base" (the Airflow task container); any other name adds a
+# second container instead of overriding it.
+try:
+    from kubernetes.client import models as k8s
+    _HEAVY_POD = {
+        "pod_override": k8s.V1Pod(
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        resources=k8s.V1ResourceRequirements(
+                            requests={"cpu": "500m", "memory": "1Gi"},
+                            limits={"cpu": "1000m", "memory": "2Gi"},
+                        ),
+                    )
+                ]
+            )
+        )
+    }
+except ImportError:  # local/non-k8s runs: keep the default pod
+    _HEAVY_POD = None
+
 
 @dag(
     dag_id="dst_campaign_run",
@@ -68,7 +92,8 @@ EXECUTE_TASK_ID = "execute_campaign_pipeline"
 def dst_campaign_run():
 
     @task(retries=2, retry_delay=timedelta(minutes=3),
-          execution_timeout=timedelta(minutes=60))
+          execution_timeout=timedelta(minutes=60),
+          executor_config=_HEAVY_POD)
     def execute_campaign_pipeline(dag_run=None, ti=None):
         """Run the whole pipeline chain for this campaign row (see
         common/campaign_runner.py for stage and error semantics).
