@@ -3,6 +3,7 @@ package org.egov.transformer.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
@@ -57,6 +58,39 @@ public class HouseholdService {
             return Collections.emptyList();
         }
         return response.getHouseholds();
+    }
+
+    public List<HouseholdMember> searchHouseholdMembers(HouseholdMemberSearch householdMemberSearch, String tenantId) {
+        if (householdMemberSearch == null || StringUtils.isBlank(tenantId)) {
+            log.warn("Skipping household member search, search criteria or tenantId missing. tenantId: {}", tenantId);
+            return Collections.emptyList();
+        }
+        HouseholdMemberSearchRequest request = HouseholdMemberSearchRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .householdMemberSearch(householdMemberSearch)
+                .build();
+        HouseholdMemberBulkResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            // household member search is an endpoint of the household service, so it is derived from the household search url
+            uri.append(transformerProperties.getHouseholdHost())
+                    .append(transformerProperties.getHouseholdSearchUrl().replace(HOUSEHOLD_SEARCH_ENDPOINT, HOUSEHOLD_MEMBER_SEARCH_ENDPOINT))
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    HouseholdMemberBulkResponse.class);
+        } catch (Exception e) {
+            log.error("Error while fetching household members for search: {}. ExceptionDetails: {}", householdMemberSearch, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(request, null, e);
+            return Collections.emptyList();
+        }
+        return response != null && response.getHouseholdMembers() != null ? response.getHouseholdMembers() : Collections.emptyList();
     }
 
     public void additionalFieldsToDetails(ObjectNode additionalDetails, Object additionalFields) {

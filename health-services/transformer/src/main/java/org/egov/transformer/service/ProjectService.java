@@ -254,14 +254,55 @@ public class ProjectService {
     }
 
     public List<ProjectBeneficiary> searchBeneficiary(String projectBeneficiaryClientRefId, String tenantId) {
+        return searchBeneficiary(ProjectBeneficiarySearch.builder()
+                .clientReferenceId(Collections.singletonList(projectBeneficiaryClientRefId)).build(), tenantId);
+    }
+
+    /**
+     * Resolves the project from the project beneficiary registered for the given beneficiary ids, tried in order
+     * (individual id for individual-based projects, then household id for household-based projects).
+     * Returns null if no beneficiary is found; the user's project-staff mapping is not used as it is ambiguous when
+     * the user is staff of more than one project running at the same time.
+     */
+    public ProjectInfo projectInfoFromBeneficiaryIds(List<String> beneficiaryIds, String tenantId) {
+        if (CollectionUtils.isEmpty(beneficiaryIds) || StringUtils.isBlank(tenantId)) {
+            return null;
+        }
+        for (String beneficiaryId : beneficiaryIds) {
+            if (StringUtils.isBlank(beneficiaryId)) {
+                continue;
+            }
+            List<ProjectBeneficiary> beneficiaries = searchBeneficiary(ProjectBeneficiarySearch.builder()
+                    .beneficiaryId(beneficiaryId).build(), tenantId);
+            // the same beneficiary can be registered in more than one project; take the latest registration
+            ProjectBeneficiary beneficiary = beneficiaries.stream()
+                    .filter(b -> b != null && StringUtils.isNotBlank(b.getProjectId()) && !Boolean.TRUE.equals(b.getIsDeleted()))
+                    .max(Comparator.comparing(b -> b.getAuditDetails() != null && b.getAuditDetails().getCreatedTime() != null
+                            ? b.getAuditDetails().getCreatedTime() : 0L))
+                    .orElse(null);
+            if (beneficiary == null) {
+                continue;
+            }
+            if (beneficiaries.size() > 1) {
+                log.warn("Multiple project beneficiaries for beneficiaryId {}, using project {}", beneficiaryId, beneficiary.getProjectId());
+            }
+            ProjectInfo projectInfo = getProjectInfoByProjectId(beneficiary.getProjectId(), tenantId);
+            if (projectInfo != null && StringUtils.isNotBlank(projectInfo.getProjectId())) {
+                return projectInfo;
+            }
+            log.warn("Project {} of beneficiaryId {} not found", beneficiary.getProjectId(), beneficiaryId);
+        }
+        return null;
+    }
+
+    private List<ProjectBeneficiary> searchBeneficiary(ProjectBeneficiarySearch projectBeneficiarySearch, String tenantId) {
         BeneficiarySearchRequest request = BeneficiarySearchRequest.builder()
                 .requestInfo(RequestInfo.builder().
                         userInfo(User.builder()
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
-                .projectBeneficiary(ProjectBeneficiarySearch.builder().
-                        clientReferenceId(Collections.singletonList(projectBeneficiaryClientRefId)).build())
+                .projectBeneficiary(projectBeneficiarySearch)
                 .build();
         BeneficiaryBulkResponse response;
         try {
@@ -275,11 +316,12 @@ public class ProjectService {
                     request,
                     BeneficiaryBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching beneficiary for id: {}, Exception: {}", projectBeneficiaryClientRefId, ExceptionUtils.getStackTrace(e));
+            log.error("error while fetching beneficiary for search: {}, Exception: {}", projectBeneficiarySearch, ExceptionUtils.getStackTrace(e));
             errorProducer.sendToErrorTopic(request, null, e);
             return Collections.emptyList();
         }
-        return response.getProjectBeneficiaries();
+        return response != null && response.getProjectBeneficiaries() != null
+                ? response.getProjectBeneficiaries() : Collections.emptyList();
     }
 
     public ProjectInfo projectDetailsFromUserId(String userId, String tenantId){

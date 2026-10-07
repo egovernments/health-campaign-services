@@ -119,5 +119,9 @@ public interface Constants {
 
     String ES_FIELD_EFFECTIVE_DATE = "effectiveDate";
 
+    // household member endpoints are served by the household service; derived from egov.search.household.url
+    String HOUSEHOLD_SEARCH_ENDPOINT = "/v1/_search";
+    String HOUSEHOLD_MEMBER_SEARCH_ENDPOINT = "/member/v1/_search";
+
 
 }
