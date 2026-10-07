@@ -26,6 +26,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
 
@@ -40,6 +41,7 @@ public class ProjectService {
     private final TransformerErrorProducer errorProducer;
     private final ProjectFactoryService projectFactoryService;
     private final CommonUtils commonUtils;
+    private final ElasticsearchService elasticsearchService;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new ConcurrentHashMap<>();
     private static Map<String, ProjectInfo> projectIdVsProjectInfoCache = new ConcurrentHashMap<>();
@@ -49,7 +51,8 @@ public class ProjectService {
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer, ProjectFactoryService projectFactoryService, CommonUtils commonUtils) {
+                          ObjectMapper objectMapper, MdmsService mdmsService, TransformerErrorProducer errorProducer, ProjectFactoryService projectFactoryService, CommonUtils commonUtils,
+                          ElasticsearchService elasticsearchService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
@@ -57,6 +60,7 @@ public class ProjectService {
         this.errorProducer = errorProducer;
         this.projectFactoryService = projectFactoryService;
         this.commonUtils = commonUtils;
+        this.elasticsearchService = elasticsearchService;
     }
 
     public Project getProject(String projectId, String tenantId) {
@@ -254,55 +258,14 @@ public class ProjectService {
     }
 
     public List<ProjectBeneficiary> searchBeneficiary(String projectBeneficiaryClientRefId, String tenantId) {
-        return searchBeneficiary(ProjectBeneficiarySearch.builder()
-                .clientReferenceId(Collections.singletonList(projectBeneficiaryClientRefId)).build(), tenantId);
-    }
-
-    /**
-     * Resolves the project from the project beneficiary registered for the given beneficiary ids, tried in order
-     * (individual id for individual-based projects, then household id for household-based projects).
-     * Returns null if no beneficiary is found; the user's project-staff mapping is not used as it is ambiguous when
-     * the user is staff of more than one project running at the same time.
-     */
-    public ProjectInfo projectInfoFromBeneficiaryIds(List<String> beneficiaryIds, String tenantId) {
-        if (CollectionUtils.isEmpty(beneficiaryIds) || StringUtils.isBlank(tenantId)) {
-            return null;
-        }
-        for (String beneficiaryId : beneficiaryIds) {
-            if (StringUtils.isBlank(beneficiaryId)) {
-                continue;
-            }
-            List<ProjectBeneficiary> beneficiaries = searchBeneficiary(ProjectBeneficiarySearch.builder()
-                    .beneficiaryId(beneficiaryId).build(), tenantId);
-            // the same beneficiary can be registered in more than one project; take the latest registration
-            ProjectBeneficiary beneficiary = beneficiaries.stream()
-                    .filter(b -> b != null && StringUtils.isNotBlank(b.getProjectId()) && !Boolean.TRUE.equals(b.getIsDeleted()))
-                    .max(Comparator.comparing(b -> b.getAuditDetails() != null && b.getAuditDetails().getCreatedTime() != null
-                            ? b.getAuditDetails().getCreatedTime() : 0L))
-                    .orElse(null);
-            if (beneficiary == null) {
-                continue;
-            }
-            if (beneficiaries.size() > 1) {
-                log.warn("Multiple project beneficiaries for beneficiaryId {}, using project {}", beneficiaryId, beneficiary.getProjectId());
-            }
-            ProjectInfo projectInfo = getProjectInfoByProjectId(beneficiary.getProjectId(), tenantId);
-            if (projectInfo != null && StringUtils.isNotBlank(projectInfo.getProjectId())) {
-                return projectInfo;
-            }
-            log.warn("Project {} of beneficiaryId {} not found", beneficiary.getProjectId(), beneficiaryId);
-        }
-        return null;
-    }
-
-    private List<ProjectBeneficiary> searchBeneficiary(ProjectBeneficiarySearch projectBeneficiarySearch, String tenantId) {
         BeneficiarySearchRequest request = BeneficiarySearchRequest.builder()
                 .requestInfo(RequestInfo.builder().
                         userInfo(User.builder()
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
-                .projectBeneficiary(projectBeneficiarySearch)
+                .projectBeneficiary(ProjectBeneficiarySearch.builder().
+                        clientReferenceId(Collections.singletonList(projectBeneficiaryClientRefId)).build())
                 .build();
         BeneficiaryBulkResponse response;
         try {
@@ -316,12 +279,71 @@ public class ProjectService {
                     request,
                     BeneficiaryBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching beneficiary for search: {}, Exception: {}", projectBeneficiarySearch, ExceptionUtils.getStackTrace(e));
+            log.error("error while fetching beneficiary for id: {}, Exception: {}", projectBeneficiaryClientRefId, ExceptionUtils.getStackTrace(e));
             errorProducer.sendToErrorTopic(request, null, e);
             return Collections.emptyList();
         }
-        return response != null && response.getProjectBeneficiaries() != null
-                ? response.getProjectBeneficiaries() : Collections.emptyList();
+        return response.getProjectBeneficiaries();
+    }
+
+    /**
+     * Resolves the project from the project beneficiary registered for the given beneficiary client reference ids,
+     * tried in order (e.g. individual for individual-based projects, then household for household-based projects).
+     * The user's project-staff mapping is not used as it is ambiguous when the user is staff of more than one project
+     * running at the same time.
+     *
+     * @param waitForIndexing retry when no beneficiary is found yet, for a beneficiary created just before the record
+     * @return project info, or null if no project beneficiary is found
+     */
+    public ProjectInfo projectInfoFromBeneficiaryClientReferenceIds(List<String> beneficiaryClientReferenceIds, String tenantId,
+                                                                    boolean waitForIndexing) {
+        List<String> clientReferenceIds = beneficiaryClientReferenceIds == null ? Collections.emptyList()
+                : beneficiaryClientReferenceIds.stream().filter(StringUtils::isNotBlank).distinct().collect(Collectors.toList());
+        if (clientReferenceIds.isEmpty()) {
+            return null;
+        }
+        int retryCount = waitForIndexing && transformerProperties.getProjectBeneficiarySearchRetryCount() != null
+                ? Math.max(transformerProperties.getProjectBeneficiarySearchRetryCount(), 0) : 0;
+        for (int attempt = 0; ; attempt++) {
+            ProjectInfo projectInfo = projectInfoFromBeneficiaryClientReferenceIds(clientReferenceIds, tenantId);
+            if (projectInfo != null || attempt >= retryCount) {
+                return projectInfo;
+            }
+            log.info("No project beneficiary found yet for beneficiaryClientReferenceIds {}, retry {} of {}",
+                    clientReferenceIds, attempt + 1, retryCount);
+            try {
+                Thread.sleep(transformerProperties.getProjectBeneficiarySearchRetryDelayMs() != null
+                        ? transformerProperties.getProjectBeneficiarySearchRetryDelayMs() : 0L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+    }
+
+    private ProjectInfo projectInfoFromBeneficiaryClientReferenceIds(List<String> clientReferenceIds, String tenantId) {
+        for (String clientReferenceId : clientReferenceIds) {
+            // latest registration first; the same beneficiary can be registered in more than one project
+            List<ProjectBeneficiary> projectBeneficiaries = elasticsearchService
+                    .searchProjectBeneficiaries(Collections.singletonList(clientReferenceId), tenantId);
+            ProjectBeneficiary projectBeneficiary = projectBeneficiaries.stream()
+                    .filter(beneficiary -> beneficiary != null && StringUtils.isNotBlank(beneficiary.getProjectId()))
+                    .findFirst()
+                    .orElse(null);
+            if (projectBeneficiary == null) {
+                continue;
+            }
+            if (projectBeneficiaries.size() > 1) {
+                log.warn("Multiple project beneficiaries for beneficiaryClientReferenceId {}, using project {}",
+                        clientReferenceId, projectBeneficiary.getProjectId());
+            }
+            ProjectInfo projectInfo = getProjectInfoByProjectId(projectBeneficiary.getProjectId(), tenantId);
+            if (projectInfo != null && StringUtils.isNotBlank(projectInfo.getProjectId())) {
+                return projectInfo;
+            }
+            log.warn("Project {} of beneficiaryClientReferenceId {} not found", projectBeneficiary.getProjectId(), clientReferenceId);
+        }
+        return null;
     }
 
     public ProjectInfo projectDetailsFromUserId(String userId, String tenantId){

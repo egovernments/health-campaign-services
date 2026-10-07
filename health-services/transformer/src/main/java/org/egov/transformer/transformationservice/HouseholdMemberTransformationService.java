@@ -37,8 +37,9 @@ public class HouseholdMemberTransformationService {
     private final ObjectMapper objectMapper;
     private final ProjectService projectService;
     private final BoundaryService boundaryService;
+    private final HouseholdTransformationService householdTransformationService;
 
-    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper, ProjectService projectService, BoundaryService boundaryService) {
+    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper, ProjectService projectService, BoundaryService boundaryService, HouseholdTransformationService householdTransformationService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
@@ -48,6 +49,7 @@ public class HouseholdMemberTransformationService {
         this.objectMapper = objectMapper;
         this.projectService = projectService;
         this.boundaryService = boundaryService;
+        this.householdTransformationService = householdTransformationService;
     }
 
     public void transform(List<HouseholdMember> householdMemberList) {
@@ -89,6 +91,13 @@ public class HouseholdMemberTransformationService {
         String hierarchyType = projectInfo.getHierarchyType();
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
+        // individual-based projects: the household has no beneficiary of its own and is created before the member's
+        // beneficiary, so re-index it with the project once, from its head (skipped when re-indexing from a
+        // beneficiary, which re-indexes the household itself)
+        if (StringUtils.isBlank(projectId) && Boolean.TRUE.equals(householdMember.getIsHeadOfHousehold())
+                && StringUtils.isNotBlank(projectInfo.getProjectId()) && !CollectionUtils.isEmpty(households)) {
+            householdTransformationService.transform(households, projectInfo.getProjectId());
+        }
         String localityCode = null;
         if (!CollectionUtils.isEmpty(households) && households.get(0).getAddress() != null
                 && households.get(0).getAddress().getLocality() != null
@@ -154,13 +163,14 @@ public class HouseholdMemberTransformationService {
             projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
         }
         if (projectInfo == null || StringUtils.isBlank(projectInfo.getProjectId())) {
-            projectInfo = projectService.projectInfoFromBeneficiaryIds(
-                    Arrays.asList(householdMember.getIndividualId(), householdMember.getHouseholdId()), tenantId);
+            projectInfo = projectService.projectInfoFromBeneficiaryClientReferenceIds(
+                    Arrays.asList(householdMember.getIndividualClientReferenceId(), householdMember.getHouseholdClientReferenceId()),
+                    tenantId, true);
         }
         if (projectInfo == null) {
             // member created before its beneficiary; re-indexed with the project once the beneficiary is created
-            log.info("No project beneficiary yet for HHM {} (individualId {}, householdId {}), indexing without project details",
-                    householdMember.getId(), householdMember.getIndividualId(), householdMember.getHouseholdId());
+            log.info("No project beneficiary yet for HHM {} (individualClientReferenceId {}, householdClientReferenceId {}), indexing without project details",
+                    householdMember.getId(), householdMember.getIndividualClientReferenceId(), householdMember.getHouseholdClientReferenceId());
             projectInfo = new ProjectInfo();
         }
         return projectInfo;

@@ -2,10 +2,15 @@ package org.egov.transformer.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.producer.TransformerErrorProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
@@ -14,9 +19,13 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -25,14 +34,17 @@ public class ElasticsearchService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final TransformerProperties properties;
+    private final TransformerErrorProducer errorProducer;
 
     @Autowired
     public ElasticsearchService(RestTemplate restTemplate,
                                 @Qualifier("objectMapper") ObjectMapper objectMapper,
-                                TransformerProperties properties) {
+                                TransformerProperties properties,
+                                TransformerErrorProducer errorProducer) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.errorProducer = errorProducer;
     }
 
     /**
@@ -54,6 +66,71 @@ public class ElasticsearchService {
         byte[] credentialsBytes = credentials.getBytes();
         byte[] base64CredentialsBytes = Base64.getEncoder().encode(credentialsBytes);
         return "Basic " + new String(base64CredentialsBytes);
+    }
+
+    /**
+     * Searches project beneficiaries in project-beneficiary-index-v1 by beneficiaryClientReferenceId, latest
+     * registration first. Project beneficiary search API does not support beneficiaryClientReferenceId, and
+     * beneficiaryId is not set for beneficiaries created with only beneficiaryClientReferenceId.
+     *
+     * @param beneficiaryClientReferenceIds household / individual client reference ids
+     * @param tenantId                      Tenant ID (can be null)
+     * @return non deleted project beneficiaries, empty if none found or on error
+     */
+    public List<ProjectBeneficiary> searchProjectBeneficiaries(List<String> beneficiaryClientReferenceIds, String tenantId) {
+        if (CollectionUtils.isEmpty(beneficiaryClientReferenceIds)) {
+            return Collections.emptyList();
+        }
+        ObjectNode searchRequest = objectMapper.createObjectNode();
+        try {
+            String indexName = properties.getProjectBeneficiaryIndexName();
+            String searchUrl = String.format("%s/%s/_search", getESBaseUrl(), indexName);
+
+            ObjectNode bool = objectMapper.createObjectNode();
+            ArrayNode filter = bool.putArray("filter");
+            ArrayNode clientReferenceIds = filter.addObject().putObject("terms")
+                    .putArray("beneficiaryClientReferenceId.keyword");
+            beneficiaryClientReferenceIds.forEach(clientReferenceIds::add);
+            if (StringUtils.isNotBlank(tenantId)) {
+                filter.addObject().putObject("term").put("tenantId.keyword", tenantId);
+            }
+            bool.putArray("must_not").addObject().putObject("term").put("isDeleted", true);
+            searchRequest.putObject("query").set("bool", bool);
+            searchRequest.putArray("sort").addObject().putObject("auditDetails.createdTime").put("order", "desc");
+            searchRequest.put("size", Integer.parseInt(properties.getSearchApiLimit()));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.add("Authorization", getESEncodedCredentials());
+            HttpEntity<String> requestEntity = new HttpEntity<>(searchRequest.toString(), headers);
+
+            log.debug("Elasticsearch project beneficiary search request: {}", searchRequest);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    searchUrl,
+                    HttpMethod.POST,
+                    requestEntity,
+                    String.class
+            );
+
+            List<ProjectBeneficiary> projectBeneficiaries = new ArrayList<>();
+            JsonNode hits = response.getBody() != null
+                    ? objectMapper.readTree(response.getBody()).path("hits").path("hits") : null;
+            if (hits != null && hits.isArray()) {
+                for (JsonNode hit : hits) {
+                    JsonNode source = hit.get("_source");
+                    if (source != null && !source.isNull()) {
+                        projectBeneficiaries.add(objectMapper.treeToValue(source, ProjectBeneficiary.class));
+                    }
+                }
+            }
+            return projectBeneficiaries;
+        } catch (Exception e) {
+            log.error("Error searching project beneficiaries in Elasticsearch for beneficiaryClientReferenceIds: {} {}",
+                    beneficiaryClientReferenceIds, ExceptionUtils.getStackTrace(e));
+            errorProducer.sendToErrorTopic(searchRequest, null, e);
+            return Collections.emptyList();
+        }
     }
 
     /**
