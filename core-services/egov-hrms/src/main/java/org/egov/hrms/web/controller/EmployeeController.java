@@ -56,8 +56,10 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
+import org.egov.requestvalidation.ValidateRequest;
 
 @Slf4j
+@ValidateRequest
 @RestController
 @RequestMapping("/employees")
 public class EmployeeController {
