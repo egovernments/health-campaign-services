@@ -105,8 +105,9 @@ Balances (canonical agg_stock_summary formulas):
                    the section says exactly that in plain words)
 
 The Word section is written for three readers: the campaign manager (Supply
-at a Glance), on-ground supervisors (Facilities to Restock First; Facilities
-Not Recording Handovers), and the audit — always LAST — Stock Check per CDD.
+at a Glance), on-ground supervisors (Facilities With the Most Stock Left;
+With Stock Left Over after the campaign), and the audit — always LAST — Stock
+Check per CDD.
 
 Field facts this module relies on (do not "fix" them):
   - Data.facility* is always "me" and Data.transactingFacility* the
@@ -2837,33 +2838,38 @@ def build_stock_section(doc, cfg, heading_num="6"):
                   if data["variant"] in ("smc", "itn_ledger") else [])
     day = max(1, int(cfg.get("DAY") or 1))
 
-    # ── (on-ground view) restock list, or leftover list after the campaign ─
+    # ── (on-ground view) stock-left list: daily, and after the campaign ────
     # ONLY facilities that actually record stock in the app belong here: a
     # facility whose consumption comes solely from the task index has a
-    # meaningless "balance" of 0 and would wrongly top the restock list —
-    # those facilities are the RECORDING problem shown in the next section.
+    # meaningless "balance" of 0 — those are a recording problem, not stock.
+    # The daily "Restock First" list was replaced by this one for Taraba on
+    # user request 2026-10-08; ITN still shows it only once the campaign ends.
     recording = [f for f in facilities
                  if f["consumed"] > 0 and (f["received"] + f["issued"]) > 0]
     campaign_over = bool(cfg.get("cumulative")) or (
         day >= int(cfg.get("campaign_days") or day))
-    if recording and campaign_over:
-        # "Restock now" makes no sense once the campaign has ended — what
-        # matters then is WHERE the unused stock sits, for retrieval.
+    if recording and (campaign_over or not is_hub):
         leftovers = sorted(
             (f for f in recording
              if f["bal_hf"] > 0 or f["bal_cdd"] > 0),
             key=lambda f: f["bal_hf"] + max(f["bal_cdd"], 0),
             reverse=True)[:5]
         if leftovers:
-            add_heading(doc, f"{heading_num}.{sub}  "
-                             f"{site.capitalize()} With Stock Left Over", 5)
-            add_para(doc, f"The campaign has ended; this stock should be "
-                          f"returned or accounted for. Total left = at "
-                          f"{site[:-1]} + with {holders}.",
-                     size=8, color=GREY_RGB)
+            one_site = "facility" if site == "facilities" else site[:-1]
+            if campaign_over:
+                title = f"{site.capitalize()} With Stock Left Over"
+                note = (f"The campaign has ended; this stock should be "
+                        f"returned or accounted for. Total left = at "
+                        f"{one_site} + with {holders}.")
+            else:
+                title = f"{site.capitalize()} With the Most Stock Left"
+                note = (f"Stock still available as of today, largest first. "
+                        f"Total left = at {one_site} + with {holders}.")
+            add_heading(doc, f"{heading_num}.{sub}  {title}", 5)
+            add_para(doc, note, size=8, color=GREY_RGB)
             _simple_table(
                 doc, ["#", "LGA / District", site_col,
-                      f"At {site[:-1]}", f"With {holders}", "Total left"],
+                      f"At {one_site}", f"With {holders}", "Total left"],
                 [[ri, f["lga"], f["hf"], f"{f['bal_hf']:,.0f}",
                   f"{max(f['bal_cdd'], 0):,.0f}",
                   f"{f['bal_hf'] + max(f['bal_cdd'], 0):,.0f}"]
@@ -2879,33 +2885,6 @@ def build_stock_section(doc, cfg, heading_num="6"):
                 link_p.add_run(cfg.get("stock_xlsx", "") or _stock_xlsx(cfg))
             doc.add_paragraph()
             sub += 1
-    elif recording and not is_hub:     # no restock list for ITN (user, 2026-10-01)
-        for f in recording:
-            f["daily"] = f["consumed"] / day
-            f["days_left"] = (f["bal_hf"] / f["daily"]
-                              if f["bal_hf"] > 0 else 0.0)
-        at_risk = sorted(recording, key=lambda f: f["days_left"])[:10]
-        add_heading(doc, f"{heading_num}.{sub}  {site.capitalize()} to "
-                         f"Restock First", 5)
-        add_para(doc, f"{site.capitalize()} that record stock in the app, "
-                      f"ranked by days of stock left. Restock anything under "
-                      f"1 day.",
-                 size=9, color=GREY_RGB)
-        add_para(doc, f"Days of stock left = stock in hand / used per day.  "
-                      f"Used per day = total used / {day} day(s).",
-                 size=8, color=GREY_RGB)
-        rows = []
-        for ri, f in enumerate(at_risk, 1):
-            flag = ("RESTOCK NOW" if f["days_left"] < 1
-                    else "LOW" if f["days_left"] < 2 else "OK")
-            rows.append([ri, f["lga"], f["hf"], f"{f['bal_hf']:,.0f}",
-                         f"{f['daily']:,.0f}", f"{f['days_left']:.1f}", flag])
-        _simple_table(doc, ["#", "LGA / District", site_col,
-                            "Stock in hand", f"Used per day ({unit})",
-                            "Days of stock left", "Action"],
-                      rows, left_cols=(1, 2))
-        doc.add_paragraph()
-        sub += 1
 
     # (The "Facilities Not Recording Handovers" section was removed on partner
     # feedback 2026-09; the per-CDD audit below covers the same signal.)
