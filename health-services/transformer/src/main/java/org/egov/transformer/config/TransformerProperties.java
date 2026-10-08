@@ -142,6 +142,9 @@ public class TransformerProperties {
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
 
+    @Value("${transformer.project.staff.cache.ttl.minutes:60}")
+    private Long projectStaffCacheTtlMinutes;
+
     @Value("${project.mdms.module}")
     private String mdmsModule;
 

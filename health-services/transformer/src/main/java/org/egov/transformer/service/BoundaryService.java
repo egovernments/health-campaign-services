@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import java.util.*;
 
 import static org.egov.transformer.Constants.BOUNDARY_LOCALIZATION_PREWARM_FAILED;
+import static org.egov.transformer.Constants.DEFAULT_BOUNDARY_LOCALIZATION_MODULE_PREFIX;
 import static org.egov.transformer.Constants.LOCALIZATION_MESSAGE;
 import static org.egov.transformer.Constants.LOCALIZATION_MESSAGES_JSONPATH;
 import static org.egov.transformer.Constants.LOCALIZATION_MESSAGE_CODE;
@@ -43,6 +44,7 @@ public class BoundaryService {
     private static Map<String, List<EnrichedBoundary>> cachedEnrichedBoundaries = new ConcurrentHashMap<>();
 
     private static final Set<String> prewarmedLocalizationModules = ConcurrentHashMap.newKeySet();
+    private static final Set<String> warnedLocalizationModuleNames = ConcurrentHashMap.newKeySet();
 
     public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService, TransformerErrorProducer errorProducer) {
         this.transformerProperties = transformerProperties;
@@ -292,7 +294,9 @@ public class BoundaryService {
 
         String fetchedName = getBoundaryNameFromLocalisationService(boundaryCode, requestInfo, tenantId, hierarchyType);
         if (fetchedName == null) {
-            fetchedName = boundaryCode.substring(boundaryCode.lastIndexOf('_') + 1);
+            fetchedName = fallbackBoundaryName(boundaryCode);
+            log.warn("No localization for boundary code {} in module {} (locale {}); using fallback name {}",
+                    boundaryCode, getLocalizationModule(hierarchyType), transformerProperties.getLocalizationLocaleCode(), fetchedName);
         } else {
             boundaryCodeVsLocalizedName.put(boundaryCode, fetchedName);
             log.info("Fetched localization from service for code: {}, value: {}. Cached result.", boundaryCode, fetchedName);
@@ -405,11 +409,41 @@ public class BoundaryService {
                 + "&locale=" + transformerProperties.getLocalizationLocaleCode();
     }
 
-    private String getLocalizationModule(String hierarchyType) {
+    String getLocalizationModule(String hierarchyType) {
         // Locale.ROOT keeps the module name stable regardless of the JVM default locale.
         String hierarchy = StringUtils.isBlank(hierarchyType)
                 ? transformerProperties.getBoundaryHierarchyName() : hierarchyType;
-        return transformerProperties.getLocalizationModuleName() + hierarchy.toLowerCase(Locale.ROOT);
+        return getLocalizationModulePrefix() + hierarchy.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * egov.localization.module.name is a prefix (e.g. "hcm-boundary-") that the hierarchy type is appended to.
+     * Deployments that still pass a full module name (e.g. "hcm-boundary-nigeria") would otherwise produce
+     * "hcm-boundary-nigerianigeria", find no messages and fall back to code fragments for every boundary.
+     */
+    private String getLocalizationModulePrefix() {
+        String configured = transformerProperties.getLocalizationModuleName();
+        if (StringUtils.isBlank(configured)) {
+            return DEFAULT_BOUNDARY_LOCALIZATION_MODULE_PREFIX;
+        }
+        if (configured.endsWith("-")) {
+            return configured;
+        }
+        if (warnedLocalizationModuleNames.add(configured)) {
+            log.warn("egov.localization.module.name '{}' is not a prefix ending in '-'; using '{}' + hierarchy type instead",
+                    configured, DEFAULT_BOUNDARY_LOCALIZATION_MODULE_PREFIX);
+        }
+        return DEFAULT_BOUNDARY_LOCALIZATION_MODULE_PREFIX;
+    }
+
+    /**
+     * Last segment of the boundary code, used only when localization has no name for it.
+     * Trailing underscores are ignored so codes like "..._MELEKURAY__MAKAMA_" do not produce an empty name.
+     */
+    static String fallbackBoundaryName(String boundaryCode) {
+        String trimmed = boundaryCode.replaceAll("_+$", "");
+        String name = trimmed.substring(trimmed.lastIndexOf('_') + 1);
+        return name.isEmpty() ? boundaryCode : name;
     }
 
     private RequestInfoWrapper requestInfoWrapperOf(RequestInfo requestInfo) {

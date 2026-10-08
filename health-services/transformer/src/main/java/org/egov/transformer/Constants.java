@@ -19,6 +19,8 @@ public interface Constants {
 
     String BENEFICIARY_REFERRED = "BENEFICIARY_REFERRED";
     String TASK_STATUS = "taskStatus";
+    String TASK_TYPE = "taskType";
+    String DEFAULT_TASK_TYPE = "DELIVERY";
     String PRODUCT_VARIANT_ID = "productVariantId";
     String MEMBER_COUNT = "memberCount";
     String HOUSEHOLD_ID = "householdId";
@@ -86,6 +88,7 @@ public interface Constants {
     String LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
     String LOCALIZATION_MESSAGES_JSONPATH = "$.messages";
     String BOUNDARY_LOCALIZATION_PREWARM_FAILED = "BOUNDARY_LOCALIZATION_PREWARM_FAILED|";
+    String DEFAULT_BOUNDARY_LOCALIZATION_MODULE_PREFIX = "hcm-boundary-";
     String LOCALIZATION_MESSAGE_CODE = "code";
     String LOCALIZATION_MESSAGE = "message";
     String PREGNANTWOMEN = "pregnantWomen";
@@ -115,6 +118,10 @@ public interface Constants {
     String ES_FIELD_ACTIVE = "active";
 
     String ES_FIELD_EFFECTIVE_DATE = "effectiveDate";
+
+    // household member endpoints are served by the household service; derived from egov.search.household.url
+    String HOUSEHOLD_SEARCH_ENDPOINT = "/v1/_search";
+    String HOUSEHOLD_MEMBER_SEARCH_ENDPOINT = "/member/v1/_search";
 
 
 }

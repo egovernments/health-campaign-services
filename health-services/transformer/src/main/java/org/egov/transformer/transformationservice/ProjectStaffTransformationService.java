@@ -47,6 +47,8 @@ public class ProjectStaffTransformationService {
     public void transform(List<ProjectStaff> projectStaffList) {
         log.info("transforming for STAFF id's {}", projectStaffList.stream()
                 .map(ProjectStaff::getId).collect(Collectors.toList()));
+        // staff mappings of these users changed, so their cached project resolution is stale
+        projectStaffList.forEach(projectStaff -> projectService.evictProjectStaffCache(projectStaff.getUserId(), projectStaff.getTenantId()));
         String topic = transformerProperties.getTransformerProducerBulkProjectStaffIndexV1Topic();
         List<ProjectStaffIndexV1> projectStaffIndexV1List = projectStaffList.stream()
                 .map(this::transform)

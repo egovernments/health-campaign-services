@@ -88,6 +88,8 @@ public class ProjectTaskIndexV1 extends ProjectInfo {
     private Long dateOfBirth;
     @JsonProperty("age")
     private Integer age;
+    @JsonProperty("gender")
+    private String gender;
     @JsonProperty("individualId")
     private String individualId;
     @JsonProperty("additionalDetails")
