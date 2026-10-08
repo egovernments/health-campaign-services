@@ -144,13 +144,18 @@ public class HouseholdMemberTransformationService {
         return householdMemberIndexV1;
     }
 
-    // Project is resolved from the project beneficiary of the member's individual (individual-based projects) or
+    // Project is the one the member was captured for ("projectId" additional field), else the given project (from the
+    // beneficiary) or resolved from the project beneficiary of the member's individual (individual-based projects) or
     // household (household-based projects), not from the creator's project-staff mapping, which is ambiguous when
     // the user is staff of more than one project running at the same time.
     private ProjectInfo getProjectInfo(HouseholdMember householdMember, String projectId) {
         String tenantId = householdMember.getTenantId();
         ProjectInfo projectInfo = null;
-        if (StringUtils.isNotBlank(projectId)) {
+        String capturedProjectId = householdService.getProjectIdFromAdditionalFields(householdMember.getAdditionalFields());
+        if (StringUtils.isNotBlank(capturedProjectId)) {
+            projectInfo = projectService.getProjectInfoByProjectId(capturedProjectId, tenantId);
+        }
+        if ((projectInfo == null || StringUtils.isBlank(projectInfo.getProjectId())) && StringUtils.isNotBlank(projectId)) {
             projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
         }
         if (projectInfo == null || StringUtils.isBlank(projectInfo.getProjectId())) {

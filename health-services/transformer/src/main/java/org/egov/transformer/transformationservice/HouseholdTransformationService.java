@@ -124,13 +124,18 @@ public class HouseholdTransformationService {
         return householdIndexV1;
     }
 
-    // Project is resolved from the household's project beneficiary. The registering user's project-staff mapping is
-    // only a fallback (beneficiary not created yet) as the user can be staff of more than one project; the household
-    // is re-indexed with the beneficiary's project once the beneficiary is created.
+    // Project is the one the household was captured for ("projectId" additional field), else resolved from the
+    // household's project beneficiary. The registering user's project-staff mapping is only a fallback (beneficiary
+    // not created yet) as the user can be staff of more than one project; the household is re-indexed with the
+    // beneficiary's project once the beneficiary is created.
     private ProjectInfo getProjectInfo(Household household, String projectId) {
         String tenantId = household.getTenantId();
         ProjectInfo projectInfo = null;
-        if (StringUtils.isNotBlank(projectId)) {
+        String capturedProjectId = householdService.getProjectIdFromAdditionalFields(household.getAdditionalFields());
+        if (StringUtils.isNotBlank(capturedProjectId)) {
+            projectInfo = projectService.getProjectInfoByProjectId(capturedProjectId, tenantId);
+        }
+        if ((projectInfo == null || StringUtils.isBlank(projectInfo.getProjectId())) && StringUtils.isNotBlank(projectId)) {
             projectInfo = projectService.getProjectInfoByProjectId(projectId, tenantId);
         }
         if (projectInfo == null || StringUtils.isBlank(projectInfo.getProjectId())) {

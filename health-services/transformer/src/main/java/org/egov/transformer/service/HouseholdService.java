@@ -93,6 +93,24 @@ public class HouseholdService {
         return response != null && response.getHouseholdMembers() != null ? response.getHouseholdMembers() : Collections.emptyList();
     }
 
+    /**
+     * Project the household / household member was captured for, sent by the client as the "projectId" additional
+     * field. Returns null when it is not sent (older clients) or is an unresolved template value.
+     */
+    public String getProjectIdFromAdditionalFields(AdditionalFields additionalFields) {
+        if (additionalFields == null || additionalFields.getFields() == null) {
+            return null;
+        }
+        return additionalFields.getFields().stream()
+                .filter(field -> field != null && PROJECT_ID.equals(field.getKey()))
+                .map(Field::getValue)
+                .filter(StringUtils::isNotBlank)
+                .map(String::trim)
+                .filter(projectId -> !projectId.contains("{{"))
+                .findFirst()
+                .orElse(null);
+    }
+
     public void additionalFieldsToDetails(ObjectNode additionalDetails, Object additionalFields) {
         if (!(additionalFields instanceof List<?>)) {
             throw new IllegalArgumentException("additionalFields is not of the expected type List<Field>");
