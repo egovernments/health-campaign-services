@@ -811,8 +811,9 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
 
 async function validateProjectCampaignResources(resources: CampaignResource[] | undefined, request: any, CampaignDetails?: any) {
     const requiredTypes = ["user", "facility", "boundary"];
+    const unifiedResourceType = "unified-console-resources";
     // Use registry to allow all registered types (includes attendanceRegister, attendanceRegisterAttendee, etc.)
-    const allowedTypes = Array.from(new Set([...requiredTypes, "unified-console-resources", ...getAllAllowedTypes()]));
+    const allowedTypes = Array.from(new Set([...requiredTypes, unifiedResourceType, ...getAllAllowedTypes()]));
     const typeCounts: any = {};
 
     let missingTypes: string[] = [];
@@ -825,7 +826,7 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
     }
 
     // Check if this is a unified template campaign
-    const hasUnifiedResource = effectiveResources.some((resource: any) => resource?.type === "unified-console-resources");
+    const hasUnifiedResource = effectiveResources.some((resource: any) => resource?.type === unifiedResourceType);
 
     for (const resource of effectiveResources) {
         const { type } = resource;
@@ -869,6 +870,10 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
                 excludeTypes: ['attendanceRegisterAttendee']
             });
             const tableTypes = new Set(tableRows.map((r: any) => r.type));
+            if (tableTypes.has(unifiedResourceType)) {
+                logger.info(`Unified template campaign detected from eg_cm_resource_details table for campaign ${CampaignDetails.id} - skipping traditional resource validation`);
+                return;
+            }
             missingTypes = missingTypes.filter((t: string) => !tableTypes.has(t));
             if (missingTypes.length === 0) {
                 logger.info(`All required resource types found in eg_cm_resource_details table for campaign ${CampaignDetails.id}`);
