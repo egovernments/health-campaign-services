@@ -1,0 +1,323 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: eGov Notification Push
+  description: >
+    This module facilitates registration of device tokens and delivery of push notifications.
+  contact:
+    name: Digit
+    email: info@egovernments.org
+schemes:
+  - https
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  /egov-notification-push/device-token/v1/_register:
+    post:
+      summary: >-
+        Register device tokens
+      description: >-
+        Register device tokens for a user. Persistence is asynchronous via Kafka.
+      parameters:
+        - name: DeviceToken
+          in: body
+          description: Capture details of Device Tokens.
+          required: true
+          schema:
+            $ref: '#/definitions/DeviceTokenRequest'
+      tags:
+        - DeviceToken
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/DeviceTokenResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /egov-notification-push/device-token/v1/_unregister:
+    post:
+      summary: >-
+        Unregister device tokens
+      description: >-
+        Unregister device tokens. Returns no device tokens in the body.
+      parameters:
+        - name: DeviceToken
+          in: body
+          description: Details for the Device Tokens.
+          required: true
+          schema:
+            $ref: '#/definitions/DeviceTokenRequest'
+      tags:
+        - DeviceToken
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/DeviceTokenResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /egov-notification-push/device-token/v1/_delete:
+    post:
+      summary: >-
+        Delete device tokens
+      description: >-
+        Delete device token rows. Omitting facilityIds deletes all rows for the device token.
+      parameters:
+        - name: DeviceToken
+          in: body
+          description: Details for the Device Tokens.
+          required: true
+          schema:
+            $ref: '#/definitions/DeviceTokenRequest'
+      tags:
+        - DeviceToken
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/DeviceTokenResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /egov-notification-push/device-token/v1/_search:
+    post:
+      summary: >-
+        Search device tokens
+      description: >-
+        Fetch the most recently modified device token for each of the given users.
+      parameters:
+        - name: DeviceToken
+          in: body
+          description: Device Token search criteria.
+          required: true
+          schema:
+            $ref: '#/definitions/DeviceTokenSearchRequest'
+      tags:
+        - DeviceToken
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/DeviceTokenResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /egov-notification-push/push/v1/_send:
+    post:
+      summary: >-
+        Send a push notification
+      description: >-
+        Send a push notification to the given users and/or device tokens via FCM.
+      parameters:
+        - name: PushNotification
+          in: body
+          description: Capture details of the push notification.
+          required: true
+          schema:
+            $ref: '#/definitions/PushNotificationApiRequest'
+      tags:
+        - PushNotification
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/PushNotificationApiResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+definitions:
+  DeviceToken:
+    description: A representation of a registered device token.
+    type: object
+    required:
+      - userId
+      - deviceToken
+      - deviceType
+      - tenantId
+    properties:
+      id:
+        type: string
+        maxLength: 256
+        description: Unique system generated GUID
+        readOnly: true
+      userId:
+        type: string
+        maxLength: 256
+        description: Uuid of the user owning the device. Defaults to the logged-in user when blank.
+      deviceToken:
+        type: string
+        maxLength: 512
+        description: FCM registration token of the device
+      deviceType:
+        type: string
+        maxLength: 64
+        description: Platform of the device - ANDROID, IOS or WEB. Not validated by the service.
+        example: 'ANDROID'
+      tenantId:
+        type: string
+        maxLength: 256
+        description: Unique tenant of the system
+        example: 'mz'
+      facilityIds:
+        type: array
+        description: Facilities this device is registered against. One row is stored per facility.
+        items:
+          type: string
+          maxLength: 256
+      facilityId:
+        type: string
+        maxLength: 256
+        description: Single facility of a stored row. Returned by search, not sent on register.
+      userRoles:
+        type: string
+        maxLength: 1024
+        description: Comma-separated role codes, taken from RequestInfo on register.
+        example: 'WAREHOUSE_MANAGER,DISTRIBUTOR'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  DeviceTokenRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      deviceTokens:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/DeviceToken'
+    required:
+      - RequestInfo
+      - deviceTokens
+
+  DeviceTokenSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      userIds:
+        type: array
+        minItems: 1
+        description: Uuids of the users whose device tokens are to be fetched.
+        items:
+          type: string
+          maxLength: 256
+      tenantId:
+        type: string
+        maxLength: 256
+        description: Unique tenant of the system
+        example: 'mz'
+    required:
+      - RequestInfo
+      - userIds
+      - tenantId
+
+  DeviceTokenResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      deviceTokens:
+        type: array
+        description: Returned by register and search only.
+        items:
+          $ref: '#/definitions/DeviceToken'
+    required:
+      - ResponseInfo
+
+  PushNotificationApiRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      title:
+        type: string
+        description: Title of the notification.
+      body:
+        type: string
+        description: Body of the notification.
+      data:
+        type: object
+        description: Free-form string key-value payload delivered with the notification.
+        additionalProperties:
+          type: string
+      userUuids:
+        type: array
+        description: Recipients by user uuid, resolved to device tokens. Required unless deviceTokens is given.
+        items:
+          type: string
+      deviceTokens:
+        type: array
+        description: Recipients by raw device token. Required unless userUuids is given.
+        items:
+          type: string
+      tenantId:
+        type: string
+        maxLength: 256
+        description: Unique tenant of the system
+        example: 'mz'
+    required:
+      - RequestInfo
+      - title
+      - body
+      - tenantId
+
+  PushNotificationApiResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      message:
+        type: string
+        description: Number of devices the notification was sent to.
+        example: 'Push notification sent to 3 devices'
+    required:
+      - ResponseInfo

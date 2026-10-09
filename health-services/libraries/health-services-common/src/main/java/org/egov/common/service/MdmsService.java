@@ -11,7 +11,7 @@ import org.springframework.web.client.HttpClientErrorException;
 
 @Slf4j
 @Service
-@ConditionalOnExpression("!'${egov.mdms.integration.enabled}'.isEmpty() && ${egov.mdms.integration.enabled:false} && !'${egov.mdms.host}'.isEmpty() && !'${egov.mdms.master.name}'.isEmpty()  && !'${egov.mdms.search.endpoint}'.isEmpty()")
+@ConditionalOnExpression("!'${egov.mdms.integration.enabled}'.isEmpty() && ${egov.mdms.integration.enabled:false} && !'${egov.mdms.host}'.isEmpty() && !'${egov.mdms.search.endpoint}'.isEmpty()")
 public class MdmsService {
 
     private final ServiceRequestClient restRepo;

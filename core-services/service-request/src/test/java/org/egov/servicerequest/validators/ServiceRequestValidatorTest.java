@@ -1,5 +1,6 @@
 package org.egov.servicerequest.validators;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.helper.ServiceRequestTestBuilder;
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
@@ -46,7 +47,7 @@ public class ServiceRequestValidatorTest {
 
     @Test
     @DisplayName("should validate service request")
-    void shouldValidateServiceRequest() {
+    void shouldValidateServiceRequest() throws InvalidTenantIdException {
         ServiceRequest serviceRequest = ServiceRequestTestBuilder.builder().withServices().withRequestInfo().build();
 
         when(serviceDefinitionRequestRepository.getServiceDefinitions(any(ServiceDefinitionSearchRequest.class)))

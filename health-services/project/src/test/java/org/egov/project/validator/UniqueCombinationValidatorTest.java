@@ -1,5 +1,6 @@
 package org.egov.project.validator;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectResource;
@@ -47,10 +48,10 @@ class UniqueCombinationValidatorTest {
     private ProjectStaffRepository projectStaffRepository;
 
     @BeforeEach
-    void setUp() {
-        lenient().when(projectResourceRepository.findById(any(List.class), anyBoolean(), anyString()))
+    void setUp() throws InvalidTenantIdException {
+        lenient().when(projectResourceRepository.findById(anyString(), any(List.class), anyBoolean(), anyString()))
                 .thenReturn(Collections.emptyList());
-        lenient().when(projectStaffRepository.findById(any(List.class), anyBoolean(), anyString()))
+        lenient().when(projectStaffRepository.findById(anyString(), any(List.class), anyBoolean(), anyString()))
                 .thenReturn(Collections.emptyList());
     }
 

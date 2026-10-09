@@ -2,31 +2,30 @@ package org.egov.common.models.household;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.annotations.ApiModel;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.Boundary;
 import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
-import javax.validation.constraints.DecimalMax;
-import javax.validation.constraints.DecimalMin;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 
 /**
 * Representation of a address. Individual APIs may choose to extend from this using allOf if more details needed to be added in their case. 
 */
-    @ApiModel(description = "Representation of a address. Individual APIs may choose to extend from this using allOf if more details needed to be added in their case. ")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
+
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
+@Deprecated
 public class Address {
 
     @JsonProperty("id")
@@ -58,7 +57,6 @@ public class Address {
 
     @JsonProperty("locationAccuracy")
     @DecimalMin("0")
-    @DecimalMax("10000")
     private Double locationAccuracy = null;
 
     @JsonProperty("type")

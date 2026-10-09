@@ -2,6 +2,7 @@ package org.egov.project.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.project.service.ProjectBeneficiaryService;
@@ -38,7 +39,7 @@ public class ProjectBeneficiaryConsumer {
             BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
             return projectBeneficiaryService.create(request, true);
         } catch (Exception exception) {
-            log.error("error in project beneficiary consumer bulk create", exception);
+            log.error("error in project beneficiary consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -50,7 +51,7 @@ public class ProjectBeneficiaryConsumer {
             BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
             return projectBeneficiaryService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project beneficiary consumer bulk update", exception);
+            log.error("error in project beneficiary consumer bulk update", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -62,7 +63,7 @@ public class ProjectBeneficiaryConsumer {
             BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
             return projectBeneficiaryService.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project beneficiary consumer bulk delete", exception);
+            log.error("error in project beneficiary consumer bulk delete", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

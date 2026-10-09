@@ -46,14 +46,6 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 		        Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
 		        if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
 
-				if(request.getChartNode().get(IS_CAPPED_BY_CAMPAIGN_PERIOD) != null && request.getChartNode().get(IS_CAPPED_BY_CAMPAIGN_PERIOD).asBoolean()){
-					if(request.getFilters()!=null && request.getFilters().containsKey(CAMPAIGN_START_DATE) && request.getFilters().containsKey(CAMPAIGN_END_DATE)) {
-						Long campaignStartDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_START_DATE)));
-						Long campaignEndDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_END_DATE)));
-						Long campaignDateDifference = TimeUnit.DAYS.convert((campaignEndDate - campaignStartDate), TimeUnit.MILLISECONDS);
-						dateDifference = Math.min(dateDifference, campaignDateDifference);
-					}
-				}
 				for(Data eachData : data) { 
 						Double value = (Double) eachData.getHeaderValue();
 						logger.info("Value is : " + value + " :: Date Difference is : " + dateDifference);
@@ -61,6 +53,49 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 						eachData.setHeaderValue(value);
 				}
 			} catch (Exception ex) { 
+				logger.error("Encountered an error while computing the logic in Target Date Computer : " + ex.getMessage());
+			}
+		}
+		return data;
+	}
+
+
+	@Override
+	public List<Data> compute(AggregateRequestDto request, List<Data> data, List<Data> capValues) {
+		if(request.getRequestDate()!= null && request.getRequestDate().getStartDate() != null && request.getRequestDate().getEndDate() != null) {
+			try {
+				Long sDate = Long.parseLong(request.getRequestDate().getStartDate());
+				logger.info("Start Date : " + String.valueOf(sDate));
+				Long eDate = Long.parseLong(request.getRequestDate().getEndDate());
+				logger.info("End Date : " + String.valueOf(eDate));
+				Calendar cal = Calendar.getInstance();
+				cal.setTime(new Date(eDate));
+				if(cal.get(Calendar.HOUR_OF_DAY) == LAST_HOUR && cal.get(Calendar.MINUTE) == LAST_MINUTE) {
+					eDate = eDate + ROUND_OFF;
+				}
+				logger.info("End Date after Round Off: " + String.valueOf(eDate));
+				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
+				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+
+				for(Data eachData : data) {
+					Double value = (Double) eachData.getHeaderValue();
+					logger.info("Value is : " + value + " :: Date Difference is : " + dateDifference);
+					if(request.getChartNode().get(IS_CAPPED_BY_CAMPAIGN_PERIOD) != null && capValues.size()>0){
+						if(request.getFilters()!=null && request.getFilters().containsKey(CAMPAIGN_START_DATE) && request.getFilters().containsKey(CAMPAIGN_END_DATE)) {
+							Long campaignStartDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_START_DATE)));
+							Long campaignEndDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_END_DATE)));
+							Long campaignDateDifference = TimeUnit.DAYS.convert((campaignEndDate - campaignStartDate), TimeUnit.MILLISECONDS);
+							if (dateDifference >= campaignDateDifference) {
+								Double capValue = (Double) capValues.get(0).getHeaderValue();
+								eachData.setHeaderValue(capValue);
+								continue;
+							}
+						}
+					}
+					value = (value / NUMBER_OF_DAYS) * dateDifference;
+					eachData.setHeaderValue(value);
+				}
+			} catch (Exception ex) {
 				logger.error("Encountered an error while computing the logic in Target Date Computer : " + ex.getMessage());
 			}
 		}
@@ -86,6 +121,49 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
 
 				value = (value / NUMBER_OF_DAYS) * dateDifference;
+				logger.info("Value is : " + value + " :: Date Difference is : " + dateDifference);
+
+			} catch (Exception ex) {
+				logger.error("Encountered an error while computing the logic in Target Date Computer : " + ex.getMessage());
+			}
+		}
+
+		return value;
+
+
+
+	}
+
+	@Override
+	public Double compute(AggregateRequestDto request, double value, double capTotal){
+
+		if(request.getRequestDate()!= null && request.getRequestDate().getStartDate() != null && request.getRequestDate().getEndDate() !=null) {
+			try {
+				Long sDate = Long.parseLong(request.getRequestDate().getStartDate());
+				logger.info("Start Date : " + String.valueOf(sDate));
+				Long eDate = Long.parseLong(request.getRequestDate().getEndDate());
+				logger.info("End Date : " + String.valueOf(eDate));
+				Calendar cal = Calendar.getInstance();
+				cal.setTime(new Date(eDate));
+				if(cal.get(Calendar.HOUR_OF_DAY) == LAST_HOUR && cal.get(Calendar.MINUTE) == LAST_MINUTE) {
+					eDate = eDate + ROUND_OFF;
+				}
+				logger.info("End Date after Round Off: " + String.valueOf(eDate));
+				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
+				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+
+				value = (value / NUMBER_OF_DAYS) * dateDifference;
+
+				if(request.getChartNode().get(IS_CAPPED_BY_CAMPAIGN_PERIOD) != null ){
+					if(request.getFilters()!=null && request.getFilters().containsKey(CAMPAIGN_START_DATE) && request.getFilters().containsKey(CAMPAIGN_END_DATE)) {
+						Long campaignStartDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_START_DATE)));
+						Long campaignEndDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_END_DATE)));
+						Long campaignDateDifference = TimeUnit.DAYS.convert((campaignEndDate - campaignStartDate), TimeUnit.MILLISECONDS);
+						if (dateDifference >= campaignDateDifference) {
+							value = capTotal;
+						}
+					}
+				}
 				logger.info("Value is : " + value + " :: Date Difference is : " + dateDifference);
 
 			} catch (Exception ex) {

@@ -1,5 +1,6 @@
 package org.egov.project.validator.facility;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
@@ -35,11 +36,11 @@ class PfRowVersionValidatorTest {
 
     @Test
     @DisplayName("should add to error if row version mismatch found")
-    void shouldAddToErrorDetailsIfRowVersionMismatchFound() {
+    void shouldAddToErrorDetailsIfRowVersionMismatchFound() throws InvalidTenantIdException {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
-                .withOneProjectFacilityHavingId("some-id").withRequestInfo().build();
+                .withOneProjectFacilityHavingIdAndTenantId("some-id", "some-tenant-id").withRequestInfo().build();
         request.getProjectFacilities().get(0).setRowVersion(2);
-        when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(facilityRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(ProjectFacilityTestBuilder.builder().withId("some-id").build()));
 
         Map<ProjectFacility, List<Error>> errorDetailsMap = pfRowVersionValidator.validate(request);
@@ -49,11 +50,13 @@ class PfRowVersionValidatorTest {
 
     @Test
     @DisplayName("should not add to error if row version is similar")
-    void shouldNotAddToErrorDetailsIfRowVersionSimilar() {
+    void shouldNotAddToErrorDetailsIfRowVersionSimilar() throws InvalidTenantIdException {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
-                .withOneProjectFacilityHavingId("some-id").withRequestInfo().build();
-        when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
+                .withOneProjectFacilityHavingIdAndTenantId("some-id", "some-tenant-id")
+                .withRequestInfo().build();
+        when(facilityRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(ProjectFacilityTestBuilder.builder()
+                                .withTenantId("some-tenant-id")
                         .withId("some-id").build()));
 
         Map<ProjectFacility, List<Error>> errorDetailsMap = pfRowVersionValidator.validate(request);

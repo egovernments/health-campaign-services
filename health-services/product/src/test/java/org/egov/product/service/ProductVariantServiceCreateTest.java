@@ -1,6 +1,7 @@
 package org.egov.product.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.product.ProductVariantRequest;
 import org.egov.common.service.IdGenService;
@@ -24,9 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -66,8 +65,8 @@ class ProductVariantServiceCreateTest {
         lenient().when(productConfiguration.getCreateProductVariantTopic()).thenReturn("create-topic");
     }
 
-    private void mockValidateProductId() {
-        lenient().when(productService.validateProductId(any(List.class)))
+    private void mockValidateProductId() throws InvalidTenantIdException {
+        lenient().when(productService.validateProductId(anyString(), any(List.class)))
                 .thenReturn(Collections.singletonList("some-product-id"));
     }
 
@@ -122,17 +121,17 @@ class ProductVariantServiceCreateTest {
     @DisplayName("should validate correct product id")
     void shouldValidateCorrectProductId() throws Exception {
         List<String> validProductIds = new ArrayList<>(Collections.singleton("some-product-id"));
-        when(productService.validateProductId(any(List.class))).thenReturn(validProductIds);
+        when(productService.validateProductId(anyString(), any(List.class))).thenReturn(validProductIds);
 
         List<ProductVariant> productVariants = productVariantService.create(request);
 
-        verify(productService, times(1)).validateProductId(any(List.class));
+        verify(productService, times(1)).validateProductId(anyString(), any(List.class));
     }
 
     @Test
     @DisplayName("should throw exception for any invalid product id")
     void shouldThrowExceptionForAnyInvalidProductId() throws Exception {
-        when(productService.validateProductId(any(List.class))).thenReturn(Collections.emptyList());
+        when(productService.validateProductId(anyString(), anyList())).thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> productVariantService.create(request));
     }

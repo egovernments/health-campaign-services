@@ -1,6 +1,7 @@
 package org.egov.project.validator.facility;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
@@ -21,8 +22,10 @@ import static org.egov.common.utils.CommonUtils.getEntitiesWithMismatchedRowVers
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
 
 @Component
@@ -47,17 +50,26 @@ public class PfRowVersionValidator implements Validator<ProjectFacilityBulkReque
                 .collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
             Method idMethod = getIdMethod(validEntities);
+            String tenantId = getTenantId(validEntities);
             Map<String, ProjectFacility> eMap = getIdToObjMap(validEntities, idMethod);
             if (!eMap.isEmpty()) {
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
-                List<ProjectFacility> existingEntities = repository.findById(entityIds, false,
-                        getIdFieldName(idMethod));
-                List<ProjectFacility> entitiesWithMismatchedRowVersion =
-                        getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
-                entitiesWithMismatchedRowVersion.forEach(projectFacility -> {
-                    Error error = getErrorForRowVersionMismatch();
-                    populateErrorDetails(projectFacility, error, errorDetailsMap);
-                });
+                try {
+                    List<ProjectFacility> existingEntities = repository.findById(tenantId, entityIds, false,
+                            getIdFieldName(idMethod));
+                    List<ProjectFacility> entitiesWithMismatchedRowVersion =
+                            getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
+                    entitiesWithMismatchedRowVersion.forEach(projectFacility -> {
+                        Error error = getErrorForRowVersionMismatch();
+                        populateErrorDetails(projectFacility, error, errorDetailsMap);
+                    });
+                } catch (InvalidTenantIdException exception) {
+                    // Populating InvalidTenantIdException for all entities
+                    validEntities.forEach(projectFacility -> {
+                        Error error = getErrorForInvalidTenantId(tenantId, exception);
+                        populateErrorDetails(projectFacility, error, errorDetailsMap);
+                    });
+                }
             }
         }
         return errorDetailsMap;

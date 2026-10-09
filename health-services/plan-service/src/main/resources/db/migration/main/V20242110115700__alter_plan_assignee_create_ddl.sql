@@ -1,0 +1,1 @@
+ALTER TABLE plan ALTER COLUMN assignee TYPE TEXT;

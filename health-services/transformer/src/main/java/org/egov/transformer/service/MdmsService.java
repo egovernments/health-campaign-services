@@ -2,7 +2,7 @@ package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
-import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
