@@ -137,11 +137,11 @@ public class ProjectEnrichment {
     public void enrichProjectCascadingDatesOnUpdate(Project project, Project projectFromDB, RequestInfo requestInfo)
     {
         // enrich project start and end dates along with ancestors and descendants
-        enrichProjectStartAndEndDateOfBothAncestorsAndDescendantsIfFoundAccordingly(project,
+        cascadeDatesToAncestorsAndDescendants(project,
             projectFromDB, requestInfo);
     }
 
-    private void enrichProjectStartAndEndDateOfBothAncestorsAndDescendantsIfFoundAccordingly(
+    private void cascadeDatesToAncestorsAndDescendants(
         Project projectRequest, Project projectFromDB, RequestInfo requestInfo) {
         long startDate = projectRequest.getStartDate();
         long endDate = projectRequest.getEndDate();
@@ -149,17 +149,17 @@ public class ProjectEnrichment {
         /*
          * Update both cycle dates and project start and end dates of descendants
          */
-        updateProjects(projectRequest, projectFromDB, startDate, endDate, true, requestInfo);
+        applyAndPublishCascadedDates(projectRequest, projectFromDB, startDate, endDate, true, requestInfo);
 
         /*
          * Update both cycle dates and project start and end dates of ancestors in a way like start date = min(current, existing)
          * and end date = max(current, existing)
          */
-        updateProjects(projectRequest, projectFromDB, startDate, endDate, false, requestInfo);
+        applyAndPublishCascadedDates(projectRequest, projectFromDB, startDate, endDate, false, requestInfo);
     }
 
 
-    private void updateProjects(Project projectRequest, Project projectFromDB, long startDate, long endDate, boolean isDescendant, RequestInfo requestInfo) {
+    private void applyAndPublishCascadedDates(Project projectRequest, Project projectFromDB, long startDate, long endDate, boolean isDescendant, RequestInfo requestInfo) {
         /*
          * Get the list of projects from the database that are either descendants or ancestors
          */
@@ -171,12 +171,12 @@ public class ProjectEnrichment {
                 /*
                  * Update the project dates based on whether it is a descendant or ancestor
                  */
-                updateProjectDates(project, startDate, endDate, isDescendant);
+                applyCascadedDates(project, startDate, endDate, isDescendant);
 
                 /*
                  * Update the project cycles based on the request and whether it is a descendant or ancestor
                  */
-                updateCycles(project, projectRequest, isDescendant);
+                applyCascadedCycleDates(project, projectRequest, isDescendant);
 
                 /*
                  * Add the modified project to the list
@@ -191,7 +191,7 @@ public class ProjectEnrichment {
         }
     }
 
-    private void updateProjectDates(Project project, long startDate, long endDate, boolean isDescendant) {
+    private void applyCascadedDates(Project project, long startDate, long endDate, boolean isDescendant) {
         if (isDescendant) {
             /*
              * For descendant projects, directly set the start and end dates
@@ -212,7 +212,7 @@ public class ProjectEnrichment {
     }
 
 
-    private void updateCycles(Project descendantOrAncestor, Project projectRequest, boolean isDescendant) {
+    private void applyCascadedCycleDates(Project descendantOrAncestor, Project projectRequest, boolean isDescendant) {
         if (descendantOrAncestor.getAdditionalDetails() == null) {
             return;
         }
