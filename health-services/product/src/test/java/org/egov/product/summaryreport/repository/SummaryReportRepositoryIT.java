@@ -114,13 +114,14 @@ class SummaryReportRepositoryIT {
 
     /** Expected stock: delivered task_resource whose parent task is in a treated status. */
     private long directStock(String schema, String createdBy) {
+        String effectiveTs = "COALESCE(pt.actualenddate, pt.actualstartdate, tr.createdtime)";
         String sql = "SELECT COALESCE(SUM(tr.quantity),0) FROM " + schema + ".task_resource tr "
                 + " JOIN " + schema + ".project_task pt ON pt.id = tr.taskid AND pt.tenantid = tr.tenantid "
                 + " WHERE tr.createdby = :cb AND tr.tenantid = :t "
                 + " AND (tr.isdeleted = false OR tr.isdeleted IS NULL) AND tr.isdelivered = true "
                 + " AND (pt.isdeleted = false OR pt.isdeleted IS NULL) "
                 + " AND pt.status IN ('ADMINISTRATION_SUCCESS','VISITED') "
-                + " AND tr.createdtime >= :s AND tr.createdtime <= :e";
+                + " AND " + effectiveTs + " >= :s AND " + effectiveTs + " <= :e";
         Long c = jdbc.queryForObject(sql, new MapSqlParameterSource()
                 .addValue("cb", createdBy).addValue("t", schema)
                 .addValue("s", START).addValue("e", END), Long.class);

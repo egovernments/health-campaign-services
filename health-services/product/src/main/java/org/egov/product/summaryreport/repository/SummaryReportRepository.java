@@ -75,6 +75,17 @@ public class SummaryReportRepository {
                 + "', 'YYYY-MM-DD')";
     }
 
+    /**
+     * Effective delivery timestamp for task-resource aggregation.
+     * <p>
+     * We prefer the task's domain event time (actualEndDate/actualStartDate) and only
+     * fall back to resource createdTime when actual dates are unavailable. This keeps
+     * stock-consumption day bucketing aligned with field-event dates instead of sync time.
+     */
+    private String taskDeliveryEpochExpr() {
+        return "COALESCE(pt.actualenddate, pt.actualstartdate, tr.createdtime)";
+    }
+
     /** Resolves the {schema} placeholder for the given tenant (central-instance aware). */
     private String resolveSchema(String query, String tenantId) {
         try {
@@ -187,7 +198,8 @@ public class SummaryReportRepository {
     public Map<String, Map<String, Long>> stockConsumedByDay(String createdBy, String tenantId,
                                                              Long startDate, Long endDate) {
         List<String> statuses = config.getTreatedStatuses();
-        String sql = "SELECT " + dayExpr(tenantId, "tr.createdtime") + " AS day, tr.productvariantid AS pv, "
+        String effectiveTs = taskDeliveryEpochExpr();
+        String sql = "SELECT " + dayExpr(tenantId, effectiveTs) + " AS day, tr.productvariantid AS pv, "
                 + "COALESCE(SUM(tr.quantity), 0) AS qty "
                 + "FROM " + SCHEMA_REPLACE_STRING + ".task_resource tr "
                 + "JOIN " + SCHEMA_REPLACE_STRING + ".project_task pt "
@@ -198,7 +210,7 @@ public class SummaryReportRepository {
                 + "AND tr.isdelivered = true "
                 + "AND (pt.isdeleted = false OR pt.isdeleted IS NULL) "
                 + "AND pt.status IN (:statuses) "
-                + "AND tr.createdtime >= :startDate AND tr.createdtime <= :endDate "
+                + "AND " + effectiveTs + " >= :startDate AND " + effectiveTs + " <= :endDate "
                 + "GROUP BY day, tr.productvariantid";
         sql = resolveSchema(sql, tenantId);
         MapSqlParameterSource params = baseParams(createdBy, tenantId, startDate, endDate);
