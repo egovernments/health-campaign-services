@@ -22,8 +22,11 @@ public class PushProperties {
     @Value("${fcm.enabled}")
     private Boolean fcmEnabled;
 
-    @Value("${fcm.service-account-key-json}")
+    @Value("${fcm.service-account-key-json:}")
     private String fcmServiceAccountKeyJson;
+
+    @Value("${fcm.tenant-project-map-json:}")
+    private String fcmTenantProjectMapJson;
 
     @Value("${fcm.batch.size}")
     private Integer fcmBatchSize;

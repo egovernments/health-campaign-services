@@ -3,6 +3,8 @@ package org.egov.web.notification.push.service;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.egov.web.notification.push.config.FcmClientRegistry;
+import org.egov.web.notification.push.config.FcmClientRegistry.FcmClient;
 import org.egov.web.notification.push.config.PushProperties;
 import org.egov.web.notification.push.consumer.contract.PushNotificationRequest;
 import org.egov.web.notification.push.utils.ErrorConstants;
@@ -13,7 +15,6 @@ import org.springframework.stereotype.Service;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.firebase.messaging.BatchResponse;
-import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MulticastMessage;
@@ -28,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 public class FirebasePushService implements PushNotificationService {
 
     @Autowired
-    private FirebaseMessaging firebaseMessaging;
+    private FcmClientRegistry fcmClientRegistry;
 
     @Autowired
     private PushProperties pushProperties;
@@ -45,19 +46,26 @@ public class FirebasePushService implements PushNotificationService {
             return;
         }
 
+        FcmClient client = fcmClientRegistry.forTenant(request.getTenantId()).orElse(null);
+        if (client == null) {
+            log.warn("PUSH_SKIP reason=NO_FCM_PROJECT tenantId={} title={} facilityId={} data={}",
+                    request.getTenantId(), request.getTitle(), request.getFacilityId(), request.getData());
+            return;
+        }
+
         Notification notification = Notification.builder()
                 .setTitle(request.getTitle())
                 .setBody(request.getBody())
                 .build();
 
         if (tokens.size() == 1) {
-            sendSingleMessage(notification, request, tokens.get(0));
+            sendSingleMessage(client, notification, request, tokens.get(0));
         } else {
-            sendMulticastMessage(notification, request, tokens);
+            sendMulticastMessage(client, notification, request, tokens);
         }
     }
 
-    private void sendSingleMessage(Notification notification, PushNotificationRequest request, String token) {
+    private void sendSingleMessage(FcmClient client, Notification notification, PushNotificationRequest request, String token) {
         try {
             Message.Builder builder = Message.builder()
                     .setNotification(notification)
@@ -67,19 +75,19 @@ public class FirebasePushService implements PushNotificationService {
                 builder.putAllData(request.getData());
             }
 
-            String response = firebaseMessaging.send(builder.build());
-            log.info("PUSH_FCM_OK single messageId={} tokenSuffix={} title={} data={}",
-                    response, DeviceTokenService.tokenSuffix(token), request.getTitle(), request.getData());
+            String response = client.messaging().send(builder.build());
+            log.info("PUSH_FCM_OK single projectId={} messageId={} tokenSuffix={} title={} data={}",
+                    client.projectId(), response, DeviceTokenService.tokenSuffix(token), request.getTitle(), request.getData());
         } catch (FirebaseMessagingException e) {
-            log.error("PUSH_FCM_FAIL single tokenSuffix={} errorCode={} title={} data={}: {}",
-                    DeviceTokenService.tokenSuffix(token),
+            log.error("PUSH_FCM_FAIL single projectId={} tokenSuffix={} errorCode={} title={} data={}: {}",
+                    client.projectId(), DeviceTokenService.tokenSuffix(token),
                     e.getMessagingErrorCode() != null ? e.getMessagingErrorCode().name() : "UNKNOWN",
                     request.getTitle(), request.getData(), e.getMessage());
-            handleMessagingError(e, token, request.getTenantId());
+            handleMessagingError(client, e, token, request.getTenantId());
         }
     }
 
-    private void sendMulticastMessage(Notification notification, PushNotificationRequest request, List<String> tokens) {
+    private void sendMulticastMessage(FcmClient client, Notification notification, PushNotificationRequest request, List<String> tokens) {
         int chunkSize = Math.min(pushProperties.getFcmSendChunkSize(), 500);
 
         List<List<String>> chunks = new ArrayList<>();
@@ -97,7 +105,7 @@ public class FirebasePushService implements PushNotificationService {
             }
 
             chunks.add(chunk);
-            futures.add(firebaseMessaging.sendEachForMulticastAsync(builder.build()));
+            futures.add(client.messaging().sendEachForMulticastAsync(builder.build()));
         }
 
         try {
@@ -110,34 +118,37 @@ public class FirebasePushService implements PushNotificationService {
                 success += response.getSuccessCount();
                 failure += response.getFailureCount();
                 if (response.getFailureCount() > 0) {
-                    handleBatchFailures(response.getResponses(), chunks.get(i), request.getTenantId());
+                    handleBatchFailures(client, response.getResponses(), chunks.get(i), request.getTenantId());
                 }
             }
             if (failure > 0) {
-                log.warn("PUSH_FCM_PARTIAL multicast success={} failure={} title={} facilityId={} data={}",
-                        success, failure, request.getTitle(), request.getFacilityId(), request.getData());
+                log.warn("PUSH_FCM_PARTIAL multicast projectId={} success={} failure={} title={} facilityId={} data={}",
+                        client.projectId(), success, failure, request.getTitle(), request.getFacilityId(), request.getData());
             } else {
-                log.info("PUSH_FCM_OK multicast success={} title={} facilityId={} data={}",
-                        success, request.getTitle(), request.getFacilityId(), request.getData());
+                log.info("PUSH_FCM_OK multicast projectId={} success={} title={} facilityId={} data={}",
+                        client.projectId(), success, request.getTitle(), request.getFacilityId(), request.getData());
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("PUSH_FCM_FAIL multicast interrupted title={} data={}: {}",
-                    request.getTitle(), request.getData(), e.getMessage());
+            log.error("PUSH_FCM_FAIL multicast interrupted projectId={} title={} data={}: {}",
+                    client.projectId(), request.getTitle(), request.getData(), e.getMessage());
         } catch (Exception e) {
-            log.error("PUSH_FCM_FAIL multicast title={} facilityId={} data={}: {}",
-                    request.getTitle(), request.getFacilityId(), request.getData(), e.getMessage(), e);
+            log.error("PUSH_FCM_FAIL multicast projectId={} title={} facilityId={} data={}: {}",
+                    client.projectId(), request.getTitle(), request.getFacilityId(), request.getData(), e.getMessage(), e);
         }
     }
 
-    private void handleBatchFailures(List<SendResponse> responses, List<String> tokens, String tenantId) {
+    private void handleBatchFailures(FcmClient client, List<SendResponse> responses, List<String> tokens, String tenantId) {
         List<String> unregisteredTokens = new ArrayList<>();
+        int senderMismatch = 0;
         for (int i = 0; i < responses.size(); i++) {
             if (!responses.get(i).isSuccessful()) {
                 FirebaseMessagingException ex = responses.get(i).getException();
                 if (ex != null && ex.getMessagingErrorCode() != null
                         && ErrorConstants.FCM_ERROR_UNREGISTERED.equals(ex.getMessagingErrorCode().name())) {
                     unregisteredTokens.add(tokens.get(i));
+                } else if (isSenderIdMismatch(ex)) {
+                    senderMismatch++;
                 }
                 log.warn("PUSH_FCM_TOKEN_FAIL tokenSuffix={} errorCode={}: {}",
                         DeviceTokenService.tokenSuffix(tokens.get(i)),
@@ -145,18 +156,33 @@ public class FirebasePushService implements PushNotificationService {
                         ex != null ? ex.getMessage() : "unknown error");
             }
         }
+        if (senderMismatch > 0) {
+            logSenderIdMismatch(client, tenantId, senderMismatch);
+        }
         if (!unregisteredTokens.isEmpty()) {
             log.info("Cleaning up {} unregistered token(s)", unregisteredTokens.size());
             deviceTokenService.deleteStaleTokens(unregisteredTokens, tenantId);
         }
     }
 
-    private void handleMessagingError(FirebaseMessagingException e, String token, String tenantId) {
+    private void handleMessagingError(FcmClient client, FirebaseMessagingException e, String token, String tenantId) {
         if (e.getMessagingErrorCode() != null
                 && ErrorConstants.FCM_ERROR_UNREGISTERED.equals(e.getMessagingErrorCode().name())) {
             log.info("Cleaning up unregistered token: {}", token);
             deviceTokenService.deleteStaleTokens(List.of(token), tenantId);
+        } else if (isSenderIdMismatch(e)) {
+            logSenderIdMismatch(client, tenantId, 1);
         }
+    }
+
+    private boolean isSenderIdMismatch(FirebaseMessagingException e) {
+        return e != null && e.getMessagingErrorCode() != null
+                && ErrorConstants.FCM_ERROR_SENDER_ID_MISMATCH.equals(e.getMessagingErrorCode().name());
+    }
+
+    private void logSenderIdMismatch(FcmClient client, String tenantId, int count) {
+        log.error("PUSH_FCM_SENDER_ID_MISMATCH projectId={} tenantId={} count={}: tokens belong to a different FCM project, check FCM_TENANT_PROJECT_MAP_JSON",
+                client.projectId(), tenantId, count);
     }
 
 }

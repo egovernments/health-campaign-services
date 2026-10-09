@@ -1,6 +1,7 @@
 package org.egov.web.notification.push.service;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -12,9 +13,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import org.egov.web.notification.push.config.FcmClientRegistry;
+import org.egov.web.notification.push.config.FcmClientRegistry.FcmClient;
 import org.egov.web.notification.push.config.PushProperties;
 import org.egov.web.notification.push.consumer.contract.PushNotificationRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -40,6 +45,15 @@ class FirebasePushServiceTest {
 
     @Mock
     private FirebaseMessaging firebaseMessaging;
+
+    @Mock
+    private FcmClientRegistry fcmClientRegistry;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(fcmClientRegistry.forTenant(any()))
+                .thenReturn(Optional.of(new FcmClient("test-project", firebaseMessaging)));
+    }
 
     @Mock
     private PushProperties pushProperties;
@@ -179,6 +193,23 @@ class FirebasePushServiceTest {
                 .thenReturn(ApiFutures.immediateFailedFuture(new RuntimeException("send failed")));
 
         assertDoesNotThrow(() -> firebasePushService.sendPushNotification(request));
+    }
+
+    @Test
+    void sendPushNotification_noFcmProjectForTenant_skips() throws Exception {
+        PushNotificationRequest request = PushNotificationRequest.builder()
+                .title("Title")
+                .body("Body")
+                .tenantId("unknown")
+                .deviceTokens(Arrays.asList("tok1", "tok2"))
+                .build();
+
+        when(fcmClientRegistry.forTenant("unknown")).thenReturn(Optional.empty());
+
+        firebasePushService.sendPushNotification(request);
+
+        verify(firebaseMessaging, never()).send(any(Message.class));
+        verify(firebaseMessaging, never()).sendEachForMulticastAsync(any(MulticastMessage.class));
     }
 
     private BatchResponse createBatchResponse(int successCount, int failureCount) {
