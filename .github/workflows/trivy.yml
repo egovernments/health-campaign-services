@@ -48,8 +48,8 @@ env:
   TRIVY_SKIP_DIRS: '.git,**/node_modules,**/target,**/dist,**/.venv'
 
 jobs:
-  filesystem-scan:
-    name: Filesystem & Secret Scan
+  filesystem-vuln-scan:
+    name: Filesystem Vulnerability Scan
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -63,6 +63,11 @@ jobs:
 
       - name: Run Trivy filesystem vulnerability scan
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        env:
+          # Trivy's Maven analyzer resolves parent POMs over the network by default.
+          # Across ~40 modules that overruns any sane timeout, so resolve offline.
+          TRIVY_OFFLINE_SCAN: 'true'
+          TRIVY_SKIP_VERSION_CHECK: 'true'
         with:
           scan-type: fs
           scan-ref: .
@@ -72,11 +77,41 @@ jobs:
           severity: CRITICAL,HIGH,MEDIUM
           limit-severities-for-sarif: true
           skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
-          timeout: 25m
+          timeout: 30m
           exit-code: 0
+
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: trivy-fs-vuln-results
+          path: trivy-fs-vuln.sarif
+          retention-days: 5
+
+      - name: Upload vulnerability SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs-vuln.sarif
+          category: trivy-fs-vuln
+
+  secret-scan:
+    # Deliberately a separate job, not a second step: a slow or failing
+    # vulnerability scan must not stop the secret scan from running.
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Run Trivy secret scan
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        env:
+          TRIVY_SKIP_VERSION_CHECK: 'true'
         with:
           scan-type: fs
           scan-ref: .
@@ -86,23 +121,15 @@ jobs:
           severity: CRITICAL,HIGH,MEDIUM
           limit-severities-for-sarif: true
           skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
-          timeout: 25m
+          timeout: 30m
           exit-code: 0
 
-      - name: Upload SARIF artifacts
+      - name: Upload SARIF artifact
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
-          name: trivy-fs-results
-          path: |
-            trivy-fs-vuln.sarif
-            trivy-fs-secret.sarif
+          name: trivy-fs-secret-results
+          path: trivy-fs-secret.sarif
           retention-days: 5
-
-      - name: Upload vulnerability SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-fs-vuln.sarif
-          category: trivy-fs-vuln
 
       - name: Upload secret SARIF to code scanning
         uses: github/codeql-action/upload-sarif@v3
