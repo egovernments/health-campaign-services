@@ -24,8 +24,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.List;
+import org.egov.requestvalidation.ValidateRequest;
 
 @Slf4j
+@ValidateRequest
 @Controller
 @RequestMapping("/beneficiary-downsync")
 @Validated
