@@ -6,6 +6,7 @@ on:
       - allValidations
       - master
       - master-excelIngestionInitPattern
+      - HCMPRE-1437-master-c5dff1d
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
