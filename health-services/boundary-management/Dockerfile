@@ -19,7 +19,7 @@ ENV COMMIT_ID=$COMMIT_ID
 ENV NODE_OPTIONS="--max-old-space-size=1024"
 
 # Copy package.json and yarn.lock (if exists)
-COPY package.json ./
+COPY package.json yarn.lock ./
 
 # Install dependencies
 RUN yarn install
