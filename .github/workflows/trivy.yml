@@ -4,13 +4,19 @@
 
 # Trivy security scanning:
 #   1. filesystem-scan   - scans the whole repo for vulnerable dependencies (npm/maven/pip)
-#                           and leaked secrets.
-#   2. discover-dockerfiles / image-scan - builds and scans Docker images with Trivy.
-#                           On pull requests, only Dockerfiles changed in the PR are built
-#                           to keep CI fast. On push to master, schedule, and manual runs,
-#                           every Dockerfile in the repo is built and scanned.
+#                           and leaked secrets. Vulnerability and secret scanning run as two
+#                           separate steps so a slow secret scan cannot starve the vuln scan.
+#   2. discover-images / image-scan - builds and scans Docker images with Trivy.
+#                           The image matrix is derived from build/build-config.yml so that
+#                           images are built exactly the way .github/workflows/build.yaml
+#                           builds them (repo root as context + WORK_DIR build-arg, except
+#                           for *-db flyway images which build from their own work-dir).
+#                           On pull requests, only images whose sources changed in the PR are
+#                           built, to keep CI fast. On push to master, schedule and manual
+#                           runs, every image in build-config.yml is built and scanned.
 # All scans are report-only: results are uploaded to the GitHub Security tab
-# (Code scanning alerts) and never fail the build.
+# (Code scanning alerts) and never fail the build. Images that fail to build are
+# reported as warnings in the job summary instead of silently passing.
 
 name: Trivy Security Scan
 
@@ -22,14 +28,30 @@ on:
   schedule:
     - cron: '0 3 * * 1'
   workflow_dispatch:
+    inputs:
+      image_filter:
+        description: 'Only scan images whose image-name or work-dir matches this regex (empty = all)'
+        required: false
+        default: ''
+        type: string
+      skip_image_scan:
+        description: 'Skip the Docker image scans and run only the filesystem/secret scan'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
+
+env:
+  # Shared across scans; the repo is large, so the 5m Trivy default is not enough.
+  TRIVY_SKIP_DIRS: '.git,**/node_modules,**/target,**/dist,**/.venv'
 
 jobs:
   filesystem-scan:
     name: Filesystem & Secret Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: read
       security-events: write
@@ -39,32 +61,58 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run Trivy filesystem & secret scan
+      - name: Run Trivy filesystem vulnerability scan
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
-          scanners: vuln,secret
+          scanners: vuln
           format: sarif
-          output: trivy-fs-results.sarif
+          output: trivy-fs-vuln.sarif
           severity: CRITICAL,HIGH,MEDIUM
+          limit-severities-for-sarif: true
+          skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
+          timeout: 25m
           exit-code: 0
 
-      - name: Upload SARIF artifact
+      - name: Run Trivy secret scan
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          format: sarif
+          output: trivy-fs-secret.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          limit-severities-for-sarif: true
+          skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
+          timeout: 25m
+          exit-code: 0
+
+      - name: Upload SARIF artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: trivy-fs-results
-          path: trivy-fs-results.sarif
+          path: |
+            trivy-fs-vuln.sarif
+            trivy-fs-secret.sarif
           retention-days: 5
 
-      - name: Upload SARIF to code scanning
+      - name: Upload vulnerability SARIF to code scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-fs-results.sarif
-          category: trivy-fs
+          sarif_file: trivy-fs-vuln.sarif
+          category: trivy-fs-vuln
 
-  discover-dockerfiles:
-    name: Discover Dockerfiles to scan
+      - name: Upload secret SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs-secret.sarif
+          category: trivy-fs-secret
+
+  discover-images:
+    name: Discover images to scan
+    if: github.event.inputs.skip_image_scan != 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -75,34 +123,111 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Determine Dockerfiles to scan
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          VERSION="4.30.8"
+          curl -sSL "https://github.com/mikefarah/yq/releases/download/v${VERSION}/yq_linux_amd64" -o /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+
+      - name: Build image matrix from build/build-config.yml
         id: set-matrix
+        env:
+          IMAGE_FILTER: ${{ github.event.inputs.image_filter }}
+          MAX_JOBS: '120'
         run: |
           set -euo pipefail
 
+          # 1. Flatten build-config.yml into one record per buildable image.
+          #    dockerfile defaults to <work-dir>/Dockerfile, exactly like build.yaml does.
+          yq -o=json '[ .config[].build[] | {
+                "image":      .["image-name"],
+                "work_dir":   (.["work-dir"] | sub("/+$"; "")),
+                "dockerfile": (.dockerfile // ((.["work-dir"] | sub("/+$"; "")) + "/Dockerfile"))
+              } ]' build/build-config.yml > all.json
+
+          # 2. Derive the build context and a unique, docker-safe key.
+          #    build.yaml builds *-db images with the db work-dir as context and every other
+          #    image from the repo root with --build-arg WORK_DIR=<work-dir>.
+          #    Entries that share (context, work-dir, dockerfile) produce a byte-identical
+          #    image under different names, so they are collapsed into one scan.
+          jq -c '
+            map(. + {
+              context: (if (.image | endswith("-db")) then .work_dir else "." end)
+            })
+            | group_by(.context + "|" + .work_dir + "|" + .dockerfile)
+            | map(
+                (map(.image) | sort) as $images
+                | .[0] + {
+                    image: ($images | join(", ")),
+                    key: (($images[0] + "--" + (.[0].dockerfile | gsub("[/.]"; "_")))
+                          | ascii_downcase | gsub("[^a-z0-9._-]"; "-"))
+                  }
+              )
+            | sort_by(.key)
+          ' all.json > entries.json
+
+          # 3. Drop entries whose Dockerfile does not exist in this repo (e.g. the
+          #    frontend/micro-ui images, which live in the DIGIT-Frontend repo).
+          PRESENT='[]'
+          while read -r entry; do
+            df=$(jq -r '.dockerfile' <<<"$entry")
+            if [ -f "$df" ]; then
+              PRESENT=$(jq -c --argjson e "$entry" '. + [$e]' <<<"$PRESENT")
+            else
+              echo "::warning::Skipping $(jq -r '.image' <<<"$entry"): Dockerfile '$df' not found in this repository"
+            fi
+          done < <(jq -c '.[]' entries.json)
+
+          # 4. On pull requests, keep only images whose work-dir or Dockerfile directory changed.
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            mapfile -t FILES < <(git diff --name-only "$BASE_SHA" HEAD -- '**/Dockerfile' | sort -u)
-          else
-            mapfile -t FILES < <(find . -iname "Dockerfile" -not -path "*/node_modules/*" | sed 's|^\./||' | sort -u)
+            CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD \
+                      | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            PRESENT=$(jq -c --argjson changed "$CHANGED" '
+              [ .[] | select(
+                  . as $e
+                  | ($e.dockerfile | split("/") | .[0:-1] | join("/")) as $dfdir
+                  | any($changed[];
+                        . == $e.dockerfile
+                        or startswith($e.work_dir + "/")
+                        or ($dfdir != "" and startswith($dfdir + "/")))
+                ) ]' <<<"$PRESENT")
           fi
 
-          if [ "${#FILES[@]}" -eq 0 ]; then
-            echo "matrix=[]" >> "$GITHUB_OUTPUT"
-          else
-            JSON=$(printf '%s\n' "${FILES[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            echo "matrix=$JSON" >> "$GITHUB_OUTPUT"
+          # 5. Manual runs may narrow the matrix to a subset (useful for testing the workflow).
+          if [ -n "${IMAGE_FILTER:-}" ]; then
+            PRESENT=$(jq -c --arg f "$IMAGE_FILTER" \
+              '[ .[] | select((.image | test($f)) or (.work_dir | test($f))) ]' <<<"$PRESENT")
           fi
+
+          COUNT=$(jq 'length' <<<"$PRESENT")
+          if [ "$COUNT" -gt "$MAX_JOBS" ]; then
+            echo "::warning::Matrix truncated to $MAX_JOBS of $COUNT images; $((COUNT - MAX_JOBS)) image(s) were NOT scanned in this run"
+            PRESENT=$(jq -c ".[0:$MAX_JOBS]" <<<"$PRESENT")
+            COUNT="$MAX_JOBS"
+          fi
+
+          echo "matrix=$PRESENT" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Trivy image scan matrix ($COUNT image(s))"
+            echo ""
+            echo "| image | dockerfile | context | WORK_DIR |"
+            echo "| --- | --- | --- | --- |"
+            jq -r '.[] | "| \(.image) | \(.dockerfile) | \(.context) | \(.work_dir) |"' <<<"$PRESENT"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   image-scan:
-    name: Image scan (${{ matrix.dockerfile }})
-    needs: discover-dockerfiles
-    if: needs.discover-dockerfiles.outputs.matrix != '[]'
+    name: Image scan (${{ matrix.entry.image }} @ ${{ matrix.entry.dockerfile }})
+    needs: discover-images
+    if: needs.discover-images.outputs.matrix != '[]'
     strategy:
       fail-fast: false
+      max-parallel: 8
       matrix:
-        dockerfile: ${{ fromJson(needs.discover-dockerfiles.outputs.matrix) }}
+        entry: ${{ fromJson(needs.discover-images.outputs.matrix) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       security-events: write
@@ -115,41 +240,47 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Compute image tag
-        id: vars
-        run: |
-          SAFE_NAME=$(echo "${{ matrix.dockerfile }}" | tr '/.' '__')
-          echo "context=$(dirname "${{ matrix.dockerfile }}")" >> "$GITHUB_OUTPUT"
-          echo "tag=trivy-scan/${SAFE_NAME}:latest" >> "$GITHUB_OUTPUT"
-          echo "category=trivy-image-${SAFE_NAME}" >> "$GITHUB_OUTPUT"
-
       - name: Build image
         id: build
         continue-on-error: true
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: ${{ steps.vars.outputs.context }}
-          file: ${{ matrix.dockerfile }}
+          context: ${{ matrix.entry.context }}
+          file: ${{ matrix.entry.dockerfile }}
+          build-args: |
+            WORK_DIR=${{ matrix.entry.work_dir }}
+            BRANCH_NAME=${{ github.ref_name }}
+            COMMIT_ID=${{ github.sha }}
+            ACTION_NUMBER=${{ github.run_number }}
           push: false
           load: true
-          tags: ${{ steps.vars.outputs.tag }}
+          provenance: false
+          tags: trivy-scan/${{ matrix.entry.key }}:latest
+
+      - name: Report build failure
+        if: steps.build.outcome != 'success'
+        run: |
+          echo "::warning::Image '${{ matrix.entry.image }}' failed to build from ${{ matrix.entry.dockerfile }}; it was NOT scanned by Trivy"
+          echo "- :x: \`${{ matrix.entry.image }}\` (\`${{ matrix.entry.dockerfile }}\`) failed to build and was not scanned" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run Trivy image scan
         if: steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           scan-type: image
-          image-ref: ${{ steps.vars.outputs.tag }}
+          image-ref: trivy-scan/${{ matrix.entry.key }}:latest
           format: sarif
           output: trivy-image-results.sarif
           severity: CRITICAL,HIGH,MEDIUM
+          limit-severities-for-sarif: true
+          timeout: 20m
           exit-code: 0
 
       - name: Upload SARIF artifact
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
-          name: trivy-image-${{ steps.vars.outputs.category }}
+          name: trivy-image-${{ matrix.entry.key }}
           path: trivy-image-results.sarif
           retention-days: 5
 
@@ -158,4 +289,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-image-results.sarif
-          category: ${{ steps.vars.outputs.category }}
+          category: trivy-image-${{ matrix.entry.key }}
