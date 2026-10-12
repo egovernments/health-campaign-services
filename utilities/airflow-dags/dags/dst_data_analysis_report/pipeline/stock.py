@@ -143,10 +143,10 @@ urllib3.disable_warnings()
 log = logging.getLogger(__name__)
 
 # ── feature switches (in-code defaults, env overrides) ────────────────────────
-# ON by default (user, 2026-10-01): a campaign gets a stock section unless its
+# ON by default: a campaign gets a stock section unless its
 # sheet cell stock_report says FALSE (or DST_STOCK_REPORT=FALSE).
 STOCK_REPORT_DEFAULT = "TRUE"
-# ITN: the NO-SCANNER ledger by default (user, 2026-10-01). A scanner campaign
+# ITN: the NO-SCANNER ledger by default. A scanner campaign
 # (Chad: bales, scans, codes) sets itn_scanner=TRUE on its sheet row.
 STOCK_ITN_SCANNER_DEFAULT = "FALSE"
 STOCK_DATE_FIELD_DEFAULT = "createdTime"
@@ -340,7 +340,7 @@ def _stock_must(cfg):
     before the campaign opened is real stock and belongs in the balance, and
     the campaign/cycle filter is what keeps another cycle out.
 
-    NO UPPER BOUND EITHER ON A CUMULATIVE RUN (user, 2026-09-29). A daily report
+    NO UPPER BOUND EITHER ON A CUMULATIVE RUN. A daily report
     is a snapshot and stops at its own date so it stays reproducible. A
     cumulative report is the final reconciliation, and stock keeps moving after
     the last distribution day — CDDs hand leftovers back, facilities return to
@@ -920,7 +920,7 @@ def _collect_smc_ng(cfg, v1, task):
         # (which exceed Received because returned stock goes out again) are
         # NOT printed — removed on feedback 2026-09-21 — but their gross sum
         # still feeds the report metrics via totals["issued"].
-        # Column order rule (user, 2026-09-25): each balance CLOSES its own
+        # Column order rule: each balance CLOSES its own
         # block, so the row reads left-to-right with no cross-references —
         # CDD block: Given - rejected - in transit = Received by CDD, minus
         # used/redose = Stock Left with CDDs. THEN the return legs and the
@@ -1019,8 +1019,8 @@ def _collect_smc_ng(cfg, v1, task):
         log.warning(f"  [stock] daily flow collection failed (tab skipped): {e}")
         daily_rows = []
     # daily tab = Date + the ledger columns, plus ONE daily-only column
-    # ("Available with CDDs"). ONE daily-only semantic remains (user,
-    # 2026-09-25): Received by CDD is the app's RECORDED accepted quantity for
+    # ("Available with CDDs"). ONE daily-only semantic remains:
+    # Received by CDD is the app's RECORDED accepted quantity for
     # that day. Stock Left with CDDs now subtracts the day's returns in the
     # same row, so the last day of this tab equals the ledger (fixed
     # 2026-09-29 — they previously disagreed by 15,537 doses).
@@ -1106,7 +1106,7 @@ def _collect_daily_flow(cfg, lga_map):
         given = (g("sent_by_hf_to_cdd", 0)
                  - g("rejected_by_cdd", 0)
                  - returns_kept_by_hf)
-        # SOURCE OF TRUTH (user, 2026-09-25): the daily "Received by CDD" is
+        # SOURCE OF TRUTH: the daily "Received by CDD" is
         # the app's RECORDED accepted quantity for that day — no netting.
         cdd_recv = g("accepted_by_cdd", 0)
         con, red = g("con", 0), g("red", 0)
@@ -2329,8 +2329,8 @@ _FLAG_FILL = PatternFill("solid", fgColor="FFC7CE")   # light red
 _FLAG_COLOR = "9C0006"                                # dark red text
 _TINT_FILL = PatternFill("solid", fgColor="DCE6F1")   # light blue — anchor col
 
-# Hover notes on computed ledger headers: FORMULA ONLY (user rule 2026-09-24
-# — no narrative in cell comments). Keyed by header prefix.
+# Hover notes on computed ledger headers: FORMULA ONLY (no narrative in
+# cell comments). Keyed by header prefix.
 #
 # Every term names BOTH ENDS of the movement, so a reader never has to work out
 # who sent what to whom. "Total Handovers" is gone — it said neither where the
@@ -2626,8 +2626,7 @@ def _simple_table(doc, cols, data_rows, left_cols=(), bold_rows=(),
 
 
 def _significant_diff(row):
-    """A CDD accountability difference is listed whenever it is not zero
-    (no noise threshold, user 2026-10-12)."""
+    """A CDD accountability difference is listed whenever it is not zero."""
     return row[5] != 0
 
 
@@ -2692,7 +2691,7 @@ def stock_summary_line(cfg):
 
 def build_stock_section(doc, cfg, heading_num="6"):
     """Append the stock section to a report doc — BOTH internal and partner
-    (per user instruction 2026-09-17; note the audit table names CDD users).
+    (note: the audit table names CDD users).
     No-op when the stage produced nothing."""
     data = cfg.get("stock_data")
     if not data:
@@ -2777,7 +2776,7 @@ def build_stock_section(doc, cfg, heading_num="6"):
                 f"{v('returned') / v('issued') * 100:.1f}%"))
         all_cdd = data.get("cdd_rows") or []
         if all_cdd:
-            # "clean" = NOT red (user, 2026-10-01, same rule as ITN): only a
+            # "clean" = NOT red (same rule as ITN): only a
             # CDD who used MORE than recorded as given counts against them. A
             # positive gap is stock still in hand, not a recording problem.
             users = {r[0] for r in all_cdd}
@@ -2837,11 +2836,11 @@ def build_stock_section(doc, cfg, heading_num="6"):
                 f"{v('returned') / v('issued') * 100:.1f}%"))
         all_dist = data.get("cdd_rows") or []
         if all_dist:
-            # ITN (user, 2026-10-01): "clean" = NOT red. Only distributing
+            # ITN: "clean" = NOT red. Only distributing
             # MORE than recorded is a problem; a positive gap is bednets still
             # in hand, normal during the campaign, so it does not count as
             # "not clean" (587/751 read as 164 errors when 7 distributors were
-            # actually off). No separate holding line (user, 2026-10-01).
+            # actually off). No separate holding line.
             users = {r[0] for r in all_dist}
             red = {r[0] for r in all_dist if _dist_flagged(r)}
             clean = len(users) - len(red)
@@ -2909,11 +2908,11 @@ def build_stock_section(doc, cfg, heading_num="6"):
     doc.add_paragraph()
     sub += 1
 
-    # (The "Restock First" and "Stock Left Over" lists were removed for
-    # every campaign on user request 2026-10-12.)
+    # (The "Restock First" and "Stock Left Over" lists are not part of the
+    # report for any campaign.)
 
     # (The "Facilities Not Recording Handovers" section was removed on partner
-    # feedback 2026-09; the per-CDD audit below covers the same signal.)
+    # feedback; the per-CDD audit below covers the same signal.)
 
     # ── (audit — always LAST) per-CDD stock check ──────────────────────────
     cdd_rows = [r for r in data.get("cdd_rows", []) if _significant_diff(r)]
