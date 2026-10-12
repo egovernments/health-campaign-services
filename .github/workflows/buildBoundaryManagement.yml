@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - console
+      - HCMPRE-1437-master-aa57e79
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
