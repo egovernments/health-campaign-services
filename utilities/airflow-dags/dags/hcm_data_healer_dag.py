@@ -1,6 +1,6 @@
 """hcm_data_healer - daily repair of missing HCM data for active MDMS campaign windows.
 
-Runs at 02:00 UTC for each active window in MDMS (airflow-configs.dst-data-healer-config):
+Runs daily at 22:30 UTC (HEALER_SCHEDULE) for each active window in MDMS (airflow-configs.dst-data-healer-config):
 analyze (DB vs ES + error-tracer chain, read-only) -> guard -> push -> audit -> Slack.
 
 Guardrails: the newest 3 days are never healed (settle period); existence checks fail
@@ -101,13 +101,14 @@ def found_counts(totals):
     dag_id="hcm_data_healer",
     description="Daily: per MDMS campaign window, finds missing HCM data (DB vs ES + error tracer), "
                 "pushes the fix, audits every record to the DB, posts to Slack",
-    schedule="0 2 * * *",                # 02:00 UTC daily
+    # cron, UTC; pod env only (read at parse time), e.g. "0 22 * * *" = 22:00 UTC
+    schedule=os.getenv("HEALER_SCHEDULE", "").strip() or "30 22 * * *",
     start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
     catchup=False,
     max_active_runs=1,
     # windows healed in parallel; pod env only (read at parse time), e.g. 1 on Taraba
     max_active_tasks=max(1, int(os.getenv("HEALER_MAX_PARALLEL_WINDOWS", "4") or 4)),
-    # Must end before the next 02:00 run; a timed-out run alerts via the DAG callback.
+    # Must end before the next scheduled run; a timed-out run alerts via the DAG callback.
     dagrun_timeout=timedelta(hours=23),
     on_failure_callback=run_timeout_alert,
     default_args={"on_failure_callback": task_failure_alert, "retries": 0},
