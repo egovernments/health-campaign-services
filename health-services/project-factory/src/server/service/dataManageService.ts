@@ -622,6 +622,64 @@ const searchDistributorsByDhService = async (request: any) => {
     };
 }
 
+/**
+ * Lists the users of a campaign that currently have an ACTIVE egov-user session.
+ * Campaign users come from the processed "user" rows; egov-user is then asked about them in
+ * bounded chunks. Rows without a resolvable uuid are skipped (no userName fallback).
+ */
+const searchActiveUsersByCampaignService = async (request: any) => {
+    const searchCriteria = request?.body?.SearchCriteria;
+    if (!searchCriteria) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "SearchCriteria is required");
+    }
+
+    const tenantId = textValue(searchCriteria.tenantId);
+    if (!tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required in SearchCriteria");
+    }
+
+    const campaignNumber = textValue(searchCriteria.campaignNumber);
+    if (!campaignNumber) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "campaignNumber is required in SearchCriteria");
+    }
+
+    const userRows = await getRelatedDataWithCampaign(USER_DATA_TYPE, campaignNumber, tenantId, dataRowStatuses.completed);
+    const userUuids = new Set<string>();
+    let skippedRows = 0;
+    for (const userRow of Array.isArray(userRows) ? userRows : []) {
+        if (userRow?.isDeleted) continue;
+        const uuid = textValue(userRow?.uniqueIdAfterProcess) || textValue(userRow?.data?.[USER_SERVICE_UUID_COLUMN]);
+        if (!uuid) {
+            skippedRows++;
+            continue;
+        }
+        userUuids.add(uuid);
+    }
+    if (skippedRows > 0) {
+        logger.warn(`${skippedRows} user row(s) skipped, uuid missing for campaign ${campaignNumber}`);
+    }
+    if (userUuids.size === 0) {
+        return { sessions: [], count: 0 };
+    }
+
+    // Lazy: the http client pulls in redis/config at import time, needed only on this path.
+    const { httpRequest } = await import("../utils/request");
+    const allUuids = Array.from(userUuids);
+    const chunkSize = Math.min(1000, Math.max(1, config.user?.sessionSearchBatchSize || 500));
+    const sessions: any[] = [];
+    for (let i = 0; i < allUuids.length; i += chunkSize) {
+        const response = await httpRequest(
+            config.host.userHost + config.paths.userSessionSearch,
+            { RequestInfo: request?.body?.RequestInfo, tenantId, userUuids: allUuids.slice(i, i + chunkSize) },
+            { tenantId }
+        );
+        if (Array.isArray(response?.sessions)) sessions.push(...response.sessions);
+    }
+
+    sessions.sort((a, b) => (b?.lastServerContact ?? 0) - (a?.lastServerContact ?? 0));
+    return { sessions, count: sessions.length };
+}
+
 export {
     generateDataService,
     downloadDataService,
@@ -630,5 +688,6 @@ export {
     searchDataService,
     searchCampaignDataService,
     searchMappingDataService,
-    searchDistributorsByDhService
+    searchDistributorsByDhService,
+    searchActiveUsersByCampaignService
 }

@@ -1,5 +1,5 @@
 import * as express from "express";
-import { createDataService, downloadDataService, generateDataService, searchDataService, searchCampaignDataService, searchMappingDataService, searchDistributorsByDhService } from "../../service/dataManageService";
+import { createDataService, downloadDataService, generateDataService, searchDataService, searchCampaignDataService, searchMappingDataService, searchDistributorsByDhService, searchActiveUsersByCampaignService } from "../../service/dataManageService";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
 import { logger } from "../../utils/logger";
 
@@ -26,6 +26,7 @@ class dataManageController {
         this.router.post(`${this.path}/campaign/_search`, this.searchCampaignData);
         this.router.post(`${this.path}/mapping/_search`, this.searchMappingData);
         this.router.post(`${this.path}/distributor-by-dh/_search`, this.searchDistributorsByDh);
+        this.router.post(`${this.path}/active-users/_search`, this.searchActiveUsers);
     }
     /**
 * Generates data based on the request and sends the response.
@@ -138,6 +139,23 @@ class dataManageController {
         try {
             logger.info("RECEIVED A DISTRIBUTOR-BY-DH SEARCH REQUEST");
             const result = await searchDistributorsByDhService(request);
+            return sendResponse(response, result, request);
+        } catch (e: any) {
+            console.log(e)
+            logger.error(String(e))
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    }
+
+    /**
+     * Searches the users of a campaign that currently have an active session.
+     * @param request The Express request object.
+     * @param response The Express response object.
+     */
+    searchActiveUsers = async (request: any, response: any) => {
+        try {
+            logger.info("RECEIVED AN ACTIVE-USERS SEARCH REQUEST");
+            const result = await searchActiveUsersByCampaignService(request);
             return sendResponse(response, result, request);
         } catch (e: any) {
             console.log(e)
