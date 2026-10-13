@@ -2,6 +2,11 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.2.5 - 2026-10-13
+
+- Added `VACCINATED_ELSEWHERE` to the no-resource task statuses (`project.task.no.resource.validation.status`), so a task with this status is accepted without resources.
+- Upgraded `health-services-models` to 1.0.36-SNAPSHOT and `health-services-common` to 1.1.7-SNAPSHOT.
+
 ## 1.2.4 - 2026-07-20
 
 - Cross-entity existence validation is now gated behind a new config flag `project.relationship.validation` (default `false` = disabled) for the task and beneficiary create/update chains, so records referencing a not-yet-persisted parent are accepted (offline-first / persister-queue-tolerant). Set `true` to enforce (`PtProjectIdValidator`, `PtProductVariantIdValidator`, `PtProjectBeneficiaryIdValidator` DB lookup, `PbProjectIdValidator`, `BeneficiaryValidator`).

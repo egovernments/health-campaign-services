@@ -2,6 +2,9 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.1.7 - 2026-10-13
+- Upgraded `health-services-models` to 1.0.36-SNAPSHOT (adds `VACCINATED_ELSEWHERE` task status).
+
 ## 1.1.3 - 2026-03-10
 - Removed `DataAccessExceptionHandler` `@ControllerAdvice` as tracer 2.9.2 already handles `DataAccessException` in its `ExceptionAdvise`.
 - Upgraded tracer from 2.9.0 to 2.9.2 without OTEL exclusions; consuming services manage OTEL versions via Instrumentation BOM.
