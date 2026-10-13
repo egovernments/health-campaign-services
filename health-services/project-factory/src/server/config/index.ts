@@ -96,6 +96,9 @@ const config = {
 
     searchBatchSize: process.env.USER_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_SEARCH_BATCH_SIZE, 10) : 50,
 
+    // Max userUuids per egov-user active-session search call (egov-user rejects more than 1000)
+    sessionSearchBatchSize: process.env.USER_SESSION_SEARCH_BATCH_SIZE ? Math.min(1000, Math.max(1, parseInt(process.env.USER_SESSION_SEARCH_BATCH_SIZE, 10))) : 500,
+
     searchConcurrency: process.env.USER_SEARCH_CONCURRENCY ? parseInt(process.env.USER_SEARCH_CONCURRENCY, 10) : 10,
 
     validationSearchBatchSize: process.env.USER_VALIDATION_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_VALIDATION_SEARCH_BATCH_SIZE, 10) : 50,
@@ -322,6 +325,7 @@ const config = {
     projectResourceBulkCreate: process.env.EGOV_PROJECT_RESOURCE_BULK_CREATE_PATH || "health-project/resource/v1/bulk/_create",
     projectFacilityBulkCreate: process.env.EGOV_PROJECT_FACILITY_BULK_CREATE_PATH || "health-project/facility/v1/bulk/_create",
     userSearch: process.env.EGOV_USER_SEARCH_PATH || "user/_search",
+    userSessionSearch: process.env.EGOV_USER_SESSION_SEARCH_PATH || "user/user-session/v1/_search",
     facilitySearch: process.env.EGOV_FACILITY_SEARCH_PATH || "facility/v1/_search",
     productVariantSearch: process.env.EGOV_PRODUCT_VARIANT_SEARCH_PATH || "product/variant/v1/_search",
     boundaryEntity: process.env.EGOV_BOUNDARY_ENTITY_SEARCHPATH || "boundary-service/boundary/_search",

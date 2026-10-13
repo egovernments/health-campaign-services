@@ -681,6 +681,34 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /v1/data/active-users/_search:
+    post:
+      tags:
+        - Data Management (V1)
+      summary: Search Active Users of a Campaign
+      description: |
+        Returns the users of a campaign that currently have an ACTIVE session.
+        Users are resolved from the campaign's processed user rows and checked against egov-user.
+        Users without an active session are not returned.
+      operationId: searchActiveUsers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchActiveUsersRequest'
+      responses:
+        '200':
+          description: Active user search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchActiveUsersResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # =======================
   # SHEET MANAGEMENT (V2 - Modern)
   # =======================
@@ -1855,6 +1883,53 @@ components:
               maximum: 1000
               default: 100
               description: Maximum number of DH groups to return
+
+    SearchActiveUsersRequest:
+      type: object
+      required:
+        - RequestInfo
+        - SearchCriteria
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SearchCriteria:
+          type: object
+          required:
+            - tenantId
+            - campaignNumber
+          properties:
+            tenantId:
+              type: string
+              description: Tenant identifier (required)
+            campaignNumber:
+              type: string
+              description: Campaign number, e.g. CMP-BO-0001 (required)
+
+    SearchActiveUsersResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              userUuid:
+                type: string
+              userName:
+                type: string
+              name:
+                type: string
+              deviceId:
+                type: string
+              sessionId:
+                type: string
+              lastServerContact:
+                type: integer
+                format: int64
+        count:
+          type: integer
 
     SearchDistributorsByDhResponse:
       type: object
