@@ -5,6 +5,7 @@ All notable changes to this module will be documented in this file.
 ## 1.2.5 - 2026-10-13
 
 - Added `VACCINATED_ELSEWHERE` to the no-resource task statuses (`project.task.no.resource.validation.status`), so a task with this status is accepted without resources.
+- Upgraded `health-services-models` to 1.0.36-SNAPSHOT and `health-services-common` to 1.1.7-SNAPSHOT.
 
 ## 1.2.4 - 2026-07-20
 
