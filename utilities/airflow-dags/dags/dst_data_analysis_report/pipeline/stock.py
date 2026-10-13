@@ -105,9 +105,8 @@ Balances (canonical agg_stock_summary formulas):
                    the section says exactly that in plain words)
 
 The Word section is written for three readers: the campaign manager (Supply
-at a Glance), on-ground supervisors (Facilities With the Most Stock Left;
-With Stock Left Over after the campaign), and the audit — always LAST — Stock
-Check per CDD.
+at a Glance), on-ground supervisors (Facilities Not Recording Handovers),
+and the audit — always LAST — Stock Check per CDD.
 
 Field facts this module relies on (do not "fix" them):
   - Data.facility* is always "me" and Data.transactingFacility* the
@@ -144,10 +143,10 @@ urllib3.disable_warnings()
 log = logging.getLogger(__name__)
 
 # ── feature switches (in-code defaults, env overrides) ────────────────────────
-# ON by default (user, 2026-10-01): a campaign gets a stock section unless its
+# ON by default: a campaign gets a stock section unless its
 # sheet cell stock_report says FALSE (or DST_STOCK_REPORT=FALSE).
 STOCK_REPORT_DEFAULT = "TRUE"
-# ITN: the NO-SCANNER ledger by default (user, 2026-10-01). A scanner campaign
+# ITN: the NO-SCANNER ledger by default. A scanner campaign
 # (Chad: bales, scans, codes) sets itn_scanner=TRUE on its sheet row.
 STOCK_ITN_SCANNER_DEFAULT = "FALSE"
 STOCK_DATE_FIELD_DEFAULT = "createdTime"
@@ -341,7 +340,7 @@ def _stock_must(cfg):
     before the campaign opened is real stock and belongs in the balance, and
     the campaign/cycle filter is what keeps another cycle out.
 
-    NO UPPER BOUND EITHER ON A CUMULATIVE RUN (user, 2026-09-29). A daily report
+    NO UPPER BOUND EITHER ON A CUMULATIVE RUN. A daily report
     is a snapshot and stops at its own date so it stays reproducible. A
     cumulative report is the final reconciliation, and stock keeps moving after
     the last distribution day — CDDs hand leftovers back, facilities return to
@@ -376,6 +375,9 @@ def _search(cfg, index, body, label):
     r = es_post(f"{cfg['es_url']}/{index}/_search",
                       json=body, auth=cfg["es_auth"], verify=False,
                       timeout=_TIMEOUT)
+    if r.status_code >= 400:
+        # ES puts the actual reason (bad field type, unknown field) in the body
+        log.error(f"  [stock] {label}: ES {r.status_code}: {r.text[:1000]}")
     r.raise_for_status()
     log.info(f"  [stock] {label}: query ok")
     return r.json()
@@ -418,6 +420,56 @@ def _bkey(bucket_key, levels):
 
 def _sum_agg(field="Data.physicalCount"):
     return {"qty": {"sum": {"field": field}}}
+
+
+# CDD return details: SPAQ app field, then the AZM app's names (Gombe 2026-10:
+# quantityWastage / quantityPartialUsed / emptyBottle, sent as text)
+_EXTRA_FIELDS = {
+    "unused":  ["unused_quantity"],
+    "partial": ["partial_quantity", "quantityPartialUsed"],
+    "wasted":  ["wastedBlistersReturned", "quantityWastage"],
+    "empty":   ["emptyBottlesReturned", "emptyBottle"],
+}
+_PARSE_SUM = ("double t = 0; for (String f : params.fields) { "
+              "for (String k : [f + '.keyword', f]) { if (doc.containsKey(k)) { "
+              "try { double s = 0; for (def v : doc[k]) { "
+              "s += Double.parseDouble(v.toString()); } t += s; break; } "
+              "catch (Exception e) {} } } if (t > 0) { break; } } return t;")
+
+
+def _extra_sums(cfg):
+    """unused / partial / wasted / empty-bottle sums for the CDD returns.
+    Non-AZM: plain sums of the SPAQ fields. AZM apps use other field names and
+    send the values as text, and a sum on a text field fails the whole query
+    (400), so for AZM each column adds up every known field name, parsed from
+    .keyword when that exists, else from the field itself (numeric); a text
+    field with no .keyword reads as 0."""
+    if cfg.get("drug_type") != "AZM":
+        return {name: {"sum": {"field": f"{_ADDL}.{fields[0]}"}}
+                for name, fields in _EXTRA_FIELDS.items()}
+    return {name: {"sum": {"script": {
+                "source": _PARSE_SUM,
+                "params": {"fields": [f"{_ADDL}.{f}" for f in fields]}}}}
+            for name, fields in _EXTRA_FIELDS.items()}
+
+
+def _ng_task_legs(cfg, con_sink, red_sink):
+    """(statuses, agg, sink) for the NG consumption and redose queries. AZM
+    stock is BOTTLES and a redose pours from the same bottle, so - as in the
+    older convention (_collect_smc) - AZM consumption = SUCCESS + VISITED doses
+    (converted by _azm_bottles) and there is no separate redose."""
+    if cfg.get("drug_type") == "AZM":
+        return ((["ADMINISTRATION_SUCCESS", "VISITED"], _sum_agg("Data.quantity"),
+                 con_sink),)
+    return ((["ADMINISTRATION_SUCCESS"], _sum_agg("Data.quantity"), con_sink),
+            (["VISITED"], {}, red_sink))
+
+
+def _azm_bottles(cfg, doses):
+    """Task quantities are doses; AZM stock is counted in bottles."""
+    if cfg.get("drug_type") == "AZM":
+        return round(doses / AZM_DOSES_PER_BOTTLE, 2)
+    return doses
 
 
 # ── SMC / AZM ─────────────────────────────────────────────────────────────────
@@ -812,16 +864,15 @@ def _collect_smc_ng(cfg, v1, task):
                                "missing_bucket": True}}},
     ]
     consumed, redose, lga_map = {}, {}, {}
-    for status, agg, sink in (
-            ("ADMINISTRATION_SUCCESS", _sum_agg("Data.quantity"), consumed),
-            ("VISITED", {}, redose)):
+    for status, agg, sink in _ng_task_legs(cfg, consumed, redose):
         for b in _composite(
                 cfg, task,
-                _task_must(cfg) + [{"term": {
+                _task_must(cfg) + [{"terms": {
                     "Data.administrationStatus.keyword": status}}],
-                tsources, agg, f"task {status} (NG)"):
+                tsources, agg, f"task {'+'.join(status)} (NG)"):
             key = (b["key"].get("hf") or "", b["key"].get("product") or "")
-            val = (b["qty"]["value"] or 0) if "qty" in b else b["doc_count"]
+            val = (_azm_bottles(cfg, b["qty"]["value"] or 0) if "qty" in b
+                   else b["doc_count"])
             sink[key] = sink.get(key, 0) + val
             if b["key"].get("lga"):
                 lga_map[key[0]] = b["key"]["lga"]
@@ -869,7 +920,7 @@ def _collect_smc_ng(cfg, v1, task):
         # (which exceed Received because returned stock goes out again) are
         # NOT printed — removed on feedback 2026-09-21 — but their gross sum
         # still feeds the report metrics via totals["issued"].
-        # Column order rule (user, 2026-09-25): each balance CLOSES its own
+        # Column order rule: each balance CLOSES its own
         # block, so the row reads left-to-right with no cross-references —
         # CDD block: Given - rejected - in transit = Received by CDD, minus
         # used/redose = Stock Left with CDDs. THEN the return legs and the
@@ -968,8 +1019,8 @@ def _collect_smc_ng(cfg, v1, task):
         log.warning(f"  [stock] daily flow collection failed (tab skipped): {e}")
         daily_rows = []
     # daily tab = Date + the ledger columns, plus ONE daily-only column
-    # ("Available with CDDs"). ONE daily-only semantic remains (user,
-    # 2026-09-25): Received by CDD is the app's RECORDED accepted quantity for
+    # ("Available with CDDs"). ONE daily-only semantic remains:
+    # Received by CDD is the app's RECORDED accepted quantity for
     # that day. Stock Left with CDDs now subtracts the day's returns in the
     # same row, so the last day of this tab equals the ledger (fixed
     # 2026-09-29 — they previously disagreed by 15,537 doses).
@@ -1029,18 +1080,17 @@ def _collect_daily_flow(cfg, lga_map):
         {"product": {"terms": {"field": "Data.productName.keyword",
                                "missing_bucket": True}}},
     ]
-    for status, agg, name in (
-            ("ADMINISTRATION_SUCCESS", _sum_agg("Data.quantity"), "con"),
-            ("VISITED", {}, "red")):
+    for status, agg, name in _ng_task_legs(cfg, "con", "red"):
         for b in _composite(
                 cfg, task,
-                _task_must(cfg) + [{"term": {
+                _task_must(cfg) + [{"terms": {
                     "Data.administrationStatus.keyword": status}}],
-                tsources, agg, f"daily task {status}"):
+                tsources, agg, f"daily task {'+'.join(status)}"):
             key = (b["key"].get("hf") or "",
                    b["key"].get("product") or "", _day(b["key"]["day"]))
             m = vals.setdefault(key, {})
-            val = (b["qty"]["value"] or 0) if "qty" in b else b["doc_count"]
+            val = (_azm_bottles(cfg, b["qty"]["value"] or 0) if "qty" in b
+                   else b["doc_count"])
             m[name] = m.get(name, 0) + val
 
     rows = []
@@ -1056,7 +1106,7 @@ def _collect_daily_flow(cfg, lga_map):
         given = (g("sent_by_hf_to_cdd", 0)
                  - g("rejected_by_cdd", 0)
                  - returns_kept_by_hf)
-        # SOURCE OF TRUTH (user, 2026-09-25): the daily "Received by CDD" is
+        # SOURCE OF TRUTH: the daily "Received by CDD" is
         # the app's RECORDED accepted quantity for that day — no netting.
         cdd_recv = g("accepted_by_cdd", 0)
         con, red = g("con", 0), g("red", 0)
@@ -1130,10 +1180,7 @@ def _collect_cdd_accountability_ng(cfg, v1, task):
                                        "missing_bucket": True}}}]
     sub = {"acc": {"filter": {"term": {_STATUS: "ACCEPTED"}},
                    "aggs": _sum_agg()},
-           "unused":  {"sum": {"field": f"{_ADDL}.unused_quantity"}},
-           "partial": {"sum": {"field": f"{_ADDL}.partial_quantity"}},
-           "wasted":  {"sum": {"field": f"{_ADDL}.wastedBlistersReturned"}},
-           "empty":   {"sum": {"field": f"{_ADDL}.emptyBottlesReturned"}}}
+           **_extra_sums(cfg)}
     returned, extras = {}, {}
     for b in _composite(
             cfg, v1,
@@ -1151,32 +1198,64 @@ def _collect_cdd_accountability_ng(cfg, v1, task):
                                        "missing_bucket": True}}}]
     for b in _composite(
             cfg, task,
-            _task_must(cfg) + [{"term": {
-                "Data.administrationStatus.keyword": "ADMINISTRATION_SUCCESS"}}],
+            _task_must(cfg) + [{"terms": {
+                "Data.administrationStatus.keyword": _ng_task_legs(cfg, 0, 0)[0][0]}}],
             tsources, _sum_agg("Data.quantity"), "NG accountability consumption"):
         consumed[(b["key"]["user"], b["key"].get("product") or "")] = \
-            b["qty"]["value"] or 0
+            _azm_bottles(cfg, b["qty"]["value"] or 0)
 
-    rows = []
+    rows, dropped = [], []
     for key in set(received) | set(returned) | set(consumed):
         rec = received.get(key, 0)
         con = consumed.get(key, 0)
         ret = returned.get(key, 0)
-        ex = extras.get(key, [0, 0, 0, 0])
+        ex, notes = _azm_extras(cfg, rec, extras.get(key, [0, 0, 0, 0]), con)
+        dropped += notes
         rows.append([key[0], key[1], rec, con, ret, rec - con - ret] + ex
                     + [_high_negative_flag(rec, con, ret)])
+    _log_dropped(dropped)
     rows.sort(key=lambda r: abs(r[5]), reverse=True)
     return rows
 
 
+def _azm_extras(cfg, received, ex, used=0):
+    """[unused, partial, wasted, empty] in BOTTLES for AZM. The AZM app's
+    quantityWastage is in doses (Gombe 2026-10: /30 is never above what the CDD
+    received, and for most CDDs equals their remaining balance), so it is
+    converted like consumption; partial and empty are bottle counts already.
+    A value above the bottles the CDD received is an entry error (Gombe had an
+    empty-bottle entry of 220,122,100) - not counted, summarised in one log line."""
+    if cfg.get("drug_type") != "AZM":
+        return ex, []
+    ex = ex[:2] + [_azm_bottles(cfg, ex[2])] + ex[3:]
+    notes = []
+    bound = max(received, used)     # a CDD's two logins can split received/used
+    for i, label in enumerate(("Unused", "Partial", "Wasted", "Empty")):
+        if bound and ex[i] > bound:
+            notes.append((label, ex[i]))
+            ex[i] = 0
+    return ex, notes
+
+
+def _log_dropped(dropped):
+    """One summary line per run (no per-CDD lines): how many return-detail
+    entries were above what the CDD received/used and so not counted."""
+    if not dropped:
+        return
+    by = {}
+    for label, value in dropped:
+        n, top = by.get(label, (0, 0))
+        by[label] = (n + 1, max(top, value))
+    log.warning("  [stock] return details above the CDD's received/used bottles, "
+                "not counted (likely entry errors): " + "; ".join(
+                    f"{label} {n} entr{'y' if n == 1 else 'ies'} (largest {top:,.0f})"
+                    for label, (n, top) in by.items()))
+
+
 def _high_negative_flag(received, consumed, returned):
-    """Highlight CDDs whose difference is a LARGE negative — they used well
-    beyond the stock recorded to their login. Same noise floor as the report
-    tables: at least 20 units and 5% of the larger of got/used."""
-    diff = received - consumed - returned
+    """Red row: the CDD / distributor used more than the stock recorded."""
     return ("CHECK: high negative difference"
-            if diff <= -20 and abs(diff) >= 0.05 * max(received, consumed, 1)
-            else "")
+            if received - consumed - returned < 0 else "")
 
 
 def _collect_smc(cfg):
@@ -1380,10 +1459,7 @@ def _collect_cdd_accountability(cfg, v1_index, task_index):
             "aggs": _sum_agg()},
         "returned": {"filter": {"term": {"Data.reason.keyword": "RETURNED"}},
                      "aggs": _sum_agg()},
-        "unused":  {"sum": {"field": f"{_ADDL}.unused_quantity"}},
-        "partial": {"sum": {"field": f"{_ADDL}.partial_quantity"}},
-        "wasted":  {"sum": {"field": f"{_ADDL}.wastedBlistersReturned"}},
-        "empty":   {"sum": {"field": f"{_ADDL}.emptyBottlesReturned"}},
+        **_extra_sums(cfg),
     }
     buckets = _composite(
         cfg, v1_index,
@@ -1419,14 +1495,18 @@ def _collect_cdd_accountability(cfg, v1_index, task_index):
                            b["wasted"]["value"] or 0,
                            b["empty"]["value"] or 0]
 
-    rows = []
+    rows, dropped = [], []
     for key in set(stock_side) | set(consumed):
         rec, ret, unused, partial, wasted, empty = stock_side.get(
             key, [0, 0, 0, 0, 0, 0])
         con = consumed.get(key, 0)
+        (unused, partial, wasted, empty), notes = _azm_extras(
+            cfg, rec, [unused, partial, wasted, empty], con)
+        dropped += notes
         rows.append([key[0], key[1], rec, con, ret, rec - con - ret,
                      unused, partial, wasted, empty,
                      _high_negative_flag(rec, con, ret)])
+    _log_dropped(dropped)
     rows.sort(key=lambda r: abs(r[5]), reverse=True)
     return rows
 
@@ -2249,8 +2329,8 @@ _FLAG_FILL = PatternFill("solid", fgColor="FFC7CE")   # light red
 _FLAG_COLOR = "9C0006"                                # dark red text
 _TINT_FILL = PatternFill("solid", fgColor="DCE6F1")   # light blue — anchor col
 
-# Hover notes on computed ledger headers: FORMULA ONLY (user rule 2026-09-24
-# — no narrative in cell comments). Keyed by header prefix.
+# Hover notes on computed ledger headers: FORMULA ONLY (no narrative in
+# cell comments). Keyed by header prefix.
 #
 # Every term names BOTH ENDS of the movement, so a reader never has to work out
 # who sent what to whom. "Total Handovers" is gone — it said neither where the
@@ -2380,25 +2460,46 @@ def _write_tab(ws, banner, headers, rows, label_cols=3, flag_col=None,
                         color=_FLAG_COLOR if flagged else None)
 
 
+def _azm_tab(cfg, headers, rows, notes):
+    """AZM is counted in bottles only: drop the Redose column (an AZM redose
+    pours from the same bottle and is already inside Used) and word the
+    headers and hover notes without doses. Other drugs: unchanged."""
+    if cfg.get("drug_type") != "AZM":
+        return headers, rows, notes
+    n = len(headers)
+    keep = [i for i, h in enumerate(headers) if not str(h).startswith("Redose")]
+    headers = [("Used by CDD (bottles)" if str(headers[i]).startswith("Used by CDD")
+                else headers[i]) for i in keep]
+    rows = [[r[i] for i in keep] + list(r[n:]) for r in rows]
+    notes = {k: v.replace(" - Redose", "") for k, v in (notes or {}).items()}
+    return headers, rows, notes
+
+
 def _render_workbook(cfg, data, path):
     wb = Workbook()
     wb.remove(wb.active)
     period = (f"Cumulative Days 1-{cfg['DAY']}" if cfg.get("cumulative")
               else f"to Day {cfg['DAY']}")
     if data["variant"] == "smc":
+        l_hdr, l_rows, l_notes = _azm_tab(cfg, data["headers"], data["rows"],
+                                          _LEDGER_HEADER_NOTES)
         _write_tab(wb.create_sheet("STOCK LEDGER"),
                    f"{cfg['state_name']} — Stock Ledger ({period})  |  "
-                   f"How to read: every column counts real doses. When the "
+                   f"How to read: every column counts real "
+                   f"{'bottles' if cfg.get('drug_type') == 'AZM' else 'doses'}. When the "
                    f"records are complete, no column exceeds 'Received' — "
                    f"where Used or Given IS higher, or a Stock Left number "
                    f"is negative, some handovers or receipts were not "
                    f"recorded in the app: a recording gap to follow up, not "
                    f"extra stock. CDDs return unused stock each evening; "
                    f"returns are in the Returned columns.",
-                   data["headers"], data["rows"],
-                   header_notes=_LEDGER_HEADER_NOTES,
+                   l_hdr, l_rows,
+                   header_notes=l_notes,
                    tint_headers=("Stock Given to CDDs",))
         if data.get("daily_rows"):
+            d_hdr, d_rows, d_notes = _azm_tab(cfg, data["daily_headers"],
+                                              data["daily_rows"],
+                                              _LEDGER_HEADER_NOTES)
             _write_tab(wb.create_sheet("DAILY FLOW"),
                        f"{cfg['state_name']} — Daily Stock Movements "
                        f"({period})  |  Same columns and formulas as the "
@@ -2407,18 +2508,16 @@ def _render_workbook(cfg, data, path):
                        f"columns are the balance at the END of that day — "
                        f"a facility's last day matches its STOCK LEDGER "
                        f"row. Dates are the app's record dates.",
-                       data["daily_headers"], data["daily_rows"],
+                       d_hdr, d_rows,
                        label_cols=4,
-                       header_notes=_LEDGER_HEADER_NOTES,
+                       header_notes=d_notes,
                        tint_headers=("Stock Given to CDDs",))
         if data["cdd_rows"]:
             _write_tab(wb.create_sheet("CDD ACCOUNTABILITY"),
                        f"{cfg['state_name']} — CDD Stock Accountability "
                        f"({period})  |  Red rows: the CDD used more stock "
                        f"than was recorded as given to them — follow up "
-                       f"with the supervisor. Flagged when the gap is at "
-                       f"least 20 doses AND at least 5% of their use; "
-                       f"smaller gaps are treated as timing noise.",
+                       f"with the supervisor.",
                        _CDD_HEADERS, data["cdd_rows"], flag_col=10)
     elif data["variant"] == "itn_ledger":
         _write_tab(wb.create_sheet("STOCK LEDGER"),
@@ -2451,9 +2550,7 @@ def _render_workbook(cfg, data, path):
                        f"Accountability ({period})  |  Red rows: the "
                        f"distributor handed out more bednets than were "
                        f"recorded as given to them — follow up with the "
-                       f"supervisor. Flagged when the gap is at least 20 "
-                       f"bednets AND at least 5% of what they distributed; "
-                       f"smaller gaps are treated as timing noise.",
+                       f"supervisor.",
                        _DIST_HEADERS, _dist_display_rows(data["cdd_rows"]),
                        label_cols=5, flag_col=9)
     else:
@@ -2501,7 +2598,7 @@ def _publish_workbook(cfg, path):
 # ── Word section ──────────────────────────────────────────────────────────────
 # Written for three readers:
 #   the CAMPAIGN MANAGER / programme owner — "is supply healthy?" at a glance;
-#   ON-GROUND supervisors — which exact facilities need restocking or a visit;
+#   ON-GROUND supervisors — which exact facilities need a visit;
 #   and the AUDIT (last) — per-CDD stock accountability for follow-up.
 
 def _simple_table(doc, cols, data_rows, left_cols=(), bold_rows=(),
@@ -2529,9 +2626,8 @@ def _simple_table(doc, cols, data_rows, left_cols=(), bold_rows=(),
 
 
 def _significant_diff(row):
-    """The audit noise threshold: a CDD accountability difference matters
-    when it is at least 20 units AND at least 5% of the larger of got/used."""
-    return abs(row[5]) >= 20 and abs(row[5]) >= 0.05 * max(row[2], row[3], 1)
+    """A CDD accountability difference is listed whenever it is not zero."""
+    return row[5] != 0
 
 
 def stock_summary_line(cfg):
@@ -2593,31 +2689,9 @@ def stock_summary_line(cfg):
     return line
 
 
-def _per_facility(data):
-    """Aggregate the ledger rows to one entry per facility (across products)."""
-    ix = data.get("ix") or {}
-    if ix.get("hf") is None:
-        return []
-    out = {}
-    for r in data["rows"]:
-        hf = r[ix["hf"]]
-        if not hf:
-            continue
-        e = out.setdefault(hf, {"lga": "", "consumed": 0, "received": 0,
-                                "issued": 0, "bal_hf": 0, "bal_cdd": 0})
-        if ix.get("lga") is not None and r[ix["lga"]]:
-            e["lga"] = r[ix["lga"]]
-        e["consumed"] += r[ix["consumed"]] or 0
-        e["received"] += r[ix["received"]] or 0
-        e["issued"] += r[ix["issued"]] or 0
-        e["bal_hf"] += r[ix["bal_hf"]] or 0
-        e["bal_cdd"] += r[ix["bal_cdd"]] or 0
-    return [dict(hf=hf, **e) for hf, e in out.items()]
-
-
 def build_stock_section(doc, cfg, heading_num="6"):
     """Append the stock section to a report doc — BOTH internal and partner
-    (per user instruction 2026-09-17; note the audit table names CDD users).
+    (note: the audit table names CDD users).
     No-op when the stage produced nothing."""
     data = cfg.get("stock_data")
     if not data:
@@ -2660,8 +2734,8 @@ def build_stock_section(doc, cfg, heading_num="6"):
             ("Received at health facilities", f"{v('received'):,.0f}"),
             ("    Given to CDDs (after give-backs)", f"{net_issued:,.0f}"),
             (f"        Used for children ({unit})", f"{v('consumed'):,.0f}"),
-            ("        Repeat doses (redose)", f"{v('redose'):,.0f}"),
-        ]
+        ] + ([] if is_azm else [
+            ("        Repeat doses (redose)", f"{v('redose'):,.0f}")])
         if v("in_transit_out"):
             # in-transit sits in its own bucket (goods-in-transit): counted
             # with neither the CDDs nor the facility until confirmed
@@ -2702,7 +2776,7 @@ def build_stock_section(doc, cfg, heading_num="6"):
                 f"{v('returned') / v('issued') * 100:.1f}%"))
         all_cdd = data.get("cdd_rows") or []
         if all_cdd:
-            # "clean" = NOT red (user, 2026-10-01, same rule as ITN): only a
+            # "clean" = NOT red (same rule as ITN): only a
             # CDD who used MORE than recorded as given counts against them. A
             # positive gap is stock still in hand, not a recording problem.
             users = {r[0] for r in all_cdd}
@@ -2762,11 +2836,11 @@ def build_stock_section(doc, cfg, heading_num="6"):
                 f"{v('returned') / v('issued') * 100:.1f}%"))
         all_dist = data.get("cdd_rows") or []
         if all_dist:
-            # ITN (user, 2026-10-01): "clean" = NOT red. Only distributing
+            # ITN: "clean" = NOT red. Only distributing
             # MORE than recorded is a problem; a positive gap is bednets still
             # in hand, normal during the campaign, so it does not count as
             # "not clean" (587/751 read as 164 errors when 7 distributors were
-            # actually off). No separate holding line (user, 2026-10-01).
+            # actually off). No separate holding line.
             users = {r[0] for r in all_dist}
             red = {r[0] for r in all_dist if _dist_flagged(r)}
             clean = len(users) - len(red)
@@ -2805,7 +2879,7 @@ def build_stock_section(doc, cfg, heading_num="6"):
         notes.append("Still with CDDs = given - used"
                      + ("" if is_azm else " - redose"))
         if is_azm:
-            notes.append(f"1 bottle = {AZM_DOSES_PER_BOTTLE} doses")
+            notes.append("All figures are in bottles")
     elif is_hub:
         if v("returned") > 0:
             notes.append("Given to distributors counts bednets after "
@@ -2834,64 +2908,13 @@ def build_stock_section(doc, cfg, heading_num="6"):
     doc.add_paragraph()
     sub += 1
 
-    facilities = (_per_facility(data)
-                  if data["variant"] in ("smc", "itn_ledger") else [])
-    day = max(1, int(cfg.get("DAY") or 1))
-
-    # ── (on-ground view) stock-left list: daily, and after the campaign ────
-    # ONLY facilities that actually record stock in the app belong here: a
-    # facility whose consumption comes solely from the task index has a
-    # meaningless "balance" of 0 — those are a recording problem, not stock.
-    # The daily "Restock First" list was replaced by this one for Taraba on
-    # user request 2026-10-08; ITN still shows it only once the campaign ends.
-    recording = [f for f in facilities
-                 if f["consumed"] > 0 and (f["received"] + f["issued"]) > 0]
-    campaign_over = bool(cfg.get("cumulative")) or (
-        day >= int(cfg.get("campaign_days") or day))
-    if recording and (campaign_over or not is_hub):
-        leftovers = sorted(
-            (f for f in recording
-             if f["bal_hf"] > 0 or f["bal_cdd"] > 0),
-            key=lambda f: f["bal_hf"] + max(f["bal_cdd"], 0),
-            reverse=True)[:5]
-        if leftovers:
-            one_site = "facility" if site == "facilities" else site[:-1]
-            if campaign_over:
-                title = f"{site.capitalize()} With Stock Left Over"
-                note = (f"The campaign has ended; this stock should be "
-                        f"returned or accounted for. Total left = at "
-                        f"{one_site} + with {holders}.")
-            else:
-                title = f"{site.capitalize()} With the Most Stock Left"
-                note = (f"Stock still available as of today, largest first. "
-                        f"Total left = at {one_site} + with {holders}.")
-            add_heading(doc, f"{heading_num}.{sub}  {title}", 5)
-            add_para(doc, note, size=8, color=GREY_RGB)
-            _simple_table(
-                doc, ["#", "LGA / District", site_col,
-                      f"At {one_site}", f"With {holders}", "Total left"],
-                [[ri, f["lga"], f["hf"], f"{f['bal_hf']:,.0f}",
-                  f"{max(f['bal_cdd'], 0):,.0f}",
-                  f"{f['bal_hf'] + max(f['bal_cdd'], 0):,.0f}"]
-                 for ri, f in enumerate(leftovers, 1)],
-                left_cols=(1, 2))
-            link_p = add_para(doc, "For more details, all facilities and "
-                                   "products: ",
-                              size=8, color=GREY_RGB)
-            if cfg.get("stock_drive_link"):
-                _add_hyperlink(link_p, "Stock Data ↗ (STOCK LEDGER tab)",
-                               cfg["stock_drive_link"])
-            else:
-                link_p.add_run(cfg.get("stock_xlsx", "") or _stock_xlsx(cfg))
-            doc.add_paragraph()
-            sub += 1
+    # (The "Restock First" and "Stock Left Over" lists are not part of the
+    # report for any campaign.)
 
     # (The "Facilities Not Recording Handovers" section was removed on partner
-    # feedback 2026-09; the per-CDD audit below covers the same signal.)
+    # feedback; the per-CDD audit below covers the same signal.)
 
     # ── (audit — always LAST) per-CDD stock check ──────────────────────────
-    # Noise threshold: a difference matters when it is at least 20 units and
-    # at least 5% of the larger of got/used.
     cdd_rows = [r for r in data.get("cdd_rows", []) if _significant_diff(r)]
     if is_hub:
         # ITN audit lists the RED distributors only (see "clean" above)
@@ -2905,10 +2928,9 @@ def build_stock_section(doc, cfg, heading_num="6"):
                       "distribution recorded under another distributor's "
                       "login.",
                  size=9, color=GREY_RGB)
-        add_para(doc, "Difference = Received - Distributed - Returned. Shown "
-                      "when the gap is at least 20 bednets and at least 5% of "
-                      "what they distributed. Distributors still holding "
-                      "bednets are not listed here.",
+        add_para(doc, "Difference = Received - Distributed - Returned. "
+                      "Distributors still holding bednets are not listed "
+                      "here.",
                  size=8, color=GREY_RGB)
         top = sorted(cdd_rows, key=lambda r: r[5])[:5]
         red_rows = tuple(ri for ri, r in enumerate(top, 1)
