@@ -96,7 +96,16 @@ public enum TaskStatus {
     /**
      * Indicates that the beneficiary was given redose.
      */
-    VISITED("VISITED");
+    VISITED("VISITED"),
+
+    /**
+     * Indicates that the beneficiary was vaccinated at another location.
+     * This status signifies that the beneficiary (previously marked absent) has
+     * already been vaccinated elsewhere, e.g. at a school, marketplace, health
+     * facility or transit post. The location is captured in the task's
+     * additionalFields.
+     */
+    VACCINATED_ELSEWHERE("VACCINATED_ELSEWHERE");
 
     // The string value associated with the task status.
     private String value;
