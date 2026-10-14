@@ -243,6 +243,11 @@ jobs:
   code-scan:
     name: Code scan · ${{ needs.resolve-config.outputs.service_image_name }}
     needs: resolve-config
+    # TEMPORARY: only scan/gate builds triggered from master while the team
+    # verifies this works. Builds from feature branches skip scanning entirely
+    # and are never blocked. Remove this `if` (and the one on image-scan, and
+    # the branch clause in build-matrix's `if`) to enforce on every build.
+    if: ${{ github.ref_name == 'master' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write        # publish.sh pushes the dashboard to gh-pages
@@ -292,6 +297,8 @@ jobs:
   image-scan:
     name: Image scan · ${{ needs.resolve-config.outputs.service_image_name }}
     needs: [resolve-config, code-scan]
+    # TEMPORARY: master-only, same as code-scan above.
+    if: ${{ github.ref_name == 'master' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -354,7 +361,16 @@ jobs:
 
   build-matrix:
     name: Build image for ${{ matrix.arch }}
-    needs: [resolve-config, image-scan]
+    needs: [resolve-config, code-scan, image-scan]
+    # Build when the scan gates passed, OR when they were skipped because the run
+    # was not from master (the scans are master-only for now). On master, a failed
+    # or skipped scan (a skipped image-scan means the code gate failed) blocks the
+    # build. Non-master runs are never blocked.
+    if: >-
+      ${{ !cancelled()
+          && needs.resolve-config.result == 'success'
+          && (github.ref_name != 'master'
+              || (needs.code-scan.result == 'success' && needs.image-scan.result == 'success')) }}
     strategy:
       matrix:
         include:
