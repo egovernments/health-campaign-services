@@ -53,7 +53,14 @@ Base path `/excel-ingestion/v1/data`. Generation and processing are async (retur
 
 **Kafka outputs.** `save-generated-file` / `update-generated-file` (generation row + status), `save-processing-file` / `update-processing-file` (processing row + status), `save-sheet-data-temp` / `delete-sheet-data-temp` (staged parsed rows, written in chunks of 200), and **`hcm-processing-result`** — the topic **project-factory** consumes to close the loop. The persister (in the `configs/` repo) turns the `save-*`/`update-*` events into Postgres rows.
 
-**Swagger contract:** https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/health-campaign-services/master/health-services/excel-ingestion/excel-ingestion-swagger.yml — local copy: [`excel-ingestion-swagger.yml`](./excel-ingestion-swagger.yml).
+### Swagger / OpenAPI (dynamic)
+
+- Live OpenAPI JSON: `GET /excel-ingestion/v3/api-docs`
+- Swagger UI: `GET /excel-ingestion/swagger-ui/index.html`
+- API groups/tags are generated from controller annotations and include endpoint-level summaries/descriptions.
+- Request/response schemas (including nested sub-objects such as `RequestInfo` and `userInfo`) are generated from the Java model classes at runtime.
+
+**Reference contract:** https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/health-campaign-services/master/health-services/excel-ingestion/excel-ingestion-swagger.yml — local copy: [`excel-ingestion-swagger.yml`](./excel-ingestion-swagger.yml).
 
 ### Kafka topics
 
