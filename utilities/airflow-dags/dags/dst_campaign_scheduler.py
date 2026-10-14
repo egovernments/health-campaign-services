@@ -1,7 +1,7 @@
-"""dst_campaign_scheduler — decides, every 5 minutes, which campaign reports are due.
+"""dst_campaign_scheduler — decides, every 3 hours, which campaign reports are due.
 
 Stateless by design: each tick re-reads the Google Sheet, so a sheet edit is
-live within 5 minutes and there is no cached schedule to invalidate. The sheet
+live from the next tick and there is no cached schedule to invalidate. The sheet
 is only ever read INSIDE tasks — never at DAG-parse time (the dag-processor
 re-executes this file's top level every ~30 seconds).
 
@@ -48,19 +48,29 @@ log = logging.getLogger(__name__)
 # top level every ~30 seconds, long before any Airflow Variable has been
 # applied, so a value supplied via dst_config could never reach a module-level
 # read — it would silently keep this default forever.
-DEFAULT_LOOKBACK_MINUTES = "60"
+DEFAULT_LOOKBACK_MINUTES = "195"
+
+# Ticks every 3 hours: a tick every 5 minutes kept the hosted Airflow API
+# server busy enough to restart it. A report slot now fires on the first tick
+# at or after its sheet time, so it can go out up to 3 hours late.
+SCHEDULE = "0 */3 * * *"
+SCHEDULE_INTERVAL_MINUTES = 180
+# The lookback must cover the gap since the previous tick, or slots between
+# two ticks are never fired. The margin absorbs a tick that starts late;
+# overlap is harmless because run ids are deterministic.
+LOOKBACK_MARGIN_MINUTES = 15
 
 
 @dag(
     dag_id="dst_campaign_scheduler",
-    description="Reads the campaign config sheet every 5 minutes and triggers due report runs",
-    schedule="*/5 * * * *",
+    description="Reads the campaign config sheet every 3 hours and triggers due report runs",
+    schedule=SCHEDULE,
     start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
     catchup=False,
     max_active_runs=1,
     tags=["dst", "reporting"],
     default_args={"retries": 1,
-                  "retry_delay": timedelta(minutes=1),
+                  "retry_delay": timedelta(minutes=5),
                   "on_failure_callback": notify_slack_on_failure},
     doc_md=__doc__,
 )
@@ -72,7 +82,7 @@ def dst_campaign_scheduler():
         log.info(f"deployment groups: {[g['name'] for g in groups]}")
         return groups
 
-    @task(execution_timeout=timedelta(minutes=4))
+    @task(execution_timeout=timedelta(minutes=10))
     def find_due_campaigns(group):
         """Read one group's campaign rows and return the slots due right now.
 
@@ -94,6 +104,10 @@ def dst_campaign_scheduler():
         with dst_config.apply():
             lookback = int(os.getenv("DST_LOOKBACK_MINUTES",
                                      DEFAULT_LOOKBACK_MINUTES))
+            # Deployments that still carry the old "60" in dst_config would
+            # otherwise silently drop every slot more than an hour before a tick.
+            lookback = max(lookback,
+                           SCHEDULE_INTERVAL_MINUTES + LOOKBACK_MARGIN_MINUTES)
             use_mdms = mdms_enabled()
             with group_environment(group):
                 if use_mdms:
