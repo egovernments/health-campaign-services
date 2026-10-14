@@ -132,26 +132,165 @@ def _campaign_name(r):
     return f"{r['campaign_name']} ({r['tenant']})" if r.get("campaign_name") else f"Tenant {r['tenant']}"
 
 
+# Alerts. Each alert has a code (documented in ALERTS.md), a severity and two short lines:
+# what happened and what to do. Raw reasons go in a small context line for the DST team.
+CRITICAL, WARNING, NOTICE, INFO = "CRITICAL", "WARNING", "NOTICE", "INFO"
+_RANK = {CRITICAL: 0, WARNING: 1, NOTICE: 2, INFO: 3}
+_RETRY = "None now; it is retried in the next run."
+
+# code -> (severity, what happened, what to do)
+ALERTS = {
+    "HL-UNRECOVERABLE": (WARNING, "{n} cannot be repaired: no copy exists on the server or in the error tracer.",
+                         "Field team to re-enter them in the app; the DST team provides the record list."),
+    "HL-REJECTED": (WARNING, "{n} could not be repaired: {why}.",
+                    "DST team to review them in dst_healer_record; they are retried in the next run."),
+    "HL-PUSH-OFF": (INFO, "Check-only run: repairs are switched off (HEALER_PUSH_ENABLED=false).",
+                    "None if intended; set HEALER_PUSH_ENABLED to true to repair."),
+    "HL-NO-DATA": (WARNING, "No records changed: a data source returned no records for this window.",
+                   "DST team to check index names, dates and connections in the healer settings."),
+    "HL-GAP-LIMIT": (WARNING, "No records changed: differences exceed the safety limit, which indicates "
+                              "an incomplete read.",
+                     "DST team to review the task log and re-run, with a shorter window if needed."),
+    "HL-READ-FAILED": (NOTICE, "Not processed: the data comparison did not complete.", _RETRY),
+    "HL-SERVICE": (NOTICE, "Not processed: a database, Elasticsearch or HCM service did not respond.", _RETRY),
+    "HL-AUDIT": (CRITICAL, "No records changed: the audit log (Kafka) is unavailable.",
+                 "DST team to check KAFKA_BROKER and the audit persister."),
+    "HL-CONFIG": (CRITICAL, "The healer settings could not be read.",
+                  "DST team to check the Airflow Variable hcm_data_healer_config."),
+    "HL-MDMS": (CRITICAL, "The campaign list could not be read from MDMS.",
+                "DST team to check MDMS_URL and the MDMS service."),
+    "HL-ENTRY": (WARNING, "Campaign entry not processed: {why}.", "{action}"),
+    "HL-NOT-DUE": (INFO, "Campaign entry not due yet: the last 3 days are held back while phones sync.",
+                   "None; it starts automatically."),
+    "HL-STOPPED": (WARNING, "Repair stopped part-way; completed repairs are kept. Cause: {why}.",
+                   "DST team to review the task log; the rest is retried in the next run."),
+    "HL-UNFINISHED": (WARNING, "{n} did not finish.", "See the Task failure alert for this run."),
+    "HL-TASK": (WARNING, "{what}", "{action}"),
+    "HL-TIMEOUT": (NOTICE, "The run exceeded its time limit; unfinished windows were stopped.",
+                   "None now; retried in the next run. If it repeats, shorten the windows."),
+    "HL-UNKNOWN": (WARNING, "Not processed: an unexpected error occurred.", "DST team to review the task log."),
+}
+
+# raw reason phrase (lower case) -> code; first match wins
+_CODE_OF = [
+    ("switched to false during the run", "HL-PUSH-OFF"), ("healer_push_enabled", "HL-PUSH-OFF"),
+    ("one side empty", "HL-NO-DATA"), ("exceed the limit", "HL-GAP-LIMIT"), ("% limit", "HL-GAP-LIMIT"),
+    ("counts unreadable", "HL-READ-FAILED"), ("reconciliation", "HL-READ-FAILED"),
+    ("error-tracer", "HL-READ-FAILED"), ("auditerror", "HL-AUDIT"), ("kafka", "HL-AUDIT"),
+    ("config unreadable", "HL-CONFIG"), ("variable", "HL-CONFIG"), ("settling period", "HL-NOT-DUE"),
+    ("mdms", "HL-MDMS"), ("timeout", "HL-SERVICE"), ("timed out", "HL-SERVICE"),
+    ("connection", "HL-SERVICE"),
+]
+
+# invalid MDMS entry: phrase -> (why, action)
+_ENTRY = [
+    ("overlaps", "its dates overlap another active entry for this tenant",
+     "Change the dates in MDMS or set active to NO on one entry."),
+    ("startdate is empty", "no start date", "Add startDate in the MDMS entry."),
+    ("is before startdate", "end date is before start date", "Correct the dates in the MDMS entry."),
+    ("no enddate and the window", "no end date and the window is too long",
+     "Set endDate in the MDMS entry, or set active to NO if the campaign has ended."),
+    ("does not match tenant_id", "tenant differs from this healer's TENANT_ID",
+     "Correct the tenant in the MDMS entry."),
+    ("not a valid tenant code", "invalid tenant code", "Correct the tenant in the MDMS entry."),
+    ("unreadable date", "a date is not in YYYY-MM-DD format", "Correct the date in the MDMS entry."),
+    ("slack channel", "invalid Slack channel ID", "Correct slackChannels in the MDMS entry."),
+]
+
+# HCM rejection code or reason (lower case) -> plain cause
+_REJECTION = [
+    ("no source copy", "with no copy to rebuild from"),
+    ("not returned by the hcm search", "not found by the HCM search"),
+    ("duplicate", "already in HCM"), ("already", "already in HCM"),
+    ("not_found", "missing a linked record in HCM"), ("link", "missing a linked record in HCM"),
+    ("reference", "missing a linked record in HCM"), ("tenant", "for the wrong tenant"),
+    ("invalid", "failing HCM validation"), ("validation", "failing HCM validation"),
+]
+
+# record type behind each unrecoverable chain gap
+MISSING_KIND = {
+    "MEMBER_WITHOUT_HOUSEHOLD": "households", "CHAIN_A": "households",
+    "HOUSEHOLD_WITHOUT_MEMBERS": "household members", "CHAIN_B": "household members",
+    "MEMBER_WITHOUT_INDIVIDUAL": "people", "CHAIN_C": "people",
+    "HOUSEHOLD_NOT_ENROLLED": "household enrolments", "CHAIN_D": "household enrolments",
+    "BENEFICIARY_WITHOUT_TASK": "delivery records", "CHAIN_E": "delivery records",
+    "HOUSEHOLD_NOT_ENROLLED_NO_MEMBERS": "household enrolments", "CHAIN_F": "household enrolments",
+}
+
+
+def code_of(reason):
+    """Return the alert code for a raw reason or error text."""
+    s = str(reason or "").lower()
+    return next((code for phrase, code in _CODE_OF if phrase in s), "HL-UNKNOWN")
+
+
+def _entry_problem(reason):
+    s = str(reason or "").lower()
+    return next(((why, action) for phrase, why, action in _ENTRY if phrase in s),
+                ("the entry is not valid", "Correct the MDMS entry."))
+
+
+def _rejection_cause(code):
+    s = str(code).lower()
+    return next((cause for phrase, cause in _REJECTION if phrase in s), "refused by HCM")
+
+
+def alert(code, title, details="", **fill):
+    """Return (severity, mrkdwn) for one alert: severity + title, what happened, what to do."""
+    severity, what, action = ALERTS[code]
+    what, action = what.format(**fill), action.format(**fill)
+    lines = [f"*{severity}*  {title}", what, f"*Action:* {action}"]
+    tech = f"{code}" + (f" | {redact(details, 160)}" if details else "") + " | see ALERTS.md"
+    return severity, "\n".join(lines) + f"\n_{tech}_"
+
+
+def reason_alert(title, reason, failed=False):
+    """Alert for a window or entry that stopped for a raw reason."""
+    raw = str(reason or "")
+    if raw.startswith("push stopped before finishing"):
+        inner = code_of(raw.split(":", 1)[-1])
+        why = ALERTS[inner][1].split(": ", 1)[-1].rstrip(".") if inner != "HL-UNKNOWN" else "unexpected error"
+        return alert("HL-STOPPED", title, raw, why=why[0].lower() + why[1:])
+    code = code_of(raw)
+    if code == "HL-UNKNOWN" and not failed:
+        why, action = _entry_problem(raw)
+        return alert("HL-ENTRY", title, raw, why=why, action=action)
+    return alert(code, title, raw)
+
+
+def _window(r):
+    return f"{_campaign_name(r)} | {r.get('start_date') or '?'} to {r.get('end_date') or '?'}"
+
+
 def _detail_lines(results, roster, crashed):
-    """Build run-notes lines for configuration problems and unfinished work."""
-    lines = []
+    """Build (severity, text) alerts for every issue that needs attention; INFO is dropped."""
+    items = []
     for r in results:
+        title = _window(r)
         reasons = r.get("failed_by_reason") or {}
         if reasons:
-            lines.append(f"- {_campaign_name(r)}: rejected by HCM - " + ", ".join(
-                f"{k} {_n(v)}" for k, v in sorted(reasons.items(), key=lambda kv: -kv[1])[:3]))
-        if int((r.get("counts") or {}).get("unrecoverable") or 0):
-            lines.append(f"- {_campaign_name(r)}: {_n(r['counts']['unrecoverable'])} records have no "
-                         f"source copy and need re-capture in the field")
+            top = sorted(reasons.items(), key=lambda kv: -kv[1])[:3]
+            why = ", ".join(f"{_n(v)} {_rejection_cause(k)}" for k, v in top)
+            items.append(alert("HL-REJECTED", title, ", ".join(f"{k} {_n(v)}" for k, v in top),
+                               n=_plural(sum(reasons.values()), "record"), why=why))
+        unrec = int((r.get("counts") or {}).get("unrecoverable") or 0)
+        if unrec:
+            kinds = {}
+            for issue, v in (r.get("unrecoverable_by_issue") or {}).items():
+                kind = MISSING_KIND.get(issue, "other records")
+                kinds[kind] = kinds.get(kind, 0) + int(v or 0)
+            split = ", ".join(f"{_n(v)} {k}" for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]))
+            items.append(alert("HL-UNRECOVERABLE", title, split,
+                               n=_plural(unrec, "record")))
         if r["status"] in ("CHECKED_ONLY", "FAILED") and r.get("reason"):
-            lines.append(f"- {_campaign_name(r)}: {redact(r['reason'], 160)}")
+            items.append(reason_alert(title, r["reason"], failed=r["status"] == "FAILED"))
     for i in roster.get("invalid", []):
-        lines.append(f"- Configuration {i['entry'] or i['tenant']} not processed: {redact(i['reason'], 140)}")
-    for s in roster.get("skipped", []):
-        lines.append(f"- Configuration {s['entry']} not yet due: {s['reason']}")
+        items.append(reason_alert(f"Campaign entry {i['entry'] or i['tenant']}", i["reason"]))
+    for sk in roster.get("skipped", []):
+        items.append(reason_alert(f"Campaign entry {sk['entry']}", sk["reason"]))
     if crashed:
-        lines.append(f"- {crashed} campaign(s) did not finish; see the task failure alert")
-    return lines
+        items.append(alert("HL-UNFINISHED", "Campaign windows", n=_plural(crashed, "campaign window")))
+    return sorted((it for it in items if it[0] != INFO), key=lambda it: _RANK[it[0]])
 
 
 def run_link(dag_run_id):
@@ -175,12 +314,8 @@ def _no_changes_reason(r):
     """Return a plain reason for a CHECKED_ONLY result, else ''."""
     if r["status"] != "CHECKED_ONLY":
         return ""
-    reason = str(r.get("reason") or "")
-    if "HEALER_PUSH_ENABLED" in reason:
-        return "updates are paused by configuration"
-    if "gaps" in reason:
-        return "the number of discrepancies exceeded the safety limit (likely an incomplete data read)"
-    return "part of the data could not be read"
+    code = code_of(r.get("reason"))
+    return ALERTS[code][1].split(": ", 1)[-1].rstrip(".") if code != "HL-UNKNOWN" else "the run stopped early"
 
 
 def category_lines(r):
@@ -269,17 +404,23 @@ def run_summary(day, roster, results, crashed, dag_run_id="", run_minutes=None):
             posted = _post(text, color, [_text("\n".join(lines))], channels)
             all_ok &= len(posted) == len(channels)
     failed = [r for r in results if r["status"] == "FAILED"]
-    notes = [f"- {_campaign_name(r)} {r['start_date']} to {r['end_date']}: could not be processed"
-             f" ({redact(r.get('reason'), 160) or 'see the task log'})" for r in failed]
+    notes = [reason_alert(_window(r), r.get("reason") or "", failed=True) for r in failed]
     # windows that ran but had rejections, unrecoverable records or a guardrail hold
     notes += _detail_lines([r for r in results if r["status"] != "FAILED"], roster, crashed)
+    notes = sorted((x for x in notes if x[0] != INFO), key=lambda x: _RANK[x[0]])
     if notes:
         link = run_link(dag_run_id)
-        footer = f"DAG run: {dag_run_id or '-'}" + (f"  |  {link}" if link else "")
-        color = RED if failed or crashed else AMBER
-        posted = _post(f"HCM Data Healer | alerts | {day}", color,
-                       [_text(f"*HCM Data Healer | Alerts | {day}*\n" + "\n".join(notes) + f"\n{footer}")],
-                       alerts)
+        footer = f"Run {dag_run_id or '-'}" + (f"  |  {link}" if link else "")
+        worst = notes[0][0]
+        color = {CRITICAL: RED, WARNING: AMBER}.get(worst, GREY)
+        act = sum(1 for sev, _ in notes if sev in (CRITICAL, WARNING))
+        summary = (f"{act} action{'s' if act != 1 else ''} needed" if act
+                   else "no action needed now")
+        blocks = [_header(f"HCM Data Healer | {summary} | {day}")]
+        for _, note in notes:
+            blocks += [_divider(), _text(note)]
+        blocks += [_divider(), _context(footer)]
+        posted = _post(f"HCM Data Healer | {summary} | {day}", color, blocks[:50], alerts)
         all_ok &= len(posted) == len(alerts)
     return bool(all_ok) and bool(by_tenant or notes)
 
@@ -299,11 +440,20 @@ def run_timeout_alert(context):
         return
     cfg = _cfg()
     run = getattr(context.get("dag_run"), "run_id", "?")
-    blocks = [_header("HCM Data Healer | Run timed out"),
-              _text("The run exceeded its time limit. Campaign windows still in progress were stopped and "
-                    "are retried in the next run."),
-              _context(f"Technical details: dag_run_id={run}  |  unfinished rows stay RUNNING in dst_healer_run")]
-    _post(f"Data Healer run timed out: {run}", RED, blocks, alert_channels(cfg), token=cfg.get("SLACK_TOKEN"))
+    link = run_link(run)
+    _, text = alert("HL-TIMEOUT", "Healer run")
+    blocks = [_header("HCM Data Healer | Run timed out"), _text(text),
+              _context(f"Run {run}  |  unfinished rows stay RUNNING in dst_healer_run"
+                       + (f"  |  {link}" if link else ""))]
+    _post(f"HCM Data Healer | Run timed out | {run}", GREY, blocks, alert_channels(cfg),
+          token=cfg.get("SLACK_TOKEN"))
+
+
+TASK_WHAT = {
+    "get_campaigns_from_mdms": "No campaign was processed: the campaign list could not be loaded.",
+    "heal_campaign": "This campaign window was not processed; no records changed.",
+    "post_daily_summary": "Repairs ran, but the daily results message failed.",
+}
 
 
 def task_failure_alert(context):
@@ -314,20 +464,21 @@ def task_failure_alert(context):
     cfg = _cfg()
     ti = context.get("task_instance") or context.get("ti")
     dag_run = context.get("dag_run")
+    run = getattr(dag_run, "run_id", "?")
     label = getattr(ti, "rendered_map_index", None)
     task_id = getattr(ti, "task_id", "?")
-    what = {"get_campaigns_from_mdms": "The campaign configuration could not be read from MDMS. No campaign "
-                                       "was processed in this run.",
-            "heal_campaign": "A campaign window could not be processed. It is retried in the next run.",
-            "post_daily_summary": "The daily run summary could not be completed."}.get(task_id, "A task failed.")
-    blocks = [_header("HCM Data Healer | Task failure"),
-              _fields([("Task", task_id), ("Campaign window", label or "-"),
-                       ("Attempt", str(getattr(ti, "try_number", "?")))]),
-              _text(what)]
+    raw = f"{type(exc).__name__}: {exc}" if exc else "stopped without an error message (worker restart)"
+    code = code_of(raw)
+    title = f"Task {task_id}" + (f" | {label}" if label else "")
+    if code == "HL-UNKNOWN":
+        severity, text = alert("HL-TASK", title, raw, what=TASK_WHAT.get(task_id, "A healer task failed."),
+                               action=_RETRY if task_id == "heal_campaign" else "DST team to review the task log.")
+    else:
+        severity, text = alert(code, title, raw)
     log_url = getattr(ti, "log_url", "")
-    tech = [f"error={type(exc).__name__ if exc else 'unknown'}: {redact(exc) or 'no message (task may have been killed)'}",
-            f"dag_run_id={getattr(dag_run, 'run_id', '?')}"]
-    blocks.append(_context("Technical details: " + "  |  ".join(tech)
-                           + (f"  |  <{log_url}|task log>" if log_url else "")))
-    _post(f"Data Healer task failed: {task_id} {label or ''}".strip(), RED, blocks, alert_channels(cfg),
-          token=cfg.get("SLACK_TOKEN"))
+    blocks = [_header(f"HCM Data Healer | Task failed | {task_id}"), _text(text),
+              _context(f"Attempt {getattr(ti, 'try_number', '?')}  |  Run {run}"
+                       + (f"  |  <{log_url}|Task log>" if log_url else ""))]
+    color = {CRITICAL: RED, WARNING: AMBER}.get(severity, GREY)
+    _post(f"HCM Data Healer | Task failed | {task_id} {label or ''}".strip(), color, blocks,
+          alert_channels(cfg), token=cfg.get("SLACK_TOKEN"))
