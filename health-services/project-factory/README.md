@@ -36,6 +36,22 @@ A small campaign finishes in seconds; a country-wide one (thousands of facilitie
 
 Base path `/project-factory`. The HTTP layer only **triggers** work — all heavy lifting runs asynchronously over Kafka.
 
+### Swagger / OpenAPI (auto-generated)
+
+- OpenAPI spec is generated automatically from Express controllers via `yarn swagger:generate`.
+- API docs are served at `GET /project-factory/swagger`.
+- Raw generated spec is served at `GET /project-factory/swagger.json`.
+- Routes are discovered dynamically from all controller route registrations; only controllers with HTTP endpoints are shown as endpoint groups.
+- Controller groups are rendered as Swagger tags (for example, Campaign Management, Data Management (V1), Sheet Management (V2), Crypto Operations). The Localization tag is kept for internal API context and may have zero endpoints.
+- Request/response schemas are wired into OpenAPI `components.schemas`, and nested models (including `RequestInfo` and `UserInfo`) are reused from [swagger.yml](./swagger.yml) when available.
+
+For local development, this generation runs automatically with `yarn dev` and `yarn build`.
+
+If dependent services (DB/Kafka/Redis) are not running and the main app cannot boot, you can still view docs in standalone mode:
+
+- `yarn swagger:serve`
+- Open `http://localhost:8099/project-factory/swagger`
+
 | Endpoint | Purpose |
 |---|---|
 | `POST /v1/project-type/create` | Create a campaign (status `drafted` → `creating`); returns immediately, work continues in the background. |

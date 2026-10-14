@@ -20,9 +20,24 @@ class ResourceDetailsController {
   }
 
   public intializeRoutes() {
-    this.router.post(`${this.path}/_create`, this.createResource);
-    this.router.post(`${this.path}/_update`, this.updateResource);
-    this.router.post(`${this.path}/_search`, this.searchResources);
+    this.router.post(
+      "/v1/resource-details/_create",
+      /* #swagger.tags = ['Data Management (V1)'] */
+      /* #swagger.summary = 'Create resource details' */
+      this.createResource
+    );
+    this.router.post(
+      "/v1/resource-details/_update",
+      /* #swagger.tags = ['Data Management (V1)'] */
+      /* #swagger.summary = 'Update resource details' */
+      this.updateResource
+    );
+    this.router.post(
+      "/v1/resource-details/_search",
+      /* #swagger.tags = ['Data Management (V1)'] */
+      /* #swagger.summary = 'Search resource details' */
+      this.searchResources
+    );
   }
 
   createResource = async (request: express.Request, response: express.Response) => {

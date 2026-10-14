@@ -19,13 +19,48 @@ class dataManageController {
     }
 
     public intializeRoutes() {
-        this.router.post(`${this.path}/_generate`, this.generateData);
-        this.router.post(`${this.path}/_download`, this.downloadData)
-        this.router.post(`${this.path}/_create`, this.createData);
-        this.router.post(`${this.path}/_search`, this.searchData);
-        this.router.post(`${this.path}/campaign/_search`, this.searchCampaignData);
-        this.router.post(`${this.path}/mapping/_search`, this.searchMappingData);
-        this.router.post(`${this.path}/distributor-by-dh/_search`, this.searchDistributorsByDh);
+        this.router.post(
+            "/v1/data/_generate",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Generate data' */
+            this.generateData
+        );
+        this.router.post(
+            "/v1/data/_download",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Download data' */
+            this.downloadData
+        );
+        this.router.post(
+            "/v1/data/_create",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Create data' */
+            this.createData
+        );
+        this.router.post(
+            "/v1/data/_search",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Search data' */
+            this.searchData
+        );
+        this.router.post(
+            "/v1/data/campaign/_search",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Search campaign data' */
+            this.searchCampaignData
+        );
+        this.router.post(
+            "/v1/data/mapping/_search",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Search mapping data' */
+            this.searchMappingData
+        );
+        this.router.post(
+            "/v1/data/distributor-by-dh/_search",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Search distributors by DH' */
+            this.searchDistributorsByDh
+        );
     }
     /**
 * Generates data based on the request and sends the response.
@@ -148,6 +183,3 @@ class dataManageController {
 
 };
 export default dataManageController;
-
-
-

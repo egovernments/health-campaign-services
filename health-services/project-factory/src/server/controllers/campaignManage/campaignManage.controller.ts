@@ -24,13 +24,48 @@ class campaignManageController {
     }
 
     public intializeRoutes() {
-        this.router.post(`${this.path}/create`, this.createProjectTypeCampaign);
-        this.router.post(`${this.path}/update`, this.updateProjectTypeCampaign);
-        this.router.post(`${this.path}/search`, this.searchProjectTypeCampaign);
-        this.router.post(`${this.path}/fetch-from-microplan`, this.fetchFromMicroplan);
-        this.router.post(`${this.path}/cancel-campaign`, this.cancelCampaign);
-        this.router.post(`${this.path}/status`, this.getCampaignStatus);
-        this.router.post(`${this.path}/add-resources`, this.addResources);
+        this.router.post(
+            "/v1/project-type/create",
+            /* #swagger.tags = ['Campaign Management'] */
+            /* #swagger.summary = 'Create project type campaign' */
+            this.createProjectTypeCampaign
+        );
+        this.router.post(
+            "/v1/project-type/update",
+            /* #swagger.tags = ['Campaign Management'] */
+            /* #swagger.summary = 'Update project type campaign' */
+            this.updateProjectTypeCampaign
+        );
+        this.router.post(
+            "/v1/project-type/search",
+            /* #swagger.tags = ['Campaign Management'] */
+            /* #swagger.summary = 'Search project type campaigns' */
+            this.searchProjectTypeCampaign
+        );
+        this.router.post(
+            "/v1/project-type/fetch-from-microplan",
+            /* #swagger.tags = ['Campaign Management'] */
+            /* #swagger.summary = 'Fetch campaign data from microplan' */
+            this.fetchFromMicroplan
+        );
+        this.router.post(
+            "/v1/project-type/cancel-campaign",
+            /* #swagger.tags = ['Campaign Management'] */
+            /* #swagger.summary = 'Cancel campaign' */
+            this.cancelCampaign
+        );
+        this.router.post(
+            "/v1/project-type/status",
+            /* #swagger.tags = ['Campaign Management'] */
+            /* #swagger.summary = 'Get campaign status' */
+            this.getCampaignStatus
+        );
+        this.router.post(
+            "/v1/project-type/add-resources",
+            /* #swagger.tags = ['Campaign Management'] */
+            /* #swagger.summary = 'Add resources to campaign' */
+            this.addResources
+        );
     }
     
     
@@ -198,6 +233,3 @@ class campaignManageController {
 };
 
 export default campaignManageController;
-
-
-

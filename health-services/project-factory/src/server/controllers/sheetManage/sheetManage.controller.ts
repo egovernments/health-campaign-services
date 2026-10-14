@@ -14,9 +14,24 @@ class SheetManageController {
     public router = express.Router();
 
     constructor() {
-        this.router.post(`${this.path}/_generate`, this.generateData);
-        this.router.post(`${this.path}/_process`, this.processData);
-        this.router.post(`${this.path}/_process-any`, this.processAny);
+        this.router.post(
+            "/v2/data/_generate",
+            /* #swagger.tags = ['Sheet Management (V2)'] */
+            /* #swagger.summary = 'Generate sheet data' */
+            this.generateData
+        );
+        this.router.post(
+            "/v2/data/_process",
+            /* #swagger.tags = ['Sheet Management (V2)'] */
+            /* #swagger.summary = 'Process sheet data' */
+            this.processData
+        );
+        this.router.post(
+            "/v2/data/_process-any",
+            /* #swagger.tags = ['Sheet Management (V2)'] */
+            /* #swagger.summary = 'Process sheet data (any)' */
+            this.processAny
+        );
     }
     
     /**

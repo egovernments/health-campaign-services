@@ -15,7 +15,12 @@ class CryptoController {
     }
 
     public initializeRoutes() {
-        this.router.post(`${this.path}/_bulkDecrypt`, this.bulkDecryptData);
+        this.router.post(
+            "/v1/crypto/_bulkDecrypt",
+            /* #swagger.tags = ['Crypto Operations'] */
+            /* #swagger.summary = 'Bulk decrypt encrypted strings' */
+            this.bulkDecryptData
+        );
     }
 
     /**
