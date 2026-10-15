@@ -257,6 +257,12 @@ jobs:
 
       - name: Trivy filesystem scan (code)
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        env:
+          # Do not reach out to private Maven/Nexus repos to resolve parent
+          # POMs - the hosted runner can't reach nexus-repo.egovernments.org and
+          # the Java analyzer would time out (FATAL). Scan what's in the tree.
+          TRIVY_OFFLINE_SCAN: 'true'
+          TRIVY_TIMEOUT: 15m
         with:
           scan-type: fs
           scan-ref: ${{ needs.resolve-config.outputs.service_work_dir }}
@@ -327,6 +333,11 @@ jobs:
 
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        env:
+          # Same reasoning as the code scan: never resolve dependencies over the
+          # network while scanning the built image.
+          TRIVY_OFFLINE_SCAN: 'true'
+          TRIVY_TIMEOUT: 15m
         with:
           scan-type: image
           image-ref: local-scan/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}
