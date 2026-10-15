@@ -1,5 +1,5 @@
 """dst_config_sync — the sheet listener: mirrors the Google Sheet into MDMS,
-one-way, every 10 minutes.
+one-way, every 3 hours, 30 minutes before each dst_campaign_scheduler tick.
 
 The sheet stays the only human surface (tabs = deployment groups, rows =
 tenant campaigns). Per group: read the tab, diff against the MDMS mirror,
@@ -16,7 +16,7 @@ Safety rules (encoded and unit-tested in pipeline/mdms.py::plan_sync):
 Runs ONLY when DST_MDMS_ENABLED=true. Sheet mode touches MDMS nowhere: config
 is read straight from the tab and run history is written to the Run Log tab, so
 mirroring rows into MDMS would be pure waste — a Sheets read and a set of MDMS
-writes every 10 minutes for a mirror nothing reads. The DAG therefore skips
+writes on every tick for a mirror nothing reads. The DAG therefore skips
 itself in sheet mode rather than relying on MDMS_URL being unset, and can ship
 to every deployment unchanged.
 """
@@ -55,9 +55,10 @@ log = logging.getLogger(__name__)
 @dag(
     dag_id="dst_config_sync",
     description="Sheet listener: mirrors campaign config rows into MDMS (one-way)",
-    # Offset from the 5-minute grid (:03, :13, :23 …) so a dst_campaign_scheduler
-    # tick never reads the MDMS mirror while this DAG is mid-sync.
-    schedule="3-59/10 * * * *",
+    # 02:30, 05:30 … 23:30 UTC: 2.5 hours after one dst_campaign_scheduler tick
+    # and 30 minutes before the next (00:00, 03:00 … 21:00), so every tick reads
+    # a mirror that is fresh and never one this DAG is still writing.
+    schedule="30 2-23/3 * * *",
     start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
     catchup=False,
     max_active_runs=1,
