@@ -219,6 +219,26 @@ def _run_stock_stage(cfg, marker):
     marker["stages"]["stock"] = "ok"
 
 
+def _run_cohort_stage(cfg, marker):
+    """Run pipeline/cohort.py (SMC/AZM cumulative reports only; it skips
+    itself otherwise). A skip records nothing; an error is non-fatal and
+    marks the run degraded, the report goes out without the section."""
+    from dst_data_analysis_report.pipeline import cohort
+
+    try:
+        produced = cohort.run(cfg)
+    except Exception as e:
+        cfg.pop("cohort_data", None)     # never render a half-built section
+        _degrade(marker, "cohort",
+                 f"the COHORT section is MISSING from the report — the cohort "
+                 f"step errored: {type(e).__name__}: {e}")
+        log.error(f"[runner] cohort failed (non-fatal — report continues "
+                  f"without a cohort section): {e}", exc_info=True)
+        return
+    if produced:
+        marker["stages"]["cohort"] = "ok"
+
+
 def execute_campaign(row, mode="both"):
     """Run analyze -> cdd_sync -> report -> notify for one campaign row.
 
@@ -339,6 +359,11 @@ def execute_campaign(row, mode="both"):
         # report_itn.py render the stock section from cfg["stock_data"].
         # Non-fatal like cdd_sync: the coverage report still goes out.
         _run_stock_stage(cfg, marker)
+
+        # OPTIONAL cohort stage — children across cycles, cumulative SMC/AZM
+        # only (DST_COHORT_REPORT). Before report: report.py renders the
+        # section from cfg["cohort_data"].
+        _run_cohort_stage(cfg, marker)
 
         docx_path, partner_docx_path, slack_text = _run_stage(
             "report", lambda: report_mod.run(cfg), marker)

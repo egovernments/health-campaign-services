@@ -140,8 +140,8 @@ _RETRY = "None now; it is retried in the next run."
 
 # code -> (severity, what happened, what to do)
 ALERTS = {
-    "HL-UNRECOVERABLE": (WARNING, "{n} cannot be repaired: no copy exists on the server or in the error tracer.",
-                         "Field team to re-enter them in the app; the DST team provides the record list."),
+    "HL-UNRECOVERABLE": (INFO, "{n} have a link that could not be completed; no copy was found in the "
+                               "error tracer.", "None."),
     "HL-REJECTED": (WARNING, "{n} could not be repaired: {why}.",
                     "DST team to review them in dst_healer_record; they are retried in the next run."),
     "HL-PUSH-OFF": (INFO, "Check-only run: repairs are switched off (HEALER_PUSH_ENABLED=false).",
@@ -209,12 +209,15 @@ _REJECTION = [
 
 # record type behind each unrecoverable chain gap
 MISSING_KIND = {
-    "MEMBER_WITHOUT_HOUSEHOLD": "households", "CHAIN_A": "households",
-    "HOUSEHOLD_WITHOUT_MEMBERS": "household members", "CHAIN_B": "household members",
-    "MEMBER_WITHOUT_INDIVIDUAL": "people", "CHAIN_C": "people",
-    "HOUSEHOLD_NOT_ENROLLED": "household enrolments", "CHAIN_D": "household enrolments",
-    "BENEFICIARY_WITHOUT_TASK": "delivery records", "CHAIN_E": "delivery records",
-    "HOUSEHOLD_NOT_ENROLLED_NO_MEMBERS": "household enrolments", "CHAIN_F": "household enrolments",
+    "MEMBER_WITHOUT_HOUSEHOLD": "members without their household", "CHAIN_A": "members without their household",
+    "HOUSEHOLD_WITHOUT_MEMBERS": "households without members", "CHAIN_B": "households without members",
+    "MEMBER_WITHOUT_INDIVIDUAL": "members without their person record",
+    "CHAIN_C": "members without their person record",
+    "HOUSEHOLD_NOT_ENROLLED": "households without an enrolment", "CHAIN_D": "households without an enrolment",
+    "BENEFICIARY_WITHOUT_TASK": "beneficiaries without a delivery record",
+    "CHAIN_E": "beneficiaries without a delivery record",
+    "HOUSEHOLD_NOT_ENROLLED_NO_MEMBERS": "households without an enrolment",
+    "CHAIN_F": "households without an enrolment",
 }
 
 
@@ -258,6 +261,15 @@ def reason_alert(title, reason, failed=False):
     return alert(code, title, raw)
 
 
+def unrecoverable_split(r):
+    """Return e.g. '86 beneficiaries without a delivery record, 5 households without members'."""
+    kinds = {}
+    for issue, v in (r.get("unrecoverable_by_issue") or {}).items():
+        kind = MISSING_KIND.get(issue, "other links")
+        kinds[kind] = kinds.get(kind, 0) + int(v or 0)
+    return ", ".join(f"{_n(v)} {k}" for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]))
+
+
 def _window(r):
     return f"{_campaign_name(r)} | {r.get('start_date') or '?'} to {r.get('end_date') or '?'}"
 
@@ -275,12 +287,7 @@ def _detail_lines(results, roster, crashed):
                                n=_plural(sum(reasons.values()), "record"), why=why))
         unrec = int((r.get("counts") or {}).get("unrecoverable") or 0)
         if unrec:
-            kinds = {}
-            for issue, v in (r.get("unrecoverable_by_issue") or {}).items():
-                kind = MISSING_KIND.get(issue, "other records")
-                kinds[kind] = kinds.get(kind, 0) + int(v or 0)
-            split = ", ".join(f"{_n(v)} {k}" for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]))
-            items.append(alert("HL-UNRECOVERABLE", title, split,
+            items.append(alert("HL-UNRECOVERABLE", title, unrecoverable_split(r),
                                n=_plural(unrec, "record")))
         if r["status"] in ("CHECKED_ONLY", "FAILED") and r.get("reason"):
             items.append(reason_alert(title, r["reason"], failed=r["status"] == "FAILED"))
@@ -332,7 +339,7 @@ def category_lines(r):
     def part(cat, label, done_key, done_word):
         o = cat["outcomes"]
         if not cat["found"]:
-            return f"{label}: none"
+            return f"{label}: 0 found"
         if why:
             return f"{label}: {_n(cat['found'])} found"
         bits = [f"{_n(o.get(done_key, 0))} {done_word}"]
@@ -349,15 +356,18 @@ def category_lines(r):
     lines.append(part(es, "Missing in ES", "REINDEXED", "re-indexed"))
     o = tr["outcomes"]
     if not tr["found"]:
-        lines.append("Error tracer: no missing links")
+        lines.append("Error tracer: 0 incomplete links")
     elif why:
-        lines.append(f"Error tracer: {_n(tr['found'])} missing links found")
+        lines.append(f"Error tracer: {_n(tr['found'])} incomplete links found")
     else:
         bits = [f"{_n(o.get('CREATED', 0))} recovered",
-                f"{_n(o.get('UNRECOVERABLE', 0) + o.get('PREVIOUS_PUSH_NOT_SAVED', 0))} unrecoverable"]
+                f"{_n(o.get('UNRECOVERABLE', 0) + o.get('PREVIOUS_PUSH_NOT_SAVED', 0))} with no copy found"]
         if o.get("FAILED"):
             bits.append(f"{_n(o['FAILED'])} could not be restored")
-        lines.append(f"Error tracer: {_n(tr['found'])} missing links - " + ", ".join(bits))
+        lines.append(f"Error tracer: {_n(tr['found'])} incomplete links - " + ", ".join(bits))
+    split = unrecoverable_split(r)
+    if split:
+        lines.append(f"No copy found for: {split}.")
     return lines
 
 
@@ -370,11 +380,10 @@ def tenant_message(tenant, windows, day, dag_run_id):
     names = sorted({r.get("campaign_name") for r in windows if r.get("campaign_name")})
     lines = [f"*HCM Data Healer | Tenant: {tenant} | Campaign: {', '.join(names) or '-'}*"]
     for r in windows:
-        body = None
         found = sum(int((c or {}).get("found") or 0) for c in (r.get("by_category") or {}).values())
         if r["status"] == "COMPLETED" and not found:
-            body = "No discrepancies found; no changes needed."
-        lines += [body] if body else category_lines(r)
+            lines.append("No discrepancies found; no changes needed.")
+        lines += category_lines(r)
         lines.append(f"Window: {r['start_date']} to {r['end_date']} ({int(r.get('duration_min') or 1)} mins)")
     link = run_link(dag_run_id)
     lines.append(f"DAG run: {dag_run_id or '-'}" + (f"  |  {link}" if link else ""))
