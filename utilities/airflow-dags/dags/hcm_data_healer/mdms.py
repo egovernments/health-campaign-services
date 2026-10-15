@@ -6,8 +6,9 @@ MDMS is read once, under one tenant:
   central (IS_CENTRAL_INSTANCE_ENABLED=true): each entry heals the tenant in its `tenant`
     column (blank = TENANT_ID), e.g. so -> so-*-index-v1, so.*
   otherwise: TENANT_ID is also the tenant healed.
-An entry runs only when data.active is YES and MDMS isActive is true. Fields (strings): rowIdentity, tenant, campaignName,
-startDate, endDate (blank = settle cutoff), errorTracer (blank = YES), slackChannels, active.
+An entry runs only when data.active is YES, MDMS isActive is true and its endDate has not passed
+(it stops the day after endDate; manual runs are not limited). Fields (strings): rowIdentity, tenant, campaignName,
+startDate, endDate (blank = today, less HEALER_SETTLE_DAYS), errorTracer (blank = YES), slackChannels, active.
 Calls are in-cluster with an empty authToken. Env: MDMS_URL, MDMS_SEARCH_ENDPOINT (optional
 search path, e.g. egov-mdms-service/v2/_search; default /mdms-v2/v2/_search), plus tenancy keys.
 """
@@ -25,7 +26,6 @@ SCHEMA_CODE = "airflow-configs.dst-data-healer-config"
 API_PREFIX = "/mdms-v2/v2"
 PAGE_SIZE = 500
 MAX_PAGES = 50                 # guard against a build that ignores offset
-SETTLE_DAYS = 3                # newest days still in flight: never healed
 MAX_OPEN_WINDOW_DAYS = 120     # a window with no endDate may not run longer
 
 
@@ -130,12 +130,16 @@ def parse_channels(value):
     return out
 
 
-def settle_cutoff(today=None):
-    """Return the last day a heal may cover: today minus SETTLE_DAYS.
+def settle_days():
+    """Days held back from the end of every window (HEALER_SETTLE_DAYS, default 0 = up to today)."""
+    raw = os.getenv("HEALER_SETTLE_DAYS", "").strip()
+    return int(raw) if raw.isdigit() else 0
 
-    Newer records may still be in flight; healing them would create duplicates."""
+
+def settle_cutoff(today=None):
+    """Return the last day a heal may cover: today minus HEALER_SETTLE_DAYS."""
     today = today or datetime.now(timezone.utc).date()
-    return (today - timedelta(days=SETTLE_DAYS)).isoformat()
+    return (today - timedelta(days=settle_days())).isoformat()
 
 
 def to_target(data, mdms_tenant, mdms_id="", today=None):
@@ -169,8 +173,10 @@ def to_target(data, mdms_tenant, mdms_id="", today=None):
         # never past the settle cutoff
         target["end_date"] = min(end, cutoff) if end else cutoff
         if start > cutoff:
+            days = settle_days()
             target["skip"] = (f"The window starts on {start}; processing begins after the "
-                              f"{SETTLE_DAYS}-day settling period")
+                              f"{days}-day settling period" if days else
+                              f"The window starts on {start}; not started yet")
     except ValueError as exc:
         target["error"] = str(exc)
     return target
@@ -181,8 +187,9 @@ def plan(today=None):
 
     The roster feeds the daily summary. Overlapping windows of one tenant are
     invalid, since two concurrent heals could both create the same records."""
-    heal, skipped, invalid, inactive = [], [], [], 0
+    heal, skipped, invalid, inactive, ended = [], [], [], 0, 0
     root = mdms_tenant()
+    today_iso = (today or datetime.now(timezone.utc).date()).isoformat()
     try:
         entries = search_entries(root)
     except Exception as exc:                                      # noqa: BLE001
@@ -197,6 +204,10 @@ def plan(today=None):
             inactive += 1
             continue
         t = to_target(data, root, entry.get("id", ""), today)
+        # A campaign stops the day after its endDate; manual runs can still heal it.
+        if not t["error"] and parse_date(data.get("endDate")) and parse_date(data.get("endDate")) < today_iso:
+            ended += 1
+            continue
         tenant = t["tenant"]
         label = t["row_identity"] or f"{tenant}::{data.get('startDate', '?')}"
         chans = t["slack_channels"]
@@ -218,8 +229,9 @@ def plan(today=None):
                 mine.append(t)
                 heal.append(t)
     tenants = sorted({x["tenant"] for x in heal + skipped + invalid}) or [root]
-    roster = {"tenants": tenants, "heal": len(heal), "inactive": inactive,
+    roster = {"tenants": tenants, "heal": len(heal), "inactive": inactive, "ended": ended,
               "skipped": skipped, "invalid": invalid}
     log.info(f"[mdms] plan: mdms tenant={root} tenants={','.join(tenants)} heal={len(heal)} inactive={inactive} "
+             f"ended={ended} "
              f"skipped={len(skipped)} invalid={len(invalid)} schema={SCHEMA_CODE}")
     return {"heal": heal, "roster": roster}

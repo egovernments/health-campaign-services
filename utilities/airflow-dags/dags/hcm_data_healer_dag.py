@@ -3,7 +3,7 @@
 Runs daily at 22:30 UTC (HEALER_SCHEDULE) for each active window in MDMS (airflow-configs.dst-data-healer-config):
 analyze (DB vs ES + error-tracer chain, read-only) -> guard -> push -> audit -> Slack.
 
-Guardrails: the newest 3 days are never healed (settle period); existence checks fail
+Guardrails: windows end today, less HEALER_SETTLE_DAYS (default 0); existence checks fail
 closed; no push when the analysis is degraded, one side is empty, or gaps exceed
 MAX_GAP_PCT / MAX_GAP_RECORDS; no push without a working audit path; writes never retry.
 HEALER_PUSH_ENABLED=false stops pushing (re-checked between entities).
