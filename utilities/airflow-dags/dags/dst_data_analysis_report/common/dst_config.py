@@ -20,7 +20,7 @@ Variable name: dst_config    Shape:
         "SLACK_CHANNEL": "C0...",
         "DST_ALERT_CHANNEL": "C0...",
         "DST_MDMS_ENABLED": "false",
-        "DST_LOOKBACK_MINUTES": "60",
+        "DST_LOOKBACK_MINUTES": "195",
         "CDD_ROLE": "DISTRIBUTOR",        # COMMUNITY_DISTRIBUTOR on Togo
         "DST_DUP_MATRIX": "FALSE"         # TRUE on the Chad ITN deployment
       },
