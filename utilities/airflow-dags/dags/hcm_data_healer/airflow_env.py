@@ -51,6 +51,8 @@ KEYS = {
     "HEALER_ES_MAX_CONCURRENT": (False, "max ES requests in flight, e.g. 2"),
     "HEALER_ES_THROTTLE_MS": (False, "pause after each ES request, e.g. 200"),
     "HEALER_ES_PAGE_SIZE": (False, "max documents per ES page, e.g. 1000"),
+    # window end
+    "HEALER_SETTLE_DAYS": (False, "days held back from the end of every window, default 0 = up to today"),
     # emergency stop
     "HEALER_PUSH_ENABLED": (False, "false = emergency stop: analyze + audit only"),
 }
@@ -117,7 +119,8 @@ def preflight():
         problems.append("missing " + ", ".join(missing))
     if "," in os.getenv("TENANT_ID", ""):
         problems.append("TENANT_ID must be one tenant (e.g. ba), not a list")
-    for key in ("HEALER_ES_MAX_CONCURRENT", "HEALER_ES_THROTTLE_MS", "HEALER_ES_PAGE_SIZE"):
+    for key in ("HEALER_ES_MAX_CONCURRENT", "HEALER_ES_THROTTLE_MS", "HEALER_ES_PAGE_SIZE",
+                "HEALER_SETTLE_DAYS"):
         val = os.getenv(key, "").strip()
         if val and not val.isdigit():
             problems.append(f"{key} must be a whole number, got {val!r}")

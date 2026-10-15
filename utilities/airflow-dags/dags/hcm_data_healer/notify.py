@@ -160,7 +160,7 @@ ALERTS = {
     "HL-MDMS": (CRITICAL, "The campaign list could not be read from MDMS.",
                 "DST team to check MDMS_URL and the MDMS service."),
     "HL-ENTRY": (WARNING, "Campaign entry not processed: {why}.", "{action}"),
-    "HL-NOT-DUE": (INFO, "Campaign entry not due yet: the last 3 days are held back while phones sync.",
+    "HL-NOT-DUE": (INFO, "Campaign entry not due yet: its window has not started.",
                    "None; it starts automatically."),
     "HL-STOPPED": (WARNING, "Repair stopped part-way; completed repairs are kept. Cause: {why}.",
                    "DST team to review the task log; the rest is retried in the next run."),
@@ -178,6 +178,7 @@ _CODE_OF = [
     ("counts unreadable", "HL-READ-FAILED"), ("reconciliation", "HL-READ-FAILED"),
     ("error-tracer", "HL-READ-FAILED"), ("auditerror", "HL-AUDIT"), ("kafka", "HL-AUDIT"),
     ("config unreadable", "HL-CONFIG"), ("variable", "HL-CONFIG"), ("settling period", "HL-NOT-DUE"),
+    ("not started yet", "HL-NOT-DUE"),
     ("mdms", "HL-MDMS"), ("timeout", "HL-SERVICE"), ("timed out", "HL-SERVICE"),
     ("connection", "HL-SERVICE"),
 ]
