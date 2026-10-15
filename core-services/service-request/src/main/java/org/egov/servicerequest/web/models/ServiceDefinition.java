@@ -9,9 +9,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +35,7 @@ public class ServiceDefinition {
 
     @JsonProperty("code")
     @NotNull
-    @Size(min = 2, max = 64)
+    @Size(min = 2, max = 256)
     private String code = null;
 
     @JsonProperty("isActive")
@@ -50,7 +50,7 @@ public class ServiceDefinition {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
+    @JsonProperty("additionalFields")
     private Object additionalDetails = null;
 
     @JsonProperty("clientId")

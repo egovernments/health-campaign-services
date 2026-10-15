@@ -1,5 +1,6 @@
 package org.egov.servicerequest.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.helper.ServiceDefinitionRequestTestBuilder;
 import org.egov.servicerequest.kafka.Producer;
@@ -48,7 +49,7 @@ public class ServiceDefinitionRequestServiceTest {
 
     @Test
     @DisplayName("should call kafka topic if valid service definition request found for create")
-    void shouldCallKafkaTopicCreate() {
+    void shouldCallKafkaTopicCreate() throws InvalidTenantIdException {
         ServiceDefinitionRequest serviceDefinitionRequest = ServiceDefinitionRequestTestBuilder.builder()
                 .withServiceDefinition()
                 .withRequestInfo()
@@ -58,7 +59,7 @@ public class ServiceDefinitionRequestServiceTest {
                 .createServiceDefinition(serviceDefinitionRequest);
 
         assertEquals(serviceDefinition,serviceDefinitionRequest.getServiceDefinition());
-        verify(producer,times(1)).push(eq("save-service-definition")
+        verify(producer,times(1)).push(anyString(), eq("save-service-definition")
                 ,any(ServiceDefinitionRequest.class));
 
     }

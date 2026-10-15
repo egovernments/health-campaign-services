@@ -5,6 +5,7 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.config.IndividualProperties;
+import org.egov.individual.util.IndividualIdGenUtil;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +38,9 @@ public class IndividualEnrichmentServiceTest {
     IdGenService idGenService;
 
     @Mock
+    IndividualIdGenUtil individualIdGenUtil;
+
+    @Mock
     IndividualProperties properties;
 
     @BeforeEach
@@ -48,6 +52,10 @@ public class IndividualEnrichmentServiceTest {
 
     private void mockIdGen(String value, String o) throws Exception {
         lenient().when(idGenService.getIdList(any(RequestInfo.class), anyString(),
+                        eq(value), eq(null), anyInt()))
+                .thenReturn(Collections.singletonList(o));
+        // Individual create now generates the individualId via IndividualIdGenUtil (single call w/ count)
+        lenient().when(individualIdGenUtil.getIdList(any(RequestInfo.class), anyString(),
                         eq(value), eq(null), anyInt()))
                 .thenReturn(Collections.singletonList(o));
     }

@@ -14,7 +14,9 @@ public enum Gender {
   
   FEMALE("FEMALE"),
   
-  OTHER("OTHER");
+  OTHER("OTHER"),
+
+  TRANSGENDER("TRANSGENDER");
 
   private String value;
 

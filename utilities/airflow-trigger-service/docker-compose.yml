@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      AIRFLOW_BASE_URL: ${AIRFLOW_BASE_URL:-http://host.docker.internal:8080}
+      AIRFLOW_USERNAME: ${AIRFLOW_USERNAME:-admin}
+      AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD:-admin}
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8001"
+
+  ui:
+    image: nginx:alpine
+    ports:
+      - "8001:80"
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+    depends_on:
+      - api

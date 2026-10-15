@@ -1,0 +1,35 @@
+import { z } from 'zod';
+
+export const resourceDetailsCriteriaSchema = z.object({
+  tenantId: z.string().min(1, "tenantId is required"),
+  campaignId: z.string().min(1, "campaignId is required"),
+  type: z.array(z.string()).optional(),
+  ids: z.array(z.string()).optional(),
+  parentResourceId: z.string().optional().nullable(),
+  status: z.array(z.string()).optional(),
+  isActive: z.boolean().optional()
+});
+
+export const paginationSchema = z.object({
+  limit: z.number().int().positive().max(500).optional(),
+  offset: z.number().int().min(0).optional(),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['ASC', 'DESC']).optional()
+});
+
+// excludeTypes and campaignIds are internal-only — not accepted via public API, only passed by internal callers.
+// campaignIds, when present, replaces the single-campaignId filter with a family (campaignNumber) scope.
+export type ResourceDetailsCriteria = z.infer<typeof resourceDetailsCriteriaSchema> & {
+  excludeTypes?: string[];
+  campaignIds?: string[];
+};
+
+// Family-scoped internal search: campaignIds carries the whole scope, so no single campaignId exists.
+export type FamilyScopedResourceDetailsCriteria = Omit<ResourceDetailsCriteria, "campaignId"> & {
+  campaignIds: string[];
+  campaignId?: never;
+};
+
+// What the DB search accepts — one of the two scopes, never neither.
+export type ResourceDetailsSearchCriteria = ResourceDetailsCriteria | FamilyScopedResourceDetailsCriteria;
+export type Pagination = z.infer<typeof paginationSchema>;

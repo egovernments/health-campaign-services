@@ -1,0 +1,34 @@
+ServiceMaps:
+  serviceName: Health Notification Service
+  version: 1.0.0
+  mappings:
+    # ── INDEX: Save new scheduled notification to Elasticsearch ──
+    - topic: save-scheduled-notification-topic-health
+      configKey: INDEX
+      indexes:
+        - name: scheduled-notification-v1
+          type: general
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.createdTime
+
+    # ── INDEX: Update scheduled notification in Elasticsearch ──
+    - topic: update-scheduled-notification-topic-health
+      configKey: INDEX
+      indexes:
+        - name: scheduled-notification-v1
+          type: general
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.lastModifiedTime
+
+    # ── REINDEX: Re-index from Elasticsearch ──
+    - topic: scheduled-notification-v1
+      configKey: REINDEX
+      indexes:
+        - name: scheduled-notification-v1
+          type: general
+          jsonPath: $.hits
+          timeStampField: $.lastModifiedTime
