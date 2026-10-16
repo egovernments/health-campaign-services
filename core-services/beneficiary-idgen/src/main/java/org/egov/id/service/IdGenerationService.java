@@ -10,7 +10,9 @@ import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.idgen.*;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.egov.id.config.PropertiesManager;
 import org.egov.id.producer.IdGenProducer;
@@ -21,6 +23,9 @@ import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
+
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+import static org.egov.id.utils.Constants.TENANT_ID_EXCEPTION;
 
 
 /**
@@ -56,6 +61,9 @@ public class IdGenerationService {
 
     @Autowired
     private IdGenProducer idGenProducer;
+
+    @Autowired
+    private MultiStateInstanceUtil multiStateInstanceUtil;
 
     //default count value
     public Integer defaultCount = 1;
@@ -139,6 +147,9 @@ public class IdGenerationService {
 
         // Iterate over all batch requests
         for (BatchRequest batch : batches) {
+            if (ObjectUtils.isEmpty(batch.getTenantId())) {
+                throw new CustomException("VALIDATION_EXCEPTION", "tenantId is mandatory in batch request");
+            }
             int fullSize = batch.getTotalCount(); // Total number of IDs requested
             int sent = 0;
             // Chunk and send large batch into smaller parts to Kafka
@@ -152,8 +163,10 @@ public class IdGenerationService {
                         .requestInfo(request.getRequestInfo())
                         .build();
 
-                // Push the chunked request to Kafka
-                idGenProducer.push(propertiesManager.getIdPoolBulkCreateTopic(), kafkaRequest);
+                /* random key per chunk spreads chunks across partitions so multiple
+                   consumer pods share one large request instead of a single sticky partition */
+                idGenProducer.pushWithKey(propertiesManager.getIdPoolBulkCreateTopic(),
+                        UUID.randomUUID().toString(), kafkaRequest);
                 sent += chunkSize;
             }
             // Add a response message for this tenant
@@ -312,7 +325,7 @@ public class IdGenerationService {
             // Send batch when buffer is full or last element reached
             if (buffer.size() == MAX_RECORDS_PER_PERSIST_BATCH || i == generatedIds.size() - 1) {
                 log.debug("Sending batch of {} IDs to Kafka topic: {}", buffer.size(), propertiesManager.getSaveIdPoolTopic());
-                sendBatch(propertiesManager.getSaveIdPoolTopic(), new ArrayList<>(buffer));
+                sendBatch(tenantId, propertiesManager.getSaveIdPoolTopic(), new ArrayList<>(buffer));
                 buffer.clear();
             }
         }
@@ -327,11 +340,13 @@ public class IdGenerationService {
      * @param topic the Kafka topic to send the message to
      * @param entries the list of ID records to send as payload
      */
-    private void sendBatch(String topic, List<IdRecord> entries) {
+    private void sendBatch(String tenantId, String topic, List<IdRecord> entries) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("idPool", entries);
-            idGenProducer.push(topic, payload);
+            /* random key per batch so persister partitions share insert load;
+               inserts are ON CONFLICT DO NOTHING, ordering across batches is irrelevant */
+            idGenProducer.pushWithKey(tenantId, topic, UUID.randomUUID().toString(), payload);
 
         } catch (Exception e) {
             log.error("Kafka publish failed", e);
@@ -416,10 +431,12 @@ public class IdGenerationService {
             String idName = idRequest.getIdName();
             String tenantId = idRequest.getTenantId();
             // select the id format from the id generation table
-            StringBuffer idSelectQuery = new StringBuffer();
-            idSelectQuery.append("SELECT format FROM id_generator ").append(" WHERE idname=? and tenantid=?");
+            String idSelectQuery = String.format("SELECT format FROM %s.id_generator WHERE idname=? and tenantid=?", SCHEMA_REPLACE_STRING);
+            idSelectQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(idSelectQuery, tenantId);
 
-           idFormat = jdbcTemplate.queryForObject(idSelectQuery.toString(), String.class, idName, tenantId);
+           idFormat = jdbcTemplate.queryForObject(idSelectQuery, String.class, idName, tenantId);
+        } catch (InvalidTenantIdException ex) {
+            throw new CustomException(TENANT_ID_EXCEPTION, ex.getMessage());
         } catch (Exception ex){
             log.error("SQL error while trying to retrive format from DB",ex);
         }
@@ -630,13 +647,15 @@ public class IdGenerationService {
      * @param sequenceName
      */
 
-    private void createSequenceInDb(String sequenceName) throws Exception {
+    private void createSequenceInDb(String sequenceName, String tenantId) throws Exception {
 
-        StringBuilder query = new StringBuilder("CREATE SEQUENCE ");
         try {
-            query = query.append(sequenceName);
-            jdbcTemplate.execute(query.toString());
-        }catch (Exception ex){
+            String query = String.format("CREATE SEQUENCE %s.%s", SCHEMA_REPLACE_STRING, sequenceName);
+            query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+            jdbcTemplate.execute(query);
+        } catch (InvalidTenantIdException ex) {
+            throw new CustomException(TENANT_ID_EXCEPTION, ex.getMessage());
+        } catch (Exception ex){
             log.error("Error creating new sequence",ex);
         }
     }
@@ -654,14 +673,20 @@ public class IdGenerationService {
         List<String> sequenceLists = new LinkedList<>();
         // To generate a block of seq numbers
 
-        String sequenceSql = "SELECT NEXTVAL ('" + sequenceName + "') FROM GENERATE_SERIES(1,?)";
+        String sequenceSql;
+        try {
+            sequenceSql = String.format("SELECT NEXTVAL ('%s.%s') FROM GENERATE_SERIES(1,?)", SCHEMA_REPLACE_STRING, sequenceName);
+            sequenceSql = multiStateInstanceUtil.replaceSchemaPlaceholder(sequenceSql, idRequest.getTenantId());
+        } catch (InvalidTenantIdException ex) {
+            throw new CustomException(TENANT_ID_EXCEPTION, ex.getMessage());
+        }
         try {
             sequenceList = jdbcTemplate.queryForList(sequenceSql, new Object[]{count}, String.class);
         } catch (BadSqlGrammarException ex) {
             if (ex.getSQLException().getSQLState().equals("42P01")){
                 try{
                     if (sequenceList.isEmpty() && autoCreateNewSeqFlag && autoCreateNewSeq){
-                        createSequenceInDb(sequenceName);
+                        createSequenceInDb(sequenceName, idRequest.getTenantId());
                         sequenceList = jdbcTemplate.queryForList(sequenceSql, new Object[]{count}, String.class);
                     }
                     else if(sequenceList.isEmpty() && !autoCreateNewSeqFlag)
