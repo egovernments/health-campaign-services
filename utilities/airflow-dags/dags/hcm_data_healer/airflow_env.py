@@ -52,8 +52,8 @@ KEYS = {
     "HEALER_ES_THROTTLE_MS": (False, "pause after each ES request, e.g. 200"),
     "HEALER_ES_PAGE_SIZE": (False, "max documents per ES page, e.g. 1000"),
     # push safety limits per entity; above either, nothing is pushed for the window
-    "HEALER_MAX_GAP_PCT": (False, "max gaps as % of an entity's records, default 10"),
-    "HEALER_MAX_GAP_RECORDS": (False, "max gaps per entity, default 20000"),
+    "HEALER_MAX_GAP_PCT": (False, "max gaps as % of an entity's records, default 10; 0 = off"),
+    "HEALER_MAX_GAP_RECORDS": (False, "max gaps per entity, default 20000; 0 = off"),
     # window end
     "HEALER_SETTLE_DAYS": (False, "days held back from the end of every window, default 0 = up to today"),
     # emergency stop

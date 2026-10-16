@@ -83,7 +83,8 @@ def degraded(stages, run_chain):
 
 
 # Per-entity gap limits; above either, the push is refused. Defaults; the Variable keys
-# HEALER_MAX_GAP_PCT / HEALER_MAX_GAP_RECORDS override them (read at run time).
+# HEALER_MAX_GAP_PCT / HEALER_MAX_GAP_RECORDS override them (read at run time), and 0
+# switches that limit off. The one-side-empty and degraded checks always apply.
 MAX_GAP_PCT = 10
 MAX_GAP_RECORDS = 20000
 
@@ -111,12 +112,12 @@ def gap_guard(recon_rows, chain_totals):
         if (db == 0) != (es == 0):
             return f"{r['Entity']}: DB has {db:,} and ES has {es:,} - one side empty"
         total = max(db, es)
-        if gaps > cap:
+        if cap and gaps > cap:
             return f"{r['Entity']}: {gaps:,} gaps exceed the limit of {cap:,}"
-        if total and gaps > 100 and gaps / total * 100 > pct:
+        if pct and total and gaps > 100 and gaps / total * 100 > pct:
             return (f"{r['Entity']}: {gaps:,} gaps = {gaps / total * 100:.1f}% of {total:,} "
                     f"records, over the {pct}% limit")
-    if chain_totals.get("chain_recoverable", 0) > cap:
+    if cap and chain_totals.get("chain_recoverable", 0) > cap:
         return f"chain: {chain_totals['chain_recoverable']:,} recoverable exceed the limit of {cap:,}"
     return ""
 
@@ -242,6 +243,10 @@ def hcm_data_healer():
                 counts = found_counts(analysis["totals"])
 
                 step = "guard"
+                off = [k for k, v in zip(("HEALER_MAX_GAP_PCT", "HEALER_MAX_GAP_RECORDS"),
+                                         gap_limits()) if not v]
+                if off:
+                    say(f"gap limit off for this run ({', '.join(off)}=0)")
                 why_not = (degraded(analysis["stages"], target["run_chain"])
                            or gap_guard(analysis["reconciliation"], counts)
                            or ("" if push_enabled() else "HEALER_PUSH_ENABLED=false"))
