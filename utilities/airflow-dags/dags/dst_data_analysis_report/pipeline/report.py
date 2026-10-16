@@ -1266,6 +1266,14 @@ def _build_report_doc(cfg, *, g, cov_pct, lga_d, facilities, hfs_active, lgas_to
         build_stock_section(doc, cfg, heading_num="6")
         _concl_num = "7"
 
+    # Children Across Cycles — BOTH docs, counts only. Present only when the
+    # optional cohort stage produced data (cumulative SMC/AZM reports).
+    if cfg.get("cohort_data"):
+        doc.add_paragraph()
+        from dst_data_analysis_report.pipeline.cohort import build_cohort_section
+        build_cohort_section(doc, cfg, heading_num=_concl_num, partner=partner)
+        _concl_num = str(int(_concl_num) + 1)
+
     # Conclusion (last section)
     doc.add_paragraph()
     add_heading(doc, f"{_concl_num}.  Conclusion", 4)
