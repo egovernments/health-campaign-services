@@ -1,5 +1,10 @@
 name: Project Factory Service Test Builder
 
+# Least-privilege default for GITHUB_TOKEN. Jobs that need more must
+# request it explicitly at the job level.
+permissions:
+  contents: read
+
 on:
   push:
     branches: 
@@ -18,7 +23,7 @@ jobs:
 
     steps:
       # Step 1: Checkout the repository
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # Fetch all history for tags and branches
 
@@ -37,7 +42,7 @@ jobs:
           docker build . \
             --file Dockerfile \
             --tag $IMAGE_TAG
-          echo "::set-output name=image_name::$IMAGE_TAG"
+          echo "image_name=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
           echo "Service Docker image built successfully"
 
       # Step 4: Build the database migration Docker image
@@ -49,7 +54,7 @@ jobs:
           docker build . \
             --file Dockerfile \
             --tag $IMAGE_TAG
-          echo "::set-output name=db_image_name::$IMAGE_TAG"
+          echo "db_image_name=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
           echo "DB migration Docker image built successfully"
 
   node_build:
@@ -57,10 +62,10 @@ jobs:
 
     steps:
       # Step 1: Checkout the repository
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Step 2: Set up Node.js environment
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
 
