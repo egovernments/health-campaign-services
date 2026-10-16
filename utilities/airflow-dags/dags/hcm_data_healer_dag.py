@@ -38,6 +38,28 @@ log = logging.getLogger(__name__)
 
 EXECUTION_TIMEOUT = timedelta(hours=8)
 
+# Larger pod for heal_campaign, same size as dst_campaign_run: each window holds every
+# id of a tenant (1.6M+ tasks on Bauchi) plus the tracer payloads in memory.
+try:
+    from kubernetes.client import models as k8s
+    _HEAVY_POD = {
+        "pod_override": k8s.V1Pod(
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        resources=k8s.V1ResourceRequirements(
+                            requests={"cpu": "500m", "memory": "1Gi"},
+                            limits={"cpu": "1000m", "memory": "2Gi"},
+                        ),
+                    )
+                ]
+            )
+        )
+    }
+except ImportError:  # local/non-k8s runs: keep the default pod
+    _HEAVY_POD = None
+
 
 def manual_target(params):
     """Build one window from manual-trigger params, applying the settle rule."""
@@ -149,7 +171,7 @@ def hcm_data_healer():
         ti.xcom_push(key="roster", value=plan["roster"])
         return plan["heal"]
 
-    @task(execution_timeout=EXECUTION_TIMEOUT,
+    @task(execution_timeout=EXECUTION_TIMEOUT, executor_config=_HEAVY_POD,
           map_index_template="{{ task.op_kwargs['target']['tenant'] }}:"
                              "{{ task.op_kwargs['target']['start_date'] }}")
     def heal_campaign(target, dag_run=None, ti=None):

@@ -55,6 +55,10 @@ TRACER_CFG = {
 # Parallel slices for the tenant-scoped tracer scan.
 TRACER_SCAN_SLICES = 4
 
+# Tracer docs carry the whole failed bulk request body, so a page of es.batch (5,000)
+# can be gigabytes and stall the scroll; small pages keep each response quick.
+TRACER_PAGE_SIZE = 200
+
 # Last-resort per-id search: ids per query, and a per-gap cap so a large gap cannot hang the run.
 PHASE4_MAX_IDS = 1000
 PHASE4_CHUNK = 50
@@ -593,7 +597,7 @@ def _tracer_scan_all(es, targets, gte_iso, tenant, progress, log=_noop):
     pairs = sorted({(c["key"], c["url"]) for c in gap_cfgs.values()})
     t0 = time.time()
     es._scroll(url, {
-        "size": es.batch,
+        "size": TRACER_PAGE_SIZE,
         "query": {"bool": {
             "must": [{"range": {"Data.@timestamp": {"gte": gte_iso, "lte": "now"}}}],
             "should": [{"bool": {"must": [
@@ -613,7 +617,7 @@ def _tracer_scan_all(es, targets, gte_iso, tenant, progress, log=_noop):
         t0 = time.time()
         n_before, s_before = n_found(), scanned["n"]
         es._sliced_scroll(url, {
-            "size": es.batch,
+            "size": TRACER_PAGE_SIZE,
             "query": {"bool": {"must": [
                 {"match_phrase": {"Data.apiDetails.requestBody": f'"tenantId":"{tenant}"'}},
                 {"range": {"Data.@timestamp": {"gte": gte_iso, "lte": "now"}}},
@@ -645,7 +649,7 @@ def _tracer_scan_all(es, targets, gte_iso, tenant, progress, log=_noop):
                 break
             chunk = residual[i:i + PHASE4_CHUNK]
             es._scroll(url, {
-                "size": es.batch,
+                "size": TRACER_PAGE_SIZE,
                 "query": {"bool": {
                     "should": [{"match_phrase": {"Data.apiDetails.requestBody": rid}}
                                for rid in chunk],
