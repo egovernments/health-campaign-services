@@ -3,12 +3,12 @@
 Runs daily at 22:30 UTC (HEALER_SCHEDULE) for each active window in MDMS (airflow-configs.dst-data-healer-config):
 analyze (DB vs ES + error-tracer chain, read-only) -> guard -> push -> audit -> Slack.
 
-Guardrails: the newest 3 days are never healed (settle period); existence checks fail
+Guardrails: windows end today, less HEALER_SETTLE_DAYS (default 0); existence checks fail
 closed; no push when the analysis is degraded, one side is empty, or gaps exceed
 MAX_GAP_PCT / MAX_GAP_RECORDS; no push without a working audit path; writes never retry.
 HEALER_PUSH_ENABLED=false stops pushing (re-checked between entities).
 
-Manual trigger with `tenant` heals just that window. Config: Airflow Variable
+Manual trigger with `tenant` heals just that window; results post to `slack_channels`. Config: Airflow Variable
 hcm_data_healer_config (see hcm_data_healer/airflow_env.py KEYS).
 """
 import logging
@@ -44,7 +44,8 @@ def manual_target(params):
     from hcm_data_healer.mdms import to_target
     t = to_target({"startDate": params.get("start_date"), "endDate": params.get("end_date"),
                    "errorTracer": "YES" if params.get("run_chain", True) else "NO",
-                   "campaignName": "manual run"}, str(params["tenant"]).strip())
+                   "campaignName": "manual run",
+                   "slackChannels": params.get("slack_channels")}, str(params["tenant"]).strip())
     if t["error"] or t["skip"]:
         raise ValueError(f"manual run not possible: {t['error'] or t['skip']}")
     return t
@@ -120,6 +121,9 @@ def found_counts(totals):
         "end_date": Param("", type="string",
                           description="YYYY-MM-DD; blank or later than the settle cutoff = the cutoff"),
         "run_chain": Param(True, type="boolean", description="Include error-tracer chain recovery"),
+        "slack_channels": Param("", type="string",
+                                description="Manual run only: Slack channel IDs for the result post, "
+                                            "comma separated (e.g. C0BDXCWCC3Z); blank = alerts only"),
     },
     doc_md=__doc__,
 )
