@@ -13,6 +13,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.egov.id.config.PropertiesManager;
+import org.egov.id.model.IdPoolConfig;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,9 +61,6 @@ public class IdGenerationService {
     //default count value
     public Integer defaultCount = 1;
 
-    @Value("${id.pool.seq.code}")
-    public String idPoolName;
-
     @Value("${idgen.random.buffer:5}")
     public Integer defaultBufferPercentage;
 
@@ -83,11 +81,12 @@ public class IdGenerationService {
     private static final Pattern RANDOM_PATTERN = Pattern.compile("\\[d\\{\\d+}]");
 
     /**
-     * Padding length for sequence numbers in generated IDs.
-     * This ensures that sequence numbers are zero-padded to a fixed length for consistency.
+     * Default zero-padding width for sequence numbers on the non-pool ID generation path,
+     * where no per-tenant pool config is available. Immutable after injection, so it is safe
+     * to read from the shared singleton across concurrent requests.
      */
     @Value("${id.pool.padding.length:12}")
-    private Integer paddingLength;
+    private int defaultPaddingLength;
 
     /**
      * Description : This method to generate idGenerationResponse
@@ -106,7 +105,8 @@ public class IdGenerationService {
         IdGenerationResponse idGenerationResponse = new IdGenerationResponse();
 
         for (IdRequest idRequest : idRequests) {
-            List<String> generatedId = generateIdFromIdRequest(idRequest, requestInfo);
+            // Non-pool API path has no per-tenant pool config; use the configured default padding length.
+            List<String> generatedId = generateIdFromIdRequest(idRequest, requestInfo, defaultPaddingLength);
             for (String ListOfIds : generatedId) {
                 IdResponse idResponse = new IdResponse();
                 idResponse.setId(ListOfIds);
@@ -181,12 +181,14 @@ public class IdGenerationService {
      * @throws CustomException if configuration is missing or fetching format fails
      * @throws IllegalArgumentException if fetched ID format is null or empty
      */
-    private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo) {
+    private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo, IdPoolConfig idPoolConfig) {
         log.info("Fetching ID format for tenantId={}, batchSize={}", tenantId, batchSize);
 
+        String idPoolName = idPoolConfig.getSeqCode();
         if (ObjectUtils.isEmpty(idPoolName)) {
-            log.error("Configuration Error - 'id.pool.seq.code' is not set.");
-            throw new CustomException("Configuration Error:", "Please configure the 'id.pool.seq.code' on the service level.");
+            log.error("Configuration Error - sequence code is not set for tenantId={}", tenantId);
+            throw new CustomException("CONFIGURATION_ERROR",
+                    "Please configure 'id.pool.seq.code' at the service level or provide 'seqCode' in the tenant's IdPoolConfig.");
         }
 
         IdRequest tempRequest = new IdRequest(idPoolName, tenantId, null, batchSize);
@@ -248,18 +250,28 @@ public class IdGenerationService {
                 throw new CustomException("INVALID_BATCH_SIZE", "Batch size must be > 0");
             }
 
+            IdPoolConfig idPoolConfig = mdmsService.getIdPoolConfig(requestInfo, tenantId)
+                    .orElseGet(propertiesManager::getDefaultIdPoolConfig);
+
             // Fetch ID format and adjust batch size if necessary
-            String idFormat = fetchIdFormat(tenantId, chunkSize, requestInfo);
+            String idFormat = fetchIdFormat(tenantId, chunkSize, requestInfo, idPoolConfig);
             // Adjust batch size if ID format contains random patterns
             Integer adjustedSize = adjustBatchSizeIfRandom(chunkSize, idFormat);
-            IdRequest idRequest = new IdRequest(idPoolName, tenantId, null, adjustedSize);
-            // Generate IDs
-            List<String> generatedIds = generateIds(idRequest, requestInfo);
+            IdRequest idRequest = new IdRequest(idPoolConfig.getSeqCode(), tenantId, null, adjustedSize);
+            // Generate IDs, threading the tenant's padding length through instead of mutating shared state
+            List<String> generatedIds = generateIds(idRequest, requestInfo, idPoolConfig.getPaddingLength());
             // Persist generated IDs to Kafka
             persistToKafka(requestInfo, generatedIds, tenantId);
             log.info("Async ID pool generated and sent to Kafka for tenant {}", tenantId);
+        } catch (CustomException e) {
+            // Non-retryable: misconfiguration or invalid input (e.g. missing seqCode, unsafe/blank tenantId,
+            // non-positive batch size). Redelivering the same Kafka message would fail identically, so it is
+            // not rethrown. Logged distinctly from transient failures so misconfiguration is greppable/alertable
+            // rather than buried among transient MDMS/DB errors.
+            log.error("Non-retryable configuration/validation error in async ID pool generation for tenantId={}; "
+                    + "message dropped, operator action required. code={}", request.getTenantId(), e.getCode(), e);
         } catch (Exception e) {
-            log.error("Error in async ID pool generation", e);
+            log.error("Error in async ID pool generation for tenantId={}", request.getTenantId(), e);
         }
     }
 
@@ -269,14 +281,16 @@ public class IdGenerationService {
      *
      * @param idRequest the ID request containing pool name, tenant, and batch size details
      * @param requestInfo contextual request info for auditing and logging
+     * @param paddingLength zero-padding width for generated sequence numbers
      * @return list of generated ID strings
      * @throws RuntimeException if ID generation fails
      */
-    private List<String> generateIds(IdRequest idRequest, RequestInfo requestInfo) {
+    private List<String> generateIds(IdRequest idRequest, RequestInfo requestInfo, int paddingLength) {
         try {
-            return generateIdFromIdRequest(idRequest, requestInfo);
+            return generateIdFromIdRequest(idRequest, requestInfo, paddingLength);
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Error generating IDs: ", e);
             throw new RuntimeException("Error generating IDs", e);
         }
     }
@@ -347,7 +361,7 @@ public class IdGenerationService {
      * @return generatedId
      * @throws Exception
      */
-    private List generateIdFromIdRequest(IdRequest idRequest, RequestInfo requestInfo) throws Exception {
+    private List generateIdFromIdRequest(IdRequest idRequest, RequestInfo requestInfo, int paddingLength) throws Exception {
 
         List<String> generatedId = new LinkedList<>();
         boolean autoCreateNewSeqFlag = false;
@@ -370,7 +384,7 @@ public class IdGenerationService {
             throw new CustomException("ID_NOT_FOUND",
                     "No Format is available in the MDMS for the given name and tenant");
 
-        return getFormattedId(idRequest, requestInfo,autoCreateNewSeqFlag);
+        return getFormattedId(idRequest, requestInfo, autoCreateNewSeqFlag, paddingLength);
     }
 
     /**
@@ -435,7 +449,7 @@ public class IdGenerationService {
      * @throws Exception
      */
 
-    private List<String> getFormattedId(IdRequest idRequest, RequestInfo requestInfo, boolean autoCreateNewSeqFlag) throws Exception {
+    private List<String> getFormattedId(IdRequest idRequest, RequestInfo requestInfo, boolean autoCreateNewSeqFlag, int paddingLength) throws Exception {
         List<String> idFormatList = new LinkedList<>();
         String idFormat = idRequest.getFormat();
 
@@ -473,7 +487,7 @@ public class IdGenerationService {
 
                 if (attributeName.substring(0, 3).equalsIgnoreCase("seq")) {
                     if (!sequences.containsKey(attributeName)) {
-                        sequences.put(attributeName, generateSequenceNumber(attributeName, requestInfo, idRequest,autoCreateNewSeqFlag));
+                        sequences.put(attributeName, generateSequenceNumber(attributeName, requestInfo, idRequest, autoCreateNewSeqFlag, paddingLength));
                     }
 					idFormat = idFormat.replace("[" + attributeName + "]", sequences.get(attributeName).get(i));
                 } else if (attributeName.substring(0, 2).equalsIgnoreCase("fy")) {
@@ -646,9 +660,10 @@ public class IdGenerationService {
      *
      * @param sequenceName
      * @param requestInfo
+     * @param paddingLength zero-padding width for the generated sequence numbers
      * @return seqNumber
      */
-    private List<String> generateSequenceNumber(String sequenceName, RequestInfo requestInfo, IdRequest idRequest,boolean autoCreateNewSeqFlag) throws Exception {
+    private List<String> generateSequenceNumber(String sequenceName, RequestInfo requestInfo, IdRequest idRequest, boolean autoCreateNewSeqFlag, int paddingLength) throws Exception {
         Integer count = getCount(idRequest);
         List<String> sequenceList = new LinkedList<>();
         List<String> sequenceLists = new LinkedList<>();
@@ -676,8 +691,12 @@ public class IdGenerationService {
             log.error("Error retrieving seq number from DB",ex);
             throw new CustomException("SEQ_NUMBER_ERROR","Error retrieving seq number from existing seq in DB");
         }
+        // A non-positive width means "no zero-padding": guard against it because "%00d" is an invalid
+        // format spec that throws DuplicateFormatFlagsException at runtime (e.g. when a tenant's MDMS
+        // IdPoolConfig omits paddingLength, which deserializes to 0 on the primitive int field).
+        String seqFormat = paddingLength > 0 ? "%0" + paddingLength + "d" : "%d";
         for (String seqId : sequenceList) {
-            String seqNumber = String.format("%0" + paddingLength + "d", Long.parseLong(seqId));
+            String seqNumber = String.format(seqFormat, Long.parseLong(seqId));
             sequenceLists.add(seqNumber);
         }
         return sequenceLists;
