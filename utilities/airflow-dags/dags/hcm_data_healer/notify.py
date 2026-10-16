@@ -132,7 +132,7 @@ def _campaign_name(r):
     return f"{r['campaign_name']} ({r['tenant']})" if r.get("campaign_name") else f"Tenant {r['tenant']}"
 
 
-# Alerts. Each alert has a code (documented in ALERTS.md), a severity and two short lines:
+# Alerts. Each alert has a code (listed in ALERTS below), a severity and two short lines:
 # what happened and what to do. Raw reasons go in a small context line for the DST team.
 CRITICAL, WARNING, NOTICE, INFO = "CRITICAL", "WARNING", "NOTICE", "INFO"
 _RANK = {CRITICAL: 0, WARNING: 1, NOTICE: 2, INFO: 3}
@@ -244,7 +244,7 @@ def alert(code, title, details="", **fill):
     severity, what, action = ALERTS[code]
     what, action = what.format(**fill), action.format(**fill)
     lines = [f"*{severity}*  {title}", what, f"*Action:* {action}"]
-    tech = f"{code}" + (f" | {redact(details, 160)}" if details else "") + " | see ALERTS.md"
+    tech = f"{code}" + (f" | {redact(details, 160)}" if details else "")
     return severity, "\n".join(lines) + f"\n_{tech}_"
 
 
