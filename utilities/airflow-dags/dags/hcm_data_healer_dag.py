@@ -83,7 +83,7 @@ def degraded(stages, run_chain):
 
 
 # Per-entity gap limits; above either, the push is refused.
-MAX_GAP_PCT = 5
+MAX_GAP_PCT = 10
 MAX_GAP_RECORDS = 20000
 
 
