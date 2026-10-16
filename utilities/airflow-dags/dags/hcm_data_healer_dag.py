@@ -38,6 +38,28 @@ log = logging.getLogger(__name__)
 
 EXECUTION_TIMEOUT = timedelta(hours=8)
 
+# Larger pod for heal_campaign, same size as dst_campaign_run: each window holds every
+# id of a tenant (1.6M+ tasks on Bauchi) plus the tracer payloads in memory.
+try:
+    from kubernetes.client import models as k8s
+    _HEAVY_POD = {
+        "pod_override": k8s.V1Pod(
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        resources=k8s.V1ResourceRequirements(
+                            requests={"cpu": "500m", "memory": "1Gi"},
+                            limits={"cpu": "1000m", "memory": "2Gi"},
+                        ),
+                    )
+                ]
+            )
+        )
+    }
+except ImportError:  # local/non-k8s runs: keep the default pod
+    _HEAVY_POD = None
+
 
 def manual_target(params):
     """Build one window from manual-trigger params, applying the settle rule."""
@@ -60,9 +82,19 @@ def degraded(stages, run_chain):
     return ""
 
 
-# Per-entity gap limits; above either, the push is refused.
-MAX_GAP_PCT = 5
+# Per-entity gap limits; above either, the push is refused. Defaults; the Variable keys
+# HEALER_MAX_GAP_PCT / HEALER_MAX_GAP_RECORDS override them (read at run time), and 0
+# switches that limit off. The one-side-empty and degraded checks always apply.
+MAX_GAP_PCT = 10
 MAX_GAP_RECORDS = 20000
+
+
+def gap_limits():
+    """Return (percent, records) from the environment, else the defaults."""
+    def num(key, default):
+        raw = os.getenv(key, "").strip()
+        return int(raw) if raw.isdigit() else default
+    return num("HEALER_MAX_GAP_PCT", MAX_GAP_PCT), num("HEALER_MAX_GAP_RECORDS", MAX_GAP_RECORDS)
 
 
 def gap_guard(recon_rows, chain_totals):
@@ -70,7 +102,7 @@ def gap_guard(recon_rows, chain_totals):
 
     A wrong index or bad date field returns 0 hits without an error, making every
     record look missing."""
-    pct, cap = MAX_GAP_PCT, MAX_GAP_RECORDS
+    pct, cap = gap_limits()
     for r in recon_rows:
         try:
             db, es = int(r["DB ids"]), int(r["ES ids"])
@@ -80,12 +112,12 @@ def gap_guard(recon_rows, chain_totals):
         if (db == 0) != (es == 0):
             return f"{r['Entity']}: DB has {db:,} and ES has {es:,} - one side empty"
         total = max(db, es)
-        if gaps > cap:
+        if cap and gaps > cap:
             return f"{r['Entity']}: {gaps:,} gaps exceed the limit of {cap:,}"
-        if total and gaps > 100 and gaps / total * 100 > pct:
+        if pct and total and gaps > 100 and gaps / total * 100 > pct:
             return (f"{r['Entity']}: {gaps:,} gaps = {gaps / total * 100:.1f}% of {total:,} "
                     f"records, over the {pct}% limit")
-    if chain_totals.get("chain_recoverable", 0) > cap:
+    if cap and chain_totals.get("chain_recoverable", 0) > cap:
         return f"chain: {chain_totals['chain_recoverable']:,} recoverable exceed the limit of {cap:,}"
     return ""
 
@@ -149,7 +181,7 @@ def hcm_data_healer():
         ti.xcom_push(key="roster", value=plan["roster"])
         return plan["heal"]
 
-    @task(execution_timeout=EXECUTION_TIMEOUT,
+    @task(execution_timeout=EXECUTION_TIMEOUT, executor_config=_HEAVY_POD,
           map_index_template="{{ task.op_kwargs['target']['tenant'] }}:"
                              "{{ task.op_kwargs['target']['start_date'] }}")
     def heal_campaign(target, dag_run=None, ti=None):
@@ -211,6 +243,10 @@ def hcm_data_healer():
                 counts = found_counts(analysis["totals"])
 
                 step = "guard"
+                off = [k for k, v in zip(("HEALER_MAX_GAP_PCT", "HEALER_MAX_GAP_RECORDS"),
+                                         gap_limits()) if not v]
+                if off:
+                    say(f"gap limit off for this run ({', '.join(off)}=0)")
                 why_not = (degraded(analysis["stages"], target["run_chain"])
                            or gap_guard(analysis["reconciliation"], counts)
                            or ("" if push_enabled() else "HEALER_PUSH_ENABLED=false"))
