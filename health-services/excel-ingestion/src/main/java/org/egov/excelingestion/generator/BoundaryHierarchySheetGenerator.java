@@ -8,6 +8,7 @@ import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
+import org.egov.excelingestion.util.DynamicTargetSchemaUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.request.RequestInfo;
@@ -30,17 +31,20 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
     private final CampaignService campaignService;
     private final CustomExceptionHandler exceptionHandler;
     private final SchemaColumnDefUtil schemaColumnDefUtil;
+    private final DynamicTargetSchemaUtil dynamicTargetSchemaUtil;
 
     public BoundaryHierarchySheetGenerator(BoundaryService boundaryService, BoundaryUtil boundaryUtil,
                                           MDMSService mdmsService, CampaignService campaignService,
                                           CustomExceptionHandler exceptionHandler,
-                                          SchemaColumnDefUtil schemaColumnDefUtil) {
+                                          SchemaColumnDefUtil schemaColumnDefUtil,
+                                          DynamicTargetSchemaUtil dynamicTargetSchemaUtil) {
         this.boundaryService = boundaryService;
         this.boundaryUtil = boundaryUtil;
         this.mdmsService = mdmsService;
         this.campaignService = campaignService;
         this.exceptionHandler = exceptionHandler;
         this.schemaColumnDefUtil = schemaColumnDefUtil;
+        this.dynamicTargetSchemaUtil = dynamicTargetSchemaUtil;
     }
 
     @Override
@@ -98,7 +102,7 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             // Fetch schema columns if projectType exists (skip if config says so)
             List<ColumnDef> schemaColumns = new ArrayList<>();
             if (!Boolean.TRUE.equals(config.getSkipSchemaColumns()) && projectType != null && !projectType.isEmpty()) {
-                schemaColumns = fetchSchemaColumns(projectType, generateResource.getTenantId(), requestInfo);
+                schemaColumns = fetchDynamicOrSchemaColumns(projectType, generateResource, requestInfo, localizationMap);
             }
             
             // Create column definitions
@@ -129,6 +133,36 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
         }
     }
     
+    /**
+     * Prefer target columns derived from the campaign's configured delivery resources; fall back to
+     * the static "target-&lt;projectType&gt;" MDMS schema when the campaign has no delivery resources
+     * (or the campaign lookup fails), preserving the previous behavior.
+     */
+    private List<ColumnDef> fetchDynamicOrSchemaColumns(String projectType, GenerateResource generateResource,
+                                                        RequestInfo requestInfo, Map<String, String> localizationMap) {
+        String referenceId = generateResource.getReferenceId();
+        String tenantId = generateResource.getTenantId();
+        if (referenceId != null && !referenceId.isEmpty()) {
+            try {
+                List<String> resourceNames = campaignService.getDeliveryResourceNamesFromCampaign(
+                        referenceId, tenantId, requestInfo);
+                if (resourceNames != null && !resourceNames.isEmpty()) {
+                    log.info("Building {} target columns from configured delivery resources for campaign: {}",
+                            resourceNames.size(), referenceId);
+                    Map<String, Object> properties = dynamicTargetSchemaUtil
+                            .buildTargetSchemaProperties(resourceNames, projectType);
+                    dynamicTargetSchemaUtil.addHeaderLocalizations(resourceNames, projectType, localizationMap);
+                    ObjectMapper mapper = new ObjectMapper();
+                    return schemaColumnDefUtil.convertSchemaToColumnDefs(mapper.writeValueAsString(properties));
+                }
+            } catch (Exception e) {
+                log.warn("Failed building dynamic target columns for campaign {}, falling back to static schema: {}",
+                        referenceId, e.getMessage());
+            }
+        }
+        return fetchSchemaColumns(projectType, tenantId, requestInfo);
+    }
+
     private List<ColumnDef> fetchSchemaColumns(String projectType, String tenantId, RequestInfo requestInfo) {
         List<ColumnDef> columns = new ArrayList<>();
         String schemaName = "target-" + projectType;
