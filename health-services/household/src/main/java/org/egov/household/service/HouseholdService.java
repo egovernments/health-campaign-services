@@ -54,14 +54,12 @@ public class HouseholdService {
     private final HouseholdEnrichmentService enrichmentService;
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForCreate = validator ->
-            validator.getClass().equals(HBoundaryValidator.class)
+            validator.getClass().equals(HCommunityTypeValidator.class)
                     || validator.getClass().equals(HExistentEntityValidator.class)
-                    || validator.getClass().equals(HCommunityValidator.class)
-                    || validator.getClass().equals(HCommunityTypeValidator.class);
+                    || validator.getClass().equals(HCommunityValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HNullIdValidator.class)
-                    || validator.getClass().equals(HBoundaryValidator.class)
                     || validator.getClass().equals(HIsDeletedValidator.class)
                     || validator.getClass().equals(HUniqueEntityValidator.class)
                     || validator.getClass().equals(HNonExistentEntityValidator.class)
