@@ -82,9 +82,18 @@ def degraded(stages, run_chain):
     return ""
 
 
-# Per-entity gap limits; above either, the push is refused.
+# Per-entity gap limits; above either, the push is refused. Defaults; the Variable keys
+# HEALER_MAX_GAP_PCT / HEALER_MAX_GAP_RECORDS override them (read at run time).
 MAX_GAP_PCT = 10
 MAX_GAP_RECORDS = 20000
+
+
+def gap_limits():
+    """Return (percent, records) from the environment, else the defaults."""
+    def num(key, default):
+        raw = os.getenv(key, "").strip()
+        return int(raw) if raw.isdigit() else default
+    return num("HEALER_MAX_GAP_PCT", MAX_GAP_PCT), num("HEALER_MAX_GAP_RECORDS", MAX_GAP_RECORDS)
 
 
 def gap_guard(recon_rows, chain_totals):
@@ -92,7 +101,7 @@ def gap_guard(recon_rows, chain_totals):
 
     A wrong index or bad date field returns 0 hits without an error, making every
     record look missing."""
-    pct, cap = MAX_GAP_PCT, MAX_GAP_RECORDS
+    pct, cap = gap_limits()
     for r in recon_rows:
         try:
             db, es = int(r["DB ids"]), int(r["ES ids"])
