@@ -326,8 +326,43 @@ def _no_changes_reason(r):
     return ALERTS[code][1].split(": ", 1)[-1].rstrip(".") if code != "HL-UNKNOWN" else "the run stopped early"
 
 
+def _long_date(value, with_year=True):
+    """'2026-06-30' -> 'June 30, 2026' (or 'June 30'); unparseable text is returned as is."""
+    from datetime import datetime
+    try:
+        d = datetime.strptime(str(value)[:10], "%Y-%m-%d")
+    except ValueError:
+        return str(value or "?")
+    return f"{d:%B} {d.day}, {d.year}" if with_year else f"{d:%B} {d.day}"
+
+
+def _window_text(r):
+    """'June 30 – October 11, 2026'; both years are shown when they differ."""
+    start, end = str(r.get("start_date") or ""), str(r.get("end_date") or "")
+    same_year = start[:4] == end[:4] and start[:4].isdigit()
+    return f"{_long_date(start, with_year=not same_year)} – {_long_date(end)}"
+
+
+def _run_time(dag_run_id):
+    """'scheduled__2026-10-14T22:30:00+00:00' -> 'October 14, 2026, 22:30 UTC'; else the id."""
+    from datetime import datetime
+    stamp = str(dag_run_id or "").split("__", 1)[-1]
+    try:
+        t = datetime.fromisoformat(stamp[:19])
+    except ValueError:
+        return dag_run_id or "-"
+    return f"{t:%B} {t.day}, {t.year}, {t:%H:%M} UTC"
+
+
+def _were(n):
+    return "was" if int(n or 0) == 1 else "were"
+
+
 def category_lines(r):
-    """Build the per-category lines (missing in DB, missing in ES, error tracer)."""
+    """Build the partner-facing summary lines (database, Elasticsearch, data links).
+
+    Worded as a validation summary: partners read these, and "missing in DB" reads as
+    data loss when most flagged records turn out to exist already."""
     cats = (r.get("by_category") or {})
     db, es, tr = (cats.get(k) or {"found": 0, "outcomes": {}, "failed_by_reason": {}} for k in ("db", "es", "tracer"))
     lines = []
@@ -335,40 +370,57 @@ def category_lines(r):
         return ["This campaign could not be processed tonight; the DST team has been alerted."]
     why = _no_changes_reason(r)
     if why:
-        lines.append(f"No changes applied: {why}.")
+        lines.append(f"Validation only, no changes were applied: {why}.")
 
-    def part(cat, label, done_key, done_word):
-        o = cat["outcomes"]
-        if not cat["found"]:
-            return f"{label}: 0 found"
+    def records(cat, label, done_key, done_word, store, noun):
+        o, found = cat["outcomes"], int(cat["found"] or 0)
+        if not found:
+            return f"{label}: No records required attention."
         if why:
-            return f"{label}: {_n(cat['found'])} found"
-        bits = [f"{_n(o.get(done_key, 0))} {done_word}"]
-        if o.get("ALREADY_EXISTS"):
-            bits.append(f"{_n(o['ALREADY_EXISTS'])} already present")
-        if o.get("FAILED"):
-            bits.append(f"{_n(o['FAILED'])} could not be restored")
-        skipped = sum(v for k, v in o.items() if k.startswith("SKIPPED"))
+            return f"{label}: {_plural(found, 'record')} {_were(found)} flagged for validation."
+        done, present = int(o.get(done_key, 0)), int(o.get("ALREADY_EXISTS", 0))
+        failed = int(o.get("FAILED", 0))
+        skipped = sum(int(v) for k, v in o.items() if k.startswith("SKIPPED"))
+        if present == found:
+            return (f"{label}: {_plural(found, 'record')} {_were(found)} flagged for validation. "
+                    f"All {_n(found)} {_were(found)} confirmed to already exist in {store}, "
+                    f"so no {noun} was required.")
+        if done == found:
+            return (f"{label}: {_plural(found, 'record')} required attention and "
+                    f"{_were(found)} successfully {done_word}.")
+        bits = []
+        if done:
+            bits.append(f"{_n(done)} {_were(done)} successfully {done_word}")
+        if present:
+            bits.append(f"{_n(present)} {_were(present)} confirmed to already exist in {store}")
         if skipped:
-            bits.append(f"{_n(skipped)} skipped")
-        return f"{label}: {_n(cat['found'])} found - " + ", ".join(bits)
+            bits.append(f"{_n(skipped)} {_were(skipped)} skipped")
+        if failed:
+            bits.append(f"{_n(failed)} could not be {done_word}")
+        return (f"{label}: {_plural(found, 'record')} {_were(found)} flagged for validation. "
+                + "; ".join(bits) + ".")
 
-    lines.append(part(db, "Missing in DB", "CREATED", "restored"))
-    lines.append(part(es, "Missing in ES", "REINDEXED", "re-indexed"))
-    o = tr["outcomes"]
-    if not tr["found"]:
-        lines.append("Error tracer: 0 incomplete links")
+    lines.append(records(db, "Database Records", "CREATED", "restored", "the database", "restoration"))
+    lines.append(records(es, "Elasticsearch Records", "REINDEXED", "re-indexed", "Elasticsearch", "re-indexing"))
+    o, found = tr["outcomes"], int(tr["found"] or 0)
+    if not found:
+        lines.append("Data Link Validation: No links required verification.")
     elif why:
-        lines.append(f"Error tracer: {_n(tr['found'])} incomplete links found")
+        lines.append(f"Data Link Validation: {_plural(found, 'link')} {_were(found)} identified for verification.")
     else:
-        bits = [f"{_n(o.get('CREATED', 0))} recovered",
-                f"{_n(o.get('UNRECOVERABLE', 0) + o.get('PREVIOUS_PUSH_NOT_SAVED', 0))} with no copy found"]
-        if o.get("FAILED"):
-            bits.append(f"{_n(o['FAILED'])} could not be restored")
-        lines.append(f"Error tracer: {_n(tr['found'])} incomplete links - " + ", ".join(bits))
-    split = unrecoverable_split(r)
-    if split:
-        lines.append(f"No copy found for: {split}.")
+        recovered = int(o.get("CREATED", 0))
+        no_copy = int(o.get("UNRECOVERABLE", 0)) + int(o.get("PREVIOUS_PUSH_NOT_SAVED", 0))
+        failed = int(o.get("FAILED", 0))
+        text = (f"Data Link Validation: {_plural(found, 'link')} {_were(found)} identified for verification. "
+                f"{_plural(recovered, 'link')} {_were(recovered)} successfully recovered")
+        if no_copy:
+            text += f", while {_n(no_copy)} could not be recovered"
+        if failed:
+            text += f"; {_n(failed)} could not be restored on this run and will be retried"
+        lines.append(text + ".")
+        split = unrecoverable_split(r)
+        if split:
+            lines.append(f"Not recoverable: {split}.")
     return lines
 
 
@@ -379,15 +431,22 @@ def tenant_message(tenant, windows, day, dag_run_id):
     if any(r["status"] == "FAILED" for r in windows):
         label, color = "Failed", RED
     names = sorted({r.get("campaign_name") for r in windows if r.get("campaign_name")})
-    lines = [f"*HCM Data Healer | Tenant: {tenant} | Campaign: {', '.join(names) or '-'}*"]
+    lines = [f"*Tenant: {tenant} | Campaign: {', '.join(names) or '-'}*"]
     for r in windows:
+        mins = int(r.get("duration_min") or 1)
+        lines.append(f"Data Validation Window: {_window_text(r)} "
+                     f"({mins} minute{'' if mins == 1 else 's'})")
+    link = run_link(dag_run_id)
+    lines.append(f"DAG Run: {_run_time(dag_run_id)}" + (f"  |  {link}" if link else ""))
+    for r in windows:
+        lines += ["", "*Data Validation Summary*"]
+        if len(windows) > 1:
+            lines[-1] += f" ({_window_text(r)})"
         found = sum(int((c or {}).get("found") or 0) for c in (r.get("by_category") or {}).values())
         if r["status"] == "COMPLETED" and not found:
-            lines.append("No discrepancies found; no changes needed.")
-        lines += category_lines(r)
-        lines.append(f"Window: {r['start_date']} to {r['end_date']} ({int(r.get('duration_min') or 1)} mins)")
-    link = run_link(dag_run_id)
-    lines.append(f"DAG run: {dag_run_id or '-'}" + (f"  |  {link}" if link else ""))
+            lines.append("All records were validated; no action was required.")
+        else:
+            lines += category_lines(r)
     return f"HCM Data Healer | {tenant}", color, lines
 
 
