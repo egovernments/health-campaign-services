@@ -11,7 +11,8 @@ export const generateTemplateQuerySchema = z.object({
     tenantId: requiredString('tenantId'),
     hierarchyType: requiredString('hierarchyType'),
     campaignId: requiredString('campaignId'),
-    registerId: z.string().optional()
+    registerId: z.string().optional(),
+    localityCode: z.string().optional()
 });
 
 export type GenerateTemplateQuery = z.infer<typeof generateTemplateQuerySchema>;

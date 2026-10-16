@@ -2,7 +2,7 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap, SheetRow } from "../models/SheetMap";
 import { logger } from "../utils/logger";
-import { sheetDataRowStatuses, dataRowStatuses } from "../config/constants";
+import { sheetDataRowStatuses, dataRowStatuses, attendanceCacheKeys } from "../config/constants";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { attendeeIdentity, attendeeSheetTypes, AttendeeSheetType } from "../utils/attendanceIdentityUtils";
 import { AttendanceRegisterId, CampaignNumber, IndividualId, TenantId } from "../config/models/brandedTypes";
@@ -66,7 +66,9 @@ export class TemplateClass {
         localizationMap: Record<string, string>,
         templateConfig: any
     ): Promise<SheetMap> {
-        await validateResourceDetailsBeforeProcess("attendanceRegisterAttendeeValidation", resourceDetails, localizationMap);
+        if (!resourceDetails?.additionalDetails?.skipPreValidation) {
+            await validateResourceDetailsBeforeProcess("attendanceRegisterAttendeeValidation", resourceDetails, localizationMap);
+        }
 
         const tenantId = resourceDetails?.tenantId;
         logger.info(`Processing attendance register attendee file — tenantId=${tenantId}, campaignId=${resourceDetails?.campaignId}`);
@@ -74,6 +76,9 @@ export class TemplateClass {
 
         const campaign = await this.getCampaignDetails(resourceDetails);
         const campaignNumber = campaign?.campaignNumber;
+        const isBulkMappingFlow = this.isBulkMappingResourceType(resourceDetails?.type);
+        const campaignStartDate = this.toEpochOrNull(campaign?.startDate);
+        const campaignEndDate = this.toEpochOrNull(campaign?.endDate);
 
         const sheetRows: Map<string, any[]> = new Map();
         for (const name of SHEET_NAMES) {
@@ -99,6 +104,7 @@ export class TemplateClass {
         const usernames = Array.from(usernameToRows.keys());
         const rootTenantId = tenantId.split(".")[0];
         const usernameToIndividualId = await this.resolveIndividualIds(usernames, rootTenantId, requestInfo);
+        this.mergeResolvedIndividualIdsFromCache(resourceDetails, usernameToIndividualId);
         logger.info(`Resolved ${usernameToIndividualId.size}/${usernames.length} usernames via HRMS`);
 
         Array.from(usernameToRows.entries()).forEach(([username, rowEntries]) => {
@@ -184,22 +190,40 @@ export class TemplateClass {
                 if (isWorkerSheet) {
                     const attendeesMap: Map<string, any> = registerData?.attendeesMap || new Map();
                     const existing = attendeesMap.get(individualId);
+                    const normalizedDates = this.normalizeBulkPrefilledDatesForExisting(
+                        isBulkMappingFlow,
+                        existing,
+                        enrollmentDateEpoch,
+                        deEnrollmentDateEpoch,
+                        campaignStartDate,
+                        campaignEndDate
+                    );
                     this.collectAttendeeOperation(
-                        existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode || "",
+                        existing, normalizedDates.enrollmentDateEpoch, normalizedDates.deEnrollmentDateEpoch, teamCode || "",
                         tenantId, registerUuid, individualId, row,
                         attendeesToCreate, attendeesToDelete, attendeesToUpdateTag, localizationMap,
-                        registerData
+                        registerData,
+                        true
                     );
                 } else {
                     const staffType = isMarkerSheet ? "OWNER" : "APPROVER";
                     const staffMap: Map<string, any> = registerData?.staffMap || new Map();
                     const staffKey = `${individualId}_${staffType}`;
                     const existing = staffMap.get(staffKey);
+                    const normalizedDates = this.normalizeBulkPrefilledDatesForExisting(
+                        isBulkMappingFlow,
+                        existing,
+                        enrollmentDateEpoch,
+                        deEnrollmentDateEpoch,
+                        campaignStartDate,
+                        campaignEndDate
+                    );
                     this.collectStaffOperation(
-                        existing, enrollmentDateEpoch, deEnrollmentDateEpoch,
+                        existing, normalizedDates.enrollmentDateEpoch, normalizedDates.deEnrollmentDateEpoch,
                         tenantId, registerUuid, individualId, staffType, row,
                         staffToCreate, staffToDelete, localizationMap,
-                        registerData
+                        registerData,
+                        true
                     );
                 }
             }
@@ -287,6 +311,23 @@ export class TemplateClass {
         return sheetMap;
     }
 
+    private static mergeResolvedIndividualIdsFromCache(
+        resourceDetails: any,
+        usernameToIndividualId: Map<string, string>
+    ): void {
+        const cached = resourceDetails?.additionalDetails?.[attendanceCacheKeys.RESOLVED_INDIVIDUAL_IDS];
+        if (!cached || typeof cached !== "object") return;
+
+        for (const [username, individualId] of Object.entries(cached as Record<string, unknown>)) {
+            const normalizedUsername = this.getCellAsString(username);
+            const normalizedIndividualId = this.getCellAsString(individualId);
+            if (!normalizedUsername || !normalizedIndividualId) continue;
+            if (!usernameToIndividualId.has(normalizedUsername)) {
+                usernameToIndividualId.set(normalizedUsername, normalizedIndividualId);
+            }
+        }
+    }
+
     /**
      * One processed-file row from a stored attendee row: internal fields stripped, and the synced
      * de-enrolment date surfaced so a removal done outside the console is visible here too.
@@ -344,6 +385,14 @@ export class TemplateClass {
     ): Promise<void> {
         const toSave: any[] = [];
         const toUpdate: any[] = [];
+        const existingByIdentity = new Map<string, CampaignDataRow>();
+        for (const existingRow of existingDataMap.values()) {
+            const identity = this.getCellAsString(existingRow?.uniqueIdAfterProcess);
+            if (!identity) continue;
+            if (!existingByIdentity.has(identity)) {
+                existingByIdentity.set(identity, existingRow);
+            }
+        }
 
         for (const sheetName of SHEET_NAMES) {
             const sheetType = sheetTypeOf(sheetName);
@@ -377,15 +426,17 @@ export class TemplateClass {
                 const expectedIdentity = registerUuid && individualId
                     ? attendeeIdentity(registerUuid, individualId, sheetType)
                     : null;
+                const matchedExistingRow = existingDataMap.get(uniqueIdentifier)
+                    || (expectedIdentity ? existingByIdentity.get(expectedIdentity) : undefined);
+                const persistedUniqueIdentifier = matchedExistingRow?.uniqueIdentifier || uniqueIdentifier;
                 const uniqueIdAfterProcess = expectedIdentity
-                    ?? (existingDataMap.get(uniqueIdentifier)?.uniqueIdAfterProcess ?? null);
+                    ?? (matchedExistingRow?.uniqueIdAfterProcess ?? null);
 
                 // The echo event can arrive before this row exists, so the sheet value is stamped directly
                 const deEnrolmentRaw = row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
-                const storedRow = existingDataMap.get(uniqueIdentifier);
                 const storedDenrollmentDate = TemplateClass.storedDateBelongsToIdentity(
-                    String(storedRow?.uniqueIdAfterProcess ?? ""), expectedIdentity
-                ) ? (storedRow?.denrollmentDate ?? null) : null;
+                    String(matchedExistingRow?.uniqueIdAfterProcess ?? ""), expectedIdentity
+                ) ? (matchedExistingRow?.denrollmentDate ?? null) : null;
                 // Only a row that actually reached the attendance service may set this. A failed or
                 // skipped row keeps whatever is stored, so a date whose API call errored is not made
                 // permanent and can still be corrected by re-uploading.
@@ -401,14 +452,14 @@ export class TemplateClass {
                 const payload = {
                     campaignNumber,
                     type: "attendanceRegisterAttendee",
-                    uniqueIdentifier,
+                    uniqueIdentifier: persistedUniqueIdentifier,
                     // Every write carries the merged date, so a re-upload cannot drop one recorded elsewhere
                     data: { ...dataToStore, [attendanceSyncDataKeys.denrollmentDate]: denrollmentDate },
                     status: dbStatus,
                     uniqueIdAfterProcess
                 };
 
-                if (existingDataMap.has(uniqueIdentifier)) {
+                if (matchedExistingRow) {
                     toUpdate.push(payload);
                 } else {
                     toSave.push(payload);
@@ -446,7 +497,8 @@ export class TemplateClass {
         attendeesToDelete: Array<{ payload: any; row: any }>,
         attendeesToUpdateTag: Array<{ payload: any; row: any }>,
         localizationMap: Record<string, string>,
-        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }
+        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> },
+        allowEnrollmentDateChangeForExisting: boolean = true
     ): void {
         // Clamp dates to register boundaries
         const regStart = registerData.register.startDate;
@@ -483,7 +535,9 @@ export class TemplateClass {
         // Existing attendee — already de-enrolled
         if (existing.denrollmentDate) {
             // Date immutability: reject if calendar dates differ (tolerates epoch differences from timezone migration)
-            if (clampedEnrollment !== null && existing.enrollmentDate != null
+            if (!allowEnrollmentDateChangeForExisting
+                && clampedEnrollment !== null
+                && existing.enrollmentDate != null
                 && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
@@ -496,7 +550,8 @@ export class TemplateClass {
             }
 
             // Populate row with existing final state (merge)
-            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(existing.enrollmentDate);
+            const mergedEnrollment = clampedEnrollment ?? existing.enrollmentDate;
+            if (mergedEnrollment != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(mergedEnrollment);
             if (existing.denrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = this.formatEpochAsDate(existing.denrollmentDate);
             const existingTag = existing.tag || "";
             row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = teamCode || existingTag || row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"];
@@ -514,7 +569,9 @@ export class TemplateClass {
         }
 
         // Active attendee — date immutability: reject if calendar date of enrollmentDate is changed
-        if (clampedEnrollment !== null && existing.enrollmentDate != null
+        if (!allowEnrollmentDateChangeForExisting
+            && clampedEnrollment !== null
+            && existing.enrollmentDate != null
             && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
             row["#status#"] = sheetDataRowStatuses.INVALID;
             row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
@@ -567,7 +624,8 @@ export class TemplateClass {
         staffToCreate: Array<{ payload: any; row: any }>,
         staffToDelete: Array<{ payload: any; row: any }>,
         localizationMap: Record<string, string>,
-        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }
+        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> },
+        allowEnrollmentDateChangeForExisting: boolean = true
     ): void {
         // Clamp dates to register boundaries
         const regStart = registerData.register.startDate;
@@ -604,7 +662,9 @@ export class TemplateClass {
         // Existing staff — already de-enrolled
         if (existing.denrollmentDate) {
             // Date immutability: reject if calendar dates differ (tolerates epoch differences from timezone migration)
-            if (clampedEnrollment !== null && existing.enrollmentDate != null
+            if (!allowEnrollmentDateChangeForExisting
+                && clampedEnrollment !== null
+                && existing.enrollmentDate != null
                 && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
@@ -615,14 +675,17 @@ export class TemplateClass {
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE", localizationMap) || "Cannot change de-enrollment date for this register";
                 return;
             }
-            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(existing.enrollmentDate);
+            const mergedStaffEnrollment = clampedEnrollment ?? existing.enrollmentDate;
+            if (mergedStaffEnrollment != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(mergedStaffEnrollment);
             if (existing.denrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = this.formatEpochAsDate(existing.denrollmentDate);
             row["#status#"] = sheetDataRowStatuses.CREATED;
             return;
         }
 
         // Active staff — date immutability: reject if calendar date of enrollmentDate is changed
-        if (clampedEnrollment !== null && existing.enrollmentDate != null
+        if (!allowEnrollmentDateChangeForExisting
+            && clampedEnrollment !== null
+            && existing.enrollmentDate != null
             && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
             row["#status#"] = sheetDataRowStatuses.INVALID;
             row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
@@ -709,7 +772,12 @@ export class TemplateClass {
             const window = registerServiceCodes.slice(i, i + parallelLimit);
             const responses = await Promise.all(
                 window.map(code =>
-                    httpRequest(url, { RequestInfo }, { tenantId, serviceCode: code })
+                    httpRequest(url, { RequestInfo }, {
+                        tenantId,
+                        serviceCode: code,
+                        includeAttendee: true,
+                        includeStaff: true
+                    })
                         .then((res: any) => ({ code, res }))
                         .catch((err: any) => {
                             logger.warn(`Error fetching register for serviceCode ${code}: ${err?.message}`);
@@ -919,6 +987,54 @@ export class TemplateClass {
             return null;
         }
         return this.endOfDayEpochInTz(year, month, day);
+    }
+
+    private static isBulkMappingResourceType(type: unknown): boolean {
+        if (typeof type !== "string") return false;
+        return type.includes("attendanceRegisterUserBulkMapping");
+    }
+
+    private static toEpochOrNull(value: unknown): number | null {
+        if (value === null || value === undefined || value === "") return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    private static normalizeBulkPrefilledDatesForExisting(
+        isBulkMappingFlow: boolean,
+        existing: any,
+        enrollmentDateEpoch: number | null,
+        deEnrollmentDateEpoch: number | null,
+        campaignStartDate: number | null,
+        campaignEndDate: number | null
+    ): { enrollmentDateEpoch: number | null; deEnrollmentDateEpoch: number | null } {
+        if (!isBulkMappingFlow || !existing) {
+            return { enrollmentDateEpoch, deEnrollmentDateEpoch };
+        }
+
+        let normalizedEnrollmentDate = enrollmentDateEpoch;
+        let normalizedDeEnrollmentDate = deEnrollmentDateEpoch;
+
+        if (
+            normalizedEnrollmentDate !== null
+            && campaignStartDate !== null
+            && this.sameDateInTz(normalizedEnrollmentDate, campaignStartDate)
+        ) {
+            normalizedEnrollmentDate = null;
+        }
+
+        if (
+            normalizedDeEnrollmentDate !== null
+            && campaignEndDate !== null
+            && this.sameDateInTz(normalizedDeEnrollmentDate, campaignEndDate)
+        ) {
+            normalizedDeEnrollmentDate = null;
+        }
+
+        return {
+            enrollmentDateEpoch: normalizedEnrollmentDate,
+            deEnrollmentDateEpoch: normalizedDeEnrollmentDate
+        };
     }
 
     private static getCellAsString(value: any): string {

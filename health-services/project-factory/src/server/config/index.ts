@@ -5,15 +5,22 @@ if (!HOST) {
   process.exit(1);
 }
 
+const detectedSystemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const defaultAppTimezone = process.env.TZ || detectedSystemTimezone || "UTC";
+
 // Application configuration
 const config = {
   batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 100,
   cacheTime: 300,
+  generatedResource: {
+    // Repeat downloads inside this window reuse the finished file instead of regenerating; 0 disables reuse
+    reuseWindowMs: process.env.GENERATED_RESOURCE_REUSE_WINDOW_MS ? parseInt(process.env.GENERATED_RESOURCE_REUSE_WINDOW_MS, 10) : 30000,
+  },
   isProduction: process.env ? true : false,
   token: "",
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   prefixForMicroplanCampaigns: "MP",
-  appTimezone: process.env.APP_TIMEZONE || "UTC",
+  appTimezone: process.env.APP_TIMEZONE || defaultAppTimezone,
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   isEnvironmentCentralInstance: process.env.IS_ENVIRONMENT_CENTRAL_INSTANCE === "true",
@@ -96,7 +103,18 @@ const config = {
     individualSearchBatchSize: process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE ? parseInt(process.env.USER_INDIVIDUAL_SEARCH_BATCH_SIZE, 10) : 50,
     individualConsistencyPollIntervalMs: process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_POLL_INTERVAL_MS, 10) : 2000,
     individualConsistencyMaxPollAttempts: process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_MAX_POLL_ATTEMPTS, 10) : 5,
+    // Extra in-process rounds around the poll above. Default 1 — i.e. off — because waiting is Kafka's
+    // job now: on expiry the batch is re-queued and re-searched on redelivery. Holding the handler here
+    // instead just occupies a consumer slot (measured: 117s per deferred delivery at 4 rounds, 18s at 1)
+    // against KAFKA_CONSUMER_MAX_CONCURRENT. Raise only to trade slot time for fewer round-trips.
+    individualConsistencyRetryRounds: process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_ROUNDS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_ROUNDS, 10) : 1,
+    individualConsistencyRetryDelayMs: process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_DELAY_MS ? parseInt(process.env.USER_INDIVIDUAL_CONSISTENCY_RETRY_DELAY_MS, 10) : 15000,
     workerCreateBatchLag: process.env.USER_WORKER_CREATE_BATCH_LAG ? parseInt(process.env.USER_WORKER_CREATE_BATCH_LAG, 10) : 2,
+    // Long fixed ceiling on how long a batch may keep coming back for its individuals to become
+    // searchable. Individual creation is async — an HRMS 202 only means the record reached Kafka — so the
+    // batch is re-queued until the persister's write lands rather than failed on a timer. The deadline is
+    // absolute and rides on the message, so redelivery cannot loop forever when the failure is permanent.
+    workerCreateDeadlineMs: process.env.USER_WORKER_CREATE_DEADLINE_MS ? parseInt(process.env.USER_WORKER_CREATE_DEADLINE_MS, 10) : 600000,
   },
       // Worker registry configuration
     workerRegistry: {
@@ -148,6 +166,8 @@ const config = {
     serviceCodeParallelSearchLimit: process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT, 10) : 50,
     attendeeSearchPageSize: process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_SEARCH_PAGE_SIZE, 10) : 100,
     staffSearchPageSize: process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE ? parseInt(process.env.ATTENDANCE_STAFF_SEARCH_PAGE_SIZE, 10) : 100,
+    registerSearchPageLimit: process.env.ATTENDANCE_REGISTER_SEARCH_PAGE_LIMIT ? parseInt(process.env.ATTENDANCE_REGISTER_SEARCH_PAGE_LIMIT, 10) : 200,
+    registerSearchReferenceIdChunkSize: process.env.ATTENDANCE_REGISTER_SEARCH_REFERENCE_ID_CHUNK_SIZE ? parseInt(process.env.ATTENDANCE_REGISTER_SEARCH_REFERENCE_ID_CHUNK_SIZE, 10) : 100,
 
     attendeePersistBatchSize: process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_ATTENDEE_PERSIST_BATCH_SIZE, 10) : 100,
     // Identities per de-enrolment UPDATE, so one bulk event cannot become a single huge statement

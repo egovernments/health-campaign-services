@@ -404,6 +404,9 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
       request.body.generatedResource = finalResponse;
     }
+    else {
+      throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} has no generate flow in the legacy generator.`);
+    }
   }
   catch (error: any) {
     console.log(error)

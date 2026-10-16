@@ -37,6 +37,7 @@ import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 import addErrors from "ajv-errors";
+import { normalizeProcessType } from "../utils/processTypeUtils";
 
 
 function processBoundaryfromCampaignDetails(responseBoundaries: any[], request: any, boundaryItems: any[]) {
@@ -795,8 +796,9 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
 
 async function validateProjectCampaignResources(resources: CampaignResource[] | undefined, request: any, CampaignDetails?: any) {
     const requiredTypes = ["user", "facility", "boundary"];
+    const unifiedResourceType = "unified-console-resources";
     // Use registry to allow all registered types (includes attendanceRegister, attendanceRegisterAttendee, etc.)
-    const allowedTypes = Array.from(new Set([...requiredTypes, "unified-console-resources", ...getAllAllowedTypes()]));
+    const allowedTypes = Array.from(new Set([...requiredTypes, unifiedResourceType, ...getAllAllowedTypes()]));
     const typeCounts: any = {};
 
     let missingTypes: string[] = [];
@@ -809,7 +811,7 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
     }
 
     // Check if this is a unified template campaign
-    const hasUnifiedResource = effectiveResources.some((resource: any) => resource?.type === "unified-console-resources");
+    const hasUnifiedResource = effectiveResources.some((resource: any) => resource?.type === unifiedResourceType);
 
     for (const resource of effectiveResources) {
         const { type } = resource;
@@ -853,6 +855,10 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
                 excludeTypes: ['attendanceRegisterAttendee']
             });
             const tableTypes = new Set(tableRows.map((r: any) => r.type));
+            if (tableTypes.has(unifiedResourceType)) {
+                logger.info(`Unified template campaign detected from eg_cm_resource_details table for campaign ${CampaignDetails.id} - skipping traditional resource validation`);
+                return;
+            }
             missingTypes = missingTypes.filter((t: string) => !tableTypes.has(t));
             if (missingTypes.length === 0) {
                 logger.info(`All required resource types found in eg_cm_resource_details table for campaign ${CampaignDetails.id}`);
@@ -1369,9 +1375,9 @@ export async function validateResourceDetails(ResourceDetails : ResourceDetails)
     const campaignId = ResourceDetails?.campaignId;
     const tenantId = ResourceDetails?.tenantId;
     const fileStoreId = ResourceDetails?.fileStoreId;
-    validateTypeForProcess(type);
-    await validateHierarchyDefination(hierarchyType,tenantId);
-    await validateCampaignViaId(campaignId,tenantId);
+    ResourceDetails.type = validateTypeForProcess(type);
+    await validateHierarchyDefination(hierarchyType, tenantId);
+    await validateCampaignViaId(campaignId, tenantId);
     try {
         const fileResponse = await fetchFileFromFilestore(fileStoreId, tenantId);
         if(!fileResponse){
@@ -1415,9 +1421,11 @@ async function validateCampaignViaId(campaignId : string,tenantId : string) {
 function validateTypeForProcess(type : string){
     const config = JSON.parse(JSON.stringify(processTemplateConfigs));
     const types = Object.keys(config);
-    if(!types.includes(type)){
+    const normalizedType = normalizeProcessType(type, types);
+    if(!types.includes(normalizedType)){
         throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `type ${type} not found or invalid`);
     }
+    return normalizedType;
 }
 
 export async function validateGenerateQuery(generateTemplateQuery : GenerateTemplateQuery){

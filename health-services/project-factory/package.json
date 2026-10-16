@@ -7,13 +7,15 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "yarn run build-ts",
+    "build": "yarn swagger:generate && yarn run build-ts",
     "build-ts": "tsc",
     "clean": "rm -rf ./dist",
     "serve": "if [ \"$DEBUG\" = \"true\" ]; then NODE_OPTIONS=--max-old-space-size=3072 node --inspect=0.0.0.0:9229 dist/index.js; else NODE_OPTIONS=--max-old-space-size=3072 node dist/index.js; fi",
     "start": "yarn run dev",
     "test": "jest",
-    "dev": "ts-node-dev --respawn src/server/index.ts",
+    "dev": "yarn swagger:generate && ts-node-dev --respawn src/server/index.ts",
+    "swagger:generate": "node scripts/generate-swagger.js",
+    "swagger:serve": "yarn swagger:generate && node scripts/serve-swagger.js",
     "prod": "if [ \"$DEBUG\" = \"true\" ]; then cp tsconfig.debug.json tsconfig.json; fi && yarn build && yarn serve",
     "watch-ts": "tsc --watch"
   },
@@ -41,6 +43,7 @@
     "node-cache": "5.1.2",
     "node-gyp": "10.0.1",
     "opentracing": "^0.14.7",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "9.0.1",
     "winston": "3.12.0",
     "xlsx": "0.18.5",
@@ -60,14 +63,17 @@
     "@types/morgan": "1.9.9",
     "@types/node": "20.11.29",
     "@types/pg": "8.11.3",
+    "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "9.0.8",
     "@types/xlsx": "0.0.36",
     "ajv": "^8.16.0",
     "eslint": "7.16.0",
     "jest": "29.7.0",
+    "js-yaml": "^4.1.0",
     "pg": "8.12.0",
     "ts-jest": "^29.4.6",
     "ts-node-dev": "2.0.0",
-    "typescript": "5.4.2"
+    "typescript": "5.4.2",
+    "swagger-autogen": "^2.23.7"
   }
 }

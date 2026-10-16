@@ -17,7 +17,10 @@ export const downloadRequestSchema = {
                 "boundary",
                 "facilityWithBoundary",
                 "userWithBoundary",
-                "userCredential"
+                "userCredential",
+                "attendanceRegister",
+                "attendanceRegisterAttendee",
+                "attendanceRegisterUserBulkMapping"
             ]
         },
         "hierarchyType": {
@@ -38,6 +41,11 @@ export const downloadRequestSchema = {
         "campaignId": {
             "type": "string",
             "maxLength": 128,
+            "minLength": 1
+        },
+        "localityCode": {
+            "type": "string",
+            "maxLength": 256,
             "minLength": 1
         },
         "forceUpdate": {

@@ -17,6 +17,8 @@ import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore } from "../api/coreApis";
 import { EnrichProcessConfigUtil } from "./EnrichProcessConfigUtil";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
+import { localityKeyOf } from "./generatedResourceUtils";
+import { normalizeProcessType } from "./processTypeUtils";
 
 /** Expires any prior generated resources for this key and produces a fresh in-progress record to track template generation. */
 export async function initializeGenerateAndGetResponse(
@@ -26,9 +28,11 @@ export async function initializeGenerateAndGetResponse(
     campaignId: string,
     userUuid: string,
     locale: string = config.localisation.defaultLocale,
-    requestInfo?: RequestInfo
+    requestInfo?: RequestInfo,
+    additionalDetails: Record<string, unknown> = {}
 ) {
     const currentTime = Date.now();
+    const localityKey = localityKeyOf({ additionalDetails });
 
     const getResourcesByStatus = (status: string) =>
         searchAllGeneratedResources({ tenantId, type, hierarchyType, status, campaignId }, locale);
@@ -38,7 +42,13 @@ export async function initializeGenerateAndGetResponse(
         getResourcesByStatus(generatedResourceStatuses.inprogress),
     ]);
 
-    const expiredResources = [...markAsExpired(completed, currentTime, userUuid), ...markAsExpired(inProgress, currentTime, userUuid)];
+    const sameLocality = (resources: any[]) =>
+        (Array.isArray(resources) ? resources : []).filter((resource) => localityKeyOf(resource) === localityKey);
+
+    const expiredResources = [
+        ...markAsExpired(sameLocality(completed), currentTime, userUuid),
+        ...markAsExpired(sameLocality(inProgress), currentTime, userUuid)
+    ];
 
     if (expiredResources.length > 0) {
         await produceModifiedMessages(
@@ -56,7 +66,7 @@ export async function initializeGenerateAndGetResponse(
         campaignId,
         locale,
         status: generatedResourceStatuses.inprogress,
-        additionalDetails: {},
+        additionalDetails,
         requestInfo,
         auditDetails: {
             createdTime: currentTime,
@@ -133,11 +143,16 @@ export async function generateResource(responseToSend: any, templateConfig: any)
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(responseToSend?.locale, responseToSend?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
         const workBook = await createBasicTemplateViaConfig(responseToSend, templateConfig, localizationMap);
-        enrichTemplateMetaData(workBook, responseToSend?.locale, responseToSend?.campaignId);
+        enrichTemplateMetaData(workBook, responseToSend?.locale, responseToSend?.campaignId, responseToSend?.type);
         const fileResponse = await createAndUploadFileWithOutRequest(workBook, responseToSend?.tenantId);
         responseToSend.fileStoreid = fileResponse?.[0]?.fileStoreId;
         if (!responseToSend.fileStoreid) throw new Error("FileStoreId not created.");
         responseToSend.status = generatedResourceStatuses.completed;
+        responseToSend.auditDetails = {
+            ...(responseToSend.auditDetails || {}),
+            lastModifiedTime: Date.now(),
+            lastModifiedBy: responseToSend?.auditDetails?.createdBy
+        };
         await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC, responseToSend?.tenantId);
     } catch (error) {
         console.log(error)
@@ -160,11 +175,13 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
             logger.info(`Using fallback locale: ${locale}`);
         }
 
+        await ensureTemplateMetadataForKnownCampaign(workBook, locale, ResourceDetails?.campaignId, ResourceDetails?.type);
+
         const localizationMapHierarchy = ResourceDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId, getLocalisationModuleName(ResourceDetails?.hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
         await processRequest(ResourceDetails, workBook, templateConfig, localizationMap);
-        enrichTemplateMetaData(workBook, locale, ResourceDetails?.campaignId);
+        enrichTemplateMetaData(workBook, locale, ResourceDetails?.campaignId, ResourceDetails?.type);
         const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResourceDetails?.tenantId);
         ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
         if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
@@ -216,7 +233,7 @@ export function checkAllRowsConsistency(jsonData: any) {
 
 /** Core processing pipeline: loads schemas, invokes the type's process class, then writes/styles/locks output sheets. */
 export async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
-    validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId);
+    validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId, ResourceDetails?.type);
     const wholeSheetData: any = {};
     const sheetsToRemove: string[] = [];
     for (const sheet of templateConfig?.sheets || []) {
@@ -767,6 +784,28 @@ export async function enrichProcessTemplateConfig(ResourceDetails: any, processT
     }
 }
 
+/**
+ * Backfills missing template metadata for known campaign uploads.
+ * Keeps strict campaign mismatch checks intact; only repairs absent/invalid metadata.
+ */
+async function ensureTemplateMetadataForKnownCampaign(workBook: any, locale: string, campaignId: string, resourceType?: string) {
+    try {
+        validateFileCmapaignIdInMetaData(workBook, campaignId, resourceType);
+        return;
+    } catch (error: any) {
+        const description = String(error?.description || error?.message || "");
+        const isMissingMetadata =
+            description.includes("doesn't have campaign metadata") ||
+            description.includes("doesn't have valid campaign metadata");
+
+        if (!isMissingMetadata) throw error;
+
+        logger.warn(`Template metadata missing/invalid for ${resourceType}. Backfilling metadata and retrying validation.`);
+        enrichTemplateMetaData(workBook, locale, campaignId, resourceType);
+        validateFileCmapaignIdInMetaData(workBook, campaignId, resourceType);
+    }
+}
+
 /** Dry-runs the process pipeline under a validation config and throws if any sheet-level errors were collected. */
 export async function validateResourceDetailsBeforeProcess(validationProcessType : string, resourceDetails: any, localizationMap : any) {
     logger.info("Validating resource details before process main function...");
@@ -792,17 +831,23 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
         logger.info(`Using fallback locale for validation: ${locale}`);
     }
 
+    await ensureTemplateMetadataForKnownCampaign(workBook, locale, validationResourceDetails?.campaignId, validationResourceDetails?.type);
+
     await processRequest(validationResourceDetails, workBook, processTemplateConfig, localizationMap);
     if (validationResourceDetails?.additionalDetails?.sheetErrors?.length) {
         throwError("COMMON", 400, "VALIDATION_ERROR", JSON.stringify(validationResourceDetails?.additionalDetails?.sheetErrors));
     }
+
     logger.info("Validated resource details before process main function...");
 }
 
 /** Throws unless the type has a controller-passable process template config (guards the create endpoint). */
 export function filterResourceDetailType(type : string){
-    const templateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(type)]));
+    const knownTypes = Object.keys(processTemplateConfigs || {});
+    const normalizedType = normalizeProcessType(String(type), knownTypes);
+    const templateConfig = processTemplateConfigs?.[String(normalizedType)];
     if(!templateConfig?.passFromController){
         throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} not found or invalid`);
     }
+    return normalizedType;
 }

@@ -20,6 +20,10 @@ import org.egov.excelingestion.util.RequestInfoUtil;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -140,15 +144,94 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         log.info("Filtered {} users for sheet {}", filteredUsers.size(), sheetName);
 
+        CampaignDateRange campaignDateRange = resolveCampaignDateRange(generateResource, tenantId, requestInfo);
+
         // 8. Decrypt credentials and build data rows
         List<Map<String, Object>> dataRows = buildDataRows(
                 filteredUsers, registerDetails.serviceCode, localizationMap, requestInfo,
-                WORKER_SHEET.equals(sheetName));
+                WORKER_SHEET.equals(sheetName), campaignDateRange.startDate, campaignDateRange.endDate);
 
         return SheetGenerationResult.builder()
                 .columnDefs(columnDefs)
                 .data(dataRows.isEmpty() ? null : dataRows)
                 .build();
+    }
+
+    private CampaignDateRange resolveCampaignDateRange(GenerateResource generateResource, String tenantId, RequestInfo requestInfo) {
+        Long startDate = getAdditionalDetailAsLong(generateResource, "campaignStartDate");
+        Long endDate = getAdditionalDetailAsLong(generateResource, "campaignEndDate");
+
+        // Fast path: dates already available on the generation request.
+        if (startDate != null && endDate != null) {
+            return new CampaignDateRange(startDate, endDate);
+        }
+
+        String campaignId = getAdditionalDetailAsString(generateResource, ProcessingConstants.ADDITIONAL_DETAILS_CAMPAIGN_ID);
+        if (campaignId == null || campaignId.isBlank()) {
+            log.warn("campaignId missing in additionalDetails for referenceId={}, cannot prefill attendee enrollment dates from campaign",
+                    generateResource.getReferenceId());
+            return new CampaignDateRange(startDate, endDate);
+        }
+
+        CampaignSearchResponse.CampaignDetail campaignDetail =
+                campaignService.searchCampaignById(campaignId.trim(), tenantId, requestInfo);
+
+        Long resolvedStartDate = startDate != null ? startDate : campaignDetail.getStartDate();
+        Long resolvedEndDate = endDate != null ? endDate : campaignDetail.getEndDate();
+
+        // Cache resolved values into additionalDetails so subsequent sheet generation in the same
+        // request can reuse them without recomputing.
+        if (resolvedStartDate != null || resolvedEndDate != null) {
+            if (generateResource.getAdditionalDetails() == null) {
+                generateResource.setAdditionalDetails(new HashMap<>());
+            }
+            if (resolvedStartDate != null) {
+                generateResource.getAdditionalDetails().put("campaignStartDate", resolvedStartDate);
+            }
+            if (resolvedEndDate != null) {
+                generateResource.getAdditionalDetails().put("campaignEndDate", resolvedEndDate);
+            }
+        }
+
+        log.info("Resolved campaign dates for campaignId {}: startDate={}, endDate={}",
+                campaignId, resolvedStartDate, resolvedEndDate);
+        return new CampaignDateRange(resolvedStartDate, resolvedEndDate);
+    }
+
+    private Long getAdditionalDetailAsLong(GenerateResource generateResource, String key) {
+        if (generateResource.getAdditionalDetails() == null) {
+            return null;
+        }
+        Object value = generateResource.getAdditionalDetails().get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+
+        String stringValue = String.valueOf(value).trim();
+        if (stringValue.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(stringValue);
+        } catch (NumberFormatException e) {
+            log.warn("Invalid additionalDetails.{} value '{}' for referenceId={}", key, stringValue, generateResource.getReferenceId());
+            return null;
+        }
+    }
+
+    private String getAdditionalDetailAsString(GenerateResource generateResource, String key) {
+        if (generateResource.getAdditionalDetails() == null) {
+            return null;
+        }
+        Object value = generateResource.getAdditionalDetails().get(key);
+        if (value == null) {
+            return null;
+        }
+        String stringValue = String.valueOf(value).trim();
+        return stringValue.isEmpty() ? null : stringValue;
     }
 
     /**
@@ -313,6 +396,16 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
             this.localityCode = localityCode;
             this.campaignNumber = campaignNumber;
             this.serviceCode = serviceCode;
+        }
+    }
+
+    private static class CampaignDateRange {
+        final Long startDate;
+        final Long endDate;
+
+        CampaignDateRange(Long startDate, Long endDate) {
+            this.startDate = startDate;
+            this.endDate = endDate;
         }
     }
 
@@ -517,7 +610,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     private List<Map<String, Object>> buildDataRows(
             List<Map<String, Object>> filteredUsers, String registerServiceCode,
             Map<String, String> localizationMap, RequestInfo requestInfo,
-            boolean includeTeamCode) {
+            boolean includeTeamCode, Long campaignStartDate, Long campaignEndDate) {
 
         if (filteredUsers.isEmpty()) return Collections.emptyList();
 
@@ -565,8 +658,8 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                             boundaryCode, localizationMap));
             row.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", boundaryCode);
             row.put("HCM_ATTENDANCE_REGISTER_ID", registerServiceCode);
-            row.put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", "");
-            row.put("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE", "");
+            row.put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", campaignStartDate != null ? formatDateForSheet(campaignStartDate) : "");
+            row.put("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE", campaignEndDate != null ? formatDateForSheet(campaignEndDate): "");
 
             if (includeTeamCode) {
                 row.put("HCM_ATTENDANCE_ATTENDEE_TEAM_CODE", "");
@@ -576,6 +669,13 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
         }
 
         return dataRows;
+    }
+
+    private String formatDateForSheet(Long epochMillis) {
+        if (epochMillis == null) return "";
+        Instant instant = Instant.ofEpochMilli(epochMillis);
+        LocalDate localDate = instant.atZone(ZoneId.systemDefault()).toLocalDate();
+        return localDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
     }
 
     /**
