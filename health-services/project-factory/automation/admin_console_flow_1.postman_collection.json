@@ -1,0 +1,4327 @@
+{
+	"info": {
+		"_postman_id": "f9dc0435-896e-45a3-b343-b5d910756afd",
+		"name": "ADMIN CONSOLE flow 1",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "29681440"
+	},
+	"item": [
+		{
+			"name": "Auth token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"Auth\", response.access_token)",
+							"",
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(200)))"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "qa.digit.org"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"98\", \"Google Chrome\";v=\"98\""
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "content-type",
+						"value": "application/x-www-form-urlencoded"
+					},
+					{
+						"key": "authorization",
+						"value": "Basic ZWdvdi11c2VyLWNsaWVudDo="
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Windows\""
+					},
+					{
+						"key": "origin",
+						"value": "https://qa.digit.org"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "referer",
+						"value": "https://qa.digit.org/employee/user/login"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-US,en;q=0.9"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "username",
+							"value": "goodboysuper",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "eGov@1234",
+							"type": "text"
+						},
+						{
+							"key": "grant_type",
+							"value": "password",
+							"type": "text"
+						},
+						{
+							"key": "scope",
+							"value": "read",
+							"type": "text"
+						},
+						{
+							"key": "tenantId",
+							"value": "mz",
+							"type": "text"
+						},
+						{
+							"key": "userType",
+							"value": "EMPLOYEE",
+							"type": "text"
+						}
+					]
+				},
+				"url": "{{url}}/user/oauth/token"
+			},
+			"response": [
+				{
+					"name": "https://unified-qa.digit.org/user/oauth/token",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "authority",
+								"value": "qa.digit.org"
+							},
+							{
+								"key": "sec-ch-ua",
+								"value": "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"98\", \"Google Chrome\";v=\"98\""
+							},
+							{
+								"key": "accept",
+								"value": "application/json, text/plain, */*"
+							},
+							{
+								"key": "content-type",
+								"value": "application/x-www-form-urlencoded"
+							},
+							{
+								"key": "authorization",
+								"value": "Basic ZWdvdi11c2VyLWNsaWVudDo="
+							},
+							{
+								"key": "sec-ch-ua-mobile",
+								"value": "?0"
+							},
+							{
+								"key": "user-agent",
+								"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
+							},
+							{
+								"key": "sec-ch-ua-platform",
+								"value": "\"Windows\""
+							},
+							{
+								"key": "origin",
+								"value": "https://qa.digit.org"
+							},
+							{
+								"key": "sec-fetch-site",
+								"value": "same-origin"
+							},
+							{
+								"key": "sec-fetch-mode",
+								"value": "cors"
+							},
+							{
+								"key": "sec-fetch-dest",
+								"value": "empty"
+							},
+							{
+								"key": "referer",
+								"value": "https://qa.digit.org/employee/user/login"
+							},
+							{
+								"key": "accept-language",
+								"value": "en-US,en;q=0.9"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "MDMSMZ",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "eGov@123",
+									"type": "text"
+								},
+								{
+									"key": "grant_type",
+									"value": "password",
+									"type": "text"
+								},
+								{
+									"key": "scope",
+									"value": "read",
+									"type": "text"
+								},
+								{
+									"key": "tenantId",
+									"value": "mz",
+									"type": "text"
+								},
+								{
+									"key": "userType",
+									"value": "EMPLOYEE",
+									"type": "text"
+								}
+							]
+						},
+						"url": "https://unified-qa.digit.org/user/oauth/token"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Mon, 25 Mar 2024 08:32:02 GMT"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json;charset=UTF-8"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Vary",
+							"value": "Accept-Encoding"
+						},
+						{
+							"key": "Cache-Control",
+							"value": "no-store"
+						},
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, max-age=0, must-revalidate"
+						},
+						{
+							"key": "Pragma",
+							"value": "no-cache"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "X-XSS-Protection",
+							"value": "1; mode=block"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "x-correlation-id",
+							"value": "be54920b-def9-4b7d-aaf5-ce437cd4d492"
+						},
+						{
+							"key": "Strict-Transport-Security",
+							"value": "max-age=15724800; includeSubDomains"
+						},
+						{
+							"key": "Content-Encoding",
+							"value": "gzip"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"access_token\": \"44632f5e-8fc4-4c07-b5db-8e79916d0ad6\",\n    \"token_type\": \"bearer\",\n    \"refresh_token\": \"b69533f5-1800-4190-9003-9b1872f6aead\",\n    \"expires_in\": 604799,\n    \"scope\": \"read\",\n    \"ResponseInfo\": {\n        \"api_id\": \"\",\n        \"ver\": \"\",\n        \"ts\": \"\",\n        \"res_msg_id\": \"\",\n        \"msg_id\": \"\",\n        \"status\": \"Access Token generated successfully\"\n    },\n    \"UserRequest\": {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "Create boundary-hierarchy-definition",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"",
+							"",
+							"pm.test(\"Status code is 202\", function () {",
+							"    pm.response.to.have.status(202);",
+							"});",
+							"",
+							"var res = pm.response.json();",
+							"pm.environment.set(\"hierarchyType\", res.BoundaryHierarchy[0].hierarchyType);",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"RequestInfo\": {\r\n        \"apiId\": \"Rainmaker\",\r\n        \"authToken\": \"{{Auth}}\",\r\n        \"userInfo\": {\r\n        \"id\": 6152,\r\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\r\n        \"userName\": \"MDMSMZ\",\r\n        \"name\": \"MDMSMZ\",\r\n        \"mobileNumber\": \"8998989222\",\r\n        \"emailId\": null,\r\n        \"locale\": null,\r\n        \"type\": \"EMPLOYEE\",\r\n        \"roles\": [\r\n            {\r\n                \"name\": \"System Administrator\",\r\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\r\n                \"tenantId\": \"mz\"\r\n            },\r\n            {\r\n                \"name\": \"Campaign Manager\",\r\n                \"code\": \"CAMPAIGN_MANAGER\",\r\n                \"tenantId\": \"mz\"\r\n            },\r\n            {\r\n                \"name\": \"Localisation admin\",\r\n                \"code\": \"LOC_ADMIN\",\r\n                \"tenantId\": \"mz\"\r\n            },\r\n            {\r\n                \"name\": \"MDMS Admin\",\r\n                \"code\": \"MDMS_ADMIN\",\r\n                \"tenantId\": \"mz\"\r\n            }\r\n        ],\r\n        \"active\": true,\r\n        \"tenantId\": \"mz\",\r\n        \"permanentCity\": null\r\n    },\r\n        \"msgId\": \"{{msgId}}\",\r\n        \"plainAccessRequest\": {}\r\n    },\r\n    \"BoundaryHierarchy\": {\r\n        \"tenantId\": \"{{tenantId}}\",\r\n        \"hierarchyType\": \"{{$randomCountryCode}}\",\r\n        // \"hierarchyType\": \"{{code}}\",\r\n        \"boundaryHierarchy\": [\r\n            {\r\n                \"boundaryType\": \"Country\",\r\n                \"parentBoundaryType\": null,\r\n                \"active\": true\r\n            },\r\n            {\r\n                \"boundaryType\": \"Province\",\r\n                \"parentBoundaryType\": \"Country\",\r\n                \"active\": true\r\n            },\r\n            {\r\n                \"boundaryType\": \"Distrito\",\r\n                \"parentBoundaryType\": \"Province\",\r\n                \"active\": true\r\n            },\r\n            {\r\n                \"boundaryType\": \"Post administrative\",\r\n                \"parentBoundaryType\": \"Distrito\",\r\n                \"active\": true\r\n            },\r\n            {\r\n                \"boundaryType\": \"Locality\",\r\n                \"parentBoundaryType\": \"Post administrative\",\r\n                \"active\": true\r\n            },\r\n            {\r\n                \"boundaryType\": \"Village\",\r\n                \"parentBoundaryType\": \"Locality\",\r\n                \"active\": true\r\n            }\r\n        ]\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "{{url}}/boundary-service/boundary-hierarchy-definition/_create"
+			},
+			"response": []
+		},
+		{
+			"name": "Search boundary-hierarchy-definition",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"var resp = pm.response.json();",
+							"pm.environment.set(\"hierarchyType\", resp.BoundaryHierarchy[0].hierarchyType);",
+							"",
+							"// Parse the response JSON",
+							"var jsonData = pm.response.json();",
+							"",
+							"// Function to count BoundaryHierarchy elements",
+							"function countBoundaryHierarchy(data) {",
+							"    // Check if \"BoundaryHierarchy\" exists and is an array",
+							"    if (Array.isArray(data.BoundaryHierarchy)) {",
+							"        // Return the length of the array",
+							"        return data.BoundaryHierarchy[0].boundaryHierarchy.length;",
+							"    } else {",
+							"        return 0;",
+							"    }",
+							"}",
+							"",
+							"// Test case",
+							"const numberOfBoundaryHierarchy = countBoundaryHierarchy(jsonData);",
+							"console.log(\"Number of elements in BoundaryHierarchy array:\", numberOfBoundaryHierarchy);",
+							"",
+							"",
+							"",
+							"pm.test(\"Count of BoundaryHierarchy elements\", function () {",
+							"    const numberOfBoundaryHierarchy = countBoundaryHierarchy(jsonData);",
+							"    console.log(\"Number of elements in BoundaryHierarchy array:\", numberOfBoundaryHierarchy);",
+							"    pm.expect(numberOfBoundaryHierarchy).to.eql(6); // Ensure there's at least one element",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"RequestInfo\": {\r\n        \"apiId\": \"Rainmaker\",\r\n        \"authToken\": \"{{Auth}}\",\r\n        \"msgId\": \"{{msgId}}\",\r\n        \"plainAccessRequest\": {}\r\n    },\r\n    \"BoundaryTypeHierarchySearchCriteria\": {\r\n        \"tenantId\": \"{{tenantId}}\",\r\n        \"limit\": 10,\r\n        \"offset\": 0,\r\n        \"hierarchyType\": \"{{hierarchyType}}\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/boundary-service/boundary-hierarchy-definition/_search?limit=10&offset=0",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"boundary-service",
+						"boundary-hierarchy-definition",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "10"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "filestore upload Boundary",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(201)))",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"Boundaryuploadfilestoreid\", res.files[0].fileStoreId);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "auth-token",
+						"value": "{{Auth}}"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/home/shreya/Downloads/alldata.xlsx"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}",
+							"type": "text"
+						},
+						{
+							"key": "module",
+							"value": "pgr",
+							"type": "text"
+						},
+						{
+							"key": "tag",
+							"value": "00040-2017-QR",
+							"type": "text"
+						}
+					]
+				},
+				"url": "{{url}}/filestore/v1/files"
+			},
+			"response": []
+		},
+		{
+			"name": "Boundary Bulk Upload",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.ResourceDetails.tenantId).to.not.be.null;",
+							"    pm.expect(req.ResourceDetails.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.ResourceDetails.tenantId).to.not.be.empty;",
+							"    pm.expect(req.ResourceDetails.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('type is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.ResourceDetails.type).to.not.be.null;",
+							"    pm.expect(req.ResourceDetails.type).to.not.be.empty;",
+							"    pm.expect(req.ResourceDetails.type).to.not.be.undefined;",
+							"})",
+							"pm.test('fileStoreId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.ResourceDetails.fileStoreId).to.not.be.null;",
+							"    pm.expect(req.ResourceDetails.fileStoreId).to.not.be.empty;",
+							"    pm.expect(req.ResourceDetails.fileStoreId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('action is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.ResourceDetails.action).to.not.be.null;",
+							"    pm.expect(req.ResourceDetails.action).to.not.be.empty;",
+							"    pm.expect(req.ResourceDetails.action).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('hierarchyType is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.ResourceDetails.hierarchyType).to.not.be.null;",
+							"    pm.expect(req.ResourceDetails.hierarchyType).to.not.be.empty;",
+							"    pm.expect(req.ResourceDetails.hierarchyType).to.not.be.undefined;",
+							"})",
+							"",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails.type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails.type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"pm.test(\"Response has tenantId as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails.tenantId).to.be.a(\"string\");",
+							"    pm.expect(response.ResourceDetails.tenantId).to.be.eql('mz');",
+							"    ",
+							"})",
+							"",
+							"pm.test(\"Response has fileStoreId as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails.fileStoreId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has fileStoreId as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails.fileStoreId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails.id).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails.status).to.be.a(\"string\");",
+							"    pm.expect(response.ResourceDetails.status).to.be.eql('data-accepted');",
+							" ",
+							"})",
+							"",
+							"",
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"id\", response.ResourceDetails.id)",
+							"",
+							"",
+							"",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 6152,\n            \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n            \"userName\": \"MDMSMZ\",\n            \"name\": \"MDMSMZ\",\n            \"mobileNumber\": \"8998989222\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    },\n    \"ResourceDetails\": {\n        \"type\": \"{{type-boundary}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"fileStoreId\":\"{{Boundaryuploadfilestoreid}}\",\n        \"action\": \"{{action-create}}\",\n        \"hierarchyType\": \"{{hierarchyType}}\",\n        \"additionalDetails\": {}\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "{{url}}/project-factory/v1/data/_create"
+			},
+			"response": []
+		},
+		{
+			"name": "Template Download API - boundry",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].id).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"pm.test(\"Response has filestoreid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].fileStoreid).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () => {",
+							"    pm.expect(pm.response.to.have.status(200));",
+							"});",
+							"   ",
+							"",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"filestoreidboundarydownload\", res.GeneratedResource[0].fileStoreid);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, /"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "MUKTASoft"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\":\"{{Auth}}\",\n        \"userInfo\": {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "{{url}}/project-factory/v1/data/_download?type={{type-boundary}}&tenantId={{tenantId}}&hierarchyType={{hierarchyType}}&id={{id}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_download"
+					],
+					"query": [
+						{
+							"key": "type",
+							"value": "{{type-boundary}}"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "{{hierarchyType}}"
+						},
+						{
+							"key": "id",
+							"value": "{{id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "check excel with filestore boundary",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(200)))",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "authority",
+						"value": "qa.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en;q=0.9"
+					},
+					{
+						"key": "cache-control",
+						"value": "no-cache"
+					},
+					{
+						"key": "pragma",
+						"value": "no-cache"
+					},
+					{
+						"key": "referer",
+						"value": "https://qa.digit.org/digit-ui/employee/dss/dashboard/fsm"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Google Chrome\";v=\"107\", \"Chromium\";v=\"107\", \"Not=A?Brand\";v=\"24\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Windows\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+					}
+				],
+				"url": {
+					"raw": "{{url}}/filestore/v1/files/url?tenantId={{tenantId}}&fileStoreIds={{filestoreidboundarydownload}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"filestore",
+						"v1",
+						"files",
+						"url"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "fileStoreIds",
+							"value": "{{filestoreidboundarydownload}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Boundary Relationship Search",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"// Function to count boundaries up to \"Village\" boundaryType",
+							"function countBoundaries(boundary) {",
+							"    let count = 1; // Count the current boundary",
+							"",
+							"    // If the current boundaryType is \"Village\", stop counting further children",
+							"    if (boundary.boundaryType === \"Village\") {",
+							"        return count;",
+							"    }",
+							"",
+							"    // Check if \"children\" exists and is an array",
+							"    if (Array.isArray(boundary.children)) {",
+							"        // Loop through each child boundary",
+							"        boundary.children.forEach((child) => {",
+							"            // Recursively count child boundaries",
+							"            count += countBoundaries(child);",
+							"        });",
+							"    }",
+							"",
+							"    return count;",
+							"}",
+							"",
+							"// Assuming the response is stored in a variable called 'response'",
+							"let response = pm.response.json();",
+							"",
+							"// Initialize total count",
+							"let totalCount = 0;",
+							"",
+							"// Check if response has a \"TenantBoundary\" property",
+							"if (response.TenantBoundary && Array.isArray(response.TenantBoundary)) {",
+							"    response.TenantBoundary.forEach((tenant) => {",
+							"        // Check if \"boundary\" exists and is an array",
+							"        if (tenant.boundary && Array.isArray(tenant.boundary)) {",
+							"            tenant.boundary.forEach((boundary) => {",
+							"                totalCount += countBoundaries(boundary);",
+							"            });",
+							"        }",
+							"    });",
+							"}",
+							"",
+							"// Log the total count of boundaries up to \"Village\" level",
+							"console.log('Total Count of Boundaries up to Village:', totalCount);",
+							"",
+							"// Set the count in a Postman environment variable",
+							"pm.environment.set('totalBoundariesCount', totalCount);",
+							"",
+							"// Validate the count (example assertion)",
+							"pm.test('Total boundaries count should be greater than 0', function () {",
+							"    pm.expect(totalCount).to.be.above(0);",
+							"});",
+							"",
+							"",
+							"pm.environment.set('totalBoundariesCount', totalCount);",
+							"",
+							"// Validate the count and add it to the test results",
+							"pm.test('Total boundaries count up to Village level', function () {",
+							"    pm.expect(totalCount).to.be.a('number');",
+							"    pm.expect(totalCount).to.be.above(0);",
+							"    console.log('Total Count of Boundaries up to Village:', totalCount);",
+							"    pm.test(`Total Count of Boundaries up to Village: ${totalCount}`, function () {",
+							"        pm.expect(totalCount).to.not.be.undefined;",
+							"    });",
+							"});",
+							"",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"Countrycode\", res.TenantBoundary[0].boundary[0].code);",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"RequestInfo\": {\r\n        \"apiId\": \"Rainmaker\",\r\n        \"authToken\": \"{{Auth}}\",\r\n        \"userInfo\": {\r\n        \"id\": 6152,\r\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\r\n        \"userName\": \"MDMSMZ\",\r\n        \"name\": \"MDMSMZ\",\r\n        \"mobileNumber\": \"8998989222\",\r\n        \"emailId\": null,\r\n        \"locale\": null,\r\n        \"type\": \"EMPLOYEE\",\r\n        \"roles\": [\r\n            {\r\n                \"name\": \"System Administrator\",\r\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\r\n                \"tenantId\": \"mz\"\r\n            },\r\n            {\r\n                \"name\": \"Campaign Manager\",\r\n                \"code\": \"CAMPAIGN_MANAGER\",\r\n                \"tenantId\": \"mz\"\r\n            },\r\n            {\r\n                \"name\": \"Localisation admin\",\r\n                \"code\": \"LOC_ADMIN\",\r\n                \"tenantId\": \"mz\"\r\n            },\r\n            {\r\n                \"name\": \"MDMS Admin\",\r\n                \"code\": \"MDMS_ADMIN\",\r\n                \"tenantId\": \"mz\"\r\n            }\r\n        ],\r\n        \"active\": true,\r\n        \"tenantId\": \"{{tenantId}}\",\r\n        \"permanentCity\": null\r\n    },\r\n        \"msgId\": \"{{msgId}}\",\r\n        \"plainAccessRequest\": {}\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/boundary-service/boundary-relationships/_search?tenantId={{tenantId}}&includeChildren=true&hierarchyType={{hierarchyType}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"boundary-service",
+						"boundary-relationships",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "boundaryType",
+							"value": "District",
+							"disabled": true
+						},
+						{
+							"key": "includeParents",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeChildren",
+							"value": "true"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "{{hierarchyType}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Upsert localisations UAT",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"ver\": \".01\",\n        \"ts\": \"\",\n        \"action\": \"_create\",\n        \"did\": \"1\",\n        \"key\": \"\",\n        \"msgId\": \"{{msgId}}\",\n        \"authToken\": \"{{Auth}}\"\n    },\n    \"tenantId\": \"{{tenantId}}\",\n    \"messages\": [\n        {\n            \"code\": \"{{hierarchyType}}_COUNTRY\",\n            \"message\": \"Country\",\n            \"module\": \"rainmaker-hcm-admin-schemas\",\n            \"locale\": \"{{locale}}\"\n        },\n        {\n            \"code\": \"{{hierarchyType}}_PROVINCE\",\n            \"message\": \"Province\",\n            \"module\": \"rainmaker-hcm-admin-schemas\",\n            \"locale\": \"{{locale}}\"\n        },\n        {\n            \"code\": \"{{hierarchyType}}_DISTRITO\",\n            \"message\": \"Distrito\",\n            \"module\": \"rainmaker-hcm-admin-schemas\",\n            \"locale\": \"{{locale}}\"\n        },\n        {\n            \"code\": \"{{hierarchyType}}_POST ADMINISTRATIVE\",\n            \"message\": \"Post administrative\",\n            \"module\": \"rainmaker-hcm-admin-schemas\",\n            \"locale\": \"{{locale}}\"\n        },\n        {\n            \"code\": \"{{hierarchyType}}_LOCALITY\",\n            \"message\": \"Locality\",\n            \"module\": \"rainmaker-hcm-admin-schemas\",\n            \"locale\": \"{{locale}}\"\n        },\n        {\n            \"code\": \"{{hierarchyType}}_VILLAGE\",\n            \"message\": \"Village\",\n            \"module\": \"rainmaker-hcm-admin-schemas\",\n            \"locale\": \"{{locale}}\"\n        }\n    ]\n}"
+				},
+				"url": "{{url}}/localization/messages/v1/_upsert"
+			},
+			"response": []
+		},
+		{
+			"name": "Search localisations UAT",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n \"RequestInfo\": {\n   \"apiId\": \"Rainmaker\",\n   \"ver\": \".01\",\n   \"ts\": \"\",\n   \"action\": \"_create\",\n   \"did\": \"1\",\n   \"key\": \"\",\n   \"msgId\": \"{{msgId}}\",\n   \"authToken\": \"{{Auth}}\"\n }\n}"
+				},
+				"url": {
+					"raw": "{{url}}/localization/messages/v1/_search?tenantId={{tenantId}}&locale={{locale}}&module=rainmaker-hcm-admin-schemas",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"localization",
+						"messages",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "locale",
+							"value": "{{locale}}"
+						},
+						{
+							"key": "module",
+							"value": "rainmaker-hcm-admin-schemas"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Campaign create draft",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"",
+							"var resp = pm.response.json();",
+							"pm.environment.set(\"campaignid\", resp.CampaignDetails.id);",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"authToken\": \"{{Auth}}\",\n    \"userInfo\": {\n        \"id\": 1052,\n        \"uuid\": \"8b110055-330f-4e7b-b4c0-f618f29b9d47\",\n        \"userName\": \"UATMZ\",\n        \"name\": \"UATMZ\",\n        \"mobileNumber\": \"8998988112\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS ADMIN\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n    \"msgId\": \"{{msgId}}\",\n    \"plainAccessRequest\": {}\n},\n    \"CampaignDetails\": {\n        \"hierarchyType\": \"{{hierarchyType}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"campaignName\": \"{{$randomNoun}}\",\n        \"action\": \"{{action-draft}}\",\n        \n        \"startDate\": 1748859039000,\n        \"endDate\":  1749118239000,\n        \"boundaries\": [\n          \n            {\n                \"code\": \"{{Countrycode}}\",\n                \"type\": \"Country\",\n                \"isRoot\": true,\n                \"includeAllChildren\":true\n            }\n        ],\n    //     \"resources\": [\n    //         {\n    //             \"filestoreId\": \"d5a6f652-37da-49a2-9284-e867b9e4de83\",\n    //             \"type\": \"facility\",\n    //             \"filename\": \"facility.xlsx\"\n    //         }\n    //     ],\n        \"projectType\": \"{{projecttype-LLIN}}\",\n    //     \"deliveryRules\": [\n    //         {\n    //             \"startDate\": 1665497225000,\n    //             \"endDate\": 1665497225000,\n    //             \"cycleNumber\": 0,\n    //             \"deliveryNumber\": 0,\n    //             \"deliveryRuleNumber\": 0,\n    //             \"products\": [\n    //                 \"string\"\n    //             ],\n    //             \"conditions\": [\n    //                 {\n    //                     \"attribute\": \"string\",\n    //                     \"operator\": \"string\",\n    //                     \"value\": 0\n    //                 }\n    //             ]\n    //         }\n    //     ],\n        \"additionalDetails\": {}\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/project-type/create"
+			},
+			"response": []
+		},
+		{
+			"name": "Campaign Search API",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"id\", response.CampaignDetails.id)",
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"",
+							"",
+							"",
+							"pm.test('tenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.null;",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.empty;",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"",
+							"pm.test('startDate is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.startDate).to.not.be.null;",
+							"})",
+							"pm.test('endDate is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.endDate).to.not.be.null;",
+							"",
+							"})",
+							"",
+							"",
+							"",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"",
+							"",
+							"",
+							"",
+							"",
+							"",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 6152,\n            \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n            \"userName\": \"MDMSMZ\",\n            \"name\": \"MDMSMZ\",\n            \"mobileNumber\": \"8998989222\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    },\n    \"CampaignDetails\": {\n        \"ids\": [\n            \"{{campaignid}}\"\n        ],\n        //   \"campaignName\" :\"TEST84\" ,\n        \"tenantId\": \"mz\",\n        \"pagination\": {\n            \"sortBy\": \"campaignNumber\",\n            \"sortOrder\": \"asc\",\n            \"limit\": 20,\n            \"offset\": 0\n        }\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/project-type/search"
+			},
+			"response": []
+		},
+		{
+			"name": "Template Generate API - boundary",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].id).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"pm.test(\"Response filestoreid is null\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].fileStoreid).to.equal(null);",
+							"});",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"id\", response.GeneratedResource[0].id)",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 6152,\n            \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n            \"userName\": \"MDMSMZ\",\n            \"name\": \"MDMSMZ\",\n            \"mobileNumber\": \"8998989222\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"{{tenantId}}\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    }\n    // ,\n    // \"Filters\": {\n    //     // \"boundaries\": [\n    //     //     {\n    //     //         \"code\": \"f5F6xAskA05\",\n    //     //         \"isRoot\": true,\n    //     //         \"includeAllChildren\": true,\n    //     //         \"boundaryType\": \"Provincia\"\n    //     //     }\n    //     // ]\n    // }\n}"
+				},
+				"url": {
+					"raw": "{{url}}/project-factory/v1/data/_generate?tenantId={{tenantId}}&type={{type-boundary}}&forceUpdate={{forceupdate-true}}&hierarchyType={{hierarchyType}}&campaignId={{campaignid}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_generate"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "type",
+							"value": "{{type-boundary}}"
+						},
+						{
+							"key": "forceUpdate",
+							"value": "{{forceupdate-true}}"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "{{hierarchyType}}"
+						},
+						{
+							"key": "campaignId",
+							"value": "{{campaignid}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Template Download API - boundry",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].id).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"pm.test(\"Response has filestoreid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].fileStoreid).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () => {",
+							"    pm.expect(pm.response.to.have.status(200));",
+							"});",
+							"   ",
+							"",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"filestoreidboundarydownload\", res.GeneratedResource[0].fileStoreid);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, /"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "MUKTASoft"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\":\"{{Auth}}\",\n        \"userInfo\": {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "{{url}}/project-factory/v1/data/_download?type={{type-boundary}}&tenantId={{tenantId}}&hierarchyType={{hierarchyType}}&id={{id}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_download"
+					],
+					"query": [
+						{
+							"key": "type",
+							"value": "{{type-boundary}}"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "{{hierarchyType}}"
+						},
+						{
+							"key": "id",
+							"value": "{{id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "check excel with filestore Target",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(200)))",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "authority",
+						"value": "qa.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en;q=0.9"
+					},
+					{
+						"key": "cache-control",
+						"value": "no-cache"
+					},
+					{
+						"key": "pragma",
+						"value": "no-cache"
+					},
+					{
+						"key": "referer",
+						"value": "https://qa.digit.org/digit-ui/employee/dss/dashboard/fsm"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Google Chrome\";v=\"107\", \"Chromium\";v=\"107\", \"Not=A?Brand\";v=\"24\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Windows\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+					}
+				],
+				"url": {
+					"raw": "{{url}}/filestore/v1/files/url?tenantId={{tenantId}}&fileStoreIds={{filestoreidboundarydownload}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"filestore",
+						"v1",
+						"files",
+						"url"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "fileStoreIds",
+							"value": "{{filestoreidboundarydownload}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "filestore upload Target",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(201)))",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"Targetfilestoreid\", res.files[0].fileStoreId);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "auth-token",
+						"value": "{{Auth}}"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "postman-cloud:///1ef2dfe9-4c89-4090-a0f2-c7eab931137b"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}",
+							"type": "text"
+						},
+						{
+							"key": "module",
+							"value": "pgr",
+							"type": "text"
+						},
+						{
+							"key": "tag",
+							"value": "00040-2017-QR",
+							"type": "text"
+						}
+					]
+				},
+				"url": "{{url}}/filestore/v1/files"
+			},
+			"response": []
+		},
+		{
+			"name": "Template Generate -  facilityWithBoundary",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].id).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"pm.test(\"Response filestoreid is null\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].fileStoreid).to.equal(null);",
+							"});",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"id\", response.GeneratedResource[0].id)",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"authToken\":\"{{Auth}}\",\n    \"userInfo\": {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n    \"msgId\": \"{{msgId}}\",\n    \"plainAccessRequest\": {}\n}\n}"
+				},
+				"url": {
+					"raw": "{{url}}/project-factory/v1/data/_generate?tenantId={{tenantId}}&type={{type- facilityWithBoundary}}&forceUpdate={{forceupdate-true}}&hierarchyType={{hierarchyType}}&campaignId={{campaignid}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_generate"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "type",
+							"value": "{{type- facilityWithBoundary}}"
+						},
+						{
+							"key": "forceUpdate",
+							"value": "{{forceupdate-true}}"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "{{hierarchyType}}"
+						},
+						{
+							"key": "campaignId",
+							"value": "{{campaignid}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Template Download API - facilityWithBoundary",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].id).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"pm.test(\"Response has filestoreid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].fileStoreid).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () => {",
+							"    pm.expect(pm.response.to.have.status(200));",
+							"});",
+							"   ",
+							"",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"filestoreidfacilitydownload\", res.GeneratedResource[0].fileStoreid);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, /"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "MUKTASoft"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\":\"{{Auth}}\",\n        \"userInfo\": {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "{{url}}/project-factory/v1/data/_download?type={{type- facilityWithBoundary}}&tenantId={{tenantId}}&hierarchyType={{hierarchyType}}&id={{id}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_download"
+					],
+					"query": [
+						{
+							"key": "type",
+							"value": "{{type- facilityWithBoundary}}"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "{{hierarchyType}}"
+						},
+						{
+							"key": "id",
+							"value": "{{id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "check excel with filestore Facility",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(200)))",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "authority",
+						"value": "qa.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en;q=0.9"
+					},
+					{
+						"key": "cache-control",
+						"value": "no-cache"
+					},
+					{
+						"key": "pragma",
+						"value": "no-cache"
+					},
+					{
+						"key": "referer",
+						"value": "https://qa.digit.org/digit-ui/employee/dss/dashboard/fsm"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Google Chrome\";v=\"107\", \"Chromium\";v=\"107\", \"Not=A?Brand\";v=\"24\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Windows\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+					}
+				],
+				"url": {
+					"raw": "{{url}}/filestore/v1/files/url?tenantId={{tenantId}}&fileStoreIds={{filestoreidfacilitydownload}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"filestore",
+						"v1",
+						"files",
+						"url"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "fileStoreIds",
+							"value": "{{filestoreidfacilitydownload}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "filestore upload Facility",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(201)))",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"Facilityfilestoreid\", res.files[0].fileStoreId);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "auth-token",
+						"value": "{{Auth}}"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/home/shreya/Downloads/1717755416894YnbtdJksPl (1).xlsx"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}",
+							"type": "text"
+						},
+						{
+							"key": "module",
+							"value": "pgr",
+							"type": "text"
+						},
+						{
+							"key": "tag",
+							"value": "00040-2017-QR",
+							"type": "text"
+						}
+					]
+				},
+				"url": "{{url}}/filestore/v1/files"
+			},
+			"response": []
+		},
+		{
+			"name": "Template Generate - User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].id).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"pm.test(\"Response filestoreid is null\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].fileStoreid).to.equal(null);",
+							"});",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"id\", response.GeneratedResource[0].id)",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 1284,\n            \"uuid\": \"867ba408-1b82-4746-8274-eb916e625fea\",\n            \"userName\": \"EMP57\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    },\n    \"Filters\":null\n}"
+				},
+				"url": {
+					"raw": "{{url}}/project-factory/v1/data/_generate?tenantId={{tenantId}}&type={{type userWithBoundary}}&forceUpdate={{forceupdate-true}}&hierarchyType={{hierarchyType}}&campaignId={{campaignid}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_generate"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "type",
+							"value": "{{type userWithBoundary}}"
+						},
+						{
+							"key": "forceUpdate",
+							"value": "{{forceupdate-true}}"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "{{hierarchyType}}"
+						},
+						{
+							"key": "campaignId",
+							"value": "{{campaignid}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Template Download API - User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].id).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"pm.test(\"Response has filestoreid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].fileStoreid).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.GeneratedResource[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response is successful\", () => {",
+							"    pm.expect(pm.response.to.have.status(200));",
+							"});",
+							"   ",
+							"",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"filestoreiduserDownload\", res.GeneratedResource[0].fileStoreid);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, /"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "MUKTASoft"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\":\"{{Auth}}\",\n        \"userInfo\": {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "{{url}}/project-factory/v1/data/_download?type={{type userWithBoundary}}&tenantId={{tenantId}}&hierarchyType={{hierarchyType}}&id={{id}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_download"
+					],
+					"query": [
+						{
+							"key": "type",
+							"value": "{{type userWithBoundary}}"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "{{hierarchyType}}"
+						},
+						{
+							"key": "id",
+							"value": "{{id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "check excel with filestore user",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(200)))",
+							"",
+							"pm.environment.set(\"userfilestoreid\", res.files[0].fileStoreId);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "authority",
+						"value": "qa.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en;q=0.9"
+					},
+					{
+						"key": "cache-control",
+						"value": "no-cache"
+					},
+					{
+						"key": "pragma",
+						"value": "no-cache"
+					},
+					{
+						"key": "referer",
+						"value": "https://qa.digit.org/digit-ui/employee/dss/dashboard/fsm"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Google Chrome\";v=\"107\", \"Chromium\";v=\"107\", \"Not=A?Brand\";v=\"24\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Windows\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+					}
+				],
+				"url": {
+					"raw": "{{url}}/filestore/v1/files/url?tenantId={{tenantId}}&fileStoreIds={{filestoreiduserDownload}}",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"filestore",
+						"v1",
+						"files",
+						"url"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "fileStoreIds",
+							"value": "{{filestoreiduserDownload}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "filestore upload user",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(201)))",
+							"const res = pm.response.json()",
+							"",
+							"pm.environment.set(\"Userfilestoreid\", res.files[0].fileStoreId);",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "auth-token",
+						"value": "{{Auth}}"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/home/shreya/Downloads/1717755466868cKhwPFIEBs.xlsx"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}",
+							"type": "text"
+						},
+						{
+							"key": "module",
+							"value": "pgr",
+							"type": "text"
+						},
+						{
+							"key": "tag",
+							"value": "00040-2017-QR",
+							"type": "text"
+						}
+					]
+				},
+				"url": "{{url}}/filestore/v1/files"
+			},
+			"response": []
+		},
+		{
+			"name": "validate resource Boundary",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"boundaryfilestoreid\", response.ResourceDetails.fileStoreId)",
+							"",
+							"pm.environment.set(\"resourceidboundary\", response.ResourceDetails.id)",
+							"",
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(200)))"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-uat.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en;q=0.9"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json;charset=UTF-8"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-uat.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-uat.digit.org/workbench-ui/employee/campaign/setup-campaign?key=8&preview=false&id=0ac9c3f4-5aab-4274-9cc7-7a50b06c930b"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"ResourceDetails\": {\n        \"type\": \"boundaryWithTarget\",\n        \"hierarchyType\": \"{{hierarchyType}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"fileStoreId\": \"{{Targetfilestoreid}}\",\n        \"action\": \"validate\",\n        \"campaignId\": \"{{campaignId}}\",\n        \"additionalDetails\": {}\n    },\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 1052,\n            \"uuid\": \"8b110055-330f-4e7b-b4c0-f618f29b9d47\",\n            \"userName\": \"UATMZ\",\n            \"name\": \"UATMZ\",\n            \"mobileNumber\": \"8998988112\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS ADMIN\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/data/_create"
+			},
+			"response": []
+		},
+		{
+			"name": "Search API -  boundary",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"",
+							"",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"pm.test(\"SearchCriteria id is an array of strings\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.id).to.be.an(\"array\");",
+							"    pm.expect(req.SearchCriteria.id.every(function (id) {",
+							"        return typeof id === \"string\";",
+							"    })).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria tenantId is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.tenantId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria type is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.type).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria status is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.status).to.be.a(\"string\");",
+							"});",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"     pm.expect(response.ResourceDetails[0].id).to.be.a(\"string\");",
+							"});",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has  filestoreid\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].fileStoreId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"Response has  processedFilestoreId\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].processedFilestoreId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has action as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].action).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, /"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "MUKTASoft"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\":  {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    },\n    \"SearchCriteria\": {\n        \"id\": [\"{{resourceidboundary}}\"\n        ],\n        \"tenantId\": \"{{tenantId}}\"\n        // \"type\": \"{{type facility}}\",\n        // \"status\": \"{{data - validated}}\"\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/data/_search"
+			},
+			"response": []
+		},
+		{
+			"name": "validate resource facility",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"facilityfilestoreid\", response.ResourceDetails.fileStoreId)",
+							"",
+							"pm.environment.set(\"resourceidfacility\", response.ResourceDetails.id)",
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(200)))",
+							"pm.environment.set(\"facilityid\", response.ResourceDetails.id)"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-uat.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en;q=0.9"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json;charset=UTF-8"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-uat.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-uat.digit.org/workbench-ui/employee/campaign/setup-campaign?key=8&preview=false&id=0ac9c3f4-5aab-4274-9cc7-7a50b06c930b"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"ResourceDetails\": {\n        \"type\": \"facility\",\n        \"hierarchyType\": \"{{hierarchyType}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"fileStoreId\": \"{{Facilityfilestoreid}}\",\n        \"action\": \"validate\",\n        \"campaignId\": \"{{campaignid}}\",\n        \"additionalDetails\": {}\n    },\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 1052,\n            \"uuid\": \"8b110055-330f-4e7b-b4c0-f618f29b9d47\",\n            \"userName\": \"UATMZ\",\n            \"name\": \"UATMZ\",\n            \"mobileNumber\": \"8998988112\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS ADMIN\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/data/_create"
+			},
+			"response": []
+		},
+		{
+			"name": "Search API -  facility",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"",
+							"",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"pm.test(\"SearchCriteria id is an array of strings\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.id).to.be.an(\"array\");",
+							"    pm.expect(req.SearchCriteria.id.every(function (id) {",
+							"        return typeof id === \"string\";",
+							"    })).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria tenantId is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.tenantId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria type is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.type).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria status is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.status).to.be.a(\"string\");",
+							"});",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"     pm.expect(response.ResourceDetails[0].id).to.be.a(\"string\");",
+							"});",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has  filestoreid\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].fileStoreId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"Response has  processedFilestoreId\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].processedFilestoreId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has action as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].action).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, /"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "MUKTASoft"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\":  {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    },\n    \"SearchCriteria\": {\n        \"id\": [\"{{resourceidfacility}}\"\n        ],\n        \"tenantId\": \"{{tenantId}}\"\n        // \"type\": \"{{type-facility}}\"\n        // \"status\": \"{{data - validated}}\"\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/data/_search"
+			},
+			"response": []
+		},
+		{
+			"name": "validate resource user",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"userfilestoreid\", response.ResourceDetails.fileStoreId)",
+							"",
+							"pm.environment.set(\"resourceiduser\", response.ResourceDetails.id)",
+							"",
+							"pm.test('Response is successful', () => pm.expect(pm.response.to.have.status(200)))"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-uat.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en;q=0.9"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json;charset=UTF-8"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-uat.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-uat.digit.org/workbench-ui/employee/campaign/setup-campaign?key=8&preview=false&id=0ac9c3f4-5aab-4274-9cc7-7a50b06c930b"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"ResourceDetails\": {\n        \"type\": \"user\",\n        \"hierarchyType\": \"{{hierarchyType}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"fileStoreId\": \"{{Userfilestoreid}}\",\n        \"action\": \"validate\",\n        \"campaignId\": \"{{campaignid}}\",\n        \"additionalDetails\": {}\n    },\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 1052,\n            \"uuid\": \"8b110055-330f-4e7b-b4c0-f618f29b9d47\",\n            \"userName\": \"UATMZ\",\n            \"name\": \"UATMZ\",\n            \"mobileNumber\": \"8998988112\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS ADMIN\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/data/_create"
+			},
+			"response": []
+		},
+		{
+			"name": "Search API -  user",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"",
+							"",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"pm.test(\"SearchCriteria id is an array of strings\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.id).to.be.an(\"array\");",
+							"    pm.expect(req.SearchCriteria.id.every(function (id) {",
+							"        return typeof id === \"string\";",
+							"    })).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria tenantId is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.tenantId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria type is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.type).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria status is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.status).to.be.a(\"string\");",
+							"});",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"     pm.expect(response.ResourceDetails[0].id).to.be.a(\"string\");",
+							"});",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has  filestoreid\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].fileStoreId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"Response has  processedFilestoreId\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].processedFilestoreId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has action as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].action).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, /"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "MUKTASoft"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\":  {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    },\n    \"SearchCriteria\": {\n        \"id\": [\"{{resourceiduser}}\"\n        ],\n        \"tenantId\": \"{{tenantId}}\"\n        // \"type\": \"{{type-user}}\",\n        // \"status\": \"{{data - validated}}\"\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/data/_search"
+			},
+			"response": []
+		},
+		{
+			"name": "Campaign create - success -",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test('hierarchyType is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.hierarchyType).to.not.be.null;",
+							"    pm.expect(req.CampaignDetails.hierarchyType).to.not.be.empty;",
+							"    pm.expect(req.CampaignDetails.hierarchyType).to.not.be.undefined;",
+							"})",
+							"pm.test('tenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.null;",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.empty;",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.undefined;",
+							"})",
+							"pm.test('campaignName is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.campaignName).to.not.be.null;",
+							"    pm.expect(req.CampaignDetails.campaignName).to.not.be.empty;",
+							"    pm.expect(req.CampaignDetails.campaignName).to.not.be.undefined;",
+							"})",
+							"pm.test('action is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.action).to.not.be.null;",
+							"    pm.expect(req.CampaignDetails.action).to.not.be.empty;",
+							"    pm.expect(req.CampaignDetails.action).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('startDate is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.startDate).to.not.be.null;",
+							"})",
+							"pm.test('endDate is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.endDate).to.not.be.null;",
+							"",
+							"})",
+							"pm.test(\"boundaries should be an array\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"       pm.expect(req.CampaignDetails.boundaries).to.be.an.instanceof(Array);",
+							"});",
+							"",
+							"pm.test(\"resources should be an array\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"       pm.expect(req.CampaignDetails.resources).to.be.an.instanceof(Array);",
+							"});",
+							"",
+							"pm.test(\"deliveryRules should be an array\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"       pm.expect(req.CampaignDetails.deliveryRules).to.be.an.instanceof(Array);",
+							"});",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has hierarchyType as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.CampaignDetails.hierarchyType).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has tenantId as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.CampaignDetails.tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has campaignName as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.CampaignDetails.campaignName).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has action as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.CampaignDetails.action).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"// pm.test(\"Response has boundaries as array\", function () {",
+							"//     var response = pm.response.json();",
+							"//     pm.expect(response.CampaignDetails.boundaries).to.be.an.instanceof(Array);",
+							" ",
+							"// })",
+							"",
+							"// pm.test(\"Response has deliveryRules as array\", function () {",
+							"//     var response = pm.response.json();",
+							"//     pm.expect(response.CampaignDetails.deliveryRules).to.be.an.instanceof(Array);",
+							" ",
+							"// })",
+							"",
+							"",
+							"",
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"Campaignid\", response.CampaignDetails.id)"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 6152,\n            \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n            \"userName\": \"MDMSMZ\",\n            \"name\": \"MDMSMZ\",\n            \"mobileNumber\": \"8998989222\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"{{msgId}}\",\n        \"plainAccessRequest\": {}\n    },\n    \"CampaignDetails\": {\n        \"hierarchyType\": \"{{hierarchyType}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"campaignName\": \"{{$randomWord}}\",\n        \"action\": \"{{action-create}}\",\n        \"startDate\": 1843274404000,\n        \"endDate\": 1845952804000,\n        \"boundaries\": [\n            {\n                \"code\": \"{{Countrycode}}\",\n                \"type\": \"Country\",\n                \"isRoot\": true,\n                \"includeAllChildren\": true\n            }\n        ],\n        \"resources\": [\n            {\n                \"filestoreId\": \"{{facilityfilestoreid}}\",\n                \"resourceId\": \"{{resourceidfacility}}\",\n                \"type\": \"facility\",\n                \"filename\": \"facility.xlsx\"\n            },\n            {\n                \"filestoreId\": \"{{userfilestoreid}}\",\n                \"resourceId\": \"{{resourceiduser}}\",\n                \"type\": \"user\",\n                \"filename\": \"user.xlsx\"\n            },\n            {\n                \"filestoreId\": \"{{boundaryfilestoreid}}\",\n                \"resourceId\": \"{{resourceidboundary}}\",\n                \"type\": \"boundaryWithTarget\",\n                \"filename\": \"target.xlsx\"\n            }\n        ],\n        \"projectType\": \"{{projecttype-LLIN}}\",\n        \"deliveryRules\": [\n            {\n                \"startDate\": 1748859039000,\n                \"endDate\": 1749118239000,\n                \"cycleNumber\": 1,\n                \"deliveryNumber\": 1,\n                \"deliveryRuleNumber\": 1,\n                \"products\": [\n                    \"AP\"\n                ],\n                \"conditions\": [\n                    {\n                        \"attribute\": \"Age\",\n                        \"operator\": \"LESS_THAN\",\n                        \"value\": 30\n                    }\n                ]\n            }\n        ],\n        \"additionalDetails\": {}\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/project-type/create"
+			},
+			"response": []
+		},
+		{
+			"name": "Campaign Search API",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"id\", response.CampaignDetails.id)",
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"pm.test('tenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.null;",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.empty;",
+							"    pm.expect(req.CampaignDetails.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"",
+							"pm.test('startDate is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.startDate).to.not.be.null;",
+							"})",
+							"pm.test('endDate is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.CampaignDetails.endDate).to.not.be.null;",
+							"",
+							"})",
+							"",
+							"const res = pm.response.json()",
+							"const id = res.CampaignDetails.id",
+							"",
+							"",
+							"pm.environment.set(\"id\",res.CampaignDetails.id);",
+							"pm.environment.set(\"tenantId\",res.CampaignDetails.tenantId);",
+							"pm.environment.set(\"status\",res.CampaignDetails.status);",
+							"pm.environment.set(\"action\",res.CampaignDetails.action);",
+							"pm.environment.set(\"campaignNumber\",res.CampaignDetails.campaignNumber);",
+							"pm.environment.set(\"campaignName\",res.CampaignDetails.campaignName);",
+							"pm.environment.set(\"projectType\",res.CampaignDetails.projectType);",
+							"pm.environment.set(\"hierarchyType\",res.CampaignDetails.hierarchyType);",
+							"pm.environment.set(\"boundaryCode\",res.CampaignDetails.boundaryCode);",
+							"pm.environment.set(\"projectId\",res.CampaignDetails.projectId);",
+							"pm.environment.set(\"startDate\",res.CampaignDetails.startDate);",
+							"pm.environment.set(\"endDate\",res.CampaignDetails.endDate);",
+							"pm.environment.set(\"createdBy\",res.CampaignDetails.createdBy);",
+							"pm.environment.set(\"lastModifiedBy\",res.CampaignDetails.lastModifiedBy);",
+							"pm.environment.set(\"createdTime\",res.CampaignDetails.createdTime);",
+							"pm.environment.set(\"lastModifiedTime\",res.CampaignDetails.lastModifiedTime);",
+							"pm.environment.set(\"additionalDetails\",res.CampaignDetails.additionalDetails);",
+							"pm.environment.set(\"resources\",res.CampaignDetails.resources);",
+							"pm.environment.set(\"boundaries\",res.CampaignDetails.boundaries);",
+							"pm.environment.set(\"deliveryRules\",res.CampaignDetails.deliveryRules);",
+							"pm.environment.set(\"totalCount\",res.CampaignDetails.totalCount);",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"",
+							"const response = pm.response.json()",
+							"",
+							"pm.environment.set(\"usercreds\", response.CampaignDetails[0].resources[1].createResourceId)"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 6152,\n            \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n            \"userName\": \"MDMSMZ\",\n            \"name\": \"MDMSMZ\",\n            \"mobileNumber\": \"8998989222\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"1713364121714|en_MZ\",\n        \"plainAccessRequest\": {}\n    },\n    \"CampaignDetails\": {\n        \"ids\": [\n            // \"{{Campaignid}}\",\n            \"478afe84-6edd-46ca-acbb-4e9d9d07b2a7\"\n        ],\n        \"tenantId\": \"{{tenantId}}\"\n        // // // \"projectType\": \"LLIN-Moz\",\n        // // \"campaignNumber\": \"CMP-2024-05-07-001150\",\n        // \"campaignName\": \"TEST231\",\n        // \"pagination\": {\n        //     \"sortBy\": \"campaignNumber\",\n        //     \"sortOrder\": \"asc\",\n        //     \"limit\": 100,\n        //     \"offset\": 0\n        // }\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/project-type/search"
+			},
+			"response": []
+		},
+		{
+			"name": "Search API -user creds",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('RequestInfo is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('TenantId is required', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.be.eql('mz');",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.empty;",
+							"    pm.expect(req.RequestInfo.userInfo.tenantId).to.not.be.undefined;",
+							"})",
+							"",
+							"pm.test('msgId is mandatory', function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.null;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.be.undefined;",
+							"    pm.expect(req.RequestInfo.msgId).to.not.eql('');",
+							"})",
+							"",
+							"",
+							"",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"pm.test(\"SearchCriteria id is an array of strings\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.id).to.be.an(\"array\");",
+							"    pm.expect(req.SearchCriteria.id.every(function (id) {",
+							"        return typeof id === \"string\";",
+							"    })).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria tenantId is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.tenantId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria type is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.type).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"SearchCriteria status is a string\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.SearchCriteria.status).to.be.a(\"string\");",
+							"});",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has id as string\", function () {",
+							"    var response = pm.response.json();",
+							"     pm.expect(response.ResourceDetails[0].id).to.be.a(\"string\");",
+							"});",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has  filestoreid\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].fileStoreId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"Response has  processedFilestoreId\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].processedFilestoreId).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.test(\"Response has type as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].type).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has status as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].status).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has action as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].action).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"pm.test(\"Response has tenantid as string\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResourceDetails[0].tenantId).to.be.a(\"string\");",
+							" ",
+							"})",
+							"",
+							"",
+							"",
+							"pm.test(\"Response has status successful\", function () {",
+							"    var response = pm.response.json();",
+							"    pm.expect(response.ResponseInfo.status).to.eql(\"successful\");",
+							" ",
+							"})",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, /"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "MUKTASoft"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\":  {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n        \"msgId\": \"1709110250993|en_IN\",\n        \"plainAccessRequest\": {}\n    },\n    \"SearchCriteria\": {\n        \"id\": [\"{{usercreds}}\"\n        ],\n        \"tenantId\": \"{{tenantId}}\"\n        // \"type\": \"{{type facility}}\",\n        // \"status\": \"{{data - validated}}\"\n    }\n}"
+				},
+				"url": "{{url}}/project-factory/v1/data/_search"
+			},
+			"response": []
+		}
+	]
+}
