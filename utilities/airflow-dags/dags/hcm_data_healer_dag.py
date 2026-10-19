@@ -38,8 +38,9 @@ log = logging.getLogger(__name__)
 
 EXECUTION_TIMEOUT = timedelta(hours=8)
 
-# Larger pod for heal_campaign, same size as dst_campaign_run: each window holds every
-# id of a tenant (1.6M+ tasks on Bauchi) plus the tracer payloads in memory.
+# Larger pod for heal_campaign: CHAIN holds every id of the window in memory at once
+# (Adamawa 5 days = ~6.3M ids, ~2-2.5Gi peak; stalled with a 2Gi limit). 6Gi covers the
+# longest windows (Borno ITN) with headroom; 2 CPUs for the 5 concurrent index loads.
 try:
     from kubernetes.client import models as k8s
     _HEAVY_POD = {
@@ -49,8 +50,8 @@ try:
                     k8s.V1Container(
                         name="base",
                         resources=k8s.V1ResourceRequirements(
-                            requests={"cpu": "500m", "memory": "1Gi"},
-                            limits={"cpu": "1000m", "memory": "2Gi"},
+                            requests={"cpu": "1000m", "memory": "3Gi"},
+                            limits={"cpu": "2000m", "memory": "6Gi"},
                         ),
                     )
                 ]
