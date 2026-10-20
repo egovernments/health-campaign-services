@@ -7,10 +7,10 @@ import org.egov.common.models.project.ProjectResource;
 
 public class ProjectResourceTestBuilder {
 
-    private final ProjectResource.ProjectResourceBuilder builder;
+    private final ProjectResource.ProjectResourceBuilder<ProjectResource, ?> builder;
 
     public ProjectResourceTestBuilder() {
-        this.builder = ProjectResource.builder();
+        this.builder = (ProjectResource.ProjectResourceBuilder<ProjectResource, ?>) ProjectResource.builder();
     }
 
     public static ProjectResourceTestBuilder builder() {

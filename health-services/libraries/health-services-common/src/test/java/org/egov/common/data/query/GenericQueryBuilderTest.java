@@ -9,17 +9,20 @@ import org.egov.common.data.query.annotations.UpdateBy;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.builder.UpdateQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.models.core.OrGroup;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Map;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GenericQueryBuilderTest {
+    private static final String TENANT_ID = "default";
 
     @Test
     @DisplayName("should build a select query based on data object and its primitive properties")
@@ -28,11 +31,11 @@ class GenericQueryBuilderTest {
                 .dummyString("some-string")
                 .dummyInt(1)
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE " +
+        String expectedQuery = "SELECT * FROM {schema}.dummyData WHERE " +
                 "dummyString=:dummyString AND dummyInt=:dummyInt";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -46,11 +49,11 @@ class GenericQueryBuilderTest {
         DummyData data = DummyData.builder()
                 .dummyStringList(strings)
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE " +
+        String expectedQuery = "SELECT * FROM {schema}.dummyData WHERE " +
                 "dummyStringList IN (:dummyStringList)";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
         Map<String, Object> paramMap = queryBuilder.getParamsMap();
 
         assertEquals(expectedQuery, actualQuery);
@@ -69,11 +72,11 @@ class GenericQueryBuilderTest {
                 .dummyStringList(strings)
                 .dummyIntegerList(ints)
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE " +
+        String expectedQuery = "SELECT * FROM {schema}.dummyData WHERE " +
                 "dummyStringList IN (:dummyStringList)";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
         Map<String, Object> paramMap = queryBuilder.getParamsMap();
 
         assertEquals(expectedQuery, actualQuery);
@@ -88,10 +91,10 @@ class GenericQueryBuilderTest {
         DummyData data = DummyData.builder()
                 .dummyStringList(strings)
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE 1=1 ";
+        String expectedQuery = "SELECT * FROM {schema}.dummyData";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -102,10 +105,10 @@ class GenericQueryBuilderTest {
         DummyData data = DummyData.builder()
                 .dummyStringList(null)
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE 1=1 ";
+        String expectedQuery = "SELECT * FROM {schema}.dummyData";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -121,11 +124,11 @@ class GenericQueryBuilderTest {
                 .dummyPrimitiveInt(12)
                 .dummyPrimitiveFloat(232.2f)
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE " +
+        String expectedQuery = "SELECT * FROM {schema}.dummyData WHERE " +
                 "dummyString=:dummyString AND dummyInt=:dummyInt";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -135,10 +138,10 @@ class GenericQueryBuilderTest {
     void shouldNotUseWhereClauseWhenPropertiesAreSetToNullSelectQuery() throws QueryBuilderException {
         DummyData data = DummyData.builder()
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE 1=1 ";
+        String expectedQuery = "SELECT * FROM {schema}.dummyData";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -150,10 +153,10 @@ class GenericQueryBuilderTest {
                 .dummyString("TEST123")
                 .dummyAddress(DummyAddress.builder().addressString("123").build())
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE dummyString=:dummyString AND addressString=:addressString";
+        String expectedQuery = "SELECT * FROM {schema}.dummyData WHERE dummyString=:dummyString AND addressString=:addressString";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -168,10 +171,10 @@ class GenericQueryBuilderTest {
                         .addressString("123")
                         .dummyAmount(DummyAmount.builder().amount(123.0).currency("INR").build()).build())
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE dummyString=:dummyString AND addressString=:addressString AND currency=:currency AND amount=:amount";
+        String expectedQuery = "SELECT * FROM {schema}.dummyData WHERE dummyString=:dummyString AND addressString=:addressString AND currency=:currency AND amount=:amount";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -186,10 +189,10 @@ class GenericQueryBuilderTest {
                         .builder()
                         .addressString("123").build())
                 .build();
-        String expectedQuery = "UPDATE dummyData SET dummyString=:dummyString , dummyInt=:dummyInt , addressString=:addressString WHERE dummyID=:dummyID";
+        String expectedQuery = "UPDATE {schema}.dummyData SET dummyString=:dummyString , dummyInt=:dummyInt , addressString=:addressString WHERE dummyID=:dummyID";
         UpdateQueryBuilder queryBuilder = new UpdateQueryBuilder();
 
-        String actualQuery = queryBuilder.build(data);
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -201,10 +204,10 @@ class GenericQueryBuilderTest {
                 .dummyString("some-string")
                 .dummyID(1)
                 .build();
-        String expectedQuery = "UPDATE dummyData SET dummyString=:dummyString , dummyInt=:dummyInt , addressString=:addressString WHERE dummyID=:dummyID";
+        String expectedQuery = "UPDATE {schema}.dummyData SET dummyString=:dummyString , dummyInt=:dummyInt , addressString=:addressString WHERE dummyID=:dummyID";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        assertThrows(QueryBuilderException.class, ()-> queryBuilder.build(data));
+        assertThrows(QueryBuilderException.class, ()-> queryBuilder.build(SCHEMA_REPLACE_STRING, data));
     }
 
     @Data
@@ -256,5 +259,97 @@ class GenericQueryBuilderTest {
     static class DummyAmount {
         private String currency;
         private Double amount;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @Table(name = "dummyDataOrGroup")
+    static class DummyDataWithOrGroup {
+        private String dummyString;
+        
+        @OrGroup("groupA")
+        private String dummyFieldA1;
+        
+        @OrGroup("groupA")
+        private String dummyFieldA2;
+
+        @OrGroup("groupB")
+        private ArrayList<String> dummyListB1;
+
+        @OrGroup("groupB")
+        private String dummyFieldB2;
+    }
+
+    @Test
+    @DisplayName("should build an OR-grouped query when multiple fields in the same group are present")
+    void shouldBuildOrGroupQueryWhenMultipleFieldsPresent() throws QueryBuilderException {
+        DummyDataWithOrGroup data = DummyDataWithOrGroup.builder()
+                .dummyString("normalString")
+                .dummyFieldA1("val1")
+                .dummyFieldA2("val2")
+                .build();
+                
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
+        Map<String, Object> paramMap = queryBuilder.getParamsMap();
+
+        String expectedQuery = "SELECT * FROM {schema}.dummyDataOrGroup WHERE " +
+                "dummyString=:dummyString AND (dummyFieldA1=:dummyFieldA1 OR dummyFieldA2=:dummyFieldA2)";
+                
+        // Or group order could potentially flip depending on reflection, but let's check one
+        // If it starts failing due to reflection order, we handles both permutations
+        boolean isMatch = actualQuery.equals(expectedQuery) || 
+            actualQuery.equals("SELECT * FROM {schema}.dummyDataOrGroup WHERE dummyString=:dummyString AND (dummyFieldA2=:dummyFieldA2 OR dummyFieldA1=:dummyFieldA1)");
+            
+        assertEquals(true, isMatch, "Actual query: " + actualQuery);
+        assertEquals("normalString", paramMap.get("dummyString"));
+        assertEquals("val1", paramMap.get("dummyFieldA1"));
+        assertEquals("val2", paramMap.get("dummyFieldA2"));
+    }
+
+    /**
+     * CDD (Community Drug Distributor) case: A CDD only receives or returns stock
+     * and is never a sender, so only receiverId is provided. When a single field
+     * in an OR group has a value, it should fall back to a normal AND condition
+     * instead of wrapping it in an OR clause.
+     */
+    @Test
+    @DisplayName("should fall back to AND query when only one field in an OR group is present")
+    void shouldFallbackToAndQueryWhenOnlyOneFieldInOrGroupPresent() throws QueryBuilderException {
+        DummyDataWithOrGroup data = DummyDataWithOrGroup.builder()
+                .dummyString("normalString")
+                .dummyFieldA1("val1") // only one field in the group has a value (e.g., CDD's receiverId)
+                .build();
+                
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
+
+        String expectedQuery = "SELECT * FROM {schema}.dummyDataOrGroup WHERE " +
+                "dummyString=:dummyString AND dummyFieldA1=:dummyFieldA1";
+                
+        assertEquals(expectedQuery, actualQuery);
+    }
+    
+    @Test
+    @DisplayName("should handle IN clause inside an OR group correctly")
+    void shouldHandleInClauseInsideOrGroup() throws QueryBuilderException {
+        ArrayList<String> strings = new ArrayList<>();
+        strings.add("item1");
+        
+        DummyDataWithOrGroup data = DummyDataWithOrGroup.builder()
+                .dummyListB1(strings)
+                .dummyFieldB2("val2")
+                .build();
+                
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+        String actualQuery = queryBuilder.build(SCHEMA_REPLACE_STRING, data);
+
+        String expectedQuery1 = "SELECT * FROM {schema}.dummyDataOrGroup WHERE (dummyListB1 IN (:dummyListB1) OR dummyFieldB2=:dummyFieldB2)";
+        String expectedQuery2 = "SELECT * FROM {schema}.dummyDataOrGroup WHERE (dummyFieldB2=:dummyFieldB2 OR dummyListB1 IN (:dummyListB1))";
+        
+        boolean isMatch = actualQuery.equals(expectedQuery1) || actualQuery.equals(expectedQuery2);
+        assertEquals(true, isMatch, "Actual query: " + actualQuery);
     }
 }

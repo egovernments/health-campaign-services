@@ -1,7 +1,12 @@
 package org.egov.individual.service;
 
-import digit.models.coremodels.AuditDetails;
+import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.Identifier;
@@ -10,17 +15,10 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.Skill;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.config.IndividualProperties;
+import org.egov.individual.util.IndividualIdGenUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
@@ -42,21 +40,27 @@ public class EnrichmentService {
 
     private final IndividualProperties properties;
 
+    private final IndividualIdGenUtil individualIdGenUtil;
+
     @Autowired
     public EnrichmentService(IdGenService idGenService,
-                             IndividualProperties properties) {
+                             IndividualProperties properties,
+                             IndividualIdGenUtil individualIdGenUtil) {
         this.idGenService = idGenService;
         this.properties = properties;
+        this.individualIdGenUtil = individualIdGenUtil;
     }
 
-    public void create(List<Individual> validIndividuals, IndividualBulkRequest request) throws Exception {
+    public void create(List<Individual> validIndividuals, IndividualBulkRequest request) {
         log.info("starting the enrichment for create individuals");
 
         log.info("extracting tenantId");
         //fetch the root tenantId if it is in state.city format
         final String tenantId = getTenantId(validIndividuals).split("\\.")[0];
         log.info("generating id for individuals");
-        List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
+        // Single idgen call carrying count = number of individuals, instead of fanning out to
+        // one IdRequest per individual (which made idgen do a redundant MDMS format lookup per id).
+        List<String> indIdList = individualIdGenUtil.getIdList(request.getRequestInfo(),
                 tenantId, properties.getIndividualId(),
                 null, validIndividuals.size());
         log.info("enriching individuals");
@@ -204,7 +208,10 @@ public class EnrichmentService {
         log.info("enriching individual id in identifiers");
         List<Identifier> identifiers = individual.getIdentifiers();
         if (identifiers != null) {
-            identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
+            identifiers.forEach(identifier -> {
+                identifier.setIndividualId(individual.getId());
+                identifier.setIndividualClientReferenceId(individual.getClientReferenceId());
+            });
             individual.setIdentifiers(identifiers);
         }
         return individual;
@@ -229,8 +236,10 @@ public class EnrichmentService {
             log.info("enriching individual with system generated identifier");
             List<Identifier> identifiers = new ArrayList<>();
             identifiers.add(Identifier.builder()
+                    .clientReferenceId(UUID.randomUUID().toString())
                     .identifierType(SYSTEM_GENERATED)
                     .identifierId(individual.getId())
+                    .individualClientReferenceId(individual.getClientReferenceId())
                     .build());
             individual.setIdentifiers(identifiers);
         }

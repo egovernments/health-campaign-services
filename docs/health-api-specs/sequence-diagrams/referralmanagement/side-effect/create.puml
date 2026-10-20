@@ -1,0 +1,140 @@
+@startuml
+title Side Effect - Create
+!theme vibrant
+participant Client as c
+participant ReferralManagement as rm
+participant FacilityService as fs
+participant HouseholdService as hs
+participant IndividualService as inds
+participant ProjectService as ps
+participant RedisCache as rc
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+database Database as db
+
+c -> rm : /referralmanagement/side-effect/v1/_create
+activate rm
+rm -> rm : Validate request body
+
+alt request validation fails
+    rm -> rm: Request validation failed
+    rm -> k: Side Effect Data /error_topic
+    note left
+        This will be marked as unrecoverable right away
+        and require manual intervention
+    end note
+    activate k
+    group async
+        es -> k: Consume Side Effect Data
+        activate es
+        deactivate k
+        es -> db: Persist Side Effect Data /error_table
+        activate db
+        deactivate db
+        deactivate es
+    end
+    rm -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+rm -> rm: Request validation successful
+alt record already exists
+    alt record found in cache
+      rm -> rc: Check using clientReferenceId/serverGeneratedId
+      activate rc
+      rc -> rm: 1 row
+      deactivate rc
+      rm -> c: HttpStatus: 400 with appropriate error code
+      note left
+          Error Code: RECORD_ALREADY_EXISTS
+      end note
+    end
+    rm -> rc: Check using clientReferenceId/serverGeneratedId
+    activate rc
+    rc -> rm: 0 rows
+    deactivate rc
+    rm -> db: Check if record already exists
+    activate db
+    db -> rm: 1 row
+    deactivate db
+    rm -> rc: Put data in cache using clientReferenceId/serverGeneratedId
+    activate rc
+    deactivate rc
+    rm -> c: HttpStatus: 400 with appropriate error code
+    note left
+        Error Code: RECORD_ALREADY_EXISTS
+    end note
+end
+alt projectTaskId invalid
+    rm -> ps: Check if projectTaskId exists
+    activate ps
+    ps -> db: Check if projectTaskId exists
+    activate db
+    db -> ps: 0 rows
+    deactivate db
+    ps -> rm: 0 rows
+    deactivate ps
+    rm -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: BAD_REQUEST
+    end note
+end
+rm -> ps: Check if projectTaskId exists
+activate ps
+ps -> db: Check if projectTaskId exists
+activate db
+db -> ps: 1 row
+deactivate db
+ps -> rm: 1 row
+deactivate ps
+alt projectBeneficiaryId invalid
+    rm -> ps: Check if projectBeneficiaryId exists
+    activate ps
+    ps -> db: Check if projectBeneficiaryId exists
+    activate db
+    db -> ps: 0 rows
+    deactivate db
+    ps -> rm: 0 rows
+    deactivate ps
+    rm -> c: HttpStatus: 400 with appropriate error code
+    note left
+       Error Code: DEPENDENCY_ERROR
+    end note
+end
+rm -> ps: Check if projectBeneficiaryId exists
+activate ps
+ps -> db: Check if projectBeneficiaryId exists
+activate db
+db -> ps: 1 row
+deactivate db
+ps -> rm: 1 row
+deactivate ps
+rm -> k: Side Effect Data /persist_topic
+activate k
+rm -> rc: Put Side Effect Data against clientReferenceId/serverGeneratedId in cache
+activate rc
+deactivate rc
+group async
+    prs -> k: Consume Side Effect Data
+    activate prs
+    idx -> k: Consume Side Effect Data
+    activate idx
+    idx -> el: Store Side Effect Data
+    activate el
+    deactivate el
+    deactivate idx
+    prs -> db: Persist Side Effect Data
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+rm -> c : HttpStatus: 202 ACCEPTED
+deactivate rm
+
+@enduml
