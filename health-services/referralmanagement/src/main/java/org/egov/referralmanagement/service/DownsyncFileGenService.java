@@ -18,6 +18,8 @@ import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
 import org.egov.referralmanagement.repository.DownsyncSqlFragments;
 import org.egov.referralmanagement.service.DownsyncS3Service.S3Result;
 import org.egov.referralmanagement.web.models.LocalityDownsyncCriteria;
+import org.egov.tracer.config.TracerProperties;
+import org.egov.tracer.http.RestTemplateLoggingInterceptor;
 import org.egov.tracer.model.CustomException;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -257,6 +259,7 @@ public class DownsyncFileGenService {
      *  Sized to keep the pool comfortably ahead of demand and avoid the
      *  "Connection is not available" error path even under load. */
     private static final int RESERVED_CONNECTIONS = 4;
+    @Autowired private TracerProperties tracerProperties;
 
     private RestTemplate restTemplate;
     private static final int CURSOR_FETCH_SIZE = 1000;
@@ -286,6 +289,7 @@ public class DownsyncFileGenService {
         httpFactory.setConnectTimeout(5_000);
         httpFactory.setReadTimeout(30_000);
         restTemplate = new RestTemplate(httpFactory);
+        restTemplate.getInterceptors().add(new RestTemplateLoggingInterceptor(tracerProperties));
     }
 
     /**
