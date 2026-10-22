@@ -54,6 +54,9 @@ KEYS = {
     # push safety limits per entity; above either, nothing is pushed for the window
     "HEALER_MAX_GAP_PCT": (False, "max gaps as % of an entity's records, default 10; 0 = off"),
     "HEALER_MAX_GAP_RECORDS": (False, "max gaps per entity, default 20000; 0 = off"),
+    # push speed
+    "HEALER_PUSH_WORKERS": (False, "HCM writes in flight at once, default 4, max 8; "
+                                   "1 = one at a time (small clusters, e.g. Taraba)"),
     # window end
     "HEALER_SETTLE_DAYS": (False, "days held back from the end of every window, default 0 = up to today"),
     # emergency stop
@@ -123,7 +126,8 @@ def preflight():
     if "," in os.getenv("TENANT_ID", ""):
         problems.append("TENANT_ID must be one tenant (e.g. ba), not a list")
     for key in ("HEALER_ES_MAX_CONCURRENT", "HEALER_ES_THROTTLE_MS", "HEALER_ES_PAGE_SIZE",
-                "HEALER_SETTLE_DAYS", "HEALER_MAX_GAP_PCT", "HEALER_MAX_GAP_RECORDS"):
+                "HEALER_SETTLE_DAYS", "HEALER_MAX_GAP_PCT", "HEALER_MAX_GAP_RECORDS",
+                "HEALER_PUSH_WORKERS"):
         val = os.getenv(key, "").strip()
         if val and not val.isdigit():
             problems.append(f"{key} must be a whole number, got {val!r}")

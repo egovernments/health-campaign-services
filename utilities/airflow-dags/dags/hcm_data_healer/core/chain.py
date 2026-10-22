@@ -6,7 +6,8 @@ confirms each gap against all dates, then recovers the missing payloads from
 egov-tracer-error-details. The tracer is searched by the parent reference, not
 the missing record's own id. Independent of the DB-vs-ES reconciliation.
 
-Writes a workbook plus one {state}_chain_tracer_<gap>_<ts>.csv per gap for the push phase.
+Writes per gap {state}_chain_tracer_<gap>_<ts>.csv (push input) plus the unrec/processed
+CSVs read by the audit.
 """
 
 import gc
@@ -21,7 +22,6 @@ from datetime import datetime
 import pandas as pd
 
 from hcm_data_healer.core.es_client import ESClient, TRACER_INDEX, ID_SCROLL_SIZE, max_concurrent
-from hcm_data_healer.core.utils import excel
 from hcm_data_healer.core.utils.dates import epoch_ms as _epoch_ms, iso as _iso, noop as _noop
 
 # Gaps: A orphan member, B household without members, C member without individual,
@@ -86,15 +86,6 @@ EXIST_CHECK = {
 TRACER_COLS = ["Gap", "Day", "Timestamp", "Error_Doc_UUID", "Error_Code", "Error_Message",
                "Username", "API_URL", "id_field", "id_value", "clientReferenceId",
                "tenantId", "isDeleted", "rowVersion", "payload_json"]
-
-GAP_COLS = {
-    "A": ["clientReferenceId", "householdClientReferenceId", "individualClientReferenceId", "isHeadOfHousehold"],
-    "B": ["Household_clientReferenceId", "locality"],
-    "C": ["clientReferenceId", "householdClientReferenceId", "individualClientReferenceId", "isHeadOfHousehold"],
-    "D": ["HouseholdMember_householdClientReferenceId"],
-    "E": ["PB_clientReferenceId", "beneficiaryClientReferenceId"],
-    "F": ["Household_clientReferenceId", "locality"],
-}
 
 
 def _is_processed(val):
@@ -166,7 +157,7 @@ def _existing_ids(es, index_url, field, tenant, tenant_field, deleted_field,
 def recover_chain(cfg, output_root, log=None, progress=None, ts=None):
     """Run chain recovery for one tenant and date window.
 
-    Returns {run_dir, ts, summary, excel_path}. `ts` is shared with the reconciliation run.
+    Returns {run_dir, ts, summary}. `ts` is shared with the reconciliation run.
     """
     log = log or _noop
     progress = progress or _noop
@@ -225,8 +216,8 @@ def recover_chain(cfg, output_root, log=None, progress=None, ts=None):
                     "Data.household.address.localityCode.code"],
     }
 
-    # Household Member: tuples + relational sets
-    mbr_data = []       # (crid, hh_crid, ind_crid, is_head)
+    # Household Member: relational sets only
+    mbr_count = {"n": 0}
     mbr_hh_set = set()  # householdClientReferenceId values
     mbr_ind_map = {}    # individualClientReferenceId -> memberClientReferenceId
     head_ind_ids = set()  # individual ids of household heads
@@ -240,14 +231,14 @@ def recover_chain(cfg, output_root, log=None, progress=None, ts=None):
             hh_crid = m.get("householdClientReferenceId", "") or ""
             ind_crid = m.get("individualClientReferenceId", "") or ""
             is_head = m.get("isHeadOfHousehold", False)
-            mbr_data.append((crid, hh_crid, ind_crid, is_head))
+            mbr_count["n"] += 1
             if hh_crid:
                 mbr_hh_set.add(hh_crid)
             if ind_crid:
                 mbr_ind_map[ind_crid] = crid
                 if is_head:
                     head_ind_ids.add(ind_crid)
-        progress("Loading Household Members (ES)", len(mbr_data), len(mbr_data))
+        progress("Loading Household Members (ES)", mbr_count["n"], mbr_count["n"])
 
     q_mbr = {
         "size": ID_SCROLL_SIZE,
@@ -339,25 +330,29 @@ def recover_chain(cfg, output_root, log=None, progress=None, ts=None):
         for f in [ex.submit(es._scroll, idx(sfx), q, cb) for sfx, q, cb in loads]:
             f.result()      # re-raise worker failures
     log(f"[CHAIN] Loaded Households (ES): {len(hh_ids):,}")
-    log(f"[CHAIN] Loaded Household Members (ES): {len(mbr_data):,} ({len(head_ind_ids):,} are household heads)")
+    log(f"[CHAIN] Loaded Household Members (ES): {mbr_count['n']:,} ({len(head_ind_ids):,} are household heads)")
     log(f"[CHAIN] Loaded Individuals (ES): {len(ind_ids):,}")
     log(f"[CHAIN] Loaded Project Beneficiaries (ES): {len(pb_data):,}")
     log(f"[CHAIN] Loaded Project Tasks (ES): {len(task_pb_ids):,} distinct beneficiary references")
     log(f"[CHAIN] All 5 indices loaded concurrently in {time.time() - t0:.0f}s")
 
     # Pass 1: windowed set difference gives suspects; pass 2 confirms them on all dates.
+    # Key sets built once; they hold every id of the window.
+    hh_set, mbr_ind_set = set(hh_ids), set(mbr_ind_map)
     gap_ids = {
-        "A": mbr_hh_set - set(hh_ids.keys()),
-        "B": set(hh_ids.keys()) - mbr_hh_set,
-        "C": set(mbr_ind_map.keys()) - ind_ids,
+        "A": mbr_hh_set - hh_set,
+        "B": hh_set - mbr_hh_set,
+        "C": mbr_ind_set - ind_ids,
         "D": mbr_hh_set - pb_ben_ids,
-        "E": set(pb_data.keys()) - task_pb_ids,
+        "E": pb_data.keys() - task_pb_ids,
         # Exclude households already covered by D so no PB is pushed twice.
-        "F": set(hh_ids.keys()) - pb_ben_ids - mbr_hh_set,
+        "F": hh_set - pb_ben_ids - mbr_hh_set,
     }
     # D and F assume household beneficiaries; skip them when PBs mostly point at individuals.
-    to_ind = len(pb_ben_ids & (ind_ids | set(mbr_ind_map.keys())))
-    to_hh = len(pb_ben_ids & (set(hh_ids.keys()) | mbr_hh_set))
+    # Counted without building the union sets.
+    to_ind = sum(1 for b in pb_ben_ids if b in ind_ids or b in mbr_ind_set)
+    to_hh = sum(1 for b in pb_ben_ids if b in hh_set or b in mbr_hh_set)
+    del hh_set, mbr_ind_set
     ben_type = "INDIVIDUAL" if to_ind > to_hh else "HOUSEHOLD"
     log(f"[CHAIN] Beneficiary model inferred: {ben_type} "
         f"({to_hh:,} PBs point at households, {to_ind:,} at individuals)")
@@ -394,27 +389,6 @@ def recover_chain(cfg, output_root, log=None, progress=None, ts=None):
         log(f"[CHAIN] Gap E - dosing-target filter: {len(gap_ids['E']):,} eligible member(s) with no delivery task "
             f"(the real coverage gap); {len(heads):,} excluded as household heads "
             f"(the registered household respondent, never a dosing target)")
-
-    gap_a_rows, gap_c_rows = [], []
-    for crid, hh_crid, ind_crid, is_head in mbr_data:
-        row = {"clientReferenceId": crid, "householdClientReferenceId": hh_crid,
-               "individualClientReferenceId": ind_crid, "isHeadOfHousehold": is_head}
-        if hh_crid in gap_ids["A"]:
-            gap_a_rows.append(row)
-        if ind_crid and ind_crid in gap_ids["C"]:
-            gap_c_rows.append(row)
-    gap_rows = {
-        "A": gap_a_rows,
-        "B": [{"Household_clientReferenceId": hid, "locality": hh_ids[hid]} for hid in gap_ids["B"]],
-        "C": gap_c_rows,
-        "D": [{"HouseholdMember_householdClientReferenceId": hid} for hid in gap_ids["D"]],
-        "E": [{"PB_clientReferenceId": pid, "beneficiaryClientReferenceId": pb_data[pid]}
-              for pid in gap_ids["E"]],
-        "F": [{"Household_clientReferenceId": hid, "locality": hh_ids[hid]}
-              for hid in gap_ids["F"]],
-    }
-    del mbr_data
-    gc.collect()
 
     # tracer_rows: recovered, eligible for push. processed_rows: already flagged
     # isProcessed, reported but not re-pushed.
@@ -460,9 +434,7 @@ def recover_chain(cfg, output_root, log=None, progress=None, ts=None):
         })
     df_sum = pd.DataFrame(summary_rows)
 
-    # Sheets per gap: GAP (missing), TRACER (recovered), PROCESSED (already flagged), UNREC (not in tracer).
-    ordered = [("SUMMARY", df_sum)]
-    fill_map = {"SUMMARY": excel.SUM_FILL}
+    # Per gap for the audit: UNREC (not in tracer) and PROCESSED (already flagged) CSVs.
     for g in "ABCDEF":
         recovered = {str(r["id_value"]) for r in tracer_rows[g]}
         processed = {str(r["id_value"]) for r in processed_rows[g]}
@@ -473,24 +445,14 @@ def recover_chain(cfg, output_root, log=None, progress=None, ts=None):
              "Status": "NOT_IN_TRACER"}
             if unrec_ids else
             {c: [] for c in ("Gap", "Relation", "id_value", "Status")})
-        ordered.append((f"GAP_{g}", _to_df(gap_rows[g], GAP_COLS[g])))
-        ordered.append((f"TRACER_{g}", _to_df(tracer_rows[g], TRACER_COLS)))
-        ordered.append((f"PROCESSED_{g}", _to_df(processed_rows[g], TRACER_COLS)))
-        ordered.append((f"UNREC_{g}", df_unrec))
         df_unrec.to_csv(os.path.join(run_dir, f"{tenant}_chain_unrec_{g}_{ts}.csv"), index=False)
         # Processed yet still missing means an earlier push did not persist; keep for audit.
         _to_df(processed_rows[g], TRACER_COLS).to_csv(
             os.path.join(run_dir, f"{tenant}_chain_processed_{g}_{ts}.csv"), index=False)
-        fill_map[f"GAP_{g}"] = excel.RED_FILL
-        fill_map[f"TRACER_{g}"] = excel.GRN_FILL
-        fill_map[f"PROCESSED_{g}"] = excel.SUM_FILL
-        fill_map[f"UNREC_{g}"] = excel.YEL_FILL
+    del tracer_rows, processed_rows
+    gc.collect()
 
-    out_xlsx = os.path.join(run_dir, f"{tenant}_chain_recovery_{ts}.xlsx")
-    excel.write_sheets(out_xlsx, ordered, fill_map=fill_map)
-    log(f"[CHAIN] Workbook written: {out_xlsx}")
-
-    return {"run_dir": run_dir, "ts": ts, "summary": df_sum, "excel_path": out_xlsx}
+    return {"run_dir": run_dir, "ts": ts, "summary": df_sum}
 
 
 def _tracer_scan_all(es, targets, gte_iso, tenant, progress, log=_noop):
@@ -514,11 +476,15 @@ def _tracer_scan_all(es, targets, gte_iso, tenant, progress, log=_noop):
     def n_found():
         return sum(len(f) for f in found.values())
 
+    # Per-gap count of targets not yet found, kept up to date in cb so the per-page
+    # stop check does not recompute a set difference over every target.
+    left = {g: len(t) for g, t in targets.items()}
+
     def remaining(g):
-        return targets[g] - set(found[g].keys())
+        return targets[g] - found[g].keys()
 
     def all_done():
-        return all(not remaining(g) for g in targets)
+        return not any(left.values())
 
     def cb(hits):
         # Parse outside the lock; merge under it.
@@ -583,7 +549,10 @@ def _tracer_scan_all(es, targets, gte_iso, tenant, progress, log=_noop):
                     if rid not in f and (rid not in a or ts > a[rid]["Timestamp"]):
                         a[rid] = row
                 else:
-                    if rid not in f or ts > f[rid]["Timestamp"]:
+                    if rid not in f:
+                        left[g] -= 1
+                        f[rid] = row
+                    elif ts > f[rid]["Timestamp"]:
                         f[rid] = row
                     a.pop(rid, None)
             # Scanned count is rounded to 100k to limit progress updates.
