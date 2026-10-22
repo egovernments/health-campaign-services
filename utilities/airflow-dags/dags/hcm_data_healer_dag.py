@@ -38,9 +38,9 @@ log = logging.getLogger(__name__)
 
 EXECUTION_TIMEOUT = timedelta(hours=8)
 
-# Larger pod for heal_campaign: CHAIN holds every id of the window in memory at once
-# (Adamawa 5 days = ~6.3M ids, ~2-2.5Gi peak; stalled with a 2Gi limit). 6Gi covers the
-# longest windows (Borno ITN) with headroom; 2 CPUs for the 5 concurrent index loads.
+# Pod for heal_campaign. Windows run one at a time (max_active_tasks=1), so only one pod is
+# reserved: 500m/1Gi requested, up to 1 CPU / 4Gi used. CHAIN holds every id of the window
+# in memory at once and peaks at ~2-2.5Gi on the largest windows (Adamawa 5 days = ~6.3M ids).
 try:
     from kubernetes.client import models as k8s
     _HEAVY_POD = {
@@ -50,8 +50,8 @@ try:
                     k8s.V1Container(
                         name="base",
                         resources=k8s.V1ResourceRequirements(
-                            requests={"cpu": "1000m", "memory": "3Gi"},
-                            limits={"cpu": "2000m", "memory": "6Gi"},
+                            requests={"cpu": "500m", "memory": "1Gi"},
+                            limits={"cpu": "1000m", "memory": "4Gi"},
                         ),
                     )
                 ]
@@ -140,8 +140,7 @@ def found_counts(totals):
     start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
     catchup=False,
     max_active_runs=1,
-    # windows healed in parallel; pod env only (read at parse time), e.g. 1 on Taraba
-    max_active_tasks=max(1, int(os.getenv("HEALER_MAX_PARALLEL_WINDOWS", "4") or 4)),
+    max_active_tasks=1,  # one campaign window at a time (small, single pod footprint)
     # Must end before the next scheduled run; a timed-out run alerts via the DAG callback.
     dagrun_timeout=timedelta(hours=23),
     on_failure_callback=run_timeout_alert,
