@@ -4,13 +4,15 @@ Phase functions called by core.runner.
   run_check : DB vs ES reconciliation; writes gap and detail CSVs plus a summary.
   run_chain : chain recovery from the error tracer (core.chain).
   run_push  : creates ghosts, re-indexes index-failed records and creates chain
-              recoveries, after an existence check; writes a result workbook.
+              recoveries, after an existence check; writes a failures CSV.
 """
 
 import gc
 import glob
 import json
 import os
+import threading
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
@@ -21,7 +23,6 @@ from hcm_data_healer.core.api_client import APIClient, ExistenceCheckFailed, Sto
 from hcm_data_healer.core.db_client import DBClient
 from hcm_data_healer.core.entities import get_entities
 from hcm_data_healer.core.es_client import ESClient
-from hcm_data_healer.core.utils import excel
 from hcm_data_healer.core.utils.dates import epoch_ms as _epoch_ms, iso as _iso, noop as _noop
 from hcm_data_healer.core.utils.ids import unpack
 
@@ -35,7 +36,7 @@ CHAIN_GAP_ENTITY = {"A": "Household", "B": "HouseholdMember", "C": "Individual",
                     "F": "ProjectBeneficiary"}
 CHAIN_PUSH_ORDER = ["A", "C", "B", "D", "F", "E"]
 
-# Outcome text per status for the push result workbook.
+# Outcome text per status for the push results.
 OUTCOME_TEXT = {
     "PUSHED":           "Created successfully",
     "UPDATED":          "Re-indexed successfully (update sent)",
@@ -46,6 +47,70 @@ OUTCOME_TEXT = {
     "NO_CLIENT_AUDIT":  "Skipped - source has no clientAuditDetails",
     "FAILED":           "Failed - see Response for the error",
 }
+
+# HCM writes in flight at once (HEALER_PUSH_WORKERS). Each worker mostly waits on HCM:
+# measured ~3% of one core and <1 MiB per worker, so the pod is not the limit; HCM
+# services and the persister are. Default 4; set 1 on small clusters (e.g. Taraba).
+DEFAULT_PUSH_WORKERS = 4
+MAX_PUSH_WORKERS = 8
+_NOT_SENT = object()      # call skipped because an earlier call hit StopRun
+UPDATE_BLOCK = 1000       # index-failed ids fetched and re-sent per block
+
+# Push statuses counted as failures (failures CSV and the "failed" count).
+FAILED_STATUSES = ("FAILED", "NOT_FOUND_IN_API", "NO_PAYLOAD")
+
+
+def push_workers():
+    raw = os.getenv("HEALER_PUSH_WORKERS", "").strip()
+    return max(1, min(int(raw), MAX_PUSH_WORKERS)) if raw.isdigit() else DEFAULT_PUSH_WORKERS
+
+
+def _run_calls(items, call, workers):
+    """Yield (item, outcome) for every item, in order, running `call` on up to `workers` threads.
+
+    outcome is call's return value, the exception it raised, or _NOT_SENT once a StopRun
+    has been seen. After a StopRun no more items are pulled; calls already started are
+    finished and reported, so a stop never hides a write that was sent. If the caller
+    stops early (exception, task timeout), queued calls that have not started are
+    cancelled, so nothing is written that the caller cannot record.
+    Records within one batch must not depend on each other. `items` may be a generator;
+    at most workers * 4 are pulled ahead, so memory stays flat on large windows."""
+    stop = threading.Event()
+
+    def one(item):
+        if stop.is_set():
+            return _NOT_SENT
+        try:
+            return call(item)
+        except StopRun as exc:
+            stop.set()
+            return exc
+        except Exception as exc:                                  # noqa: BLE001
+            return exc
+
+    if workers <= 1:
+        for item in items:
+            if stop.is_set():
+                return
+            yield item, one(item)
+        return
+    ahead = workers * 4
+    window = deque()
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        try:
+            for item in items:
+                if stop.is_set():
+                    break
+                window.append((item, pool.submit(one, item)))
+                if len(window) >= ahead:
+                    done, fut = window.popleft()
+                    yield done, fut.result()
+            while window:
+                done, fut = window.popleft()
+                yield done, fut.result()
+        finally:
+            for _, fut in window:      # only non-empty if the caller stopped early
+                fut.cancel()
 
 
 def _case_desc(case):
@@ -162,12 +227,9 @@ def run_check(cfg, output_root, log=None, progress=None, ts=None):
             })
 
     df_sum = pd.DataFrame(summary_rows)
-    sum_path = os.path.join(run_dir, f"{state}_reconciliation_summary_{ts}.xlsx")
-    excel.write_sheets(sum_path, {"SUMMARY": df_sum}, default_fill=excel.SUM_FILL)
-    log(f"\n[RECON] Summary workbook: {sum_path}")
 
     return {"run_dir": run_dir, "ts": ts, "summary": df_sum,
-            "summary_path": sum_path, "gaps": gaps}
+            "gaps": gaps}
 
 
 # Phase 2: error-tracer chain recovery
@@ -213,14 +275,17 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
         cfg["tenant"], cfg["task_filter"],
         cfg.get("service_template"), cfg.get("service_overrides"),
         index_prefix=cfg.get("es_index_prefix"))}
+    workers = push_workers()
     api = APIClient(cfg["tenant"], cfg["auth_token"], cfg["user_uuid"],
-                    options=cfg.get("push_options", {}), verify_ssl=cfg.get("hcm_verify_ssl", False))
+                    options=cfg.get("push_options", {}), verify_ssl=cfg.get("hcm_verify_ssl", False),
+                    pool_size=workers)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = _run_dir(output_root, state, ts, "push")
     log(f"[PUSH] Reconciliation input: {recon_run_dir}")
     log(f"[PUSH] Chain input: {chain_run_dir or '(none)'}")
     log(f"[PUSH] Output: {run_dir}")
+    log(f"[PUSH] HCM writes in flight: {workers}")
 
     all_results = []
     pending = []                 # rows not yet sent to record_sink
@@ -228,15 +293,20 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
     db = DBClient(cfg["db"])
 
     def record(entity_name, case, crid, status, resp, payload=None, http=None, error=""):
-        """Record one result row with its payload and the HCM response."""
-        if payload is not None and not isinstance(payload, str):
-            payload = json.dumps(payload, default=str)
-        row = {"Entity": entity_name, "Case": case, "clientReferenceId": crid,
-               "Status": status, "Response": str(resp)[:4000],
-               "Payload": payload or "", "HttpStatus": http or "", "Error": str(error or "")[:2000]}
-        all_results.append(row)
+        """Record one result row; the full row (payload, HCM response) goes to record_sink.
+
+        all_results keeps only what the counts and the failures CSV use (the response only
+        for failures), so a large push does not hold every payload in memory until the end."""
+        all_results.append({"Entity": entity_name, "Case": case, "clientReferenceId": crid,
+                            "Status": status,
+                            "Response": str(resp)[:1000] if status in FAILED_STATUSES else ""})
         if record_sink:
-            pending.append(row)
+            if payload is not None and not isinstance(payload, str):
+                payload = json.dumps(payload, default=str)
+            pending.append({"Entity": entity_name, "Case": case, "clientReferenceId": crid,
+                            "Status": status, "Response": str(resp)[:4000],
+                            "Payload": payload or "", "HttpStatus": http or "",
+                            "Error": str(error or "")[:2000]})
             if len(pending) >= sink_every:
                 flush()
 
@@ -301,38 +371,46 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
             id_col = entity["push_id_col_es"]
             row_by_id = {}
             if not df_es.empty and id_col in df_es.columns:
-                for _, r in df_es.iterrows():
+                for r in df_es.to_dict("records"):
                     row_by_id[str(r.get(id_col))] = r
+            del df_es
 
-            n = 0
-            for rid in ids:
-                n += 1
-                progress(f"{name} create", n, len(ids))
-                try:
-                    payload = entity["build"](row_by_id[rid], cfg["tenant"]) if rid in row_by_id else None
-                except Exception as exc:                          # noqa: BLE001
-                    record(name, "CREATE", rid, "FAILED", f"payload rebuild failed: {exc}",
-                           error=f"payload rebuild failed: {exc}")
-                    continue
-                if rid in existing:
-                    record(name, "CREATE", rid, "SKIPPED_EXISTS", "", payload=payload)
-                    continue
-                try:
+            def to_create(name=name, entity=entity, ids=ids, existing=existing, row_by_id=row_by_id):
+                """Yield (rid, payload) to create; every other record is recorded here.
+
+                A generator, so payloads are built just before they are sent."""
+                for k, rid in enumerate(ids, 1):
+                    progress(f"{name} create", k, len(ids))
+                    try:
+                        payload = entity["build"](row_by_id[rid], cfg["tenant"]) if rid in row_by_id else None
+                    except Exception as exc:                      # noqa: BLE001
+                        record(name, "CREATE", rid, "FAILED", f"payload rebuild failed: {exc}",
+                               error=f"payload rebuild failed: {exc}")
+                        continue
+                    if rid in existing:
+                        record(name, "CREATE", rid, "SKIPPED_EXISTS", "", payload=payload)
+                        continue
                     if payload is None:
                         record(name, "CREATE", rid, "NO_PAYLOAD", "not in ES details")
                         continue
                     if not payload.get("clientAuditDetails"):
                         record(name, "CREATE", rid, "NO_CLIENT_AUDIT", "", payload=payload)
                         continue
-                    status, http, err = api.create(entity, payload)
+                    yield rid, payload
+
+            for (rid, payload), out in _run_calls(to_create(), lambda s: api.create(entity, s[1]), workers):
+                if out is _NOT_SENT:
+                    continue
+                if isinstance(out, StopRun):
+                    aborted, abort_reason = True, str(out)
+                elif isinstance(out, Exception):
+                    record(name, "CREATE", rid, "FAILED", str(out), payload=payload, error=str(out))
+                else:
+                    status, http, err = out
                     record(name, "CREATE", rid, status, f"[es-rebuild] HTTP {http} {err}",
                            payload=payload, http=http, error=err)
-                except StopRun as exc:
-                    log(f"[STOP] {exc} - aborting run")
-                    aborted, abort_reason = True, str(exc); break
-                except Exception as exc:
-                    record(name, "CREATE", rid, "FAILED", str(exc), payload=payload, error=str(exc))
             if aborted:
+                log(f"[STOP] {abort_reason} - aborting run")
                 break
 
     # Reconciliation: re-index records missing from ES via update.
@@ -348,25 +426,63 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
                 aborted, abort_reason = True, why
                 break
             log(f"\n[PUSH] {name}: re-indexing {len(ids):,} index-failed record(s) ...")
+            # Per block: fetch the current records search_batch ids per call, then re-send
+            # each one. Only one block of full records is held in memory at a time.
             n = 0
-            for rid in ids:
-                n += 1
-                progress(f"{name} update", n, len(ids))
-                try:
-                    full = api.search_one(entity, rid)
-                    if full is None:
-                        record(name, "UPDATE", rid, "NOT_FOUND_IN_API", ""); continue
-                    # Re-posted unchanged; a null clientAuditDetails is only noted.
-                    note = "" if full.get("clientAuditDetails") else " | clientAuditDetails NULL"
-                    status, http, err = api.update(entity, full)
-                    record(name, "UPDATE", rid, status, f"HTTP {http} {err}{note}",
-                           payload=full, http=http, error=err)
-                except StopRun as exc:
-                    log(f"[STOP] {exc} - aborting run")
-                    aborted, abort_reason = True, str(exc); break
-                except Exception as exc:
-                    record(name, "UPDATE", rid, "FAILED", str(exc), error=str(exc))
+            for b in range(0, len(ids), UPDATE_BLOCK):
+                block = ids[b:b + UPDATE_BLOCK]
+                full_by_id, search_err = {}, {}
+                chunks = [block[i:i + api.search_batch] for i in range(0, len(block), api.search_batch)]
+                for chunk, out in _run_calls(chunks, lambda c: api.search_many(entity, c), workers):
+                    if out is _NOT_SENT:
+                        continue
+                    if isinstance(out, StopRun):
+                        aborted, abort_reason = True, str(out)
+                    elif isinstance(out, Exception):
+                        search_err.update({rid: f"search failed: {out}" for rid in chunk})
+                    else:
+                        full_by_id.update(out)
+                if aborted:
+                    break
+                # Ids the batch missed or failed on get the single-id lookup (search_one), so
+                # a record is NOT_FOUND only when the one-by-one search also misses it.
+                missed = [rid for rid in block if rid not in full_by_id]
+                for rid, out in _run_calls(missed, lambda r: api.search_one(entity, r), workers):
+                    if out is _NOT_SENT:
+                        continue
+                    if isinstance(out, StopRun):
+                        aborted, abort_reason = True, str(out)
+                    elif isinstance(out, dict):
+                        full_by_id[rid] = out
+                if aborted:
+                    break
+                for rid in missed:
+                    if rid not in full_by_id:
+                        n += 1
+                        record(name, "UPDATE", rid, "NOT_FOUND_IN_API", search_err.get(rid, ""))
+
+                sends = [(rid, full_by_id[rid]) for rid in block if rid in full_by_id]
+                del full_by_id
+                for (rid, full), out in _run_calls(sends, lambda s: api.update(entity, s[1]), workers):
+                    n += 1
+                    progress(f"{name} update", n, len(ids))
+                    if out is _NOT_SENT:
+                        continue
+                    if isinstance(out, StopRun):
+                        aborted, abort_reason = True, str(out)
+                    elif isinstance(out, Exception):
+                        record(name, "UPDATE", rid, "FAILED", str(out), error=str(out))
+                    else:
+                        # Re-posted unchanged; a null clientAuditDetails is only noted.
+                        note = "" if full.get("clientAuditDetails") else " | clientAuditDetails NULL"
+                        status, http, err = out
+                        record(name, "UPDATE", rid, status, f"HTTP {http} {err}{note}",
+                               payload=full, http=http, error=err)
+                del sends
+                if aborted:
+                    break
             if aborted:
+                log(f"[STOP] {abort_reason} - aborting run")
                 break
 
     # Chain: create recovered tracer payloads after the existence check.
@@ -387,7 +503,7 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
             # Dedupe by clientReferenceId and remember each source tracer doc.
             has_uuid = "Error_Doc_UUID" in tdf.columns
             payload_by_id = {}
-            for _, r in tdf.iterrows():
+            for r in tdf.to_dict("records"):
                 crid = str(r.get("clientReferenceId", "")).strip()
                 if not crid or crid.lower() == "nan":
                     continue
@@ -422,31 +538,43 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
                 continue
             log(f"[PUSH] Gap {gap}: {len(existing):,} already exist (will skip)")
 
-            n = 0
-            for rid in ids:
-                n += 1
-                progress(f"chain {gap} create", n, len(ids))
-                if rid in existing:
-                    record(ename, case, rid, "SKIPPED_EXISTS", "", payload=payload_by_id[rid])
-                    status_of_crid[rid] = "SKIPPED_EXISTS"
-                    continue
-                try:
-                    payload = json.loads(payload_by_id[rid])
+            def to_create(ename=ename, case=case, ids=ids, existing=existing,
+                          payload_by_id=payload_by_id):
+                """Yield (rid, payload) to create; every other record is recorded here."""
+                for k, rid in enumerate(ids, 1):
+                    progress(f"chain {gap} create", k, len(ids))
+                    if rid in existing:
+                        record(ename, case, rid, "SKIPPED_EXISTS", "", payload=payload_by_id[rid])
+                        status_of_crid[rid] = "SKIPPED_EXISTS"
+                        continue
+                    try:
+                        payload = json.loads(payload_by_id[rid])
+                    except Exception as exc:                      # noqa: BLE001
+                        record(ename, case, rid, "FAILED", str(exc), payload=payload_by_id[rid],
+                               error=str(exc))
+                        status_of_crid[rid] = "FAILED"
+                        continue
                     if not payload.get("clientAuditDetails"):
                         record(ename, case, rid, "NO_CLIENT_AUDIT", "", payload=payload)
                         status_of_crid[rid] = "NO_CLIENT_AUDIT"
                         continue
-                    status, http, err = api.create(entity, payload)
+                    yield rid, payload
+
+            for (rid, payload), out in _run_calls(to_create(), lambda s: api.create(entity, s[1]), workers):
+                if out is _NOT_SENT:
+                    continue
+                if isinstance(out, StopRun):
+                    aborted, abort_reason = True, str(out)
+                elif isinstance(out, Exception):
+                    record(ename, case, rid, "FAILED", str(out), payload=payload, error=str(out))
+                    status_of_crid[rid] = "FAILED"
+                else:
+                    status, http, err = out
                     record(ename, case, rid, status, f"[chain] HTTP {http} {err}",
                            payload=payload, http=http, error=err)
                     status_of_crid[rid] = status
-                except StopRun as exc:
-                    log(f"[STOP] {exc} - aborting run")
-                    aborted, abort_reason = True, str(exc); break
-                except Exception as exc:
-                    record(ename, case, rid, "FAILED", str(exc), payload=payload_by_id[rid], error=str(exc))
-                    status_of_crid[rid] = "FAILED"
             if aborted:
+                log(f"[STOP] {abort_reason} - aborting run")
                 break
 
     # Optional: flag tracer docs as processed only when every id they carried pushed OK.
@@ -485,13 +613,14 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
                              "Use an ES user with update rights on the tracer index to enable it.")
                 log(f"[PUSH] {flag_note}")
 
-    # Result workbook: one sheet per outcome.
+    # Push results: counts, a per entity/case summary and the failures CSV.
     cols = ["Source", "Entity", "Operation", "clientReferenceId",
             "Status", "Outcome", "Response", "Case"]
     if not all_results:
         df = pd.DataFrame(columns=cols)
     else:
         df = pd.DataFrame(all_results)
+        del all_results[:]
         df["Source"] = df["Case"].map(_source_of)
         df["Operation"] = df["Case"].map(_case_desc)
         df["Outcome"] = df["Status"].map(OUTCOME_TEXT).fillna(df["Status"])
@@ -515,26 +644,11 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
     is_created = df["Status"] == "PUSHED"
     is_reindexed = df["Status"] == "UPDATED"
     is_duplicate = df["Status"].str.contains("SKIP", na=False)
-    is_failed = df["Status"].isin(["FAILED", "NOT_FOUND_IN_API", "NO_PAYLOAD"])
+    is_failed = df["Status"].isin(FAILED_STATUSES)
     failed_df = df[is_failed].copy()
-
-    sheets = {
-        "SUMMARY": pd.DataFrame(summary_rows),
-        "CREATED": df[is_created],
-        "RE_INDEXED": df[is_reindexed],
-        "DUPLICATE_EXISTS": df[is_duplicate],
-        "FAILED": failed_df,
-        "ALL_RESULTS": df,
-    }
-    fill_map = {"SUMMARY": excel.SUM_FILL, "CREATED": excel.GRN_FILL,
-                "RE_INDEXED": excel.GRN_FILL, "DUPLICATE_EXISTS": excel.YEL_FILL,
-                "FAILED": excel.RED_FILL, "ALL_RESULTS": excel.SUM_FILL}
-    out_xlsx = os.path.join(run_dir, f"{state}_push_result_{ts}.xlsx")
-    excel.write_sheets(out_xlsx, sheets, fill_map=fill_map)
 
     failed_path = os.path.join(run_dir, f"{state}_push_FAILED_{ts}.csv")
     failed_df.to_csv(failed_path, index=False)
-    log(f"\n[PUSH] Result workbook: {out_xlsx}")
     log(f"[PUSH] Failures CSV: {failed_path} ({len(failed_df):,} row(s))")
 
     pushed = int(is_created.sum())
@@ -545,7 +659,7 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
     log(f"[PUSH] Done - created {pushed:,}, re-indexed {updated:,}, "
         f"skipped/duplicate {skipped:,}, failed {failed:,}, "
         f"no clientAuditDetails {no_audit:,}")
-    return {"run_dir": run_dir, "ts": ts, "excel_path": out_xlsx,
+    return {"run_dir": run_dir, "ts": ts,
             "failed_path": failed_path, "failed_df": failed_df,
             "results": df, "summary": pd.DataFrame(summary_rows),
             "flag_note": flag_note, "flag_ok": flag_ok,

@@ -244,7 +244,11 @@ class RecordAuditor:
                 "recorded_at_ms": now_ms()}
 
     def _emit(self, rows):
-        self.rows.extend(rows)
+        # Keep only what tally() reads; payloads and responses would otherwise stay in
+        # memory for every record of the window.
+        self.rows.extend({**{k: r[k] for k in TALLY_KEYS},
+                          "api_response": r["api_response"] if r["outcome"] == "FAILED" else ""}
+                         for r in rows)
         if self.publish:
             publish_records(rows)
 
@@ -302,6 +306,9 @@ class RecordAuditor:
                             "PROCESSED_STILL_MISSING", r.get("payload_json"), _source(r))
         self._emit(out)
         return self.rows
+
+
+TALLY_KEYS = ("issue", "outcome", "found_in", "source_error_code", "outcome_reason")
 
 
 def tally(rows):

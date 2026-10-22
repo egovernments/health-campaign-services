@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timezone
 
 import requests
+from requests.adapters import HTTPAdapter
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def _roles(tenant):
 
 
 class APIClient:
-    def __init__(self, tenant, auth_token, user_uuid, options=None, verify_ssl=False):
+    def __init__(self, tenant, auth_token, user_uuid, options=None, verify_ssl=False, pool_size=10):
         self.tenant = tenant
         self.auth_token = auth_token
         self.user_uuid = user_uuid
@@ -46,6 +47,12 @@ class APIClient:
         self.max_retries = int(opts.get("max_retries", 3))
         self.retry_delay = int(opts.get("retry_delay", 2))
         self.search_batch = int(opts.get("search_batch", 50))
+        # Keep-alive session: one connection per service instead of one per call.
+        # pool_size must cover the push workers so threads do not wait for a connection.
+        self.session = requests.Session()
+        adapter = HTTPAdapter(pool_connections=10, pool_maxsize=max(int(pool_size), 10))
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
     def req_info(self):
         # No gateway in-cluster, so services trust userInfo; authToken only if set.
@@ -81,9 +88,9 @@ class APIClient:
             payload = {"RequestInfo": self.req_info(),
                        entity["search_key"]: {"tenantId": self.tenant, "clientReferenceId": chunk}}
             try:
-                r = requests.post(entity["search_url"], json=payload,
-                                  params={"tenantId": self.tenant, "limit": self.search_batch, "offset": 0},
-                                  headers=API_HDRS, verify=self.verify, timeout=60)
+                r = self.session.post(entity["search_url"], json=payload,
+                                      params={"tenantId": self.tenant, "limit": self.search_batch, "offset": 0},
+                                      headers=API_HDRS, verify=self.verify, timeout=60)
                 if r.status_code in (401, 403):
                     raise StopRun(f"Auth failure on search HTTP {r.status_code}")
                 if r.status_code != 200:
@@ -105,9 +112,9 @@ class APIClient:
         payload = {"RequestInfo": self.req_info(),
                    entity["search_key"]: {"tenantId": self.tenant, "clientReferenceId": [crid]}}
         try:
-            r = requests.post(entity["search_url"], json=payload,
-                              params={"tenantId": self.tenant, "limit": 1, "offset": 0},
-                              headers=API_HDRS, verify=self.verify, timeout=60)
+            r = self.session.post(entity["search_url"], json=payload,
+                                  params={"tenantId": self.tenant, "limit": 1, "offset": 0},
+                                  headers=API_HDRS, verify=self.verify, timeout=60)
             if r.status_code in (401, 403):
                 raise StopRun(f"Auth failure HTTP {r.status_code}")
             if r.status_code == 200:
@@ -118,6 +125,25 @@ class APIClient:
         except Exception as exc:
             log.warning(f"search_one error for {crid}: {exc}")
         return None
+
+    def search_many(self, entity, crids):
+        """Return {clientReferenceId: full record} for a batch of ids in one call.
+
+        Ids not returned are absent from the dict. Raises on a non-200 answer so the
+        caller can record why; StopRun on auth failure."""
+        crids = list(crids)
+        payload = {"RequestInfo": self.req_info(),
+                   entity["search_key"]: {"tenantId": self.tenant, "clientReferenceId": crids}}
+        r = self.session.post(entity["search_url"], json=payload,
+                              params={"tenantId": self.tenant, "limit": len(crids), "offset": 0},
+                              headers=API_HDRS, verify=self.verify, timeout=60)
+        if r.status_code in (401, 403):
+            raise StopRun(f"Auth failure on search HTTP {r.status_code}")
+        if r.status_code != 200:
+            raise RuntimeError(f"{entity['name']} search HTTP {r.status_code}: {r.text[:200]}")
+        return {rec["clientReferenceId"]: rec
+                for rec in (r.json().get(entity["resp_key"]) or [])
+                if rec.get("clientReferenceId")}
 
     # Error classification: returns (should_retry, is_duplicate, message)
     @staticmethod
@@ -149,15 +175,18 @@ class APIClient:
         return False, False, ""
 
     # Create / update with retry and exponential backoff
-    def _write(self, url, body_key, record, ok_status="PUSHED"):
+    def _write(self, url, body_key, record, ok_status="PUSHED", retry_read_timeout=True):
+        """retry_read_timeout=False (creates): a read timeout means HCM may already have the
+        record, so it is not re-sent; it is FAILED and the next run's existence check decides.
+        A connect timeout never reached HCM and is always retried."""
         record["hasErrors"] = False
         payload = {"RequestInfo": self.req_info(), body_key: record}
         delay = self.retry_delay
         last_err = ""
         for attempt in range(1, self.max_retries + 1):
             try:
-                r = requests.post(url, json=payload, headers=API_HDRS,
-                                  verify=self.verify, timeout=60)
+                r = self.session.post(url, json=payload, headers=API_HDRS,
+                                      verify=self.verify, timeout=60)
                 should_retry, is_dup, err = self.classify_error(r.status_code, r.text)
                 if r.status_code in (200, 201, 202) and not err:
                     return ok_status, r.status_code, ""
@@ -170,7 +199,14 @@ class APIClient:
                 return "FAILED", r.status_code, err
             except StopRun:
                 raise
+            except requests.exceptions.ConnectTimeout:
+                last_err = "Connect timed out"
+                if attempt < self.max_retries:
+                    time.sleep(delay); delay *= 2
             except requests.exceptions.Timeout:
+                if not retry_read_timeout:
+                    return "FAILED", 0, ("Request timed out after it was sent - not re-sent, "
+                                         "HCM may have it; the next run's existence check decides")
                 last_err = "Request timed out"
                 if attempt < self.max_retries:
                     time.sleep(delay); delay *= 2
@@ -183,7 +219,8 @@ class APIClient:
         return "FAILED", 0, f"Max retries exceeded. Last error: {last_err}"
 
     def create(self, entity, record):
-        return self._write(entity["create_url"], entity["create_key"], record, ok_status="PUSHED")
+        return self._write(entity["create_url"], entity["create_key"], record, ok_status="PUSHED",
+                           retry_read_timeout=False)
 
     def update(self, entity, record):
         return self._write(entity["update_url"], entity["update_key"], record, ok_status="UPDATED")
