@@ -438,6 +438,8 @@ def tenant_message(tenant, windows, day, dag_run_id):
                      f"({mins} minute{'' if mins == 1 else 's'})")
     link = run_link(dag_run_id)
     lines.append(f"DAG Run: {_run_time(dag_run_id)}" + (f"  |  {link}" if link else ""))
+    if dag_run_id:
+        lines.append(f"DAG Run ID: {dag_run_id}")
     for r in windows:
         lines += ["", "*Data Validation Summary*"]
         if len(windows) > 1:
@@ -479,7 +481,7 @@ def run_summary(day, roster, results, crashed, dag_run_id="", run_minutes=None):
     notes = sorted((x for x in notes if x[0] != INFO), key=lambda x: _RANK[x[0]])
     if notes:
         link = run_link(dag_run_id)
-        footer = f"Run {dag_run_id or '-'}" + (f"  |  {link}" if link else "")
+        footer = f"DAG Run ID: {dag_run_id or '-'}" + (f"  |  {link}" if link else "")
         worst = notes[0][0]
         color = {CRITICAL: RED, WARNING: AMBER}.get(worst, GREY)
         act = sum(1 for sev, _ in notes if sev in (CRITICAL, WARNING))
@@ -512,7 +514,7 @@ def run_timeout_alert(context):
     link = run_link(run)
     _, text = alert("HL-TIMEOUT", "Healer run")
     blocks = [_header("HCM Data Healer | Run timed out"), _text(text),
-              _context(f"Run {run}  |  unfinished rows stay RUNNING in dst_healer_run"
+              _context(f"DAG Run ID: {run}  |  unfinished rows stay RUNNING in dst_healer_run"
                        + (f"  |  {link}" if link else ""))]
     _post(f"HCM Data Healer | Run timed out | {run}", GREY, blocks, alert_channels(cfg),
           token=cfg.get("SLACK_TOKEN"))
@@ -546,7 +548,7 @@ def task_failure_alert(context):
         severity, text = alert(code, title, raw)
     log_url = getattr(ti, "log_url", "")
     blocks = [_header(f"HCM Data Healer | Task failed | {task_id}"), _text(text),
-              _context(f"Attempt {getattr(ti, 'try_number', '?')}  |  Run {run}"
+              _context(f"DAG Run ID: {run}  |  Attempt {getattr(ti, 'try_number', '?')}"
                        + (f"  |  <{log_url}|Task log>" if log_url else ""))]
     color = {CRITICAL: RED, WARNING: AMBER}.get(severity, GREY)
     _post(f"HCM Data Healer | Task failed | {task_id} {label or ''}".strip(), color, blocks,
