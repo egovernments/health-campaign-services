@@ -293,16 +293,13 @@ def hcm_data_healer():
                 finish("COMPLETED", counts, tally)
             say(f"{result['status']} {counts}")
 
-        if result["status"] == "COMPLETED_WITH_FAILURES":
-            # Good records are already pushed; fail the task so the failures get reviewed.
-            raise (AlreadyAlerted if alerted["slack"] else RuntimeError)(
-                f"{tag} {pushed['failed']} record(s) failed to push - "
-                f"see dst_healer_record where dag_run_id = '{dag_run_id}'")
+        # Records rejected by HCM are not a run failure: the window ran, and the HL-REJECTED
+        # Slack alert plus dst_healer_record carry them for review. The task stays green.
         return result
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def post_daily_summary(results, ti=None, dag_run=None):
-        """Post the run summary; fail the run if anything upstream failed.
+        """Post the run summary; fail the run only if a window failed or did not finish.
 
         Results are read from the "result" XCom, so failed windows are still counted."""
         from hcm_data_healer import notify
@@ -325,10 +322,11 @@ def hcm_data_healer():
             posted = notify.run_summary(datetime.now(timezone.utc).date().isoformat(), roster, done,
                                         crashed, dag_run_id=getattr(dag_run, "run_id", ""),
                                         run_minutes=minutes)
-        bad = [r for r in done if r["status"] in ("FAILED", "COMPLETED_WITH_FAILURES")]
+        # COMPLETED_WITH_FAILURES (HCM rejected some records) keeps the run green; Slack alerts it.
+        bad = [r for r in done if r["status"] == "FAILED"]
         if crashed or bad or roster.get("invalid"):
             raise (AlreadyAlerted if posted else RuntimeError)(
-                f"{crashed} window(s) did not finish, {len(bad)} finished with errors, "
+                f"{crashed} window(s) did not finish, {len(bad)} failed, "
                 f"{len(roster.get('invalid', []))} invalid MDMS entr(ies) - see Slack and dst_healer_run / dst_healer_record")
         return {"healed": len(done)}
 
