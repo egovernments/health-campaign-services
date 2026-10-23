@@ -310,7 +310,10 @@ def hcm_data_healer():
         if roster is None:
             # Planning failed and already alerted: fail the run (else it ends green), no second alert.
             raise AlreadyAlerted("get_campaigns_from_mdms failed - nothing was healed tonight")
-        pushed = ti.xcom_pull(task_ids="heal_campaign", key="result") or []
+        # heal_campaign is mapped (one index per window); without map_indexes Airflow 3 looks
+        # up this task's own index (-1) and finds nothing, so every failed window looked crashed.
+        pushed = ti.xcom_pull(task_ids="heal_campaign", key="result",
+                              map_indexes=list(range(roster.get("heal", 0)))) or []
         if isinstance(pushed, dict):
             pushed = [pushed]
         done = [r for r in pushed if r] or [r for r in (results or []) if r]

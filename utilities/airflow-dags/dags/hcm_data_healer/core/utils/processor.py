@@ -322,7 +322,9 @@ def run_push(cfg, recon_run_dir, chain_run_dir, output_root, opts=None,
         Fails closed: on any check error, every id is recorded FAILED and None is returned.
         """
         try:
-            return set(api.check_exists(entity, ids)) | db.existing_ids(entity, ids)
+            found = api.check_exists(entity, ids, workers=workers,
+                                     progress=lambda d, t: progress(f"{entity['name']} existence check", d, t))
+            return set(found) | db.existing_ids(entity, ids)
         except ExistenceCheckFailed as exc:
             reason = f"existence check failed, not created: {exc}"
         except StopRun:

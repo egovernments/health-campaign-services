@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 import requests
@@ -77,14 +78,16 @@ class APIClient:
         return info
 
     # Existence checks
-    def check_exists(self, entity, ids):
+    def check_exists(self, entity, ids, workers=1, progress=None):
         """Return the clientReferenceIds that already exist, via the search API.
 
+        Chunks of search_batch ids run on up to `workers` threads (read-only calls);
+        progress(done, total) is called after each chunk.
         Fails closed: any non-200 or exception raises ExistenceCheckFailed."""
-        found = set()
         ids = list(ids)
-        for i in range(0, len(ids), self.search_batch):
-            chunk = ids[i:i + self.search_batch]
+        chunks = [ids[i:i + self.search_batch] for i in range(0, len(ids), self.search_batch)]
+
+        def one(n, chunk):
             payload = {"RequestInfo": self.req_info(),
                        entity["search_key"]: {"tenantId": self.tenant, "clientReferenceId": chunk}}
             try:
@@ -96,15 +99,32 @@ class APIClient:
                 if r.status_code != 200:
                     raise ExistenceCheckFailed(f"{entity['name']} search HTTP {r.status_code}: "
                                                f"{r.text[:200]}")
-                for rec in (r.json().get(entity["resp_key"]) or []):
-                    crid = rec.get("clientReferenceId", "")
-                    if crid:
-                        found.add(crid)
+                return {rec.get("clientReferenceId") for rec in (r.json().get(entity["resp_key"]) or [])
+                        if rec.get("clientReferenceId")}
             except (StopRun, ExistenceCheckFailed):
                 raise
             except Exception as exc:
-                raise ExistenceCheckFailed(f"{entity['name']} search chunk "
-                                           f"{i // self.search_batch + 1} failed: {exc}") from exc
+                raise ExistenceCheckFailed(f"{entity['name']} search chunk {n} failed: {exc}") from exc
+
+        found = set()
+        if workers <= 1:
+            for n, chunk in enumerate(chunks, 1):
+                found |= one(n, chunk)
+                if progress:
+                    progress(min(n * self.search_batch, len(ids)), len(ids))
+            return found
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(one, n, chunk) for n, chunk in enumerate(chunks, 1)]
+            try:
+                done = 0
+                for fut in as_completed(futures):
+                    found |= fut.result()          # first error raises; finally cancels the rest
+                    done += 1
+                    if progress:
+                        progress(min(done * self.search_batch, len(ids)), len(ids))
+            finally:
+                for fut in futures:
+                    fut.cancel()
         return found
 
     def search_one(self, entity, crid):
