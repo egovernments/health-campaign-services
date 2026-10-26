@@ -118,7 +118,7 @@ jobs:
       - name: Compute image tag
         id: vars
         run: |
-          SAFE_NAME=$(echo "${{ matrix.dockerfile }}" | tr '/.' '__')
+          SAFE_NAME=$(echo "${{ matrix.dockerfile }}" | tr '/.' '__' | tr '[:upper:]' '[:lower:]')
           echo "context=$(dirname "${{ matrix.dockerfile }}")" >> "$GITHUB_OUTPUT"
           echo "tag=trivy-scan/${SAFE_NAME}:latest" >> "$GITHUB_OUTPUT"
           echo "category=trivy-image-${SAFE_NAME}" >> "$GITHUB_OUTPUT"
