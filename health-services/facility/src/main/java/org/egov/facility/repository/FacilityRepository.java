@@ -31,6 +31,10 @@ import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING
 
 @Repository
 public class FacilityRepository extends GenericRepository<Facility> {
+
+    // additionalDetails "schema" value that marks a facility as a post
+    private static final String POST_FACILITY_SCHEMA = "Post";
+
     @Autowired
     public FacilityRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                               RedisTemplate<String, Object> redisTemplate,
@@ -101,6 +105,8 @@ public class FacilityRepository extends GenericRepository<Facility> {
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "f.id IN (:id)");
+        // clientReferenceId exists on both facility and address; qualify it so it is unambiguous.
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "f.clientReferenceId IN (:clientReferenceId)");
 
         if(CollectionUtils.isEmpty(whereFields)) {
             query = query + " where f.tenantId=:tenantId ";
@@ -114,6 +120,17 @@ public class FacilityRepository extends GenericRepository<Facility> {
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
         }
+
+        // A facility marked as a post (additionalDetails.schema == "Post") is left out of a broad
+        // search, unless the caller asked for it specifically by usage, id or clientReferenceId.
+        boolean callerAskedForSpecificFacility = searchObject.getUsage() != null
+                || !CollectionUtils.isEmpty(searchObject.getId())
+                || !CollectionUtils.isEmpty(searchObject.getClientReferenceId());
+        if (!callerAskedForSpecificFacility) {
+            query = query + "and (f.additionalDetails->>'schema' IS NULL OR f.additionalDetails->>'schema' <> :postFacilitySchema) ";
+            paramsMap.put("postFacilitySchema", POST_FACILITY_SCHEMA);
+        }
+
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);

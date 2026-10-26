@@ -2,7 +2,7 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses } from '../config/constants';
+import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses, postAdditionalFieldsSchema } from '../config/constants';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
@@ -190,6 +190,19 @@ async function createSingleFacilityFromBatch(
             throw new Error('No facility name found in facility body');
         }
 
+        // Posts carry a clientReferenceId: adopt an existing undeleted facility instead of
+        // recreating it (idempotent on retry/redelivery). A deleted one must never be recreated.
+        if (facilityBody?.clientReferenceId) {
+            const existing = await findFacilityByClientReferenceId(facilityBody.clientReferenceId, facilityBody.tenantId, requestInfo);
+            if (existing) {
+                if (existing.isDeleted) {
+                    throw new Error(`Post facility with clientReferenceId ${facilityBody.clientReferenceId} was deleted (Remove); it cannot be recreated`);
+                }
+                logger.info(`Adopting existing facility ${existing.id} for post clientReferenceId ${facilityBody.clientReferenceId}`);
+                return existing;
+            }
+        }
+
         // Create facility via API
         const response = await createFacilityOneByOne(facilityBody, userUuid, requestInfo);
         const createdFacility = response?.Facility;
@@ -203,6 +216,76 @@ async function createSingleFacilityFromBatch(
     } catch (error) {
         logger.error(`Error creating single facility from batch:`, error);
         throw error;
+    }
+}
+
+/**
+ * Searches the facility service by clientReferenceId (deleted included, so a deleted post facility
+ * can be told apart from one that was never created).
+ */
+export async function findFacilityByClientReferenceId(clientReferenceId: string, tenantId: string, requestInfo: RequestInfo): Promise<any | null> {
+    const url = config.host.facilityHost + config.paths.facilitySearch;
+    const response = await httpRequest(
+        url,
+        { RequestInfo: requestInfo, Facility: { clientReferenceId: [clientReferenceId] } },
+        { limit: 1, offset: 0, tenantId, includeDeleted: true }
+    );
+    const facilities = Array.isArray(response?.Facilities) ? response.Facilities : [];
+    return facilities[0] ?? null;
+}
+
+/**
+ * Soft-deletes one post's facility, found by clientReferenceId. Only deletes when it still carries
+ * the Post marker; never a facility that is not found, already deleted, or not a post. Best effort —
+ * every failure is logged and never thrown, so a campaign never fails because a post could not be
+ * removed.
+ */
+async function removeOnePostFacility(clientReferenceId: string, campaignNumber: string, tenantId: string, requestInfo: RequestInfo): Promise<void> {
+    let facility: any;
+    try {
+        facility = await findFacilityByClientReferenceId(clientReferenceId, tenantId, requestInfo);
+    } catch (error) {
+        logger.error(`Could not read post facility with clientReferenceId ${clientReferenceId} to delete it for campaign ${campaignNumber}`, error);
+        return;
+    }
+    if (!facility) {
+        logger.error(`Post facility with clientReferenceId ${clientReferenceId} not found; not deleted for campaign ${campaignNumber}`);
+        return;
+    }
+    if (facility.isDeleted) {
+        logger.info(`Post facility ${facility.id} is already deleted; skipping (campaign ${campaignNumber})`);
+        return;
+    }
+    if (facility.additionalFields?.schema !== postAdditionalFieldsSchema.schema) {
+        logger.error(`Facility ${facility.id} with clientReferenceId ${clientReferenceId} is not a post (additionalFields.schema is not "${postAdditionalFieldsSchema.schema}"); not deleted for campaign ${campaignNumber}`);
+        return;
+    }
+    try {
+        await httpRequest(config.host.facilityHost + config.paths.facilityDelete, {
+            RequestInfo: requestInfo,
+            Facility: facility
+        });
+        logger.info(`Post facility ${facility.id} deleted for campaign ${campaignNumber}`);
+    } catch (error) {
+        logger.error(`Could not delete post facility ${facility.id} for campaign ${campaignNumber}`, error);
+    }
+}
+
+/**
+ * Soft-deletes the facilities of posts set to Remove, so later campaigns stop pre-filling them.
+ * Each post is found by clientReferenceId (existing facility search); best effort, in batches of
+ * config.facility.searchBatchSize.
+ */
+export async function deleteRemovedPostFacilities(clientReferenceIds: string[], campaignNumber: string, tenantId: string, requestInfo: RequestInfo): Promise<void> {
+    const unique = Array.from(new Set((clientReferenceIds || []).filter(Boolean)));
+    if (unique.length === 0) return;
+
+    const batchSize = config.facility.searchBatchSize;
+    for (let i = 0; i < unique.length; i += batchSize) {
+        const batch = unique.slice(i, i + batchSize);
+        await Promise.all(batch.map(clientReferenceId =>
+            removeOnePostFacility(clientReferenceId, campaignNumber, tenantId, requestInfo)
+        ));
     }
 }
 

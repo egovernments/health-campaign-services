@@ -18,6 +18,25 @@ public class ProcessingConstants {
     // Facility active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String FACILITY_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_USAGE";
 
+    // Posts sheet (CLF / transit post) column keys; headers come from localization
+    public static final String POST_CLIENT_REFERENCE_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID";
+    public static final String POST_TYPE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_TYPE";
+    public static final String POST_CATEGORY_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_CATEGORY";
+    public static final String POST_NAME_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_NAME";
+    public static final String POST_STATUS_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_STATUS";
+    // Post include/exclude/remove column - user-editable, excluded from the immutable-baseline join
+    public static final String POST_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_USAGE";
+    public static final String POST_USAGE_EXCLUDE = "Exclude";
+    public static final String POST_USAGE_REMOVE = "Remove";
+    // Facility additionalFields entry holding a post's category
+    public static final String POST_CATEGORY_ADDITIONAL_FIELD_KEY = "postCategory";
+
+    // MDMS master of post types: rows {"code","active","isPermanentByDefault"}; no active row = no posts sheet
+    public static final String OUTSIDE_HOUSEHOLD_POST_TYPES_SCHEMA_CODE = "HCM.OUTSIDE_HOUSEHOLD_POST_TYPES";
+    public static final String OUTSIDE_HOUSEHOLD_POST_TYPE_CODE_FIELD = "code";
+    public static final String OUTSIDE_HOUSEHOLD_POST_TYPE_ACTIVE_FIELD = "active";
+    public static final String OUTSIDE_HOUSEHOLD_POST_TYPE_IS_PERMANENT_BY_DEFAULT_FIELD = "isPermanentByDefault";
+
     // Permanent/Temporary enum columns. Localized for display at generation and mapped back to their
     // canonical MDMS values on upload (see EnumLocalizationUtil).
     public static final String FACILITY_STATUS_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_STATUS";
@@ -61,25 +80,31 @@ public class ProcessingConstants {
     }
 
     // Simple class names of the generators that produce free-entry (user-typed) console sheets:
-    // the User List and Facilities List. These sheets must stay fully UNPROTECTED in join mode so
-    // operators can freely edit/paste; the server-side immutable-join reverts any tampering with
+    // the User List, Facilities List and Posts List. These sheets must stay fully UNPROTECTED in join
+    // mode so operators can freely edit/paste; the server-side immutable-join reverts any tampering with
     // boundary/code/row-id on upload, so leaving them unprotected is safe. All other join-mode sheets
     // (e.g. the pre-filled Boundary List) stay protected. Matched on class-name suffix so a fully
     // qualified generationClass (e.g. "org.egov.excelingestion.generator.UserSheetGenerator") still hits.
     public static final String USER_SHEET_GENERATOR_CLASS = "UserSheetGenerator";
     public static final String FACILITY_SHEET_GENERATOR_CLASS = "FacilitySheetGenerator";
+    public static final String POST_SHEET_GENERATOR_CLASS = "PostSheetGenerator";
+
+    // Posts sheet: generated and required only for campaigns using the outside-household delivery method
+    public static final String POSTS_SHEET_NAME_KEY = "HCM_ADMIN_CONSOLE_POSTS_LIST";
+    public static final String OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = "OUTSIDEHOUSEHOLD";
 
     /**
      * Whether the given generation class produces a free-entry (user-typed) console sheet — currently
-     * the User List and Facilities List. Matched by simple-name suffix so it works whether the config
-     * carries a fully qualified name or a bare class name. Null-safe (returns false).
+     * the User List, Facilities List and Posts List. Matched by simple-name suffix so it works whether
+     * the config carries a fully qualified name or a bare class name. Null-safe (returns false).
      */
     public static boolean isUserEntrySheet(String generationClass) {
         if (generationClass == null) {
             return false;
         }
         return generationClass.endsWith(USER_SHEET_GENERATOR_CLASS)
-                || generationClass.endsWith(FACILITY_SHEET_GENERATOR_CLASS);
+                || generationClass.endsWith(FACILITY_SHEET_GENERATOR_CLASS)
+                || generationClass.endsWith(POST_SHEET_GENERATOR_CLASS);
     }
 
     // Hidden, server-stamped per-row identifier used to join an uploaded row to its generated

@@ -16,6 +16,7 @@ import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
+import org.egov.excelingestion.util.EnumLocalizationUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
@@ -66,6 +67,7 @@ public class ImmutableJoinService {
     private static final Set<String> ALWAYS_EXCLUDED = Set.of(
             ProcessingConstants.USER_USAGE_COLUMN_KEY,     // user active/inactive - intentionally editable
             ProcessingConstants.FACILITY_USAGE_COLUMN_KEY, // facility active/inactive - intentionally editable
+            ProcessingConstants.POST_USAGE_COLUMN_KEY,     // post include/exclude/remove - intentionally editable
             ProcessingConstants.ROW_ID_COLUMN_NAME,        // the join key itself
             ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY,  // computed VLOOKUP formula, not data
             ProcessingConstants.REGISTER_ID_COLUMN_KEY);   // computed formula, not data
@@ -221,7 +223,7 @@ public class ImmutableJoinService {
             return Collections.emptySet(); // nothing to reconstruct for this sheet
         }
 
-        ImmutableColumns immutable = deriveImmutableColumns(schemaMap);
+        ImmutableColumns immutable = deriveImmutableColumns(schemaMap, localizationMap);
 
         String hierarchyPrefix = (resource.getHierarchyType() == null || resource.getHierarchyType().isEmpty())
                 ? null : (resource.getHierarchyType().toUpperCase() + "_");
@@ -259,7 +261,8 @@ public class ImmutableJoinService {
         // the server-authoritative data. Without this, a tampered locked cell stays visible and unflagged
         // in the processed file even though validation/persistence used the correct baseline value.
         Map<String, Integer> uploadedColIndex = headerIndex(uploadedSheet);
-        SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut, localizationMap);
+        SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut, localizationMap,
+                immutable.enumReverseMaps);
 
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
@@ -362,7 +365,8 @@ public class ImmutableJoinService {
      * Derives the immutable column set from the schema using the SAME source as generation
      * ({@link SchemaColumnDefUtil}), so the two sides always agree on which columns are immutable.
      */
-    private ImmutableColumns deriveImmutableColumns(Map<String, Object> schemaMap) {
+    private ImmutableColumns deriveImmutableColumns(Map<String, Object> schemaMap,
+                                                    Map<String, String> localizationMap) {
         ImmutableColumns result = new ImmutableColumns();
         String schemaJson;
         try {
@@ -376,6 +380,13 @@ public class ImmutableJoinService {
             String name = col.getName();
             if (name == null || isExcluded(name)) {
                 continue;
+            }
+            if (EnumLocalizationUtil.isEnumColumn(col)) {
+                Map<String, String> reverseMap = EnumLocalizationUtil.buildReverseMap(
+                        name, col.getEnumValues(), localizationMap, col.getPrefix());
+                if (!reverseMap.isEmpty()) {
+                    result.enumReverseMaps.put(name, reverseMap);
+                }
             }
             if (col.isFreezeColumn() || col.isFreezeTillData()) {
                 result.alwaysRestore.add(name);
@@ -441,7 +452,7 @@ public class ImmutableJoinService {
         // Toggle: egov.excel.immutable-reject-on-change.
         boolean multiSelectChild = col.contains(MULTISELECT_MARKER);
         if (immutableData && !multiSelectChild && config.isImmutableRejectOnChange()
-                && poiRowIdx >= 0 && !sameTrimmed(oldVal, value)) {
+                && poiRowIdx >= 0 && !sameValue(sj, col, oldVal, value)) {
             log.info("Immutable-join REJECTED upload: sheet '{}' row {} column '{}' changed from baseline",
                     sj.sheetName, poiRowIdx + 1, col);
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
@@ -457,7 +468,7 @@ public class ImmutableJoinService {
         // from the authoritative baseline, this locked (server-managed) cell was just reverted -> surface a
         // NON-FAILING warning (status=valid) so the user knows their edit did not take. Editable columns are
         // never reconstructed, so they never reach here.
-        if (sj.warnings != null && poiRowIdx >= 0 && !sameTrimmed(oldVal, value)) {
+        if (sj.warnings != null && poiRowIdx >= 0 && !sameValue(sj, col, oldVal, value)) {
             String msg = ValidationConstants.DEFAULT_IMMUTABLE_CELL_REVERTED;
             if (sj.localizationMap != null) {
                 msg = LocalizationUtil.getLocalizedMessage(sj.localizationMap,
@@ -497,6 +508,20 @@ public class ImmutableJoinService {
         }
     }
 
+    /**
+     * Equal as trimmed strings, or - for a localized enum column - the same canonical value. The uploaded
+     * row map is shared across requests on the same file, so an earlier request may already have
+     * normalized it to codes (EnumValueNormalizer) while the baseline still holds the localized label.
+     */
+    private static boolean sameValue(SheetJoin sj, String col, Object uploaded, Object baseline) {
+        if (sameTrimmed(uploaded, baseline)) {
+            return true;
+        }
+        Map<String, String> reverseMap = sj.enumReverseMaps.get(col);
+        String canonical = EnumLocalizationUtil.toCanonical(norm(uploaded), reverseMap);
+        return canonical != null && canonical.equals(EnumLocalizationUtil.toCanonical(norm(baseline), reverseMap));
+    }
+
     /** True when two cell values are equal as trimmed strings (null/empty treated as equal). */
     private static boolean sameTrimmed(Object a, Object b) {
         return norm(a).equals(norm(b));
@@ -517,14 +542,17 @@ public class ImmutableJoinService {
         final String sheetName;
         final List<ValidationError> warnings;
         final Map<String, String> localizationMap;
+        final Map<String, Map<String, String>> enumReverseMaps;
 
         SheetJoin(Sheet sheet, Map<String, Integer> colIndex, String sheetName,
-                  List<ValidationError> warnings, Map<String, String> localizationMap) {
+                  List<ValidationError> warnings, Map<String, String> localizationMap,
+                  Map<String, Map<String, String>> enumReverseMaps) {
             this.sheet = sheet;
             this.colIndex = colIndex;
             this.sheetName = sheetName;
             this.warnings = warnings;
             this.localizationMap = localizationMap;
+            this.enumReverseMaps = enumReverseMaps;
         }
     }
 
@@ -557,6 +585,7 @@ public class ImmutableJoinService {
     private static class ImmutableColumns {
         final Set<String> alwaysRestore = new HashSet<>();          // freezeColumn / freezeTillData
         final Set<String> restoreIfBaselineFilled = new HashSet<>(); // freezeColumnIfFilled
+        final Map<String, Map<String, String>> enumReverseMaps = new HashMap<>(); // localized label -> code
 
         boolean isEmpty() {
             return alwaysRestore.isEmpty() && restoreIfBaselineFilled.isEmpty();

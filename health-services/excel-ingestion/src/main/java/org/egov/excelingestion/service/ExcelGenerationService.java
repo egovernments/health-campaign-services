@@ -32,19 +32,22 @@ public class ExcelGenerationService {
     private final LocalizationService localizationService;
     private final RequestInfoConverter requestInfoConverter;
     private final CustomExceptionHandler exceptionHandler;
+    private final PostTypeMasterService postTypeMasterService;
 
     public ExcelGenerationService(MDMSConfigService mdmsConfigService,
                                 ExcelIngestionConfig excelConfig,
                                 ConfigBasedGenerationService generationService,
                                 LocalizationService localizationService,
                                 RequestInfoConverter requestInfoConverter,
-                                CustomExceptionHandler exceptionHandler) {
+                                CustomExceptionHandler exceptionHandler,
+                                PostTypeMasterService postTypeMasterService) {
         this.mdmsConfigService = mdmsConfigService;
         this.excelConfig = excelConfig;
         this.generationService = generationService;
         this.localizationService = localizationService;
         this.requestInfoConverter = requestInfoConverter;
         this.exceptionHandler = exceptionHandler;
+        this.postTypeMasterService = postTypeMasterService;
     }
 
     /**
@@ -57,6 +60,9 @@ public class ExcelGenerationService {
 
         // Step 1: Get configuration by type (already validated)
         ProcessorGenerationConfig config = getConfigByType(processorType, requestInfo, generateResource.getTenantId());
+
+        // Step 1b: Leave out the posts sheet for campaigns that do not use the outside-household method
+        config.setSheets(filterApplicableSheets(config.getSheets(), generateResource, requestInfo));
 
         // Step 2: Prepare localization maps
         Map<String, String> localizationMap = prepareLocalizationMap(generateResource, requestInfo);
@@ -107,6 +113,21 @@ public class ExcelGenerationService {
                 .zoomLevel(excelConfig.getExcelSheetZoom())
                 .sheets(sheets)
                 .build();
+    }
+
+    private List<SheetGenerationConfig> filterApplicableSheets(List<SheetGenerationConfig> sheets,
+                                                               GenerateResource generateResource,
+                                                               RequestInfo requestInfo) {
+        List<SheetGenerationConfig> applicable = new ArrayList<>();
+        for (SheetGenerationConfig sheet : sheets) {
+            if (postTypeMasterService.isSheetApplicable(sheet.getSheetName(), generateResource.getReferenceId(),
+                    generateResource.getReferenceType(), generateResource.getTenantId(), requestInfo)) {
+                applicable.add(sheet);
+            } else {
+                log.info("Skipping sheet {} for reference {}", sheet.getSheetName(), generateResource.getReferenceId());
+            }
+        }
+        return applicable;
     }
 
     /**

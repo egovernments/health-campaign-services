@@ -8,6 +8,7 @@ import {
 import { logger } from "./logger";
 import config from "../config";
 import { RequestInfo } from "../config/models/requestInfoSchema";
+import { postFacilityFields, postAdditionalFieldsSchema } from "../config/constants";
 
 type RowData = Record<string, any>;
 
@@ -53,7 +54,7 @@ export class DataTransformer {
         }
         const mapped = rows.map(r => this.transformSingle(r));
         if (this.cfg.transFormBulk) {
-            return await this.hooks[this.cfg.transFormBulk](mapped, this.cfg, requestInfo);
+            return await this.hooks[this.cfg.transFormBulk](mapped, this.cfg, requestInfo, rows);
         }
         return mapped;
     }
@@ -321,11 +322,24 @@ export class DataTransformer {
         return data;
     }
 
-    private transformBulkFacility(data: any[], cfg: TransformConfig): any[] {
-        for (const d of data) {
+    private transformBulkFacility(data: any[], cfg: TransformConfig, _requestInfo?: RequestInfo, rows?: RowData[]): any[] {
+        data.forEach((d, i) => {
             const codeList = (d.Facility.address.locality.code || "").split(",");
             d.Facility.address.locality.code = codeList[0].trim();
-        }
+
+            // Post rows carry a non-blank clientReferenceId header; facility rows never do.
+            const row = rows?.[i];
+            const clientReferenceId = String(row?.[postFacilityFields.clientReferenceId] ?? "").trim();
+            if (clientReferenceId) {
+                d.Facility.clientReferenceId = clientReferenceId;
+                const category = String(row?.[postFacilityFields.category] ?? "").trim();
+                d.Facility.additionalFields = {
+                    schema: postAdditionalFieldsSchema.schema,
+                    version: postAdditionalFieldsSchema.version,
+                    fields: category ? [{ key: postAdditionalFieldsSchema.categoryKey, value: category }] : []
+                };
+            }
+        });
         return data;
     }
   }

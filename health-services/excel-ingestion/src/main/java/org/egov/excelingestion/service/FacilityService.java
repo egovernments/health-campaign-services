@@ -31,6 +31,17 @@ public class FacilityService {
      * @return List of raw permanent facilities from API
      */
     public List<Map<String, Object>> fetchAllPermanentFacilities(String tenantId, RequestInfo requestInfo) {
+        return fetchAllPermanentFacilities(tenantId, null, requestInfo);
+    }
+
+    /**
+     * Fetch all permanent facilities of one usage (facility type, e.g. "CLF") from facility API.
+     * @param tenantId Tenant ID
+     * @param usage Facility usage to filter by; null for every usage
+     * @param requestInfo Request context
+     * @return List of raw permanent facilities from API
+     */
+    public List<Map<String, Object>> fetchAllPermanentFacilities(String tenantId, String usage, RequestInfo requestInfo) {
         log.info("Fetching all permanent facilities for tenant: {}", tenantId);
         
         try {
@@ -46,6 +57,9 @@ public class FacilityService {
                 
                 Map<String, Object> facilityFilter = new HashMap<>();
                 facilityFilter.put("isPermanent", true);  // Only permanent facilities
+                if (usage != null) {
+                    facilityFilter.put("usage", usage);
+                }
                 facilitySearchBody.put("Facility", facilityFilter);
                 
                 // Make API call

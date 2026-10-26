@@ -39,6 +39,23 @@ public class ValidationConstants {
     public static final String DEFAULT_BOUNDARY_INVALID_SELECTION =
             "Selected boundary is not a valid boundary from the dropdown list.";
 
+    // Campaign boundary errors (same keys the facility processor uses)
+    public static final String HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN = "HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN";
+    public static final String DEFAULT_BOUNDARY_CODE_NOT_IN_CAMPAIGN = "Boundary code is not part of campaign boundaries";
+    public static final String HCM_BOUNDARY_VALIDATION_FAILED = "HCM_BOUNDARY_VALIDATION_FAILED";
+    public static final String DEFAULT_BOUNDARY_VALIDATION_FAILED = "Boundary validation failed due to system error";
+
+    // Posts sheet - a post must sit on a boundary of the lowest or second lowest hierarchy level
+    public static final String HCM_POST_BOUNDARY_REQUIRED = "HCM_POST_BOUNDARY_REQUIRED";
+    public static final String DEFAULT_POST_BOUNDARY_REQUIRED = "Boundary selection is required for a post";
+    public static final String HCM_POST_BOUNDARY_INVALID_LEVEL = "HCM_POST_BOUNDARY_INVALID_LEVEL";
+    public static final String DEFAULT_POST_BOUNDARY_INVALID_LEVEL =
+            "A post must be at the lowest or second lowest boundary level";
+    // Posts sheet - Remove (stop offering a post in future campaigns) applies only to an existing,
+    // undeleted post facility whose usage is one of the post types (HCM.OUTSIDE_HOUSEHOLD_POST_TYPES)
+    public static final String HCM_POST_REMOVE_ONLY_EXISTING = "HCM_POST_REMOVE_ONLY_EXISTING";
+    public static final String DEFAULT_POST_REMOVE_ONLY_EXISTING = "Remove can be used only for an existing post";
+
     // Search validation constants
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
     public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";
@@ -112,11 +129,13 @@ public class ValidationConstants {
     public static final String ADDITIONAL_DETAILS_USER_SHEET_STATUS     = "userSheetStatus";
     public static final String ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS = "boundarySheetStatus";
     public static final String ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS = "facilitySheetStatus";
+    public static final String ADDITIONAL_DETAILS_POST_SHEET_STATUS     = "postSheetStatus";
 
     // Sheet kind identifiers
     public static final String SHEET_KIND_USER     = "user";
     public static final String SHEET_KIND_BOUNDARY = "boundary";
     public static final String SHEET_KIND_FACILITY = "facility";
+    public static final String SHEET_KIND_POST     = "post";
 
     // Per-row JSON keys for downstream consumers (e.g. project-factory).
     // Stored on each persisted rowJson so consumers can tell invalid rows

@@ -292,6 +292,7 @@ export const additionalDetailKeys = {
     userSheetStatus: "userSheetStatus",
     boundarySheetStatus: "boundarySheetStatus",
     facilitySheetStatus: "facilitySheetStatus",
+    postSheetStatus: "postSheetStatus",
 } as const;
 
 // Sheet validation status values
@@ -326,6 +327,19 @@ export const userDataFields = {
     boundaryCode: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
     boundaryName: "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
+} as const;
+
+// Post sheet header keys read by the facility transform to stamp a post facility
+export const postFacilityFields = {
+    clientReferenceId: "HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID",
+    category: "HCM_ADMIN_CONSOLE_POST_CATEGORY",
+} as const;
+
+// Facility.additionalFields marker that identifies a facility as a post
+export const postAdditionalFieldsSchema = {
+    schema: "Post",
+    version: 1,
+    categoryKey: "postCategory",
 } as const;
 
 // MDMS schema code for template validation

@@ -4,7 +4,7 @@ import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from '
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses } from '../config/constants';
+import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses, postFacilityFields } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
 import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration, markAllToCreateResourcesAsCompleted } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
@@ -19,6 +19,7 @@ import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { triggerUserCredentialEmailFlow } from './mailUtils';
 import { runMappingReconciler } from './mappingReconciler';
 import { fetchExistingUsersByPhone, selectReconcilableUserRows } from './userBatchHandler';
+import { deleteRemovedPostFacilities } from './facilityBatchHandler';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -235,6 +236,7 @@ export async function handleProcessingResult(messageObject: any) {
         const boundarySheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.boundarySheetStatus];
         const facilitySheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.facilitySheetStatus];
         const userSheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.userSheetStatus];
+        const postSheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.postSheetStatus];
 
         if (messageObject.status !== 'completed') {
             logger.warn('=== MESSAGE STATUS IS NOT COMPLETED - STOPPING PROCESSING ===');
@@ -243,21 +245,23 @@ export async function handleProcessingResult(messageObject: any) {
             return;
         }
 
-        // Boundary or facility validation failures hard-block the campaign; user-sheet failures do not.
+        // Boundary, facility or posts validation failures hard-block the campaign; user-sheet failures do not.
         const hardBlock =
             boundarySheetStatus === sheetValidationStatuses.invalid ||
             facilitySheetStatus === sheetValidationStatuses.invalid ||
+            postSheetStatus === sheetValidationStatuses.invalid ||
             // Legacy fallback: if no per-sheet keys are set, use overall validationStatus
             (
                 boundarySheetStatus === undefined &&
                 facilitySheetStatus === undefined &&
                 userSheetStatus === undefined &&
+                postSheetStatus === undefined &&
                 validationStatus !== sheetValidationStatuses.valid
             );
 
         if (hardBlock) {
-            logger.warn('=== HARD BLOCK: BOUNDARY OR FACILITY VALIDATION FAILED ===');
-            logger.warn(`Boundary Status: ${boundarySheetStatus}, Facility Status: ${facilitySheetStatus}, overall validationStatus: ${validationStatus}`);
+            logger.warn('=== HARD BLOCK: BOUNDARY, FACILITY OR POST VALIDATION FAILED ===');
+            logger.warn(`Boundary Status: ${boundarySheetStatus}, Facility Status: ${facilitySheetStatus}, Post Status: ${postSheetStatus}, overall validationStatus: ${validationStatus}`);
 
             if (messageObject.additionalDetails?.errorCode) {
                 logger.error(`Error Code: ${messageObject.additionalDetails.errorCode}`);
@@ -324,7 +328,7 @@ export async function handleProcessingResult(messageObject: any) {
             if (tempDataCount && tempDataCount > 0) {
 
                 logger.info('=== PROCESSING ALL CAMPAIGN DATA TYPES IN PARALLEL ===');
-                const [expectedBoundaryCount, , expectedUserCount] = await Promise.all([
+                const [expectedBoundaryCount, removedPostClientReferenceIds, expectedUserCount] = await Promise.all([
                     processCampaignBoundariesFromExcelData(
                         messageObject.tenantId,
                         messageObject.fileStoreId,
@@ -350,7 +354,9 @@ export async function handleProcessingResult(messageObject: any) {
                 // Resolve the RequestInfo for the background creation flow: keep the message's userInfo
                 // when present, else stamp the campaign creator so user-creation batches have a valid user.
                 const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
+                // Post removal (soft-delete) runs as the last step before completion, inside the
+                // background flow, after mapping — see triggerBackgroundResourceCreationFlow.
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount, removedPostClientReferenceIds);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }
@@ -1067,14 +1073,16 @@ async function persistDataInBatches(dataList: any[], topic: string, tenantId: st
 }
 
 /**
- * Process campaign facilities from excel data
+ * Process campaign facilities from excel data. Returns the clientReferenceIds of posts set to
+ * Remove, to be removed once the rows are stored (resolved against the facility service by
+ * clientReferenceId at removal time — see getRemovedPostClientReferenceIds).
  */
-async function processCampaignFacilitiesFromExcelData(
+export async function processCampaignFacilitiesFromExcelData(
     tenantId: string,
     fileStoreId: string,
     localizationMap: Record<string, string>,
     campaignDetails: any
-): Promise<void> {
+): Promise<string[]> {
     try {
         logger.info('=== PROCESSING CAMPAIGN FACILITIES FROM EXCEL DATA ===');
         
@@ -1086,15 +1094,15 @@ async function processCampaignFacilitiesFromExcelData(
         const facilitySheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_FACILITIES_LIST', localizationMap);
         logger.info(`Searching ${facilitySheetName} sheet data...`);
 
-        const FACILITY_NAME_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_NAME';
-
         // Existing facilities come from the DB (not the sheet) — fetch once and
-        // reuse across every page.
+        // reuse across every page. Keyed by uniqueIdentifier (name for facility rows,
+        // clientReferenceId for post rows), which is also the mapping table's key.
         const existingFacilities = await getRelatedDataWithCampaign('facility', campaignNumber, tenantId);
         logger.info(`Found ${existingFacilities.length} existing facility records in eg_cm_campaign_data`);
         const existingFacilityMap = new Map(
-            existingFacilities.map((f: any) => [f?.data?.[FACILITY_NAME_KEY], f])
+            existingFacilities.map((f: any) => [f?.uniqueIdentifier, f])
         );
+        const storedPostNormalizedIndex = buildStoredPostNormalizedIndex(existingFacilityMap);
 
         // Accumulate only the lightweight {facilityName, boundaryCode, active}
         // mappings across pages; the demap diff needs the complete set.
@@ -1108,25 +1116,164 @@ async function processCampaignFacilitiesFromExcelData(
             getSheetFetchPageSize(),
             (rows) => processFacilityDataAndMappings(campaignNumber, tenantId, rows, existingFacilityMap, facilityBoundaryMappings)
         );
+        const facilityMappingCount = facilityBoundaryMappings.length;
 
-        if (facilityRowTotal === 0) {
-            logger.info('No facilities sheet data found');
-            return;
+        // Posts sheet (only for OUTSIDEHOUSEHOLD campaigns): post rows become facility rows and
+        // share the existing-row map and the mapping list, so one link diff covers both kinds.
+        // Rows are keyed by clientReferenceId, never by name.
+        const postSheetName = getLocalizedSheetName(POST_SHEET_KEY, localizationMap);
+        logger.info(`Searching ${postSheetName} sheet data...`);
+        const removedPostClientReferenceIds: string[] = [];
+        const postKeysThisUpload = new Set<string>();
+        const postRowTotal = await forEachSheetDataPage(
+            tenantId,
+            campaignId,
+            fileStoreId,
+            postSheetName,
+            getSheetFetchPageSize(),
+            (rows) => {
+                const facilityRows = convertPostRowsToFacilityRows(rows, storedPostNormalizedIndex);
+                facilityRows.forEach((r) => postKeysThisUpload.add(r.rowjson[POST_CLIENT_REFERENCE_ID_KEY] as string));
+                removedPostClientReferenceIds.push(...getRemovedPostClientReferenceIds(facilityRows));
+                return processFacilityDataAndMappings(campaignNumber, tenantId, facilityRows, existingFacilityMap, facilityBoundaryMappings);
+            }
+        );
+
+        if (facilityRowTotal === 0 && postRowTotal === 0) {
+            logger.info('No facilities or posts sheet data found');
+            return [];
         }
 
-        logger.info(`Found ${facilityRowTotal} records in facilities sheet`);
+        logger.info(`Found ${facilityRowTotal} records in facilities sheet and ${postRowTotal} records in posts sheet`);
 
-        // Process facility-boundary mappings once, against the full accumulated set.
-        if (facilityBoundaryMappings.length > 0) {
-            await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings);
+        // Per-sheet demap guard: a sheet that gave nothing this upload (absent, empty, or — for
+        // facility, as today — no Active row) keeps its stored mapping rows unchanged instead of
+        // being demapped, independent of what the other sheet did. A key is classified "post" when
+        // this upload converted it from the posts sheet, else by its stored campaign_data marker,
+        // else it defaults to "facility" (today's only type, and the common case for a mapping row
+        // with no backing campaign_data row at all).
+        const facilityContributed = facilityMappingCount > 0;
+        const postsContributed = postRowTotal > 0;
+
+        if (facilityContributed || postsContributed) {
+            let isDemapEligible: ((key: string) => boolean) | undefined;
+            if (!(facilityContributed && postsContributed)) {
+                isDemapEligible = (key: string) => {
+                    const isPostKey = postKeysThisUpload.has(key) || Boolean(existingFacilityMap.get(key)?.data?.[POST_CLIENT_REFERENCE_ID_KEY]);
+                    return isPostKey ? postsContributed : facilityContributed;
+                };
+            }
+            await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings, isDemapEligible);
         }
 
         logger.info('=== CAMPAIGN FACILITIES PROCESSING COMPLETED ===');
+        return removedPostClientReferenceIds;
 
     } catch (error) {
         logger.error('Error processing campaign facilities from excel data:', error);
         throw error;
     }
+}
+
+const POST_SHEET_KEY = 'HCM_ADMIN_CONSOLE_POSTS_LIST';
+const POST_USAGE_KEY = 'HCM_ADMIN_CONSOLE_POST_USAGE';
+const POST_NAME_KEY = 'HCM_ADMIN_CONSOLE_POST_NAME';
+const POST_TYPE_KEY = 'HCM_ADMIN_CONSOLE_POST_TYPE';
+// The one post marker: present (non-blank) on every converted post row, never on a facility row.
+const POST_CLIENT_REFERENCE_ID_KEY = postFacilityFields.clientReferenceId;
+const POST_BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
+const postUsageValues = {
+    include: 'Include',
+    exclude: 'Exclude',
+    remove: 'Remove'
+};
+
+/** Map the posts sheet usage to the facility usage: Include is Active, everything else is Inactive. */
+function postUsageToFacilityUsage(postUsage: unknown): string {
+    return postUsage === postUsageValues.include ? usageColumnStatus.active : usageColumnStatus.inactive;
+}
+
+/** Lower-case, trimmed, single-spaced join — so the same (type, boundary, name) always matches. */
+export function normalizeForMatch(...parts: unknown[]): string {
+    return parts.map(p => String(p ?? '').trim().toLowerCase().replace(/\s+/g, ' ')).join('#');
+}
+
+/**
+ * Index of this campaign's stored, undeleted post rows by normalised (type, boundary, name), so a
+ * post row with no clientReferenceId of its own can be matched back to the row it is a re-upload of.
+ */
+function buildStoredPostNormalizedIndex(existingFacilityMap: Map<any, any>): Map<string, string> {
+    const index = new Map<string, string>();
+    existingFacilityMap.forEach((entry: any, uniqueIdentifier: any) => {
+        if (!entry?.data?.[POST_CLIENT_REFERENCE_ID_KEY] || entry?.isDeleted) return;
+        const key = normalizeForMatch(entry.data['HCM_ADMIN_CONSOLE_FACILITY_TYPE'], entry.data['HCM_ADMIN_CONSOLE_BOUNDARY_CODE'], entry.data['HCM_ADMIN_CONSOLE_FACILITY_NAME']);
+        if (!index.has(key)) index.set(key, uniqueIdentifier);
+    });
+    return index;
+}
+
+/**
+ * Resolves a post row's clientReferenceId: the pre-filled hidden column when present; else the
+ * stored, undeleted row of this campaign with the same normalised (type, boundary, name); else a new
+ * UUID. Rows with the same (type, boundary, name) share one post, the same way facility rows with
+ * the same name share one facility.
+ */
+function resolvePostClientReferenceId(
+    postRow: Record<string, unknown>,
+    storedPostNormalizedIndex: Map<string, string>
+): string {
+    const prefilled = String(postRow[POST_CLIENT_REFERENCE_ID_KEY] ?? '').trim();
+    if (prefilled) return prefilled;
+
+    const key = normalizeForMatch(postRow[POST_TYPE_KEY], postRow[POST_BOUNDARY_CODE_KEY], postRow[POST_NAME_KEY]);
+    const candidate = storedPostNormalizedIndex.get(key);
+    if (candidate) return candidate;
+
+    return uuidv4();
+}
+
+/**
+ * Convert a page of posts sheet rows into facility sheet rows, so posts go through the facility
+ * path. Post rows are keyed by clientReferenceId, never by name.
+ */
+export function convertPostRowsToFacilityRows(
+    postRecords: any[],
+    storedPostNormalizedIndex: Map<string, string>
+): { rowjson: Record<string, unknown> }[] {
+    const facilityRows: { rowjson: Record<string, unknown> }[] = [];
+
+    postRecords.forEach(record => {
+        const postRow = record.rowjson || record.rowJson || {};
+        const postName = postRow[POST_NAME_KEY];
+        if (!postName) {
+            logger.warn('No post name found in row');
+            return;
+        }
+
+        const clientReferenceId = resolvePostClientReferenceId(postRow, storedPostNormalizedIndex);
+
+        const facilityRow: Record<string, unknown> = {
+            ...postRow,
+            HCM_ADMIN_CONSOLE_FACILITY_NAME: postName,
+            HCM_ADMIN_CONSOLE_FACILITY_TYPE: postRow[POST_TYPE_KEY],
+            HCM_ADMIN_CONSOLE_FACILITY_STATUS: postRow['HCM_ADMIN_CONSOLE_POST_STATUS'],
+            HCM_ADMIN_CONSOLE_FACILITY_USAGE: postUsageToFacilityUsage(postRow[POST_USAGE_KEY]),
+            [POST_CLIENT_REFERENCE_ID_KEY]: clientReferenceId
+        };
+        facilityRows.push({ rowjson: facilityRow });
+    });
+
+    return facilityRows;
+}
+
+/**
+ * clientReferenceIds of converted post rows set to Remove — no lookup in this campaign's
+ * campaign_data; the facility (if any) is found by the removal step itself, by clientReferenceId.
+ */
+export function getRemovedPostClientReferenceIds(facilityRows: { rowjson: Record<string, unknown> }[]): string[] {
+    return facilityRows
+        .filter(({ rowjson }) => rowjson[POST_USAGE_KEY] === postUsageValues.remove)
+        .map(({ rowjson }) => String(rowjson[POST_CLIENT_REFERENCE_ID_KEY]));
 }
 
 /**
@@ -1158,20 +1305,23 @@ async function processFacilityDataAndMappings(
         const facilityCode = rowJson[FACILITY_CODE_KEY];
         const boundaryCodes = rowJson[BOUNDARY_CODE_KEY];
         const usage = rowJson[USAGE_KEY];
+        // Facility rows are keyed by name, exactly as today; post rows (carrying the post marker)
+        // are keyed by clientReferenceId instead.
+        const uniqueIdentifier = (rowJson[POST_CLIENT_REFERENCE_ID_KEY] as string) || facilityName;
         
         if (!facilityName) {
             logger.warn('No facility name found in row');
             return;
         }
         
-        const existingEntry = existingFacilityMap.get(facilityName);
+        const existingEntry = existingFacilityMap.get(uniqueIdentifier);
 
         if (!existingEntry) {
             newFacilities.push({
                 campaignNumber,
                 data: rowJson,
                 type: 'facility',
-                uniqueIdentifier: facilityName,
+                uniqueIdentifier,
                 uniqueIdAfterProcess: facilityCode || null,
                 status: facilityCode ? dataRowStatuses.completed : dataRowStatuses.pending
             });
@@ -1197,6 +1347,11 @@ async function processFacilityDataAndMappings(
                 hasChanges = true;
             }
 
+            if (rowJson[POST_USAGE_KEY] !== undefined && rowJson[POST_USAGE_KEY] !== existingData[POST_USAGE_KEY]) {
+                existingData[POST_USAGE_KEY] = rowJson[POST_USAGE_KEY];
+                hasChanges = true;
+            }
+
             if (hasChanges) {
                 updatedFacilities.push(existingEntry);
                 logger.info(`Updated facility entry: ${facilityName}`);
@@ -1207,7 +1362,7 @@ async function processFacilityDataAndMappings(
             const boundaryList = boundaryCodes.split(',').map((b: string) => b.trim()).filter(Boolean);
             boundaryList.forEach((boundaryCode: string) => {
                 facilityBoundaryMappings.push({
-                    facilityName,
+                    facilityName: uniqueIdentifier,
                     boundaryCode,
                     active: true
                 });
@@ -1231,12 +1386,15 @@ async function processFacilityDataAndMappings(
 }
 
 /**
- * Process facility-boundary mappings
+ * Process facility-boundary mappings. When `isDemapEligible` is given, only existing mappings it
+ * accepts may be marked for demapping (used to freeze one sheet's links while the other sheet's are
+ * diffed normally, when that sheet gave nothing this upload — §task 3).
  */
 async function processFacilityBoundaryMappings(
     campaignNumber: string,
     tenantId: string,
-    mappings: any[]
+    mappings: any[],
+    isDemapEligible?: (uniqueIdentifierForData: string) => boolean
 ): Promise<void> {
     const existingMappings = await getMappingDataRelatedToCampaign('facility', campaignNumber, tenantId);
     const existingMappingSet = new Set(
@@ -1266,6 +1424,7 @@ async function processFacilityBoundaryMappings(
     );
 
     existingMappings.forEach((existing: any) => {
+        if (isDemapEligible && !isDemapEligible(existing.uniqueIdentifierForData)) return;
         const key = `${existing.uniqueIdentifierForData}#${existing.boundaryCode}`;
         if (!sheetMappingSet.has(key) && existing.status !== mappingStatuses.toBeDeMapped) {
             toBeDemapped.push({
@@ -1672,6 +1831,7 @@ async function triggerBackgroundResourceCreationFlow(
     requestInfo?: RequestInfo,
     expectedUserCount?: number,
     expectedBoundaryCount?: number,
+    removedPostClientReferenceIds?: string[],
 ): Promise<void> {
     try {
         const useruuid = campaignDetails?.auditDetails?.createdBy;
@@ -1751,6 +1911,12 @@ async function triggerBackgroundResourceCreationFlow(
                 // For unified template child campaigns, resources are copied from the parent
                 // with status=toCreate but never go through the task system — close them out here.
                 await markAllToCreateResourcesAsCompleted(campaignDetails.id, tenantId, useruuid);
+
+                // Last step before completion: soft-delete the facilities of posts set to Remove
+                // (after mapping, so an Include/Exclude choice already resolved its own link).
+                if (requestInfo) {
+                    await deleteRemovedPostFacilities(removedPostClientReferenceIds || [], campaignNumber, tenantId, requestInfo);
+                }
 
                 // Mark campaign as completed if not failed
                 await markCampaignCompletedConditionally(campaignDetails, parentCampaign, useruuid, tenantId);
@@ -2715,4 +2881,3 @@ export async function createUsersFromUserData(campaignDetails: any, tenantId: st
         throw error;
     }
 }
-

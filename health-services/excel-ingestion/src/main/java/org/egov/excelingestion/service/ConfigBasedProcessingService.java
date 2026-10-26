@@ -46,6 +46,7 @@ public class ConfigBasedProcessingService {
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
     private final ExcelIngestionConfig config;
+    private final PostTypeMasterService postTypeMasterService;
 
     public ConfigBasedProcessingService(MDMSConfigService mdmsConfigService,
                                       CustomExceptionHandler exceptionHandler,
@@ -53,7 +54,8 @@ public class ConfigBasedProcessingService {
                                       ApplicationContext applicationContext,
                                       Producer producer,
                                       KafkaTopicConfig kafkaTopicConfig,
-                                      ExcelIngestionConfig config) {
+                                      ExcelIngestionConfig config,
+                                      PostTypeMasterService postTypeMasterService) {
         this.mdmsConfigService = mdmsConfigService;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
@@ -61,6 +63,7 @@ public class ConfigBasedProcessingService {
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
         this.config = config;
+        this.postTypeMasterService = postTypeMasterService;
     }
 
     /**
@@ -78,7 +81,7 @@ public class ConfigBasedProcessingService {
         java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType(), requestInfo, resource.getTenantId());
 
         // Step 2: Check if all required sheets are present in the workbook
-        checkRequiredSheetsPresent(workbook, config, localizationMap);
+        checkRequiredSheetsPresent(workbook, config, localizationMap, resource, requestInfo);
 
         // Step 3: Pre-validate all sheets and fetch their schemas
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -163,9 +166,12 @@ public class ConfigBasedProcessingService {
     }
 
     /**
-     * Check if all required sheets are present in the workbook
+     * Check if all required sheets are present in the workbook. The posts sheet is required only for
+     * campaigns that use the outside-household delivery method.
      */
-    private void checkRequiredSheetsPresent(Workbook workbook, java.util.List<ProcessorSheetConfig> config, Map<String, String> localizationMap) {
+    private void checkRequiredSheetsPresent(Workbook workbook, java.util.List<ProcessorSheetConfig> config,
+                                            Map<String, String> localizationMap,
+                                            ProcessResource resource, RequestInfo requestInfo) {
         // Get all non-hidden sheet names from workbook
         Set<String> workbookSheets = new HashSet<>();
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -178,6 +184,11 @@ public class ConfigBasedProcessingService {
         for (ProcessorSheetConfig sheetConfig : config) {
             String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
             if (!workbookSheets.contains(localizedName)) {
+                if (!postTypeMasterService.isSheetApplicable(sheetConfig.getSheetNameKey(),
+                        resource.getReferenceId(), resource.getReferenceType(), resource.getTenantId(), requestInfo)) {
+                    log.info("Sheet '{}' not required for reference {}", localizedName, resource.getReferenceId());
+                    continue;
+                }
                 Set<String> expectedSheets = getConfiguredSheetNames(config, localizationMap);
                 
                 exceptionHandler.throwCustomException(ErrorConstants.REQUIRED_SHEET_MISSING,
