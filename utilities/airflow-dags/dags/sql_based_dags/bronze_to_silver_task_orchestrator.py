@@ -5,7 +5,7 @@ Two DAGs that run every entity's bronze-to-silver transform as TASKS of one
 DAG instead of as separately triggered DAGs, identical apart from the code each
 `transform_<entity>` task calls:
 
-    bronze_to_silver_task_orchestrator         the SQL-side twins in ../performance_test/:
+    bronze_to_silver_task_orchestrator         the SQL-side twins in this folder:
                                                `run_transformation(SPEC, window)`, the same
                                                code path as the twin DAG's transform task
     bronze_to_silver_python_task_orchestrator  the Python DAGs in ../ (<entity>_transformation.py):
@@ -49,7 +49,7 @@ Ordering and failure semantics
 
 Variables (all read at parse time except the window overrides)
     task_orchestrator_entity_order     JSON list of entity names, e.g. ["project", "project_task"];
-                                       default: every twin in ../performance_test/, alphabetical
+                                       default: every twin in this folder, alphabetical
     task_orchestrator_schedule         cron / preset / "None"; default "None" (manual only), so
                                        deploying this next to the trigger orchestrator doesn't
                                        double the hourly load
@@ -95,8 +95,8 @@ try:
 except ImportError:  # local runs: no KubernetesExecutor, nothing to override
     k8s = None
 
-_DAGS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_TWINS_DIR = os.path.join(_DAGS_DIR, "performance_test")
+_TWINS_DIR = os.path.dirname(os.path.abspath(__file__))  # this folder: the twins and sql_flatten_common
+_DAGS_DIR = os.path.dirname(_TWINS_DIR)  # dags/: the Python <entity>_transformation.py DAGs
 sys.path.insert(0, _TWINS_DIR)
 import sql_flatten_common  # noqa: E402
 from sql_flatten_common import run_transformation  # noqa: E402

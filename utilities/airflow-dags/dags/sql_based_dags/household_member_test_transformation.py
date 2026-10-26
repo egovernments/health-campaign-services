@@ -41,6 +41,7 @@ from sql_flatten_common import (  # noqa: E402
     age_expressions,
     boundary_lookup,
     build_sql_test_dag,
+    campaign_field_rows_sql,
     cycle_index_expressions,
     field_pairs_sql,
     json_int_or_null_sql,
@@ -63,14 +64,14 @@ from sql_flatten_common import (  # noqa: E402
 #                                                                                                       raw additional_details, synced_*, task_dates
 #   stg_household                  household   household.client_reference_id =                          the household's address_id and its
 #                                              member.household_client_reference_id AND tenant           additional_details (merged into the member's)
-#                                              (17's prj_by_client_ref, ONE row per reference)
+#                                              (14's prj_by_client_ref, ONE row per reference)
 #   stg_address (FINAL)            address     address.id = household.latest_address_id AND tenant      geo_point_*, boundary_code, the boundary
 #                                              (own PK) -- the member has no address of its own          lookup code
 #   stg_individual                 individual  individual.client_reference_id =                         date_of_birth, age, gender, and the
 #                                              member.individual_client_reference_id AND tenant          height / disabilityType extras
-#                                              (17's prj_by_client_ref, ONE row per reference)
+#                                              (14's prj_by_client_ref, ONE row per reference)
 #   stg_project_staff              staff       staff.staff_id = member.client_last_modified_by          the project id of the user's LOWEST-id
-#                                              AND tenant (17's prj_by_staff, argMax per staff row,     non-deleted staff assignment
+#                                              AND tenant (14's prj_by_staff, argMax per staff row,     non-deleted staff assignment
 #                                              then argMin(project_id, id) per user)
 #   stg_project (FINAL)            project     project.id = staff.first_project_id AND tenant (own PK)  project_* columns, campaign_number,
 #                                                                                                       hierarchy_type and cycles (cycleIndex)
@@ -229,6 +230,10 @@ def helper_expressions(f: HouseholdMemberSliceFilter) -> list[tuple[str, str]]:
         ("additional_details_pairs",
          "arrayConcat(household_pairs, member_pairs, individual_extra_pairs, [('cycleIndex', cycle_index_json)])"),
         ("additional_details_json", json_object_sql("additional_details_pairs")),
+        # household_member_campaign_field rows: the member's own keys, the individual extras and
+        # cycleIndex (as a number) -- the household's keys are household_campaign_field's (join on household_id)
+        ("campaign_field_pairs",
+         "arrayConcat(member_pairs, individual_extra_pairs, [('cycleIndex', cycle_index_number_json)])"),
         # date_of_birth / age / gender only when the individual row was found (see the module docstring)
         ("individual_known", "joined.individual_matched"),
         *age_expressions("joined.individual_date_of_birth"),
@@ -301,6 +306,9 @@ SPEC = EntitySpec(
             boundary_lookup(boundary_keys_sql, code_expr="joined.address_locality_code"),
             user_lookup(user_keys_sql, user_expr="joined.client_last_modified_by"),
         ),
+        # campaign-specific keys -> household_member_campaign_field, written from the same computed slice
+        campaign_fields=campaign_field_rows_sql("campaign_field_pairs"),
+        campaign_version_column="client_last_modified_time",
     ),
 )
 

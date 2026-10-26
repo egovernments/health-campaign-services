@@ -1,7 +1,7 @@
 """
 sql_flatten_common.py
 
-Shared plumbing for the SQL-side flatten TEST twins in dags/sql_test/.
+Shared plumbing for the SQL-side flatten TEST twins in dags/sql_based_dags/.
 
 Every `<entity>_test_transformation.py` in this folder is a test twin of the
 Python `<entity>_transformation.py` one level up: same bronze inputs, same
@@ -115,6 +115,8 @@ CLICKHOUSE_INSERT_SETTINGS = {
     "max_execution_time": 900,
     # exact float parsing, so a "14.6978646" read out of JSON prints back as Python does
     "precise_float_parsing": 1,
+    # <entity>_campaign_field: a NULL value_* column is stored as its DDL DEFAULT
+    "insert_null_as_default": 1,
 }
 # The one query per run that touches every id in the window (three narrow
 # columns from the projection); let it spill instead of failing on huge windows.
@@ -125,7 +127,7 @@ CLICKHOUSE_PLAN_SETTINGS = {
 }
 CLICKHOUSE_LOOKUP_SETTINGS = {"max_threads": 2}
 
-# task_orchestrator/ sets this False before importing the entity modules for
+# bronze_to_silver_task_orchestrator.py sets this False before importing the entity modules for
 # their SPECs; otherwise each import would also build that entity's twin DAG,
 # and Airflow would auto-register all of them under the orchestrator's file
 # (duplicate dag_ids next to the twins' own files).
@@ -344,7 +346,7 @@ def staff_bridge_join_sql(where: str, on_user_expr: str, on_tenant_expr: str, al
     the newest version (argMax on last_modified_time) and drop it if deleted;
     then per user keep the project of the LOWEST staff row id -- the Python
     DAGs' `ORDER BY ps.id ASC LIMIT 1 BY ps.staff_id`, itself
-    ProjectStaffRepository's default ordering. Reads through 17's prj_by_staff
+    ProjectStaffRepository's default ordering. Reads through 14's prj_by_staff
     (`where` must be `tenant_id = T AND staff_id IN (...)`).
     """
     return f"""
@@ -551,6 +553,68 @@ def json_object_sql(pairs_expr: str, drop_null_values: bool = False) -> str:
     )
 
 
+# Element type of campaign_field_rows_sql: (key, value_type, value_string, value_number, value_date, value_bool);
+# the value_* columns that don't apply are NULL and take their DDL DEFAULT on insert
+CAMPAIGN_FIELD_TUPLE_TYPE = "Tuple(String, String, Nullable(String), Nullable(Float64), Nullable(Date32), Nullable(Bool))"
+# a plain number: no leading zero (so "03" or a phone "0981..." stay text), optional fraction / exponent
+PLAIN_NUMBER_REGEX = "^-?(0|[1-9][0-9]*)(\\\\.[0-9]+)?([eE][-+]?[0-9]+)?$"
+# Float64 holds at most 15 significant digits exactly; longer INTEGER text (numeric ids) stays text
+MAX_NUMBER_DIGITS = 15
+
+
+def campaign_field_rows_sql(pairs_expr: str) -> str:
+    """
+    Array of CAMPAIGN_FIELD_TUPLE_TYPE for a `<entity>_campaign_field` child
+    table, ARRAY JOINed one row per key. Same dict semantics as json_object_sql
+    (first-occurrence key order, the LAST value for a repeated key wins); empty
+    keys and null values are left out.
+
+    Each value is typed here so readers never cast: exactly one value_* column
+    holds it, named by value_type, and the other three are NULL, so the insert
+    stores their DDL DEFAULT ('NOT_APPLICABLE', 0, 1970-01-01, false; needs
+    insert_null_as_default, pinned in CLICKHOUSE_INSERT_SETTINGS). First matching rule wins, on the
+    value's text (JSON strings unquoted):
+      true / false (any case)                        -> bool
+      a JSON object or array                         -> string (its JSON text)
+      a plain number, no leading zero (integers: <= 15 digits) -> number
+      a JSON string YYYY-MM-DD that is a real date   -> date
+      anything else (zero-padded text, datetime text, epoch-ms stays a number) -> string
+    The rule is generic, so a new additionalDetails key needs no code change.
+
+    pairs_expr is bound ONCE to the lambda argument `all_pairs`: every textual
+    reference to a large WITH alias is analysed again, and repeating it inside
+    the dedupe lambdas cost ~0.75 s of planning per slice statement. The later
+    stages bind (key, token, text) and then the type the same way, via arrayMap.
+    """
+    winning_pairs = "arrayMap(k -> (k, arrayLast(p -> p.1 = k, all_pairs).2), arrayDistinct(arrayMap(p -> p.1, all_pairs)))"
+    # (key, json token, text)
+    with_text = (
+        "arrayMap(p -> (p.1, p.2, if(startsWith(p.2, '\"'), JSONExtractString(concat('[', p.2, ']'), 1), p.2)), "
+        f"arrayFilter(p -> p.1 != '' AND p.2 != 'null', {winning_pairs}))"
+    )
+    # (key, text, value_type)
+    with_type = (
+        "arrayMap(field -> (field.1, field.3, multiIf("
+        "lower(field.3) IN ('true', 'false'), 'bool', "
+        "startsWith(field.2, '{') OR startsWith(field.2, '['), 'string', "
+        # the digit cap applies to integers only (long numeric ids); a decimal is approximate in Float64 anyway
+        f"match(field.3, '{PLAIN_NUMBER_REGEX}') AND (match(field.3, '[.eE]') "
+        f"OR length(replaceRegexpAll(field.3, '[^0-9]', '')) <= {MAX_NUMBER_DIGITS}), 'number', "
+        # a real calendar date only: toDate32OrNull rolls 2026-02-31 over to 2026-03-03, so it must round-trip
+        "startsWith(field.2, '\"') AND match(field.3, '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') "
+        "AND toString(toDate32OrNull(field.3)) = field.3, 'date', "
+        f"'string')), {with_text})"
+    )
+    typed = (
+        "arrayMap(typed_field -> (typed_field.1, typed_field.3, "
+        "if(typed_field.3 = 'string', typed_field.2, NULL), "
+        "if(typed_field.3 = 'number', toFloat64OrZero(typed_field.2), NULL), "
+        "if(typed_field.3 = 'date', toDate32OrNull(typed_field.2), NULL), "
+        f"if(typed_field.3 = 'bool', toBool(lower(typed_field.2) = 'true'), NULL)), {with_type})"
+    )
+    return f"arrayMap(all_pairs -> {typed}, [{pairs_expr}])[1]"
+
+
 def json_loads_or_string_sql(field_expr: str) -> str:
     """
     JSON token for a field value after Python's `try: json.loads(value)
@@ -586,7 +650,8 @@ def cycle_index_expressions(project_details_expr: str, event_ms_expr: str) -> li
     """
     cycleIndex as "%02d" text or null (= get_project_cycles + fetch_cycle_index
     + the household/hf_referral/referral/service_task formatting). Yields the
-    WITH entries project_cycles, event_ms, cycle_hit, cycle_index_json.
+    WITH entries project_cycles, event_ms, cycle_hit, cycle_index_json and
+    cycle_index_number_json.
     """
     return [
         ("project_cycles",
@@ -604,6 +669,9 @@ def cycle_index_expressions(project_details_expr: str, event_ms_expr: str) -> li
          "arrayEnumerate(project_cycles)))"),
         ("cycle_index_json",
          "if(cycle_hit > 0, concat('\"', leftPad(toString(project_cycles[cycle_hit].1), 2, '0'), '\"'), 'null')"),
+        # the same cycle as a plain JSON number, for the campaign-field child rows (typed as a number there;
+        # the zero-padded "03" text would be typed as a string)
+        ("cycle_index_number_json", "if(cycle_hit > 0, toString(project_cycles[cycle_hit].1), 'null')"),
     ]
 
 
@@ -805,16 +873,39 @@ LEFT JOIN
 
 @dataclass(frozen=True)
 class SilverTarget:
-    """One INSERT ... SELECT per slice into `<silver_table>_sql_test`."""
+    """One INSERT ... SELECT per slice into `<silver_table>_sql_test`. With
+    campaign_fields set, the slice is computed once into a temporary table and
+    written from there to both `<silver_table>_sql_test` and its
+    `<entity>_campaign_field_sql_test` child (see write_slice_with_campaign_fields)."""
     silver_table: str                                            # unqualified, e.g. "household_entity"
     joined_rows_sql: Callable[[SliceFilter], str]                # one row per output row, aliased `joined`
     helper_expressions: Callable[[SliceFilter], list[tuple[str, str]]]  # WITH clause entries
     silver_columns: list[tuple[str, str]]                        # (silver column, expression), table order
     lookups: tuple[Lookup, ...] = ()                             # joined after `joined`, in this order
+    # Array(Tuple(key, value)) of the row's campaign-specific fields (campaign_field_rows_sql);
+    # every key in it becomes one child row, so a new additionalDetails key needs no code change
+    campaign_fields: str | None = None
+    # the silver column whose value versions the child rows (the silver table's RMT version)
+    campaign_version_column: str = "last_modified_time"
 
     @property
     def test_table(self) -> str:
         return f"{self.silver_table}_sql_test"
+
+    @property
+    def child_table(self) -> str | None:
+        """household_entity -> household_campaign_field"""
+        if self.campaign_fields is None:
+            return None
+        return self.silver_table.removesuffix("_entity") + "_campaign_field"
+
+    @property
+    def child_test_table(self) -> str | None:
+        return f"{self.child_table}_sql_test" if self.child_table else None
+
+    @property
+    def written_test_tables(self) -> tuple[str, ...]:
+        return (self.test_table, self.child_test_table) if self.child_test_table else (self.test_table,)
 
 
 @dataclass(frozen=True)
@@ -841,11 +932,16 @@ class EntitySpec:
 # Rendering
 # =============================================================================
 
-def insert_slice_sql(spec: EntitySpec, target: SilverTarget, slice_filter: SliceFilter,
+# The slice's computed rows when a target has campaign fields: a session-scoped Memory table
+# (clickhouse-connect sends a session id with every call), dropped after each slice.
+SLICE_ROWS_TABLE = "slice_rows"
+
+
+def slice_select_sql(spec: EntitySpec, target: SilverTarget, slice_filter: SliceFilter,
                      lookup_values: dict[str, str]) -> str:
-    """The whole per-slice statement: INSERT INTO test table <-
-    flatten(joined bronze rows LEFT JOIN each lookup's VALUES table)."""
-    insert_columns = ",\n    ".join(column for column, _ in target.silver_columns)
+    """flatten(joined bronze rows LEFT JOIN each lookup's VALUES table): one
+    output row per silver row, in silver column order, plus a trailing
+    `campaign_fields` column when the target has one."""
     # map-style lookups (no join_on) become WITH entries: Map(key -> value) for the slice's tenant
     map_entries = [
         (lookup.alias, lookup_map_sql(lookup, lookup_values[lookup.alias], slice_filter.tenant))
@@ -854,16 +950,20 @@ def insert_slice_sql(spec: EntitySpec, target: SilverTarget, slice_filter: Slice
     helpers = map_entries + target.helper_expressions(slice_filter)
     with_clause = ("WITH\n    " + ",\n    ".join(f"{expression} AS {name}" for name, expression in helpers) + "\n") if helpers else ""
     # Output columns are positional (INSERT maps by position); the comment line
-    # above each expression names the silver column it feeds.
-    select_list = ",\n".join(f"    -- {column}\n    {expression}" for column, expression in target.silver_columns)
+    # above each expression names the silver column it feeds. The temporary slice
+    # table of a campaign-field target needs named columns, so only there each
+    # expression is also aliased.
+    output_columns = list(target.silver_columns)
+    if target.campaign_fields:
+        output_columns.append(("campaign_fields", target.campaign_fields))
+    select_list = ",\n".join(
+        f"    -- {column}\n    {expression}{f' AS {column}' if target.campaign_fields else ''}"
+        for column, expression in output_columns
+    )
     lookup_joins = "".join(
         lookup_join_sql(lookup, lookup_values[lookup.alias]) for lookup in target.lookups if lookup.join_on
     )
     sql = f"""
-INSERT INTO {table(target.test_table)}
-(
-    {insert_columns}
-)
 {with_clause}SELECT
 {select_list}
 FROM
@@ -877,6 +977,57 @@ FROM
             f"{MAX_INSERT_SQL_BYTES}"
         )
     return sql
+
+
+def insert_slice_sql(spec: EntitySpec, target: SilverTarget, slice_filter: SliceFilter,
+                     lookup_values: dict[str, str]) -> str:
+    """The whole per-slice statement of a target without campaign fields:
+    INSERT INTO test table <- slice_select_sql."""
+    insert_columns = ",\n    ".join(column for column, _ in target.silver_columns)
+    return f"""
+INSERT INTO {table(target.test_table)}
+(
+    {insert_columns}
+)
+{slice_select_sql(spec, target, slice_filter, lookup_values)}"""
+
+
+def write_slice_with_campaign_fields(spec: EntitySpec, target: SilverTarget, client, slice_filter: SliceFilter,
+                                     lookup_values: dict[str, str]) -> None:
+    """The slice is computed ONCE (joins, lookups, helper expressions) into a
+    temporary Memory table, then the silver row and its campaign-field child rows
+    are both inserted from it -- no second pass over bronze, no materialized views."""
+    silver_columns = ", ".join(column for column, _ in target.silver_columns)
+    client.command(f"DROP TEMPORARY TABLE IF EXISTS {SLICE_ROWS_TABLE}")
+    try:
+        # structure from the silver test table (cheap), then one INSERT: CREATE ... AS <slice select>
+        # would analyse the large slice query twice (structure inference + execution)
+        client.command(
+            f"CREATE TEMPORARY TABLE {SLICE_ROWS_TABLE} ENGINE = Memory AS "
+            f"SELECT {silver_columns}, CAST([], 'Array({CAMPAIGN_FIELD_TUPLE_TYPE})') AS campaign_fields "
+            f"FROM {table(target.test_table)} LIMIT 0"
+        )
+        client.command(
+            f"INSERT INTO {SLICE_ROWS_TABLE} ({silver_columns}, campaign_fields)"
+            f"{slice_select_sql(spec, target, slice_filter, lookup_values)}",
+            settings=CLICKHOUSE_INSERT_SETTINGS,
+        )
+        client.command(
+            f"INSERT INTO {table(target.test_table)} ({silver_columns}) SELECT {silver_columns} FROM {SLICE_ROWS_TABLE}",
+            settings=CLICKHOUSE_INSERT_SETTINGS,
+        )
+        client.command(
+            f"""
+INSERT INTO {table(target.child_test_table)}
+    (id, key, value_type, value_string, value_number, value_date, value_bool, tenant_id, campaign_number, last_modified_time)
+SELECT id, campaign_field.1, campaign_field.2, campaign_field.3, campaign_field.4, campaign_field.5, campaign_field.6,
+       tenant_id, campaign_number, {target.campaign_version_column}
+FROM {SLICE_ROWS_TABLE}
+ARRAY JOIN campaign_fields AS campaign_field""",
+            settings=CLICKHOUSE_INSERT_SETTINGS,
+        )
+    finally:
+        client.command(f"DROP TEMPORARY TABLE IF EXISTS {SLICE_ROWS_TABLE}")
 
 
 def render_lookup_values(spec: EntitySpec, lookup: Lookup, rows: list[list[str]]) -> str:
@@ -896,10 +1047,14 @@ def create_test_tables(spec: EntitySpec, client, truncate: bool) -> None:
     """Test targets mirror their silver tables (columns, engine, ORDER BY,
     indexes) so the two can be diffed."""
     for target in spec.targets:
-        client.command(f"CREATE TABLE IF NOT EXISTS {table(target.test_table)} AS {table(target.silver_table)}")
-        if truncate:
-            client.command(f"TRUNCATE TABLE {table(target.test_table)}")
-            log.info("%s: truncated %s", spec.dag_id, table(target.test_table))
+        sources = [(target.test_table, target.silver_table)]
+        if target.child_table:
+            sources.append((target.child_test_table, target.child_table))
+        for test_table, source_table in sources:
+            client.command(f"CREATE TABLE IF NOT EXISTS {table(test_table)} AS {table(source_table)}")
+            if truncate:
+                client.command(f"TRUNCATE TABLE {table(test_table)}")
+                log.info("%s: truncated %s", spec.dag_id, table(test_table))
 
 
 def plan_slices(spec: EntitySpec, client, window: TimeWindow, slice_size: int) -> list[Slice]:
@@ -997,11 +1152,15 @@ def process_slice(spec: EntitySpec, client, window: TimeWindow, slice_: Slice) -
     insert_started = time.monotonic()
     written_rows = 0
     for target in spec.targets:
-        # rows written = the test table's row-count delta (this DAG is the table's only
-        # writer, and the delta works on every clickhouse-connect version, unlike QuerySummary)
-        rows_before = count_rows(client, table(target.test_table))
-        client.command(insert_slice_sql(spec, target, slice_filter, lookup_values), settings=CLICKHOUSE_INSERT_SETTINGS)
-        written_rows += count_rows(client, table(target.test_table)) - rows_before
+        # rows written = the test tables' row-count delta (this DAG is their only writer,
+        # and the delta works on every clickhouse-connect version, unlike QuerySummary)
+        rows_before = sum(count_rows(client, table(name)) for name in target.written_test_tables)
+        if target.campaign_fields:
+            write_slice_with_campaign_fields(spec, target, client, slice_filter, lookup_values)
+        else:
+            client.command(insert_slice_sql(spec, target, slice_filter, lookup_values),
+                           settings=CLICKHOUSE_INSERT_SETTINGS)
+        written_rows += sum(count_rows(client, table(name)) for name in target.written_test_tables) - rows_before
     insert_seconds = time.monotonic() - insert_started
 
     return SliceResult(
@@ -1078,7 +1237,7 @@ def run_transformation(spec: EntitySpec, time_window: dict) -> None:
     """One whole run of an entity: plans the slices, then runs process_slice for
     each (with an immediate retry) and logs timings. `time_window` is the
     {start_time, end_time, truncate_target} payload. Shared by the per-entity
-    twin DAGs below and by task_orchestrator/, which runs every entity as a
+    twin DAGs below and by bronze_to_silver_task_orchestrator.py, which runs every entity as a
     task of one DAG. Filtered on _ingested_at, not last_modified_time -- see
     airflow_dags/CLAUDE.md "Bronze read window column".
 
@@ -1127,8 +1286,8 @@ def run_transformation(spec: EntitySpec, time_window: dict) -> None:
         )
 
     counts = "; ".join(
-        f"{table(target.test_table)} row count (no FINAL)={count_rows(client, table(target.test_table))}"
-        for target in spec.targets
+        f"{table(name)} row count (no FINAL)={count_rows(client, table(name))}"
+        for target in spec.targets for name in target.written_test_tables
     )
     log.info(
         "%s: done. written_rows=%d over %d/%d slices; insert total %.1fs, api total %.1fs; %s",

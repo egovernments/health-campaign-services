@@ -11,7 +11,7 @@ Entity name `service_task_test` (dag_id service_task_test_transformation).
 Known differences from service_task_transformation.py (all deliberate)
     - stg_service is read with FINAL (the Python DAG reads every version).
     - The project resolved BY NAME (for services without an account_id) is the
-      lowest project id per name through 18's prj_by_name, as the Python DAG's
+      lowest project id per name through 14's prj_by_name, as the Python DAG's
       `LIMIT 1 BY name`; stg_service_definition is read with FINAL (own PK).
     - Attribute rows are one per stg_service_attribute_value id (newest
       version); the Python DAG writes every bronze row it reads. A nested
@@ -54,13 +54,13 @@ from sql_flatten_common import (  # noqa: E402
 #                                                                                                       -- the primary tier
 #   stg_service_definition(FINAL) definition       definition.id = service.service_def_id AND tenant    code "<projectName>.<checklist>.<level>"
 #   stg_project                   project_by_name  project_by_name.name = the code's project name AND   the same project columns, used ONLY when
-#                                                  tenant (18's prj_by_name, lowest id per name)         service.account_id is empty
+#                                                  tenant (14's prj_by_name, lowest id per name)         service.account_id is empty
 #   boundary-service response     levels           (tenant_id, hierarchy_type, boundary_code)           level_one_code .. level_nine_code
 #   user-service response         users            (tenant_id, created_by)                              user_name, name_of_user, role, user_address
 #
 # Second target, service_task_attribute_entity_sql_test:
 #   stg_service_attribute_value   attribute        attribute.reference_id IN the slice's service ids    every column; `value` unwrapped from its
-#                                                  (18's prj_by_reference; no tenant_id column)          {"value": ...} wrapper
+#                                                  (14's prj_by_reference; no tenant_id column)          {"value": ...} wrapper
 
 
 class ServiceTaskSliceFilter(SliceFilter):

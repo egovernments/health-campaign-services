@@ -36,6 +36,7 @@ from sql_flatten_common import (  # noqa: E402
     address_join_sql,
     boundary_lookup,
     build_sql_test_dag,
+    campaign_field_rows_sql,
     cycle_index_expressions,
     json_double_or_null_sql,
     json_int_or_zero_sql,
@@ -65,7 +66,7 @@ from sql_flatten_common import (  # noqa: E402
 #                                                                                                              cycles (cycleIndex on created_time)
 #   stg_project_address        project_address        project_id = project.id AND tenant (14's prj_by_project) boundary code fallback for PROJECT refs
 #   stg_project_staff          staff                  staff.staff_id = the held facility id AND tenant, ONLY   the STAFF facility's project ...
-#                                                     when its derived type is STAFF (17's prj_by_staff)
+#                                                     when its derived type is STAFF (14's prj_by_staff)
 #   stg_project (FINAL)        staff_project          id = staff.first_project_id AND tenant                   ... hierarchy_type for STAFF facilities
 #   stg_project_address        staff_project_address  project_id = staff_project.id AND tenant                 ... boundary code for STAFF facilities
 #   boundary-service response  levels                 (tenant_id, hierarchy_type, boundary_code)               level_one_code .. level_nine_code
@@ -280,7 +281,13 @@ def helper_expressions(f: StockSliceFilter) -> list[tuple[str, str]]:
          f"arrayMap(fld -> (JSONExtractString(fld, 'key'), if(JSONExtractString(fld, 'key') IN ({double_keys}), "
          f"{json_double_or_null_sql('fld')}, {json_value_sql('fld')})), "
          "arrayFilter(fld -> JSONHas(fld, 'key'), JSONExtractArrayRaw(joined.additional_details, 'fields')))"),
-        ("additional_details_json", json_object_sql("arrayConcat(field_pairs, [('cycleIndex', cycle_index_json)])")),
+        ("additional_details_pairs", "arrayConcat(field_pairs, [('cycleIndex', cycle_index_json)])"),
+        ("additional_details_json", json_object_sql("additional_details_pairs")),
+        # stock_campaign_field rows: every key of the derived blob (cycleIndex as a number), plus the
+        # facility's own additionalFields `target` (0 = STAFF facility or no target key, left out)
+        ("campaign_field_pairs",
+         "arrayConcat(field_pairs, [('cycleIndex', cycle_index_number_json)], "
+         "if(facility_target_out != 0, [('facilityTarget', toString(facility_target_out))], []))"),
     ]
 
 
@@ -347,6 +354,9 @@ SPEC = EntitySpec(
             user_lookup(facility_user_keys_sql, user_expr="joined.facility_id", alias="facility_users"),
             user_lookup(transacting_user_keys_sql, user_expr="joined.transacting_facility_id", alias="transacting_users"),
         ),
+        # campaign-specific keys -> stock_campaign_field, written from the same computed slice
+        campaign_fields=campaign_field_rows_sql("campaign_field_pairs"),
+        campaign_version_column="last_modified_time",
     ),
 )
 

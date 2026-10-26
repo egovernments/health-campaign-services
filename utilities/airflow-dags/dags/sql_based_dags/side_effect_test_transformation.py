@@ -59,7 +59,7 @@ from sql_flatten_common import (  # noqa: E402
 #                                                                                                        symptoms, additional_fields
 #   stg_project_task           task             task.client_reference_id =                               the beneficiary reference, the task's
 #                                               side_effect.task_client_reference_id AND tenant          address and project, cycleIndex
-#                                               (18's prj_by_client_ref, lowest task id per reference)
+#                                               (14's prj_by_client_ref, lowest task id per reference)
 #   stg_address (FINAL)        address          address.id = task.latest_address_id AND tenant           boundary code (first tier)
 #   stg_project (FINAL)        task_project     task_project.id = task.latest_project_id AND tenant      hierarchy_type (ONLY from the task's
 #                                                                                                        project, never the staff bridge's)
@@ -67,11 +67,11 @@ from sql_flatten_common import (  # noqa: E402
 #                                               (14's prj_by_project)
 #   stg_project_beneficiary    beneficiary      beneficiary.client_reference_id = the TASK's             the individual's reference
 #                                               project_beneficiary_client_reference_id AND tenant
-#                                               (16's prj_by_client_ref, lowest id per reference)
+#                                               (14's prj_by_client_ref, lowest id per reference)
 #   stg_individual             individual       individual.client_reference_id = beneficiary ref         date_of_birth, age, gender,
-#                                               AND tenant (16's prj_by_client_ref, lowest id)           height / disabilityType
+#                                               AND tenant (14's prj_by_client_ref, lowest id)           height / disabilityType
 #   stg_project_staff          staff            staff.staff_id = side_effect.client_last_modified_by     the project id of the user's lowest-id
-#                                               AND tenant (17's prj_by_staff)                           non-deleted staff row -> project_* trailer
+#                                               AND tenant (14's prj_by_staff)                           non-deleted staff row -> project_* trailer
 #   stg_project (FINAL)        project          project.id = staff.first_project_id AND tenant           project_* columns, campaign_number
 #   boundary-service response  levels           (tenant_id, task project hierarchyType, boundary_code)   level_one_code .. level_nine_code
 #   user-service response      users            (tenant_id, client_created_by)                           user_name, name_of_user, role, user_address

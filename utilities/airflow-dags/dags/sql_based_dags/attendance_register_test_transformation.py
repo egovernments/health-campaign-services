@@ -48,11 +48,11 @@ from sql_flatten_common import (  # noqa: E402
 #   stg_project_address             project_address  project_address.project_id = project.id AND tenant    boundary lookup FALLBACK after
 #                                                    (14's prj_by_project)                                 register.locality_code
 #   stg_attendance_attendee         attendees        attendees.register_id = register.id AND tenant        attendees_count, and the attendees'
-#                                                    (18's prj_by_register, grouped per register)          individuals -> user uuids
+#                                                    (14's prj_by_register, grouped per register)          individuals -> user uuids
 #   stg_individual (FINAL)          -- inside        individual.id = attendee.individual_id AND tenant     user_uuid per attendee
 #                                   attendees        (own PK), deleted individuals excluded
 #   stg_attendance_staff            staff            staff.register_id = register.id AND tenant            staffs_count
-#                                                    (18's prj_by_register, grouped per register)
+#                                                    (14's prj_by_register, grouped per register)
 #   boundary-service response       levels           (tenant_id, hierarchy_type, lookup_boundary_code)     level_one_code .. level_nine_code
 #   user-service response           attendee_users   Map(user_uuid -> user info JSON) for the tenant       attendees_info
 

@@ -49,7 +49,7 @@ from sql_flatten_common import (  # noqa: E402
 #   stg_pgr_service (FINAL)    service   tenant_id + id range of the slice                        every plain column, hierarchy_type (a bronze
 #                                                                                                 column here, no project needed)
 #   stg_pgr_address            address   address.parent_id = service.id AND tenant                address_* columns, boundary_code
-#                                        (18's prj_by_parent, one address per service)
+#                                        (14's prj_by_parent, one address per service)
 #   stg_project_staff          staff     staff.staff_id = service.last_modified_by AND tenant     the project id of the user's lowest-id staff row
 #   stg_project (FINAL)        project   project.id = staff.first_project_id AND tenant           project_* columns, campaign_number
 #   boundary-service response  levels    (tenant_id, service.hierarchy_type, address.locality)    level_one_code .. level_nine_code

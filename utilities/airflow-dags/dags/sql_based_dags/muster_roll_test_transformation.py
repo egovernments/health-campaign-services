@@ -46,10 +46,10 @@ from sql_flatten_common import (  # noqa: E402
 #   -------------------------  -------------------  --------------------------------------------------------  --------------------------------------
 #   stg_muster_roll (FINAL)    muster_roll          tenant_id + id range of the slice                         every plain column, edited
 #   stg_attendance_summary     summary              summary.muster_roll_id = muster_roll.id                   individual_entry_id, individual_id,
-#                                                   (18's prj_by_muster_roll; this table has no tenant_id;    actual_total_attendance
+#                                                   (14's prj_by_muster_roll; this table has no tenant_id;    actual_total_attendance
 #                                                   ONE SILVER ROW PER SUMMARY ENTRY, one row when none)
 #   stg_project_staff          created_by_staff     staff_id = muster_roll.created_by AND tenant              the created-by user's project ...
-#                                                   (17's prj_by_staff, lowest staff row id per user)
+#                                                   (14's prj_by_staff, lowest staff row id per user)
 #   stg_project (FINAL)        created_by_project   id = created_by_staff.first_project_id AND tenant         ... whose hierarchyType and boundary
 #   stg_project_address        created_by_address   project_id = created_by_project.id AND tenant             drive the boundary lookup ONLY
 #                                                   (14's prj_by_project)

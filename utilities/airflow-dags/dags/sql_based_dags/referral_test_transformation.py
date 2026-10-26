@@ -59,16 +59,16 @@ from sql_flatten_common import (  # noqa: E402
 #   stg_side_effect (FINAL)    side_effect_by_id    side_effect_by_id.id = referral.side_effect_id         side_effect JSON, preferred
 #   stg_side_effect            side_effect_by_ref   client_reference_id =                                  side_effect JSON, fallback
 #                                                   referral.side_effect_client_reference_id AND tenant
-#                                                   (18's prj_by_client_ref, one row per reference)
+#                                                   (14's prj_by_client_ref, one row per reference)
 #   stg_project_beneficiary    beneficiary          beneficiary.client_reference_id =                      the individual's reference, the
 #                                                   referral.project_beneficiary_client_reference_id       beneficiary's project id
-#                                                   AND tenant (16's prj_by_client_ref, lowest id)
+#                                                   AND tenant (14's prj_by_client_ref, lowest id)
 #   stg_project (FINAL)        project              project.id = beneficiary.latest_project_id AND tenant  project_* columns, campaign_number,
 #                                                                                                          hierarchy_type, cycles (cycleIndex on
 #                                                                                                          the SERVER created_time)
 #   stg_project_address        project_address      project_id = project.id AND tenant (14's prj_by_project) boundary code fallback
 #   stg_individual             individual           individual.client_reference_id = beneficiary ref      date_of_birth, age, gender,
-#                                                   AND tenant (16's prj_by_client_ref, lowest id)         height / disabilityType, the address key
+#                                                   AND tenant (14's prj_by_client_ref, lowest id)         height / disabilityType, the address key
 #   stg_individual_address     individual_address   individual_address.individual_id = individual.latest_id boundary code (first tier), via the
 #   + stg_address (FINAL)                           (own PK prefix; oldest non-deleted address row)         address's locality_code
 #   boundary-service response  levels               (tenant_id, hierarchy_type, boundary_code)             level_one_code .. level_nine_code

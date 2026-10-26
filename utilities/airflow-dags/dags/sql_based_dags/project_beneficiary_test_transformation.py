@@ -32,6 +32,7 @@ from sql_flatten_common import (  # noqa: E402
     age_expressions,
     boundary_lookup,
     build_sql_test_dag,
+    campaign_field_rows_sql,
     json_object_sql,
     json_string_sql,
     json_value_sql,
@@ -54,7 +55,7 @@ from sql_flatten_common import (  # noqa: E402
 #                                                    (14's prj_by_project)                                  beneficiary's own `locality` field)
 #   stg_individual                  individual       individual.client_reference_id =                       ageInMonths / gender BACKFILL when the
 #                                                    beneficiary.beneficiary_client_reference_id AND tenant beneficiary's own fields lack them
-#                                                    (16's prj_by_client_ref, one row per reference)
+#                                                    (14's prj_by_client_ref, one row per reference)
 #   boundary-service response       levels           (tenant_id, hierarchy_type, lookup_boundary_code)      level_one_code .. level_nine_code
 #   user-service response           users            (tenant_id, client_last_modified_by)                   user_name, name_of_user, role, user_address
 
@@ -203,6 +204,8 @@ def helper_expressions(f: ProjectBeneficiarySliceFilter) -> list[tuple[str, str]
          "if(joined.individual_matched AND age_missing, [('ageInMonths', backfill_age_json)], []), "
          "if(joined.individual_matched AND gender_missing, [('gender', backfill_gender_json)], []))"),
         ("additional_details_json", json_object_sql("additional_details_pairs")),
+        # project_beneficiary_campaign_field rows: every key of the derived blob
+        ("campaign_field_pairs", "additional_details_pairs"),
     ]
 
 
@@ -259,6 +262,9 @@ SPEC = EntitySpec(
             boundary_lookup(boundary_keys_sql, code_expr="joined.lookup_boundary_code"),
             user_lookup(user_keys_sql, user_expr="joined.client_last_modified_by"),
         ),
+        # campaign-specific keys -> project_beneficiary_campaign_field, written from the same computed slice
+        campaign_fields=campaign_field_rows_sql("campaign_field_pairs"),
+        campaign_version_column="client_last_modified_time",
     ),
 )
 

@@ -43,6 +43,9 @@ from sql_flatten_common import (  # noqa: E402
     address_join_sql,
     boundary_lookup,
     build_sql_test_dag,
+    campaign_field_rows_sql,
+    field_pairs_sql,
+    json_string_sql,
     one_row_per_key_sql,
     project_address_join_sql,
     project_join_sql,
@@ -58,7 +61,8 @@ from sql_flatten_common import (  # noqa: E402
 #   stg_project_task (FINAL)      task             tenant_id + id range of the slice                        task_id, status, client audit columns,
 #                                                                                                           additional_details, synced_*, task_dates
 #   stg_task_resource             resource         resource.task_id = task.id AND tenant                    id, client_reference_id, product_variant,
-#                                                  (16's prj_by_task, argMax, is_deleted after argMax)      quantity, is_delivered, delivery_comments
+#                                                  (14's prj_by_task, argMax, is_deleted after argMax)      quantity, is_delivered, delivery_comments
+
 #                                                  ONE SILVER ROW PER RESOURCE; placeholder row when none
 #   stg_address (FINAL)           address          address.id = task.address_id AND tenant (own PK)         latitude, longitude, location_accuracy,
 #                                                                                                           boundary_code, geo_point, boundary lookup
@@ -70,7 +74,7 @@ from sql_flatten_common import (  # noqa: E402
 #                                                  (14's prj_by_project, one boundary per project)
 #   stg_project_beneficiary       beneficiary      beneficiary.client_reference_id =                        household_id / individual_id, and the key
 #                                                  task.project_beneficiary_client_reference_id AND tenant  into household / individual
-#                                                  (16's prj_by_client_ref, ONE row per task-side ref)
+#                                                  (14's prj_by_client_ref, ONE row per task-side ref)
 #   stg_household                 household        household.client_reference_id = beneficiary ref          member_count   (HOUSEHOLD projects only)
 #                                                  AND tenant (prj_by_client_ref, one row per ref)
 #   stg_individual                individual       individual.client_reference_id = beneficiary ref         date_of_birth, gender, age (INDIVIDUAL only)
@@ -326,6 +330,21 @@ def helper_expressions(f: ProjectTaskSliceFilter) -> list[tuple[str, str]]:
          "computed_cycle_index BETWEEN 0 AND 255, computed_cycle_index, toInt64(0))"),
         ("dose_index_value",
          "if(is_individual_project AND parsed_dose_index BETWEEN 0 AND 255, parsed_dose_index, toInt64(0))"),
+        # project_task_campaign_field rows: the task's fields as JSON tokens (task_fields above loses
+        # non-string values), then the resolved cycleIndex / doseIndex in place of the raw keys, then
+        # the beneficiary details of the project's beneficiary type -- an individual's age (months),
+        # gender, dateOfBirth and individualId, or a household's householdId and memberCount
+        ("campaign_field_pairs",
+         f"arrayConcat({field_pairs_sql('joined.additional_details')}, "
+         "[('cycleIndex', toString(cycle_index_value)), ('doseIndex', toString(dose_index_value))], "
+         f"if(is_individual_project AND beneficiary_found, [('individualId', {json_string_sql('joined.beneficiary_ref')})], []), "
+         "if(individual_known, ["
+         "('age', toString(greatest(toInt64(0), age_months))), "
+         f"('gender', {json_string_sql('joined.individual_gender')}), "
+         f"('dateOfBirth', {json_string_sql('toString(joined.individual_date_of_birth)')})], []), "
+         "if(is_household_project AND beneficiary_found, ["
+         f"('householdId', {json_string_sql('joined.beneficiary_ref')}), "
+         "('memberCount', toString(joined.household_member_count))], []))"),
 
         # geo_point = json.dumps([longitude, latitude]); Python prints integral floats as 12.0
         ("lon_json", python_float_text_sql("joined.address_longitude")),
@@ -413,6 +432,9 @@ SPEC = EntitySpec(
             boundary_lookup(boundary_keys_sql, code_expr="joined.lookup_boundary_code"),
             user_lookup(user_keys_sql, user_expr="joined.client_created_by"),
         ),
+        # campaign-specific keys -> project_task_campaign_field, written from the same computed slice
+        campaign_fields=campaign_field_rows_sql("campaign_field_pairs"),
+        campaign_version_column="last_modified_time",
     ),
 )
 

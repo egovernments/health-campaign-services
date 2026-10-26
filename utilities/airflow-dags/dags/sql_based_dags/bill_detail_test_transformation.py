@@ -53,11 +53,11 @@ from sql_flatten_common import (  # noqa: E402
 #                                                                                                      bill's locality_code), bill_number for
 #                                                                                                      the bill-level workflow lookup
 #   stg_expense_party              party        party.parent_id = detail.id AND tenant                 payee (JSON of the lowest-id party)
-#                                               (18's prj_by_parent)
+#                                               (14's prj_by_parent)
 #   stg_expense_lineitem           line_items   line_items.bill_detail_id = detail.id AND tenant       line_items, payable_line_items (JSON
-#                                               (18's prj_by_billdetail, grouped per detail)           arrays)
+#                                               (14's prj_by_billdetail, grouped per detail)           arrays)
 #   stg_project_staff              staff        staff.staff_id = detail.last_modified_by AND tenant    the project id of the user's lowest-id
-#                                               (17's prj_by_staff)                                    non-deleted staff row
+#                                               (14's prj_by_staff)                                    non-deleted staff row
 #   stg_project (FINAL)            project      project.id = staff.first_project_id AND tenant         project_* columns, campaign_number,
 #                                                                                                      hierarchy_type
 #   boundary-service response      levels       (tenant_id, hierarchy_type, bill.locality_code)        level_one_code .. level_nine_code

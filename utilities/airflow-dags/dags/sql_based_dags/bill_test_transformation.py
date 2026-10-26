@@ -52,11 +52,11 @@ from sql_flatten_common import (  # noqa: E402
 #   stg_expense_bill (FINAL)   bill             tenant_id + id range of the slice                     every plain column, boundary_code
 #                                                                                                     (= locality_code), additional_details
 #   stg_expense_party          party            party.parent_id = bill.id AND tenant                  payer (JSON of the lowest-id party)
-#                                               (18's prj_by_parent, one party per bill)
+#                                               (14's prj_by_parent, one party per bill)
 #   stg_expense_billdetail     details          details.bill_id = bill.id AND tenant                  bill_details (JSON array of detail ids)
-#                                               (18's prj_by_bill, grouped per bill)
+#                                               (14's prj_by_bill, grouped per bill)
 #   stg_project_staff          staff            staff.staff_id = bill.last_modified_by AND tenant     the project id of the user's lowest-id
-#                                               (17's prj_by_staff)                                   non-deleted staff row
+#                                               (14's prj_by_staff)                                   non-deleted staff row
 #   stg_project (FINAL)        project          project.id = staff.first_project_id AND tenant        project_* columns, campaign_number,
 #                                                                                                     hierarchy_type
 #   boundary-service response  levels           (tenant_id, hierarchy_type, bill.locality_code)       level_one_code .. level_nine_code
