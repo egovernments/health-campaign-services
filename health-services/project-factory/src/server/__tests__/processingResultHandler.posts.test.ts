@@ -500,11 +500,11 @@ describe('buildPostLinkAdditionalFields (frontline worker on the post link)', ()
         expect(result['CRID-2'].fields).toEqual([{ key: 'frontlineWorkerPhone', value: '9123456780' }]);
     });
 
-    it('adds nothing for a post without a worker, or for a facility row', () => {
+    it('marks the link of a post without a worker too (empty fields), and leaves facility rows alone', () => {
         const result = buildPostLinkAdditionalFields([
             { uniqueIdentifier: 'CRID-3', data: { HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID: 'CRID-3', HCM_ADMIN_CONSOLE_POST_WORKER_NAME: '  ' } },
             { uniqueIdentifier: 'Warehouse A', data: { HCM_ADMIN_CONSOLE_FACILITY_NAME: 'Warehouse A', HCM_ADMIN_CONSOLE_POST_WORKER_NAME: 'X' } },
         ]);
-        expect(result).toEqual({});
+        expect(result).toEqual({ 'CRID-3': { schema: 'PostAssignment', version: 1, fields: [] } });
     });
 });

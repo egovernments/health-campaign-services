@@ -435,9 +435,10 @@ async function processResourceMappings(
 }
 
 /**
- * additionalFields for the project-facility links of posts that name a frontline worker, keyed by the
- * post's uniqueIdentifier (its clientReferenceId). The worker is campaign data: it is stored on this
- * campaign's link only, never on the post facility, so it does not follow the post to the next campaign.
+ * additionalFields for the project-facility link of every post, keyed by the post's uniqueIdentifier (its
+ * clientReferenceId). The PostAssignment schema marks the link as a post link (the indexer filters on it);
+ * fields carry the frontline worker, if given. The worker is campaign data: it is stored on this campaign's
+ * link only, never on the post facility, so it does not follow the post to the next campaign.
  */
 export function buildPostLinkAdditionalFields(facilityData: any[]): Record<string, any> {
     const result: Record<string, any> = {};
@@ -450,18 +451,16 @@ export function buildPostLinkAdditionalFields(facilityData: any[]): Record<strin
         ]
             .map(f => ({ key: f.key, value: String(f.value ?? '').trim() }))
             .filter(f => f.value);
-        if (fields.length > 0) {
-            result[row.uniqueIdentifier] = {
-                schema: postLinkAdditionalFieldsSchema.schema,
-                version: postLinkAdditionalFieldsSchema.version,
-                fields
-            };
-        }
+        result[row.uniqueIdentifier] = {
+            schema: postLinkAdditionalFieldsSchema.schema,
+            version: postLinkAdditionalFieldsSchema.version,
+            fields
+        };
     }
     return result;
 }
 
-/** { additionalFields } for a post link that names a frontline worker; {} for every other link. */
+/** { additionalFields } for a post link; {} for every other link. */
 function withPostLinkFields(postLinkFieldsMap: Record<string, any>, mapping: any): Record<string, any> {
     const additionalFields = mapping ? postLinkFieldsMap[mapping.uniqueIdentifierForData] : undefined;
     return additionalFields ? { additionalFields } : {};
