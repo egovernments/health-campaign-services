@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
+import java.util.List;
 
 @Component
 @Getter
@@ -38,6 +39,9 @@ public class ExcelIngestionConfig {
 
     @Value("${egov.campaign.host}")
     private String campaignHost;
+
+    @Value("${excel.ingestion.posts.campaign.types:POLIO}")
+    private List<String> postsCampaignTypes;
 
     @Value("${egov.campaign.data.search.path}")
     private String campaignDataSearchPath;

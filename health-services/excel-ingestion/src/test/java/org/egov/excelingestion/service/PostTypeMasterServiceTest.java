@@ -2,6 +2,7 @@ package org.egov.excelingestion.service;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.CampaignSearchResponse;
@@ -50,7 +51,9 @@ class PostTypeMasterServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PostTypeMasterService(mdmsService, campaignService, new CustomExceptionHandler());
+        ExcelIngestionConfig config = new ExcelIngestionConfig();
+        config.setPostsCampaignTypes(List.of("POLIO"));
+        service = new PostTypeMasterService(mdmsService, campaignService, new CustomExceptionHandler(), config);
     }
 
     @Test
@@ -110,6 +113,16 @@ class PostTypeMasterServiceTest {
     }
 
     @Test
+    void isSheetApplicable_otherCampaignType_falseEvenIfCampaignUsesTheMethod() {
+        mockMaster(masterRow("CLF", true, true));
+        CampaignSearchResponse.CampaignDetail smc = campaignWithCycleDataDeliveryMethods("OUTSIDEHOUSEHOLD");
+        smc.setProjectType("SMC");
+        when(campaignService.searchCampaignById(eq(CAMPAIGN_ID), eq(TENANT), any())).thenReturn(smc);
+
+        assertFalse(service.isSheetApplicable(ProcessingConstants.POSTS_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo()));
+    }
+
+    @Test
     void isSheetApplicable_masterEmpty_falseEvenIfCampaignUsesTheMethod() {
         mockMaster();
         when(campaignService.searchCampaignById(eq(CAMPAIGN_ID), eq(TENANT), any()))
@@ -135,7 +148,7 @@ class PostTypeMasterServiceTest {
         Map<String, Object> cycleData = Map.of("deliveryMethods", List.of(codes));
         CampaignSearchResponse.AdditionalDetails details =
                 CampaignSearchResponse.AdditionalDetails.builder().cycleData(cycleData).build();
-        return CampaignSearchResponse.CampaignDetail.builder().additionalDetails(details).build();
+        return CampaignSearchResponse.CampaignDetail.builder().projectType("POLIO").additionalDetails(details).build();
     }
 
     private static Map<String, Object> masterRow(String code, boolean active, boolean isPermanentByDefault) {

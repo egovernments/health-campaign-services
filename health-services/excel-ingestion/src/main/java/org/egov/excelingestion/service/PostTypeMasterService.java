@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.CampaignSearchResponse;
@@ -36,12 +37,14 @@ public class PostTypeMasterService {
     private final MDMSService mdmsService;
     private final CampaignService campaignService;
     private final CustomExceptionHandler exceptionHandler;
+    private final ExcelIngestionConfig config;
 
     public PostTypeMasterService(MDMSService mdmsService, CampaignService campaignService,
-                                 CustomExceptionHandler exceptionHandler) {
+                                 CustomExceptionHandler exceptionHandler, ExcelIngestionConfig config) {
         this.mdmsService = mdmsService;
         this.campaignService = campaignService;
         this.exceptionHandler = exceptionHandler;
+        this.config = config;
     }
 
     /**
@@ -69,8 +72,9 @@ public class PostTypeMasterService {
 
     /**
      * Whether a configured sheet applies: every sheet except the posts sheet always does; the posts sheet
-     * only when the campaign uses the outside-household delivery method AND the post-types master has at
-     * least one active code. False when there is no campaign to check (blank referenceId or an
+     * only when the campaign type is one of excel.ingestion.posts.campaign.types (POLIO by default), the
+     * campaign uses the outside-household delivery method AND the post-types master has at least one
+     * active code. False when there is no campaign to check (blank referenceId or an
      * attendance-register reference).
      */
     public boolean isSheetApplicable(String sheetNameKey, String referenceId, String referenceType,
@@ -84,8 +88,16 @@ public class PostTypeMasterService {
         }
         CampaignSearchResponse.CampaignDetail campaign =
                 campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
-        return extractDeliveryMethods(campaign).contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)
+        return isPostsCampaignType(campaign)
+                && extractDeliveryMethods(campaign).contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)
                 && !getPostTypes(requestInfo, tenantId).isEmpty();
+    }
+
+    private boolean isPostsCampaignType(CampaignSearchResponse.CampaignDetail campaign) {
+        String projectType = campaign == null ? null : normalize(campaign.getProjectType());
+        List<String> types = config.getPostsCampaignTypes();
+        return projectType != null && types != null
+                && types.stream().map(PostTypeMasterService::normalize).anyMatch(projectType::equals);
     }
 
     /** Upper-cases and trims; null for a null or blank code. Shared lookup key for every caller. */
