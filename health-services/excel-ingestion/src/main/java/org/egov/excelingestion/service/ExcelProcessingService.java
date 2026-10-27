@@ -227,6 +227,7 @@ public class ExcelProcessingService {
 
                     // Enrich resource additionalDetails with error count and status for this sheet
                     enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors);
+                    enrichmentUtil.enrichSheetSchemaErrorCount(resource, sheetName, sheetErrors);
 
                     // Enrich resource additionalDetails with row count for this sheet
                     enrichmentUtil.enrichRowCountInAdditionalDetails(resource, sheetData.size());

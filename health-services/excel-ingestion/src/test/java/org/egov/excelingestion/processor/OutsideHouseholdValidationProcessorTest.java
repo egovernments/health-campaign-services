@@ -107,6 +107,17 @@ class OutsideHouseholdValidationProcessorTest {
     }
 
     @Test
+    void schemaErrorsOnThisSheetMakeTheSheetInvalidEvenWithoutOwnErrors() {
+        // The schema check found an error on this sheet (for example an old site type); this processor finds none
+        resource.setAdditionalDetails(new HashMap<>(Map.of(
+                ValidationConstants.ADDITIONAL_DETAILS_SHEET_SCHEMA_ERROR_COUNTS, new HashMap<>(Map.of(SHEET, 1L)))));
+
+        assertTrue(run(List.of(validRow(3, "Active", "V1"))).isEmpty());
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any(),
+                eq(ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD), eq(true));
+    }
+
+    @Test
     void enumValuesAreLeftToTheSchemaValidation() {
         // A type unknown to the master, and status / usage values: left to the schema step, nothing here
         Map<String, Object> row = validRow(3, "Active", "V1");
@@ -272,7 +283,7 @@ class OutsideHouseholdValidationProcessorTest {
 
         ArgumentCaptor<List<ValidationError>> captor = ArgumentCaptor.forClass(List.class);
         verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), captor.capture(),
-                eq(ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD));
+                eq(ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD), eq(EnrichmentUtil.hasSheetSchemaErrors(resource, SHEET)));
         return new ArrayList<>(captor.getValue());
     }
 
