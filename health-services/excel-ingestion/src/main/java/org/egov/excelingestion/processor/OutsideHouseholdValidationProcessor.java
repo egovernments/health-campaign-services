@@ -79,10 +79,8 @@ public class OutsideHouseholdValidationProcessor implements IWorkbookProcessor {
                 ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet, localizationMap);
                 FacilityValidationProcessor.processValidationErrors(sheet, errors, columnInfo, localizationMap);
             }
-            // Per-sheet status: outsideHouseholdSheetStatus = invalid when this sheet has row errors, including the
-            // schema-check errors found before this processor, so project-factory blocks the campaign on them too
-            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors, ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD,
-                    EnrichmentUtil.hasSheetSchemaErrors(resource, sheetName));
+            // Per-sheet status like the facility sheet: outsideHouseholdSheetStatus = invalid when this sheet has row errors
+            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors, ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD);
             return workbook;
 
         } catch (CustomException e) {

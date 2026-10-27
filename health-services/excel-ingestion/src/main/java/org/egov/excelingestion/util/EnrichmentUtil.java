@@ -82,45 +82,7 @@ public class EnrichmentUtil {
         enrichErrorAndStatusInAdditionalDetails(resource, validationErrors, null);
     }
 
-    /**
-     * Records the schema-check error count of one sheet in additionalDetails.sheetSchemaErrorCounts
-     * (only sheets with errors), so the sheet's processor can include them in its per-sheet status.
-     */
-    public void enrichSheetSchemaErrorCount(ProcessResource resource, String sheetName, List<ValidationError> sheetErrors) {
-        long count = sheetErrors.stream()
-                .filter(error -> ValidationConstants.STATUS_INVALID.equals(error.getStatus()) ||
-                               ValidationConstants.STATUS_ERROR.equals(error.getStatus()))
-                .count();
-        if (count == 0) {
-            return;
-        }
-        if (resource.getAdditionalDetails() == null) {
-            resource.setAdditionalDetails(new HashMap<>());
-        }
-        @SuppressWarnings("unchecked")
-        Map<String, Object> counts = (Map<String, Object>) resource.getAdditionalDetails()
-                .computeIfAbsent(ValidationConstants.ADDITIONAL_DETAILS_SHEET_SCHEMA_ERROR_COUNTS, k -> new HashMap<String, Object>());
-        counts.put(sheetName, count);
-    }
-
-    /** True when the schema check recorded errors for this sheet (see enrichSheetSchemaErrorCount). */
-    public static boolean hasSheetSchemaErrors(ProcessResource resource, String sheetName) {
-        Map<String, Object> additionalDetails = resource.getAdditionalDetails();
-        Object counts = additionalDetails == null ? null
-                : additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_SHEET_SCHEMA_ERROR_COUNTS);
-        return counts instanceof Map && ((Map<?, ?>) counts).get(sheetName) instanceof Number count && count.longValue() > 0;
-    }
-
     public void enrichErrorAndStatusInAdditionalDetails(ProcessResource resource, List<ValidationError> validationErrors, String sheetKind) {
-        enrichErrorAndStatusInAdditionalDetails(resource, validationErrors, sheetKind, false);
-    }
-
-    /**
-     * Same as above; sheetHasSchemaErrors = the schema check already found errors on this sheet, which makes
-     * the per-sheet status invalid even when the processor's own checks found none.
-     */
-    public void enrichErrorAndStatusInAdditionalDetails(ProcessResource resource, List<ValidationError> validationErrors,
-                                                        String sheetKind, boolean sheetHasSchemaErrors) {
         try {
             if (resource.getAdditionalDetails() == null) {
                 resource.setAdditionalDetails(new HashMap<>());
@@ -149,8 +111,7 @@ public class EnrichmentUtil {
 
             // Set per-sheet status if sheetKind is provided
             if (sheetKind != null && !sheetKind.isEmpty()) {
-                String perSheetStatus = currentErrorCount > 0 || sheetHasSchemaErrors
-                        ? ValidationConstants.STATUS_INVALID : ValidationConstants.STATUS_VALID;
+                String perSheetStatus = currentErrorCount > 0 ? ValidationConstants.STATUS_INVALID : ValidationConstants.STATUS_VALID;
                 String statusKey = getPerSheetStatusKey(sheetKind);
 
                 // Only set the per-sheet status if not already set (once invalid, stays invalid)

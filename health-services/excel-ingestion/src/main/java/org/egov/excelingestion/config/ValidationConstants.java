@@ -129,8 +129,6 @@ public class ValidationConstants {
     public static final String ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS = "boundarySheetStatus";
     public static final String ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS = "facilitySheetStatus";
     public static final String ADDITIONAL_DETAILS_OUTSIDE_HOUSEHOLD_SHEET_STATUS     = "outsideHouseholdSheetStatus";
-    // Schema-check error count per sheet name (only sheets with errors), read by sheet processors
-    public static final String ADDITIONAL_DETAILS_SHEET_SCHEMA_ERROR_COUNTS = "sheetSchemaErrorCounts";
 
     // Sheet kind identifiers
     public static final String SHEET_KIND_USER     = "user";

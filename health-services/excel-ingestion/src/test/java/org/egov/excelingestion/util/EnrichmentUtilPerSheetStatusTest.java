@@ -201,40 +201,6 @@ class EnrichmentUtilPerSheetStatusTest {
     }
 
     // Helper method to create ValidationError
-    /**
-     * Schema-check errors are counted per sheet (warnings are not), and only sheets with errors are recorded.
-     */
-    @Test
-    void testSheetSchemaErrorCountsPerSheet() {
-        enrichmentUtil.enrichSheetSchemaErrorCount(resource, "Outside Household", List.of(
-                createValidationError(3, "C", "bad type", ValidationConstants.STATUS_INVALID),
-                createValidationError(4, "C", "reverted edit", ValidationConstants.STATUS_VALID)));
-        enrichmentUtil.enrichSheetSchemaErrorCount(resource, "Facilities List", List.of(
-                createValidationError(3, "C", "reverted edit", ValidationConstants.STATUS_VALID)));
-
-        assertTrue(EnrichmentUtil.hasSheetSchemaErrors(resource, "Outside Household"));
-        assertFalse(EnrichmentUtil.hasSheetSchemaErrors(resource, "Facilities List"));
-        assertFalse(EnrichmentUtil.hasSheetSchemaErrors(resource, "User List"));
-        assertEquals(Map.of("Outside Household", 1L),
-                resource.getAdditionalDetails().get(ValidationConstants.ADDITIONAL_DETAILS_SHEET_SCHEMA_ERROR_COUNTS));
-    }
-
-    /**
-     * A sheet whose only errors came from the schema check is still invalid; with neither, it stays valid.
-     */
-    @Test
-    void testSheetSchemaErrorsMakeThePerSheetStatusInvalid() {
-        enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, new ArrayList<>(),
-                ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD, true);
-        assertEquals("invalid", resource.getAdditionalDetails().get(ValidationConstants.ADDITIONAL_DETAILS_OUTSIDE_HOUSEHOLD_SHEET_STATUS));
-        assertEquals("invalid", resource.getAdditionalDetails().get("validationStatus"));
-
-        ProcessResource clean = ProcessResource.builder().id("r2").additionalDetails(new HashMap<>()).build();
-        enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(clean, new ArrayList<>(),
-                ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD, false);
-        assertEquals("valid", clean.getAdditionalDetails().get(ValidationConstants.ADDITIONAL_DETAILS_OUTSIDE_HOUSEHOLD_SHEET_STATUS));
-    }
-
     private ValidationError createValidationError(int rowNumber, String columnName, String errorDetails, String status) {
         return ValidationError.builder()
                 .rowNumber(rowNumber)
