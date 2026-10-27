@@ -104,7 +104,6 @@ public class NotificationService {
 				message = message.replace("{password}",OTP).replace("{link}",link);
 
 				SMSRequest smsRequest = SMSRequest.builder().mobileNumber(employee.getUser().getMobileNumber()).message(message).build();
-				log.info(message );
 				producer.push(smsTopic, smsRequest);
 			}
 

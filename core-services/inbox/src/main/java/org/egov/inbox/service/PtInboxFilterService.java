@@ -220,10 +220,10 @@ public class PtInboxFilterService {
                 //log.info(user.toString());
                 userUuids = JsonPath.read(user, "$.user.*.uuid");
             }else {
-                log.error("Service returned null while fetching user for mobile number - " + mobileNumber);
+                log.error("Service returned null while fetching user for the given mobile number");
             }
         }catch(Exception e) {
-            log.error("Exception while fetching user for mobile number - " + mobileNumber);
+            log.error("Exception while fetching user for the given mobile number");
             log.error("Exception trace: ", e);
         }
         return userUuids;

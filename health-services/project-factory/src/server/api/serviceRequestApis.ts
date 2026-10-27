@@ -1,7 +1,7 @@
 import config from "../config";
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { defaultheader, httpRequest } from "../utils/request";
-import { getFormattedStringForDebug, logger } from "../utils/logger";
+import { logger } from "../utils/logger";
 
 export type ServiceDefinition = any;
 
@@ -28,7 +28,6 @@ export async function searchServiceDefinitions(
   logger.info(
     `Searching service definitions for tenantId=${tenantId} (codes=${codes.length}, includeDeleted=${includeDeleted})`
   );
-  logger.debug(`ServiceDefinition search payload: ${getFormattedStringForDebug(requestBody)}`);
 
   const res = await httpRequest(url, requestBody, undefined, "post", "", { ...defaultheader });
   // response shape: { ServiceDefinitions: [...] } (as per ServiceDefinitionResponse)
@@ -50,7 +49,6 @@ export async function createServiceDefinition(
   };
 
   logger.info(`Creating service definition code=${serviceDefinition?.code}`);
-  logger.debug(`ServiceDefinition create payload: ${getFormattedStringForDebug(requestBody)}`);
 
   try {
     const res = await httpRequest(url, requestBody, undefined, "post", "", { ...defaultheader });

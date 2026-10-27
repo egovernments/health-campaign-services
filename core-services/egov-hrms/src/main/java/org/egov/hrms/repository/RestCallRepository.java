@@ -44,7 +44,7 @@ public class RestCallRepository {
 			}
 		} catch (Exception e) {
 			log.error("Exception while fetching from searcher: ", e);
-			log.info("req: " + (request));
+			log.info("req uri: " + uri);
 		}
 
 		return response;

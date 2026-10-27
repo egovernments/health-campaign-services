@@ -71,9 +71,9 @@ public class EnrichmentUtil {
         for (ValidationError error : errors) {
             if (ValidationConstants.STATUS_INVALID.equals(error.getStatus()) ||
                     ValidationConstants.STATUS_ERROR.equals(error.getStatus())) {
-                log.error("VALIDATION_ERROR | referenceId={} | sheet={} | row={} | column={} | status={} | error={}",
+                log.error("VALIDATION_ERROR | referenceId={} | sheet={} | row={} | column={} | status={}",
                         referenceId, sheetName, error.getRowNumber(), error.getColumnName(),
-                        error.getStatus(), error.getErrorDetails());
+                        error.getStatus());
             }
         }
     }

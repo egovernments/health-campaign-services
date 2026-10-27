@@ -43,7 +43,7 @@ export async function startUserMapping(campaignDetails: any, useruuid: string, r
             if (!userId) {
                 allCurrentMappingsToDo[i].status = mappingStatuses.skipped;
                 await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
-                logger.info(`Skipping user mapping for ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData} — user not created`);
+                logger.info(`Skipping user mapping in boundary ${allCurrentMappingsToDo[i]?.boundaryCode} — user not created`);
                 continue;
             }
 
@@ -61,19 +61,19 @@ export async function startUserMapping(campaignDetails: any, useruuid: string, r
                 allCurrentMappingsToDo[i].mappingId = projectStaffResponse?.ProjectStaff?.id;
             }
             else {
-                throw new Error("Failed to create project staff for user with phone " + allCurrentMappingsToDo[i]?.uniqueIdentifierForData);
+                throw new Error("Failed to create project staff for user (userId " + userId + ")");
             }
             await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }
         catch (error) {
             // Genuine staff API error — mark this mapping as failed and continue
             // with the rest. User-level mapping failures are non-blocking.
-            logger.error(`Failed to create project staff for user with phone ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, error);
+            logger.error(`Failed to create project staff for user in boundary ${allCurrentMappingsToDo[i]?.boundaryCode}:`, error);
             allCurrentMappingsToDo[i].status = mappingStatuses.failed;
             try {
                 await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
             } catch (persistError) {
-                logger.error(`Failed to persist failed user mapping status for ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, persistError);
+                logger.error(`Failed to persist failed user mapping status in boundary ${allCurrentMappingsToDo[i]?.boundaryCode}:`, persistError);
             }
         }
     }
@@ -110,12 +110,12 @@ export async function startUserDemapping(campaignDetails: any, useruuid: string,
         }
         catch (error) {
             // Genuine demap API error — mark deMapFailed (non-blocking) and continue.
-            logger.error(`Failed to demap project staff for user with phone ${allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData}:`, error);
+            logger.error(`Failed to demap project staff for user (mappingId ${allCurrentMappingsToDeMap[i]?.mappingId}):`, error);
             allCurrentMappingsToDeMap[i].status = mappingStatuses.deMapFailed;
             try {
                 await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
             } catch (persistError) {
-                logger.error(`Failed to persist failed user demap status for ${allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData}:`, persistError);
+                logger.error(`Failed to persist failed user demap status (mappingId ${allCurrentMappingsToDeMap[i]?.mappingId}):`, persistError);
             }
         }
     }

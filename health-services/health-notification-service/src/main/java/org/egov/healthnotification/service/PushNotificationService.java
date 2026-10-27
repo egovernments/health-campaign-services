@@ -51,12 +51,12 @@ public class PushNotificationService {
                                       String tenantId,
                                       Map<String, String> data) {
         if (!Boolean.TRUE.equals(properties.getPushNotificationEnabled())) {
-            log.info("Push notifications are disabled. Skipping push for title: {}", title);
+            log.info("Push notifications are disabled. Skipping push for facilityId: {}", facilityId);
             return;
         }
 
         if (facilityId == null || facilityId.isBlank()) {
-            log.warn("No facilityId provided for push notification. Skipping. title={}", title);
+            log.warn("No facilityId provided for push notification. Skipping. tenantId={}", tenantId);
             return;
         }
 
@@ -73,16 +73,16 @@ public class PushNotificationService {
                 pushRequest.put("data", data);
             }
 
-            log.info("Pushing notification to topic: {}, title={}, facilityId={}, recipientRoles={}, tenantId={}",
-                    properties.getPushNotificationTopic(), title, facilityId, recipientRoles, tenantId);
+            log.info("Pushing notification to topic: {}, facilityId={}, recipientRoles={}, tenantId={}",
+                    properties.getPushNotificationTopic(), facilityId, recipientRoles, tenantId);
 
             producer.push(properties.getPushNotificationTopic(), pushRequest);
 
-            log.info("Push notification sent to Kafka. title={}, facilityId={}", title, facilityId);
+            log.info("Push notification sent to Kafka. facilityId={}", facilityId);
 
         } catch (Exception e) {
-            log.error("Failed to push notification to Kafka. title={}, facilityId={}: {}",
-                    title, facilityId, e.getMessage(), e);
+            log.error("Failed to push notification to Kafka. facilityId={}: {}",
+                    facilityId, e.getMessage(), e);
             throw new CustomException(Constants.ERROR_PUSH_NOTIFICATION_FAILED,
                     "Failed to send push notification: " + e.getMessage());
         }

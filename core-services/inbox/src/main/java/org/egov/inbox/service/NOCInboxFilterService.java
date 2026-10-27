@@ -214,10 +214,10 @@ public class NOCInboxFilterService {
                 // log.info(user.toString());
                 uuids.addAll(JsonPath.read(user, "$.user.*.uuid"));
             } else {
-                log.error("Service returned null while fetching user for mobile number - " + mobileNumber);
+                log.error("Service returned null while fetching user for the given mobile number");
             }
         } catch (Exception e) {
-            log.error("Exception while fetching user for mobile number - " + mobileNumber);
+            log.error("Exception while fetching user for the given mobile number");
             log.error("Exception trace: ", e);
         }
         return uuids;

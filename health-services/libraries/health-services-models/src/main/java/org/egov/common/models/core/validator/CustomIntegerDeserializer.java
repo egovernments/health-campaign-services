@@ -24,7 +24,6 @@ public class CustomIntegerDeserializer extends StdDeserializer<Integer> {
 
         // Read the JSON tree from the parser
         JsonNode node = jsonParser.getCodec().readTree(jsonParser);
-        System.out.println(node.toString());
         if(node.asLong() > Integer.MAX_VALUE){
             throw new CustomException("INVALID_INPUT","Value must be an Integer");
         }

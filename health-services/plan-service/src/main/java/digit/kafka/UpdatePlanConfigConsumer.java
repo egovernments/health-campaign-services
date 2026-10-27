@@ -31,7 +31,7 @@ public class UpdatePlanConfigConsumer {
             log.info("Update plan config from resource generator.");
             planConfigurationService.update(planConfigurationRequest);
         } catch (Exception exception) {
-            log.error("Error in update plan configuration consumer while processing topic {}: {}", topic, consumerRecord, exception);
+            log.error("Error in update plan configuration consumer while processing topic {}", topic, exception);
         }
     }
 }

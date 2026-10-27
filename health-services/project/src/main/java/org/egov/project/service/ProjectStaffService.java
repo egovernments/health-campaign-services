@@ -216,7 +216,7 @@ public class ProjectStaffService {
                 applicableValidators, request,
                 SET_STAFF);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
-            log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
+            log.error("validation error occurred for {} entities", errorDetailsMap.size());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<ProjectStaff> validEntities = request.getProjectStaff().stream()

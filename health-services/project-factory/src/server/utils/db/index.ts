@@ -1,7 +1,7 @@
 import config from "../../config";
 import pool from "../../config/dbPoolConfig";
 import { throwError } from "../genericUtils";
-import { getFormattedStringForDebug, logger } from "../logger";
+import { logger } from "../logger";
 
 /**
  * Executes a database query asynchronously.
@@ -17,12 +17,11 @@ export const executeQuery = async (
 ): Promise<any> => {
   try {
     logger.info(`DB QUERY :: STATEMENT :: ${query}`);
-    logger.info(`DB QUERY :: VALUES ::   ${values}`);
+    logger.info(`DB QUERY :: VALUES COUNT ::   ${Array.isArray(values) ? values.length : 0}`);
     const queryResponse = await pool.query(query, values);
     logger.info(
       `DB QUERY :: RESPONSE ::  SUCCESS :: returns ${queryResponse?.rowCount} rows.`
     );
-    logger.debug( `DB QUERY :: RESPONSE ::  SUCCESS :: Query Response ${getFormattedStringForDebug(queryResponse?.rows)}`);
     return queryResponse;
   } catch (error: any) {
     logger.error(`Error fetching data from the database: ${error?.message}`);

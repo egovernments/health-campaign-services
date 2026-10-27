@@ -180,7 +180,7 @@ export async function handleProcessingResult(messageObject: any) {
                         );
                         if (individualResponse?.Individual?.length > 0) {
                              createdByEmail =  individualResponse.Individual[0]?.email;
-                            logger.info(`Individual email found: ${createdByEmail}`);
+                            logger.info(`Individual email found for userUuid: ${campaignCreatedBy}`);
                         }
                     } catch (searchError) {
                         logger.error(`Error in individual search call for userUuid ${campaignCreatedBy}:`, searchError);
@@ -266,7 +266,7 @@ export async function handleProcessingResult(messageObject: any) {
             if (messageObject.additionalDetails?.sheetErrorCounts) {
                 logger.warn(`Sheet Error Counts: ${JSON.stringify(messageObject.additionalDetails.sheetErrorCounts)}`);
             }
-            logger.warn(`Full additionalDetails: ${JSON.stringify(messageObject.additionalDetails)}`);
+            logger.warn(`additionalDetails keys: ${JSON.stringify(Object.keys(messageObject.additionalDetails || {}))}`);
 
             throwError(errorModules.common, httpStatusCodes.badRequest, errorCodes.validationErrorUnifiedConsoleTemplate, "Unified console template is not valid. Please correct the errors and try again.");
             return;
@@ -1467,7 +1467,7 @@ async function processUsersSimple(
                     // This user already exists in HRMS.  A later re-upload that
                     // has a validation error on their row must NOT overwrite a
                     // working user's boundary/usage or discard their credentials.
-                    logger.info(`Sheet-invalid row for completed user ${phoneNumber}; preserving existing record and mappings`);
+                    logger.info(`Sheet-invalid row for completed user (serviceUuid ${currentUser?.uniqueIdAfterProcess}); preserving existing record and mappings`);
                     return;
                 }
                 // The user is failed or pending and the new sheet row is invalid.
@@ -1486,7 +1486,7 @@ async function processUsersSimple(
                     },
                 };
                 usersToUpdate.push(updatedRecord);
-                logger.info(`Sheet-invalid row for failed/pending user ${phoneNumber}; updated to INVALID to block HRMS retry`);
+                logger.info(`Sheet-invalid row for failed/pending user; updated to INVALID to block HRMS retry`);
                 return;
             }
             // User exists in current campaign - check if boundary and usage need to be updated
@@ -1498,7 +1498,7 @@ async function processUsersSimple(
                     ...currentUser,
                     data: updatedData,
                 });
-                logger.info(`Updated boundary for user ${phoneNumber}: ${existingBoundary} -> ${boundaryCode}`);
+                logger.info(`Updated boundary for user (serviceUuid ${currentUser?.uniqueIdAfterProcess}): ${existingBoundary} -> ${boundaryCode}`);
             }
         } else if (otherUser && !isInvalidFromSheet) {
             // User exists in other campaign - reuse with all fields preserved except boundary and usage
@@ -1512,7 +1512,7 @@ async function processUsersSimple(
                 uniqueIdAfterProcess: otherUser.uniqueIdAfterProcess,
                 status: dataRowStatuses.completed
             });
-            logger.info(`Reused user ${phoneNumber} from other campaign with new boundary: ${boundaryCode}`);
+            logger.info(`Reused user (serviceUuid ${otherUser?.uniqueIdAfterProcess}) from other campaign with new boundary: ${boundaryCode}`);
         } else if (isInvalidFromSheet) {
             // Sheet-invalid new user — persist as failed (visible in credential sheet),
             // skip HRMS, skip boundary mapping creation.
@@ -1524,7 +1524,7 @@ async function processUsersSimple(
                 uniqueIdAfterProcess: null,
                 status: dataRowStatuses.failed
             });
-            logger.info(`Skipping HRMS for invalid user ${phoneNumber}; marked failed for credential sheet visibility`);
+            logger.info(`Skipping HRMS for invalid user; marked failed for credential sheet visibility`);
         } else {
             // Completely new valid user
             usersToSave.push({
@@ -1535,7 +1535,7 @@ async function processUsersSimple(
                 uniqueIdAfterProcess: null,
                 status: dataRowStatuses.pending
             });
-            logger.info(`Added new user ${phoneNumber}`);
+            logger.info(`Added new user for boundary ${boundaryCode}`);
         }
 
         // Boundary mappings: only for valid active users. Invalid rows skip

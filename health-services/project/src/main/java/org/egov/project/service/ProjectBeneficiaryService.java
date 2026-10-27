@@ -256,7 +256,7 @@ public class ProjectBeneficiaryService {
                 isApplicable, request,
                 SET_PROJECT_BENEFICIARIES);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
-            log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
+            log.error("validation error occurred for {} entities", errorDetailsMap.size());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<ProjectBeneficiary> validProjectBeneficiaries = request.getProjectBeneficiaries().stream()

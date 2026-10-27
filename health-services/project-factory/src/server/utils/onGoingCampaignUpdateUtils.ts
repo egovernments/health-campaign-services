@@ -283,7 +283,7 @@ async function fetchProjectsWithProjectId(
   };
 
   logger.info("Project search params: " + JSON.stringify(projectSearchParams));
-  logger.info("Project search body: " + JSON.stringify(projectSearchBody));
+  logger.info("Project search body: project ids count " + idsArray.length);
 
   const projectSearchResponse = await httpRequest(
     config?.host?.projectHost + config?.paths?.projectSearch,

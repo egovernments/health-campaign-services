@@ -142,7 +142,7 @@ public class NotificationUtil {
             }
             for (SMSRequest smsRequest : smsRequestList) {
                 producer.push(tenantId, config.getSmsNotifTopic(), smsRequest);
-                log.info("Messages: {}", smsRequest.getMessage());
+                log.info("SMS request pushed to topic: {}", config.getSmsNotifTopic());
             }
         }
     }

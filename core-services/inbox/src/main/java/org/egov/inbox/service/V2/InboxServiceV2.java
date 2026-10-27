@@ -145,17 +145,9 @@ public class InboxServiceV2 {
             return new ArrayList<>();
         }
         Map<String, Object> finalQueryBody = queryBuilder.getESQuery(inboxRequest, Boolean.TRUE);
-        try {
-            String q = mapper.writeValueAsString(finalQueryBody);
-            log.info("Query: "+q);
-        }
-        catch (Exception e){
-            e.printStackTrace();
-        }
         StringBuilder uri = getURI(indexName, SEARCH_PATH);
         Object result = serviceRequestRepository.fetchESResult(uri, finalQueryBody);
         List<Inbox> inboxItemsList = parseInboxItemsFromSearchResponse(result, businessServices);
-        log.info(result.toString());
         return inboxItemsList;
     }
 
@@ -227,7 +219,6 @@ public class InboxServiceV2 {
         log.info("Actionable statuses from request: {}", inboxRequest.getInbox().getProcessSearchCriteria().getStatus());
 
         Map<String, Object> finalQueryBody = queryBuilder.getStatusCountQuery(inboxRequest);
-        log.info("ES Aggregation Query: {}", finalQueryBody);
 
         StringBuilder uri = getURI(indexName, SEARCH_PATH);
         log.info("ES URI: {}", uri);
@@ -491,13 +482,6 @@ public class InboxServiceV2 {
 
     private List<Data> getDataFromSimpleSearch(SearchRequest searchRequest, String index) {
         Map<String, Object> finalQueryBody = queryBuilder.getESQueryForSimpleSearch(searchRequest, Boolean.TRUE);
-        try {
-            String q = mapper.writeValueAsString(finalQueryBody);
-            log.info("Query: "+q);
-        }
-        catch (Exception e){
-            e.printStackTrace();
-        }
         StringBuilder uri = getURI(index, SEARCH_PATH);
         Object result = serviceRequestRepository.fetchESResult(uri, finalQueryBody);
         List<Data> dataList = parseSearchResponseForSimpleSearch(result);

@@ -148,7 +148,7 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                     if (hasInvalidSelfOrRelatives) {
                         Error error = getErrorForInvalidRelatedEntityID();
                         populateErrorDetails(householdMember, error, errorDetailsMap);
-                        log.error("Invalid self or relatives {}", householdMember);
+                        log.error("Invalid self or relatives for household member {}", householdMember.getClientReferenceId());
                     } else if (householdMemberConfiguration.isHouseholdMemberRelationshipValidation()) {
                         // Existence emission gated behind the flag; the relativeId back-fill (above) and the
                         // isInvalidRelativeAndSelf self-consistency check (INVALID_RELATED_ENTITY_ID) always run.
@@ -165,7 +165,7 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                         if (!CollectionUtils.isEmpty(nonExistingRelatives)) {
                             Error error = getErrorForNonExistentRelatedEntity(nonExistingRelatives);
                             populateErrorDetails(householdMember, error, errorDetailsMap);
-                            log.error("Household member relative not existing {}", householdMember);
+                            log.error("Household member relative not existing for household member {}", householdMember.getClientReferenceId());
                         }
                     }
 

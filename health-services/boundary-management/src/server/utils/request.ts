@@ -56,6 +56,12 @@ export const defaultheader = {
 const getServiceName = (url = "") => url && url.slice && url.slice(url.lastIndexOf(url.split("/")[3]));
 
 
+// RequestInfo carries authToken and userInfo (PII); keep it out of debug logs.
+const omitRequestInfo = (body: any) =>
+  body && typeof body === "object" && !Array.isArray(body) && "RequestInfo" in body
+    ? { ...body, RequestInfo: undefined }
+    : body;
+
 /**
  * Used to Make API call through axios library
  * @author jagankumar-egov
@@ -91,7 +97,7 @@ const httpRequest = async (
         " CRITERIA :: " +
         JSON.stringify(_params)
       );
-      logger.debug("INTER-SERVICE :: REQUESTBODY :: " + getFormattedStringForDebug(_requestBody));
+      logger.debug("INTER-SERVICE :: REQUESTBODY :: " + getFormattedStringForDebug(omitRequestInfo(_requestBody)));
 
       const response = await axiosInstance({
         method: _method,

@@ -269,10 +269,10 @@ public class BPAInboxFilterService {
                 userDetails.put(USER_UUID, JsonPath.read(user, "$.user.*.uuid"));
                 userDetails.put(USER_ROLES, new ArrayList<>(new HashSet<>(JsonPath.read(user, "$.user.*.roles.*.code"))));
             } else {
-                log.error("Service returned null while fetching user for mobile number - " + mobileNumber);
+                log.error("Service returned null while fetching user for the given mobile number");
             }
         } catch (Exception e) {
-            log.error("Exception while fetching user for mobile number - " + mobileNumber);
+            log.error("Exception while fetching user for the given mobile number");
             log.error("Exception trace: ", e);
         }
         return userDetails;

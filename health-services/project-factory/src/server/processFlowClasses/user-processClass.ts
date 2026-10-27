@@ -33,7 +33,7 @@ export class TemplateClass {
     ): Promise<SheetMap> {
         await validateResourceDetailsBeforeProcess("userValidation", resourceDetails, localizationMap);
         logger.info("Processing file...");
-        logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
+        logger.info(`ResourceDetails: id=${resourceDetails?.id}, type=${resourceDetails?.type}, campaignId=${resourceDetails?.campaignId}, fileStoreId=${resourceDetails?.fileStoreId}`);
 
         const campaign = await this.getCampaignDetails(resourceDetails);
 
@@ -549,10 +549,10 @@ export class TemplateClass {
 
             if (sheetName && hrmsName && sheetName !== hrmsName) {
                 const reason = `${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS as '${existing.existingName}' but sheet provided '${u?.data?.[userDataFields.name] ?? ''}'. HRMS user kept as source of truth.`;
-                logger.warn(`Phone ${phone} → ${reason}`);
+                logger.warn(`${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS (serviceUuid ${existing.serviceUuid}) under a different name than the sheet; HRMS user kept as source of truth.`);
                 u.data[campaignDataRowFields.errorDetails] = reason;
             } else {
-                logger.info(`Row for phone ${phone} already in HRMS (serviceUuid ${existing.serviceUuid}) — marking completed without create${wasRetry ? ' (retry=true)' : ''}`);
+                logger.info(`Row already in HRMS (serviceUuid ${existing.serviceUuid}) — marking completed without create${wasRetry ? ' (retry=true)' : ''}`);
             }
             absorbedRecords.push(u);
         }

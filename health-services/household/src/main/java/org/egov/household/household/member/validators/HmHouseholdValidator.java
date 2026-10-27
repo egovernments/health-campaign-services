@@ -115,7 +115,7 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
                                 .type(Error.ErrorType.NON_RECOVERABLE)
                                 .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_MESSAGE))
                                 .build();
-                        log.error("validation failed for household member: {} with error: {}", householdMember, error);
+                        log.error("validation failed for household member: {} with error: {}", householdMember.getClientReferenceId(), error);
                         populateErrorDetails(householdMember, error, errorDetailsMap);
                     });
 
@@ -135,7 +135,7 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
                                     .type(Error.ErrorType.NON_RECOVERABLE)
                                     .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_TYPE_MESSAGE))
                                     .build();
-                            log.error("validation failed for household member household: {} with error: {}", householdMember, error);
+                            log.error("validation failed for household member household: {} with error: {}", householdMember.getClientReferenceId(), error);
                             populateErrorDetails(householdMember, error, errorDetailsMap);
                         }
                     });

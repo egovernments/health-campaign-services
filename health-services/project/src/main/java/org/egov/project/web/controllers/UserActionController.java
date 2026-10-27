@@ -106,7 +106,7 @@ public class UserActionController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project User Action UserAction.", required = true) @Valid @RequestBody UserActionSearchRequest request
     ) {
-        log.debug("Executing search with URLParams: {} and request: {}", urlParams, request);
+        log.debug("Executing search with URLParams: {} and searchCriteria: {}", urlParams, request.getUserAction());
 
         // Perform the search using the userActionService.
         SearchResponse<UserAction> userActions;

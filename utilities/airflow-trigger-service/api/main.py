@@ -230,7 +230,7 @@ async def _airflow_get(path: str) -> dict:
 
 
 async def _airflow_post(path: str, body: dict) -> dict:
-    logger.debug("Airflow POST %s body=%s", path, body)
+    logger.debug("Airflow POST %s body_keys=%s", path, list(body.keys()))
     headers = await _auth_headers()
     async with httpx.AsyncClient() as client:
         resp = await client.post(

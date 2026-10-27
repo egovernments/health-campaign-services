@@ -18,7 +18,7 @@ export class TemplateClass {
         templateConfig: any
     ): Promise<SheetMap> {
         logger.info("Processing file...");
-        logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
+        logger.info(`ResourceDetails: id=${resourceDetails?.id}, type=${resourceDetails?.type}, campaignId=${resourceDetails?.campaignId}, fileStoreId=${resourceDetails?.fileStoreId}`);
         const facilitySheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_FACILITIES", localizationMap)];
         if(!facilitySheetData || !facilitySheetData?.length ) {
             throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_FACILITIES", localizationMap)}' is empty or not present`);

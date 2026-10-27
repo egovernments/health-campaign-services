@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { getFormattedStringForDebug, logger } from "./logger";
+import { logger } from "./logger";
 import { throwErrorViaRequest } from "./genericUtils";
 import config from "../config";
 import { redis, checkRedisConnection, reconnectRedis } from "./redisUtils";
@@ -97,7 +97,6 @@ const httpRequest = async (
         const cachedData = await redis.get(cacheKey);
         if (cachedData) {
           logger.info("CACHE HIT :: " + cacheKey);
-          logger.debug(`CACHED DATA :: ${getFormattedStringForDebug(cachedData)}`);
 
           if (config.cacheValues.resetCache) {
             await redis.expire(cacheKey, cacheTTL);
@@ -114,7 +113,6 @@ const httpRequest = async (
         " CRITERIA :: " +
         JSON.stringify(_params)
       );
-      logger.debug("INTER-SERVICE :: REQUESTBODY :: " + getFormattedStringForDebug(_requestBody));
 
       const response = await axiosInstance({
         method: _method,
@@ -132,7 +130,6 @@ const httpRequest = async (
         ":: CODE :: " +
         responseStatus
       );
-      logger.debug("INTER-SERVICE :: RESPONSEBODY :: " + getFormattedStringForDebug(response.data));
 
       if ([200, 201, 202].includes(responseStatus)) {
         if (cacheKey && isRedisConnected) {
@@ -141,7 +138,7 @@ const httpRequest = async (
         return sendStatusCode ? { ...response.data, statusCode: responseStatus } : response.data;
       }
       else{
-        logger.warn(`Error occurred while making request to ${getServiceName(_url)}: with error response ${JSON.stringify(response.data)}`);
+        logger.warn(`Error occurred while making request to ${getServiceName(_url)}: with non-success status ${responseStatus}`);
         return sendStatusCode ? { ...response.data, statusCode: responseStatus } : response.data;
       }
     } catch (error: any) {
@@ -164,8 +161,8 @@ const httpRequest = async (
       );
       logger.error(":: ERROR STACK :: " + (error?.stack || error));
       logger.warn(
-        `Error occurred while making request to ${getServiceName(_url)}: with error response ${JSON.stringify(
-          errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
+        `Error occurred while making request to ${getServiceName(_url)}: with errors ${JSON.stringify(
+          (errorResponse?.data?.Errors || []).map((e: any) => ({ code: e?.code, description: e?.description }))
         )}`
       );
       if (
@@ -201,10 +198,8 @@ const httpRequest = async (
         logger.warn(
           `Error occurred while making request to ${getServiceName(
             _url
-          )}: returning error response ${JSON.stringify(
-            errorResponse?.data || {
-              Errors: [{ code: error.message, description: error.stack }],
-            }
+          )}: returning error response with errors ${JSON.stringify(
+            (errorResponse?.data?.Errors || [{ code: error.message }]).map((e: any) => ({ code: e?.code, description: e?.description }))
           )}`
         );
         return (

@@ -100,7 +100,7 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
                                     .type(Error.ErrorType.NON_RECOVERABLE)
                                     .exception(new CustomException(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP, INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE))
                                     .build();
-                            log.error("validation failed for household member: {} with error: {}", householdMember, error);
+                            log.error("validation failed for household member: {} with error: {}", householdMember.getClientReferenceId(), error);
                             populateErrorDetails(householdMember, error, errorDetailsMap);
                         }
 

@@ -33,7 +33,7 @@ public class NotificationConsumer {
 
         } catch (final Exception e) {
 
-            log.error("Error while listening to value: " + record + " on topic: " + topic + ": ", e);
+            log.error("Error while listening to value on topic: " + topic + ": ", e);
         }
     }
 

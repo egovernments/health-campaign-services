@@ -817,10 +817,10 @@ public class NotificationService {
                 String uuid = JsonPath.read(user, "$.user[0].uuid");
                 mapOfPhoneNoAndUUIDs.put(mobileNumber, uuid);
             }else {
-                log.error("Service returned null while fetching user for username - "+mobileNumber);
+                log.error("Service returned null while fetching user for the given username");
             }
         }catch(Exception e) {
-            log.error("Exception while fetching user for username - "+mobileNumber);
+            log.error("Exception while fetching user for the given username");
             log.error("Exception trace: ",e);
         }
 
