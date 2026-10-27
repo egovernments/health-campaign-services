@@ -18,18 +18,18 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Reads which facility usages are posts (e.g. CLF, transit post) from the MDMS master
- * {@link ProcessingConstants#OUTSIDE_HOUSEHOLD_POST_TYPES_SCHEMA_CODE} (HCM.OUTSIDE_HOUSEHOLD_POST_TYPES),
- * read at the state tenant, and decides whether the posts sheet applies to a given campaign.
+ * Reads which facility usages are sites (e.g. Outside Household Places, Transit Posts) from the MDMS master
+ * {@link ProcessingConstants#OUTSIDE_HOUSEHOLD_TYPES_SCHEMA_CODE} (HCM.OUTSIDE_HOUSEHOLD_TYPES),
+ * read at the state tenant, and decides whether the Outside Household sheet applies to a given campaign.
  *
- * <p>An MDMS reply with no active rows is read as NO post types (the feature is simply off for that
+ * <p>An MDMS reply with no active rows is read as NO site types (the feature is simply off for that
  * tenant); only an actual failed MDMS call is an error ({@link ErrorConstants#MDMS_SERVICE_ERROR}).
  */
 @Service
 @Slf4j
-public class PostTypeMasterService {
+public class OutsideHouseholdTypeMasterService {
 
-    // Fetch limit for the master: a small, bounded list (CLF/TRANSIT_POST today), not paginated in practice.
+    // Fetch limit for the master: a small, bounded list (OUTSIDE_HOUSEHOLD_PLACES/TRANSIT_POST today), not paginated in practice.
     private static final int FETCH_LIMIT = 200;
 
     private static final String CYCLE_DATA_DELIVERY_METHODS_KEY = "deliveryMethods";
@@ -40,7 +40,7 @@ public class PostTypeMasterService {
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
 
-    public PostTypeMasterService(MDMSService mdmsService, CampaignService campaignService,
+    public OutsideHouseholdTypeMasterService(MDMSService mdmsService, CampaignService campaignService,
                                  CustomExceptionHandler exceptionHandler, ExcelIngestionConfig config) {
         this.mdmsService = mdmsService;
         this.campaignService = campaignService;
@@ -49,31 +49,31 @@ public class PostTypeMasterService {
     }
 
     /**
-     * Active post types of the master (normalized code -> isPermanentByDefault), read at the state tenant.
+     * Active site types of the master (normalized code -> isPermanentByDefault), read at the state tenant.
      * Empty (never null) when the master has no active rows, including when the schema code is not
      * configured at all. Fails with {@link ErrorConstants#MDMS_SERVICE_ERROR} only when the MDMS call
      * itself fails.
      */
-    public Map<String, Boolean> getPostTypes(RequestInfo requestInfo, String tenantId) {
-        return extractActivePostTypes(fetchMasterRows(requestInfo, tenantId));
+    public Map<String, Boolean> getOutsideHouseholdTypes(RequestInfo requestInfo, String tenantId) {
+        return extractActiveOutsideHouseholdTypes(fetchMasterRows(requestInfo, tenantId));
     }
 
     /**
-     * Category codes allowed per active post type (normalized type code -> its "categories" list, in master
+     * Category codes allowed per active site type (normalized type code -> its "categories" list, in master
      * order). A type without a categories list maps to an empty list, which means "any category".
      */
-    public Map<String, List<String>> getCategoriesByPostType(RequestInfo requestInfo, String tenantId) {
-        return extractCategoriesByPostType(fetchMasterRows(requestInfo, tenantId));
+    public Map<String, List<String>> getCategoriesByOutsideHouseholdType(RequestInfo requestInfo, String tenantId) {
+        return extractCategoriesByOutsideHouseholdType(fetchMasterRows(requestInfo, tenantId));
     }
 
     private List<Map<String, Object>> fetchMasterRows(RequestInfo requestInfo, String tenantId) {
         String stateTenantId = stateTenantId(tenantId);
         try {
             return mdmsService.searchMDMS(requestInfo, stateTenantId,
-                    ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPES_SCHEMA_CODE, null, FETCH_LIMIT, 0);
+                    ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPES_SCHEMA_CODE, null, FETCH_LIMIT, 0);
         } catch (Exception e) {
             log.error("Error reading {} for tenant {}: {}",
-                    ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPES_SCHEMA_CODE, stateTenantId, e.getMessage(), e);
+                    ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPES_SCHEMA_CODE, stateTenantId, e.getMessage(), e);
             exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR,
                     ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
             return List.of(); // never reached
@@ -81,15 +81,15 @@ public class PostTypeMasterService {
     }
 
     /**
-     * Whether a configured sheet applies: every sheet except the posts sheet always does; the posts sheet
-     * only when the campaign type is one of excel.ingestion.posts.campaign.types (POLIO by default), the
-     * campaign uses the outside-household delivery method AND the post-types master has at least one
+     * Whether a configured sheet applies: every sheet except the Outside Household sheet always does; the Outside Household sheet
+     * only when the campaign type is one of excel.ingestion.outside.household.campaign.types (POLIO by default), the
+     * campaign uses the outside-household delivery method AND the site-types master has at least one
      * active code. False when there is no campaign to check (blank referenceId or an
      * attendance-register reference).
      */
     public boolean isSheetApplicable(String sheetNameKey, String referenceId, String referenceType,
                                      String tenantId, RequestInfo requestInfo) {
-        if (!ProcessingConstants.POSTS_SHEET_NAME_KEY.equals(sheetNameKey)) {
+        if (!ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY.equals(sheetNameKey)) {
             return true;
         }
         if (referenceId == null || referenceId.trim().isEmpty()
@@ -98,16 +98,16 @@ public class PostTypeMasterService {
         }
         CampaignSearchResponse.CampaignDetail campaign =
                 campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
-        return isPostsCampaignType(campaign)
+        return isOutsideHouseholdSitesCampaignType(campaign)
                 && extractDeliveryMethods(campaign).contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)
-                && !getPostTypes(requestInfo, tenantId).isEmpty();
+                && !getOutsideHouseholdTypes(requestInfo, tenantId).isEmpty();
     }
 
-    private boolean isPostsCampaignType(CampaignSearchResponse.CampaignDetail campaign) {
+    private boolean isOutsideHouseholdSitesCampaignType(CampaignSearchResponse.CampaignDetail campaign) {
         String projectType = campaign == null ? null : normalize(campaign.getProjectType());
-        List<String> types = config.getPostsCampaignTypes();
+        List<String> types = config.getOutsideHouseholdCampaignTypes();
         return projectType != null && types != null
-                && types.stream().map(PostTypeMasterService::normalize).anyMatch(projectType::equals);
+                && types.stream().map(OutsideHouseholdTypeMasterService::normalize).anyMatch(projectType::equals);
     }
 
     /** Upper-cases and trims; null for a null or blank code. Shared lookup key for every caller. */
@@ -120,10 +120,10 @@ public class PostTypeMasterService {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Boolean> extractActivePostTypes(List<Map<String, Object>> rows) {
-        Map<String, Boolean> postTypes = new LinkedHashMap<>();
+    private static Map<String, Boolean> extractActiveOutsideHouseholdTypes(List<Map<String, Object>> rows) {
+        Map<String, Boolean> outsideHouseholdTypes = new LinkedHashMap<>();
         if (rows == null) {
-            return postTypes;
+            return outsideHouseholdTypes;
         }
         for (Map<String, Object> row : rows) {
             Object data = row.get("data");
@@ -131,20 +131,20 @@ public class PostTypeMasterService {
                 continue;
             }
             Map<String, Object> dataMap = (Map<String, Object>) data;
-            Object active = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_ACTIVE_FIELD);
-            Object code = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_CODE_FIELD);
+            Object active = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_ACTIVE_FIELD);
+            Object code = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_CODE_FIELD);
             String normalizedCode = code instanceof String ? normalize((String) code) : null;
             if (Boolean.TRUE.equals(active) && normalizedCode != null) {
                 Object isPermanentByDefault = dataMap.get(
-                        ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_IS_PERMANENT_BY_DEFAULT_FIELD);
-                postTypes.put(normalizedCode, Boolean.TRUE.equals(isPermanentByDefault));
+                        ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_IS_PERMANENT_BY_DEFAULT_FIELD);
+                outsideHouseholdTypes.put(normalizedCode, Boolean.TRUE.equals(isPermanentByDefault));
             }
         }
-        return postTypes;
+        return outsideHouseholdTypes;
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, List<String>> extractCategoriesByPostType(List<Map<String, Object>> rows) {
+    private static Map<String, List<String>> extractCategoriesByOutsideHouseholdType(List<Map<String, Object>> rows) {
         Map<String, List<String>> categories = new LinkedHashMap<>();
         if (rows == null) {
             return categories;
@@ -155,14 +155,14 @@ public class PostTypeMasterService {
                 continue;
             }
             Map<String, Object> dataMap = (Map<String, Object>) data;
-            Object code = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_CODE_FIELD);
+            Object code = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_CODE_FIELD);
             String normalizedCode = code instanceof String ? normalize((String) code) : null;
-            if (!Boolean.TRUE.equals(dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_ACTIVE_FIELD))
+            if (!Boolean.TRUE.equals(dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_ACTIVE_FIELD))
                     || normalizedCode == null) {
                 continue;
             }
             List<String> codes = new ArrayList<>();
-            Object list = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_CATEGORIES_FIELD);
+            Object list = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_CATEGORIES_FIELD);
             if (list instanceof List) {
                 for (Object category : (List<Object>) list) {
                     String normalizedCategory = category instanceof String ? normalize((String) category) : null;
@@ -199,7 +199,7 @@ public class PostTypeMasterService {
         return codes;
     }
 
-    /** Delivery-method codes are compared upper-cased with non-alphanumerics removed (unlike post-type codes). */
+    /** Delivery-method codes are compared upper-cased with non-alphanumerics removed (unlike site-type codes). */
     private static String normalizeDeliveryMethod(String code) {
         if (code == null) {
             return null;

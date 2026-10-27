@@ -40,8 +40,8 @@ public class ExcelIngestionConfig {
     @Value("${egov.campaign.host}")
     private String campaignHost;
 
-    @Value("${excel.ingestion.posts.campaign.types:POLIO}")
-    private List<String> postsCampaignTypes;
+    @Value("${excel.ingestion.outside.household.campaign.types:POLIO}")
+    private List<String> outsideHouseholdCampaignTypes;
 
     @Value("${egov.campaign.data.search.path}")
     private String campaignDataSearchPath;

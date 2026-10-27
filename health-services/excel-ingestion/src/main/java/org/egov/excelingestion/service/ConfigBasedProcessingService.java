@@ -46,7 +46,7 @@ public class ConfigBasedProcessingService {
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
     private final ExcelIngestionConfig config;
-    private final PostTypeMasterService postTypeMasterService;
+    private final OutsideHouseholdTypeMasterService outsideHouseholdTypeMasterService;
 
     public ConfigBasedProcessingService(MDMSConfigService mdmsConfigService,
                                       CustomExceptionHandler exceptionHandler,
@@ -55,7 +55,7 @@ public class ConfigBasedProcessingService {
                                       Producer producer,
                                       KafkaTopicConfig kafkaTopicConfig,
                                       ExcelIngestionConfig config,
-                                      PostTypeMasterService postTypeMasterService) {
+                                      OutsideHouseholdTypeMasterService outsideHouseholdTypeMasterService) {
         this.mdmsConfigService = mdmsConfigService;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
@@ -63,7 +63,7 @@ public class ConfigBasedProcessingService {
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
         this.config = config;
-        this.postTypeMasterService = postTypeMasterService;
+        this.outsideHouseholdTypeMasterService = outsideHouseholdTypeMasterService;
     }
 
     /**
@@ -166,7 +166,7 @@ public class ConfigBasedProcessingService {
     }
 
     /**
-     * Check if all required sheets are present in the workbook. The posts sheet is required only for
+     * Check if all required sheets are present in the workbook. The Outside Household sheet is required only for
      * campaigns that use the outside-household delivery method.
      */
     private void checkRequiredSheetsPresent(Workbook workbook, java.util.List<ProcessorSheetConfig> config,
@@ -184,7 +184,7 @@ public class ConfigBasedProcessingService {
         for (ProcessorSheetConfig sheetConfig : config) {
             String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
             if (!workbookSheets.contains(localizedName)) {
-                if (!postTypeMasterService.isSheetApplicable(sheetConfig.getSheetNameKey(),
+                if (!outsideHouseholdTypeMasterService.isSheetApplicable(sheetConfig.getSheetNameKey(),
                         resource.getReferenceId(), resource.getReferenceType(), resource.getTenantId(), requestInfo)) {
                     log.info("Sheet '{}' not required for reference {}", localizedName, resource.getReferenceId());
                     continue;

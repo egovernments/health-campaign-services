@@ -21,7 +21,7 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.FacilityService;
 import org.egov.excelingestion.service.MDMSService;
-import org.egov.excelingestion.service.PostTypeMasterService;
+import org.egov.excelingestion.service.OutsideHouseholdTypeMasterService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.EnumLocalizationUtil;
@@ -39,25 +39,25 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Generator for the posts sheet (CLF / transit posts). Built like the facility sheet: schema columns from
+ * Generator for the Outside Household sheet (Outside Household Places / Transit Posts). Built like the facility sheet: schema columns from
  * MDMS, cascading boundary columns, then pre-filled rows via {@link ExcelDataPopulator}. Pre-filled rows are
- * this campaign's own stored posts ({@link FacilitySheetGenerator#fetchExistingCampaignData}), followed by
- * permanent posts carried over from earlier campaigns on this campaign's lowest/second-lowest boundaries
- * (as Inactive). Every row past the pre-filled ones gets an inline Post Status default formula, and the
- * Category dropdown lists only the categories of the row's post type (post-types master).
+ * this campaign's own stored sites ({@link FacilitySheetGenerator#fetchExistingCampaignData}), followed by
+ * permanent sites carried over from earlier campaigns on this campaign's lowest/second-lowest boundaries
+ * (as Inactive). Every row past the pre-filled ones gets an inline Site Status default formula, and the
+ * Category dropdown lists only the categories of the row's site type (site-types master).
  */
 @Component
 @Slf4j
-public class PostSheetGenerator implements ISheetGenerator {
+public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
 
-    // Carried-over posts may sit on the lowest OR second-lowest boundary level (matches validation).
+    // Carried-over sites may sit on the lowest OR second-lowest boundary level (matches validation).
     private static final int CARRY_OVER_LEVEL_COUNT = 2;
 
     // Hidden helper sheet + names behind the Category-by-type dropdown
-    private static final String CATEGORY_HELPER_SHEET_NAME = "_h_PostCategories_h_";
-    private static final String CATEGORY_RANGE_PREFIX = "_hPostCat";
-    private static final String TYPE_LIST_RANGE_NAME = "_hPostTypes";
-    private static final String EMPTY_CATEGORY_RANGE_NAME = "_hPostCatNone";
+    private static final String CATEGORY_HELPER_SHEET_NAME = "_h_OHCategories_h_";
+    private static final String CATEGORY_RANGE_PREFIX = "_hOutsideHouseholdCat";
+    private static final String TYPE_LIST_RANGE_NAME = "_hOutsideHouseholdTypes";
+    private static final String EMPTY_CATEGORY_RANGE_NAME = "_hOutsideHouseholdCatNone";
 
     private final MDMSService mdmsService;
     private final CampaignService campaignService;
@@ -68,15 +68,15 @@ public class PostSheetGenerator implements ISheetGenerator {
     private final SchemaColumnDefUtil schemaColumnDefUtil;
     private final ExcelDataPopulator excelDataPopulator;
     private final HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
-    private final PostTypeMasterService postTypeMasterService;
+    private final OutsideHouseholdTypeMasterService outsideHouseholdTypeMasterService;
     private final ExcelIngestionConfig config;
 
-    public PostSheetGenerator(MDMSService mdmsService, CampaignService campaignService,
+    public OutsideHouseholdSheetGenerator(MDMSService mdmsService, CampaignService campaignService,
                               FacilityService facilityService, BoundaryUtil boundaryUtil,
                               CellProtectionManager cellProtectionManager, CustomExceptionHandler exceptionHandler,
                               SchemaColumnDefUtil schemaColumnDefUtil, ExcelDataPopulator excelDataPopulator,
                               HierarchicalBoundaryUtil hierarchicalBoundaryUtil,
-                              PostTypeMasterService postTypeMasterService, ExcelIngestionConfig config) {
+                              OutsideHouseholdTypeMasterService outsideHouseholdTypeMasterService, ExcelIngestionConfig config) {
         this.mdmsService = mdmsService;
         this.campaignService = campaignService;
         this.facilityService = facilityService;
@@ -86,7 +86,7 @@ public class PostSheetGenerator implements ISheetGenerator {
         this.schemaColumnDefUtil = schemaColumnDefUtil;
         this.excelDataPopulator = excelDataPopulator;
         this.hierarchicalBoundaryUtil = hierarchicalBoundaryUtil;
-        this.postTypeMasterService = postTypeMasterService;
+        this.outsideHouseholdTypeMasterService = outsideHouseholdTypeMasterService;
         this.config = config;
     }
 
@@ -94,7 +94,7 @@ public class PostSheetGenerator implements ISheetGenerator {
     public XSSFWorkbook generateSheet(XSSFWorkbook workbook, String sheetName, SheetGenerationConfig config,
                                       GenerateResource generateResource, RequestInfo requestInfo,
                                       Map<String, String> localizationMap) {
-        log.info("Generating post sheet: {} for schema: {}", sheetName, config.getSchemaName());
+        log.info("Generating Outside Household sheet: {} for schema: {}", sheetName, config.getSchemaName());
         try {
             Map<String, Object> filters = new HashMap<>();
             filters.put("title", config.getSchemaName());
@@ -109,8 +109,8 @@ public class PostSheetGenerator implements ISheetGenerator {
             List<ColumnDef> columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schemaJson);
             // Delivery-method gate (ExcelGenerationService) already keeps this sheet from generating at
             // all when the master has no active codes.
-            Map<String, Boolean> postTypes = postTypeMasterService.getPostTypes(requestInfo, generateResource.getTenantId());
-            List<Map<String, Object>> data = fetchExistingPostData(generateResource, requestInfo, postTypes);
+            Map<String, Boolean> outsideHouseholdTypes = outsideHouseholdTypeMasterService.getOutsideHouseholdTypes(requestInfo, generateResource.getTenantId());
+            List<Map<String, Object>> data = fetchExistingOutsideHouseholdData(generateResource, requestInfo, outsideHouseholdTypes);
 
             if (workbook.getSheetIndex(sheetName) >= 0) {
                 workbook.removeSheetAt(workbook.getSheetIndex(sheetName));
@@ -130,35 +130,35 @@ public class PostSheetGenerator implements ISheetGenerator {
                 }
             }
 
-            // Posts List is a free-entry console sheet, same as the Facilities List: unprotected in join
+            // Outside Household sheet is a free-entry console sheet, same as the Facilities List: unprotected in join
             // mode, pre-filled rows stamped with hidden row-ids for the server-side immutable join.
             workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data,
                     localizationMap, generateResource.isUnprotectedJoinMode(),
-                    ProcessingConstants.isUserEntrySheet(ProcessingConstants.POST_SHEET_GENERATOR_CLASS));
+                    ProcessingConstants.isUserEntrySheet(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_GENERATOR_CLASS));
             cellProtectionManager.applyCellProtection(workbook, workbook.getSheet(sheetName), columns);
 
-            // Default Post Status (per post type, from the master) on every row the PM will add
-            applyPostStatusDefaultFormula(workbook.getSheet(sheetName), columns, postTypes,
+            // Default Site Status (per site type, from the master) on every row the PM will add
+            applyOutsideHouseholdStatusDefaultFormula(workbook.getSheet(sheetName), columns, outsideHouseholdTypes,
                     localizationMap, data != null ? data.size() : 0);
             applyCategoryDropdownByType(workbook, workbook.getSheet(sheetName), columns,
-                    postTypeMasterService.getCategoriesByPostType(requestInfo, generateResource.getTenantId()),
+                    outsideHouseholdTypeMasterService.getCategoriesByOutsideHouseholdType(requestInfo, generateResource.getTenantId()),
                     localizationMap);
             return workbook;
 
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error generating post sheet {}: {}", sheetName, e.getMessage(), e);
-            throw new RuntimeException("Failed to generate post sheet: " + sheetName, e);
+            log.error("Error generating Outside Household sheet {}: {}", sheetName, e.getMessage(), e);
+            throw new RuntimeException("Failed to generate Outside Household sheet: " + sheetName, e);
         }
     }
 
-    /** Pre-filled rows: this campaign's own posts, then permanent posts carried over from earlier campaigns. */
-    private List<Map<String, Object>> fetchExistingPostData(GenerateResource generateResource,
-                                                            RequestInfo requestInfo, Map<String, Boolean> postTypes) {
+    /** Pre-filled rows: this campaign's own sites, then permanent sites carried over from earlier campaigns. */
+    private List<Map<String, Object>> fetchExistingOutsideHouseholdData(GenerateResource generateResource,
+                                                            RequestInfo requestInfo, Map<String, Boolean> outsideHouseholdTypes) {
         String referenceId = generateResource.getReferenceId();
         if (isBlank(referenceId)) {
-            log.info("No reference ID provided for post sheet");
+            log.info("No reference ID provided for Outside Household sheet");
             return null; // Headers-only sheet
         }
         try {
@@ -170,96 +170,96 @@ public class PostSheetGenerator implements ISheetGenerator {
                 return null; // Headers-only sheet
             }
 
-            // Stored rows already carry every post column, the hidden clientReferenceId join key and the
-            // refreshed Post Usage (project-factory spreads the sheet row back).
-            List<Map<String, Object>> campaignPosts = FacilitySheetGenerator.fetchExistingCampaignData(
+            // Stored rows already carry every site column, the hidden clientReferenceId join key and the
+            // refreshed Site Usage (project-factory spreads the sheet row back).
+            List<Map<String, Object>> campaignOutsideHouseholdSites = FacilitySheetGenerator.fetchExistingCampaignData(
                     campaignService, campaignNumber, generateResource.getTenantId(), requestInfo, true);
 
-            List<Map<String, Object>> carryOverPosts = new ArrayList<>();
+            List<Map<String, Object>> carryOverOutsideHouseholdSites = new ArrayList<>();
             if (!isBlank(generateResource.getHierarchyType())) {
                 Set<String> carryOverCodes = boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
                         generateResource.getId(), referenceId, generateResource.getTenantId(),
                         generateResource.getHierarchyType(), CARRY_OVER_LEVEL_COUNT, requestInfo);
-                carryOverPosts = fetchCarryOverPosts(generateResource.getTenantId(), carryOverCodes,
-                        campaignPosts, postTypes, requestInfo);
+                carryOverOutsideHouseholdSites = fetchCarryOverOutsideHouseholdSites(generateResource.getTenantId(), carryOverCodes,
+                        campaignOutsideHouseholdSites, outsideHouseholdTypes, requestInfo);
             }
 
-            List<Map<String, Object>> rows = new ArrayList<>(campaignPosts.size() + carryOverPosts.size());
-            rows.addAll(campaignPosts);
-            rows.addAll(carryOverPosts);
-            log.info("Final post data count: {} (campaign: {}, carried over: {})",
-                    rows.size(), campaignPosts.size(), carryOverPosts.size());
+            List<Map<String, Object>> rows = new ArrayList<>(campaignOutsideHouseholdSites.size() + carryOverOutsideHouseholdSites.size());
+            rows.addAll(campaignOutsideHouseholdSites);
+            rows.addAll(carryOverOutsideHouseholdSites);
+            log.info("Final site data count: {} (campaign: {}, carried over: {})",
+                    rows.size(), campaignOutsideHouseholdSites.size(), carryOverOutsideHouseholdSites.size());
             return rows;
 
         } catch (Exception e) {
-            log.error("Error fetching post data: {}", e.getMessage(), e);
+            log.error("Error fetching site data: {}", e.getMessage(), e);
             return null; // Headers-only sheet on error, as on the facility sheet
         }
     }
 
-    /** Permanent posts of earlier campaigns on carryOverCodes, not already listed (by clientReferenceId), as Inactive. */
-    private List<Map<String, Object>> fetchCarryOverPosts(String tenantId, Set<String> carryOverCodes,
-                                                          List<Map<String, Object>> campaignPosts,
-                                                          Map<String, Boolean> postTypes, RequestInfo requestInfo) {
-        List<Map<String, Object>> posts = new ArrayList<>();
+    /** Permanent sites of earlier campaigns on carryOverCodes, not already listed (by clientReferenceId), as Inactive. */
+    private List<Map<String, Object>> fetchCarryOverOutsideHouseholdSites(String tenantId, Set<String> carryOverCodes,
+                                                          List<Map<String, Object>> campaignOutsideHouseholdSites,
+                                                          Map<String, Boolean> outsideHouseholdTypes, RequestInfo requestInfo) {
+        List<Map<String, Object>> sites = new ArrayList<>();
         if (carryOverCodes == null || carryOverCodes.isEmpty()) {
-            return posts;
+            return sites;
         }
 
-        Set<String> listedIds = campaignPosts.stream()
-                .map(post -> asTrimmedString(post.get(ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY)))
+        Set<String> listedIds = campaignOutsideHouseholdSites.stream()
+                .map(site -> asTrimmedString(site.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY)))
                 .filter(Objects::nonNull).collect(Collectors.toCollection(HashSet::new));
 
-        for (String postType : postTypes.keySet()) {
-            for (Map<String, Object> facility : facilityService.fetchAllPermanentFacilities(tenantId, postType, requestInfo)) {
+        for (String outsideHouseholdType : outsideHouseholdTypes.keySet()) {
+            for (Map<String, Object> facility : facilityService.fetchAllPermanentFacilities(tenantId, outsideHouseholdType, requestInfo)) {
                 String id = asTrimmedString(facility.get("clientReferenceId"));
                 String locality = FacilitySheetGenerator.getFacilityBoundaryCode(facility);
                 if (id == null || locality == null || !carryOverCodes.contains(locality) || listedIds.contains(id)) {
                     continue;
                 }
                 listedIds.add(id);
-                posts.add(toPostRowFromFacility(facility, locality));
+                sites.add(toOutsideHouseholdRowFromFacility(facility, locality));
             }
         }
-        log.info("Found {} posts carried over from earlier campaigns", posts.size());
-        return posts;
+        log.info("Found {} sites carried over from earlier campaigns", sites.size());
+        return sites;
     }
 
     /**
-     * Writes an inline default formula into the Post Status cell of every row past the pre-filled ones:
+     * Writes an inline default formula into the Site Status cell of every row past the pre-filled ones:
      * {@code IF(t="","",IF(OR(t="<label>",t="<CODE>",...),"<Permanent>","<Temporary>"))}. The OR lists both
      * the localized label AND the code of every active type with isPermanentByDefault=true, because
-     * EnumValueNormalizer may rewrite the Post Type cell to its code before or after this formula is read
+     * EnumValueNormalizer may rewrite the Site Type cell to its code before or after this formula is read
      * (HashMap column order) - a label-only (or code-only) formula would go blank on whichever order runs.
      */
-    private void applyPostStatusDefaultFormula(Sheet sheet, List<ColumnDef> columns, Map<String, Boolean> postTypes,
+    private void applyOutsideHouseholdStatusDefaultFormula(Sheet sheet, List<ColumnDef> columns, Map<String, Boolean> outsideHouseholdTypes,
                                                Map<String, String> localizationMap, int dataRowCount) {
-        if (postTypes == null || postTypes.isEmpty() || sheet == null) {
+        if (outsideHouseholdTypes == null || outsideHouseholdTypes.isEmpty() || sheet == null) {
             return;
         }
-        int postTypeColIdx = technicalColumnIndex(sheet, ProcessingConstants.POST_TYPE_COLUMN_KEY);
-        int postStatusColIdx = technicalColumnIndex(sheet, ProcessingConstants.POST_STATUS_COLUMN_KEY);
-        if (postTypeColIdx < 0 || postStatusColIdx < 0) {
-            log.warn("Post Type/Post Status column not found on sheet '{}'; skipping default formula", sheet.getSheetName());
+        int outsideHouseholdTypeColIdx = technicalColumnIndex(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY);
+        int outsideHouseholdStatusColIdx = technicalColumnIndex(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY);
+        if (outsideHouseholdTypeColIdx < 0 || outsideHouseholdStatusColIdx < 0) {
+            log.warn("Site Type/Site Status column not found on sheet '{}'; skipping default formula", sheet.getSheetName());
             return;
         }
 
-        String formulaTemplate = buildPostStatusDefaultFormula(columns, postTypes, localizationMap);
-        String postTypeColLetter = CellReference.convertNumToColString(postTypeColIdx);
+        String formulaTemplate = buildOutsideHouseholdStatusDefaultFormula(columns, outsideHouseholdTypes, localizationMap);
+        String outsideHouseholdTypeColLetter = CellReference.convertNumToColString(outsideHouseholdTypeColIdx);
         int firstEmptyRow = 2 + dataRowCount; // rows 0/1 are the header rows; pre-filled rows come first
         int lastRow = Math.max(ExcelUtil.findActualLastRowWithData(sheet), 2 + config.getExcelRowLimit() - 1);
         for (int rowIdx = firstEmptyRow; rowIdx <= lastRow; rowIdx++) {
-            String typeCellRef = "$" + postTypeColLetter + "$" + (rowIdx + 1);
-            CellUtil.getCell(CellUtil.getRow(rowIdx, sheet), postStatusColIdx)
+            String typeCellRef = "$" + outsideHouseholdTypeColLetter + "$" + (rowIdx + 1);
+            CellUtil.getCell(CellUtil.getRow(rowIdx, sheet), outsideHouseholdStatusColIdx)
                     .setCellFormula(formulaTemplate.replace("{t}", typeCellRef));
         }
-        log.info("Applied Post Status default formula to sheet '{}' rows {}-{}",
+        log.info("Applied Site Status default formula to sheet '{}' rows {}-{}",
                 sheet.getSheetName(), firstEmptyRow + 1, lastRow + 1);
     }
 
     /**
-     * Replaces the Category dropdown with one that depends on the row's Post Type:
-     * {@code INDIRECT(IFERROR("_hPostCat"&MATCH(<type cell>,_hPostTypes,0),"_hPostCatNone"))}. The helper sheet
+     * Replaces the Category dropdown with one that depends on the row's Site Type:
+     * {@code INDIRECT(IFERROR("_hOutsideHouseholdCat"&MATCH(<type cell>,_hOutsideHouseholdTypes,0),"_hOutsideHouseholdCatNone"))}. The helper sheet
      * lists every type (localized label, then code - the cell may hold either) and, per type, its localized
      * categories; a type with no categories list in the master offers the schema's full category list.
      */
@@ -269,10 +269,10 @@ public class PostSheetGenerator implements ISheetGenerator {
         if (sheet == null || categoriesByType == null || categoriesByType.isEmpty()) {
             return;
         }
-        int typeColIdx = technicalColumnIndex(sheet, ProcessingConstants.POST_TYPE_COLUMN_KEY);
-        int categoryColIdx = technicalColumnIndex(sheet, ProcessingConstants.POST_CATEGORY_COLUMN_KEY);
+        int typeColIdx = technicalColumnIndex(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY);
+        int categoryColIdx = technicalColumnIndex(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY);
         if (typeColIdx < 0 || categoryColIdx < 0) {
-            log.warn("Post Type/Category column not found on sheet '{}'; keeping the plain Category dropdown",
+            log.warn("Site Type/Category column not found on sheet '{}'; keeping the plain Category dropdown",
                     sheet.getSheetName());
             return;
         }
@@ -283,12 +283,12 @@ public class PostSheetGenerator implements ISheetGenerator {
         }
 
         List<String> typeCodes = new ArrayList<>(categoriesByType.keySet());
-        List<String> typeLabels = EnumLocalizationUtil.toLocalizedValues(ProcessingConstants.POST_TYPE_COLUMN_KEY,
-                typeCodes, localizationMap, columnPrefix(columns, ProcessingConstants.POST_TYPE_COLUMN_KEY));
+        List<String> typeLabels = EnumLocalizationUtil.toLocalizedValues(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY,
+                typeCodes, localizationMap, columnPrefix(columns, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY));
         List<String> allCategories = columns.stream()
-                .filter(column -> ProcessingConstants.POST_CATEGORY_COLUMN_KEY.equals(column.getName()))
+                .filter(column -> ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY.equals(column.getName()))
                 .map(ColumnDef::getEnumValues).filter(Objects::nonNull).findFirst().orElse(List.of());
-        String categoryPrefix = columnPrefix(columns, ProcessingConstants.POST_CATEGORY_COLUMN_KEY);
+        String categoryPrefix = columnPrefix(columns, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY);
 
         if (workbook.getSheetIndex(CATEGORY_HELPER_SHEET_NAME) >= 0) {
             workbook.removeSheetAt(workbook.getSheetIndex(CATEGORY_HELPER_SHEET_NAME));
@@ -309,7 +309,7 @@ public class PostSheetGenerator implements ISheetGenerator {
 
         for (int i = 0; i < n; i++) {
             List<String> codes = categoriesByType.get(typeCodes.get(i));
-            List<String> labels = EnumLocalizationUtil.toLocalizedValues(ProcessingConstants.POST_CATEGORY_COLUMN_KEY,
+            List<String> labels = EnumLocalizationUtil.toLocalizedValues(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY,
                     codes == null || codes.isEmpty() ? allCategories : codes, localizationMap, categoryPrefix);
             String colLetter = CellReference.convertNumToColString(i + 1);
             for (int r = 0; r < labels.size(); r++) {
@@ -373,27 +373,27 @@ public class PostSheetGenerator implements ISheetGenerator {
         name.setRefersToFormula(refersTo);
     }
 
-    /** Formula template (token {@code {t}} stands in for the row's Post Type cell reference). */
-    private static String buildPostStatusDefaultFormula(List<ColumnDef> columns, Map<String, Boolean> postTypes,
+    /** Formula template (token {@code {t}} stands in for the row's Site Type cell reference). */
+    private static String buildOutsideHouseholdStatusDefaultFormula(List<ColumnDef> columns, Map<String, Boolean> outsideHouseholdTypes,
                                                         Map<String, String> localizationMap) {
         List<String> permanentCodes = new ArrayList<>();
-        for (Map.Entry<String, Boolean> entry : postTypes.entrySet()) {
+        for (Map.Entry<String, Boolean> entry : outsideHouseholdTypes.entrySet()) {
             if (Boolean.TRUE.equals(entry.getValue())) {
                 permanentCodes.add(entry.getKey());
             }
         }
 
-        List<String> statusLabels = EnumLocalizationUtil.toLocalizedValues(ProcessingConstants.POST_STATUS_COLUMN_KEY,
+        List<String> statusLabels = EnumLocalizationUtil.toLocalizedValues(ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY,
                 List.of(ProcessingConstants.STATUS_PERMANENT, ProcessingConstants.STATUS_TEMPORARY),
-                localizationMap, columnPrefix(columns, ProcessingConstants.POST_STATUS_COLUMN_KEY));
+                localizationMap, columnPrefix(columns, ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY));
         String permanentLabel = escapeFormulaLiteral(statusLabels.get(0));
         String temporaryLabel = escapeFormulaLiteral(statusLabels.get(1));
         if (permanentCodes.isEmpty()) {
             return "IF({t}=\"\",\"\",\"" + temporaryLabel + "\")";
         }
 
-        List<String> permanentLabels = EnumLocalizationUtil.toLocalizedValues(ProcessingConstants.POST_TYPE_COLUMN_KEY,
-                permanentCodes, localizationMap, columnPrefix(columns, ProcessingConstants.POST_TYPE_COLUMN_KEY));
+        List<String> permanentLabels = EnumLocalizationUtil.toLocalizedValues(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY,
+                permanentCodes, localizationMap, columnPrefix(columns, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY));
         StringBuilder or = new StringBuilder();
         for (int i = 0; i < permanentCodes.size(); i++) {
             if (or.length() > 0) {
@@ -437,18 +437,18 @@ public class PostSheetGenerator implements ISheetGenerator {
         return -1;
     }
 
-    /** Maps a permanent facility of a post type to a post row, listed as Inactive. */
-    static Map<String, Object> toPostRowFromFacility(Map<String, Object> facility, String localityCode) {
+    /** Maps a permanent facility of a site type to a site row, listed as Inactive. */
+    static Map<String, Object> toOutsideHouseholdRowFromFacility(Map<String, Object> facility, String localityCode) {
         Map<String, Object> row = new HashMap<>();
-        putIfPresent(row, ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY,
+        putIfPresent(row, ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY,
                 asTrimmedString(facility.get("clientReferenceId")));
-        putIfPresent(row, ProcessingConstants.POST_TYPE_COLUMN_KEY, asTrimmedString(facility.get("usage")));
-        putIfPresent(row, ProcessingConstants.POST_CATEGORY_COLUMN_KEY,
-                additionalFieldValue(facility, ProcessingConstants.POST_CATEGORY_ADDITIONAL_FIELD_KEY));
-        putIfPresent(row, ProcessingConstants.POST_NAME_COLUMN_KEY, facility.get("name"));
+        putIfPresent(row, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY, asTrimmedString(facility.get("usage")));
+        putIfPresent(row, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY,
+                additionalFieldValue(facility, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_ADDITIONAL_FIELD_KEY));
+        putIfPresent(row, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, facility.get("name"));
         // fetchAllPermanentFacilities already filters isPermanent=true, so this is always Permanent.
-        row.put(ProcessingConstants.POST_STATUS_COLUMN_KEY, ProcessingConstants.STATUS_PERMANENT);
-        row.put(ProcessingConstants.POST_USAGE_COLUMN_KEY, ProcessingConstants.POST_USAGE_INACTIVE);
+        row.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY, ProcessingConstants.STATUS_PERMANENT);
+        row.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY, ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_INACTIVE);
         row.put(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, localityCode);
         return row;
     }

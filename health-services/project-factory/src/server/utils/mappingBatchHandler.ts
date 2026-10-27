@@ -1,7 +1,7 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { getRelatedDataWithCampaign } from './genericUtils';
-import { mappingStatuses, postFacilityFields, postLinkAdditionalFieldsSchema } from '../config/constants';
+import { mappingStatuses, outsideHouseholdFacilityFields, outsideHouseholdLinkAdditionalFieldsSchema } from '../config/constants';
 import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
@@ -39,7 +39,7 @@ export async function handleMappingBatch(messageObject: any) {
 
         const boundaryToProjectId = createLookupMap(boundaryData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
         const facilityMap = createLookupMap(facilityData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
-        const postLinkFieldsMap = buildPostLinkAdditionalFields(facilityData);
+        const outsideHouseholdLinkFieldsMap = buildOutsideHouseholdLinkAdditionalFields(facilityData);
         const userMap = createLookupMap(userData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
 
         const mappingGroups = groupMappings(mappings);
@@ -50,7 +50,7 @@ export async function handleMappingBatch(messageObject: any) {
             promises.push(processResourceMappings(mappingGroups.resourceToBeMapped, boundaryToProjectId, tenantId, useruuid, requestInfo));
         }
         if (mappingGroups.facilityToBeMapped.length > 0) {
-            promises.push(processFacilityMappings(mappingGroups.facilityToBeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo, postLinkFieldsMap));
+            promises.push(processFacilityMappings(mappingGroups.facilityToBeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo, outsideHouseholdLinkFieldsMap));
         }
         if (mappingGroups.userToBeMapped.length > 0) {
             promises.push(processUserMappings(mappingGroups.userToBeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
@@ -331,7 +331,7 @@ async function bulkCreateAndConfirm(
         chunks.push(creatable.slice(i, i + CHUNK));
     }
 
-    // A chunk whose bulk POST throws (5xx / network) marks its own rows failed with the reason
+    // A chunk whose bulk OUTSIDE_HOUSEHOLD throws (5xx / network) marks its own rows failed with the reason
     // instead of aborting the whole batch — so other chunks, the confirm pass, and already-adopted
     // rows still get processed and persisted, and the failure reason is captured in lastError.
     const failedKeys = new Set<string>();
@@ -351,7 +351,7 @@ async function bulkCreateAndConfirm(
         }
     });
 
-    // Confirm-by-search only the rows whose bulk POST was accepted.
+    // Confirm-by-search only the rows whose bulk OUTSIDE_HOUSEHOLD was accepted.
     const pending = new Map<string, { mapping: any; projectId: string; entityId: string }>();
     for (const c of creatable) {
         const key = `${c.entityId}|${c.projectId}`;
@@ -435,34 +435,34 @@ async function processResourceMappings(
 }
 
 /**
- * additionalFields for the project-facility link of every post, keyed by the post's uniqueIdentifier (its
- * clientReferenceId). The PostAssignment schema marks the link as a post link (the indexer filters on it);
+ * additionalFields for the project-facility link of every site, keyed by the site's uniqueIdentifier (its
+ * clientReferenceId). The OutsideHouseholdAssignment schema marks the link as a site link (the indexer filters on it);
  * fields carry the frontline worker, if given. The worker is campaign data: it is stored on this campaign's
- * link only, never on the post facility, so it does not follow the post to the next campaign.
+ * link only, never on the site facility, so it does not follow the site to the next campaign.
  */
-export function buildPostLinkAdditionalFields(facilityData: any[]): Record<string, any> {
+export function buildOutsideHouseholdLinkAdditionalFields(facilityData: any[]): Record<string, any> {
     const result: Record<string, any> = {};
     for (const row of facilityData || []) {
         const data = row?.data || {};
-        if (!data[postFacilityFields.clientReferenceId]) continue;
+        if (!data[outsideHouseholdFacilityFields.clientReferenceId]) continue;
         const fields = [
-            { key: postLinkAdditionalFieldsSchema.workerNameKey, value: data[postFacilityFields.workerName] },
-            { key: postLinkAdditionalFieldsSchema.workerPhoneKey, value: data[postFacilityFields.workerPhone] },
+            { key: outsideHouseholdLinkAdditionalFieldsSchema.workerNameKey, value: data[outsideHouseholdFacilityFields.workerName] },
+            { key: outsideHouseholdLinkAdditionalFieldsSchema.workerPhoneKey, value: data[outsideHouseholdFacilityFields.workerPhone] },
         ]
             .map(f => ({ key: f.key, value: String(f.value ?? '').trim() }))
             .filter(f => f.value);
         result[row.uniqueIdentifier] = {
-            schema: postLinkAdditionalFieldsSchema.schema,
-            version: postLinkAdditionalFieldsSchema.version,
+            schema: outsideHouseholdLinkAdditionalFieldsSchema.schema,
+            version: outsideHouseholdLinkAdditionalFieldsSchema.version,
             fields
         };
     }
     return result;
 }
 
-/** { additionalFields } for a post link; {} for every other link. */
-function withPostLinkFields(postLinkFieldsMap: Record<string, any>, mapping: any): Record<string, any> {
-    const additionalFields = mapping ? postLinkFieldsMap[mapping.uniqueIdentifierForData] : undefined;
+/** { additionalFields } for a site link; {} for every other link. */
+function withOutsideHouseholdLinkFields(outsideHouseholdLinkFieldsMap: Record<string, any>, mapping: any): Record<string, any> {
+    const additionalFields = mapping ? outsideHouseholdLinkFieldsMap[mapping.uniqueIdentifierForData] : undefined;
     return additionalFields ? { additionalFields } : {};
 }
 
@@ -477,7 +477,7 @@ async function processFacilityMappings(
     tenantId: string,
     useruuid: string,
     requestInfo: RequestInfo,
-    postLinkFieldsMap: Record<string, any> = {}
+    outsideHouseholdLinkFieldsMap: Record<string, any> = {}
 ): Promise<void> {
     await processToBeMappedGroup(mappings, boundaryToProjectId, tenantId, requestInfo, {
         type: 'facility',
@@ -497,7 +497,7 @@ async function processFacilityMappings(
                 facilityId: entityId,
                 startDate: null,
                 endDate: null,
-                ...withPostLinkFields(postLinkFieldsMap, mapping)
+                ...withOutsideHouseholdLinkFields(outsideHouseholdLinkFieldsMap, mapping)
             };
             const response = await createProjectFacility({ RequestInfo, ProjectFacility });
             return response?.ProjectFacility?.id;
@@ -508,7 +508,7 @@ async function processFacilityMappings(
             facilityId: entityId,
             startDate: null,
             endDate: null,
-            ...withPostLinkFields(postLinkFieldsMap, mapping)
+            ...withOutsideHouseholdLinkFields(outsideHouseholdLinkFieldsMap, mapping)
         }),
         bulkCreate: (entities, RequestInfo) => createProjectFacilityBulk(entities, RequestInfo),
     });

@@ -8,7 +8,7 @@ import {
 import { logger } from "./logger";
 import config from "../config";
 import { RequestInfo } from "../config/models/requestInfoSchema";
-import { postFacilityFields, postAdditionalFieldsSchema } from "../config/constants";
+import { outsideHouseholdFacilityFields, outsideHouseholdAdditionalFieldsSchema } from "../config/constants";
 
 type RowData = Record<string, any>;
 
@@ -327,16 +327,16 @@ export class DataTransformer {
             const codeList = (d.Facility.address.locality.code || "").split(",");
             d.Facility.address.locality.code = codeList[0].trim();
 
-            // Post rows carry a non-blank clientReferenceId header; facility rows never do.
+            // Site rows carry a non-blank clientReferenceId header; facility rows never do.
             const row = rows?.[i];
-            const clientReferenceId = String(row?.[postFacilityFields.clientReferenceId] ?? "").trim();
+            const clientReferenceId = String(row?.[outsideHouseholdFacilityFields.clientReferenceId] ?? "").trim();
             if (clientReferenceId) {
                 d.Facility.clientReferenceId = clientReferenceId;
-                const category = String(row?.[postFacilityFields.category] ?? "").trim();
+                const category = String(row?.[outsideHouseholdFacilityFields.category] ?? "").trim();
                 d.Facility.additionalFields = {
-                    schema: postAdditionalFieldsSchema.schema,
-                    version: postAdditionalFieldsSchema.version,
-                    fields: category ? [{ key: postAdditionalFieldsSchema.categoryKey, value: category }] : []
+                    schema: outsideHouseholdAdditionalFieldsSchema.schema,
+                    version: outsideHouseholdAdditionalFieldsSchema.version,
+                    fields: category ? [{ key: outsideHouseholdAdditionalFieldsSchema.categoryKey, value: category }] : []
                 };
             }
         });

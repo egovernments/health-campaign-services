@@ -220,8 +220,8 @@ public class ErrorConstants {
     public static final String FACILITY_VALIDATION_FAILED = "FACILITY_VALIDATION_FAILED";
     public static final String FACILITY_VALIDATION_FAILED_MESSAGE = "Failed to process facility validation sheet";
 
-    public static final String POST_VALIDATION_FAILED = "POST_VALIDATION_FAILED";
-    public static final String POST_VALIDATION_FAILED_MESSAGE = "Failed to process post validation sheet";
+    public static final String OUTSIDE_HOUSEHOLD_VALIDATION_FAILED = "OUTSIDE_HOUSEHOLD_VALIDATION_FAILED";
+    public static final String OUTSIDE_HOUSEHOLD_VALIDATION_FAILED_MESSAGE = "Failed to process site validation sheet";
 
     public static final String TARGET_PROCESSING_FAILED = "TARGET_PROCESSING_FAILED";
     public static final String TARGET_PROCESSING_FAILED_MESSAGE = "Error processing target sheet";

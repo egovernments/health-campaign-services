@@ -38,20 +38,20 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                 projectFacilityRowMapper, Optional.of("project_facility"));
     }
 
-    // NOT EXISTS fragment that hides links to a post facility (additionalDetails.schema == "Post");
+    // NOT EXISTS fragment that hides links to a site facility (additionalDetails.schema == "OutsideHousehold");
     // %s is the facilityId column reference, which differs by query (aliased vs unaliased).
-    // additionalDetails "schema" value that marks a facility as a post
-    private static final String POST_FACILITY_SCHEMA_MARKER = "Post";
+    // additionalDetails "schema" value that marks a facility as a site
+    private static final String OUTSIDE_HOUSEHOLD_FACILITY_SCHEMA_MARKER = "OutsideHousehold";
 
-    private static final String POST_HIDING_NOT_EXISTS_CLAUSE =
+    private static final String OUTSIDE_HOUSEHOLD_HIDING_NOT_EXISTS_CLAUSE =
             "AND NOT EXISTS (SELECT 1 FROM " + SCHEMA_REPLACE_STRING + ".facility fac " +
-                    "WHERE fac.id = %s AND fac.additionalDetails->>'schema' = :postFacilitySchema) ";
+                    "WHERE fac.id = %s AND fac.additionalDetails->>'schema' = :outsideHouseholdFacilitySchema) ";
 
     /**
      * Finds facility IDs grouped by boundary type for descendants of the given project.
      * Joins PROJECT, PROJECT_ADDRESS, and PROJECT_FACILITY in a single query
      * filtering by projectHierarchy LIKE and boundaryType IN.
-     * Leaves out links to a post facility.
+     * Leaves out links to a site facility.
      */
     public Map<String, List<String>> findFacilitiesByDescendants(
             String projectId, List<String> boundaryTypes, String tenantId) throws InvalidTenantIdException {
@@ -64,7 +64,7 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                 "AND LOWER(addr.boundaryType) IN (:boundaryTypes) " +
                 "AND pf.isDeleted = false " +
                 "AND prj.isDeleted = false " +
-                String.format(POST_HIDING_NOT_EXISTS_CLAUSE, "pf.facilityId");
+                String.format(OUTSIDE_HOUSEHOLD_HIDING_NOT_EXISTS_CLAUSE, "pf.facilityId");
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
@@ -74,7 +74,7 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("hierarchyPattern", "%" + projectId + ".%");
         params.addValue("boundaryTypes", lowerBoundaryTypes);
-        params.addValue("postFacilitySchema", POST_FACILITY_SCHEMA_MARKER);
+        params.addValue("outsideHouseholdFacilitySchema", OUTSIDE_HOUSEHOLD_FACILITY_SCHEMA_MARKER);
 
         return executeFacilityQuery(query, params);
     }
@@ -82,7 +82,7 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
     /**
      * Finds facility IDs grouped by boundary type for the given project and its ancestors.
      * Uses specific project IDs (parsed from projectHierarchy) to query directly.
-     * Same post-hiding as {@link #findFacilitiesByDescendants}.
+     * Same site-hiding as {@link #findFacilitiesByDescendants}.
      */
     public Map<String, List<String>> findFacilitiesByAncestors(
             List<String> ancestorProjectIds, List<String> boundaryTypes, String tenantId) throws InvalidTenantIdException {
@@ -95,7 +95,7 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                 "AND LOWER(addr.boundaryType) IN (:boundaryTypes) " +
                 "AND pf.isDeleted = false " +
                 "AND prj.isDeleted = false " +
-                String.format(POST_HIDING_NOT_EXISTS_CLAUSE, "pf.facilityId");
+                String.format(OUTSIDE_HOUSEHOLD_HIDING_NOT_EXISTS_CLAUSE, "pf.facilityId");
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
@@ -105,13 +105,13 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("projectIds", ancestorProjectIds);
         params.addValue("boundaryTypes", lowerBoundaryTypes);
-        params.addValue("postFacilitySchema", POST_FACILITY_SCHEMA_MARKER);
+        params.addValue("outsideHouseholdFacilitySchema", OUTSIDE_HOUSEHOLD_FACILITY_SCHEMA_MARKER);
 
         return executeFacilityQuery(query, params);
     }
 
     /**
-     * Overrides the inherited generic criteria search to leave out links to a post facility,
+     * Overrides the inherited generic criteria search to leave out links to a site facility,
      * unless the search already asks for a specific facilityId or id, in which case the caller
      * gets exactly what it asked for.
      */
@@ -140,8 +140,8 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
         boolean callerAskedForSpecificFacility = !CollectionUtils.isEmpty(search.getFacilityId())
                 || !CollectionUtils.isEmpty(search.getId());
         if (!callerAskedForSpecificFacility) {
-            query += String.format(POST_HIDING_NOT_EXISTS_CLAUSE, "facilityId");
-            paramsMap.put("postFacilitySchema", POST_FACILITY_SCHEMA_MARKER);
+            query += String.format(OUTSIDE_HOUSEHOLD_HIDING_NOT_EXISTS_CLAUSE, "facilityId");
+            paramsMap.put("outsideHouseholdFacilitySchema", OUTSIDE_HOUSEHOLD_FACILITY_SCHEMA_MARKER);
         }
 
         query += "ORDER BY id ASC";

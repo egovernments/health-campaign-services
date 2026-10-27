@@ -292,7 +292,7 @@ export const additionalDetailKeys = {
     userSheetStatus: "userSheetStatus",
     boundarySheetStatus: "boundarySheetStatus",
     facilitySheetStatus: "facilitySheetStatus",
-    postSheetStatus: "postSheetStatus",
+    outsideHouseholdSheetStatus: "outsideHouseholdSheetStatus",
 } as const;
 
 // Sheet validation status values
@@ -329,27 +329,27 @@ export const userDataFields = {
     boundaryName: "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
 } as const;
 
-// Post sheet header keys read by the facility transform to stamp a post facility
-export const postFacilityFields = {
-    clientReferenceId: "HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID",
-    category: "HCM_ADMIN_CONSOLE_POST_CATEGORY",
-    workerName: "HCM_ADMIN_CONSOLE_POST_WORKER_NAME",
-    workerPhone: "HCM_ADMIN_CONSOLE_POST_WORKER_PHONE",
+// Site sheet header keys read by the facility transform to stamp a site facility
+export const outsideHouseholdFacilityFields = {
+    clientReferenceId: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID",
+    category: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY",
+    workerName: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME",
+    workerPhone: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE",
 } as const;
 
-// ProjectFacility.additionalFields of a post's link: the frontline worker for this campaign only
-export const postLinkAdditionalFieldsSchema = {
-    schema: "PostAssignment",
+// ProjectFacility.additionalFields of a site's link: the frontline worker for this campaign only
+export const outsideHouseholdLinkAdditionalFieldsSchema = {
+    schema: "OutsideHouseholdAssignment",
     version: 1,
     workerNameKey: "frontlineWorkerName",
     workerPhoneKey: "frontlineWorkerPhone",
 } as const;
 
-// Facility.additionalFields marker that identifies a facility as a post
-export const postAdditionalFieldsSchema = {
-    schema: "Post",
+// Facility.additionalFields marker that identifies a facility as a site
+export const outsideHouseholdAdditionalFieldsSchema = {
+    schema: "OutsideHousehold",
     version: 1,
-    categoryKey: "postCategory",
+    categoryKey: "outsideHouseholdCategory",
 } as const;
 
 // MDMS schema code for template validation

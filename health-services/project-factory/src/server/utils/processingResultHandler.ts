@@ -4,7 +4,7 @@ import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from '
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses, postFacilityFields } from '../config/constants';
+import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses, outsideHouseholdFacilityFields } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
 import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration, markAllToCreateResourcesAsCompleted } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
@@ -235,7 +235,7 @@ export async function handleProcessingResult(messageObject: any) {
         const boundarySheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.boundarySheetStatus];
         const facilitySheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.facilitySheetStatus];
         const userSheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.userSheetStatus];
-        const postSheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.postSheetStatus];
+        const outsideHouseholdSheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.outsideHouseholdSheetStatus];
 
         if (messageObject.status !== 'completed') {
             logger.warn('=== MESSAGE STATUS IS NOT COMPLETED - STOPPING PROCESSING ===');
@@ -244,23 +244,23 @@ export async function handleProcessingResult(messageObject: any) {
             return;
         }
 
-        // Boundary, facility or posts validation failures hard-block the campaign; user-sheet failures do not.
+        // Boundary, facility or sites validation failures hard-block the campaign; user-sheet failures do not.
         const hardBlock =
             boundarySheetStatus === sheetValidationStatuses.invalid ||
             facilitySheetStatus === sheetValidationStatuses.invalid ||
-            postSheetStatus === sheetValidationStatuses.invalid ||
+            outsideHouseholdSheetStatus === sheetValidationStatuses.invalid ||
             // Legacy fallback: if no per-sheet keys are set, use overall validationStatus
             (
                 boundarySheetStatus === undefined &&
                 facilitySheetStatus === undefined &&
                 userSheetStatus === undefined &&
-                postSheetStatus === undefined &&
+                outsideHouseholdSheetStatus === undefined &&
                 validationStatus !== sheetValidationStatuses.valid
             );
 
         if (hardBlock) {
-            logger.warn('=== HARD BLOCK: BOUNDARY, FACILITY OR POST VALIDATION FAILED ===');
-            logger.warn(`Boundary Status: ${boundarySheetStatus}, Facility Status: ${facilitySheetStatus}, Post Status: ${postSheetStatus}, overall validationStatus: ${validationStatus}`);
+            logger.warn('=== HARD BLOCK: BOUNDARY, FACILITY OR OUTSIDE_HOUSEHOLD VALIDATION FAILED ===');
+            logger.warn(`Boundary Status: ${boundarySheetStatus}, Facility Status: ${facilitySheetStatus}, Site Status: ${outsideHouseholdSheetStatus}, overall validationStatus: ${validationStatus}`);
 
             if (messageObject.additionalDetails?.errorCode) {
                 logger.error(`Error Code: ${messageObject.additionalDetails.errorCode}`);
@@ -1036,7 +1036,7 @@ async function markCampaignCompletedConditionally(
             userInfo: { uuid: useruuid || campaignDetails?.auditDetails?.createdBy }
         };
 
-        // 'inprogress' is the post-create "done" status here — persister transitions it onward.
+        // 'inprogress' is the site-create "done" status here — persister transitions it onward.
         latestCampaign.status = campaignStatuses.inprogress;
         
         await enrichAndPersistCampaignForCreateViaFlow2(
@@ -1070,7 +1070,7 @@ async function persistDataInBatches(dataList: any[], topic: string, tenantId: st
 }
 
 /**
- * Process campaign facilities from excel data (facilities sheet, then the posts sheet as facility rows)
+ * Process campaign facilities from excel data (facilities sheet, then the Outside Household sheet as facility rows)
  */
 export async function processCampaignFacilitiesFromExcelData(
     tenantId: string,
@@ -1091,13 +1091,13 @@ export async function processCampaignFacilitiesFromExcelData(
 
         // Existing facilities come from the DB (not the sheet) — fetch once and
         // reuse across every page. Keyed by uniqueIdentifier (name for facility rows,
-        // clientReferenceId for post rows), which is also the mapping table's key.
+        // clientReferenceId for site rows), which is also the mapping table's key.
         const existingFacilities = await getRelatedDataWithCampaign('facility', campaignNumber, tenantId);
         logger.info(`Found ${existingFacilities.length} existing facility records in eg_cm_campaign_data`);
         const existingFacilityMap = new Map(
             existingFacilities.map((f: any) => [f?.uniqueIdentifier, f])
         );
-        const storedPostNormalizedIndex = buildStoredPostNormalizedIndex(existingFacilityMap);
+        const storedOutsideHouseholdNormalizedIndex = buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap);
 
         // Accumulate only the lightweight {facilityName, boundaryCode, active}
         // mappings across pages; the demap diff needs the complete set.
@@ -1113,47 +1113,47 @@ export async function processCampaignFacilitiesFromExcelData(
         );
         const facilityMappingCount = facilityBoundaryMappings.length;
 
-        // Posts sheet (only for OUTSIDEHOUSEHOLD campaigns): post rows become facility rows and
+        // Outside Household sheet (only for OUTSIDEHOUSEHOLD campaigns): site rows become facility rows and
         // share the existing-row map and the mapping list, so one link diff covers both kinds.
         // Rows are keyed by clientReferenceId, never by name.
-        const postSheetName = getLocalizedSheetName(POST_SHEET_KEY, localizationMap);
-        logger.info(`Searching ${postSheetName} sheet data...`);
-        const postKeysThisUpload = new Set<string>();
-        const postRowTotal = await forEachSheetDataPage(
+        const outsideHouseholdSheetName = getLocalizedSheetName(OUTSIDE_HOUSEHOLD_SHEET_KEY, localizationMap);
+        logger.info(`Searching ${outsideHouseholdSheetName} sheet data...`);
+        const outsideHouseholdKeysThisUpload = new Set<string>();
+        const outsideHouseholdRowTotal = await forEachSheetDataPage(
             tenantId,
             campaignId,
             fileStoreId,
-            postSheetName,
+            outsideHouseholdSheetName,
             getSheetFetchPageSize(),
             (rows) => {
-                const facilityRows = convertPostRowsToFacilityRows(rows, storedPostNormalizedIndex);
-                facilityRows.forEach((r) => postKeysThisUpload.add(r.rowjson[POST_CLIENT_REFERENCE_ID_KEY] as string));
+                const facilityRows = convertOutsideHouseholdRowsToFacilityRows(rows, storedOutsideHouseholdNormalizedIndex);
+                facilityRows.forEach((r) => outsideHouseholdKeysThisUpload.add(r.rowjson[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] as string));
                 return processFacilityDataAndMappings(campaignNumber, tenantId, facilityRows, existingFacilityMap, facilityBoundaryMappings);
             }
         );
 
-        if (facilityRowTotal === 0 && postRowTotal === 0) {
-            logger.info('No facilities or posts sheet data found');
+        if (facilityRowTotal === 0 && outsideHouseholdRowTotal === 0) {
+            logger.info('No facilities or Outside Household sheet data found');
             return;
         }
 
-        logger.info(`Found ${facilityRowTotal} records in facilities sheet and ${postRowTotal} records in posts sheet`);
+        logger.info(`Found ${facilityRowTotal} records in facilities sheet and ${outsideHouseholdRowTotal} records in Outside Household sheet`);
 
         // Per-sheet demap guard: a sheet that gave nothing this upload (absent, empty, or — for
         // facility, as today — no Active row) keeps its stored mapping rows unchanged instead of
-        // being demapped, independent of what the other sheet did. A key is classified "post" when
-        // this upload converted it from the posts sheet, else by its stored campaign_data marker,
+        // being demapped, independent of what the other sheet did. A key is classified "site" when
+        // this upload converted it from the Outside Household sheet, else by its stored campaign_data marker,
         // else it defaults to "facility" (today's only type, and the common case for a mapping row
         // with no backing campaign_data row at all).
         const facilityContributed = facilityMappingCount > 0;
-        const postsContributed = postRowTotal > 0;
+        const outsideHouseholdContributed = outsideHouseholdRowTotal > 0;
 
-        if (facilityContributed || postsContributed) {
+        if (facilityContributed || outsideHouseholdContributed) {
             let isDemapEligible: ((key: string) => boolean) | undefined;
-            if (!(facilityContributed && postsContributed)) {
+            if (!(facilityContributed && outsideHouseholdContributed)) {
                 isDemapEligible = (key: string) => {
-                    const isPostKey = postKeysThisUpload.has(key) || Boolean(existingFacilityMap.get(key)?.data?.[POST_CLIENT_REFERENCE_ID_KEY]);
-                    return isPostKey ? postsContributed : facilityContributed;
+                    const isOutsideHouseholdKey = outsideHouseholdKeysThisUpload.has(key) || Boolean(existingFacilityMap.get(key)?.data?.[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY]);
+                    return isOutsideHouseholdKey ? outsideHouseholdContributed : facilityContributed;
                 };
             }
             await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings, isDemapEligible);
@@ -1167,20 +1167,20 @@ export async function processCampaignFacilitiesFromExcelData(
     }
 }
 
-const POST_SHEET_KEY = 'HCM_ADMIN_CONSOLE_POSTS_LIST';
-const POST_USAGE_KEY = 'HCM_ADMIN_CONSOLE_POST_USAGE';
-const POST_NAME_KEY = 'HCM_ADMIN_CONSOLE_POST_NAME';
-const POST_TYPE_KEY = 'HCM_ADMIN_CONSOLE_POST_TYPE';
-// The one post marker: present (non-blank) on every converted post row, never on a facility row.
-const POST_CLIENT_REFERENCE_ID_KEY = postFacilityFields.clientReferenceId;
-const POST_BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
+const OUTSIDE_HOUSEHOLD_SHEET_KEY = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST';
+const OUTSIDE_HOUSEHOLD_USAGE_KEY = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_USAGE';
+const OUTSIDE_HOUSEHOLD_NAME_KEY = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_NAME';
+const OUTSIDE_HOUSEHOLD_TYPE_KEY = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_TYPE';
+// The one site marker: present (non-blank) on every converted site row, never on a facility row.
+const OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY = outsideHouseholdFacilityFields.clientReferenceId;
+const OUTSIDE_HOUSEHOLD_BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
 // Optional frontline worker columns: kept on this campaign's stored row and its project-facility
-// links only, never on the post facility, so they do not reach the next campaign.
-const POST_WORKER_KEYS = [postFacilityFields.workerName, postFacilityFields.workerPhone];
+// links only, never on the site facility, so they do not reach the next campaign.
+const OUTSIDE_HOUSEHOLD_WORKER_KEYS = [outsideHouseholdFacilityFields.workerName, outsideHouseholdFacilityFields.workerPhone];
 
-/** Posts sheet usage is Active / Inactive like the facility sheet; anything but Active is Inactive. */
-function postUsageToFacilityUsage(postUsage: unknown): string {
-    return postUsage === usageColumnStatus.active ? usageColumnStatus.active : usageColumnStatus.inactive;
+/** Outside Household sheet usage is Active / Inactive like the facility sheet; anything but Active is Inactive. */
+function outsideHouseholdUsageToFacilityUsage(outsideHouseholdUsage: unknown): string {
+    return outsideHouseholdUsage === usageColumnStatus.active ? usageColumnStatus.active : usageColumnStatus.inactive;
 }
 
 /** Lower-case, trimmed, single-spaced join — so the same (type, boundary, name) always matches. */
@@ -1189,13 +1189,13 @@ export function normalizeForMatch(...parts: unknown[]): string {
 }
 
 /**
- * Index of this campaign's stored, undeleted post rows by normalised (type, boundary, name), so a
- * post row with no clientReferenceId of its own can be matched back to the row it is a re-upload of.
+ * Index of this campaign's stored, undeleted site rows by normalised (type, boundary, name), so a
+ * site row with no clientReferenceId of its own can be matched back to the row it is a re-upload of.
  */
-function buildStoredPostNormalizedIndex(existingFacilityMap: Map<any, any>): Map<string, string> {
+function buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap: Map<any, any>): Map<string, string> {
     const index = new Map<string, string>();
     existingFacilityMap.forEach((entry: any, uniqueIdentifier: any) => {
-        if (!entry?.data?.[POST_CLIENT_REFERENCE_ID_KEY] || entry?.isDeleted) return;
+        if (!entry?.data?.[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] || entry?.isDeleted) return;
         const key = normalizeForMatch(entry.data['HCM_ADMIN_CONSOLE_FACILITY_TYPE'], entry.data['HCM_ADMIN_CONSOLE_BOUNDARY_CODE'], entry.data['HCM_ADMIN_CONSOLE_FACILITY_NAME']);
         if (!index.has(key)) index.set(key, uniqueIdentifier);
     });
@@ -1203,52 +1203,52 @@ function buildStoredPostNormalizedIndex(existingFacilityMap: Map<any, any>): Map
 }
 
 /**
- * Resolves a post row's clientReferenceId: the pre-filled hidden column when present; else the
+ * Resolves a site row's clientReferenceId: the pre-filled hidden column when present; else the
  * stored, undeleted row of this campaign with the same normalised (type, boundary, name); else a new
- * UUID. Rows with the same (type, boundary, name) share one post, the same way facility rows with
+ * UUID. Rows with the same (type, boundary, name) share one site, the same way facility rows with
  * the same name share one facility.
  */
-function resolvePostClientReferenceId(
-    postRow: Record<string, unknown>,
-    storedPostNormalizedIndex: Map<string, string>
+function resolveOutsideHouseholdClientReferenceId(
+    outsideHouseholdRow: Record<string, unknown>,
+    storedOutsideHouseholdNormalizedIndex: Map<string, string>
 ): string {
-    const prefilled = String(postRow[POST_CLIENT_REFERENCE_ID_KEY] ?? '').trim();
+    const prefilled = String(outsideHouseholdRow[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] ?? '').trim();
     if (prefilled) return prefilled;
 
-    const key = normalizeForMatch(postRow[POST_TYPE_KEY], postRow[POST_BOUNDARY_CODE_KEY], postRow[POST_NAME_KEY]);
-    const candidate = storedPostNormalizedIndex.get(key);
+    const key = normalizeForMatch(outsideHouseholdRow[OUTSIDE_HOUSEHOLD_TYPE_KEY], outsideHouseholdRow[OUTSIDE_HOUSEHOLD_BOUNDARY_CODE_KEY], outsideHouseholdRow[OUTSIDE_HOUSEHOLD_NAME_KEY]);
+    const candidate = storedOutsideHouseholdNormalizedIndex.get(key);
     if (candidate) return candidate;
 
     return uuidv4();
 }
 
 /**
- * Convert a page of posts sheet rows into facility sheet rows, so posts go through the facility
- * path. Post rows are keyed by clientReferenceId, never by name.
+ * Convert a page of Outside Household sheet rows into facility sheet rows, so sites go through the facility
+ * path. Site rows are keyed by clientReferenceId, never by name.
  */
-export function convertPostRowsToFacilityRows(
-    postRecords: any[],
-    storedPostNormalizedIndex: Map<string, string>
+export function convertOutsideHouseholdRowsToFacilityRows(
+    outsideHouseholdRecords: any[],
+    storedOutsideHouseholdNormalizedIndex: Map<string, string>
 ): { rowjson: Record<string, unknown> }[] {
     const facilityRows: { rowjson: Record<string, unknown> }[] = [];
 
-    postRecords.forEach(record => {
-        const postRow = record.rowjson || record.rowJson || {};
-        const postName = postRow[POST_NAME_KEY];
-        if (!postName) {
-            logger.warn('No post name found in row');
+    outsideHouseholdRecords.forEach(record => {
+        const outsideHouseholdRow = record.rowjson || record.rowJson || {};
+        const outsideHouseholdName = outsideHouseholdRow[OUTSIDE_HOUSEHOLD_NAME_KEY];
+        if (!outsideHouseholdName) {
+            logger.warn('No site name found in row');
             return;
         }
 
-        const clientReferenceId = resolvePostClientReferenceId(postRow, storedPostNormalizedIndex);
+        const clientReferenceId = resolveOutsideHouseholdClientReferenceId(outsideHouseholdRow, storedOutsideHouseholdNormalizedIndex);
 
         const facilityRow: Record<string, unknown> = {
-            ...postRow,
-            HCM_ADMIN_CONSOLE_FACILITY_NAME: postName,
-            HCM_ADMIN_CONSOLE_FACILITY_TYPE: postRow[POST_TYPE_KEY],
-            HCM_ADMIN_CONSOLE_FACILITY_STATUS: postRow['HCM_ADMIN_CONSOLE_POST_STATUS'],
-            HCM_ADMIN_CONSOLE_FACILITY_USAGE: postUsageToFacilityUsage(postRow[POST_USAGE_KEY]),
-            [POST_CLIENT_REFERENCE_ID_KEY]: clientReferenceId
+            ...outsideHouseholdRow,
+            HCM_ADMIN_CONSOLE_FACILITY_NAME: outsideHouseholdName,
+            HCM_ADMIN_CONSOLE_FACILITY_TYPE: outsideHouseholdRow[OUTSIDE_HOUSEHOLD_TYPE_KEY],
+            HCM_ADMIN_CONSOLE_FACILITY_STATUS: outsideHouseholdRow['HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_STATUS'],
+            HCM_ADMIN_CONSOLE_FACILITY_USAGE: outsideHouseholdUsageToFacilityUsage(outsideHouseholdRow[OUTSIDE_HOUSEHOLD_USAGE_KEY]),
+            [OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY]: clientReferenceId
         };
         facilityRows.push({ rowjson: facilityRow });
     });
@@ -1285,9 +1285,9 @@ async function processFacilityDataAndMappings(
         const facilityCode = rowJson[FACILITY_CODE_KEY];
         const boundaryCodes = rowJson[BOUNDARY_CODE_KEY];
         const usage = rowJson[USAGE_KEY];
-        // Facility rows are keyed by name, exactly as today; post rows (carrying the post marker)
+        // Facility rows are keyed by name, exactly as today; site rows (carrying the site marker)
         // are keyed by clientReferenceId instead.
-        const uniqueIdentifier = (rowJson[POST_CLIENT_REFERENCE_ID_KEY] as string) || facilityName;
+        const uniqueIdentifier = (rowJson[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] as string) || facilityName;
         
         if (!facilityName) {
             logger.warn('No facility name found in row');
@@ -1327,13 +1327,13 @@ async function processFacilityDataAndMappings(
                 hasChanges = true;
             }
 
-            if (rowJson[POST_USAGE_KEY] !== undefined && rowJson[POST_USAGE_KEY] !== existingData[POST_USAGE_KEY]) {
-                existingData[POST_USAGE_KEY] = rowJson[POST_USAGE_KEY];
+            if (rowJson[OUTSIDE_HOUSEHOLD_USAGE_KEY] !== undefined && rowJson[OUTSIDE_HOUSEHOLD_USAGE_KEY] !== existingData[OUTSIDE_HOUSEHOLD_USAGE_KEY]) {
+                existingData[OUTSIDE_HOUSEHOLD_USAGE_KEY] = rowJson[OUTSIDE_HOUSEHOLD_USAGE_KEY];
                 hasChanges = true;
             }
 
-            for (const key of POST_WORKER_KEYS) {
-                if (rowJson[POST_CLIENT_REFERENCE_ID_KEY] && (rowJson[key] ?? null) !== (existingData[key] ?? null)) {
+            for (const key of OUTSIDE_HOUSEHOLD_WORKER_KEYS) {
+                if (rowJson[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] && (rowJson[key] ?? null) !== (existingData[key] ?? null)) {
                     existingData[key] = rowJson[key];
                     hasChanges = true;
                 }

@@ -190,15 +190,15 @@ async function createSingleFacilityFromBatch(
             throw new Error('No facility name found in facility body');
         }
 
-        // Posts carry a clientReferenceId: adopt an existing undeleted facility instead of
+        // Sites carry a clientReferenceId: adopt an existing undeleted facility instead of
         // recreating it (idempotent on retry/redelivery). A deleted one must never be recreated.
         if (facilityBody?.clientReferenceId) {
             const existing = await findFacilityByClientReferenceId(facilityBody.clientReferenceId, facilityBody.tenantId, requestInfo);
             if (existing) {
                 if (existing.isDeleted) {
-                    throw new Error(`Post facility with clientReferenceId ${facilityBody.clientReferenceId} was deleted; it cannot be recreated`);
+                    throw new Error(`Site facility with clientReferenceId ${facilityBody.clientReferenceId} was deleted; it cannot be recreated`);
                 }
-                logger.info(`Adopting existing facility ${existing.id} for post clientReferenceId ${facilityBody.clientReferenceId}`);
+                logger.info(`Adopting existing facility ${existing.id} for site clientReferenceId ${facilityBody.clientReferenceId}`);
                 return existing;
             }
         }
@@ -220,7 +220,7 @@ async function createSingleFacilityFromBatch(
 }
 
 /**
- * Searches the facility service by clientReferenceId (deleted included, so a deleted post facility
+ * Searches the facility service by clientReferenceId (deleted included, so a deleted site facility
  * can be told apart from one that was never created).
  */
 export async function findFacilityByClientReferenceId(clientReferenceId: string, tenantId: string, requestInfo: RequestInfo): Promise<any | null> {

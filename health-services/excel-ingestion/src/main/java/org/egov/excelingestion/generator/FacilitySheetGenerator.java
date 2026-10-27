@@ -400,13 +400,13 @@ public class FacilitySheetGenerator implements ISheetGenerator {
     }
     
     /**
-     * Stored campaign-data facility rows: posts and facilities share the same campaign-data (both are
-     * facility rows), told apart by the hidden POST_CLIENT_REFERENCE_ID column that only a post row
-     * carries. {@code posts=false} keeps rows without it (facility rows - matches the pre-posts result
-     * exactly); {@code posts=true} keeps rows with it.
+     * Stored campaign-data facility rows: sites and facilities share the same campaign-data (both are
+     * facility rows), told apart by the hidden OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID column that only a site row
+     * carries. {@code sites=false} keeps rows without it (facility rows - matches the pre-sites result
+     * exactly); {@code sites=true} keeps rows with it.
      */
     static List<Map<String, Object>> fetchExistingCampaignData(CampaignService campaignService,
-            String campaignNumber, String tenantId, RequestInfo requestInfo, boolean posts) {
+            String campaignNumber, String tenantId, RequestInfo requestInfo, boolean sites) {
         try {
             // Search for all facility data for this campaign
             List<Map<String, Object>> campaignDataResponse = campaignService.searchCampaignDataByUniqueIdentifiers(
@@ -419,9 +419,9 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     if (record.get("data") != null) {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> dataObject = (Map<String, Object>) record.get("data");
-                        boolean isPostRow = dataObject.containsKey(
-                                ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY);
-                        if (isPostRow == posts) {
+                        boolean isOutsideHouseholdRow = dataObject.containsKey(
+                                ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY);
+                        if (isOutsideHouseholdRow == sites) {
                             existingData.add(dataObject);
                         }
                     }

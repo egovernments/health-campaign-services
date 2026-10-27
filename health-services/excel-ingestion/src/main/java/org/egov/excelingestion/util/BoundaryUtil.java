@@ -452,7 +452,7 @@ public class BoundaryUtil {
 
     /**
      * Boundary codes of the campaign's enriched boundaries whose type is one of the LAST {@code levelCount}
-     * levels of the hierarchy (every level when the hierarchy is shorter than {@code levelCount}). Posts
+     * levels of the hierarchy (every level when the hierarchy is shorter than {@code levelCount}). Sites
      * use levelCount 2 (lowest OR second-lowest level); the single-level overload above delegates here.
      */
     @Cacheable(value = "enrichedBoundaryObjects", key = "#processId + '_' + #referenceId + '_lowest' + #levelCount")

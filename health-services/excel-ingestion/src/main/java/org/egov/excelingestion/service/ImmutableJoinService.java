@@ -67,7 +67,7 @@ public class ImmutableJoinService {
     private static final Set<String> ALWAYS_EXCLUDED = Set.of(
             ProcessingConstants.USER_USAGE_COLUMN_KEY,     // user active/inactive - intentionally editable
             ProcessingConstants.FACILITY_USAGE_COLUMN_KEY, // facility active/inactive - intentionally editable
-            ProcessingConstants.POST_USAGE_COLUMN_KEY,     // post include/exclude/remove - intentionally editable
+            ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY,     // site include/exclude/remove - intentionally editable
             ProcessingConstants.ROW_ID_COLUMN_NAME,        // the join key itself
             ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY,  // computed VLOOKUP formula, not data
             ProcessingConstants.REGISTER_ID_COLUMN_KEY);   // computed formula, not data

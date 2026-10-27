@@ -14,7 +14,7 @@ import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.FacilityService;
 import org.egov.excelingestion.service.MDMSService;
-import org.egov.excelingestion.service.PostTypeMasterService;
+import org.egov.excelingestion.service.OutsideHouseholdTypeMasterService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.ColumnDefMaker;
@@ -59,23 +59,23 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 /**
- * Posts sheet generation driven through the REAL ExcelDataPopulator, CellProtectionManager,
- * HierarchicalBoundaryUtil and SchemaColumnDefUtil (only remote services are mocked): stored post rows are
+ * Outside Household sheet generation driven through the REAL ExcelDataPopulator, CellProtectionManager,
+ * HierarchicalBoundaryUtil and SchemaColumnDefUtil (only remote services are mocked): stored site rows are
  * pre-filled as-is, carry-over from earlier campaigns (permanent only, lowest OR second-lowest level, not
- * already listed), and the inline Post Status default formula. Post categories exist only in the (test) MDMS
- * schema below. Which usages are posts comes entirely from the (mocked) HCM.OUTSIDE_HOUSEHOLD_POST_TYPES
+ * already listed), and the inline Site Status default formula. Site categories exist only in the (test) MDMS
+ * schema below. Which usages are sites comes entirely from the (mocked) HCM.OUTSIDE_HOUSEHOLD_TYPES
  * master, not from the schema.
  */
 @ExtendWith(MockitoExtension.class)
-class PostSheetGeneratorTest {
+class OutsideHouseholdSheetGeneratorTest {
 
-    private static final String SHEET = "LocalizedPostsSheet";
+    private static final String SHEET = "LocalizedOHSheet";
     private static final String HIERARCHY = "ADMIN";
     private static final String TENANT = "mz";
     private static final String CAMPAIGN_ID = "campaign-1";
     private static final String CAMPAIGN_NUMBER = "CMP-1";
     private static final List<String> SCHEMA_CATEGORIES = Arrays.asList("SCHOOL", "MARKET", "BUS_STATION", "OTHER");
-    private static final Map<String, Boolean> ACTIVE_POST_TYPES = Map.of("CLF", true, "TRANSIT_POST", false);
+    private static final Map<String, Boolean> ACTIVE_OUTSIDE_HOUSEHOLD_TYPES = Map.of("OUTSIDE_HOUSEHOLD_PLACES", true, "TRANSIT_POST", false);
 
     @Mock private MDMSService mdmsService;
     @Mock private CampaignService campaignService;
@@ -84,9 +84,9 @@ class PostSheetGeneratorTest {
     @Mock private BoundaryUtil boundaryUtil;
     @Mock private CustomExceptionHandler exceptionHandler;
     @Mock private ExcelIngestionConfig config;
-    @Mock private PostTypeMasterService postTypeMasterService;
+    @Mock private OutsideHouseholdTypeMasterService outsideHouseholdTypeMasterService;
 
-    private PostSheetGenerator generator;
+    private OutsideHouseholdSheetGenerator generator;
 
     @BeforeEach
     void setUp() {
@@ -102,11 +102,11 @@ class PostSheetGeneratorTest {
                 new HierarchicalBoundaryUtil(config, boundaryService, boundaryUtil, styleHelper);
         SchemaColumnDefUtil schemaColumnDefUtil = new SchemaColumnDefUtil(new ColumnDefMaker(), exceptionHandler);
 
-        generator = new PostSheetGenerator(mdmsService, campaignService, facilityService, boundaryUtil,
+        generator = new OutsideHouseholdSheetGenerator(mdmsService, campaignService, facilityService, boundaryUtil,
                 protectionManager, exceptionHandler, schemaColumnDefUtil, populator, hierarchicalBoundaryUtil,
-                postTypeMasterService, config);
+                outsideHouseholdTypeMasterService, config);
 
-        lenient().when(postTypeMasterService.getPostTypes(any(), eq(TENANT))).thenReturn(ACTIVE_POST_TYPES);
+        lenient().when(outsideHouseholdTypeMasterService.getOutsideHouseholdTypes(any(), eq(TENANT))).thenReturn(ACTIVE_OUTSIDE_HOUSEHOLD_TYPES);
         stubSchema();
         stubBoundaries();
         stubCampaign();
@@ -119,75 +119,75 @@ class PostSheetGeneratorTest {
         assertEquals(Arrays.asList(
                 "ADMIN_PROVINCE", "ADMIN_DISTRICT", "ADMIN_VILLAGE",
                 ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY,
-                ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY,
-                ProcessingConstants.POST_TYPE_COLUMN_KEY,
-                ProcessingConstants.POST_CATEGORY_COLUMN_KEY,
-                ProcessingConstants.POST_NAME_COLUMN_KEY,
-                ProcessingConstants.POST_STATUS_COLUMN_KEY,
-                ProcessingConstants.POST_USAGE_COLUMN_KEY), technicalHeaders(sheet));
+                ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY,
+                ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY,
+                ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY,
+                ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY,
+                ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY,
+                ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY), technicalHeaders(sheet));
 
         assertTrue(sheet.isColumnHidden(column(sheet, ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY)));
-        assertTrue(sheet.isColumnHidden(column(sheet, ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY)));
-        assertFalse(sheet.isColumnHidden(column(sheet, ProcessingConstants.POST_NAME_COLUMN_KEY)));
+        assertTrue(sheet.isColumnHidden(column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY)));
+        assertFalse(sheet.isColumnHidden(column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY)));
         assertTrue(sheet.getRow(0).getZeroHeight(), "Technical header row must be hidden");
     }
 
     @Test
-    void storedPostRowsArePrefilledAsIs() {
+    void storedOutsideHouseholdRowsArePrefilledAsIs() {
         Sheet sheet = generate(false).getSheet(SHEET);
 
-        assertEquals("fac-clf-1", cell(sheet, 2, ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY));
-        assertEquals("CLF", cell(sheet, 2, ProcessingConstants.POST_TYPE_COLUMN_KEY));
-        assertEquals("SCHOOL", cell(sheet, 2, ProcessingConstants.POST_CATEGORY_COLUMN_KEY));
-        assertEquals("Central School CLF", cell(sheet, 2, ProcessingConstants.POST_NAME_COLUMN_KEY));
-        assertEquals("Permanent", cell(sheet, 2, ProcessingConstants.POST_STATUS_COLUMN_KEY));
-        assertEquals("Active", cell(sheet, 2, ProcessingConstants.POST_USAGE_COLUMN_KEY));
+        assertEquals("fac-ohp-1", cell(sheet, 2, ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY));
+        assertEquals("OUTSIDE_HOUSEHOLD_PLACES", cell(sheet, 2, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY));
+        assertEquals("SCHOOL", cell(sheet, 2, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY));
+        assertEquals("Central School OUTSIDE_HOUSEHOLD_PLACES", cell(sheet, 2, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY));
+        assertEquals("Permanent", cell(sheet, 2, ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY));
+        assertEquals("Active", cell(sheet, 2, ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY));
         assertEquals("V1", cell(sheet, 2, ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY));
         assertEquals("V1", cell(sheet, 2, "ADMIN_VILLAGE"));
         assertEquals("P1", cell(sheet, 2, "ADMIN_PROVINCE"));
 
         // The plain facility ("warehouse", no hidden clientReferenceId) is a facility-sheet row, not a
-        // post: it must not appear anywhere in the pre-filled posts.
+        // site: it must not appear anywhere in the pre-filled sites.
         for (int rowIdx = 2; rowIdx <= 3; rowIdx++) {
-            assertFalse("Main Warehouse".equals(cell(sheet, rowIdx, ProcessingConstants.POST_NAME_COLUMN_KEY)));
+            assertFalse("Main Warehouse".equals(cell(sheet, rowIdx, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY)));
         }
     }
 
     @Test
     void visibleHeadersAndEnumLabelsComeFromLocalization() {
         Map<String, String> localization = new HashMap<>();
-        localization.put(ProcessingConstants.POST_TYPE_COLUMN_KEY, "Type de poste");
-        localization.put(ProcessingConstants.POST_USAGE_COLUMN_KEY + "_INACTIVE", "Inactif");
+        localization.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY, "Type de site");
+        localization.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY + "_INACTIVE", "Inactif");
 
         Sheet sheet = generate(false, localization).getSheet(SHEET);
 
-        int typeCol = column(sheet, ProcessingConstants.POST_TYPE_COLUMN_KEY);
-        assertEquals("Type de poste", sheet.getRow(1).getCell(typeCol).getStringCellValue());
-        int nameCol = column(sheet, ProcessingConstants.POST_NAME_COLUMN_KEY);
-        assertEquals(ProcessingConstants.POST_NAME_COLUMN_KEY, sheet.getRow(1).getCell(nameCol).getStringCellValue());
-        int usageCol = column(sheet, ProcessingConstants.POST_USAGE_COLUMN_KEY);
+        int typeCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY);
+        assertEquals("Type de site", sheet.getRow(1).getCell(typeCol).getStringCellValue());
+        int nameCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY);
+        assertEquals(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, sheet.getRow(1).getCell(nameCol).getStringCellValue());
+        int usageCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY);
         assertEquals("Inactif", sheet.getRow(3).getCell(usageCol).getStringCellValue());
     }
 
     @Test
-    void prefillsCampaignPostsThenCarryOverPosts() {
+    void prefillsCampaignOutsideHouseholdSitesThenCarryOverOutsideHouseholdSites() {
         Sheet sheet = generate(false).getSheet(SHEET);
 
-        // Row 3: earlier campaign's permanent post on a lowest-level boundary, listed as Inactive. Found
+        // Row 3: earlier campaign's permanent site on a lowest-level boundary, listed as Inactive. Found
         // via fetchAllPermanentFacilities(tenant, "TRANSIT_POST", ...) - one paged search per active type.
-        assertEquals("fac-tp-9", cell(sheet, 3, ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY));
-        assertEquals("TRANSIT_POST", cell(sheet, 3, ProcessingConstants.POST_TYPE_COLUMN_KEY));
-        assertEquals("BUS_STATION", cell(sheet, 3, ProcessingConstants.POST_CATEGORY_COLUMN_KEY));
-        assertEquals("Old Bus Stand", cell(sheet, 3, ProcessingConstants.POST_NAME_COLUMN_KEY));
-        assertEquals("Permanent", cell(sheet, 3, ProcessingConstants.POST_STATUS_COLUMN_KEY));
-        assertEquals("Inactive", cell(sheet, 3, ProcessingConstants.POST_USAGE_COLUMN_KEY));
+        assertEquals("fac-tp-9", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY));
+        assertEquals("TRANSIT_POST", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY));
+        assertEquals("BUS_STATION", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY));
+        assertEquals("Old Bus Stand", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY));
+        assertEquals("Permanent", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY));
+        assertEquals("Inactive", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY));
         assertEquals("V2", cell(sheet, 3, ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY));
 
-        // Nothing else: the earlier CLF post already listed (a), the earlier CLF post off the carry-over
-        // boundaries, and the root-level CLF post are all left out. Row 4 exists as a templated empty row
-        // (it carries the Post Status default formula), so this is checked on the actual post data.
-        assertNull(cell(sheet, 4, ProcessingConstants.POST_NAME_COLUMN_KEY), "Only the two expected posts may be pre-filled");
-        assertNull(cell(sheet, 4, ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY));
+        // Nothing else: the earlier OUTSIDE_HOUSEHOLD_PLACES site already listed (a), the earlier OUTSIDE_HOUSEHOLD_PLACES site off the carry-over
+        // boundaries, and the root-level OUTSIDE_HOUSEHOLD_PLACES site are all left out. Row 4 exists as a templated empty row
+        // (it carries the Site Status default formula), so this is checked on the actual site data.
+        assertNull(cell(sheet, 4, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY), "Only the two expected sites may be pre-filled");
+        assertNull(cell(sheet, 4, ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY));
     }
 
     @Test
@@ -197,54 +197,54 @@ class PostSheetGeneratorTest {
 
         Sheet sheet = generate(false).getSheet(SHEET);
 
-        // fac-clf-2 sits on D1 (second-lowest / District level) - now carried over as Inactive. Both active
+        // fac-ohp-2 sits on D1 (second-lowest / District level) - now carried over as Inactive. Both active
         // types contribute a carried-over row here, so look the row up by id rather than a fixed index.
-        int rowIdx = rowOf(sheet, "fac-clf-2");
-        assertTrue(rowIdx > 0, "fac-clf-2 (second-lowest level) must be carried over");
-        assertEquals("MARKET", cell(sheet, rowIdx, ProcessingConstants.POST_CATEGORY_COLUMN_KEY));
-        assertEquals("Inactive", cell(sheet, rowIdx, ProcessingConstants.POST_USAGE_COLUMN_KEY));
-        // fac-clf-3 sits on P1 (root / Province level, higher than second-lowest) - still excluded.
-        assertEquals(-1, rowOf(sheet, "fac-clf-3"), "a root-level post must never be carried over");
+        int rowIdx = rowOf(sheet, "fac-ohp-2");
+        assertTrue(rowIdx > 0, "fac-ohp-2 (second-lowest level) must be carried over");
+        assertEquals("MARKET", cell(sheet, rowIdx, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY));
+        assertEquals("Inactive", cell(sheet, rowIdx, ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY));
+        // fac-ohp-3 sits on P1 (root / Province level, higher than second-lowest) - still excluded.
+        assertEquals(-1, rowOf(sheet, "fac-ohp-3"), "a root-level site must never be carried over");
     }
 
     @Test
     void skipsEarlierCampaignFacilitiesWithoutAClientReferenceId() {
         lenient().when(facilityService.fetchAllPermanentFacilities(eq(TENANT), eq("TRANSIT_POST"), any()))
-                .thenReturn(List.of(noClientReferenceIdFacility("Unlinked post", "V2")));
+                .thenReturn(List.of(noClientReferenceIdFacility("Unlinked site", "V2")));
 
         Sheet sheet = generate(false).getSheet(SHEET);
 
-        assertNull(cell(sheet, 3, ProcessingConstants.POST_NAME_COLUMN_KEY),
-                "A facility without a clientReferenceId must not be offered as a post");
+        assertNull(cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY),
+                "A facility without a clientReferenceId must not be offered as a site");
     }
 
     @Test
-    void earlierPostWithoutCategoryLeavesCategoryBlank() {
-        Map<String, Object> facility = permanentFacility("fac-x", "CLF", "Market CLF", "V1", null);
+    void earlierOutsideHouseholdWithoutCategoryLeavesCategoryBlank() {
+        Map<String, Object> facility = permanentFacility("fac-x", "OUTSIDE_HOUSEHOLD_PLACES", "Market OUTSIDE_HOUSEHOLD_PLACES", "V1", null);
 
-        Map<String, Object> row = PostSheetGenerator.toPostRowFromFacility(facility, "V1");
+        Map<String, Object> row = OutsideHouseholdSheetGenerator.toOutsideHouseholdRowFromFacility(facility, "V1");
 
-        assertNull(row.get(ProcessingConstants.POST_CATEGORY_COLUMN_KEY));
-        assertEquals("Inactive", row.get(ProcessingConstants.POST_USAGE_COLUMN_KEY));
-        assertEquals("Permanent", row.get(ProcessingConstants.POST_STATUS_COLUMN_KEY));
-        assertEquals("fac-x", row.get(ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY));
+        assertNull(row.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY));
+        assertEquals("Inactive", row.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY));
+        assertEquals("Permanent", row.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY));
+        assertEquals("fac-x", row.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY));
     }
 
     @Test
-    void oneSearchCallPerActivePostType_notOnePerRowOrOneCombinedCall() {
+    void oneSearchCallPerActiveOutsideHouseholdType_notOnePerRowOrOneCombinedCall() {
         generate(false);
 
-        verify(facilityService).fetchAllPermanentFacilities(eq(TENANT), eq("CLF"), any());
+        verify(facilityService).fetchAllPermanentFacilities(eq(TENANT), eq("OUTSIDE_HOUSEHOLD_PLACES"), any());
         verify(facilityService).fetchAllPermanentFacilities(eq(TENANT), eq("TRANSIT_POST"), any());
     }
 
     @Test
-    void categoryDropdownDependsOnThePostType() {
-        lenient().when(postTypeMasterService.getCategoriesByPostType(any(), eq(TENANT))).thenReturn(Map.of(
-                "CLF", List.of("SCHOOL", "MARKET"), "TRANSIT_POST", List.of("BUS_STATION")));
+    void categoryDropdownDependsOnTheOutsideHouseholdType() {
+        lenient().when(outsideHouseholdTypeMasterService.getCategoriesByOutsideHouseholdType(any(), eq(TENANT))).thenReturn(Map.of(
+                "OUTSIDE_HOUSEHOLD_PLACES", List.of("SCHOOL", "MARKET"), "TRANSIT_POST", List.of("BUS_STATION")));
         XSSFWorkbook workbook = generate(false);
         Sheet sheet = workbook.getSheet(SHEET);
-        int categoryCol = column(sheet, ProcessingConstants.POST_CATEGORY_COLUMN_KEY);
+        int categoryCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY);
 
         List<String> categoryFormulas = new ArrayList<>();
         for (org.apache.poi.ss.usermodel.DataValidation dv : ((org.apache.poi.xssf.usermodel.XSSFSheet) sheet).getDataValidations()) {
@@ -256,10 +256,10 @@ class PostSheetGeneratorTest {
             }
         }
         assertEquals(1, categoryFormulas.size(), "the plain enum dropdown is replaced, not doubled: " + categoryFormulas);
-        assertTrue(categoryFormulas.get(0).startsWith("INDIRECT(IFERROR(\"_hPostCat\"&MATCH("), categoryFormulas.get(0));
-        assertTrue(categoryFormulas.get(0).contains("_hPostTypes"), categoryFormulas.get(0));
+        assertTrue(categoryFormulas.get(0).startsWith("INDIRECT(IFERROR(\"_hOutsideHouseholdCat\"&MATCH("), categoryFormulas.get(0));
+        assertTrue(categoryFormulas.get(0).contains("_hOutsideHouseholdTypes"), categoryFormulas.get(0));
 
-        Sheet helper = workbook.getSheet("_h_PostCategories_h_");
+        Sheet helper = workbook.getSheet("_h_OHCategories_h_");
         assertNotNull(helper);
         assertTrue(workbook.isSheetHidden(workbook.getSheetIndex(helper)));
         // Types listed by label (rows 1..n) then code (rows n+1..2n); both point at the same category column
@@ -267,20 +267,20 @@ class PostSheetGeneratorTest {
         for (int r = 0; r < 4; r++) {
             typesInHelper.add(helper.getRow(r).getCell(0).getStringCellValue());
         }
-        int clf = typesInHelper.indexOf("CLF");
+        int clf = typesInHelper.indexOf("OUTSIDE_HOUSEHOLD_PLACES");
         int transit = typesInHelper.indexOf("TRANSIT_POST");
-        assertEquals(workbook.getName("_hPostCat" + (clf + 1)).getRefersToFormula(),
-                workbook.getName("_hPostCat" + (clf + 3)).getRefersToFormula());
-        String clfRange = workbook.getName("_hPostCat" + (clf + 1)).getRefersToFormula();
-        String transitRange = workbook.getName("_hPostCat" + (transit + 1)).getRefersToFormula();
-        assertTrue(clfRange.matches(".*!\\$[A-Z]+\\$1:\\$[A-Z]+\\$2"), "CLF has 2 categories: " + clfRange);
+        assertEquals(workbook.getName("_hOutsideHouseholdCat" + (clf + 1)).getRefersToFormula(),
+                workbook.getName("_hOutsideHouseholdCat" + (clf + 3)).getRefersToFormula());
+        String clfRange = workbook.getName("_hOutsideHouseholdCat" + (clf + 1)).getRefersToFormula();
+        String transitRange = workbook.getName("_hOutsideHouseholdCat" + (transit + 1)).getRefersToFormula();
+        assertTrue(clfRange.matches(".*!\\$[A-Z]+\\$1:\\$[A-Z]+\\$2"), "OUTSIDE_HOUSEHOLD_PLACES has 2 categories: " + clfRange);
         assertTrue(transitRange.matches(".*!\\$[A-Z]+\\$1:\\$[A-Z]+\\$1"), "TRANSIT_POST has 1: " + transitRange);
     }
 
     @Test
     void withoutCategoryListsTheSchemaDropdownStays() {
         Sheet sheet = generate(false).getSheet(SHEET);
-        int categoryCol = column(sheet, ProcessingConstants.POST_CATEGORY_COLUMN_KEY);
+        int categoryCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY);
         boolean plainList = false;
         for (org.apache.poi.ss.usermodel.DataValidation dv : ((org.apache.poi.xssf.usermodel.XSSFSheet) sheet).getDataValidations()) {
             if (dv.getRegions().getCellRangeAddresses()[0].getFirstColumn() == categoryCol) {
@@ -294,52 +294,52 @@ class PostSheetGeneratorTest {
     @Test
     void emptyRowsGetAnInlineFormulaListingLabelAndCodeOfPermanentByDefaultTypes() {
         Sheet sheet = generate(false).getSheet(SHEET);
-        int statusCol = column(sheet, ProcessingConstants.POST_STATUS_COLUMN_KEY);
+        int statusCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY);
         Row emptyRow = sheet.getRow(4); // past the 2 pre-filled rows (rows 2 and 3)
         assertNotNull(emptyRow, "An empty templated row must still exist (dropdown/formula range)");
         Cell statusCell = emptyRow.getCell(statusCol);
         assertEquals(CellType.FORMULA, statusCell.getCellType());
         String formula = statusCell.getCellFormula();
-        assertTrue(formula.contains("OR("), "only CLF is permanent by default, so the formula must branch");
-        assertTrue(formula.contains("\"CLF\""), "CLF's code must be in the OR list");
+        assertTrue(formula.contains("OR("), "only OUTSIDE_HOUSEHOLD_PLACES is permanent by default, so the formula must branch");
+        assertTrue(formula.contains("\"OUTSIDE_HOUSEHOLD_PLACES\""), "OUTSIDE_HOUSEHOLD_PLACES's code must be in the OR list");
         assertFalse(formula.contains("TRANSIT_POST"), "TRANSIT_POST is not permanent by default, must not appear");
     }
 
     @Test
     void regressionFormulaMatchesBothTheLabelAndTheCode() {
         Map<String, String> localization = new HashMap<>();
-        localization.put(ProcessingConstants.POST_TYPE_COLUMN_KEY + "_CLF", "Centre communautaire (CLF)");
+        localization.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY + "_OUTSIDE_HOUSEHOLD_PLACES", "Lieux hors menage");
 
         Sheet sheet = generate(false, localization).getSheet(SHEET);
-        int typeCol = column(sheet, ProcessingConstants.POST_TYPE_COLUMN_KEY);
-        int statusCol = column(sheet, ProcessingConstants.POST_STATUS_COLUMN_KEY);
+        int typeCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY);
+        int statusCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY);
         Row emptyRow = sheet.getRow(4);
         Cell typeCell = emptyRow.getCell(typeCol) != null ? emptyRow.getCell(typeCol)
                 : emptyRow.createCell(typeCol, CellType.STRING);
         Cell statusCell = emptyRow.getCell(statusCol);
 
-        // EnumValueNormalizer may rewrite the Post Type cell to the CODE before or after this formula is
+        // EnumValueNormalizer may rewrite the Site Type cell to the CODE before or after this formula is
         // read (HashMap column order) - the default must resolve correctly whichever value is there.
-        assertEquals("Permanent", evaluate(sheet, typeCell, "CLF", statusCell));
-        assertEquals("Permanent", evaluate(sheet, typeCell, "Centre communautaire (CLF)", statusCell));
+        assertEquals("Permanent", evaluate(sheet, typeCell, "OUTSIDE_HOUSEHOLD_PLACES", statusCell));
+        assertEquals("Permanent", evaluate(sheet, typeCell, "Lieux hors menage", statusCell));
         assertEquals("Temporary", evaluate(sheet, typeCell, "TRANSIT_POST", statusCell));
         assertEquals("", evaluate(sheet, typeCell, "", statusCell), "blank type -> blank status");
     }
 
     @Test
     void noPermanentByDefaultType_alwaysDefaultsToTemporary() {
-        lenient().when(postTypeMasterService.getPostTypes(any(), eq(TENANT)))
-                .thenReturn(Map.of("CLF", false, "TRANSIT_POST", false));
+        lenient().when(outsideHouseholdTypeMasterService.getOutsideHouseholdTypes(any(), eq(TENANT)))
+                .thenReturn(Map.of("OUTSIDE_HOUSEHOLD_PLACES", false, "TRANSIT_POST", false));
 
         Sheet sheet = generate(false).getSheet(SHEET);
-        int typeCol = column(sheet, ProcessingConstants.POST_TYPE_COLUMN_KEY);
-        int statusCol = column(sheet, ProcessingConstants.POST_STATUS_COLUMN_KEY);
+        int typeCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY);
+        int statusCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY);
         Row emptyRow = sheet.getRow(4);
         Cell statusCell = emptyRow.getCell(statusCol);
         assertFalse(statusCell.getCellFormula().contains("OR("), "no type is permanent by default");
 
         Cell typeCell = emptyRow.createCell(typeCol, CellType.STRING);
-        assertEquals("Temporary", evaluate(sheet, typeCell, "CLF", statusCell));
+        assertEquals("Temporary", evaluate(sheet, typeCell, "OUTSIDE_HOUSEHOLD_PLACES", statusCell));
     }
 
     private String evaluate(Sheet sheet, Cell typeCell, String typeValue, Cell statusCell) {
@@ -350,9 +350,9 @@ class PostSheetGeneratorTest {
     }
 
     @Test
-    void preFilledRowsKeepALiteralPostStatusNeverAFormula() {
+    void preFilledRowsKeepALiteralOutsideHouseholdStatusNeverAFormula() {
         Sheet sheet = generate(false).getSheet(SHEET);
-        int statusCol = column(sheet, ProcessingConstants.POST_STATUS_COLUMN_KEY);
+        int statusCol = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY);
 
         assertEquals(CellType.STRING, sheet.getRow(2).getCell(statusCol).getCellType());
         assertEquals(CellType.STRING, sheet.getRow(3).getCell(statusCol).getCellType());
@@ -368,7 +368,7 @@ class PostSheetGeneratorTest {
         assertFalse(sheet.getRow(2).getCell(rowIdCol).getStringCellValue().isEmpty());
         assertFalse(sheet.getRow(3).getCell(rowIdCol).getStringCellValue().isEmpty());
         assertNull(sheet.getRow(4).getCell(rowIdCol), "No row-id beyond the pre-filled rows");
-        assertTrue(ProcessingConstants.isUserEntrySheet("org.egov.excelingestion.generator.PostSheetGenerator"));
+        assertTrue(ProcessingConstants.isUserEntrySheet("org.egov.excelingestion.generator.OutsideHouseholdSheetGenerator"));
     }
 
     // ---------------------------------------------------------------- helpers
@@ -383,14 +383,14 @@ class PostSheetGeneratorTest {
                 .referenceId(CAMPAIGN_ID).referenceType("campaign").build();
         resource.setUnprotectedJoinMode(joinMode);
         SheetGenerationConfig sheetConfig = SheetGenerationConfig.builder()
-                .sheetName("HCM_ADMIN_CONSOLE_POSTS_LIST").schemaName("post-microplan-ingestion")
-                .generationClass("PostSheetGenerator").build();
+                .sheetName("HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST").schemaName("outside-household-microplan-ingestion")
+                .generationClass("OutsideHouseholdSheetGenerator").build();
         return generator.generateSheet(new XSSFWorkbook(), SHEET, sheetConfig, resource, new RequestInfo(), localization);
     }
 
     private void stubSchema() {
         lenient().when(mdmsService.searchMDMS(any(), eq(TENANT), eq(ProcessingConstants.MDMS_SCHEMA_CODE),
-                anyMap(), anyInt(), anyInt())).thenReturn(Collections.singletonList(postSchema()));
+                anyMap(), anyInt(), anyInt())).thenReturn(Collections.singletonList(outsideHouseholdSchema()));
     }
 
     private void stubCampaign() {
@@ -401,33 +401,33 @@ class PostSheetGeneratorTest {
                 .thenReturn(Collections.singletonList(CampaignSearchResponse.BoundaryDetail.builder()
                         .code("P1").type("Province").includeAllChildren(true).build()));
 
-        // Stored campaign data: one post row (already in post-column shape, as persisted) and one plain
-        // facility row (no hidden clientReferenceId) that must not appear on the posts sheet.
-        Map<String, Object> post = new HashMap<>();
-        post.put(ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY, "fac-clf-1");
-        post.put(ProcessingConstants.POST_TYPE_COLUMN_KEY, "CLF");
-        post.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "SCHOOL");
-        post.put(ProcessingConstants.POST_NAME_COLUMN_KEY, "Central School CLF");
-        post.put(ProcessingConstants.POST_STATUS_COLUMN_KEY, "Permanent");
-        post.put(ProcessingConstants.POST_USAGE_COLUMN_KEY, "Active");
-        post.put(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "V1");
+        // Stored campaign data: one site row (already in site-column shape, as persisted) and one plain
+        // facility row (no hidden clientReferenceId) that must not appear on the Outside Household sheet.
+        Map<String, Object> site = new HashMap<>();
+        site.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY, "fac-ohp-1");
+        site.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY, "OUTSIDE_HOUSEHOLD_PLACES");
+        site.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY, "SCHOOL");
+        site.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Central School OUTSIDE_HOUSEHOLD_PLACES");
+        site.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY, "Permanent");
+        site.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY, "Active");
+        site.put(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "V1");
         Map<String, Object> warehouse = new HashMap<>();
         warehouse.put(ProcessingConstants.FACILITY_USAGE_COLUMN_KEY, "Active");
         warehouse.put("HCM_ADMIN_CONSOLE_FACILITY_NAME", "Main Warehouse");
         warehouse.put(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "V1");
         lenient().when(campaignService.searchCampaignDataByUniqueIdentifiers(anyList(), eq("facility"), isNull(),
                 eq(CAMPAIGN_NUMBER), eq(TENANT), any()))
-                .thenReturn(Arrays.asList(Map.of("data", post), Map.of("data", warehouse)));
+                .thenReturn(Arrays.asList(Map.of("data", site), Map.of("data", warehouse)));
 
-        // Earlier campaigns' permanent posts, one paged search per active post type
-        lenient().when(facilityService.fetchAllPermanentFacilities(eq(TENANT), eq("CLF"), any()))
+        // Earlier campaigns' permanent sites, one paged search per active site type
+        lenient().when(facilityService.fetchAllPermanentFacilities(eq(TENANT), eq("OUTSIDE_HOUSEHOLD_PLACES"), any()))
                 .thenReturn(Arrays.asList(
-                        // already listed from the stored post row (same clientReferenceId) -> skipped
-                        permanentFacility("fac-clf-1", "CLF", "Central School CLF", "V1", "SCHOOL"),
+                        // already listed from the stored site row (same clientReferenceId) -> skipped
+                        permanentFacility("fac-ohp-1", "OUTSIDE_HOUSEHOLD_PLACES", "Central School OUTSIDE_HOUSEHOLD_PLACES", "V1", "SCHOOL"),
                         // on the second-lowest level - skipped unless the test raises carry-over to 2 levels
-                        permanentFacility("fac-clf-2", "CLF", "District CLF", "D1", "MARKET"),
+                        permanentFacility("fac-ohp-2", "OUTSIDE_HOUSEHOLD_PLACES", "District OUTSIDE_HOUSEHOLD_PLACES", "D1", "MARKET"),
                         // on the root boundary - never carried over regardless of level count
-                        permanentFacility("fac-clf-3", "CLF", "Root CLF", "P1", "OTHER")));
+                        permanentFacility("fac-ohp-3", "OUTSIDE_HOUSEHOLD_PLACES", "Root OUTSIDE_HOUSEHOLD_PLACES", "P1", "OTHER")));
         lenient().when(facilityService.fetchAllPermanentFacilities(eq(TENANT), eq("TRANSIT_POST"), any()))
                 .thenReturn(List.of(permanentFacility("fac-tp-9", "TRANSIT_POST", "Old Bus Stand", "V2", "BUS_STATION")));
         lenient().when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(any(), eq(CAMPAIGN_ID), eq(TENANT),
@@ -458,7 +458,7 @@ class PostSheetGeneratorTest {
     }
 
     private static Map<String, Object> permanentFacility(String id, String usage, String name, String locality,
-                                                         String postCategory) {
+                                                         String outsideHouseholdCategory) {
         Map<String, Object> facility = new HashMap<>();
         facility.put("id", id);
         facility.put("clientReferenceId", id);
@@ -466,9 +466,9 @@ class PostSheetGeneratorTest {
         facility.put("name", name);
         facility.put("isPermanent", true);
         facility.put("address", Map.of("locality", Map.of("code", locality)));
-        if (postCategory != null) {
-            facility.put("additionalFields", Map.of("schema", "Post", "version", 1,
-                    "fields", List.of(Map.of("key", "postCategory", "value", postCategory))));
+        if (outsideHouseholdCategory != null) {
+            facility.put("additionalFields", Map.of("schema", "OutsideHousehold", "version", 1,
+                    "fields", List.of(Map.of("key", "outsideHouseholdCategory", "value", outsideHouseholdCategory))));
         }
         return facility;
     }
@@ -483,20 +483,20 @@ class PostSheetGeneratorTest {
         return facility;
     }
 
-    /** MDMS post-microplan-ingestion record mirroring facility-microplan-ingestion. */
-    private static Map<String, Object> postSchema() {
+    /** MDMS outside-household-microplan-ingestion record mirroring facility-microplan-ingestion. */
+    private static Map<String, Object> outsideHouseholdSchema() {
         Map<String, Object> properties = new HashMap<>();
         List<Map<String, Object>> strings = new ArrayList<>(Arrays.asList(
-                prop(ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY, 1, null, true),
-                prop(ProcessingConstants.POST_TYPE_COLUMN_KEY, 2, null, false),
-                prop(ProcessingConstants.POST_NAME_COLUMN_KEY, 4, null, false)));
+                prop(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY, 1, null, true),
+                prop(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY, 2, null, false),
+                prop(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, 4, null, false)));
         List<Map<String, Object>> enums = new ArrayList<>(Arrays.asList(
-                prop(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, 3, SCHEMA_CATEGORIES, false),
-                prop(ProcessingConstants.POST_STATUS_COLUMN_KEY, 5, Arrays.asList("Temporary", "Permanent"), false),
-                prop(ProcessingConstants.POST_USAGE_COLUMN_KEY, 6, Arrays.asList("Active", "Inactive"), false)));
+                prop(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY, 3, SCHEMA_CATEGORIES, false),
+                prop(ProcessingConstants.OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY, 5, Arrays.asList("Temporary", "Permanent"), false),
+                prop(ProcessingConstants.OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY, 6, Arrays.asList("Active", "Inactive"), false)));
         properties.put("stringProperties", strings);
         properties.put("enumProperties", enums);
-        return Map.of("data", Map.of("title", "post-microplan-ingestion", "properties", properties));
+        return Map.of("data", Map.of("title", "outside-household-microplan-ingestion", "properties", properties));
     }
 
     private static Map<String, Object> prop(String name, int order, List<String> enumValues, boolean hidden) {
@@ -538,7 +538,7 @@ class PostSheetGeneratorTest {
 
     /** Row index (>=2) whose hidden clientReferenceId matches, or -1 if no pre-filled row matches. */
     private static int rowOf(Sheet sheet, String clientReferenceId) {
-        int col = column(sheet, ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY);
+        int col = column(sheet, ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY);
         for (int r = 2; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             Cell c = row == null ? null : row.getCell(col);
