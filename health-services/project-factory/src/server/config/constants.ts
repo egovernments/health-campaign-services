@@ -345,10 +345,9 @@ export const outsideHouseholdLinkAdditionalFieldsSchema = {
     workerPhoneKey: "frontlineWorkerPhone",
 } as const;
 
-// Facility.additionalFields marker that identifies a facility as a site
-export const outsideHouseholdAdditionalFieldsSchema = {
-    schema: "OutsideHousehold",
-    version: 1,
+// Facility.additionalFields entry of a site: its category. A site is told apart from a facility by its
+// usage (the site type code, MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES), not by additionalFields.
+export const outsideHouseholdFacilityAdditionalFields = {
     categoryKey: "outsideHouseholdCategory",
 } as const;
 

@@ -11,6 +11,7 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilitySearch;
 import org.egov.common.producer.Producer;
 import org.egov.facility.repository.rowmapper.FacilityRowMapper;
+import org.egov.facility.service.OutsideHouseholdTypeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -32,15 +33,16 @@ import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING
 @Repository
 public class FacilityRepository extends GenericRepository<Facility> {
 
-    // additionalDetails "schema" value that marks a facility as a site
-    private static final String OUTSIDE_HOUSEHOLD_FACILITY_SCHEMA = "OutsideHousehold";
+    private final OutsideHouseholdTypeService outsideHouseholdTypeService;
 
     @Autowired
     public FacilityRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                               RedisTemplate<String, Object> redisTemplate,
-                              SelectQueryBuilder selectQueryBuilder, FacilityRowMapper facilityRowMapper) {
+                              SelectQueryBuilder selectQueryBuilder, FacilityRowMapper facilityRowMapper,
+                              OutsideHouseholdTypeService outsideHouseholdTypeService) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
                 facilityRowMapper, Optional.of("facility"));
+        this.outsideHouseholdTypeService = outsideHouseholdTypeService;
     }
 
     /**
@@ -121,14 +123,17 @@ public class FacilityRepository extends GenericRepository<Facility> {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
         }
 
-        // A facility marked as a site (additionalDetails.schema == "OutsideHousehold") is left out of a broad
-        // search, unless the caller asked for it specifically by usage, id or clientReferenceId.
+        // A site (a facility whose usage is an outside household type, MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES) is left
+        // out of a broad search, unless the caller asked for it specifically by usage, id or clientReferenceId.
         boolean callerAskedForSpecificFacility = searchObject.getUsage() != null
                 || !CollectionUtils.isEmpty(searchObject.getId())
                 || !CollectionUtils.isEmpty(searchObject.getClientReferenceId());
         if (!callerAskedForSpecificFacility) {
-            query = query + "and (f.additionalDetails->>'schema' IS NULL OR f.additionalDetails->>'schema' <> :outsideHouseholdFacilitySchema) ";
-            paramsMap.put("outsideHouseholdFacilitySchema", OUTSIDE_HOUSEHOLD_FACILITY_SCHEMA);
+            List<String> siteTypes = outsideHouseholdTypeService.getTypes(tenantId);
+            if (!siteTypes.isEmpty()) {
+                query = query + "and (f.usage IS NULL OR f.usage NOT IN (:outsideHouseholdTypes)) ";
+                paramsMap.put("outsideHouseholdTypes", siteTypes);
+            }
         }
 
         paramsMap.put("tenantId", tenantId);

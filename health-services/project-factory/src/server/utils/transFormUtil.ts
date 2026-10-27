@@ -8,7 +8,7 @@ import {
 import { logger } from "./logger";
 import config from "../config";
 import { RequestInfo } from "../config/models/requestInfoSchema";
-import { outsideHouseholdFacilityFields, outsideHouseholdAdditionalFieldsSchema } from "../config/constants";
+import { outsideHouseholdFacilityFields, outsideHouseholdFacilityAdditionalFields } from "../config/constants";
 
 type RowData = Record<string, any>;
 
@@ -332,12 +332,13 @@ export class DataTransformer {
             const clientReferenceId = String(row?.[outsideHouseholdFacilityFields.clientReferenceId] ?? "").trim();
             if (clientReferenceId) {
                 d.Facility.clientReferenceId = clientReferenceId;
+                // The site type is already the facility usage; additionalFields only carry the category.
                 const category = String(row?.[outsideHouseholdFacilityFields.category] ?? "").trim();
-                d.Facility.additionalFields = {
-                    schema: outsideHouseholdAdditionalFieldsSchema.schema,
-                    version: outsideHouseholdAdditionalFieldsSchema.version,
-                    fields: category ? [{ key: outsideHouseholdAdditionalFieldsSchema.categoryKey, value: category }] : []
-                };
+                if (category) {
+                    d.Facility.additionalFields = {
+                        fields: [{ key: outsideHouseholdFacilityAdditionalFields.categoryKey, value: category }]
+                    };
+                }
             }
         });
         return data;

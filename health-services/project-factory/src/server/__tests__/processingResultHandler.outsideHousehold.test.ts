@@ -294,7 +294,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
     });
 
     describe('campaign data rows', () => {
-        it('persists site rows as facility rows carrying the site marker, keyed by clientReferenceId', async () => {
+        it('persists site rows as facility rows keyed by clientReferenceId', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2'), outsideHouseholdRow('P2', 'B3', 'Inactive')] });
             const topics = collectAllTopics();
             await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
@@ -440,7 +440,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
 });
 
 // Real DataTransformer + the real FacilityUnified config (as used by facilityBatchHandler) — proves
-// the transform itself stamps the Site marker, category and clientReferenceId, and only on a row
+// the transform itself sets the site type as usage, plus the category and clientReferenceId, and only on a row
 // that went through convertOutsideHouseholdRowsToFacilityRows; a plain facility row gets neither.
 describe('transformBulkFacility (real transform, FacilityUnified config)', () => {
     const requestInfo = { userInfo: { uuid: 'u1' } } as any;
@@ -451,7 +451,7 @@ describe('transformBulkFacility (real transform, FacilityUnified config)', () =>
         return new DataTransformer(cfg);
     }
 
-    it('stamps the marker, category and clientReferenceId only on the site row', async () => {
+    it('sets usage = site type, category and clientReferenceId only on the site row (no additionalFields marker)', async () => {
         const [outsideHouseholdRowJson] = convertOutsideHouseholdRowsToFacilityRows([{ rowjson: outsideHouseholdRow('P1', 'B2') }], new Map());
         const [facilityOut, outsideHouseholdOut] = await buildTransformer().transform(
             [facilityRow('F1', 'B1'), outsideHouseholdRowJson.rowjson], requestInfo
@@ -461,18 +461,17 @@ describe('transformBulkFacility (real transform, FacilityUnified config)', () =>
         expect(facilityOut.Facility).not.toHaveProperty('additionalFields');
 
         expect(outsideHouseholdOut.Facility.clientReferenceId).toBe('P1');
+        expect(outsideHouseholdOut.Facility.usage).toBe('OUTSIDE_HOUSEHOLD_PLACES');
         expect(outsideHouseholdOut.Facility.additionalFields).toEqual({
-            schema: 'OutsideHousehold',
-            version: 1,
             fields: [{ key: 'outsideHouseholdCategory', value: 'CAT_A' }],
         });
     });
 
-    it('stamps the marker with an empty fields array when the category is blank', async () => {
+    it('sets no additionalFields when the category is blank', async () => {
         const [outsideHouseholdRowJson] = convertOutsideHouseholdRowsToFacilityRows(
             [{ rowjson: outsideHouseholdRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY: '  ' }) }], new Map());
         const [outsideHouseholdOut] = await buildTransformer().transform([outsideHouseholdRowJson.rowjson], requestInfo);
-        expect(outsideHouseholdOut.Facility.additionalFields).toEqual({ schema: 'OutsideHousehold', version: 1, fields: [] });
+        expect(outsideHouseholdOut.Facility).not.toHaveProperty('additionalFields');
     });
 });
 
