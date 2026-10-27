@@ -469,6 +469,57 @@ function buildUserUuidLookup(userRows: unknown, decrypt: (value: string) => stri
     return lookup;
 }
 
+interface DhDistributorGroup {
+    dhCode: string;
+    dhName: string;
+    distributors: Array<{ uuid: string; userName: string; name: string }>;
+    dedupe: Set<string>;
+}
+
+/** Adds only distributors missing from the list, so registers or mappings that do not exist yet cannot hide them; existing entries are never changed. */
+function addMissingDistributorsFromUserRows(
+    distributorsByDh: Map<string, DhDistributorGroup>,
+    userRows: unknown,
+    requestedDhCodes: Set<unknown>,
+    decrypt: (value: string) => string
+): void {
+    if (!Array.isArray(userRows)) return;
+    const listedUuids = new Set<string>();
+    const listedUserNames = new Set<string>();
+    for (const group of distributorsByDh.values()) {
+        for (const distributor of group.distributors) {
+            if (distributor.uuid) listedUuids.add(distributor.uuid);
+            if (distributor.userName) listedUserNames.add(distributor.userName);
+        }
+    }
+    for (const userRow of userRows) {
+        if (userRow?.isDeleted) continue;
+        const row = (userRow?.data || {}) as Record<string, unknown>;
+        if (!extractRoleCodes(row).has(DISTRIBUTOR_ROLE_CODE)) continue;
+
+        const dhCode = textValue(row[BOUNDARY_CODE_MANDATORY_COLUMN]) || textValue(row[BOUNDARY_CODE_COLUMN]);
+        if (!dhCode) continue;
+        if (requestedDhCodes.size > 0 && !requestedDhCodes.has(dhCode)) continue;
+
+        const userName = decryptUserName(textValue(row[USERNAME_COLUMN]), decrypt);
+        const name = textValue(row[USER_NAME_COLUMN]);
+        const uuid = textValue(userRow?.uniqueIdAfterProcess) || textValue(row[USER_SERVICE_UUID_COLUMN]);
+        if (uuid ? listedUuids.has(uuid) : userName !== "" && listedUserNames.has(userName)) continue;
+        const dedupeKey = `${uuid || textValue(row[WORKER_ID_COLUMN])}::${userName}::${name}`;
+
+        let group = distributorsByDh.get(dhCode);
+        if (!group) {
+            group = { dhCode, dhName: textValue(row[BOUNDARY_COLUMN]) || dhCode, distributors: [], dedupe: new Set<string>() };
+            distributorsByDh.set(dhCode, group);
+        }
+        if (group.dedupe.has(dedupeKey)) continue;
+        group.dedupe.add(dedupeKey);
+        group.distributors.push({ uuid, userName, name });
+        if (uuid) listedUuids.add(uuid);
+        if (userName) listedUserNames.add(userName);
+    }
+}
+
 const searchDistributorsByDhService = async (request: any) => {
     const searchCriteria = request?.body?.SearchCriteria;
     const pagination = request?.body?.Pagination;
@@ -573,6 +624,8 @@ const searchDistributorsByDhService = async (request: any) => {
         group.dedupe.add(dedupeKey);
         group.distributors.push({ uuid, userName, name });
     }
+
+    addMissingDistributorsFromUserRows(distributorsByDh, userRows, requestedDhCodes, decrypt);
 
     const unresolvedUserNames = Array.from(distributorsByDh.values())
         .flatMap((group) => group.distributors)
