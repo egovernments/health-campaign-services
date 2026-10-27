@@ -24,18 +24,19 @@ public class ProcessingConstants {
     public static final String POST_CATEGORY_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_CATEGORY";
     public static final String POST_NAME_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_NAME";
     public static final String POST_STATUS_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_STATUS";
-    // Post include/exclude/remove column - user-editable, excluded from the immutable-baseline join
+    // Post Active/Inactive column - user-editable, excluded from the immutable-baseline join
     public static final String POST_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_POST_USAGE";
-    public static final String POST_USAGE_EXCLUDE = "Exclude";
-    public static final String POST_USAGE_REMOVE = "Remove";
+    public static final String POST_USAGE_INACTIVE = "Inactive";
     // Facility additionalFields entry holding a post's category
     public static final String POST_CATEGORY_ADDITIONAL_FIELD_KEY = "postCategory";
 
-    // MDMS master of post types: rows {"code","active","isPermanentByDefault"}; no active row = no posts sheet
+    // MDMS master of post types: rows {"code","active","isPermanentByDefault","categories"}; no active row = no posts sheet
     public static final String OUTSIDE_HOUSEHOLD_POST_TYPES_SCHEMA_CODE = "HCM.OUTSIDE_HOUSEHOLD_POST_TYPES";
     public static final String OUTSIDE_HOUSEHOLD_POST_TYPE_CODE_FIELD = "code";
     public static final String OUTSIDE_HOUSEHOLD_POST_TYPE_ACTIVE_FIELD = "active";
     public static final String OUTSIDE_HOUSEHOLD_POST_TYPE_IS_PERMANENT_BY_DEFAULT_FIELD = "isPermanentByDefault";
+    // Category codes allowed for a post type (list); drives the Category dropdown and its validation
+    public static final String OUTSIDE_HOUSEHOLD_POST_TYPE_CATEGORIES_FIELD = "categories";
 
     // Permanent/Temporary enum columns. Localized for display at generation and mapped back to their
     // canonical MDMS values on upload (see EnumLocalizationUtil).

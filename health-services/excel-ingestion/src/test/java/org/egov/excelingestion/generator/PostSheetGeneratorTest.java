@@ -141,7 +141,7 @@ class PostSheetGeneratorTest {
         assertEquals("SCHOOL", cell(sheet, 2, ProcessingConstants.POST_CATEGORY_COLUMN_KEY));
         assertEquals("Central School CLF", cell(sheet, 2, ProcessingConstants.POST_NAME_COLUMN_KEY));
         assertEquals("Permanent", cell(sheet, 2, ProcessingConstants.POST_STATUS_COLUMN_KEY));
-        assertEquals("Include", cell(sheet, 2, ProcessingConstants.POST_USAGE_COLUMN_KEY));
+        assertEquals("Active", cell(sheet, 2, ProcessingConstants.POST_USAGE_COLUMN_KEY));
         assertEquals("V1", cell(sheet, 2, ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY));
         assertEquals("V1", cell(sheet, 2, "ADMIN_VILLAGE"));
         assertEquals("P1", cell(sheet, 2, "ADMIN_PROVINCE"));
@@ -157,7 +157,7 @@ class PostSheetGeneratorTest {
     void visibleHeadersAndEnumLabelsComeFromLocalization() {
         Map<String, String> localization = new HashMap<>();
         localization.put(ProcessingConstants.POST_TYPE_COLUMN_KEY, "Type de poste");
-        localization.put(ProcessingConstants.POST_USAGE_COLUMN_KEY + "_EXCLUDE", "Exclure");
+        localization.put(ProcessingConstants.POST_USAGE_COLUMN_KEY + "_INACTIVE", "Inactif");
 
         Sheet sheet = generate(false, localization).getSheet(SHEET);
 
@@ -166,21 +166,21 @@ class PostSheetGeneratorTest {
         int nameCol = column(sheet, ProcessingConstants.POST_NAME_COLUMN_KEY);
         assertEquals(ProcessingConstants.POST_NAME_COLUMN_KEY, sheet.getRow(1).getCell(nameCol).getStringCellValue());
         int usageCol = column(sheet, ProcessingConstants.POST_USAGE_COLUMN_KEY);
-        assertEquals("Exclure", sheet.getRow(3).getCell(usageCol).getStringCellValue());
+        assertEquals("Inactif", sheet.getRow(3).getCell(usageCol).getStringCellValue());
     }
 
     @Test
     void prefillsCampaignPostsThenCarryOverPosts() {
         Sheet sheet = generate(false).getSheet(SHEET);
 
-        // Row 3: earlier campaign's permanent post on a lowest-level boundary, listed as Exclude. Found
+        // Row 3: earlier campaign's permanent post on a lowest-level boundary, listed as Inactive. Found
         // via fetchAllPermanentFacilities(tenant, "TRANSIT_POST", ...) - one paged search per active type.
         assertEquals("fac-tp-9", cell(sheet, 3, ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY));
         assertEquals("TRANSIT_POST", cell(sheet, 3, ProcessingConstants.POST_TYPE_COLUMN_KEY));
         assertEquals("BUS_STATION", cell(sheet, 3, ProcessingConstants.POST_CATEGORY_COLUMN_KEY));
         assertEquals("Old Bus Stand", cell(sheet, 3, ProcessingConstants.POST_NAME_COLUMN_KEY));
         assertEquals("Permanent", cell(sheet, 3, ProcessingConstants.POST_STATUS_COLUMN_KEY));
-        assertEquals("Exclude", cell(sheet, 3, ProcessingConstants.POST_USAGE_COLUMN_KEY));
+        assertEquals("Inactive", cell(sheet, 3, ProcessingConstants.POST_USAGE_COLUMN_KEY));
         assertEquals("V2", cell(sheet, 3, ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY));
 
         // Nothing else: the earlier CLF post already listed (a), the earlier CLF post off the carry-over
@@ -197,12 +197,12 @@ class PostSheetGeneratorTest {
 
         Sheet sheet = generate(false).getSheet(SHEET);
 
-        // fac-clf-2 sits on D1 (second-lowest / District level) - now carried over as Exclude. Both active
+        // fac-clf-2 sits on D1 (second-lowest / District level) - now carried over as Inactive. Both active
         // types contribute a carried-over row here, so look the row up by id rather than a fixed index.
         int rowIdx = rowOf(sheet, "fac-clf-2");
         assertTrue(rowIdx > 0, "fac-clf-2 (second-lowest level) must be carried over");
         assertEquals("MARKET", cell(sheet, rowIdx, ProcessingConstants.POST_CATEGORY_COLUMN_KEY));
-        assertEquals("Exclude", cell(sheet, rowIdx, ProcessingConstants.POST_USAGE_COLUMN_KEY));
+        assertEquals("Inactive", cell(sheet, rowIdx, ProcessingConstants.POST_USAGE_COLUMN_KEY));
         // fac-clf-3 sits on P1 (root / Province level, higher than second-lowest) - still excluded.
         assertEquals(-1, rowOf(sheet, "fac-clf-3"), "a root-level post must never be carried over");
     }
@@ -225,7 +225,7 @@ class PostSheetGeneratorTest {
         Map<String, Object> row = PostSheetGenerator.toPostRowFromFacility(facility, "V1");
 
         assertNull(row.get(ProcessingConstants.POST_CATEGORY_COLUMN_KEY));
-        assertEquals("Exclude", row.get(ProcessingConstants.POST_USAGE_COLUMN_KEY));
+        assertEquals("Inactive", row.get(ProcessingConstants.POST_USAGE_COLUMN_KEY));
         assertEquals("Permanent", row.get(ProcessingConstants.POST_STATUS_COLUMN_KEY));
         assertEquals("fac-x", row.get(ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY));
     }
@@ -236,6 +236,59 @@ class PostSheetGeneratorTest {
 
         verify(facilityService).fetchAllPermanentFacilities(eq(TENANT), eq("CLF"), any());
         verify(facilityService).fetchAllPermanentFacilities(eq(TENANT), eq("TRANSIT_POST"), any());
+    }
+
+    @Test
+    void categoryDropdownDependsOnThePostType() {
+        lenient().when(postTypeMasterService.getCategoriesByPostType(any(), eq(TENANT))).thenReturn(Map.of(
+                "CLF", List.of("SCHOOL", "MARKET"), "TRANSIT_POST", List.of("BUS_STATION")));
+        XSSFWorkbook workbook = generate(false);
+        Sheet sheet = workbook.getSheet(SHEET);
+        int categoryCol = column(sheet, ProcessingConstants.POST_CATEGORY_COLUMN_KEY);
+
+        List<String> categoryFormulas = new ArrayList<>();
+        for (org.apache.poi.ss.usermodel.DataValidation dv : ((org.apache.poi.xssf.usermodel.XSSFSheet) sheet).getDataValidations()) {
+            for (org.apache.poi.ss.util.CellRangeAddress region : dv.getRegions().getCellRangeAddresses()) {
+                if (region.getFirstColumn() == categoryCol) {
+                    categoryFormulas.add(dv.getValidationConstraint().getFormula1());
+                    assertEquals(2, region.getFirstRow(), "dropdown starts on the first data row");
+                }
+            }
+        }
+        assertEquals(1, categoryFormulas.size(), "the plain enum dropdown is replaced, not doubled: " + categoryFormulas);
+        assertTrue(categoryFormulas.get(0).startsWith("INDIRECT(IFERROR(\"_hPostCat\"&MATCH("), categoryFormulas.get(0));
+        assertTrue(categoryFormulas.get(0).contains("_hPostTypes"), categoryFormulas.get(0));
+
+        Sheet helper = workbook.getSheet("_h_PostCategories_h_");
+        assertNotNull(helper);
+        assertTrue(workbook.isSheetHidden(workbook.getSheetIndex(helper)));
+        // Types listed by label (rows 1..n) then code (rows n+1..2n); both point at the same category column
+        List<String> typesInHelper = new ArrayList<>();
+        for (int r = 0; r < 4; r++) {
+            typesInHelper.add(helper.getRow(r).getCell(0).getStringCellValue());
+        }
+        int clf = typesInHelper.indexOf("CLF");
+        int transit = typesInHelper.indexOf("TRANSIT_POST");
+        assertEquals(workbook.getName("_hPostCat" + (clf + 1)).getRefersToFormula(),
+                workbook.getName("_hPostCat" + (clf + 3)).getRefersToFormula());
+        String clfRange = workbook.getName("_hPostCat" + (clf + 1)).getRefersToFormula();
+        String transitRange = workbook.getName("_hPostCat" + (transit + 1)).getRefersToFormula();
+        assertTrue(clfRange.matches(".*!\\$[A-Z]+\\$1:\\$[A-Z]+\\$2"), "CLF has 2 categories: " + clfRange);
+        assertTrue(transitRange.matches(".*!\\$[A-Z]+\\$1:\\$[A-Z]+\\$1"), "TRANSIT_POST has 1: " + transitRange);
+    }
+
+    @Test
+    void withoutCategoryListsTheSchemaDropdownStays() {
+        Sheet sheet = generate(false).getSheet(SHEET);
+        int categoryCol = column(sheet, ProcessingConstants.POST_CATEGORY_COLUMN_KEY);
+        boolean plainList = false;
+        for (org.apache.poi.ss.usermodel.DataValidation dv : ((org.apache.poi.xssf.usermodel.XSSFSheet) sheet).getDataValidations()) {
+            if (dv.getRegions().getCellRangeAddresses()[0].getFirstColumn() == categoryCol) {
+                plainList = dv.getValidationConstraint().getFormula1() == null
+                        || !dv.getValidationConstraint().getFormula1().contains("INDIRECT");
+            }
+        }
+        assertTrue(plainList, "no master categories: keep the schema's own Category dropdown");
     }
 
     @Test
@@ -356,7 +409,7 @@ class PostSheetGeneratorTest {
         post.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "SCHOOL");
         post.put(ProcessingConstants.POST_NAME_COLUMN_KEY, "Central School CLF");
         post.put(ProcessingConstants.POST_STATUS_COLUMN_KEY, "Permanent");
-        post.put(ProcessingConstants.POST_USAGE_COLUMN_KEY, "Include");
+        post.put(ProcessingConstants.POST_USAGE_COLUMN_KEY, "Active");
         post.put(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY, "V1");
         Map<String, Object> warehouse = new HashMap<>();
         warehouse.put(ProcessingConstants.FACILITY_USAGE_COLUMN_KEY, "Active");
@@ -440,7 +493,7 @@ class PostSheetGeneratorTest {
         List<Map<String, Object>> enums = new ArrayList<>(Arrays.asList(
                 prop(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, 3, SCHEMA_CATEGORIES, false),
                 prop(ProcessingConstants.POST_STATUS_COLUMN_KEY, 5, Arrays.asList("Temporary", "Permanent"), false),
-                prop(ProcessingConstants.POST_USAGE_COLUMN_KEY, 6, Arrays.asList("Include", "Exclude", "Remove"), false)));
+                prop(ProcessingConstants.POST_USAGE_COLUMN_KEY, 6, Arrays.asList("Active", "Inactive"), false)));
         properties.put("stringProperties", strings);
         properties.put("enumProperties", enums);
         return Map.of("data", Map.of("title", "post-microplan-ingestion", "properties", properties));

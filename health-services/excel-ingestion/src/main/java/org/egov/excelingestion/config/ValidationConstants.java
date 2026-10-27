@@ -51,10 +51,9 @@ public class ValidationConstants {
     public static final String HCM_POST_BOUNDARY_INVALID_LEVEL = "HCM_POST_BOUNDARY_INVALID_LEVEL";
     public static final String DEFAULT_POST_BOUNDARY_INVALID_LEVEL =
             "A post must be at the lowest or second lowest boundary level";
-    // Posts sheet - Remove (stop offering a post in future campaigns) applies only to an existing,
-    // undeleted post facility whose usage is one of the post types (HCM.OUTSIDE_HOUSEHOLD_POST_TYPES)
-    public static final String HCM_POST_REMOVE_ONLY_EXISTING = "HCM_POST_REMOVE_ONLY_EXISTING";
-    public static final String DEFAULT_POST_REMOVE_ONLY_EXISTING = "Remove can be used only for an existing post";
+    // Posts sheet - the category must be one of the categories of the row's post type (post-types master)
+    public static final String HCM_POST_CATEGORY_NOT_FOR_TYPE = "HCM_POST_CATEGORY_NOT_FOR_TYPE";
+    public static final String DEFAULT_POST_CATEGORY_NOT_FOR_TYPE = "This category is not allowed for the selected type";
 
     // Search validation constants
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";

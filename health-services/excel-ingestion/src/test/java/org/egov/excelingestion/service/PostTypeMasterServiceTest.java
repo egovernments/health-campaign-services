@@ -38,6 +38,7 @@ import static org.mockito.Mockito.when;
  * posts existed. Only an actual failed MDMS call is reported as MDMS_SERVICE_ERROR.
  */
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("unchecked")
 class PostTypeMasterServiceTest {
 
     private static final String TENANT = "mz.citya";
@@ -66,6 +67,24 @@ class PostTypeMasterServiceTest {
         assertEquals(Map.of("CLF", true, "TRANSIT_POST", false), postTypes);
         assertTrue(postTypes.containsKey(PostTypeMasterService.normalize("clf")));
         assertFalse(postTypes.containsKey("RETIRED_TYPE"), "inactive rows must be ignored");
+    }
+
+    @Test
+    void categoriesPerActiveTypeComeFromTheMaster_normalized_inOrder() {
+        Map<String, Object> ohp = masterRow("OUTSIDE_HOUSEHOLD_PLACES", true, true);
+        ((Map<String, Object>) ohp.get("data")).put(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_CATEGORIES_FIELD,
+                List.of("SCHOOL", " market ", "OTHER"));
+        Map<String, Object> transit = masterRow("TRANSIT_POST", true, false); // no categories list -> any category
+        Map<String, Object> retired = masterRow("RETIRED_TYPE", false, true);
+        ((Map<String, Object>) retired.get("data")).put(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_CATEGORIES_FIELD,
+                List.of("SCHOOL"));
+        mockMaster(ohp, transit, retired);
+
+        Map<String, List<String>> categories = service.getCategoriesByPostType(new RequestInfo(), TENANT);
+
+        assertEquals(List.of("SCHOOL", "MARKET", "OTHER"), categories.get("OUTSIDE_HOUSEHOLD_PLACES"));
+        assertEquals(List.of(), categories.get("TRANSIT_POST"));
+        assertFalse(categories.containsKey("RETIRED_TYPE"), "inactive rows must be ignored");
     }
 
     @Test

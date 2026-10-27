@@ -333,6 +333,16 @@ export const userDataFields = {
 export const postFacilityFields = {
     clientReferenceId: "HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID",
     category: "HCM_ADMIN_CONSOLE_POST_CATEGORY",
+    workerName: "HCM_ADMIN_CONSOLE_POST_WORKER_NAME",
+    workerPhone: "HCM_ADMIN_CONSOLE_POST_WORKER_PHONE",
+} as const;
+
+// ProjectFacility.additionalFields of a post's link: the frontline worker for this campaign only
+export const postLinkAdditionalFieldsSchema = {
+    schema: "PostAssignment",
+    version: 1,
+    workerNameKey: "frontlineWorkerName",
+    workerPhoneKey: "frontlineWorkerPhone",
 } as const;
 
 // Facility.additionalFields marker that identifies a facility as a post

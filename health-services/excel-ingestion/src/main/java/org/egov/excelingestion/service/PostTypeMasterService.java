@@ -9,6 +9,7 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.CampaignSearchResponse;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,20 +55,29 @@ public class PostTypeMasterService {
      * itself fails.
      */
     public Map<String, Boolean> getPostTypes(RequestInfo requestInfo, String tenantId) {
+        return extractActivePostTypes(fetchMasterRows(requestInfo, tenantId));
+    }
+
+    /**
+     * Category codes allowed per active post type (normalized type code -> its "categories" list, in master
+     * order). A type without a categories list maps to an empty list, which means "any category".
+     */
+    public Map<String, List<String>> getCategoriesByPostType(RequestInfo requestInfo, String tenantId) {
+        return extractCategoriesByPostType(fetchMasterRows(requestInfo, tenantId));
+    }
+
+    private List<Map<String, Object>> fetchMasterRows(RequestInfo requestInfo, String tenantId) {
         String stateTenantId = stateTenantId(tenantId);
-        List<Map<String, Object>> rows;
         try {
-            rows = mdmsService.searchMDMS(requestInfo, stateTenantId,
+            return mdmsService.searchMDMS(requestInfo, stateTenantId,
                     ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPES_SCHEMA_CODE, null, FETCH_LIMIT, 0);
         } catch (Exception e) {
             log.error("Error reading {} for tenant {}: {}",
                     ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPES_SCHEMA_CODE, stateTenantId, e.getMessage(), e);
             exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR,
                     ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
-            return Map.of(); // never reached
+            return List.of(); // never reached
         }
-
-        return extractActivePostTypes(rows);
     }
 
     /**
@@ -131,6 +141,39 @@ public class PostTypeMasterService {
             }
         }
         return postTypes;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, List<String>> extractCategoriesByPostType(List<Map<String, Object>> rows) {
+        Map<String, List<String>> categories = new LinkedHashMap<>();
+        if (rows == null) {
+            return categories;
+        }
+        for (Map<String, Object> row : rows) {
+            Object data = row.get("data");
+            if (!(data instanceof Map)) {
+                continue;
+            }
+            Map<String, Object> dataMap = (Map<String, Object>) data;
+            Object code = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_CODE_FIELD);
+            String normalizedCode = code instanceof String ? normalize((String) code) : null;
+            if (!Boolean.TRUE.equals(dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_ACTIVE_FIELD))
+                    || normalizedCode == null) {
+                continue;
+            }
+            List<String> codes = new ArrayList<>();
+            Object list = dataMap.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_POST_TYPE_CATEGORIES_FIELD);
+            if (list instanceof List) {
+                for (Object category : (List<Object>) list) {
+                    String normalizedCategory = category instanceof String ? normalize((String) category) : null;
+                    if (normalizedCategory != null) {
+                        codes.add(normalizedCategory);
+                    }
+                }
+            }
+            categories.put(normalizedCode, codes);
+        }
+        return categories;
     }
 
     /** Root/state tenant of a dotted tenantId (e.g. "mz.citya" -> "mz"); unchanged if there is no dot. */

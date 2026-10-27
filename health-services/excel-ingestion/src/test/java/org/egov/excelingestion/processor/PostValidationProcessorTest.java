@@ -8,6 +8,7 @@ import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.MDMSService;
+import org.egov.excelingestion.service.PostTypeMasterService;
 import org.egov.excelingestion.service.SchemaValidationService;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.util.BoundaryUtil;
@@ -41,10 +42,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * PostValidationProcessor, driven through processWorkbook on a real workbook: Remove is a row error only
- * when the hidden clientReferenceId is blank (no facility lookup at upload), boundary resolved / in
- * campaign / lowest-or-second-lowest level, error cells, postSheetStatus. Required/enum columns are
- * checked by the MDMS-schema validation, not here - this processor never reads that master.
+ * PostValidationProcessor, driven through processWorkbook on a real workbook: category must belong to the
+ * row's type (post-types master), boundary resolved / in campaign / lowest-or-second-lowest level, error
+ * cells, postSheetStatus. Required/enum columns are checked by the MDMS-schema validation, not here.
  */
 @ExtendWith(MockitoExtension.class)
 class PostValidationProcessorTest {
@@ -60,6 +60,7 @@ class PostValidationProcessorTest {
     @Mock private BoundaryUtil boundaryUtil;
     @Mock private ExcelUtil excelUtil;
     @Mock private CustomExceptionHandler exceptionHandler;
+    @Mock private PostTypeMasterService postTypeMasterService;
 
     private PostValidationProcessor processor;
     private XSSFWorkbook workbook;
@@ -69,7 +70,7 @@ class PostValidationProcessorTest {
     @BeforeEach
     void setUp() {
         processor = new PostValidationProcessor(validationService, enrichmentUtil, boundaryUtil, excelUtil,
-                exceptionHandler);
+                exceptionHandler, postTypeMasterService);
         workbook = new XSSFWorkbook();
         sheet = workbook.createSheet(SHEET);
         Row header = sheet.createRow(0);
@@ -88,24 +89,27 @@ class PostValidationProcessorTest {
                 .thenReturn(Set.of("P1", "D1", "V1", "V2"));
         lenient().when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(any(), any(), any(), any(), eq(2), any()))
                 .thenReturn(Set.of("V1", "V2", "D1"));
+        lenient().when(postTypeMasterService.getCategoriesByPostType(any(), any())).thenReturn(Map.of(
+                "OUTSIDE_HOUSEHOLD_PLACES", List.of("SCHOOL", "MARKET", "HEALTH_POST", "COMMUNITY_CENTRE", "OTHER"),
+                "TRANSIT_POST", List.of("BUS_STATION", "BORDER_CROSSING", "CHECKPOINT", "FERRY_TERMINAL", "OTHER")));
     }
 
     @Test
-    void validRowsGetNoErrorsEvenWhenEveryPostIsExcluded() {
+    void validRowsGetNoErrorsEvenWhenEveryPostIsInactive() {
         List<Map<String, Object>> rows = List.of(
-                validRow(3, "Exclude", "V1"),
-                validRow(4, "Exclude", "V2"));
+                validRow(3, "Inactive", "V1"),
+                validRow(4, "Inactive", "V2"));
 
         List<ValidationError> errors = run(rows);
 
-        assertTrue(errors.isEmpty(), "No 'at least one Include' rule for posts, got " + errors);
+        assertTrue(errors.isEmpty(), "No 'at least one Active' rule for posts, got " + errors);
         verify(validationService, never()).addValidationColumns(any(), anyMap());
     }
 
     @Test
     void enumValuesAreLeftToTheSchemaValidation() {
-        // No list of types, categories, statuses or usages in the processor: values it does not know pass here
-        Map<String, Object> row = validRow(3, "Include", "V1");
+        // A type unknown to the master, and status / usage values: left to the schema step, nothing here
+        Map<String, Object> row = validRow(3, "Active", "V1");
         row.put(ProcessingConstants.POST_TYPE_COLUMN_KEY, "MOBILE_POST");
         row.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "MOSQUE");
         row.put(ProcessingConstants.POST_STATUS_COLUMN_KEY, "Seasonal");
@@ -114,45 +118,57 @@ class PostValidationProcessorTest {
     }
 
     @Test
-    void removeWithBlankClientReferenceIdIsARowError() {
-        Map<String, Object> row = validRow(3, "Remove", "V1"); // no clientReferenceId: a row the PM typed/pasted
+    void categoryOutsideTheTypesListIsARowError() {
+        Map<String, Object> ohpBusStation = validRow(3, "Active", "V1"); // OUTSIDE_HOUSEHOLD_PLACES + BUS_STATION
+        ohpBusStation.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "BUS_STATION");
+        Map<String, Object> transitBusStation = validRow(4, "Active", "V1");
+        transitBusStation.put(ProcessingConstants.POST_TYPE_COLUMN_KEY, "TRANSIT_POST");
+        transitBusStation.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "BUS_STATION");
 
-        List<ValidationError> errors = run(List.of(row));
+        List<ValidationError> errors = run(List.of(ohpBusStation, transitBusStation));
 
         assertEquals(1, errors.size(), errors.toString());
         assertEquals(3, errors.get(0).getRowNumber());
-        assertEquals(ProcessingConstants.POST_USAGE_COLUMN_KEY, errors.get(0).getColumnName());
-        assertEquals(ValidationConstants.DEFAULT_POST_REMOVE_ONLY_EXISTING, errors.get(0).getErrorDetails());
+        assertEquals(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, errors.get(0).getColumnName());
+        assertEquals(ValidationConstants.DEFAULT_POST_CATEGORY_NOT_FOR_TYPE, errors.get(0).getErrorDetails());
         assertEquals(ValidationConstants.STATUS_INVALID, statusCell(3));
     }
 
     @Test
-    void removeWithAPreFilledClientReferenceIdHasNoRemoveError_noFacilityLookup() {
-        Map<String, Object> row = validRow(3, "Remove", "V1");
-        row.put(ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY, "fac-clf-1");
+    void categoryCheckIgnoresCaseAndUsesTheLocalizedMessage() {
+        Map<String, String> localization = new HashMap<>();
+        localization.put(ValidationConstants.HCM_POST_CATEGORY_NOT_FOR_TYPE, "Categorie non autorisee");
+        Map<String, Object> lowerCaseOk = validRow(3, "Active", "V1");
+        lowerCaseOk.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "school");
+        Map<String, Object> wrong = validRow(4, "Active", "V1");
+        wrong.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "CHECKPOINT");
 
-        assertTrue(run(List.of(row)).isEmpty(), "a pre-filled clientReferenceId needs no facility lookup");
+        List<ValidationError> errors = run(List.of(lowerCaseOk, wrong), localization);
+
+        assertEquals(1, errors.size(), errors.toString());
+        assertEquals(4, errors.get(0).getRowNumber());
+        assertEquals("Categorie non autorisee", errors.get(0).getErrorDetails());
     }
 
     @Test
-    void removeOnANewRowUsesTheLocalizedMessage() {
-        Map<String, String> localization = new HashMap<>();
-        localization.put(ValidationConstants.HCM_POST_REMOVE_ONLY_EXISTING, "Retirer : poste existant uniquement");
+    void typeWithoutCategoriesListAcceptsAnyCategory() {
+        when(postTypeMasterService.getCategoriesByPostType(any(), any()))
+                .thenReturn(Map.of("OUTSIDE_HOUSEHOLD_PLACES", List.of()));
+        Map<String, Object> row = validRow(3, "Active", "V1");
+        row.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "CHECKPOINT");
 
-        List<ValidationError> errors = run(List.of(validRow(3, "Remove", "V1")), localization);
-
-        assertEquals("Retirer : poste existant uniquement", errors.get(0).getErrorDetails());
+        assertTrue(run(List.of(row)).isEmpty());
     }
 
     @Test
     void boundaryMustResolveBeInCampaignAndBeLowestOrSecondLowestLevel() {
-        Map<String, Object> notResolved = validRow(3, "Include", null);
+        Map<String, Object> notResolved = validRow(3, "Active", null);
         notResolved.put("ADMIN_VILLAGE", "Pasted name"); // selection present, code blank
-        Map<String, Object> noBoundary = validRow(4, "Include", null);
-        Map<String, Object> outsideCampaign = validRow(5, "Include", "X9");
-        Map<String, Object> tooHigh = validRow(6, "Include", "P1"); // root level - higher than second-lowest
-        Map<String, Object> lowest = validRow(7, "Include", "V2");
-        Map<String, Object> secondLowest = validRow(8, "Include", "D1");
+        Map<String, Object> noBoundary = validRow(4, "Active", null);
+        Map<String, Object> outsideCampaign = validRow(5, "Active", "X9");
+        Map<String, Object> tooHigh = validRow(6, "Active", "P1"); // root level - higher than second-lowest
+        Map<String, Object> lowest = validRow(7, "Active", "V2");
+        Map<String, Object> secondLowest = validRow(8, "Active", "D1");
 
         List<ValidationError> errors = run(List.of(notResolved, noBoundary, outsideCampaign, tooHigh, lowest, secondLowest));
 
@@ -171,7 +187,7 @@ class PostValidationProcessorTest {
 
     @Test
     void errorsAreAppendedToTheRowErrorCell() {
-        Map<String, Object> row = validRow(3, "Include", "P1"); // in campaign, but above second-lowest level
+        Map<String, Object> row = validRow(3, "Active", "P1"); // in campaign, but above second-lowest level
         // The MDMS-schema step already wrote its own message into this row
         Row excelRow = sheet.createRow(2);
         excelRow.createCell(ERROR_COL).setCellValue("Required field 'HCM_ADMIN_CONSOLE_POST_CATEGORY' is missing");
@@ -194,7 +210,7 @@ class PostValidationProcessorTest {
         when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boundary service down"));
 
-        List<ValidationError> errors = run(List.of(validRow(3, "Include", "V1")));
+        List<ValidationError> errors = run(List.of(validRow(3, "Active", "V1")));
 
         assertEquals(1, errors.size());
         assertEquals(ValidationConstants.STATUS_ERROR, errors.get(0).getStatus());
@@ -207,12 +223,12 @@ class PostValidationProcessorTest {
         // as the schema lists it, and a value outside the schema is still rejected.
         SchemaValidationService schemaValidation = new SchemaValidationService(org.mockito.Mockito.mock(MDMSService.class));
         Map<String, Object> schema = Map.of("enumProperties", List.of(
-                enumProp(ProcessingConstants.POST_TYPE_COLUMN_KEY, List.of("CLF", "TRANSIT_POST")),
+                enumProp(ProcessingConstants.POST_TYPE_COLUMN_KEY, List.of("OUTSIDE_HOUSEHOLD_PLACES", "TRANSIT_POST")),
                 enumProp(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, List.of("SCHOOL", "MARKET", "MOSQUE")),
-                enumProp(ProcessingConstants.POST_USAGE_COLUMN_KEY, List.of("Include", "Exclude", "Remove"))));
-        Map<String, Object> newCategory = validRow(3, "Remove", "V1");
+                enumProp(ProcessingConstants.POST_USAGE_COLUMN_KEY, List.of("Active", "Inactive"))));
+        Map<String, Object> newCategory = validRow(3, "Inactive", "V1");
         newCategory.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "MOSQUE");
-        Map<String, Object> unknownCategory = validRow(4, "Include", "V1");
+        Map<String, Object> unknownCategory = validRow(4, "Active", "V1");
         unknownCategory.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "STADIUM");
 
         List<ValidationError> schemaErrors = schemaValidation.validateDataWithPreFetchedSchema(
@@ -222,8 +238,9 @@ class PostValidationProcessorTest {
         assertEquals(4, schemaErrors.get(0).getRowNumber());
         assertEquals(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, schemaErrors.get(0).getColumnName());
 
-        // ...and the posts processor adds nothing for the new category either (pre-filled id, no lookup)
-        newCategory.put(ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY, "fac-1");
+        // ...and the posts processor accepts it once the master lists it for the type
+        when(postTypeMasterService.getCategoriesByPostType(any(), any()))
+                .thenReturn(Map.of("OUTSIDE_HOUSEHOLD_PLACES", List.of("SCHOOL", "MARKET", "MOSQUE")));
         assertTrue(run(List.of(newCategory)).isEmpty());
     }
 
@@ -266,7 +283,7 @@ class PostValidationProcessorTest {
     private static Map<String, Object> validRow(int rowNumber, String usage, String boundaryCode) {
         Map<String, Object> row = new HashMap<>();
         row.put(ProcessingConstants.ACTUAL_ROW_NUMBER_KEY, rowNumber);
-        row.put(ProcessingConstants.POST_TYPE_COLUMN_KEY, "CLF");
+        row.put(ProcessingConstants.POST_TYPE_COLUMN_KEY, "OUTSIDE_HOUSEHOLD_PLACES");
         row.put(ProcessingConstants.POST_CATEGORY_COLUMN_KEY, "SCHOOL");
         row.put(ProcessingConstants.POST_NAME_COLUMN_KEY, "Post " + rowNumber);
         row.put(ProcessingConstants.POST_STATUS_COLUMN_KEY, "Permanent");

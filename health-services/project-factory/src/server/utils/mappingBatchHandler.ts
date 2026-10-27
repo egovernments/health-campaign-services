@@ -1,7 +1,7 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { getRelatedDataWithCampaign } from './genericUtils';
-import { mappingStatuses } from '../config/constants';
+import { mappingStatuses, postFacilityFields, postLinkAdditionalFieldsSchema } from '../config/constants';
 import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
@@ -39,6 +39,7 @@ export async function handleMappingBatch(messageObject: any) {
 
         const boundaryToProjectId = createLookupMap(boundaryData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
         const facilityMap = createLookupMap(facilityData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
+        const postLinkFieldsMap = buildPostLinkAdditionalFields(facilityData);
         const userMap = createLookupMap(userData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
 
         const mappingGroups = groupMappings(mappings);
@@ -49,7 +50,7 @@ export async function handleMappingBatch(messageObject: any) {
             promises.push(processResourceMappings(mappingGroups.resourceToBeMapped, boundaryToProjectId, tenantId, useruuid, requestInfo));
         }
         if (mappingGroups.facilityToBeMapped.length > 0) {
-            promises.push(processFacilityMappings(mappingGroups.facilityToBeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo));
+            promises.push(processFacilityMappings(mappingGroups.facilityToBeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo, postLinkFieldsMap));
         }
         if (mappingGroups.userToBeMapped.length > 0) {
             promises.push(processUserMappings(mappingGroups.userToBeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
@@ -198,7 +199,7 @@ type MappingCreateAdapter = {
     searchExisting: (projectIds: string[], entityIds: string[], tenantId: string, requestInfo: RequestInfo) => Promise<Map<string, string>>;
     entityIdFor: (mapping: any) => string;
     create: (mapping: any, projectId: string, entityId: string, tenantId: string, requestInfo: RequestInfo) => Promise<string | undefined>;
-    buildBulkEntity: (projectId: string, entityId: string, tenantId: string) => any;
+    buildBulkEntity: (projectId: string, entityId: string, tenantId: string, mapping?: any) => any;
     bulkCreate: (entities: any[], requestInfo: RequestInfo) => Promise<void>;
 };
 
@@ -335,7 +336,7 @@ async function bulkCreateAndConfirm(
     // rows still get processed and persisted, and the failure reason is captured in lastError.
     const failedKeys = new Set<string>();
     await runBoundedCreates(chunks, async (chunk: { mapping: any; projectId: string; entityId: string }[]) => {
-        const entities = chunk.map(c => adapter.buildBulkEntity(c.projectId, c.entityId, tenantId));
+        const entities = chunk.map(c => adapter.buildBulkEntity(c.projectId, c.entityId, tenantId, c.mapping));
         try {
             await adapter.bulkCreate(entities, requestInfo);
         } catch (error) {
@@ -434,6 +435,39 @@ async function processResourceMappings(
 }
 
 /**
+ * additionalFields for the project-facility links of posts that name a frontline worker, keyed by the
+ * post's uniqueIdentifier (its clientReferenceId). The worker is campaign data: it is stored on this
+ * campaign's link only, never on the post facility, so it does not follow the post to the next campaign.
+ */
+export function buildPostLinkAdditionalFields(facilityData: any[]): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const row of facilityData || []) {
+        const data = row?.data || {};
+        if (!data[postFacilityFields.clientReferenceId]) continue;
+        const fields = [
+            { key: postLinkAdditionalFieldsSchema.workerNameKey, value: data[postFacilityFields.workerName] },
+            { key: postLinkAdditionalFieldsSchema.workerPhoneKey, value: data[postFacilityFields.workerPhone] },
+        ]
+            .map(f => ({ key: f.key, value: String(f.value ?? '').trim() }))
+            .filter(f => f.value);
+        if (fields.length > 0) {
+            result[row.uniqueIdentifier] = {
+                schema: postLinkAdditionalFieldsSchema.schema,
+                version: postLinkAdditionalFieldsSchema.version,
+                fields
+            };
+        }
+    }
+    return result;
+}
+
+/** { additionalFields } for a post link that names a frontline worker; {} for every other link. */
+function withPostLinkFields(postLinkFieldsMap: Record<string, any>, mapping: any): Record<string, any> {
+    const additionalFields = mapping ? postLinkFieldsMap[mapping.uniqueIdentifierForData] : undefined;
+    return additionalFields ? { additionalFields } : {};
+}
+
+/**
  * Process facility mappings — project facilities live under the root tenant,
  * so both search and create use tenantId.split(".")[0] inside the adapter.
  */
@@ -443,7 +477,8 @@ async function processFacilityMappings(
     facilityMap: Record<string, string>,
     tenantId: string,
     useruuid: string,
-    requestInfo: RequestInfo
+    requestInfo: RequestInfo,
+    postLinkFieldsMap: Record<string, any> = {}
 ): Promise<void> {
     await processToBeMappedGroup(mappings, boundaryToProjectId, tenantId, requestInfo, {
         type: 'facility',
@@ -462,17 +497,19 @@ async function processFacilityMappings(
                 projectId,
                 facilityId: entityId,
                 startDate: null,
-                endDate: null
+                endDate: null,
+                ...withPostLinkFields(postLinkFieldsMap, mapping)
             };
             const response = await createProjectFacility({ RequestInfo, ProjectFacility });
             return response?.ProjectFacility?.id;
         },
-        buildBulkEntity: (projectId, entityId, tenant) => ({
+        buildBulkEntity: (projectId, entityId, tenant, mapping) => ({
             tenantId: tenant.split(".")?.[0],
             projectId,
             facilityId: entityId,
             startDate: null,
             endDate: null,
+            ...withPostLinkFields(postLinkFieldsMap, mapping)
         }),
         bulkCreate: (entities, RequestInfo) => createProjectFacilityBulk(entities, RequestInfo),
     });

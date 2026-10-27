@@ -8,6 +8,7 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.service.PostTypeMasterService;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
@@ -27,8 +28,8 @@ import java.util.Set;
 /**
  * Validates the posts sheet (CLF / transit posts), reusing {@link FacilityValidationProcessor}'s error
  * columns and row-status handling. Required/enum columns are already checked by the MDMS-schema
- * validation; this only adds post-specific checks: Remove only on an existing post, and boundary at the
- * lowest or second lowest hierarchy level. Errors set {@code postSheetStatus = invalid} on the row.
+ * validation; this only adds post-specific checks: the category must belong to the row's post type
+ * (post-types master), and boundary at the lowest or second lowest hierarchy level. Errors set {@code postSheetStatus = invalid} on the row.
  */
 @Component
 @Slf4j
@@ -39,15 +40,18 @@ public class PostValidationProcessor implements IWorkbookProcessor {
     private final BoundaryUtil boundaryUtil;
     private final ExcelUtil excelUtil;
     private final CustomExceptionHandler exceptionHandler;
+    private final PostTypeMasterService postTypeMasterService;
 
     public PostValidationProcessor(ValidationService validationService, EnrichmentUtil enrichmentUtil,
                                    BoundaryUtil boundaryUtil, ExcelUtil excelUtil,
-                                   CustomExceptionHandler exceptionHandler) {
+                                   CustomExceptionHandler exceptionHandler,
+                                   PostTypeMasterService postTypeMasterService) {
         this.validationService = validationService;
         this.enrichmentUtil = enrichmentUtil;
         this.boundaryUtil = boundaryUtil;
         this.excelUtil = excelUtil;
         this.exceptionHandler = exceptionHandler;
+        this.postTypeMasterService = postTypeMasterService;
     }
 
     @Override
@@ -65,7 +69,8 @@ public class PostValidationProcessor implements IWorkbookProcessor {
                     resource.getFileStoreId(), sheetName, sheet);
 
             List<ValidationError> errors = new ArrayList<>();
-            validateRemoveOnlyOnExistingPosts(sheetData, errors, localizationMap);
+            validateCategoryMatchesType(sheetData, postTypeMasterService.getCategoriesByPostType(
+                    requestInfo, resource.getTenantId()), errors, localizationMap);
             validateBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
             log.info("Post validation completed with {} errors", errors.size());
             enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
@@ -88,19 +93,22 @@ public class PostValidationProcessor implements IWorkbookProcessor {
         }
     }
 
-    /** Remove is a row error unless the row already carries an existing post's clientReferenceId (no facility lookup). */
-    private void validateRemoveOnlyOnExistingPosts(List<Map<String, Object>> sheetData, List<ValidationError> errors,
-                                                   Map<String, String> localizationMap) {
+    /**
+     * The category must be one of the categories the post-types master lists for the row's type. Rows with
+     * a blank type/category, or a type with no categories list, are left to the schema checks.
+     */
+    private void validateCategoryMatchesType(List<Map<String, Object>> sheetData,
+                                             Map<String, List<String>> categoriesByPostType,
+                                             List<ValidationError> errors, Map<String, String> localizationMap) {
         for (Map<String, Object> rowData : sheetData) {
-            String usage = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.POST_USAGE_COLUMN_KEY)));
-            if (!ProcessingConstants.POST_USAGE_REMOVE.equals(usage)) {
-                continue;
-            }
-            String clientReferenceId = trimToNull(ExcelUtil.getValueAsString(
-                    rowData.get(ProcessingConstants.POST_CLIENT_REFERENCE_ID_COLUMN_KEY)));
-            if (clientReferenceId == null) {
-                errors.add(error(rowData, ProcessingConstants.POST_USAGE_COLUMN_KEY, localizationMap,
-                        ValidationConstants.HCM_POST_REMOVE_ONLY_EXISTING, ValidationConstants.DEFAULT_POST_REMOVE_ONLY_EXISTING));
+            String postType = PostTypeMasterService.normalize(
+                    ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.POST_TYPE_COLUMN_KEY)));
+            String category = PostTypeMasterService.normalize(
+                    ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.POST_CATEGORY_COLUMN_KEY)));
+            List<String> allowed = postType == null ? null : categoriesByPostType.get(postType);
+            if (category != null && allowed != null && !allowed.isEmpty() && !allowed.contains(category)) {
+                errors.add(error(rowData, ProcessingConstants.POST_CATEGORY_COLUMN_KEY, localizationMap,
+                        ValidationConstants.HCM_POST_CATEGORY_NOT_FOR_TYPE, ValidationConstants.DEFAULT_POST_CATEGORY_NOT_FOR_TYPE));
             }
         }
     }

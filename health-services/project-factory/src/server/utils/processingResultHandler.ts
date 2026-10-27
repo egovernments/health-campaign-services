@@ -19,7 +19,6 @@ import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { triggerUserCredentialEmailFlow } from './mailUtils';
 import { runMappingReconciler } from './mappingReconciler';
 import { fetchExistingUsersByPhone, selectReconcilableUserRows } from './userBatchHandler';
-import { deleteRemovedPostFacilities } from './facilityBatchHandler';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -328,7 +327,7 @@ export async function handleProcessingResult(messageObject: any) {
             if (tempDataCount && tempDataCount > 0) {
 
                 logger.info('=== PROCESSING ALL CAMPAIGN DATA TYPES IN PARALLEL ===');
-                const [expectedBoundaryCount, removedPostClientReferenceIds, expectedUserCount] = await Promise.all([
+                const [expectedBoundaryCount, , expectedUserCount] = await Promise.all([
                     processCampaignBoundariesFromExcelData(
                         messageObject.tenantId,
                         messageObject.fileStoreId,
@@ -354,9 +353,7 @@ export async function handleProcessingResult(messageObject: any) {
                 // Resolve the RequestInfo for the background creation flow: keep the message's userInfo
                 // when present, else stamp the campaign creator so user-creation batches have a valid user.
                 const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
-                // Post removal (soft-delete) runs as the last step before completion, inside the
-                // background flow, after mapping — see triggerBackgroundResourceCreationFlow.
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount, removedPostClientReferenceIds);
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }
@@ -1073,16 +1070,14 @@ async function persistDataInBatches(dataList: any[], topic: string, tenantId: st
 }
 
 /**
- * Process campaign facilities from excel data. Returns the clientReferenceIds of posts set to
- * Remove, to be removed once the rows are stored (resolved against the facility service by
- * clientReferenceId at removal time — see getRemovedPostClientReferenceIds).
+ * Process campaign facilities from excel data (facilities sheet, then the posts sheet as facility rows)
  */
 export async function processCampaignFacilitiesFromExcelData(
     tenantId: string,
     fileStoreId: string,
     localizationMap: Record<string, string>,
     campaignDetails: any
-): Promise<string[]> {
+): Promise<void> {
     try {
         logger.info('=== PROCESSING CAMPAIGN FACILITIES FROM EXCEL DATA ===');
         
@@ -1123,7 +1118,6 @@ export async function processCampaignFacilitiesFromExcelData(
         // Rows are keyed by clientReferenceId, never by name.
         const postSheetName = getLocalizedSheetName(POST_SHEET_KEY, localizationMap);
         logger.info(`Searching ${postSheetName} sheet data...`);
-        const removedPostClientReferenceIds: string[] = [];
         const postKeysThisUpload = new Set<string>();
         const postRowTotal = await forEachSheetDataPage(
             tenantId,
@@ -1134,14 +1128,13 @@ export async function processCampaignFacilitiesFromExcelData(
             (rows) => {
                 const facilityRows = convertPostRowsToFacilityRows(rows, storedPostNormalizedIndex);
                 facilityRows.forEach((r) => postKeysThisUpload.add(r.rowjson[POST_CLIENT_REFERENCE_ID_KEY] as string));
-                removedPostClientReferenceIds.push(...getRemovedPostClientReferenceIds(facilityRows));
                 return processFacilityDataAndMappings(campaignNumber, tenantId, facilityRows, existingFacilityMap, facilityBoundaryMappings);
             }
         );
 
         if (facilityRowTotal === 0 && postRowTotal === 0) {
             logger.info('No facilities or posts sheet data found');
-            return [];
+            return;
         }
 
         logger.info(`Found ${facilityRowTotal} records in facilities sheet and ${postRowTotal} records in posts sheet`);
@@ -1167,7 +1160,6 @@ export async function processCampaignFacilitiesFromExcelData(
         }
 
         logger.info('=== CAMPAIGN FACILITIES PROCESSING COMPLETED ===');
-        return removedPostClientReferenceIds;
 
     } catch (error) {
         logger.error('Error processing campaign facilities from excel data:', error);
@@ -1182,15 +1174,13 @@ const POST_TYPE_KEY = 'HCM_ADMIN_CONSOLE_POST_TYPE';
 // The one post marker: present (non-blank) on every converted post row, never on a facility row.
 const POST_CLIENT_REFERENCE_ID_KEY = postFacilityFields.clientReferenceId;
 const POST_BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
-const postUsageValues = {
-    include: 'Include',
-    exclude: 'Exclude',
-    remove: 'Remove'
-};
+// Optional frontline worker columns: kept on this campaign's stored row and its project-facility
+// links only, never on the post facility, so they do not reach the next campaign.
+const POST_WORKER_KEYS = [postFacilityFields.workerName, postFacilityFields.workerPhone];
 
-/** Map the posts sheet usage to the facility usage: Include is Active, everything else is Inactive. */
+/** Posts sheet usage is Active / Inactive like the facility sheet; anything but Active is Inactive. */
 function postUsageToFacilityUsage(postUsage: unknown): string {
-    return postUsage === postUsageValues.include ? usageColumnStatus.active : usageColumnStatus.inactive;
+    return postUsage === usageColumnStatus.active ? usageColumnStatus.active : usageColumnStatus.inactive;
 }
 
 /** Lower-case, trimmed, single-spaced join — so the same (type, boundary, name) always matches. */
@@ -1267,16 +1257,6 @@ export function convertPostRowsToFacilityRows(
 }
 
 /**
- * clientReferenceIds of converted post rows set to Remove — no lookup in this campaign's
- * campaign_data; the facility (if any) is found by the removal step itself, by clientReferenceId.
- */
-export function getRemovedPostClientReferenceIds(facilityRows: { rowjson: Record<string, unknown> }[]): string[] {
-    return facilityRows
-        .filter(({ rowjson }) => rowjson[POST_USAGE_KEY] === postUsageValues.remove)
-        .map(({ rowjson }) => String(rowjson[POST_CLIENT_REFERENCE_ID_KEY]));
-}
-
-/**
  * Process a page of facility sheet rows: classify into new/updated, persist this
  * page, and append this page's boundary mappings to the shared accumulator.
  *
@@ -1350,6 +1330,13 @@ async function processFacilityDataAndMappings(
             if (rowJson[POST_USAGE_KEY] !== undefined && rowJson[POST_USAGE_KEY] !== existingData[POST_USAGE_KEY]) {
                 existingData[POST_USAGE_KEY] = rowJson[POST_USAGE_KEY];
                 hasChanges = true;
+            }
+
+            for (const key of POST_WORKER_KEYS) {
+                if (rowJson[POST_CLIENT_REFERENCE_ID_KEY] && (rowJson[key] ?? null) !== (existingData[key] ?? null)) {
+                    existingData[key] = rowJson[key];
+                    hasChanges = true;
+                }
             }
 
             if (hasChanges) {
@@ -1831,7 +1818,6 @@ async function triggerBackgroundResourceCreationFlow(
     requestInfo?: RequestInfo,
     expectedUserCount?: number,
     expectedBoundaryCount?: number,
-    removedPostClientReferenceIds?: string[],
 ): Promise<void> {
     try {
         const useruuid = campaignDetails?.auditDetails?.createdBy;
@@ -1911,12 +1897,6 @@ async function triggerBackgroundResourceCreationFlow(
                 // For unified template child campaigns, resources are copied from the parent
                 // with status=toCreate but never go through the task system — close them out here.
                 await markAllToCreateResourcesAsCompleted(campaignDetails.id, tenantId, useruuid);
-
-                // Last step before completion: soft-delete the facilities of posts set to Remove
-                // (after mapping, so an Include/Exclude choice already resolved its own link).
-                if (requestInfo) {
-                    await deleteRemovedPostFacilities(removedPostClientReferenceIds || [], campaignNumber, tenantId, requestInfo);
-                }
 
                 // Mark campaign as completed if not failed
                 await markCampaignCompletedConditionally(campaignDetails, parentCampaign, useruuid, tenantId);

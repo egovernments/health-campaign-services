@@ -7,10 +7,8 @@
  * (non-post) rows stay keyed by name, exactly as today.
  *
  * Drives processCampaignFacilitiesFromExcelData directly against the REAL excelIngestionUtils
- * pagination (mocked httpRequest) — it owns the whole facility+post slice end to end and returns
- * the removed clientReferenceIds, so there is no need to go through the full handleProcessingResult
- * chain (whose Remove deletion step now runs later, inside the detached background flow — see
- * facilityBatchIdempotency.test.ts for deleteRemovedPostFacilities itself).
+ * pagination (mocked httpRequest) — it owns the whole facility+post slice end to end, so there is no
+ * need to go through the full handleProcessingResult chain.
  */
 
 jest.mock('../utils/logger', () => ({
@@ -96,7 +94,6 @@ import { httpRequest } from '../utils/request';
 import { logger } from '../utils/logger';
 import {
     convertPostRowsToFacilityRows,
-    getRemovedPostClientReferenceIds,
     normalizeForMatch,
     processCampaignFacilitiesFromExcelData,
 } from '../utils/processingResultHandler';
@@ -151,7 +148,7 @@ const facilityRow = (name: string, boundary: string, usage = 'Active') => ({
 
 // Defaults to a pre-filled clientReferenceId equal to the name, like a real re-upload. Tests of a
 // PM-added row with no clientReferenceId use newPostRow instead.
-const postRow = (name: string, boundary: string, usage = 'Include', extra: Record<string, unknown> = {}) => ({
+const postRow = (name: string, boundary: string, usage = 'Active', extra: Record<string, unknown> = {}) => ({
     HCM_ADMIN_CONSOLE_POST_TYPE: 'CLF',
     HCM_ADMIN_CONSOLE_POST_CATEGORY: 'CAT_A',
     HCM_ADMIN_CONSOLE_POST_NAME: name,
@@ -161,7 +158,7 @@ const postRow = (name: string, boundary: string, usage = 'Include', extra: Recor
     HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID: name,
     ...extra,
 });
-const newPostRow = (name: string, boundary: string, usage = 'Include', extra: Record<string, unknown> = {}) =>
+const newPostRow = (name: string, boundary: string, usage = 'Active', extra: Record<string, unknown> = {}) =>
     postRow(name, boundary, usage, { HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID: '', ...extra });
 
 const mapKeys = (rows: any[] = []) => rows.map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`).sort();
@@ -188,7 +185,7 @@ describe('convertPostRowsToFacilityRows', () => {
 
         it('passes TRANSIT_POST through as the facility type', () => {
             const [converted] = convertPostRowsToFacilityRows(
-                [{ rowjson: postRow('P1', 'B2', 'Include', { HCM_ADMIN_CONSOLE_POST_TYPE: 'TRANSIT_POST' }) }], new Map());
+                [{ rowjson: postRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_POST_TYPE: 'TRANSIT_POST' }) }], new Map());
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_FACILITY_TYPE).toBe('TRANSIT_POST');
         });
 
@@ -215,20 +212,28 @@ describe('convertPostRowsToFacilityRows', () => {
     });
 
     describe('usage', () => {
-        it('maps Include to Active', () => {
-            const [converted] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Include') }], new Map());
+        it('keeps Active as Active', () => {
+            const [converted] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Active') }], new Map());
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_FACILITY_USAGE).toBe('Active');
         });
 
-        it('maps Exclude to Inactive', () => {
-            const [converted] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Exclude') }], new Map());
+        it('keeps Inactive as Inactive', () => {
+            const [converted] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Inactive') }], new Map());
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_FACILITY_USAGE).toBe('Inactive');
         });
 
-        it('maps Remove to Inactive and keeps Remove as the post usage', () => {
-            const [converted] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Remove') }], new Map());
-            expect(converted.rowjson.HCM_ADMIN_CONSOLE_FACILITY_USAGE).toBe('Inactive');
-            expect(converted.rowjson.HCM_ADMIN_CONSOLE_POST_USAGE).toBe('Remove');
+        it('treats the old Include / Remove values as Inactive (only Active links a post)', () => {
+            const [include] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Include') }], new Map());
+            const [remove] = convertPostRowsToFacilityRows([{ rowjson: postRow('P2', 'B2', 'Remove') }], new Map());
+            expect(include.rowjson.HCM_ADMIN_CONSOLE_FACILITY_USAGE).toBe('Inactive');
+            expect(remove.rowjson.HCM_ADMIN_CONSOLE_FACILITY_USAGE).toBe('Inactive');
+        });
+
+        it('keeps the optional frontline worker columns on the converted row', () => {
+            const [converted] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Active', {
+                HCM_ADMIN_CONSOLE_POST_WORKER_NAME: 'Asha', HCM_ADMIN_CONSOLE_POST_WORKER_PHONE: 9876543210 }) }], new Map());
+            expect(converted.rowjson).toMatchObject({
+                HCM_ADMIN_CONSOLE_POST_WORKER_NAME: 'Asha', HCM_ADMIN_CONSOLE_POST_WORKER_PHONE: 9876543210 });
         });
 
         it('maps any other usage value to Inactive too — the schema enum is what rejects it', () => {
@@ -239,7 +244,7 @@ describe('convertPostRowsToFacilityRows', () => {
 
     describe('clientReferenceId resolution', () => {
         it('keeps the pre-filled clientReferenceId', () => {
-            const [converted] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Include', { HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID: 'CRID-1' }) }], new Map());
+            const [converted] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID: 'CRID-1' }) }], new Map());
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID).toBe('CRID-1');
         });
 
@@ -252,7 +257,7 @@ describe('convertPostRowsToFacilityRows', () => {
         it('the match is case-insensitive and ignores extra spacing', () => {
             const storedIndex = new Map([[normalizeForMatch('clf', 'b2', 'p 1'), 'CRID-OLD']]);
             const [converted] = convertPostRowsToFacilityRows(
-                [{ rowjson: newPostRow('P  1', 'B2', 'Include', { HCM_ADMIN_CONSOLE_POST_TYPE: 'CLF' }) }], storedIndex);
+                [{ rowjson: newPostRow('P  1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_POST_TYPE: 'CLF' }) }], storedIndex);
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID).toBe('CRID-OLD');
         });
 
@@ -268,27 +273,6 @@ describe('convertPostRowsToFacilityRows', () => {
                 [{ rowjson: newPostRow('P1', 'B2') }, { rowjson: newPostRow('P1', 'B2') }], storedIndex);
             expect(a.rowjson.HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID).toBe('CRID-OLD');
             expect(b.rowjson.HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID).toBe('CRID-OLD');
-        });
-    });
-
-    describe('Remove: which post to delete', () => {
-        it('resolves the clientReferenceId of a pre-filled Remove row on its first upload in this campaign (carried-over post, no stored campaign_data row yet)', () => {
-            const [row] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Remove') }], new Map());
-            // No lookup against campaign_data — the pre-filled clientReferenceId is enough on its own.
-            expect(getRemovedPostClientReferenceIds([row])).toEqual(['P1']);
-        });
-
-        it('still resolves a generated clientReferenceId for a Remove row with none pre-filled (a brand new post) — the removal step finds no facility and skips it', () => {
-            const [row] = convertPostRowsToFacilityRows([{ rowjson: newPostRow('P1', 'B2', 'Remove') }], new Map());
-            const [clientReferenceId] = getRemovedPostClientReferenceIds([row]);
-            expect(clientReferenceId).toEqual(expect.any(String));
-            expect(clientReferenceId).not.toBe('');
-        });
-
-        it('ignores Include and Exclude rows', () => {
-            const [inc] = convertPostRowsToFacilityRows([{ rowjson: postRow('P1', 'B2', 'Include') }], new Map());
-            const [exc] = convertPostRowsToFacilityRows([{ rowjson: postRow('P2', 'B3', 'Exclude') }], new Map());
-            expect(getRemovedPostClientReferenceIds([inc, exc])).toEqual([]);
         });
     });
 });
@@ -311,7 +295,7 @@ describe('processCampaignFacilitiesFromExcelData with the posts sheet', () => {
 
     describe('campaign data rows', () => {
         it('persists post rows as facility rows carrying the post marker, keyed by clientReferenceId', async () => {
-            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], POSTS: [postRow('P1', 'B2'), postRow('P2', 'B3', 'Exclude')] });
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], POSTS: [postRow('P1', 'B2'), postRow('P2', 'B3', 'Inactive')] });
             const topics = collectAllTopics();
             await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
 
@@ -333,7 +317,7 @@ describe('processCampaignFacilitiesFromExcelData with the posts sheet', () => {
         });
 
         it('creates links for Active facilities and Include posts in one batch', async () => {
-            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], POSTS: [postRow('P1', 'B2'), postRow('P2', 'B3', 'Exclude')] });
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], POSTS: [postRow('P1', 'B2'), postRow('P2', 'B3', 'Inactive')] });
             const topics = collectAllTopics();
             await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
             expect(mapKeys(topics['save-map'])).toEqual(['F1#B1', 'P1#B2']);
@@ -352,7 +336,7 @@ describe('processCampaignFacilitiesFromExcelData with the posts sheet', () => {
         });
 
         it('demaps an excluded post and a facility gone from the sheet (both sheets contributed: full diff)', async () => {
-            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], POSTS: [postRow('P1', 'B2', 'Exclude')] });
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], POSTS: [postRow('P1', 'B2', 'Inactive')] });
             setFacilityLinks([
                 { uniqueIdentifierForData: 'F1', boundaryCode: 'B1', status: 'mapped' },
                 { uniqueIdentifierForData: 'F-OLD', boundaryCode: 'B9', status: 'mapped' },
@@ -405,7 +389,7 @@ describe('processCampaignFacilitiesFromExcelData with the posts sheet', () => {
 
         it('demaps an excluded post when the facility sheet has no rows, even with no stored campaign_data row for it', async () => {
             setFacilityLinks([...storedLinks, { uniqueIdentifierForData: 'P1', boundaryCode: 'B2', status: 'mapped' }] as any);
-            installSheetRouter({ FACILIT: [], POSTS: [postRow('P1', 'B2', 'Exclude')] });
+            installSheetRouter({ FACILIT: [], POSTS: [postRow('P1', 'B2', 'Inactive')] });
             const topics = collectAllTopics();
             await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
             expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5', 'P1#B2']);
@@ -486,8 +470,41 @@ describe('transformBulkFacility (real transform, FacilityUnified config)', () =>
 
     it('stamps the marker with an empty fields array when the category is blank', async () => {
         const [postRowJson] = convertPostRowsToFacilityRows(
-            [{ rowjson: postRow('P1', 'B2', 'Include', { HCM_ADMIN_CONSOLE_POST_CATEGORY: '  ' }) }], new Map());
+            [{ rowjson: postRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_POST_CATEGORY: '  ' }) }], new Map());
         const [postOut] = await buildTransformer().transform([postRowJson.rowjson], requestInfo);
         expect(postOut.Facility.additionalFields).toEqual({ schema: 'Post', version: 1, fields: [] });
+    });
+});
+
+describe('buildPostLinkAdditionalFields (frontline worker on the post link)', () => {
+    // Imported lazily so the module-level mocks above are in place first
+    const { buildPostLinkAdditionalFields } = require('../utils/mappingBatchHandler');
+
+    it('puts name and phone on the link of a post row, keyed by its uniqueIdentifier', () => {
+        const result = buildPostLinkAdditionalFields([{
+            uniqueIdentifier: 'CRID-1',
+            data: { HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID: 'CRID-1',
+                    HCM_ADMIN_CONSOLE_POST_WORKER_NAME: ' Asha ', HCM_ADMIN_CONSOLE_POST_WORKER_PHONE: 9876543210 },
+        }]);
+        expect(result).toEqual({ 'CRID-1': { schema: 'PostAssignment', version: 1, fields: [
+            { key: 'frontlineWorkerName', value: 'Asha' },
+            { key: 'frontlineWorkerPhone', value: '9876543210' },
+        ] } });
+    });
+
+    it('keeps only the worker fields that are filled', () => {
+        const result = buildPostLinkAdditionalFields([{
+            uniqueIdentifier: 'CRID-2',
+            data: { HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID: 'CRID-2', HCM_ADMIN_CONSOLE_POST_WORKER_PHONE: '9123456780' },
+        }]);
+        expect(result['CRID-2'].fields).toEqual([{ key: 'frontlineWorkerPhone', value: '9123456780' }]);
+    });
+
+    it('adds nothing for a post without a worker, or for a facility row', () => {
+        const result = buildPostLinkAdditionalFields([
+            { uniqueIdentifier: 'CRID-3', data: { HCM_ADMIN_CONSOLE_POST_CLIENT_REFERENCE_ID: 'CRID-3', HCM_ADMIN_CONSOLE_POST_WORKER_NAME: '  ' } },
+            { uniqueIdentifier: 'Warehouse A', data: { HCM_ADMIN_CONSOLE_FACILITY_NAME: 'Warehouse A', HCM_ADMIN_CONSOLE_POST_WORKER_NAME: 'X' } },
+        ]);
+        expect(result).toEqual({});
     });
 });
