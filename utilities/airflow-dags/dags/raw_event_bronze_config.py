@@ -1024,4 +1024,22 @@ RAW_EVENT_BRONZE_TABLES = [
             "userroles": "user_roles",
         },
     },
+    {
+        "name": "boundary_hierarchy_localization",
+        "raw_table": "analytics.localization_events_raw",
+        "bronze_table": "analytics.boundary_hierarchy_localization_dim",
+        "page_size": 10000,
+        "columns": {
+            "id": "id",
+            "locale": "locale",
+            "code": "code",
+            "message": "value",
+            "tenantid": "tenant_id",
+            "module": "module",
+            "createdby": "created_by",
+            "lastmodifiedby": "last_modified_by",
+            "createddate": "created_date",
+            "lastmodifieddate": "last_modified_date",
+        },
+    },
 ]
