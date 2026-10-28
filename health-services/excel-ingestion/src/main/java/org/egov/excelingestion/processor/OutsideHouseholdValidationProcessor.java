@@ -166,27 +166,47 @@ public class OutsideHouseholdValidationProcessor implements IWorkbookProcessor {
     }
 
     /**
-     * A site is its type + boundary + name (case and extra spaces ignored, as project-factory matches sites):
-     * a row repeating an earlier row is an error, like a repeated name in the Facilities List. Rows without a
-     * type, boundary or name are left to the other checks.
+     * A site is its type + boundary + name (case and extra spaces ignored, as project-factory matches sites).
+     * A row the planner adds (no site id yet) that repeats another row is an error, like a repeated name in the
+     * Facilities List. Pre-filled rows are sites that already exist, so they are never errors themselves, even if
+     * two of them share a name. Rows without a type, boundary or name are left to the other checks.
      */
     private void validateNoDuplicateSites(List<Map<String, Object>> sheetData, List<ValidationError> errors,
                                           Map<String, String> localizationMap) {
-        Set<String> seen = new HashSet<>();
+        Set<String> existingSites = new HashSet<>();
         for (Map<String, Object> rowData : sheetData) {
-            String type = OutsideHouseholdTypeMasterService.normalize(
-                    ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY)));
-            String boundaryCode = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY)));
-            String name = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY)));
-            if (type == null || boundaryCode == null || name == null) {
+            String key = siteKey(rowData);
+            if (key != null && isExistingSite(rowData)) {
+                existingSites.add(key);
+            }
+        }
+        Set<String> newSites = new HashSet<>();
+        for (Map<String, Object> rowData : sheetData) {
+            String key = siteKey(rowData);
+            if (key == null || isExistingSite(rowData)) {
                 continue;
             }
-            String key = type + "|" + boundaryCode + "|" + name.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
-            if (!seen.add(key)) {
+            if (existingSites.contains(key) || !newSites.add(key)) {
                 errors.add(error(rowData, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, localizationMap,
                         ValidationConstants.HCM_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE, ValidationConstants.DEFAULT_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE));
             }
         }
+    }
+
+    private static boolean isExistingSite(Map<String, Object> rowData) {
+        return trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY))) != null;
+    }
+
+    /** type|boundary|name with the name lower-cased and spaces collapsed; null when any part is missing. */
+    private static String siteKey(Map<String, Object> rowData) {
+        String type = OutsideHouseholdTypeMasterService.normalize(
+                ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY)));
+        String boundaryCode = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY)));
+        String name = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY)));
+        if (type == null || boundaryCode == null || name == null) {
+            return null;
+        }
+        return type + "|" + boundaryCode + "|" + name.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }
 
     private ValidationError error(Map<String, Object> rowData, String column, Map<String, String> localizationMap,

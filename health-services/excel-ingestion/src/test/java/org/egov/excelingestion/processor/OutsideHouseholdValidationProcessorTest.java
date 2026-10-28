@@ -129,6 +129,24 @@ class OutsideHouseholdValidationProcessorTest {
     }
 
     @Test
+    void preFilledSitesSharingANameAreNotErrorsButANewRowRepeatingOneIs() {
+        // Two existing sites with the same name (made before this check, or by the app) come back pre-filled
+        Map<String, Object> existingA = validRow(3, "Inactive", "V1");
+        existingA.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Old Market");
+        existingA.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY, "CRID-A");
+        Map<String, Object> existingB = validRow(4, "Inactive", "V1");
+        existingB.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Old Market");
+        existingB.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY, "CRID-B");
+        Map<String, Object> newRepeat = validRow(5, "Active", "V1");
+        newRepeat.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "old market");
+
+        List<ValidationError> errors = run(List.of(existingA, existingB, newRepeat));
+
+        assertEquals(1, errors.size(), errors.toString());
+        assertEquals(5, errors.get(0).getRowNumber());
+    }
+
+    @Test
     void enumValuesAreLeftToTheSchemaValidation() {
         // A type unknown to the master, and status / usage values: left to the schema step, nothing here
         Map<String, Object> row = validRow(3, "Active", "V1");
