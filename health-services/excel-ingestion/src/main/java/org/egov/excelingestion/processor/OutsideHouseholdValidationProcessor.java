@@ -21,7 +21,9 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -72,6 +74,7 @@ public class OutsideHouseholdValidationProcessor implements IWorkbookProcessor {
             validateCategoryMatchesType(sheetData, outsideHouseholdTypeMasterService.getCategoriesByOutsideHouseholdType(
                     requestInfo, resource.getTenantId()), errors, localizationMap);
             validateBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
+            validateNoDuplicateSites(sheetData, errors, localizationMap);
             log.info("Site validation completed with {} errors", errors.size());
             enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 
@@ -158,6 +161,30 @@ public class OutsideHouseholdValidationProcessor implements IWorkbookProcessor {
             } else if (lowestTwoLevelCodes == null || !lowestTwoLevelCodes.contains(boundaryCode)) {
                 errors.add(error(rowData, null, localizationMap, ValidationConstants.HCM_OUTSIDE_HOUSEHOLD_BOUNDARY_INVALID_LEVEL,
                         ValidationConstants.DEFAULT_OUTSIDE_HOUSEHOLD_BOUNDARY_INVALID_LEVEL));
+            }
+        }
+    }
+
+    /**
+     * A site is its type + boundary + name (case and extra spaces ignored, as project-factory matches sites):
+     * a row repeating an earlier row is an error, like a repeated name in the Facilities List. Rows without a
+     * type, boundary or name are left to the other checks.
+     */
+    private void validateNoDuplicateSites(List<Map<String, Object>> sheetData, List<ValidationError> errors,
+                                          Map<String, String> localizationMap) {
+        Set<String> seen = new HashSet<>();
+        for (Map<String, Object> rowData : sheetData) {
+            String type = OutsideHouseholdTypeMasterService.normalize(
+                    ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY)));
+            String boundaryCode = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY)));
+            String name = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY)));
+            if (type == null || boundaryCode == null || name == null) {
+                continue;
+            }
+            String key = type + "|" + boundaryCode + "|" + name.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+            if (!seen.add(key)) {
+                errors.add(error(rowData, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, localizationMap,
+                        ValidationConstants.HCM_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE, ValidationConstants.DEFAULT_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE));
             }
         }
     }

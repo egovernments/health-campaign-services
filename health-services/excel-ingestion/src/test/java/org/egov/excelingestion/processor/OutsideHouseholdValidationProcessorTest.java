@@ -107,6 +107,28 @@ class OutsideHouseholdValidationProcessorTest {
     }
 
     @Test
+    void aRepeatedSiteIsARowErrorOnTheLaterRow() {
+        // Same type + boundary + name, also when only case / spacing differ: later rows are errors
+        Map<String, Object> first = validRow(3, "Active", "V1");
+        first.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Main Market");
+        Map<String, Object> repeat = validRow(4, "Inactive", "V1");
+        repeat.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "main  market ");
+        Map<String, Object> otherBoundary = validRow(5, "Active", "V2");
+        otherBoundary.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Main Market");
+        Map<String, Object> otherType = validRow(6, "Active", "V1");
+        otherType.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Main Market");
+        otherType.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY, "TRANSIT_POST");
+        otherType.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY, "BUS_STATION");
+
+        List<ValidationError> errors = run(List.of(first, repeat, otherBoundary, otherType));
+
+        assertEquals(1, errors.size(), errors.toString());
+        assertEquals(4, errors.get(0).getRowNumber());
+        assertEquals(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, errors.get(0).getColumnName());
+        assertEquals(ValidationConstants.DEFAULT_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE, errors.get(0).getErrorDetails());
+    }
+
+    @Test
     void enumValuesAreLeftToTheSchemaValidation() {
         // A type unknown to the master, and status / usage values: left to the schema step, nothing here
         Map<String, Object> row = validRow(3, "Active", "V1");
