@@ -1101,6 +1101,9 @@ export async function processCampaignFacilitiesFromExcelData(
             existingFacilities.map((f: any) => [f?.uniqueIdentifier, f])
         );
         const storedOutsideHouseholdNormalizedIndex = buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap);
+        // An edit that removed the Outside Household delivery method: the sheet is not read and the stored
+        // sites are demapped (their links removed) instead of being kept by the per-sheet guard below.
+        const outsideHouseholdDropped = isOutsideHouseholdDeliveryDropped(campaignDetails, existingFacilityMap);
 
         // Accumulate only the lightweight {facilityName, boundaryCode, active}
         // mappings across pages; the demap diff needs the complete set.
@@ -1120,11 +1123,15 @@ export async function processCampaignFacilitiesFromExcelData(
         // share the existing-row map and the mapping list, so one link diff covers both kinds.
         // Rows are keyed by clientReferenceId, never by name.
         const outsideHouseholdSheetName = getLocalizedSheetName(OUTSIDE_HOUSEHOLD_SHEET_KEY, localizationMap);
-        logger.info(`Searching ${outsideHouseholdSheetName} sheet data...`);
         const outsideHouseholdKeysThisUpload = new Set<string>();
         // Active sites whose frontline worker changed on this upload (edit): their existing link is updated below
         const outsideHouseholdWorkerChanges: any[] = [];
-        const outsideHouseholdRowTotal = await forEachSheetDataPage(
+        if (outsideHouseholdDropped) {
+            logger.info(`Campaign ${campaignNumber}: this edit removed the Outside Household delivery method; ${outsideHouseholdSheetName} is not read and the stored site links are removed`);
+        } else {
+            logger.info(`Searching ${outsideHouseholdSheetName} sheet data...`);
+        }
+        const outsideHouseholdRowTotal = outsideHouseholdDropped ? 0 : await forEachSheetDataPage(
             tenantId,
             campaignId,
             fileStoreId,
@@ -1138,7 +1145,7 @@ export async function processCampaignFacilitiesFromExcelData(
             }
         );
 
-        if (facilityRowTotal === 0 && outsideHouseholdRowTotal === 0) {
+        if (facilityRowTotal === 0 && outsideHouseholdRowTotal === 0 && !outsideHouseholdDropped) {
             logger.info('No facilities or Outside Household sheet data found');
             return;
         }
@@ -1150,9 +1157,10 @@ export async function processCampaignFacilitiesFromExcelData(
         // being demapped, independent of what the other sheet did. A key is classified "site" when
         // this upload converted it from the Outside Household sheet, else by its stored campaign_data marker,
         // else it defaults to "facility" (today's only type, and the common case for a mapping row
-        // with no backing campaign_data row at all).
+        // with no backing campaign_data row at all). A removed Outside Household delivery method counts as the
+        // Outside Household sheet contributing nothing on purpose, so every stored site is demapped.
         const facilityContributed = facilityMappingCount > 0;
-        const outsideHouseholdContributed = outsideHouseholdRowTotal > 0;
+        const outsideHouseholdContributed = outsideHouseholdRowTotal > 0 || outsideHouseholdDropped;
 
         if (facilityContributed || outsideHouseholdContributed) {
             let isDemapEligible: ((key: string) => boolean) | undefined;
@@ -1187,6 +1195,38 @@ const OUTSIDE_HOUSEHOLD_BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
 // Optional frontline worker columns: kept on this campaign's stored row and its project-facility
 // links only, never on the site facility, so they do not reach the next campaign.
 const OUTSIDE_HOUSEHOLD_WORKER_KEYS = [outsideHouseholdFacilityFields.workerName, outsideHouseholdFacilityFields.workerPhone];
+// Delivery-method code of a campaign with Outside Household sites (additionalDetails.cycleData.deliveryMethods)
+const OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = 'OUTSIDEHOUSEHOLD';
+
+/**
+ * True only when this edit removed the Outside Household delivery method from a campaign that has stored sites.
+ * Every guard must hold, else nothing changes: the switch is on, the campaign is an edit (has a parent), its
+ * deliveryMethods list is non-empty and every entry is readable (a code or a {code} object) with none being
+ * OUTSIDEHOUSEHOLD, and no delivery in its rules still names OUTSIDEHOUSEHOLD (the console's fallback source).
+ */
+export function isOutsideHouseholdDeliveryDropped(campaignDetails: any, existingFacilityMap: Map<any, any>): boolean {
+    if (!config.mapping?.outsideHouseholdUnlinkOnDeliveryRemoval || !campaignDetails?.parentId) return false;
+    const methodCodes = readDeliveryMethodCodes(campaignDetails?.additionalDetails?.cycleData?.deliveryMethods);
+    if (!methodCodes || methodCodes.length === 0 || methodCodes.includes(OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)) return false;
+    const rules = Array.isArray(campaignDetails?.deliveryRules) ? campaignDetails.deliveryRules : [];
+    const ruleCodes = rules.flatMap((rule: any) => (Array.isArray(rule?.cycles) ? rule.cycles : []))
+        .flatMap((cycle: any) => (Array.isArray(cycle?.deliveries) ? cycle.deliveries : []))
+        .map((delivery: any) => normalizeDeliveryMethodCode(delivery?.deliveryMethod));
+    if (ruleCodes.includes(OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)) return false;
+    return Array.from(existingFacilityMap.values()).some((entry: any) => Boolean(entry?.data?.[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY]));
+}
+
+/** Normalised codes of a deliveryMethods list; null when it is not a list or any entry cannot be read. */
+function readDeliveryMethodCodes(methods: unknown): string[] | null {
+    if (!Array.isArray(methods)) return null;
+    const codes = methods.map((method: any) => normalizeDeliveryMethodCode(method && typeof method === 'object' ? method.code : method));
+    return codes.every(Boolean) ? codes : null;
+}
+
+/** Upper-cased with non-alphanumerics removed, as excel-ingestion compares delivery methods; '' when not a usable code. */
+function normalizeDeliveryMethodCode(code: unknown): string {
+    return typeof code === 'string' ? code.toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+}
 
 /** Outside Household sheet usage is Active / Inactive like the facility sheet; anything but Active is Inactive. */
 function outsideHouseholdUsageToFacilityUsage(outsideHouseholdUsage: unknown): string {

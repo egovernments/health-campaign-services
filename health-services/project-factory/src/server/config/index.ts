@@ -122,6 +122,8 @@ const config = {
     bulkConfirmMaxAttempts: process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS ? parseInt(process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS, 10) : 5,
 
     maxRetries: process.env.MAPPING_MAX_RETRY_COUNT ? parseInt(process.env.MAPPING_MAX_RETRY_COUNT, 10) : 3,
+    // An edit that removes the Outside Household delivery method unlinks the campaign's sites; "false" keeps them linked
+    outsideHouseholdUnlinkOnDeliveryRemoval: (process.env.OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 

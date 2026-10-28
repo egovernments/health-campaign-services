@@ -80,7 +80,7 @@ jest.mock('../config', () => ({
         host: { facilityHost: 'http://facility/', projectHost: 'http://project/' },
         paths: { facilitySearch: 'facility/v1/_search', facilityDelete: 'facility/v1/_delete',
             projectFacilitySearch: 'health-project/facility/v1/_search', projectFacilityUpdate: 'health-project/facility/v1/_update' },
-        mapping: { searchPageSize: 100 },
+        mapping: { searchPageSize: 100, outsideHouseholdUnlinkOnDeliveryRemoval: true },
         localisation: { defaultLocale: 'en_IN' },
         DB_CONFIG: { DB_CAMPAIGN_DATA_TABLE_NAME: 'eg_cm_campaign_data' },
         // Page size 1 → sites span multiple pages too.
@@ -92,10 +92,12 @@ jest.mock('../config', () => ({
 
 import { produceModifiedMessages } from '../kafka/Producer';
 import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign } from '../utils/genericUtils';
+import config from '../config';
 import { httpRequest } from '../utils/request';
 import { logger } from '../utils/logger';
 import {
     convertOutsideHouseholdRowsToFacilityRows,
+    isOutsideHouseholdDeliveryDropped,
     normalizeForMatch,
     processCampaignFacilitiesFromExcelData,
 } from '../utils/processingResultHandler';
@@ -279,6 +281,64 @@ describe('convertOutsideHouseholdRowsToFacilityRows', () => {
     });
 });
 
+describe('isOutsideHouseholdDeliveryDropped', () => {
+    const site = new Map<any, any>([['P1', { data: { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID: 'P1' } }]]);
+    const facilityOnly = new Map<any, any>([['F1', { data: { HCM_ADMIN_CONSOLE_FACILITY_NAME: 'F1' } }]]);
+    const edit = (deliveryMethods?: unknown, extra: Record<string, unknown> = {}) =>
+        ({ parentId: 'parent-id', additionalDetails: { cycleData: { deliveryMethods } }, ...extra });
+    const rulesWith = (deliveryMethod: unknown) => ({ deliveryRules: [{ cycles: [{ deliveries: [{ deliveryMethod }] }] }] });
+
+    afterEach(() => { (config as any).mapping.outsideHouseholdUnlinkOnDeliveryRemoval = true; });
+
+    it('is true for an edit whose list no longer holds OUTSIDEHOUSEHOLD, with stored sites', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY']), site)).toBe(true);
+    });
+
+    it('reads {code} objects too', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit([{ code: 'HOUSEHOLDSTRATEGY' }]), site)).toBe(true);
+    });
+
+    it('is false while OUTSIDEHOUSEHOLD is still in the list, in any case or with separators', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD']), site)).toBe(false);
+        expect(isOutsideHouseholdDeliveryDropped(edit(['outside-household']), site)).toBe(false);
+        expect(isOutsideHouseholdDeliveryDropped(edit([{ code: 'Outside_Household' }]), site)).toBe(false);
+    });
+
+    it('is false for a campaign that is not an edit (first create, clone)', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY'], { parentId: null }), site)).toBe(false);
+    });
+
+    it('is false when the list is missing or empty', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit(undefined), site)).toBe(false);
+        expect(isOutsideHouseholdDeliveryDropped(edit([]), site)).toBe(false);
+        expect(isOutsideHouseholdDeliveryDropped({ parentId: 'parent-id' }, site)).toBe(false);
+    });
+
+    it('is false when any entry of the list cannot be read', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY', { name: 'x' }]), site)).toBe(false);
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY', null]), site)).toBe(false);
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY', 7]), site)).toBe(false);
+    });
+
+    it('is false while a delivery in the rules still names OUTSIDEHOUSEHOLD', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY'], rulesWith('OUTSIDEHOUSEHOLD')), site)).toBe(false);
+    });
+
+    it('is true when the rules name other delivery methods only', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY'], rulesWith('HOUSEHOLDSTRATEGY')), site)).toBe(true);
+    });
+
+    it('is false when the campaign never had sites', () => {
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY']), facilityOnly)).toBe(false);
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY']), new Map())).toBe(false);
+    });
+
+    it('is false when the switch is off', () => {
+        (config as any).mapping.outsideHouseholdUnlinkOnDeliveryRemoval = false;
+        expect(isOutsideHouseholdDeliveryDropped(edit(['HOUSEHOLDSTRATEGY']), site)).toBe(false);
+    });
+});
+
 describe('processCampaignFacilitiesFromExcelData with the Outside Household sheet', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -410,6 +470,92 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
             const topics = collectAllTopics();
             await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
             expect(topics['update-map'] || []).toHaveLength(0);
+        });
+    });
+
+    describe('edit that removed the Outside Household delivery method', () => {
+        const withMethods = (deliveryMethods: unknown[]) =>
+            ({ ...campaignDetails, parentId: 'parent-id', additionalDetails: { cycleData: { deliveryMethods } } });
+        const withoutOutsideHousehold = withMethods(['HOUSEHOLDSTRATEGY']);
+        const storedRows = [
+            { uniqueIdentifier: 'F1', data: { HCM_ADMIN_CONSOLE_FACILITY_NAME: 'F1', HCM_ADMIN_CONSOLE_FACILITY_USAGE: 'Active', HCM_ADMIN_CONSOLE_BOUNDARY_CODE: 'B1' } },
+            { uniqueIdentifier: 'P-OLD', data: { HCM_ADMIN_CONSOLE_FACILITY_NAME: 'P-OLD', HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID: 'P-OLD' } },
+        ];
+        const storedLinks = [
+            { uniqueIdentifierForData: 'F1', boundaryCode: 'B1', status: 'mapped' },
+            { uniqueIdentifierForData: 'P-OLD', boundaryCode: 'B5', status: 'mapped' },
+        ];
+
+        beforeEach(() => {
+            getRelatedMock.mockImplementation(async (type: any) => (type === 'facility' ? storedRows : []) as any);
+            setFacilityLinks(storedLinks);
+        });
+
+        it('demaps every stored site link and keeps the facility links still in the sheet', async () => {
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
+            const topics = collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
+            expect(topics['save-map'] || []).toHaveLength(0);
+        });
+
+        it('does not read an Outside Household sheet left in an old file', async () => {
+            const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
+            const topics = collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            expect(requested).not.toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
+            expect(topics['save-map'] || []).toHaveLength(0);
+            expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
+        });
+
+        it('demaps the stored sites but keeps facility links when no facility row is Active', async () => {
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1', 'Inactive')] });
+            const topics = collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
+        });
+
+        it('demaps the stored sites when the facility sheet has no rows', async () => {
+            installSheetRouter({ FACILIT: [] });
+            const topics = collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
+        });
+
+        it('keeps site links when OUTSIDEHOUSEHOLD is still a delivery method, also as a {code} object', async () => {
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
+            const topics = collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withMethods([{ code: 'OUTSIDEHOUSEHOLD' }]));
+            expect(topics['update-map'] || []).toHaveLength(0);
+        });
+
+        it('keeps site links for a campaign that is not an edit', async () => {
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
+            const topics = collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, { ...withoutOutsideHousehold, parentId: null });
+            expect(topics['update-map'] || []).toHaveLength(0);
+        });
+
+        it('keeps site links and reads the sheet as before when the switch is off', async () => {
+            (config as any).mapping.outsideHouseholdUnlinkOnDeliveryRemoval = false;
+            try {
+                const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
+                const topics = collectAllTopics();
+                await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+                expect(topics['update-map'] || []).toHaveLength(0);
+                expect(requested).toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
+            } finally {
+                (config as any).mapping.outsideHouseholdUnlinkOnDeliveryRemoval = true;
+            }
+        });
+
+        it('changes nothing when the stored site was never linked, and leaves facility links alone', async () => {
+            setFacilityLinks([{ uniqueIdentifierForData: 'F1', boundaryCode: 'B1', status: 'mapped' }] as any);
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
+            const topics = collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            expect(topics['update-map'] || []).toHaveLength(0);
+            expect(topics['save-map'] || []).toHaveLength(0);
         });
     });
 
