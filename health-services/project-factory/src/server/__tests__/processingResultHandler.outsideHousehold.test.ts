@@ -77,8 +77,10 @@ jest.mock('../config', () => ({
             KAFKA_SAVE_MAPPING_DATA_TOPIC: 'save-map',
             KAFKA_UPDATE_MAPPING_DATA_TOPIC: 'update-map',
         },
-        host: { facilityHost: 'http://facility/' },
-        paths: { facilitySearch: 'facility/v1/_search', facilityDelete: 'facility/v1/_delete' },
+        host: { facilityHost: 'http://facility/', projectHost: 'http://project/' },
+        paths: { facilitySearch: 'facility/v1/_search', facilityDelete: 'facility/v1/_delete',
+            projectFacilitySearch: 'health-project/facility/v1/_search', projectFacilityUpdate: 'health-project/facility/v1/_update' },
+        mapping: { searchPageSize: 100 },
         localisation: { defaultLocale: 'en_IN' },
         DB_CONFIG: { DB_CAMPAIGN_DATA_TABLE_NAME: 'eg_cm_campaign_data' },
         // Page size 1 → sites span multiple pages too.
@@ -505,5 +507,84 @@ describe('buildOutsideHouseholdLinkAdditionalFields (frontline worker on the sit
             { uniqueIdentifier: 'Warehouse A', data: { HCM_ADMIN_CONSOLE_FACILITY_NAME: 'Warehouse A', HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'X' } },
         ]);
         expect(result).toEqual({ 'CRID-3': { schema: 'OutsideHouseholdAssignment', version: 1, fields: [] } });
+    });
+});
+
+describe('edit: frontline worker changed on an Active site with an existing link', () => {
+    const storedSite = (usage: string, worker: Record<string, unknown>) => ({
+        uniqueIdentifier: 'P1', uniqueIdAfterProcess: 'F-1',
+        data: { ...convertOutsideHouseholdRowsToFacilityRows([{ rowjson: outsideHouseholdRow('P1', 'B2', usage, worker) }], new Map())[0].rowjson },
+    });
+    const existingLink = (fields: any[]) => ({
+        id: 'PF-1', tenantId: 'tn', projectId: 'PRJ-1', facilityId: 'F-1', rowVersion: 1,
+        additionalFields: { schema: 'OutsideHouseholdAssignment', version: 1, fields },
+    });
+    const oldWorker = { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'Old Worker', HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE: 9876500001 };
+    const oldFields = [{ key: 'frontlineWorkerName', value: 'Old Worker' }, { key: 'frontlineWorkerPhone', value: '9876500001' }];
+
+    function install(sheetRows: Record<string, any[]>, links: any[]): any[] {
+        const updates: any[] = [];
+        installSheetRouter(sheetRows);
+        const sheetImpl = httpMock.getMockImplementation()!;
+        httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
+            if (url.endsWith('health-project/facility/v1/_update')) { updates.push(body.ProjectFacility); return {} as any; }
+            if (url.endsWith('health-project/facility/v1/_search')) return { ProjectFacilities: links } as any;
+            return sheetImpl(url, body, ...rest);
+        });
+        return updates;
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        setFacilityLinks([{ uniqueIdentifierForData: 'P1', boundaryCode: 'B2', status: 'mapped', mappingId: 'PF-1' }] as any);
+        collectAllTopics();
+    });
+
+    it('writes the new worker onto the existing link', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', {
+            HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker', HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE: 9876500011 })] },
+            [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails, { userInfo: { uuid: 'u1' } } as any);
+        expect(updates).toHaveLength(1);
+        expect(updates[0]).toMatchObject({ id: 'PF-1', rowVersion: 1, additionalFields: { schema: 'OutsideHouseholdAssignment', version: 1,
+            fields: [{ key: 'frontlineWorkerName', value: 'New Worker' }, { key: 'frontlineWorkerPhone', value: '9876500011' }] } });
+    });
+
+    it('clears the worker on the link when it is removed from the row', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active')] }, [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        expect(updates).toHaveLength(1);
+        expect(updates[0].additionalFields).toEqual({ schema: 'OutsideHouseholdAssignment', version: 1, fields: [] });
+    });
+
+    it('sends no update when the worker did not change', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', oldWorker)] }, [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        expect(updates).toHaveLength(0);
+    });
+
+    it('sends no update for an Inactive site (it has no link to update)', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Inactive', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Inactive', {
+            HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] }, [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        expect(updates).toHaveLength(0);
+    });
+
+    it('leaves a link that already has the new worker alone (a retry repeats nothing)', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        const newWorker = { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker', HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE: 9876500011 };
+        const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', newWorker)] },
+            [existingLink([{ key: 'frontlineWorkerName', value: 'New Worker' }, { key: 'frontlineWorkerPhone', value: '9876500011' }])]);
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        expect(updates).toHaveLength(0);
     });
 });

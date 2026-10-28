@@ -1,7 +1,8 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { getRelatedDataWithCampaign } from './genericUtils';
-import { mappingStatuses, outsideHouseholdFacilityFields, outsideHouseholdLinkAdditionalFieldsSchema } from '../config/constants';
+import { mappingStatuses, outsideHouseholdFacilityFields } from '../config/constants';
+import { outsideHouseholdLinkAdditionalFields } from './outsideHouseholdLinkFields';
 import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
@@ -445,17 +446,7 @@ export function buildOutsideHouseholdLinkAdditionalFields(facilityData: any[]): 
     for (const row of facilityData || []) {
         const data = row?.data || {};
         if (!data[outsideHouseholdFacilityFields.clientReferenceId]) continue;
-        const fields = [
-            { key: outsideHouseholdLinkAdditionalFieldsSchema.workerNameKey, value: data[outsideHouseholdFacilityFields.workerName] },
-            { key: outsideHouseholdLinkAdditionalFieldsSchema.workerPhoneKey, value: data[outsideHouseholdFacilityFields.workerPhone] },
-        ]
-            .map(f => ({ key: f.key, value: String(f.value ?? '').trim() }))
-            .filter(f => f.value);
-        result[row.uniqueIdentifier] = {
-            schema: outsideHouseholdLinkAdditionalFieldsSchema.schema,
-            version: outsideHouseholdLinkAdditionalFieldsSchema.version,
-            fields
-        };
+        result[row.uniqueIdentifier] = outsideHouseholdLinkAdditionalFields(data);
     }
     return result;
 }

@@ -19,6 +19,7 @@ import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { triggerUserCredentialEmailFlow } from './mailUtils';
 import { runMappingReconciler } from './mappingReconciler';
 import { fetchExistingUsersByPhone, selectReconcilableUserRows } from './userBatchHandler';
+import { outsideHouseholdLinkAdditionalFields, sameOutsideHouseholdLinkFields } from './outsideHouseholdLinkFields';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -327,6 +328,9 @@ export async function handleProcessingResult(messageObject: any) {
             if (tempDataCount && tempDataCount > 0) {
 
                 logger.info('=== PROCESSING ALL CAMPAIGN DATA TYPES IN PARALLEL ===');
+                // RequestInfo for the creation flow: keep the message's userInfo when present, else stamp the
+                // campaign creator so user-creation batches and site link updates have a valid user.
+                const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
                 const [expectedBoundaryCount, , expectedUserCount] = await Promise.all([
                     processCampaignBoundariesFromExcelData(
                         messageObject.tenantId,
@@ -338,7 +342,8 @@ export async function handleProcessingResult(messageObject: any) {
                         messageObject.tenantId,
                         messageObject.fileStoreId,
                         localizationMap,
-                        campaignDetails
+                        campaignDetails,
+                        creationRequestInfo
                     ),
                     processCampaignUsersFromExcelData(
                         messageObject.tenantId,
@@ -350,9 +355,6 @@ export async function handleProcessingResult(messageObject: any) {
                 logger.info('=== ALL CAMPAIGN DATA PROCESSING COMPLETED ===');
 
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                // Resolve the RequestInfo for the background creation flow: keep the message's userInfo
-                // when present, else stamp the campaign creator so user-creation batches have a valid user.
-                const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
                 await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
@@ -1076,7 +1078,8 @@ export async function processCampaignFacilitiesFromExcelData(
     tenantId: string,
     fileStoreId: string,
     localizationMap: Record<string, string>,
-    campaignDetails: any
+    campaignDetails: any,
+    requestInfo?: RequestInfo
 ): Promise<void> {
     try {
         logger.info('=== PROCESSING CAMPAIGN FACILITIES FROM EXCEL DATA ===');
@@ -1119,6 +1122,8 @@ export async function processCampaignFacilitiesFromExcelData(
         const outsideHouseholdSheetName = getLocalizedSheetName(OUTSIDE_HOUSEHOLD_SHEET_KEY, localizationMap);
         logger.info(`Searching ${outsideHouseholdSheetName} sheet data...`);
         const outsideHouseholdKeysThisUpload = new Set<string>();
+        // Active sites whose frontline worker changed on this upload (edit): their existing link is updated below
+        const outsideHouseholdWorkerChanges: any[] = [];
         const outsideHouseholdRowTotal = await forEachSheetDataPage(
             tenantId,
             campaignId,
@@ -1128,7 +1133,8 @@ export async function processCampaignFacilitiesFromExcelData(
             (rows) => {
                 const facilityRows = convertOutsideHouseholdRowsToFacilityRows(rows, storedOutsideHouseholdNormalizedIndex);
                 facilityRows.forEach((r) => outsideHouseholdKeysThisUpload.add(r.rowjson[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] as string));
-                return processFacilityDataAndMappings(campaignNumber, tenantId, facilityRows, existingFacilityMap, facilityBoundaryMappings);
+                return processFacilityDataAndMappings(campaignNumber, tenantId, facilityRows, existingFacilityMap, facilityBoundaryMappings,
+                    outsideHouseholdWorkerChanges);
             }
         );
 
@@ -1157,6 +1163,10 @@ export async function processCampaignFacilitiesFromExcelData(
                 };
             }
             await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings, isDemapEligible);
+        }
+
+        if (outsideHouseholdWorkerChanges.length > 0) {
+            await updateOutsideHouseholdLinkWorkers(campaignNumber, tenantId, outsideHouseholdWorkerChanges, requestInfo);
         }
 
         logger.info('=== CAMPAIGN FACILITIES PROCESSING COMPLETED ===');
@@ -1269,7 +1279,8 @@ async function processFacilityDataAndMappings(
     tenantId: string,
     sheetData: any[],
     existingFacilityMap: Map<any, any>,
-    facilityBoundaryMappings: any[]
+    facilityBoundaryMappings: any[],
+    outsideHouseholdWorkerChanges?: any[]
 ): Promise<void> {
     const FACILITY_NAME_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_NAME';
     const FACILITY_CODE_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_CODE';
@@ -1332,11 +1343,16 @@ async function processFacilityDataAndMappings(
                 hasChanges = true;
             }
 
+            let workerChanged = false;
             for (const key of OUTSIDE_HOUSEHOLD_WORKER_KEYS) {
                 if (rowJson[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] && (rowJson[key] ?? null) !== (existingData[key] ?? null)) {
                     existingData[key] = rowJson[key];
                     hasChanges = true;
+                    workerChanged = true;
                 }
+            }
+            if (workerChanged && usage === usageColumnStatus.active && outsideHouseholdWorkerChanges) {
+                outsideHouseholdWorkerChanges.push(existingEntry);
             }
 
             if (hasChanges) {
@@ -1430,6 +1446,55 @@ async function processFacilityBoundaryMappings(
         logger.info(`Marking ${toBeDemapped.length} facility-boundary mappings for demapping`);
         await persistDataInBatches(toBeDemapped, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
     }
+}
+
+/**
+ * Edit of a created campaign: an Active site keeps its existing project-facility link (its mapping does not
+ * change), so a changed frontline worker would not reach the link. Write the new worker onto those links.
+ * Links that already carry the same worker are left as they are, so a retry repeats nothing.
+ */
+async function updateOutsideHouseholdLinkWorkers(
+    campaignNumber: string,
+    tenantId: string,
+    changedSites: any[],
+    requestInfo?: RequestInfo
+): Promise<void> {
+    const wantedByFacilityId = new Map<string, Record<string, any>>();
+    for (const entry of changedSites) {
+        if (entry?.uniqueIdAfterProcess) {
+            wantedByFacilityId.set(entry.uniqueIdAfterProcess, outsideHouseholdLinkAdditionalFields(entry.data));
+        }
+    }
+    const boundaryData = await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
+    const projectIds = Array.from(new Set(boundaryData.map((b: any) => b?.uniqueIdAfterProcess).filter(Boolean)));
+    if (wantedByFacilityId.size === 0 || projectIds.length === 0) return;
+
+    // Project facilities live under the root tenant
+    const rootTenantId = tenantId.split('.')[0];
+    const searchUrl = `${config.host.projectHost}${config.paths.projectFacilitySearch}`;
+    const updateUrl = `${config.host.projectHost}${config.paths.projectFacilityUpdate}`;
+    const pageSize = config.mapping.searchPageSize;
+    const links: any[] = [];
+    for (let offset = 0; ; offset += pageSize) {
+        const response = await httpRequest(
+            searchUrl,
+            { RequestInfo: requestInfo, ProjectFacility: { projectId: projectIds, facilityId: Array.from(wantedByFacilityId.keys()) } },
+            { tenantId: rootTenantId, limit: pageSize, offset, includeDeleted: false }
+        );
+        const page: any[] = response?.ProjectFacilities || [];
+        links.push(...page);
+        if (page.length < pageSize) break;
+    }
+
+    let updated = 0;
+    for (const link of links) {
+        const wanted = wantedByFacilityId.get(link?.facilityId);
+        if (!wanted || sameOutsideHouseholdLinkFields(link.additionalFields, wanted)) continue;
+        await httpRequest(updateUrl, { RequestInfo: requestInfo, ProjectFacility: { ...link, additionalFields: wanted } },
+            undefined, 'post', undefined, undefined, undefined, false);
+        updated++;
+    }
+    logger.info(`Frontline worker updated on ${updated} site link(s) of campaign ${campaignNumber}`);
 }
 
 /**
