@@ -18,13 +18,17 @@ public class DeviceTokenProducer {
     private PushProperties properties;
 
     public void push(String tenantId, String topic, Object value) {
+        push(tenantId, topic, null, value);
+    }
+
+    public void push(String tenantId, String topic, String key, Object value) {
         String resolvedTopic = topic;
         if (properties.getIsCentralInstance() && tenantId != null && !tenantId.isEmpty()) {
             String stateCode = getStateCode(tenantId);
             resolvedTopic = stateCode + "-" + topic;
         }
         log.info("Publishing to topic: {}", resolvedTopic);
-        kafkaTemplate.send(resolvedTopic, value);
+        kafkaTemplate.send(resolvedTopic, key, value);
     }
 
     private String getStateCode(String tenantId) {

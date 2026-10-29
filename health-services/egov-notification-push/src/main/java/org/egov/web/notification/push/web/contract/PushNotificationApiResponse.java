@@ -26,4 +26,12 @@ public class PushNotificationApiResponse {
 
 	private String message;
 
+	private Integer attempted;
+
+	private Integer sent;
+
+	private Integer failedPermanent;
+
+	private Integer queuedForRetry;
+
 }

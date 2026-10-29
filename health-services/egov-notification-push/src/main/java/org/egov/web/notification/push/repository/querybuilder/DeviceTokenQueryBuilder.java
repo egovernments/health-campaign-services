@@ -13,33 +13,37 @@ public class DeviceTokenQueryBuilder {
 	}
 
 	public static String fetchTokensByUserIds(String schema) {
-		return "SELECT " + COLUMNS + " FROM " + table(schema) + " WHERE userid IN (:userIds)";
+		return "SELECT " + COLUMNS + " FROM " + table(schema) + " WHERE userid IN (:userIds) AND NOT deleted";
 	}
 
 	public static String fetchTokensByFacilityId(String schema) {
-		return "SELECT " + COLUMNS + " FROM " + table(schema) + " WHERE facilityid = :facilityId";
+		return "SELECT " + COLUMNS + " FROM " + table(schema) + " WHERE facilityid = :facilityId AND NOT deleted";
 	}
 
 	public static String fetchLatestTokenByUserIds(String schema) {
 		return "SELECT DISTINCT ON (userid) " + COLUMNS + " FROM " + table(schema)
-				+ " WHERE userid IN (:userIds) ORDER BY userid, lastmodifiedtime DESC";
+				+ " WHERE userid IN (:userIds) AND NOT deleted ORDER BY userid, lastmodifiedtime DESC";
 	}
 
 	public static String fetchTokensByFacilityIdAndRole(String schema) {
 		return "SELECT " + COLUMNS + " FROM " + table(schema)
-				+ " WHERE facilityid = :facilityId AND userroles LIKE :rolePattern";
+				+ " WHERE facilityid = :facilityId AND NOT deleted AND userroles LIKE :rolePattern";
 	}
 
 	public static String fetchTokensByFacilityIdAndRoles(String schema, int roleCount) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("SELECT ").append(COLUMNS).append(" FROM ").append(table(schema));
-		sb.append(" WHERE facilityid = :facilityId AND (");
+		sb.append(" WHERE facilityid = :facilityId AND NOT deleted AND (");
 		for (int i = 0; i < roleCount; i++) {
 			if (i > 0) sb.append(" OR ");
 			sb.append("userroles LIKE :rolePattern").append(i);
 		}
 		sb.append(")");
 		return sb.toString();
+	}
+
+	public static String purgeSoftDeleted(String schema) {
+		return "DELETE FROM " + table(schema) + " WHERE deleted AND lastmodifiedtime < :cutoff";
 	}
 
 	public static String deleteByDeviceTokens(String schema) {

@@ -3,18 +3,20 @@ serviceMaps:
   mappings:
 
     - version: 1.0
-      description: Save/override device token
+      description: Save/override device token; ignored when an equal or newer change is already stored
       fromTopic: save-push-device-token
       isTransaction: true
       queryMaps:
         - query: >-
             INSERT INTO eg_push_device_tokens
-            (id, userid, devicetoken, devicetype, tenantid, facilityid, userroles, createdby, createdtime, lastmodifiedby, lastmodifiedtime)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, userid, devicetoken, devicetype, tenantid, facilityid, userroles, createdby, createdtime, lastmodifiedby, lastmodifiedtime, deleted)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false)
             ON CONFLICT (devicetoken, facilityid) DO UPDATE SET
             userid = EXCLUDED.userid, devicetype = EXCLUDED.devicetype, tenantid = EXCLUDED.tenantid,
-            userroles = EXCLUDED.userroles,
+            userroles = EXCLUDED.userroles, deleted = false,
             lastmodifiedby = EXCLUDED.lastmodifiedby, lastmodifiedtime = EXCLUDED.lastmodifiedtime
+            WHERE eg_push_device_tokens.lastmodifiedtime IS NULL
+            OR eg_push_device_tokens.lastmodifiedtime < EXCLUDED.lastmodifiedtime
           basePath: $.deviceTokens.*
           jsonMaps:
             - jsonPath: $.deviceTokens.*.id
@@ -30,29 +32,36 @@ serviceMaps:
             - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedTime
 
     - version: 1.0
-      description: Delete device token
+      description: Soft-delete device token for one facility; ignored when a newer change is already stored
       fromTopic: delete-push-device-token
       isTransaction: true
       queryMaps:
         - query: >-
-            DELETE FROM eg_push_device_tokens
-            WHERE userid = ? AND devicetoken = ? AND tenantid = ? AND facilityid = ?
+            UPDATE eg_push_device_tokens SET deleted = true, lastmodifiedby = ?, lastmodifiedtime = ?
+            WHERE userid = ? AND devicetoken = ? AND facilityid = ?
+            AND (lastmodifiedtime IS NULL OR lastmodifiedtime < ?)
           basePath: $.deviceTokens.*
           jsonMaps:
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedBy
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedTime
             - jsonPath: $.deviceTokens.*.userId
             - jsonPath: $.deviceTokens.*.deviceToken
-            - jsonPath: $.deviceTokens.*.tenantId
             - jsonPath: $.deviceTokens.*.facilityId
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedTime
 
     - version: 1.0
-      description: Unregister device token (delete all rows for userId+deviceToken, regardless of facilityId)
+      description: Soft-delete all facility rows for userId+deviceToken; ignored when a newer change is already stored
       fromTopic: unregister-push-device-token
       isTransaction: true
       queryMaps:
         - query: >-
-            DELETE FROM eg_push_device_tokens
+            UPDATE eg_push_device_tokens SET deleted = true, lastmodifiedby = ?, lastmodifiedtime = ?
             WHERE userid = ? AND devicetoken = ?
+            AND (lastmodifiedtime IS NULL OR lastmodifiedtime < ?)
           basePath: $.deviceTokens.*
           jsonMaps:
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedBy
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedTime
             - jsonPath: $.deviceTokens.*.userId
             - jsonPath: $.deviceTokens.*.deviceToken
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedTime

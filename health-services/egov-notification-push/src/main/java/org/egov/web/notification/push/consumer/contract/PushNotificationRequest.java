@@ -11,7 +11,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 @Getter
 @NoArgsConstructor
 @Setter
@@ -34,5 +34,13 @@ public class PushNotificationRequest {
     private List<String> recipientRoles;
 
     private String tenantId;
+
+    private String eventId;
+
+    private List<String> userIds;
+
+    private String type;
+
+    private Long expiresAt;
 
 }

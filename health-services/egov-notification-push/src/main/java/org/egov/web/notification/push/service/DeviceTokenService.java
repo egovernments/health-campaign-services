@@ -94,7 +94,7 @@ public class DeviceTokenService {
 			log.warn("PUSH_REGISTER_NO_ROLES user={} tenantId={} rows={} — userroles will be stored NULL and role-filtered notifications will never match these rows",
 					userUuid, tenantId, expandedTokens.size());
 		}
-		producer.push(tenantId, properties.getSaveDeviceTokenTopic(), request);
+		producer.push(tenantId, properties.getSaveDeviceTokenTopic(), deviceTokens.get(0).getDeviceToken(), request);
 
 		// Return original tokens with facilityIds intact
 		return deviceTokens;
@@ -102,7 +102,9 @@ public class DeviceTokenService {
 
 	public void deleteDeviceTokens(RequestInfo requestInfo, List<DeviceToken> deviceTokens) {
 		String userUuid = requestInfo.getUserInfo().getUuid();
-		List<DeviceToken> expandedTokens = new ArrayList<>();
+		AuditDetails audit = changeAudit(userUuid);
+		List<DeviceToken> perFacility = new ArrayList<>();
+		List<DeviceToken> allFacilities = new ArrayList<>();
 
 		for (DeviceToken token : deviceTokens) {
 			if (StringUtils.isEmpty(token.getDeviceToken())) {
@@ -111,38 +113,47 @@ public class DeviceTokenService {
 			if (StringUtils.isEmpty(token.getUserId())) {
 				token.setUserId(userUuid);
 			}
+			token.setAuditDetails(audit);
 
-			// If facilityIds provided, expand into individual deletes per facilityId.
-			// If not provided, facilityId stays null → persister deletes all rows for the device token.
 			List<String> facilityIds = token.getFacilityIds();
 			if (facilityIds != null && !facilityIds.isEmpty()) {
 				for (String facilityId : facilityIds) {
-					expandedTokens.add(DeviceToken.builder()
+					perFacility.add(DeviceToken.builder()
 							.userId(token.getUserId())
 							.deviceToken(token.getDeviceToken())
 							.tenantId(token.getTenantId())
 							.facilityId(facilityId)
+							.auditDetails(audit)
 							.build());
 				}
 			} else {
-				expandedTokens.add(token);
+				allFacilities.add(token);
 			}
 		}
 
-		DeviceTokenRequest request = DeviceTokenRequest.builder()
-				.requestInfo(requestInfo)
-				.deviceTokens(expandedTokens)
-				.build();
 		String tenantId = deviceTokens.get(0).getTenantId();
-		for (DeviceToken t : expandedTokens) {
+		String key = deviceTokens.get(0).getDeviceToken();
+		for (DeviceToken t : perFacility) {
 			log.info("PUSH_DELETE user={} tenantId={} facilityId={} tokenSuffix={}",
 					t.getUserId(), t.getTenantId(), t.getFacilityId(), tokenSuffix(t.getDeviceToken()));
 		}
-		producer.push(tenantId, properties.getDeleteDeviceTokenTopic(), request);
+		if (!perFacility.isEmpty()) {
+			producer.push(tenantId, properties.getDeleteDeviceTokenTopic(), key,
+					DeviceTokenRequest.builder().requestInfo(requestInfo).deviceTokens(perFacility).build());
+		}
+		if (!allFacilities.isEmpty()) {
+			for (DeviceToken t : allFacilities) {
+				log.info("PUSH_DELETE user={} tenantId={} facilityId=ALL tokenSuffix={}",
+						t.getUserId(), t.getTenantId(), tokenSuffix(t.getDeviceToken()));
+			}
+			producer.push(tenantId, properties.getUnregisterDeviceTokenTopic(), key,
+					DeviceTokenRequest.builder().requestInfo(requestInfo).deviceTokens(allFacilities).build());
+		}
 	}
 
 	public void unregisterDeviceTokens(RequestInfo requestInfo, List<DeviceToken> deviceTokens) {
 		String userUuid = requestInfo.getUserInfo().getUuid();
+		AuditDetails audit = changeAudit(userUuid);
 
 		for (DeviceToken token : deviceTokens) {
 			if (StringUtils.isEmpty(token.getDeviceToken())) {
@@ -151,6 +162,7 @@ public class DeviceTokenService {
 			if (StringUtils.isEmpty(token.getUserId())) {
 				token.setUserId(userUuid);
 			}
+			token.setAuditDetails(audit);
 		}
 
 		DeviceTokenRequest request = DeviceTokenRequest.builder()
@@ -158,11 +170,15 @@ public class DeviceTokenService {
 				.deviceTokens(deviceTokens)
 				.build();
 		String tenantId = deviceTokens.get(0).getTenantId();
-		producer.push(tenantId, properties.getUnregisterDeviceTokenTopic(), request);
+		producer.push(tenantId, properties.getUnregisterDeviceTokenTopic(), deviceTokens.get(0).getDeviceToken(), request);
 		for (DeviceToken t : deviceTokens) {
-			log.info("PUSH_UNREGISTER user={} tenantId={} tokenSuffix={} — deletes ALL facility rows for this user+token",
+			log.info("PUSH_UNREGISTER user={} tenantId={} tokenSuffix={} — soft-deletes ALL facility rows for this user+token",
 					t.getUserId(), t.getTenantId(), tokenSuffix(t.getDeviceToken()));
 		}
+	}
+
+	private static AuditDetails changeAudit(String userUuid) {
+		return AuditDetails.builder().lastModifiedBy(userUuid).lastModifiedTime(new Date().getTime()).build();
 	}
 
 	static String tokenSuffix(String deviceToken) {
@@ -194,7 +210,8 @@ public class DeviceTokenService {
 
 	public void deleteStaleTokens(List<String> deviceTokens, String tenantId) {
 		int deleted = repository.deleteByDeviceTokens(deviceTokens, tenantId);
-		log.info("Deleted {} stale device token row(s) for tokens: {}", deleted, deviceTokens);
+		log.info("Deleted {} stale device token row(s) for tokenSuffixes: {}", deleted,
+				deviceTokens.stream().map(DeviceTokenService::tokenSuffix).toList());
 	}
 
 	/**

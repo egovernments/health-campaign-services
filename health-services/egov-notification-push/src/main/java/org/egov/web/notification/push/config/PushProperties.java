@@ -1,5 +1,11 @@
 package org.egov.web.notification.push.config;
 
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -28,9 +34,6 @@ public class PushProperties {
     @Value("${fcm.tenant-project-map-json:}")
     private String fcmTenantProjectMapJson;
 
-    @Value("${fcm.batch.size}")
-    private Integer fcmBatchSize;
-
     @Value("${fcm.send.chunk.size:50}")
     private Integer fcmSendChunkSize;
 
@@ -39,6 +42,38 @@ public class PushProperties {
 
     @Value("${kafka.topics.notification.push}")
     private String pushNotificationTopic;
+
+    @Value("${kafka.topics.notification.push.retry.1}")
+    private String retryTopic1;
+
+    @Value("${kafka.topics.notification.push.retry.2}")
+    private String retryTopic2;
+
+    @Value("${kafka.topics.notification.push.retry.3}")
+    private String retryTopic3;
+
+    @Value("${kafka.topics.notification.push.deadletter}")
+    private String deadLetterTopic;
+
+    @Value("#{'${push.retry.delays.ms}'.split(',')}")
+    private List<Long> retryDelaysMs;
+
+    @Value("${push.send.deadline.ms:30000}")
+    private Long sendDeadlineMs;
+
+    @Value("${push.kafka.error.retry.attempts:3}")
+    private Long kafkaErrorRetryAttempts;
+
+    @Value("${push.kafka.error.retry.interval.ms:2000}")
+    private Long kafkaErrorRetryIntervalMs;
+
+    @Value("${push.ttl.default.seconds:21600}")
+    private Long defaultTtlSeconds;
+
+    @Value("${push.ttl-by-type-json:{}}")
+    private String ttlByTypeJson;
+
+    private Map<String, Long> ttlByType = Map.of();
 
     @Value("${kafka.topics.persister.save.device.token}")
     private String saveDeviceTokenTopic;
@@ -58,8 +93,35 @@ public class PushProperties {
     @Value("${is.environment.central.instance:false}")
     private Boolean isCentralInstance;
 
+    public long ttlSeconds(String type) {
+        return type == null ? defaultTtlSeconds : ttlByType.getOrDefault(type, defaultTtlSeconds);
+    }
+
+    public List<String> retryTopics() {
+        return List.of(retryTopic1, retryTopic2, retryTopic3);
+    }
+
+    public String statePrefix(String topic) {
+        for (String base : List.of(pushNotificationTopic, retryTopic1, retryTopic2, retryTopic3)) {
+            if (topic != null && topic.endsWith(base)) {
+                return topic.substring(0, topic.length() - base.length());
+            }
+        }
+        return "";
+    }
+
+    public void parseTtlByType() {
+        try {
+            ttlByType = new ObjectMapper().readValue(ttlByTypeJson == null || ttlByTypeJson.isBlank() ? "{}" : ttlByTypeJson,
+                    new TypeReference<Map<String, Long>>() { });
+        } catch (Exception e) {
+            throw new IllegalStateException("PUSH_TTL_BY_TYPE_JSON must be a JSON object like {\"STOCK_ISSUE\": 21600} (seconds)");
+        }
+    }
+
     @PostConstruct
     public void logConfig() {
+        parseTtlByType();
         log.info("=== PushProperties Configuration ===");
         log.info("  isCentralInstance     = {}", isCentralInstance);
         log.info("  stateLevelTenantId    = {}", stateLevelTenantId);

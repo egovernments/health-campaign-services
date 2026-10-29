@@ -3,6 +3,7 @@ package org.egov.web.notification.push.web.controller;
 import jakarta.validation.Valid;
 
 import org.egov.web.notification.push.service.PushNotificationApiService;
+import org.egov.web.notification.push.service.SendResult;
 import org.egov.web.notification.push.utils.ResponseInfoFactory;
 import org.egov.web.notification.push.web.contract.PushNotificationApiRequest;
 import org.egov.web.notification.push.web.contract.PushNotificationApiResponse;
@@ -28,10 +29,14 @@ public class PushNotificationController {
 	@PostMapping("_send")
 	@ResponseBody
 	public ResponseEntity<?> sendPushNotification(@RequestBody @Valid PushNotificationApiRequest request) {
-		int deviceCount = pushNotificationApiService.sendNotification(request);
+		SendResult result = pushNotificationApiService.sendNotification(request);
 		PushNotificationApiResponse response = PushNotificationApiResponse.builder()
 				.responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
-				.message("Push notification sent to " + deviceCount + " devices")
+				.message("Push notification sent to " + result.sent() + " of " + result.attempted() + " devices")
+				.attempted(result.attempted())
+				.sent(result.sent())
+				.failedPermanent(result.failedPermanent())
+				.queuedForRetry(result.queuedForRetry())
 				.build();
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}

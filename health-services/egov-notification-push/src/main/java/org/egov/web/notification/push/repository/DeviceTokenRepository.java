@@ -35,13 +35,8 @@ public class DeviceTokenRepository {
 		}
 		String schema = getSchemaFromTenantId(tenantId);
 		Map<String, Object> params = Collections.singletonMap("userIds", userIds);
-		try {
-			return namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchTokensByUserIds(schema), params, rowMapper);
-		} catch (Exception e) {
-			log.error("Error while fetching device tokens: ", e);
-			return Collections.emptyList();
-		}
+		return namedParameterJdbcTemplate.query(
+				DeviceTokenQueryBuilder.fetchTokensByUserIds(schema), params, rowMapper);
 	}
 
 	public List<DeviceToken> fetchLatestTokenByUserIds(List<String> userIds, String tenantId) {
@@ -50,13 +45,8 @@ public class DeviceTokenRepository {
 		}
 		String schema = getSchemaFromTenantId(tenantId);
 		Map<String, Object> params = Collections.singletonMap("userIds", userIds);
-		try {
-			return namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchLatestTokenByUserIds(schema), params, rowMapper);
-		} catch (Exception e) {
-			log.error("Error while fetching latest device tokens: ", e);
-			return Collections.emptyList();
-		}
+		return namedParameterJdbcTemplate.query(
+				DeviceTokenQueryBuilder.fetchLatestTokenByUserIds(schema), params, rowMapper);
 	}
 
 	public List<DeviceToken> fetchTokensByFacilityId(String facilityId, String tenantId) {
@@ -68,15 +58,10 @@ public class DeviceTokenRepository {
 		log.info("fetchTokensByFacilityId: facilityId={}, tenantId={}, schema={}, query={}",
 				facilityId, tenantId, schema, query);
 		Map<String, Object> params = Collections.singletonMap("facilityId", facilityId);
-		try {
-			List<DeviceToken> result = namedParameterJdbcTemplate.query(query, params, rowMapper);
-			log.info("PUSH_DB fetchTokensByFacilityId facilityId={} tenantId={} schema={} rows={}",
-					facilityId, tenantId, schema, result.size());
-			return result;
-		} catch (Exception e) {
-			log.error("PUSH_DB_ERROR fetchTokensByFacilityId facilityId={} tenantId={}: ", facilityId, tenantId, e);
-			return Collections.emptyList();
-		}
+		List<DeviceToken> result = namedParameterJdbcTemplate.query(query, params, rowMapper);
+		log.info("PUSH_DB fetchTokensByFacilityId facilityId={} tenantId={} schema={} rows={}",
+				facilityId, tenantId, schema, result.size());
+		return result;
 	}
 
 	public List<DeviceToken> fetchTokensByFacilityIdAndRole(String facilityId, String role, String tenantId) {
@@ -87,13 +72,8 @@ public class DeviceTokenRepository {
 		Map<String, Object> params = new HashMap<>();
 		params.put("facilityId", facilityId);
 		params.put("rolePattern", "%" + role + "%");
-		try {
-			return namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRole(schema), params, rowMapper);
-		} catch (Exception e) {
-			log.error("Error while fetching device tokens by facilityId and role: ", e);
-			return Collections.emptyList();
-		}
+		return namedParameterJdbcTemplate.query(
+				DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRole(schema), params, rowMapper);
 	}
 
 	public List<DeviceToken> fetchTokensByFacilityIdAndRoles(String facilityId, List<String> roles, String tenantId) {
@@ -106,17 +86,16 @@ public class DeviceTokenRepository {
 		for (int i = 0; i < roles.size(); i++) {
 			params.put("rolePattern" + i, "%" + roles.get(i) + "%");
 		}
-		try {
-			List<DeviceToken> result = namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRoles(schema, roles.size()), params, rowMapper);
-			log.info("PUSH_DB fetchTokensByFacilityIdAndRoles facilityId={} roles={} tenantId={} schema={} rows={}",
-					facilityId, roles, tenantId, schema, result.size());
-			return result;
-		} catch (Exception e) {
-			log.error("PUSH_DB_ERROR fetchTokensByFacilityIdAndRoles facilityId={} roles={} tenantId={}: ",
-					facilityId, roles, tenantId, e);
-			return Collections.emptyList();
-		}
+		List<DeviceToken> result = namedParameterJdbcTemplate.query(
+				DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRoles(schema, roles.size()), params, rowMapper);
+		log.info("PUSH_DB fetchTokensByFacilityIdAndRoles facilityId={} roles={} tenantId={} schema={} rows={}",
+				facilityId, roles, tenantId, schema, result.size());
+		return result;
+	}
+
+	public int purgeSoftDeleted(String schema, long cutoff) {
+		return namedParameterJdbcTemplate.update(DeviceTokenQueryBuilder.purgeSoftDeleted(schema),
+				Collections.singletonMap("cutoff", cutoff));
 	}
 
 	public int deleteByDeviceTokens(List<String> deviceTokens, String tenantId) {
