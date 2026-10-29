@@ -54,6 +54,13 @@ function isOutsideHouseholdDeliveryChanged(request: any): boolean {
     return incoming !== (hasOutsideHouseholdDelivery(request?.body?.ExistingCampaignDetails) ?? false);
 }
 
+/** True when the stored campaign already holds the update's Outside Household choice (or the update carries no deliveryMethods list), so a template generated now gets the right sheets. */
+export function isOutsideHouseholdDeliveryPersisted(incomingCampaign: any, persistedCampaign: any): boolean {
+    const incoming = hasOutsideHouseholdDelivery(incomingCampaign);
+    if (incoming === null) return true;
+    return (hasOutsideHouseholdDelivery(persistedCampaign) ?? false) === incoming;
+}
+
 /** Delegates template generation to the excel-ingestion service; swallows errors so a generate failure never blocks the caller. */
 export async function callExcelIngestionService(requestBody: any, referenceIdOverride?: string, referenceTypeOverride?: string, typeOverride?: string, additionalDetailsOverride?: Record<string, any>) {
     try {

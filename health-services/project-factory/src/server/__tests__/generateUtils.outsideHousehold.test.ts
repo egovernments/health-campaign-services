@@ -7,7 +7,7 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { isGenerationTriggerNeeded } from '../utils/generateUtils';
+import { isGenerationTriggerNeeded, isOutsideHouseholdDeliveryPersisted } from '../utils/generateUtils';
 
 const boundaries = [{ code: 'B1', isRoot: true, includeAllChildren: true }];
 const campaign = (deliveryMethods?: unknown, extra: Record<string, unknown> = {}) => ({
@@ -63,5 +63,31 @@ describe('isGenerationTriggerNeeded with the Outside Household delivery method',
         it('still regenerates when the campaign type changes', () => {
             expect(isGenerationTriggerNeeded(request(campaign(), campaign(undefined, { projectType: 'MR-DN' }))).trigger).toBe(true);
         });
+    });
+});
+
+describe('isOutsideHouseholdDeliveryPersisted (generation waits for the stored Outside Household choice)', () => {
+    it('is false while the stored campaign does not have the OUTSIDEHOUSEHOLD the update adds', () => {
+        expect(isOutsideHouseholdDeliveryPersisted(campaign(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD']), campaign(['HOUSEHOLDSTRATEGY']))).toBe(false);
+        expect(isOutsideHouseholdDeliveryPersisted(campaign(['OUTSIDEHOUSEHOLD']), campaign())).toBe(false);
+    });
+
+    it('is false while the stored campaign still has the OUTSIDEHOUSEHOLD the update removes', () => {
+        expect(isOutsideHouseholdDeliveryPersisted(campaign(['HOUSEHOLDSTRATEGY']), campaign(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD']))).toBe(false);
+    });
+
+    it('is true once the stored campaign matches the update, also as {code} objects', () => {
+        expect(isOutsideHouseholdDeliveryPersisted(campaign(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD']), campaign([{ code: 'OUTSIDEHOUSEHOLD' }]))).toBe(true);
+        expect(isOutsideHouseholdDeliveryPersisted(campaign(['HOUSEHOLDSTRATEGY']), campaign(['HOUSEHOLDSTRATEGY']))).toBe(true);
+        expect(isOutsideHouseholdDeliveryPersisted(campaign(['HOUSEHOLDSTRATEGY']), campaign())).toBe(true);
+    });
+
+    it('is true when the update carries no deliveryMethods list, so other updates never wait', () => {
+        expect(isOutsideHouseholdDeliveryPersisted(campaign(), campaign(['OUTSIDEHOUSEHOLD']))).toBe(true);
+        expect(isOutsideHouseholdDeliveryPersisted({}, undefined)).toBe(true);
+    });
+
+    it('is false when the stored campaign could not be read and the update has OUTSIDEHOUSEHOLD', () => {
+        expect(isOutsideHouseholdDeliveryPersisted(campaign(['OUTSIDEHOUSEHOLD']), undefined)).toBe(false);
     });
 });
