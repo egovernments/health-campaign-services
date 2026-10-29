@@ -61,21 +61,21 @@ public class PGRTransformationService {
     }
 
     private PGRIndex transform(Service service) {
-        Map<String, String> boundaryHierarchy = null;
-        Map<String, String> boundaryHierarchyCode = null;
         String tenantId = service.getTenantId();
-        String localityCode = null;
         String projectTypeId = null;
-        Optional<String> localityCodeOptional = Optional.ofNullable(service)
-                .map(Service::getAddress)
-                .map(Address::getLocality)
-                .map(Boundary::getCode);
-        if (localityCodeOptional.isPresent()) {
-            localityCode = localityCodeOptional.get();
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
-            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
-            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+        ProjectInfo projectInfo = commonUtils.projectInfoFromUserId(service.getAuditDetails().getLastModifiedBy(), tenantId);
+        if(projectInfo!=null){
+            projectTypeId = projectInfo.getProjectTypeId();
         }
+        String localityCode = Optional.ofNullable(service.getAddress())
+                .map(Address::getLocality)
+                .map(Boundary::getCode)
+                .map(this::extractLeafLocalityCode)
+                .orElse(null);
+
+        BoundaryHierarchyResult boundaryHierarchyResult = resolveBoundaryHierarchy(localityCode, projectInfo, tenantId);
+        Map<String, String> boundaryHierarchy = boundaryHierarchyResult == null ? null : boundaryHierarchyResult.getBoundaryHierarchy();
+        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult == null ? null : boundaryHierarchyResult.getBoundaryHierarchyCode();
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, service.getAuditDetails().getCreatedBy());
 
         service.setAddress(null); //explicitly setting it to null as it is not needed
@@ -85,11 +85,6 @@ public class PGRTransformationService {
 //        service.setServiceCode(mdmsService.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-
-        ProjectInfo projectInfo = commonUtils.projectInfoFromUserId(service.getAuditDetails().getLastModifiedBy(), tenantId);
-        if(projectInfo!=null){
-            projectTypeId = projectInfo.getProjectTypeId();
-        }
 
         String cycleIndex = commonUtils.fetchCycleIndexFromTime(service.getTenantId(), projectTypeId, service.getAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
@@ -108,6 +103,31 @@ public class PGRTransformationService {
                 .additionalDetails(additionalDetails)
                 .build();
         return pgrIndex;
+    }
+
+    /**
+     * Resolves the boundary hierarchy from the complaint's own locality when it has one, otherwise from
+     * the project of the user who raised it. Returns null when neither is available - the user has no
+     * project staff mapping, so there is no boundary to index against.
+     */
+    private BoundaryHierarchyResult resolveBoundaryHierarchy(String localityCode, ProjectInfo projectInfo, String tenantId) {
+        if (localityCode != null) {
+            return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+        }
+        if (projectInfo != null && projectInfo.getProjectId() != null) {
+            return boundaryService.getBoundaryHierarchyWithProjectId(projectInfo.getProjectId(), tenantId);
+        }
+        log.info("No locality code on the service and no project resolved for its user. Skipping boundary hierarchy.");
+        return null;
+    }
+
+    /**
+     * Locality codes arrive dot-qualified (for example "TD.CITY.WARD"); only the trailing segment is a
+     * boundary code.
+     */
+    private String extractLeafLocalityCode(String qualifiedLocalityCode) {
+        String[] parts = qualifiedLocalityCode.split("\\.");
+        return parts.length == 0 ? qualifiedLocalityCode : parts[parts.length - 1];
     }
 
 }
