@@ -3,6 +3,8 @@ package org.egov.facility.service;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.models.facility.FacilityRequest;
+import org.egov.common.models.facility.FacilitySearchRequest;
+import org.egov.common.models.facility.FacilitySearch;
 import org.egov.common.validator.Validator;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
@@ -75,6 +77,9 @@ class FacilityServiceTest {
 
     @Mock
     private FacilityConfiguration configuration;
+
+    @Mock
+    private BoundaryDescendantService boundaryDescendantService;
 
     List<Validator<FacilityBulkRequest, Facility>> validators;
 
@@ -243,6 +248,45 @@ class FacilityServiceTest {
 
         assertEquals(1, result.size());
         verify(repository, times(1)).save(anyList(), eq("create-facility-topic"));
+    }
+
+    private FacilitySearchRequest siteSearch(String boundaryCode) {
+        FacilitySearch search = FacilitySearch.builder().usage("OUTSIDE_HOUSEHOLD_PLACES").localityCode(boundaryCode).build();
+        return FacilitySearchRequest.builder().facility(search).build();
+    }
+
+    @Test
+    @DisplayName("includeDescendants with a boundaryCode searches the boundary and every boundary below it")
+    void shouldSearchBoundariesBelowWhenIncludeDescendants() throws Exception {
+        when(boundaryDescendantService.getCodesAtAndBelow(eq("dev"), eq("DISTRICT"), any()))
+                .thenReturn(List.of("DISTRICT", "VILLAGE_1", "VILLAGE_2"));
+        FacilitySearchRequest request = siteSearch("DISTRICT");
+
+        facilityService.search(request, 100, 0, "dev", null, false, true);
+
+        verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, List.of("DISTRICT", "VILLAGE_1", "VILLAGE_2"));
+    }
+
+    @Test
+    @DisplayName("without includeDescendants the boundaryCode is matched exactly, as before")
+    void shouldMatchBoundaryExactlyWithoutIncludeDescendants() throws Exception {
+        FacilitySearchRequest request = siteSearch("DISTRICT");
+
+        facilityService.search(request, 100, 0, "dev", null, false);
+
+        verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, null);
+        verify(boundaryDescendantService, never()).getCodesAtAndBelow(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("includeDescendants without a boundaryCode changes nothing")
+    void shouldIgnoreIncludeDescendantsWithoutBoundaryCode() throws Exception {
+        FacilitySearchRequest request = siteSearch(null);
+
+        facilityService.search(request, 100, 0, "dev", null, false, true);
+
+        verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, null);
+        verify(boundaryDescendantService, never()).getCodesAtAndBelow(anyString(), anyString(), any());
     }
 
     @Test

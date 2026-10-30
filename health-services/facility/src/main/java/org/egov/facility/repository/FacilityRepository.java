@@ -122,9 +122,28 @@ public class FacilityRepository extends GenericRepository<Facility> {
      * @throws InvalidTenantIdException   if the provided tenantId is invalid
      */
     public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
+        return find(searchObject, limit, offset, tenantId, lastChangedSince, includeDeleted, null);
+    }
+
+    /**
+     * As {@link #find(FacilitySearch, Integer, Integer, String, Long, Boolean)}; when localityCodes is not empty the
+     * facility's boundary must be one of them instead of equal to the search object's boundaryCode (a search with
+     * includeDescendants=true passes the boundary and every boundary below it).
+     */
+    public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, List<String> localityCodes) throws QueryBuilderException, InvalidTenantIdException {
         String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
-        List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
+        boolean byLocalityCodes = !CollectionUtils.isEmpty(localityCodes);
+        String requestedLocalityCode = searchObject.getLocalityCode();
+        List<String> whereFields;
+        if (byLocalityCodes) {
+            searchObject.setLocalityCode(null); // matched by the IN clause below instead
+        }
+        try {
+            whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
+        } finally {
+            searchObject.setLocalityCode(requestedLocalityCode);
+        }
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "f.id IN (:id)");
         // clientReferenceId exists on both facility and address; qualify it so it is unambiguous.
@@ -141,6 +160,11 @@ public class FacilityRepository extends GenericRepository<Facility> {
 
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
+        }
+
+        if (byLocalityCodes) {
+            query = query + "and a.localityCode IN (:localityCodes) ";
+            paramsMap.put("localityCodes", localityCodes);
         }
 
         // A site (a facility whose usage is an outside household type, MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES) is left

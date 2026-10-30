@@ -42,6 +42,9 @@ public class FacilityConfiguration {
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
 
+    @Value("${egov.boundary.relationship.search.url:/boundary-service/boundary-relationships/_search}")
+    private String boundaryRelationshipSearchUrl;
+
     @Value("${egov.mdms.host}")
     private String mdmsHost;
 

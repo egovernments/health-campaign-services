@@ -57,6 +57,8 @@ public class FacilityService {
 
     private final FacilityEnrichmentService enrichmentService;
 
+    private final BoundaryDescendantService boundaryDescendantService;
+
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForCreate =
             validator -> validator.getClass().equals(FBoundaryValidator.class);
 
@@ -75,11 +77,13 @@ public class FacilityService {
     public FacilityService(FacilityRepository facilityRepository, 
                            List<Validator<FacilityBulkRequest, Facility>> validators, 
                            FacilityConfiguration configuration, 
-                           FacilityEnrichmentService enrichmentService) {
+                           FacilityEnrichmentService enrichmentService,
+                           BoundaryDescendantService boundaryDescendantService) {
         this.facilityRepository = facilityRepository;
         this.validators = validators;
         this.configuration = configuration;
         this.enrichmentService = enrichmentService;
+        this.boundaryDescendantService = boundaryDescendantService;
     }
 
     public Facility create(FacilityRequest request) {
@@ -234,6 +238,20 @@ public class FacilityService {
                                            String tenantId,
                                            Long lastChangedSince,
                                            Boolean includeDeleted) throws Exception  {
+        return search(facilitySearchRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, false);
+    }
+
+    /**
+     * As above; with includeDescendants and a boundaryCode, facilities in that boundary and in every boundary below
+     * it are returned (e.g. a site at a village when searching its district). A search by id ignores it.
+     */
+    public SearchResponse<Facility> search(FacilitySearchRequest facilitySearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted,
+                                           boolean includeDescendants) throws Exception  {
         log.info("starting search method for facility");
         String idFieldName = getIdFieldName(facilitySearchRequest.getFacility());
         if (isSearchByIdOnly(facilitySearchRequest.getFacility(), idFieldName)) {
@@ -251,8 +269,16 @@ public class FacilityService {
             return searchResponse;
         }
 
+        List<String> localityCodes = null;
+        String boundaryCode = facilitySearchRequest.getFacility() == null ? null : facilitySearchRequest.getFacility().getLocalityCode();
+        if (includeDescendants && StringUtils.isNotBlank(boundaryCode)) {
+            localityCodes = boundaryDescendantService.getCodesAtAndBelow(tenantId, boundaryCode.trim(),
+                    facilitySearchRequest.getRequestInfo());
+            log.info("searching {} boundaries at and below {}", localityCodes.size(), boundaryCode);
+        }
+
         log.info("completed search method for facility");
         return facilityRepository.find(facilitySearchRequest.getFacility(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+                limit, offset, tenantId, lastChangedSince, includeDeleted, localityCodes);
     }
 }
