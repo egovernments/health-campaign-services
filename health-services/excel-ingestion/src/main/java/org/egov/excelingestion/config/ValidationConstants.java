@@ -54,10 +54,10 @@ public class ValidationConstants {
     // Outside Household sheet - the category must be one of the categories of the row's site type (site-types master)
     public static final String HCM_OUTSIDE_HOUSEHOLD_CATEGORY_NOT_FOR_TYPE = "HCM_OUTSIDE_HOUSEHOLD_CATEGORY_NOT_FOR_TYPE";
     public static final String DEFAULT_OUTSIDE_HOUSEHOLD_CATEGORY_NOT_FOR_TYPE = "This category is not allowed for the selected type";
-    // Outside Household sheet - a site (same type, boundary and name) must appear only once in the sheet
+    // Outside Household sheet - a site (same type, category, boundary and name) must appear only once in the sheet
     public static final String HCM_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE = "HCM_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE";
     public static final String DEFAULT_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE =
-            "This site is already in the sheet (same site type, boundary and name)";
+            "This site is already in the sheet (same site type, category, boundary and name)";
 
     // Search validation constants
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";

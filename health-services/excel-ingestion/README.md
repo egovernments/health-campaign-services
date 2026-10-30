@@ -20,7 +20,7 @@ Changes from v2.0 to v2.1, for product owners, QA and ops.
 
 - New 4th sheet `HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST` in the unified template (`OutsideHouseholdSheetGenerator`). It appears only for campaign types in `excel.ingestion.outside.household.campaign.types` whose `additionalDetails.cycleData.deliveryMethods` contains `OUTSIDEHOUSEHOLD`, and only when MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES` has an active row.
 - Pre-filled with the campaign's stored sites, then the Permanent sites of earlier campaigns on its lowest two boundary levels (as Inactive, no worker).
-- Upload checks in `OutsideHouseholdValidationProcessor`: category allowed for the site type, boundary on the lowest or second-lowest level, no duplicate new row (same type, boundary and name).
+- Upload checks in `OutsideHouseholdValidationProcessor`: category allowed for the site type, boundary on the lowest or second-lowest level, no duplicate new row (same type, category, boundary and name).
 - MDMS: sheet schema `outside-household-microplan-ingestion`, plus the sheet entries in `excelIngestionGenerate` (`unified-console`) and `excelIngestionProcess` (`unified-console-validation`, `unified-console-parse`). Full flow: [OUTSIDE_HOUSEHOLD_SITES.md](../project-factory/OUTSIDE_HOUSEHOLD_SITES.md).
 
 ## 1. Purpose

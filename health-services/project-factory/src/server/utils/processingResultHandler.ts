@@ -1189,6 +1189,7 @@ const OUTSIDE_HOUSEHOLD_SHEET_KEY = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST';
 const OUTSIDE_HOUSEHOLD_USAGE_KEY = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_USAGE';
 const OUTSIDE_HOUSEHOLD_NAME_KEY = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_NAME';
 const OUTSIDE_HOUSEHOLD_TYPE_KEY = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_TYPE';
+const OUTSIDE_HOUSEHOLD_CATEGORY_KEY = outsideHouseholdFacilityFields.category;
 // The one site marker: present (non-blank) on every converted site row, never on a facility row.
 const OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY = outsideHouseholdFacilityFields.clientReferenceId;
 const OUTSIDE_HOUSEHOLD_BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
@@ -1233,20 +1234,26 @@ function outsideHouseholdUsageToFacilityUsage(outsideHouseholdUsage: unknown): s
     return outsideHouseholdUsage === usageColumnStatus.active ? usageColumnStatus.active : usageColumnStatus.inactive;
 }
 
-/** Lower-case, trimmed, single-spaced join — so the same (type, boundary, name) always matches. */
+/** Lower-case, trimmed, single-spaced join — so the same parts always match. */
 export function normalizeForMatch(...parts: unknown[]): string {
     return parts.map(p => String(p ?? '').trim().toLowerCase().replace(/\s+/g, ' ')).join('#');
 }
 
+/** A site's match key: its type, category, boundary and name, normalised (excel-ingestion checks the same four). */
+export function outsideHouseholdMatchKey(type: unknown, category: unknown, boundaryCode: unknown, name: unknown): string {
+    return normalizeForMatch(type, category, boundaryCode, name);
+}
+
 /**
- * Index of this campaign's stored, undeleted site rows by normalised (type, boundary, name), so a
+ * Index of this campaign's stored, undeleted site rows by normalised (type, category, boundary, name), so a
  * site row with no clientReferenceId of its own can be matched back to the row it is a re-upload of.
  */
-function buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap: Map<any, any>): Map<string, string> {
+export function buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap: Map<any, any>): Map<string, string> {
     const index = new Map<string, string>();
     existingFacilityMap.forEach((entry: any, uniqueIdentifier: any) => {
         if (!entry?.data?.[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] || entry?.isDeleted) return;
-        const key = normalizeForMatch(entry.data['HCM_ADMIN_CONSOLE_FACILITY_TYPE'], entry.data['HCM_ADMIN_CONSOLE_BOUNDARY_CODE'], entry.data['HCM_ADMIN_CONSOLE_FACILITY_NAME']);
+        const key = outsideHouseholdMatchKey(entry.data['HCM_ADMIN_CONSOLE_FACILITY_TYPE'], entry.data[OUTSIDE_HOUSEHOLD_CATEGORY_KEY],
+            entry.data['HCM_ADMIN_CONSOLE_BOUNDARY_CODE'], entry.data['HCM_ADMIN_CONSOLE_FACILITY_NAME']);
         if (!index.has(key)) index.set(key, uniqueIdentifier);
     });
     return index;
@@ -1254,8 +1261,8 @@ function buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap: Map<any
 
 /**
  * Resolves a site row's clientReferenceId: the pre-filled hidden column when present; else the
- * stored, undeleted row of this campaign with the same normalised (type, boundary, name); else a new
- * UUID. Rows with the same (type, boundary, name) share one site, the same way facility rows with
+ * stored, undeleted row of this campaign with the same normalised (type, category, boundary, name); else a new
+ * UUID. Rows with the same (type, category, boundary, name) share one site, the same way facility rows with
  * the same name share one facility.
  */
 function resolveOutsideHouseholdClientReferenceId(
@@ -1265,7 +1272,8 @@ function resolveOutsideHouseholdClientReferenceId(
     const prefilled = String(outsideHouseholdRow[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] ?? '').trim();
     if (prefilled) return prefilled;
 
-    const key = normalizeForMatch(outsideHouseholdRow[OUTSIDE_HOUSEHOLD_TYPE_KEY], outsideHouseholdRow[OUTSIDE_HOUSEHOLD_BOUNDARY_CODE_KEY], outsideHouseholdRow[OUTSIDE_HOUSEHOLD_NAME_KEY]);
+    const key = outsideHouseholdMatchKey(outsideHouseholdRow[OUTSIDE_HOUSEHOLD_TYPE_KEY], outsideHouseholdRow[OUTSIDE_HOUSEHOLD_CATEGORY_KEY],
+        outsideHouseholdRow[OUTSIDE_HOUSEHOLD_BOUNDARY_CODE_KEY], outsideHouseholdRow[OUTSIDE_HOUSEHOLD_NAME_KEY]);
     const candidate = storedOutsideHouseholdNormalizedIndex.get(key);
     if (candidate) return candidate;
 

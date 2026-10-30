@@ -98,7 +98,8 @@ import { logger } from '../utils/logger';
 import {
     convertOutsideHouseholdRowsToFacilityRows,
     isOutsideHouseholdDeliveryDropped,
-    normalizeForMatch,
+    buildStoredOutsideHouseholdNormalizedIndex,
+    outsideHouseholdMatchKey,
     processCampaignFacilitiesFromExcelData,
 } from '../utils/processingResultHandler';
 import { DataTransformer } from '../utils/transFormUtil';
@@ -252,14 +253,14 @@ describe('convertOutsideHouseholdRowsToFacilityRows', () => {
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).toBe('CRID-1');
         });
 
-        it('reuses the stored clientReferenceId of a matching normalised (type, boundary, name) when the row has none', () => {
-            const storedIndex = new Map([[normalizeForMatch('OUTSIDE_HOUSEHOLD_PLACES', 'B2', 'P1'), 'CRID-OLD']]);
+        it('reuses the stored clientReferenceId of a matching normalised (type, category, boundary, name) when the row has none', () => {
+            const storedIndex = new Map([[outsideHouseholdMatchKey('OUTSIDE_HOUSEHOLD_PLACES', 'CAT_A', 'B2', 'P1'), 'CRID-OLD']]);
             const [converted] = convertOutsideHouseholdRowsToFacilityRows([{ rowjson: newOutsideHouseholdRow('P1', 'B2') }], storedIndex);
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).toBe('CRID-OLD');
         });
 
         it('the match is case-insensitive and ignores extra spacing', () => {
-            const storedIndex = new Map([[normalizeForMatch('outside_household_places', 'b2', 'p 1'), 'CRID-OLD']]);
+            const storedIndex = new Map([[outsideHouseholdMatchKey('outside_household_places', ' cat_a ', 'b2', 'p 1'), 'CRID-OLD']]);
             const [converted] = convertOutsideHouseholdRowsToFacilityRows(
                 [{ rowjson: newOutsideHouseholdRow('P  1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_TYPE: 'OUTSIDE_HOUSEHOLD_PLACES' }) }], storedIndex);
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).toBe('CRID-OLD');
@@ -271,12 +272,33 @@ describe('convertOutsideHouseholdRowsToFacilityRows', () => {
             expect(converted.rowjson.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).not.toBe('');
         });
 
-        it('two rows with the same (type, boundary, name) share one site, the same way facility rows with the same name share one facility', () => {
-            const storedIndex = new Map([[normalizeForMatch('OUTSIDE_HOUSEHOLD_PLACES', 'B2', 'P1'), 'CRID-OLD']]);
+        it('two rows with the same (type, category, boundary, name) share one site, the same way facility rows with the same name share one facility', () => {
+            const storedIndex = new Map([[outsideHouseholdMatchKey('OUTSIDE_HOUSEHOLD_PLACES', 'CAT_A', 'B2', 'P1'), 'CRID-OLD']]);
             const [a, b] = convertOutsideHouseholdRowsToFacilityRows(
                 [{ rowjson: newOutsideHouseholdRow('P1', 'B2') }, { rowjson: newOutsideHouseholdRow('P1', 'B2') }], storedIndex);
             expect(a.rowjson.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).toBe('CRID-OLD');
             expect(b.rowjson.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).toBe('CRID-OLD');
+        });
+
+        it('a stored site with another category is a different site: the row gets a new id', () => {
+            const storedIndex = new Map([[outsideHouseholdMatchKey('OUTSIDE_HOUSEHOLD_PLACES', 'CAT_B', 'B2', 'P1'), 'CRID-OLD']]);
+            const [converted] = convertOutsideHouseholdRowsToFacilityRows([{ rowjson: newOutsideHouseholdRow('P1', 'B2') }], storedIndex);
+            expect(converted.rowjson.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).not.toBe('CRID-OLD');
+            expect(converted.rowjson.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).toEqual(expect.any(String));
+        });
+    });
+
+    describe('buildStoredOutsideHouseholdNormalizedIndex', () => {
+        it('keys stored site rows by type, category, boundary and name, and skips deleted rows and facility rows', () => {
+            const stored = new Map<any, any>([
+                ['CRID-1', { data: { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID: 'CRID-1', HCM_ADMIN_CONSOLE_FACILITY_TYPE: 'OUTSIDE_HOUSEHOLD_PLACES',
+                    HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY: 'CAT_A', HCM_ADMIN_CONSOLE_BOUNDARY_CODE: 'B2', HCM_ADMIN_CONSOLE_FACILITY_NAME: 'P1' } }],
+                ['CRID-2', { isDeleted: true, data: { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID: 'CRID-2', HCM_ADMIN_CONSOLE_FACILITY_TYPE: 'OUTSIDE_HOUSEHOLD_PLACES',
+                    HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY: 'CAT_B', HCM_ADMIN_CONSOLE_BOUNDARY_CODE: 'B2', HCM_ADMIN_CONSOLE_FACILITY_NAME: 'P1' } }],
+                ['F1', { data: { HCM_ADMIN_CONSOLE_FACILITY_NAME: 'F1', HCM_ADMIN_CONSOLE_BOUNDARY_CODE: 'B2' } }],
+            ]);
+            const index = buildStoredOutsideHouseholdNormalizedIndex(stored);
+            expect(Array.from(index.entries())).toEqual([[outsideHouseholdMatchKey('OUTSIDE_HOUSEHOLD_PLACES', 'CAT_A', 'B2', 'P1'), 'CRID-1']]);
         });
     });
 });

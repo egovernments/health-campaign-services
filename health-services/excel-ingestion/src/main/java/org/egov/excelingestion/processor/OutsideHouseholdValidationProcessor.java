@@ -166,10 +166,11 @@ public class OutsideHouseholdValidationProcessor implements IWorkbookProcessor {
     }
 
     /**
-     * A site is its type + boundary + name (case and extra spaces ignored, as project-factory matches sites).
+     * A site is its type + category + boundary + name (case and extra spaces ignored, as project-factory matches sites).
      * A row the planner adds (no site id yet) that repeats another row is an error, like a repeated name in the
      * Facilities List. Pre-filled rows are sites that already exist, so they are never errors themselves, even if
-     * two of them share a name. Rows without a type, boundary or name are left to the other checks.
+     * two of them share a name. Rows without a type, boundary or name are left to the other checks; a blank category
+     * counts as its own value.
      */
     private void validateNoDuplicateSites(List<Map<String, Object>> sheetData, List<ValidationError> errors,
                                           Map<String, String> localizationMap) {
@@ -197,16 +198,22 @@ public class OutsideHouseholdValidationProcessor implements IWorkbookProcessor {
         return trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY))) != null;
     }
 
-    /** type|boundary|name with the name lower-cased and spaces collapsed; null when any part is missing. */
+    /**
+     * type|category|boundary|name with the name lower-cased and spaces collapsed; null when type, boundary or name is
+     * missing. A blank category is kept as an empty part, so it only matches another blank category.
+     */
     private static String siteKey(Map<String, Object> rowData) {
         String type = OutsideHouseholdTypeMasterService.normalize(
                 ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY)));
+        String category = OutsideHouseholdTypeMasterService.normalize(
+                ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY)));
         String boundaryCode = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY)));
         String name = trimToNull(ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY)));
         if (type == null || boundaryCode == null || name == null) {
             return null;
         }
-        return type + "|" + boundaryCode + "|" + name.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+        return type + "|" + (category == null ? "" : category) + "|" + boundaryCode + "|"
+                + name.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }
 
     private ValidationError error(Map<String, Object> rowData, String column, Map<String, String> localizationMap,

@@ -243,7 +243,7 @@ No new Kafka topics, database migrations or persister changes.
 | `HCM_OUTSIDE_HOUSEHOLD_BOUNDARY_REQUIRED` | No boundary selected |
 | `HCM_OUTSIDE_HOUSEHOLD_BOUNDARY_INVALID_LEVEL` | Boundary not on the lowest or second-lowest level |
 | `HCM_OUTSIDE_HOUSEHOLD_CATEGORY_NOT_FOR_TYPE` | Category does not belong to the site type |
-| `HCM_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE` | A **new** row repeats another site (same type, boundary and name); pre-filled rows are not checked |
+| `HCM_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE` | A **new** row repeats another site (same type, category, boundary and name); pre-filled rows are not checked |
 | `IMMUTABLE_CELL_TAMPERED` | A locked column of a pre-filled row was changed |
 
 ### Known Limits

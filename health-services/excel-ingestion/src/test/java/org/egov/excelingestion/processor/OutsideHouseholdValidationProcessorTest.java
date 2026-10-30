@@ -108,7 +108,7 @@ class OutsideHouseholdValidationProcessorTest {
 
     @Test
     void aRepeatedSiteIsARowErrorOnTheLaterRow() {
-        // Same type + boundary + name, also when only case / spacing differ: later rows are errors
+        // Same type + category + boundary + name, also when only case / spacing differ: later rows are errors
         Map<String, Object> first = validRow(3, "Active", "V1");
         first.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Main Market");
         Map<String, Object> repeat = validRow(4, "Inactive", "V1");
@@ -119,11 +119,19 @@ class OutsideHouseholdValidationProcessorTest {
         otherType.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Main Market");
         otherType.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY, "TRANSIT_POST");
         otherType.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY, "BUS_STATION");
+        Map<String, Object> otherCategory = validRow(7, "Active", "V1");
+        otherCategory.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Main Market");
+        otherCategory.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY, "MARKET");
+        Map<String, Object> repeatLowerCaseCategory = validRow(8, "Active", "V1");
+        repeatLowerCaseCategory.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, "Main Market");
+        repeatLowerCaseCategory.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY, " market ");
 
-        List<ValidationError> errors = run(List.of(first, repeat, otherBoundary, otherType));
+        List<ValidationError> errors = run(List.of(first, repeat, otherBoundary, otherType, otherCategory, repeatLowerCaseCategory));
 
-        assertEquals(1, errors.size(), errors.toString());
+        // Rows 5-7 differ in boundary, type or category; row 8 repeats row 7 (category case and spacing ignored)
+        assertEquals(2, errors.size(), errors.toString());
         assertEquals(4, errors.get(0).getRowNumber());
+        assertEquals(8, errors.get(1).getRowNumber());
         assertEquals(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, errors.get(0).getColumnName());
         assertEquals(ValidationConstants.DEFAULT_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE, errors.get(0).getErrorDetails());
     }
