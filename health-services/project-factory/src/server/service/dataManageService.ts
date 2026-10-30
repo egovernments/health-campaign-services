@@ -511,6 +511,22 @@ function addMissingDistributorsFromUserRows(
     }
 }
 
+/** DH codes of the requester's own campaign user rows, so a DH user only sees the distributors under their own DH. */
+function findRequesterDhCodes(userRows: unknown, requesterUuid: string): Set<string> {
+    const dhCodes = new Set<string>();
+    if (!requesterUuid || !Array.isArray(userRows)) return dhCodes;
+    for (const userRow of userRows) {
+        if (userRow?.isDeleted) continue;
+        const row = (userRow?.data || {}) as Record<string, unknown>;
+        const isRequester = textValue(userRow?.uniqueIdAfterProcess) === requesterUuid
+            || textValue(row[USER_SERVICE_UUID_COLUMN]) === requesterUuid;
+        if (!isRequester) continue;
+        const dhCode = textValue(row[BOUNDARY_CODE_MANDATORY_COLUMN]) || textValue(row[BOUNDARY_CODE_COLUMN]);
+        if (dhCode) dhCodes.add(dhCode);
+    }
+    return dhCodes;
+}
+
 const searchDistributorsByDhService = async (request: any) => {
     const searchCriteria = request?.body?.SearchCriteria;
     const pagination = request?.body?.Pagination;
@@ -558,24 +574,35 @@ const searchDistributorsByDhService = async (request: any) => {
             .filter(Boolean)
     );
 
-    const sheetMap = await AttendanceRegisterUserBulkMappingTemplateClass.generate(
-        generationtTemplateConfigs.attendanceRegisterUserBulkMapping,
-        {
-            tenantId,
-            campaignId,
-            hierarchyType,
-            requestInfo: request?.body?.RequestInfo
-        },
-        {}
-    );
+    const userRows = await getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed);
+    // Lazy: cryptUtils derives its key from config at import time, which must not run for every importer of this service.
+    const { decrypt } = await import("../utils/cryptUtils");
+
+    // Only the requester's own DH is visible; a requester without a DH in the campaign user data sees nothing.
+    const requesterDhCodes = findRequesterDhCodes(userRows, textValue(request?.body?.RequestInfo?.userInfo?.uuid));
+    const dhFilter = requestedDhCodes.size > 0
+        ? new Set(Array.from(requesterDhCodes).filter((dhCode) => requestedDhCodes.has(dhCode)))
+        : requesterDhCodes;
+    const matchesNothing = dhFilter.size === 0;
+    logger.info(`distributor-by-dh DH filter: ${matchesNothing ? "none (requester has no DH in the campaign user data or localityCodes are outside it)" : Array.from(dhFilter).join(",")}`);
+
+    const sheetMap = matchesNothing
+        ? undefined
+        : await AttendanceRegisterUserBulkMappingTemplateClass.generate(
+            generationtTemplateConfigs.attendanceRegisterUserBulkMapping,
+            {
+                tenantId,
+                campaignId,
+                hierarchyType,
+                requestInfo: request?.body?.RequestInfo
+            },
+            {}
+        );
 
     const workerRows = Array.isArray(sheetMap?.[attendanceSheetNames.WORKER]?.data)
         ? sheetMap[attendanceSheetNames.WORKER].data
         : [];
 
-    const userRows = await getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed);
-    // Lazy: cryptUtils derives its key from config at import time, which must not run for every importer of this service.
-    const { decrypt } = await import("../utils/cryptUtils");
     const userUuidLookup = buildUserUuidLookup(userRows, decrypt);
 
     const distributorsByDh = new Map<string, {
@@ -592,7 +619,7 @@ const searchDistributorsByDhService = async (request: any) => {
 
         const dhCode = textValue(row[BOUNDARY_CODE_MANDATORY_COLUMN]) || textValue(row[BOUNDARY_CODE_COLUMN]);
         if (!dhCode) continue;
-        if (requestedDhCodes.size > 0 && !requestedDhCodes.has(dhCode)) continue;
+        if (!dhFilter.has(dhCode)) continue;
 
         const workerId = textValue(row[WORKER_ID_COLUMN]);
         const userName = textValue(row[USERNAME_COLUMN]);
@@ -616,7 +643,9 @@ const searchDistributorsByDhService = async (request: any) => {
         group.distributors.push({ uuid, userName, name });
     }
 
-    addMissingDistributorsFromUserRows(distributorsByDh, userRows, requestedDhCodes, decrypt);
+    if (!matchesNothing) {
+        addMissingDistributorsFromUserRows(distributorsByDh, userRows, dhFilter, decrypt);
+    }
 
     const unresolvedUserNames = Array.from(distributorsByDh.values())
         .flatMap((group) => group.distributors)
