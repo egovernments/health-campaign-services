@@ -134,6 +134,9 @@ const config = {
     // A save that leaves out a clone's cloneFrom / clonedCampaignId (the console's final create does) keeps the saved
     // values, so the clone can still use its source's file; "false" stores what the save sends, as before
     keepCloneLineageOnUpdate: (process.env.CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE || "true").toLowerCase() !== "false",
+    // A clone's site rows without a clientReferenceId (rows its source typed in) reuse the source's site with the same
+    // type, category, boundary and name instead of creating a copy; "false" creates new sites, as before
+    outsideHouseholdReuseCloneSourceSites: (process.env.OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 

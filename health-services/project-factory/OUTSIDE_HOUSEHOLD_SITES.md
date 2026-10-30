@@ -182,10 +182,11 @@ The attached file must match the template, and the template follows the campaign
 | Clone with the same choice as its source (both with, or both without, OH) | Unchanged: the clone keeps the source's file. |
 | Clone whose choice changes back to its source's (e.g. OH removed, then added again) | The source's file is attached again, as on a fresh clone, unless that save brings a file of its own (`reattachCloneSourceFileIfChoiceAgrees`). |
 | Clone created with a different choice from its source | The source's file is not kept, and it is not borrowed at create (`isOutsideHouseholdChoiceDifferentFromSource`). The clone's template has the 4th sheet only if the clone uses OH, generated as for any campaign on that hierarchy and area. |
+| Clone that uses its source's file | Site rows the source typed in have no `clientReferenceId` in that file. They are matched to the source's saved sites (type, category, boundary, name), so the clone links the same sites instead of creating copies; the facility service returns the existing site for a known `clientReferenceId`. The clone's own saved rows win over the source's (`addCloneSourceSites`). |
 | Any campaign whose `deliveryMethods` list has no `OUTSIDEHOUSEHOLD` | The Outside Household sheet of an uploaded file is not read, so no site is saved or linked (`isOutsideHouseholdNotSelected`). Without a readable list the sheet is read as before. |
 
 Boundary, campaign type and hierarchy changes keep their existing behaviour. Switches:
-`CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE` and `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED`.
+`CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE`, `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED` and `OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES`.
 
 ### 5. Searching Sites
 The facility and project-facility **tables** hold every site and site link. Only the **default answers** of two searches
@@ -234,6 +235,7 @@ update's own delivery methods, so it does not depend on the stored copy being sa
 | project-factory | `CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE` (`true`) | After an OH choice change the old file is not attached again; a clone with a different OH choice does not keep its source's file |
 | project-factory | `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED` (`true`) | A campaign without OH does not read the Outside Household sheet of an uploaded file |
 | project-factory | `CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE` (`true`) | A save that leaves out a clone's `cloneFrom` / `clonedCampaignId` (the console's final create) keeps the saved values, so the clone can still use its source's file |
+| project-factory | `OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES` (`true`) | A clone matches site rows without a `clientReferenceId` to its source's saved sites and links them, instead of creating copies |
 | project-factory | `EGOV_PROJECT_FACILITY_UPDATE_PATH` (`health-project/facility/v1/_update`) | Updating a link's worker in an edit |
 | project-factory | `BOUNDARY_SYNC_RETRY_DELAY_MS` (`4000`, existing) | Wait between checks before a template rebuild |
 

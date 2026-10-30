@@ -80,7 +80,7 @@ jest.mock('../config', () => ({
         host: { facilityHost: 'http://facility/', projectHost: 'http://project/' },
         paths: { facilitySearch: 'facility/v1/_search', facilityDelete: 'facility/v1/_delete',
             projectFacilitySearch: 'health-project/facility/v1/_search', projectFacilityUpdate: 'health-project/facility/v1/_update' },
-        mapping: { searchPageSize: 100, outsideHouseholdUnlinkOnDeliveryRemoval: true, outsideHouseholdIgnoreSheetWhenNotSelected: true },
+        mapping: { searchPageSize: 100, outsideHouseholdUnlinkOnDeliveryRemoval: true, outsideHouseholdIgnoreSheetWhenNotSelected: true, outsideHouseholdReuseCloneSourceSites: true },
         localisation: { defaultLocale: 'en_IN' },
         DB_CONFIG: { DB_CAMPAIGN_DATA_TABLE_NAME: 'eg_cm_campaign_data' },
         // Page size 1 → sites span multiple pages too.
@@ -367,6 +367,82 @@ describe('a campaign that does not use Outside Household, e.g. a clone that borr
             expect(isOutsideHouseholdNotSelected(using([]))).toBe(false);
             expect(isOutsideHouseholdNotSelected(using(['HOUSEHOLDSTRATEGY', 42]))).toBe(false);
         });
+    });
+});
+
+describe('a clone reuses the sites of its source for rows without a clientReferenceId', () => {
+    const SRC = 'CMP-SRC';
+    const sourceSite = (crid: string, name: string, boundary: string, category = 'CAT_A') => ({
+        uniqueIdentifier: crid,
+        data: { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID: crid, HCM_ADMIN_CONSOLE_FACILITY_TYPE: 'OUTSIDE_HOUSEHOLD_PLACES',
+            HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY: category, HCM_ADMIN_CONSOLE_BOUNDARY_CODE: boundary, HCM_ADMIN_CONSOLE_FACILITY_NAME: name },
+    });
+    const clone = (extra: Record<string, unknown> = {}) =>
+        ({ ...campaignDetails, parentId: null, additionalDetails: { cloneFrom: SRC, cycleData: { deliveryMethods: ['OUTSIDEHOUSEHOLD'] } }, ...extra });
+    const sourceReads = () => getRelatedMock.mock.calls.filter((c: any[]) => c[1] === SRC);
+    const savedSiteIds = (topics: any) => (topics['save-sheet'] || []).filter((d: any) => d.type === 'facility' && d.data?.HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID).map((d: any) => d.uniqueIdentifier);
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        setFacilityLinks([] as any);
+        getRelatedMock.mockImplementation(async (_type: any, number: any) =>
+            (number === SRC ? [sourceSite('SRC-CRID', 'P1', 'B2'), sourceSite('SRC-OTHER', 'P1', 'B2', 'CAT_B')] : []) as any);
+    });
+
+    it('a row the source typed in (no clientReferenceId) reuses the source site, so that site is linked, not a copy', async () => {
+        installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
+        const topics = collectAllTopics();
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+        expect(savedSiteIds(topics)).toEqual(['SRC-CRID']);
+        expect(mapKeys(topics['save-map'])).toEqual(['F1#B1', 'SRC-CRID#B2']);
+    });
+
+    it('matches on category too: another category of the same name is a different site', async () => {
+        installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY: 'CAT_B' })] });
+        const topics = collectAllTopics();
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+        expect(savedSiteIds(topics)).toEqual(['SRC-OTHER']);
+    });
+
+    it('the clone\'s own saved site wins over the source\'s', async () => {
+        getRelatedMock.mockImplementation(async (_type: any, number: any) =>
+            (number === SRC ? [sourceSite('SRC-CRID', 'P1', 'B2')] : [sourceSite('OWN-CRID', 'P1', 'B2')]) as any);
+        installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
+        const topics = collectAllTopics();
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+        expect(savedSiteIds(topics)).toEqual([]);                    // OWN-CRID is already stored: an update, not a new row
+        expect(mapKeys(topics['save-map'])).toEqual(['F1#B1', 'OWN-CRID#B2']);
+    });
+
+    it('does not read a source for a campaign that is not a clone, for an edit, or when the switch is off', async () => {
+        for (const details of [campaignDetails, clone({ parentId: 'parent-id' })]) {
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
+            collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, details);
+        }
+        (config as any).mapping.outsideHouseholdReuseCloneSourceSites = false;
+        try {
+            installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
+            const topics = collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+            expect(savedSiteIds(topics)).not.toContain('SRC-CRID');
+        } finally {
+            (config as any).mapping.outsideHouseholdReuseCloneSourceSites = true;
+        }
+        expect(sourceReads()).toHaveLength(0);
+    });
+
+    it('creates a new site as before when the source cannot be read', async () => {
+        getRelatedMock.mockImplementation(async (_type: any, number: any) => {
+            if (number === SRC) throw new Error('db down');
+            return [] as any;
+        });
+        installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
+        const topics = collectAllTopics();
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+        const ids = savedSiteIds(topics);
+        expect(ids).toHaveLength(1);
+        expect(ids[0]).not.toBe('SRC-CRID');
     });
 });
 

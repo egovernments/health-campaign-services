@@ -1101,6 +1101,9 @@ export async function processCampaignFacilitiesFromExcelData(
             existingFacilities.map((f: any) => [f?.uniqueIdentifier, f])
         );
         const storedOutsideHouseholdNormalizedIndex = buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap);
+        // A clone that uses its source's file: rows the source typed in carry no clientReferenceId, so they are matched
+        // to the source's saved sites too (the clone's own rows win), and the clone links those sites instead of copies.
+        await addCloneSourceSites(campaignDetails, tenantId, storedOutsideHouseholdNormalizedIndex);
         // An edit that removed the Outside Household delivery method: the sheet is not read and the stored
         // sites are demapped (their links removed) instead of being kept by the per-sheet guard below.
         const outsideHouseholdDropped = isOutsideHouseholdDeliveryDropped(campaignDetails, existingFacilityMap);
@@ -1278,6 +1281,31 @@ export function buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap: 
         if (!index.has(key)) index.set(key, uniqueIdentifier);
     });
     return index;
+}
+
+/**
+ * Adds the clone source's saved, undeleted site rows to the index under keys the clone has not got itself. Only for a
+ * clone (cloneFrom, no parent) with the switch on; a failed read of the source leaves the index unchanged.
+ */
+export async function addCloneSourceSites(campaignDetails: any, tenantId: string, index: Map<string, string>): Promise<number> {
+    const sourceNumber = campaignDetails?.additionalDetails?.cloneFrom;
+    if (!config.mapping?.outsideHouseholdReuseCloneSourceSites || !sourceNumber || campaignDetails?.parentId) return 0;
+    try {
+        const sourceRows = await getRelatedDataWithCampaign('facility', sourceNumber, tenantId);
+        const sourceIndex = buildStoredOutsideHouseholdNormalizedIndex(new Map((sourceRows || []).map((f: any) => [f?.uniqueIdentifier, f])));
+        let added = 0;
+        sourceIndex.forEach((clientReferenceId, key) => {
+            if (!index.has(key)) {
+                index.set(key, clientReferenceId);
+                added++;
+            }
+        });
+        if (added > 0) logger.info(`Clone ${campaignDetails?.campaignNumber}: ${added} site(s) of ${sourceNumber} can be reused for rows without a clientReferenceId`);
+        return added;
+    } catch (err: any) {
+        logger.warn(`Could not read the sites of clone source ${sourceNumber}; rows without a clientReferenceId create new sites: ${err?.message ?? err}`);
+        return 0;
+    }
 }
 
 /**
