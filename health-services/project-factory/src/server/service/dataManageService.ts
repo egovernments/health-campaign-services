@@ -36,9 +36,6 @@ const sheetManageGenerationTypes = new Set<string>(
 const downloadGeneratedStatusPollIntervalMs = 1000;
 const downloadGeneratedStatusPollMaxAttempts = 500;
 const staleInProgressResourceThresholdMs = 5 * 60 * 1000;
-const ALWAYS_FRESH_DOWNLOAD_TYPES = new Set<string>([
-    "attendanceRegisterUserBulkMapping"
-]);
 
 const DISTRIBUTOR_ROLE_CODE = "DISTRIBUTOR";
 const WORKER_ID_COLUMN = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
@@ -135,7 +132,6 @@ const downloadDataService = async (request: express.Request) => {
     const localityCode = request?.query?.localityCode ? String(request?.query?.localityCode) : undefined;
     const forceUpdate = String(request?.query?.forceUpdate || "") === "true";
     const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "null";
-    const shouldBypassReuse = ALWAYS_FRESH_DOWNLOAD_TYPES.has(type);
 
     if (!hasRequestedGeneratedId) {
         const requestLocalityKey = localityKeyOf({ additionalDetails: { localityCode } });
@@ -151,12 +147,10 @@ const downloadDataService = async (request: express.Request) => {
         );
         const latestResource = newestForLocality(candidates || [], requestLocalityKey);
         const hasFreshInProgressResource =
-            !shouldBypassReuse
-            && latestResource?.status === generatedResourceStatuses.inprogress
+            latestResource?.status === generatedResourceStatuses.inprogress
             && !isStaleInProgressResource(latestResource);
         const hasReusableCompletedResource =
-            !shouldBypassReuse
-            && !forceUpdate
+            !forceUpdate
             && isReusableCompletedResource(latestResource);
 
         if (hasFreshInProgressResource || hasReusableCompletedResource) {
@@ -167,10 +161,7 @@ const downloadDataService = async (request: express.Request) => {
             );
         } else {
             if (latestResource?.status === generatedResourceStatuses.inprogress) {
-                const reason = shouldBypassReuse
-                    ? "reuse disabled for this type"
-                    : "stale in-progress resource";
-                logger.warn(`Found in-progress generation id=${latestResource.id}; creating a fresh one (${reason}).`);
+                logger.warn(`Found in-progress generation id=${latestResource.id}; creating a fresh one (stale in-progress resource).`);
             } else {
                 logger.info(`Generating fresh template for download — campaignId=${campaignId}, type=${type}`);
             }
