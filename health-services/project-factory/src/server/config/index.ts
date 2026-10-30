@@ -122,6 +122,21 @@ const config = {
     bulkConfirmMaxAttempts: process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS ? parseInt(process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS, 10) : 5,
 
     maxRetries: process.env.MAPPING_MAX_RETRY_COUNT ? parseInt(process.env.MAPPING_MAX_RETRY_COUNT, 10) : 3,
+    // An edit that removes the Outside Household delivery method unlinks the campaign's sites; "false" keeps them linked
+    outsideHouseholdUnlinkOnDeliveryRemoval: (process.env.OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL || "true").toLowerCase() !== "false",
+    // A campaign whose delivery methods do not include Outside Household does not read the Outside Household sheet of
+    // an uploaded file (e.g. one a clone borrowed from its source); "false" reads it as before
+    outsideHouseholdIgnoreSheetWhenNotSelected: (process.env.OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED || "true").toLowerCase() !== "false",
+    // Files deactivated by a configuration change (boundaries, campaign type, hierarchy, Outside Household choice) are not
+    // attached again from the same save, and a clone does not keep its source's file when its Outside Household choice
+    // differs; "false" keeps the old behaviour
+    detachStaleResourcesOnConfigChange: (process.env.CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE || "true").toLowerCase() !== "false",
+    // A save that leaves out a clone's cloneFrom / clonedCampaignId (the console's final create does) keeps the saved
+    // values, so the clone can still use its source's file; "false" stores what the save sends, as before
+    keepCloneLineageOnUpdate: (process.env.CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE || "true").toLowerCase() !== "false",
+    // A clone's site rows without a clientReferenceId (rows its source typed in) reuse the source's site with the same
+    // type, category, boundary and name instead of creating a copy; "false" creates new sites, as before
+    outsideHouseholdReuseCloneSourceSites: (process.env.OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 
@@ -298,6 +313,7 @@ const config = {
     staffCreate: process.env.EGOV_PROJECT_STAFF_CREATE_PATH || "health-project/staff/v1/_create",
     projectResourceCreate: process.env.EGOV_PROJECT_RESOURCE_CREATE_PATH || "health-project/resource/v1/_create",
     projectFacilityCreate: process.env.EGOV_PROJECT_RESOURCE_FACILITY_PATH || "health-project/facility/v1/_create",
+    projectFacilityUpdate: process.env.EGOV_PROJECT_FACILITY_UPDATE_PATH || "health-project/facility/v1/_update",
     staffBulkCreate: process.env.EGOV_PROJECT_STAFF_BULK_CREATE_PATH || "health-project/staff/v1/bulk/_create",
     projectResourceBulkCreate: process.env.EGOV_PROJECT_RESOURCE_BULK_CREATE_PATH || "health-project/resource/v1/bulk/_create",
     projectFacilityBulkCreate: process.env.EGOV_PROJECT_FACILITY_BULK_CREATE_PATH || "health-project/facility/v1/bulk/_create",

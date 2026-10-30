@@ -3,10 +3,13 @@ package org.egov.facility.service;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.models.facility.FacilityRequest;
+import org.egov.common.models.facility.FacilitySearchRequest;
+import org.egov.common.models.facility.FacilitySearch;
 import org.egov.common.validator.Validator;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
 import org.egov.facility.helper.FacilityRequestTestBuilder;
+import org.egov.facility.helper.FacilityTestBuilder;
 import org.egov.facility.repository.FacilityRepository;
 import org.egov.facility.service.enrichment.FacilityEnrichmentService;
 import org.egov.facility.validator.FIsDeletedValidator;
@@ -18,17 +21,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -36,8 +42,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class FacilityServiceTest {
@@ -69,6 +77,9 @@ class FacilityServiceTest {
 
     @Mock
     private FacilityConfiguration configuration;
+
+    @Mock
+    private BoundaryDescendantService boundaryDescendantService;
 
     List<Validator<FacilityBulkRequest, Facility>> validators;
 
@@ -129,6 +140,153 @@ class FacilityServiceTest {
 
         assertEquals(1, facility.size());
         verify(repository, times(1)).save(anyList(), eq("create-facility-topic"));
+    }
+
+    private Facility facilityWithClientReferenceId(String clientReferenceId) {
+        Facility facility = FacilityTestBuilder.builder().withFacility().build();
+        facility.setClientReferenceId(clientReferenceId);
+        return facility;
+    }
+
+    private Facility savedFacility(String id, String clientReferenceId, String tenantId) {
+        Facility facility = FacilityTestBuilder.builder().withFacility().withId(id).build();
+        facility.setClientReferenceId(clientReferenceId);
+        facility.setTenantId(tenantId);
+        return facility;
+    }
+
+    @Test
+    @DisplayName("should return the saved facility and not save again when its clientReferenceId is already saved")
+    void shouldReturnSavedFacilityWhenClientReferenceIdAlreadySaved() throws Exception {
+        when(configuration.getReturnExistingOnDuplicateClientReferenceId()).thenReturn(true);
+        Facility saved = savedFacility("F-1", "crid-1", "default");
+        when(repository.findByClientReferenceIdFromDb(eq("default"), eq(List.of("crid-1")))).thenReturn(List.of(saved));
+        FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder()
+                .withFacility(new ArrayList<>(List.of(facilityWithClientReferenceId("crid-1")))).withRequestInfo().build();
+
+        List<Facility> result = facilityService.create(request, false);
+
+        assertEquals(1, result.size());
+        assertSame(saved, result.get(0));
+        verify(enrichmentService, never()).create(anyList(), any(FacilityBulkRequest.class));
+        verify(repository, never()).save(anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("should create only the new facilities and keep request order when some are already saved")
+    void shouldCreateOnlyNewFacilitiesWhenSomeAreAlreadySaved() throws Exception {
+        when(configuration.getReturnExistingOnDuplicateClientReferenceId()).thenReturn(true);
+        Facility saved = savedFacility("F-1", "crid-1", "default");
+        when(repository.findByClientReferenceIdFromDb(eq("default"), anyList())).thenReturn(List.of(saved));
+        Facility repeated = facilityWithClientReferenceId("crid-1");
+        Facility fresh = facilityWithClientReferenceId("crid-2");
+        FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder()
+                .withFacility(new ArrayList<>(List.of(fresh, repeated))).withRequestInfo().build();
+
+        List<Facility> result = facilityService.create(request, false);
+
+        assertEquals(2, result.size());
+        assertSame(fresh, result.get(0));
+        assertSame(saved, result.get(1));
+        ArgumentCaptor<List<Facility>> created = ArgumentCaptor.forClass(List.class);
+        verify(repository, times(1)).save(created.capture(), eq("create-facility-topic"));
+        assertEquals(List.of(fresh), created.getValue());
+        verify(enrichmentService, times(1)).create(eq(List.of(fresh)), any(FacilityBulkRequest.class));
+    }
+
+    @Test
+    @DisplayName("should create as before without looking up when the switch is off")
+    void shouldCreateAsBeforeWhenSwitchIsOff() throws Exception {
+        when(configuration.getReturnExistingOnDuplicateClientReferenceId()).thenReturn(false);
+        FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder()
+                .withFacility(new ArrayList<>(List.of(facilityWithClientReferenceId("crid-1")))).withRequestInfo().build();
+
+        List<Facility> result = facilityService.create(request, false);
+
+        assertEquals(1, result.size());
+        verify(repository, never()).findByClientReferenceIdFromDb(anyString(), anyList());
+        verify(repository, times(1)).save(anyList(), eq("create-facility-topic"));
+    }
+
+    @Test
+    @DisplayName("should not look up when no facility has a clientReferenceId")
+    void shouldNotLookUpWithoutClientReferenceId() throws Exception {
+        when(configuration.getReturnExistingOnDuplicateClientReferenceId()).thenReturn(true);
+        FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacility().withRequestInfo().build();
+
+        facilityService.create(request, false);
+
+        verify(repository, never()).findByClientReferenceIdFromDb(anyString(), anyList());
+        verify(repository, times(1)).save(anyList(), eq("create-facility-topic"));
+    }
+
+    @Test
+    @DisplayName("should not return a saved facility of another tenant")
+    void shouldNotReturnSavedFacilityOfAnotherTenant() throws Exception {
+        when(configuration.getReturnExistingOnDuplicateClientReferenceId()).thenReturn(true);
+        when(repository.findByClientReferenceIdFromDb(anyString(), anyList()))
+                .thenReturn(List.of(savedFacility("F-9", "crid-1", "other")));
+        Facility facility = facilityWithClientReferenceId("crid-1");
+        FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder()
+                .withFacility(new ArrayList<>(List.of(facility))).withRequestInfo().build();
+
+        List<Facility> result = facilityService.create(request, false);
+
+        assertSame(facility, result.get(0));
+        verify(repository, times(1)).save(anyList(), eq("create-facility-topic"));
+    }
+
+    @Test
+    @DisplayName("should create as before when the lookup fails")
+    void shouldCreateAsBeforeWhenLookupFails() throws Exception {
+        when(configuration.getReturnExistingOnDuplicateClientReferenceId()).thenReturn(true);
+        when(repository.findByClientReferenceIdFromDb(anyString(), anyList())).thenThrow(new RuntimeException("db down"));
+        FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder()
+                .withFacility(new ArrayList<>(List.of(facilityWithClientReferenceId("crid-1")))).withRequestInfo().build();
+
+        List<Facility> result = facilityService.create(request, false);
+
+        assertEquals(1, result.size());
+        verify(repository, times(1)).save(anyList(), eq("create-facility-topic"));
+    }
+
+    private FacilitySearchRequest siteSearch(String boundaryCode) {
+        FacilitySearch search = FacilitySearch.builder().usage("OUTSIDE_HOUSEHOLD_PLACES").localityCode(boundaryCode).build();
+        return FacilitySearchRequest.builder().facility(search).build();
+    }
+
+    @Test
+    @DisplayName("includeDescendants with a boundaryCode searches the boundary and every boundary below it")
+    void shouldSearchBoundariesBelowWhenIncludeDescendants() throws Exception {
+        when(boundaryDescendantService.getCodesAtAndBelow(eq("dev"), eq("DISTRICT"), any()))
+                .thenReturn(List.of("DISTRICT", "VILLAGE_1", "VILLAGE_2"));
+        FacilitySearchRequest request = siteSearch("DISTRICT");
+
+        facilityService.search(request, 100, 0, "dev", null, false, true);
+
+        verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, List.of("DISTRICT", "VILLAGE_1", "VILLAGE_2"));
+    }
+
+    @Test
+    @DisplayName("without includeDescendants the boundaryCode is matched exactly, as before")
+    void shouldMatchBoundaryExactlyWithoutIncludeDescendants() throws Exception {
+        FacilitySearchRequest request = siteSearch("DISTRICT");
+
+        facilityService.search(request, 100, 0, "dev", null, false);
+
+        verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, null);
+        verify(boundaryDescendantService, never()).getCodesAtAndBelow(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("includeDescendants without a boundaryCode changes nothing")
+    void shouldIgnoreIncludeDescendantsWithoutBoundaryCode() throws Exception {
+        FacilitySearchRequest request = siteSearch(null);
+
+        facilityService.search(request, 100, 0, "dev", null, false, true);
+
+        verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, null);
+        verify(boundaryDescendantService, never()).getCodesAtAndBelow(anyString(), anyString(), any());
     }
 
     @Test

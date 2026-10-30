@@ -171,7 +171,8 @@ public class ExcelProcessingService {
                 // which compares uploaded cells against the generated baseline while both are still
                 // localized, and BEFORE validation/processors/persistence, all of which match these
                 // values by exact string equality - as does project-factory downstream.
-                enumValueNormalizer.normalizeToCanonical(workbook, resource, sheetNameToSchema, mergedLocalizationMap);
+                List<EnumValueNormalizer.NormalizedCell> normalizedEnumCells =
+                        enumValueNormalizer.normalizeToCanonical(workbook, resource, sheetNameToSchema, mergedLocalizationMap);
 
                 // Resolve boundary codes for user-entered rows from the workbook's own lookup mapping.
                 // Scaffold-less templates carry no per-row VLOOKUP formulas, so blank code cells are
@@ -252,6 +253,10 @@ public class ExcelProcessingService {
                     configBasedProcessingService.handlePostProcessing(
                             sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData, request.getRequestInfo());
                 }
+
+                // Validation, processors and persistence have used the canonical values; the processed file the
+                // user previews and downloads shows the localized labels they uploaded (issue #2381).
+                restoreLocalizedEnumLabels(workbook, normalizedEnumCells);
 
                 // Upload the processed Excel file
                 String processedFileStoreId = uploadProcessedExcel(workbook, resource);
@@ -441,6 +446,18 @@ public class ExcelProcessingService {
      * Updates resource with processing results
      * Error counts and validation status are already enriched during processing
      */
+    /** Puts the user's localized dropdown labels back for the processed file; never fails the upload. */
+    private void restoreLocalizedEnumLabels(Workbook workbook, List<EnumValueNormalizer.NormalizedCell> normalizedEnumCells) {
+        if (!config.isKeepLocalizedEnumValuesInProcessedFile()) {
+            return;
+        }
+        try {
+            enumValueNormalizer.restoreLocalizedLabels(workbook, normalizedEnumCells);
+        } catch (Exception e) {
+            log.warn("Could not restore localized enum labels in the processed file; it keeps the codes: {}", e.getMessage());
+        }
+    }
+
     private ProcessResource updateResourceWithResults(ProcessResource resource, String processedFileStoreId) {
 
         // Processing is complete, so status is PROCESSED regardless of validation errors

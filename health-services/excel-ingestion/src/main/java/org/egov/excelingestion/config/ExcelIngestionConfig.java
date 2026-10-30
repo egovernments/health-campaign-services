@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
+import java.util.List;
 
 @Component
 @Getter
@@ -38,6 +39,13 @@ public class ExcelIngestionConfig {
 
     @Value("${egov.campaign.host}")
     private String campaignHost;
+
+    @Value("${excel.ingestion.outside.household.campaign.types:POLIO}")
+    private List<String> outsideHouseholdCampaignTypes;
+
+    // Put the user's localized dropdown labels back into the processed file after validation (codes stay in the saved data)
+    @Value("${excel.ingestion.processed.file.keep.localized.enum.values:true}")
+    private boolean keepLocalizedEnumValuesInProcessedFile;
 
     @Value("${egov.campaign.data.search.path}")
     private String campaignDataSearchPath;

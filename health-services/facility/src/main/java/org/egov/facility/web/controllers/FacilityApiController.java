@@ -27,6 +27,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMethod;
 
 @Controller
@@ -110,7 +111,8 @@ public class FacilityApiController {
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<FacilityBulkResponse> facilityV1SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
-            @ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilitySearchRequest request
+            @ApiParam(value = "Details for existing facility.", required = true) @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") boolean includeDescendants,
+            @Valid @RequestBody FacilitySearchRequest request
     ) throws Exception {
         SearchResponse<Facility> searchResponse = facilityService.search(
                 request,
@@ -118,7 +120,8 @@ public class FacilityApiController {
                 urlParams.getOffset(),
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
-                urlParams.getIncludeDeleted());
+                urlParams.getIncludeDeleted(),
+                includeDescendants);
         FacilityBulkResponse response = FacilityBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true))
                 .facilities(searchResponse.getResponse())

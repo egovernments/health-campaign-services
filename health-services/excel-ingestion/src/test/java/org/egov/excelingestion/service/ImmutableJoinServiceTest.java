@@ -262,6 +262,40 @@ class ImmutableJoinServiceTest {
             assertEquals("user changed this", up.get("comment"), "editable column change is kept");
         }
 
+        // reject-on-change: a localized dropdown cell that an earlier request on the same file already turned
+        // into its code (shared row cache) matches the baseline label - not a change; a real change still is.
+        private void stubCategoryColumn() {
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(List.of(
+                    ColumnDef.builder().name("category").enumValues(List.of("SCHOOL", "MARKET"))
+                            .freezeColumnIfFilled(true).build()));
+        }
+
+        private void runWithCategoryLabels() {
+            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, null, new ArrayList<>(),
+                    Map.of("category_SCHOOL", "School", "category_MARKET", "Market"));
+        }
+
+        @Test
+        void rejectOnChange_localizedEnum_codeMatchesLabel_notRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubCategoryColumn();
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "SCHOOL", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "School", ROW_NUM, 3))));
+
+            assertDoesNotThrow(this::runWithCategoryLabels);
+        }
+
+        @Test
+        void rejectOnChange_localizedEnum_realChange_stillRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubCategoryColumn();
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "MARKET", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "School", ROW_NUM, 3))));
+
+            CustomException ex = assertThrows(CustomException.class, this::runWithCategoryLabels);
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+        }
+
         // reject-on-change: a multi-select CHILD cell difference is NOT rejected (restored silently) to avoid
         // false rejects from harmless per-child ordering.
         @Test

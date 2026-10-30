@@ -190,6 +190,19 @@ async function createSingleFacilityFromBatch(
             throw new Error('No facility name found in facility body');
         }
 
+        // Sites carry a clientReferenceId: adopt an existing undeleted facility instead of
+        // recreating it (idempotent on retry/redelivery). A deleted one must never be recreated.
+        if (facilityBody?.clientReferenceId) {
+            const existing = await findFacilityByClientReferenceId(facilityBody.clientReferenceId, facilityBody.tenantId, requestInfo);
+            if (existing) {
+                if (existing.isDeleted) {
+                    throw new Error(`Site facility with clientReferenceId ${facilityBody.clientReferenceId} was deleted; it cannot be recreated`);
+                }
+                logger.info(`Adopting existing facility ${existing.id} for site clientReferenceId ${facilityBody.clientReferenceId}`);
+                return existing;
+            }
+        }
+
         // Create facility via API
         const response = await createFacilityOneByOne(facilityBody, userUuid, requestInfo);
         const createdFacility = response?.Facility;
@@ -204,6 +217,21 @@ async function createSingleFacilityFromBatch(
         logger.error(`Error creating single facility from batch:`, error);
         throw error;
     }
+}
+
+/**
+ * Searches the facility service by clientReferenceId (deleted included, so a deleted site facility
+ * can be told apart from one that was never created).
+ */
+export async function findFacilityByClientReferenceId(clientReferenceId: string, tenantId: string, requestInfo: RequestInfo): Promise<any | null> {
+    const url = config.host.facilityHost + config.paths.facilitySearch;
+    const response = await httpRequest(
+        url,
+        { RequestInfo: requestInfo, Facility: { clientReferenceId: [clientReferenceId] } },
+        { limit: 1, offset: 0, tenantId, includeDeleted: true }
+    );
+    const facilities = Array.isArray(response?.Facilities) ? response.Facilities : [];
+    return facilities[0] ?? null;
 }
 
 /**

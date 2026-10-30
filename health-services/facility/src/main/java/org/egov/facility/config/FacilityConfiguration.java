@@ -41,4 +41,16 @@ public class FacilityConfiguration {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${egov.boundary.relationship.search.url:/boundary-service/boundary-relationships/_search}")
+    private String boundaryRelationshipSearchUrl;
+
+    @Value("${egov.mdms.host}")
+    private String mdmsHost;
+
+    @Value("${egov.mdms.v2.search.path}")
+    private String mdmsV2SearchPath;
+
+    @Value("${facility.create.return.existing.on.duplicate.client.reference.id:true}")
+    private Boolean returnExistingOnDuplicateClientReferenceId;
 }

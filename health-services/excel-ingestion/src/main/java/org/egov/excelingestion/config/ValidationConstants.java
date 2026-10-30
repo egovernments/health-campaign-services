@@ -39,6 +39,26 @@ public class ValidationConstants {
     public static final String DEFAULT_BOUNDARY_INVALID_SELECTION =
             "Selected boundary is not a valid boundary from the dropdown list.";
 
+    // Campaign boundary errors (same keys the facility processor uses)
+    public static final String HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN = "HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN";
+    public static final String DEFAULT_BOUNDARY_CODE_NOT_IN_CAMPAIGN = "Boundary code is not part of campaign boundaries";
+    public static final String HCM_BOUNDARY_VALIDATION_FAILED = "HCM_BOUNDARY_VALIDATION_FAILED";
+    public static final String DEFAULT_BOUNDARY_VALIDATION_FAILED = "Boundary validation failed due to system error";
+
+    // Outside Household sheet - a site must sit on a boundary of the lowest or second lowest hierarchy level
+    public static final String HCM_OUTSIDE_HOUSEHOLD_BOUNDARY_REQUIRED = "HCM_OUTSIDE_HOUSEHOLD_BOUNDARY_REQUIRED";
+    public static final String DEFAULT_OUTSIDE_HOUSEHOLD_BOUNDARY_REQUIRED = "Boundary selection is required for a site";
+    public static final String HCM_OUTSIDE_HOUSEHOLD_BOUNDARY_INVALID_LEVEL = "HCM_OUTSIDE_HOUSEHOLD_BOUNDARY_INVALID_LEVEL";
+    public static final String DEFAULT_OUTSIDE_HOUSEHOLD_BOUNDARY_INVALID_LEVEL =
+            "A site must be at the lowest or second lowest boundary level";
+    // Outside Household sheet - the category must be one of the categories of the row's site type (site-types master)
+    public static final String HCM_OUTSIDE_HOUSEHOLD_CATEGORY_NOT_FOR_TYPE = "HCM_OUTSIDE_HOUSEHOLD_CATEGORY_NOT_FOR_TYPE";
+    public static final String DEFAULT_OUTSIDE_HOUSEHOLD_CATEGORY_NOT_FOR_TYPE = "This category is not allowed for the selected type";
+    // Outside Household sheet - a site (same type, category, boundary and name) must appear only once in the sheet
+    public static final String HCM_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE = "HCM_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE";
+    public static final String DEFAULT_OUTSIDE_HOUSEHOLD_DUPLICATE_SITE =
+            "This site is already in the sheet (same site type, category, boundary and name)";
+
     // Search validation constants
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
     public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";
@@ -112,11 +132,13 @@ public class ValidationConstants {
     public static final String ADDITIONAL_DETAILS_USER_SHEET_STATUS     = "userSheetStatus";
     public static final String ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS = "boundarySheetStatus";
     public static final String ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS = "facilitySheetStatus";
+    public static final String ADDITIONAL_DETAILS_OUTSIDE_HOUSEHOLD_SHEET_STATUS     = "outsideHouseholdSheetStatus";
 
     // Sheet kind identifiers
     public static final String SHEET_KIND_USER     = "user";
     public static final String SHEET_KIND_BOUNDARY = "boundary";
     public static final String SHEET_KIND_FACILITY = "facility";
+    public static final String SHEET_KIND_OUTSIDE_HOUSEHOLD     = "outsideHousehold";
 
     // Per-row JSON keys for downstream consumers (e.g. project-factory).
     // Stored on each persisted rowJson so consumers can tell invalid rows
