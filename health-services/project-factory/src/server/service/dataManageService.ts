@@ -595,9 +595,9 @@ const searchDistributorsByDhService = async (request: any) => {
     const matchesNothing = dhFilter.size === 0;
     logger.info(`distributor-by-dh DH filter: ${matchesNothing ? "none (requester has no DH in the campaign user data or localityCodes are outside it)" : Array.from(dhFilter).join(",")}`);
 
-    const sheetMap = matchesNothing
-        ? undefined
-        : await AttendanceRegisterUserBulkMappingTemplateClass.generate(
+    let workerRows: unknown[] = [];
+    if (!matchesNothing) {
+        const sheetMap = await AttendanceRegisterUserBulkMappingTemplateClass.generate(
             generationtTemplateConfigs.attendanceRegisterUserBulkMapping,
             {
                 tenantId,
@@ -607,10 +607,11 @@ const searchDistributorsByDhService = async (request: any) => {
             },
             {}
         );
-
-    const workerRows = Array.isArray(sheetMap?.[attendanceSheetNames.WORKER]?.data)
-        ? sheetMap[attendanceSheetNames.WORKER].data
-        : [];
+        const workerSheetData = sheetMap?.[attendanceSheetNames.WORKER]?.data;
+        if (Array.isArray(workerSheetData)) {
+            workerRows = workerSheetData;
+        }
+    }
 
     const userUuidLookup = buildUserUuidLookup(userRows, decrypt);
 
