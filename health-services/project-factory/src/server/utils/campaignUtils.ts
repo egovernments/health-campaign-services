@@ -75,6 +75,7 @@ import {
   areBoundariesSame,
   callGenerateIfBoundariesOrCampaignTypeDiffer,
   isGenerationTriggerNeeded,
+  isOutsideHouseholdDeliveryPersisted,
 } from "./generateUtils";
 import {
   generateDynamicTargetHeaders,
@@ -2842,19 +2843,27 @@ async function tryTriggerGenerateIfBoundariesSynced(request: any, expectedBounda
   const campaignId = request?.body?.CampaignDetails?.id;
   const tenantId = request?.body?.CampaignDetails?.tenantId;
 
+  // Boundaries matched but the update's Outside Household choice was not stored yet: the template would miss
+  // (or keep) the Outside Household sheet, so wait for it like for the boundaries.
+  let boundariesMatched = false;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       logger.info(`Checking persisted campaign boundaries. Attempt ${attempt}`);
       const searchResponse = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
-      const persistedBoundaries = searchResponse?.CampaignDetails?.[0]?.boundaries ?? [];
+      const persistedCampaign = searchResponse?.CampaignDetails?.[0];
+      const persistedBoundaries = persistedCampaign?.boundaries ?? [];
 
       if (areBoundariesSame(persistedBoundaries, expectedBoundaries)) {
-        logger.info("Persisted boundaries match request. Triggering generation.");
-        callGenerateIfBoundariesOrCampaignTypeDiffer(request);
-        return;
+        boundariesMatched = true;
+        if (isOutsideHouseholdDeliveryPersisted(request?.body?.CampaignDetails, persistedCampaign)) {
+          logger.info("Persisted boundaries match request. Triggering generation.");
+          callGenerateIfBoundariesOrCampaignTypeDiffer(request);
+          return;
+        }
+        logger.warn(`Persisted campaign does not have the update's Outside Household delivery method yet on attempt ${attempt}. Retrying...`);
+      } else {
+        logger.warn(`Persisted boundaries differ on attempt ${attempt}. Retrying...`);
       }
-
-      logger.warn(`Persisted boundaries differ on attempt ${attempt}. Retrying...`);
     } catch (error: any) {
       logger.error(`Error checking persisted campaign boundaries on attempt ${attempt}: ${error.message}`);
     }
@@ -2862,6 +2871,12 @@ async function tryTriggerGenerateIfBoundariesSynced(request: any, expectedBounda
     if (attempt < maxRetries) {
       await new Promise(resolve => setTimeout(resolve, retryDelayMs));
     }
+  }
+
+  if (boundariesMatched) {
+    logger.warn("Outside Household delivery method not persisted after 4 retries. Triggering generation anyway.");
+    callGenerateIfBoundariesOrCampaignTypeDiffer(request);
+    return;
   }
 
   logger.error("Persisted boundaries did not match after 4 retries. Possible DB sync issue.");

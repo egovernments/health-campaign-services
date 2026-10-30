@@ -1,4 +1,12 @@
 # Changelog
+
+## Unreleased - 2026-10-29
+#### Outside Household sites (HCMPRE-2371)
+  1. Outside Household sheet rows are created as facilities (`usage` = site type, category in `additionalFields`) and, when Active, linked to the campaign's projects with `additionalFields.schema = OutsideHouseholdAssignment` carrying the frontline worker.
+  2. Edit: a changed frontline worker is written onto the existing link; a site set Inactive loses its link.
+  3. Edit that removes `OUTSIDEHOUSEHOLD` from `cycleData.deliveryMethods` deletes every site link of the campaign (guarded; new switch `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`, default `true`).
+  4. A draft update that adds or removes `OUTSIDEHOUSEHOLD` generates a new template.
+  5. New config: `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`, `EGOV_PROJECT_FACILITY_UPDATE_PATH`. See `OUTSIDE_HOUSEHOLD_SITES.md`.
 All notable changes to this module will be documented in this file.
 
 ## 0.1.0 - 2024-05-28

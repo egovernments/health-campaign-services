@@ -48,6 +48,7 @@ public class CampaignSearchResponse {
     @Builder
     public static class AdditionalDetails {
         private String clonedCampaignId;
+        private Object cycleData;
     }
 
     @Data

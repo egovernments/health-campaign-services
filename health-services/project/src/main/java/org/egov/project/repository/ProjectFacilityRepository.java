@@ -2,16 +2,21 @@ package org.egov.project.repository;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectFacility;
+import org.egov.common.models.project.ProjectFacilitySearch;
 import org.egov.common.producer.Producer;
+import org.egov.project.service.OutsideHouseholdTypeService;
 import org.egov.project.repository.rowmapper.ProjectFacilityRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,27 +25,50 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 @Slf4j
 public class ProjectFacilityRepository extends GenericRepository<ProjectFacility> {
+    private final OutsideHouseholdTypeService outsideHouseholdTypeService;
+
     @Autowired
     public ProjectFacilityRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                      RedisTemplate<String, Object> redisTemplate,
-                                     SelectQueryBuilder selectQueryBuilder, ProjectFacilityRowMapper projectFacilityRowMapper) {
+                                     SelectQueryBuilder selectQueryBuilder, ProjectFacilityRowMapper projectFacilityRowMapper,
+                                     OutsideHouseholdTypeService outsideHouseholdTypeService) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
                 projectFacilityRowMapper, Optional.of("project_facility"));
+        this.outsideHouseholdTypeService = outsideHouseholdTypeService;
+    }
+
+    // NOT EXISTS fragment that hides links to a site, i.e. a facility whose usage is an outside household type
+    // (MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES); %s is the facilityId column reference (aliased vs unaliased).
+    private static final String OUTSIDE_HOUSEHOLD_HIDING_NOT_EXISTS_CLAUSE =
+            "AND NOT EXISTS (SELECT 1 FROM " + SCHEMA_REPLACE_STRING + ".facility fac " +
+                    "WHERE fac.id = %s AND fac.usage IN (:outsideHouseholdTypes)) ";
+
+    /** The site-hiding fragment for this tenant, with its parameter added; empty when no site type is configured. */
+    private String outsideHouseholdHidingClause(String facilityIdColumn, String tenantId, Map<String, Object> params) {
+        List<String> siteTypes = outsideHouseholdTypeService.getTypes(tenantId);
+        if (siteTypes.isEmpty()) {
+            return "";
+        }
+        params.put("outsideHouseholdTypes", siteTypes);
+        return String.format(OUTSIDE_HOUSEHOLD_HIDING_NOT_EXISTS_CLAUSE, facilityIdColumn);
     }
 
     /**
      * Finds facility IDs grouped by boundary type for descendants of the given project.
      * Joins PROJECT, PROJECT_ADDRESS, and PROJECT_FACILITY in a single query
      * filtering by projectHierarchy LIKE and boundaryType IN.
+     * Leaves out links to a site facility.
      */
     public Map<String, List<String>> findFacilitiesByDescendants(
             String projectId, List<String> boundaryTypes, String tenantId) throws InvalidTenantIdException {
 
+        Map<String, Object> hidingParams = new HashMap<>();
         String query = "SELECT pf.facilityId, addr.boundaryType " +
                 "FROM " + SCHEMA_REPLACE_STRING + ".project_facility pf " +
                 "JOIN " + SCHEMA_REPLACE_STRING + ".project prj ON pf.projectId = prj.id " +
@@ -48,7 +76,8 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                 "WHERE prj.projectHierarchy LIKE :hierarchyPattern " +
                 "AND LOWER(addr.boundaryType) IN (:boundaryTypes) " +
                 "AND pf.isDeleted = false " +
-                "AND prj.isDeleted = false";
+                "AND prj.isDeleted = false " +
+                outsideHouseholdHidingClause("pf.facilityId", tenantId, hidingParams);
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
@@ -58,6 +87,7 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("hierarchyPattern", "%" + projectId + ".%");
         params.addValue("boundaryTypes", lowerBoundaryTypes);
+        params.addValues(hidingParams);
 
         return executeFacilityQuery(query, params);
     }
@@ -65,10 +95,12 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
     /**
      * Finds facility IDs grouped by boundary type for the given project and its ancestors.
      * Uses specific project IDs (parsed from projectHierarchy) to query directly.
+     * Same site-hiding as {@link #findFacilitiesByDescendants}.
      */
     public Map<String, List<String>> findFacilitiesByAncestors(
             List<String> ancestorProjectIds, List<String> boundaryTypes, String tenantId) throws InvalidTenantIdException {
 
+        Map<String, Object> hidingParams = new HashMap<>();
         String query = "SELECT pf.facilityId, addr.boundaryType " +
                 "FROM " + SCHEMA_REPLACE_STRING + ".project_facility pf " +
                 "JOIN " + SCHEMA_REPLACE_STRING + ".project prj ON pf.projectId = prj.id " +
@@ -76,7 +108,8 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                 "WHERE prj.id IN (:projectIds) " +
                 "AND LOWER(addr.boundaryType) IN (:boundaryTypes) " +
                 "AND pf.isDeleted = false " +
-                "AND prj.isDeleted = false";
+                "AND prj.isDeleted = false " +
+                outsideHouseholdHidingClause("pf.facilityId", tenantId, hidingParams);
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
@@ -86,8 +119,58 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("projectIds", ancestorProjectIds);
         params.addValue("boundaryTypes", lowerBoundaryTypes);
+        params.addValues(hidingParams);
 
         return executeFacilityQuery(query, params);
+    }
+
+    /**
+     * Overrides the inherited generic criteria search to leave out links to a site facility,
+     * unless the search already asks for a specific facilityId or id, in which case the caller
+     * gets exactly what it asked for.
+     */
+    @Override
+    public SearchResponse<ProjectFacility> findWithCount(Object searchObject,
+                                                          Integer limit,
+                                                          Integer offset,
+                                                          String tenantId,
+                                                          Long lastChangedSince,
+                                                          Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
+        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING);
+        query += " AND tenantId=:tenantId ";
+        if (query.contains(tableName + " AND")) {
+            query = query.replace(tableName + " AND", tableName + " WHERE");
+        }
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            query += "AND isDeleted=:isDeleted ";
+        }
+        if (lastChangedSince != null) {
+            query += "AND lastModifiedTime>=:lastModifiedTime ";
+        }
+
+        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
+
+        ProjectFacilitySearch search = (ProjectFacilitySearch) searchObject;
+        boolean callerAskedForSpecificFacility = !CollectionUtils.isEmpty(search.getFacilityId())
+                || !CollectionUtils.isEmpty(search.getId());
+        if (!callerAskedForSpecificFacility) {
+            query += outsideHouseholdHidingClause("facilityId", tenantId, paramsMap);
+        }
+
+        query += "ORDER BY id ASC";
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("isDeleted", includeDeleted);
+        paramsMap.put("lastModifiedTime", lastChangedSince);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, namedParameterJdbcTemplate);
+
+        query += " LIMIT :limit OFFSET :offset";
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+
+        List<ProjectFacility> resultantList = namedParameterJdbcTemplate.query(query, paramsMap, rowMapper);
+
+        return SearchResponse.<ProjectFacility>builder().response(resultantList).totalCount(totalCount).build();
     }
 
     private Map<String, List<String>> executeFacilityQuery(String query, MapSqlParameterSource params) {

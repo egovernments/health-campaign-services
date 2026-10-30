@@ -34,6 +34,45 @@ function isCampaignTypeSame(request: any) {
     return _.isEqual(existingCampaignType, currentCampaignType);
 }
 
+// Delivery-method code that adds the Outside Household sheet to the unified template (excel-ingestion)
+const OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = "OUTSIDEHOUSEHOLD";
+
+/** Whether additionalDetails.cycleData.deliveryMethods (codes or {code} objects) holds OUTSIDEHOUSEHOLD, compared as excel-ingestion does; null when there is no list. */
+function hasOutsideHouseholdDelivery(campaignDetails: any): boolean | null {
+    const methods = campaignDetails?.additionalDetails?.cycleData?.deliveryMethods;
+    if (!Array.isArray(methods)) return null;
+    return methods.some((method: any) => {
+        const code = method && typeof method === "object" ? method.code : method;
+        return typeof code === "string" && code.toUpperCase().replace(/[^A-Z0-9]/g, "") === OUTSIDE_HOUSEHOLD_DELIVERY_METHOD;
+    });
+}
+
+/** True when the update adds or removes OUTSIDEHOUSEHOLD (the template gains or loses its Outside Household sheet); an update without a deliveryMethods list changes nothing. */
+function isOutsideHouseholdDeliveryChanged(request: any): boolean {
+    const incoming = hasOutsideHouseholdDelivery(request?.body?.CampaignDetails);
+    if (incoming === null) return false;
+    return incoming !== (hasOutsideHouseholdDelivery(request?.body?.ExistingCampaignDetails) ?? false);
+}
+
+/**
+ * The update's deliveryMethods and projectType for the generate request, so excel-ingestion decides the Outside Household
+ * sheet from this update rather than from a stored copy that may not have it yet; empty when the update carries neither.
+ */
+export function generationDetailsFromUpdate(campaignDetails: any): Record<string, any> {
+    const details: Record<string, any> = {};
+    const methods = campaignDetails?.additionalDetails?.cycleData?.deliveryMethods;
+    if (Array.isArray(methods)) details.deliveryMethods = methods;
+    if (typeof campaignDetails?.projectType === "string" && campaignDetails.projectType.trim()) details.projectType = campaignDetails.projectType;
+    return details;
+}
+
+/** True when the stored campaign already holds the update's Outside Household choice (or the update carries no deliveryMethods list), so a template generated now gets the right sheets. */
+export function isOutsideHouseholdDeliveryPersisted(incomingCampaign: any, persistedCampaign: any): boolean {
+    const incoming = hasOutsideHouseholdDelivery(incomingCampaign);
+    if (incoming === null) return true;
+    return (hasOutsideHouseholdDelivery(persistedCampaign) ?? false) === incoming;
+}
+
 /** Delegates template generation to the excel-ingestion service; swallows errors so a generate failure never blocks the caller. */
 export async function callExcelIngestionService(requestBody: any, referenceIdOverride?: string, referenceTypeOverride?: string, typeOverride?: string, additionalDetailsOverride?: Record<string, any>) {
     try {
@@ -118,7 +157,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
         const isUnifiedCampaign = campaignDetails?.additionalDetails?.isUnifiedCampaign;
         if(isUnifiedCampaign){
-            await callExcelIngestionService(request?.body);
+            await callExcelIngestionService(request?.body, undefined, undefined, undefined, generationDetailsFromUpdate(campaignDetails));
             return;
         }
 
@@ -199,15 +238,16 @@ export async function triggerGenerate(type: string, tenantId: string, hierarchyT
 
 
 
-/** True (with the new boundaries) when a campaign update changed boundaries, source, or campaign type and templates must be regenerated. */
+/** True (with the new boundaries) when a campaign update changed boundaries, source, campaign type or the Outside Household delivery method and templates must be regenerated. */
 export const isGenerationTriggerNeeded = (request: any) => {
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     const boundaries = request?.body?.CampaignDetails?.boundaries;
     const newBoundaries = boundaries?.filter((boundary: any) => !boundary.insertedAfter) || [];
 
 
-    if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, newBoundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
-        logger.info("Boundaries or Campaign Type  differ, generating new resources");
+    if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, newBoundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)
+        || isOutsideHouseholdDeliveryChanged(request)) {
+        logger.info("Boundaries, Campaign Type or the Outside Household delivery method differ, generating new resources");
         return { trigger: true, newBoundaries };
     }
     return { trigger: false };

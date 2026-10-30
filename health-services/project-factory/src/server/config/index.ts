@@ -122,6 +122,8 @@ const config = {
     bulkConfirmMaxAttempts: process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS ? parseInt(process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS, 10) : 5,
 
     maxRetries: process.env.MAPPING_MAX_RETRY_COUNT ? parseInt(process.env.MAPPING_MAX_RETRY_COUNT, 10) : 3,
+    // An edit that removes the Outside Household delivery method unlinks the campaign's sites; "false" keeps them linked
+    outsideHouseholdUnlinkOnDeliveryRemoval: (process.env.OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 
@@ -298,6 +300,7 @@ const config = {
     staffCreate: process.env.EGOV_PROJECT_STAFF_CREATE_PATH || "health-project/staff/v1/_create",
     projectResourceCreate: process.env.EGOV_PROJECT_RESOURCE_CREATE_PATH || "health-project/resource/v1/_create",
     projectFacilityCreate: process.env.EGOV_PROJECT_RESOURCE_FACILITY_PATH || "health-project/facility/v1/_create",
+    projectFacilityUpdate: process.env.EGOV_PROJECT_FACILITY_UPDATE_PATH || "health-project/facility/v1/_update",
     staffBulkCreate: process.env.EGOV_PROJECT_STAFF_BULK_CREATE_PATH || "health-project/staff/v1/bulk/_create",
     projectResourceBulkCreate: process.env.EGOV_PROJECT_RESOURCE_BULK_CREATE_PATH || "health-project/resource/v1/bulk/_create",
     projectFacilityBulkCreate: process.env.EGOV_PROJECT_FACILITY_BULK_CREATE_PATH || "health-project/facility/v1/bulk/_create",
