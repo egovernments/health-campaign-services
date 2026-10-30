@@ -236,6 +236,7 @@ These environment-tunable keys are new; defaults are shown and match `applicatio
 | `egov.excel.boundary-selection-validation-enabled` | `true` | Server rejects a boundary selection that does not resolve to a boundary code (`HCM_BOUNDARY_INVALID_SELECTION`). |
 | `excel.ingestion.listener.watchdog.interval.ms` | `60000` | Interval for the Kafka listener watchdog that restarts a stopped generation-init consumer. |
 | `excel.ingestion.outside.household.campaign.types` | `POLIO` | Campaign types (projectType codes, comma-separated) that can get the Outside Household sheet. |
+| `excel.ingestion.processed.file.keep.localized.enum.values` | `true` | The processed file shows the localized dropdown labels the user uploaded. Validation, processors and saved sheet data still use the codes (`EnumValueNormalizer`). `false` keeps the codes in the processed file, as before. |
 
 ## 8. Release Version
 

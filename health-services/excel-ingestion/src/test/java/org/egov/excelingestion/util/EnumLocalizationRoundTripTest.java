@@ -206,6 +206,83 @@ class EnumLocalizationRoundTripTest {
         assertEquals("Active", cellValue(sheet, 2, USAGE_COL));
     }
 
+    @Test
+    void processedFileGetsTheUploadedLabelsBackAfterNormalization() {
+        // Issue #2381: codes are for validation and persistence; the processed file shows what the user uploaded
+        List<Map<String, Object>> data = List.of(
+                new HashMap<>(Map.of(STATUS_COL, "Permanent", USAGE_COL, "Inactive")),
+                new HashMap<>(Map.of(STATUS_COL, "Temporary", USAGE_COL, "Active")));
+        Workbook workbook = populator.populateSheetWithData(SHEET_NAME, facilityColumns(), data, localizationMap);
+        Sheet sheet = workbook.getSheet(SHEET_NAME);
+
+        List<EnumValueNormalizer.NormalizedCell> changed = normalizer.normalizeToCanonical(
+                workbook, resource(), Map.of(SHEET_NAME, facilitySchema()), localizationMap);
+        assertEquals(4, changed.size());
+        assertEquals("Permanent", cellValue(sheet, 2, STATUS_COL));
+
+        assertEquals(4, normalizer.restoreLocalizedLabels(workbook, changed));
+
+        assertEquals("Permanent(e)", cellValue(sheet, 2, STATUS_COL));
+        assertEquals("Inactif", cellValue(sheet, 2, USAGE_COL));
+        assertEquals("Temporaire", cellValue(sheet, 3, STATUS_COL));
+        assertEquals("Actif", cellValue(sheet, 3, USAGE_COL));
+    }
+
+    @Test
+    void restoreKeepsTheUsersOwnSpellingOfTheLabel() {
+        List<Map<String, Object>> data = List.of(new HashMap<>(Map.of(STATUS_COL, "Permanent", USAGE_COL, "Active")));
+        Workbook workbook = populator.populateSheetWithData(SHEET_NAME, facilityColumns(), data, localizationMap);
+        Sheet sheet = workbook.getSheet(SHEET_NAME);
+        setCellValue(sheet, 2, USAGE_COL, "Actif");
+
+        List<EnumValueNormalizer.NormalizedCell> changed = normalizer.normalizeToCanonical(
+                workbook, resource(), Map.of(SHEET_NAME, facilitySchema()), localizationMap);
+        normalizer.restoreLocalizedLabels(workbook, changed);
+
+        assertEquals("Actif", cellValue(sheet, 2, USAGE_COL));
+    }
+
+    @Test
+    void aCellWrittenAfterNormalizationIsNotRestored() {
+        List<Map<String, Object>> data = List.of(new HashMap<>(Map.of(STATUS_COL, "Permanent", USAGE_COL, "Active")));
+        Workbook workbook = populator.populateSheetWithData(SHEET_NAME, facilityColumns(), data, localizationMap);
+        Sheet sheet = workbook.getSheet(SHEET_NAME);
+
+        List<EnumValueNormalizer.NormalizedCell> changed = normalizer.normalizeToCanonical(
+                workbook, resource(), Map.of(SHEET_NAME, facilitySchema()), localizationMap);
+        setCellValue(sheet, 2, USAGE_COL, "Inactive"); // a later step wrote this cell
+
+        assertEquals(1, normalizer.restoreLocalizedLabels(workbook, changed));
+
+        assertEquals("Permanent(e)", cellValue(sheet, 2, STATUS_COL));
+        assertEquals("Inactive", cellValue(sheet, 2, USAGE_COL));
+    }
+
+    @Test
+    void unrecognizedValuesAreNotRecordedSoRestoreLeavesThemAlone() {
+        List<Map<String, Object>> data = List.of(new HashMap<>(Map.of(STATUS_COL, "Permanent", USAGE_COL, "Active")));
+        Workbook workbook = populator.populateSheetWithData(SHEET_NAME, facilityColumns(), data, localizationMap);
+        Sheet sheet = workbook.getSheet(SHEET_NAME);
+        setCellValue(sheet, 2, STATUS_COL, "Not a status");
+
+        List<EnumValueNormalizer.NormalizedCell> changed = normalizer.normalizeToCanonical(
+                workbook, resource(), Map.of(SHEET_NAME, facilitySchema()), localizationMap);
+        normalizer.restoreLocalizedLabels(workbook, changed);
+
+        assertEquals(1, changed.size());
+        assertEquals("Not a status", cellValue(sheet, 2, STATUS_COL));
+        assertEquals("Actif", cellValue(sheet, 2, USAGE_COL));
+    }
+
+    @Test
+    void restoreWithNothingRecordedChangesNothing() {
+        assertEquals(0, normalizer.restoreLocalizedLabels(null, null));
+        Workbook workbook = populator.populateSheetWithData(SHEET_NAME, facilityColumns(),
+                List.of(new HashMap<>(Map.of(STATUS_COL, "Permanent", USAGE_COL, "Active"))), localizationMap);
+        assertEquals(0, normalizer.restoreLocalizedLabels(workbook, List.of()));
+        assertEquals("Permanent(e)", cellValue(workbook.getSheet(SHEET_NAME), 2, STATUS_COL));
+    }
+
     // ---------- helpers ----------
 
     /**

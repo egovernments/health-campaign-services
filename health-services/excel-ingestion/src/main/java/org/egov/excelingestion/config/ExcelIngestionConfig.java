@@ -43,6 +43,10 @@ public class ExcelIngestionConfig {
     @Value("${excel.ingestion.outside.household.campaign.types:POLIO}")
     private List<String> outsideHouseholdCampaignTypes;
 
+    // Put the user's localized dropdown labels back into the processed file after validation (codes stay in the saved data)
+    @Value("${excel.ingestion.processed.file.keep.localized.enum.values:true}")
+    private boolean keepLocalizedEnumValuesInProcessedFile;
+
     @Value("${egov.campaign.data.search.path}")
     private String campaignDataSearchPath;
 
