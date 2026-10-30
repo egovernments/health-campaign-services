@@ -73,7 +73,7 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
                         .findFirst().orElse(null);
 
                 if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
-                    String idValue = identifier.getIdentifierId();
+                    String idValue = extractBeneficiaryId(identifier.getIdentifierId());
 
                     // Validate existence of ID
                     if (!idRecordMap.containsKey(idValue)) {
@@ -147,7 +147,9 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
                         .filter(identifier -> UNIQUE_BENEFICIARY_ID.equals(identifier.getIdentifierType()))
                         .findFirst()
                         .stream())
-                .map(identifier -> String.valueOf(identifier.getIdentifierId()))
+                .map(Identifier::getIdentifierId)
+                .filter(Objects::nonNull)
+                .map(IdPoolValidatorForCreate::extractBeneficiaryId)
                 .filter(id -> !isMaskedId(id))
                 .toList();
 
@@ -177,6 +179,8 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
             List<String> identifiers = individual.getIdentifiers().stream()
                     .filter(id -> UNIQUE_BENEFICIARY_ID.equalsIgnoreCase(id.getIdentifierType()))
                     .map(Identifier::getIdentifierId)
+                    .filter(Objects::nonNull)
+                    .map(IdPoolValidatorForCreate::extractBeneficiaryId)
                     .filter(identifierId -> !isMaskedId(identifierId))
                     .toList();
             if (!identifiers.isEmpty() && !identifiers.stream().allMatch(uniqueIds::add)) {
@@ -189,5 +193,17 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
 
     public static boolean isMaskedId(String beneficiaryId) {
         return beneficiaryId.contains("*");
+    }
+
+    /**
+     * Extracts the beneficiary ID from an identifier ID of the form PREFIX_ID, i.e. the part after the last separator.
+     * Returns the input as-is if no separator is present.
+     *
+     * @param identifierId The identifier ID value
+     * @return The beneficiary ID
+     */
+    public static String extractBeneficiaryId(String identifierId) {
+        if (identifierId == null) return null;
+        return identifierId.substring(identifierId.lastIndexOf(BENEFICIARY_ID_SEPARATOR) + 1);
     }
 }

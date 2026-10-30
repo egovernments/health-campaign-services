@@ -81,7 +81,7 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
                         .findFirst().orElse(null);
 
                 if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
-                    String beneficiaryId = identifier.getIdentifierId();
+                    String beneficiaryId = IdPoolValidatorForCreate.extractBeneficiaryId(identifier.getIdentifierId());
                     if(IdPoolValidatorForCreate.isMaskedId(beneficiaryId)) {
                         if (!isValidMaskedId(beneficiaryId, individualProperties.getBeneficiaryIdLength())) {
                             updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The masked beneficiary id '" + beneficiaryId + "' is invalid.");

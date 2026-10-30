@@ -189,7 +189,9 @@ public class IndividualService {
                                 .filter(identifier -> UNIQUE_BENEFICIARY_ID.equals(identifier.getIdentifierType()))
                                 .findFirst()
                                 .stream())
-                        .map(identifier -> String.valueOf(identifier.getIdentifierId()))
+                        .map(Identifier::getIdentifierId)
+                        .filter(Objects::nonNull)
+                        .map(IdPoolValidatorForCreate::extractBeneficiaryId)
                         .toList();
                 if (!validIndividuals.isEmpty()) {
                     encryptedIndividualList = individualEncryptionService
@@ -291,6 +293,7 @@ public class IndividualService {
                                 orElse(Collections.emptyList()).stream())
                         .filter(identifier -> UNIQUE_BENEFICIARY_ID.equals(identifier.getIdentifierType()))
                         .map(Identifier::getIdentifierId)
+                        .map(IdPoolValidatorForCreate::extractBeneficiaryId)
                         .filter(identifierId -> !ObjectUtils.isEmpty(identifierId) && !identifierId.startsWith("*"))
                         .toList();
 
