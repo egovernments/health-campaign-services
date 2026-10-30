@@ -7,7 +7,7 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted } from '../utils/generateUtils';
+import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage } from '../utils/generateUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
 
@@ -152,5 +152,39 @@ describe('isOutsideHouseholdChoiceDifferentFromSource (a clone and the campaign 
     it('is false when the switch is off', () => {
         (config as any).mapping.detachStaleResourcesOnConfigChange = false;
         expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(['HOUSEHOLDSTRATEGY']), campaign(['OUTSIDEHOUSEHOLD']))).toBe(false);
+    });
+});
+
+describe('keepCloneLineage (the console final create sends additionalDetails without the clone keys)', () => {
+    const saved = { additionalDetails: { cloneFrom: 'CMP-SRC', clonedCampaignId: 'src-id', cycleData: { deliveryMethods: ['OUTSIDEHOUSEHOLD'] } } };
+    beforeEach(() => { (config as any).mapping = { keepCloneLineageOnUpdate: true }; });
+    afterAll(() => { delete (config as any).mapping; });
+
+    it('fills cloneFrom and clonedCampaignId the save left out, keeping everything else it sent', () => {
+        const incoming: any = { additionalDetails: { key: 2, cycleData: { deliveryMethods: ['HOUSEHOLDSTRATEGY'] } } };
+        expect(keepCloneLineage(incoming, saved)).toEqual(['cloneFrom', 'clonedCampaignId']);
+        expect(incoming.additionalDetails).toEqual({ key: 2, cycleData: { deliveryMethods: ['HOUSEHOLDSTRATEGY'] }, cloneFrom: 'CMP-SRC', clonedCampaignId: 'src-id' });
+    });
+
+    it('creates additionalDetails when the save has none', () => {
+        const incoming: any = {};
+        keepCloneLineage(incoming, saved);
+        expect(incoming.additionalDetails).toEqual({ cloneFrom: 'CMP-SRC', clonedCampaignId: 'src-id' });
+    });
+
+    it('never changes a key the save sends, and treats null or empty as left out', () => {
+        const incoming: any = { additionalDetails: { cloneFrom: 'CMP-OTHER', clonedCampaignId: null } };
+        expect(keepCloneLineage(incoming, saved)).toEqual(['clonedCampaignId']);
+        expect(incoming.additionalDetails).toEqual({ cloneFrom: 'CMP-OTHER', clonedCampaignId: 'src-id' });
+    });
+
+    it('changes nothing for a campaign that is not a clone, or when the switch is off', () => {
+        const notClone: any = { additionalDetails: { key: 2 } };
+        expect(keepCloneLineage(notClone, { additionalDetails: { key: 1 } })).toEqual([]);
+        expect(notClone.additionalDetails).toEqual({ key: 2 });
+        (config as any).mapping.keepCloneLineageOnUpdate = false;
+        const incoming: any = { additionalDetails: {} };
+        expect(keepCloneLineage(incoming, saved)).toEqual([]);
+        expect(incoming.additionalDetails).toEqual({});
     });
 });

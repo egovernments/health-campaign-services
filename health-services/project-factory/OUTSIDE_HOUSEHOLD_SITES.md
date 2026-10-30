@@ -232,6 +232,7 @@ update's own delivery methods, so it does not depend on the stored copy being sa
 | project-factory | `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL` (`true`) | Edit that removes OH unlinks the sites |
 | project-factory | `CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE` (`true`) | After an OH choice change the old file is not attached again; a clone with a different OH choice does not keep its source's file |
 | project-factory | `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED` (`true`) | A campaign without OH does not read the Outside Household sheet of an uploaded file |
+| project-factory | `CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE` (`true`) | A save that leaves out a clone's `cloneFrom` / `clonedCampaignId` (the console's final create) keeps the saved values, so the clone can still use its source's file |
 | project-factory | `EGOV_PROJECT_FACILITY_UPDATE_PATH` (`health-project/facility/v1/_update`) | Updating a link's worker in an edit |
 | project-factory | `BOUNDARY_SYNC_RETRY_DELAY_MS` (`4000`, existing) | Wait between checks before a template rebuild |
 

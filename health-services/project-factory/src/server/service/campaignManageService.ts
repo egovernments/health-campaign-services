@@ -10,7 +10,7 @@ import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
-import { isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged } from "../utils/generateUtils";
+import { isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from "../utils/generateUtils";
 import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 
 /** Validates and creates a project-type campaign, persisting its resources to eg_cm_resource_details so they survive the Flow 2 JSONB overwrite. */
@@ -57,6 +57,12 @@ async function updateProjectTypeCampaignService(request: express.Request) {
 
     await validateProjectCampaignRequest(request, "update");
     logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
+
+    // The console's final create sends a fresh additionalDetails without cloneFrom / clonedCampaignId; keep them
+    const lineageKept = keepCloneLineage(request?.body?.CampaignDetails, request?.body?.ExistingCampaignDetails);
+    if (lineageKept.length > 0) {
+        logger.info(`Campaign ${request?.body?.CampaignDetails?.id}: kept ${lineageKept.join(", ")} the save left out`);
+    }
 
     const campaignId = request?.body?.CampaignDetails?.id;
     const tenantId = request?.body?.CampaignDetails?.tenantId;

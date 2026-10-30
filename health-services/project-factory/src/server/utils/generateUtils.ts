@@ -66,6 +66,28 @@ export function isOutsideHouseholdChoiceDifferentFromSource(cloneDetails: any, s
   return cloneChoice !== (hasOutsideHouseholdDelivery(sourceCampaign) ?? false);
 }
 
+// additionalDetails keys that tie a clone to the campaign it was copied from
+const CLONE_LINEAGE_KEYS = ["cloneFrom", "clonedCampaignId"] as const;
+
+/**
+ * Fills the clone lineage keys a save left out from the saved campaign, so a clone does not lose the link to its source
+ * (excel-ingestion accepts the source's file only through clonedCampaignId). A key the save sends is never changed.
+ * Returns the keys filled; none when the switch is off or the saved campaign has none.
+ */
+export function keepCloneLineage(incomingCampaign: any, savedCampaign: any): string[] {
+    const saved = savedCampaign?.additionalDetails;
+    if (!config.mapping?.keepCloneLineageOnUpdate || !incomingCampaign || !saved) return [];
+    const filled: string[] = [];
+    for (const key of CLONE_LINEAGE_KEYS) {
+        const incoming = incomingCampaign.additionalDetails?.[key];
+        if ((incoming === undefined || incoming === null || incoming === "") && saved[key]) {
+            incomingCampaign.additionalDetails = { ...(incomingCampaign.additionalDetails || {}), [key]: saved[key] };
+            filled.push(key);
+        }
+    }
+    return filled;
+}
+
 /**
  * The update's deliveryMethods and projectType for the generate request, so excel-ingestion decides the Outside Household
  * sheet from this update rather than from a stored copy that may not have it yet; empty when the update carries neither.

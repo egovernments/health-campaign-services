@@ -131,6 +131,9 @@ const config = {
     // attached again from the same save, and a clone does not keep its source's file when its Outside Household choice
     // differs; "false" keeps the old behaviour
     detachStaleResourcesOnConfigChange: (process.env.CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE || "true").toLowerCase() !== "false",
+    // A save that leaves out a clone's cloneFrom / clonedCampaignId (the console's final create does) keeps the saved
+    // values, so the clone can still use its source's file; "false" stores what the save sends, as before
+    keepCloneLineageOnUpdate: (process.env.CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 

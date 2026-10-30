@@ -23,7 +23,7 @@ jest.mock('../utils/resourceDetailsUtils', () => ({ findActiveResourceByUpsertKe
 jest.mock('../utils/genericUtils', () => ({ prepareProcessesForResourceTypes: jest.fn(), getCurrentProcesses: jest.fn() }));
 jest.mock('../kafka/Producer', () => ({ produceModifiedMessages: jest.fn() }));
 jest.mock('../config/resourceTypeRegistry', () => ({ getRegistryEntry: jest.fn() }));
-jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(), isOutsideHouseholdDeliveryChanged: jest.fn() }));
+jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(), isOutsideHouseholdDeliveryChanged: jest.fn(), keepCloneLineage: jest.fn(() => []) }));
 
 import config from '../config';
 import { createProjectTypeCampaignService, updateProjectTypeCampaignService } from '../service/campaignManageService';
@@ -31,7 +31,7 @@ import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, processBasedOnActio
 import { validateProjectCampaignRequest } from '../validators/campaignValidators';
 import { createResourceDetail, deactivateAllResourcesForCampaign, updateResourceDetail } from '../service/resourceDetailsService';
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
-import { isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged } from '../utils/generateUtils';
+import { isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from '../utils/generateUtils';
 
 const UNIFIED = 'unified-console-resources';
 const existing = { id: 'c1', tenantId: 'tn', hierarchyType: 'H', resources: [{ type: UNIFIED, filestoreId: 'OLD' }] };
@@ -119,6 +119,20 @@ describe('createProjectTypeCampaignService', () => {
 
         expect(dropCloneSourceFileIfOutsideHouseholdChoiceDiffers).toHaveBeenCalledWith(create.body.CampaignDetails);
         expect((dropCloneSourceFileIfOutsideHouseholdChoiceDiffers as jest.Mock).mock.invocationCallOrder[0])
+            .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
+    });
+});
+
+describe('updateProjectTypeCampaignService keeps the clone lineage', () => {
+    it('passes the save and the saved campaign to keepCloneLineage before the campaign is saved', async () => {
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: false });
+        (isOutsideHouseholdDeliveryChanged as jest.Mock).mockReturnValue(false);
+        const update = request([{ type: UNIFIED, filestoreId: 'OLD' }]);
+
+        await updateProjectTypeCampaignService(update);
+
+        expect(keepCloneLineage).toHaveBeenCalledWith(update.body.CampaignDetails, existing);
+        expect((keepCloneLineage as jest.Mock).mock.invocationCallOrder[0])
             .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
     });
 });
