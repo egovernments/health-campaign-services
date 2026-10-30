@@ -124,6 +124,13 @@ const config = {
     maxRetries: process.env.MAPPING_MAX_RETRY_COUNT ? parseInt(process.env.MAPPING_MAX_RETRY_COUNT, 10) : 3,
     // An edit that removes the Outside Household delivery method unlinks the campaign's sites; "false" keeps them linked
     outsideHouseholdUnlinkOnDeliveryRemoval: (process.env.OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL || "true").toLowerCase() !== "false",
+    // A campaign whose delivery methods do not include Outside Household does not read the Outside Household sheet of
+    // an uploaded file (e.g. one a clone borrowed from its source); "false" reads it as before
+    outsideHouseholdIgnoreSheetWhenNotSelected: (process.env.OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED || "true").toLowerCase() !== "false",
+    // Files deactivated by a configuration change (boundaries, campaign type, hierarchy, Outside Household choice) are not
+    // attached again from the same save, and a clone does not keep its source's file when its Outside Household choice
+    // differs; "false" keeps the old behaviour
+    detachStaleResourcesOnConfigChange: (process.env.CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 

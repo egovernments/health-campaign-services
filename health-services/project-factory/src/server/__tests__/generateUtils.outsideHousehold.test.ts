@@ -7,7 +7,8 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryPersisted } from '../utils/generateUtils';
+import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted } from '../utils/generateUtils';
+import config from '../config';
 import { httpRequest } from '../utils/request';
 
 const boundaries = [{ code: 'B1', isRoot: true, includeAllChildren: true }];
@@ -120,4 +121,36 @@ describe('callGenerateIfBoundariesOrCampaignTypeDiffer for a unified campaign', 
         expect(body.GenerateResource.referenceId).toBe('cmp-1');
         expect(body.GenerateResource.additionalDetails).toEqual({ deliveryMethods: ['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], projectType: 'POLIO' });
     }, 10000);
+});
+
+describe('isOutsideHouseholdChoiceDifferentFromSource (a clone and the campaign it was copied from)', () => {
+    beforeEach(() => { (config as any).mapping = { detachStaleResourcesOnConfigChange: true }; });
+    afterAll(() => { delete (config as any).mapping; });
+
+    it('is true when the clone adds OUTSIDEHOUSEHOLD the source did not have', () => {
+        expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD']), campaign(['HOUSEHOLDSTRATEGY']))).toBe(true);
+    });
+
+    it('is true when the clone drops OUTSIDEHOUSEHOLD the source had', () => {
+        expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(['HOUSEHOLDSTRATEGY']), campaign(['OUTSIDEHOUSEHOLD']))).toBe(true);
+    });
+
+    it('is false when both use it, also Outside Household only against both', () => {
+        expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(['OUTSIDEHOUSEHOLD']), campaign(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD']))).toBe(false);
+    });
+
+    it('is false when neither uses it, and when a source without a list meets a clone without it', () => {
+        expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(['HOUSEHOLDSTRATEGY']), campaign(['HOUSEHOLDSTRATEGY']))).toBe(false);
+        expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(['HOUSEHOLDSTRATEGY']), campaign())).toBe(false);
+    });
+
+    it('is false when the clone carries no list, or there is no source: the clone keeps the source file as before', () => {
+        expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(), campaign(['OUTSIDEHOUSEHOLD']))).toBe(false);
+        expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(['HOUSEHOLDSTRATEGY']), undefined)).toBe(false);
+    });
+
+    it('is false when the switch is off', () => {
+        (config as any).mapping.detachStaleResourcesOnConfigChange = false;
+        expect(isOutsideHouseholdChoiceDifferentFromSource(campaign(['HOUSEHOLDSTRATEGY']), campaign(['OUTSIDEHOUSEHOLD']))).toBe(false);
+    });
 });

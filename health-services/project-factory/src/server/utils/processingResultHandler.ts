@@ -1104,6 +1104,9 @@ export async function processCampaignFacilitiesFromExcelData(
         // An edit that removed the Outside Household delivery method: the sheet is not read and the stored
         // sites are demapped (their links removed) instead of being kept by the per-sheet guard below.
         const outsideHouseholdDropped = isOutsideHouseholdDeliveryDropped(campaignDetails, existingFacilityMap);
+        // A campaign that does not use Outside Household: the sheet is not read even when the uploaded file has it
+        // (e.g. a clone that borrowed its source's file), so no site is linked to this campaign.
+        const outsideHouseholdNotSelected = !outsideHouseholdDropped && isOutsideHouseholdNotSelected(campaignDetails);
 
         // Accumulate only the lightweight {facilityName, boundaryCode, active}
         // mappings across pages; the demap diff needs the complete set.
@@ -1128,10 +1131,12 @@ export async function processCampaignFacilitiesFromExcelData(
         const outsideHouseholdWorkerChanges: any[] = [];
         if (outsideHouseholdDropped) {
             logger.info(`Campaign ${campaignNumber}: this edit removed the Outside Household delivery method; ${outsideHouseholdSheetName} is not read and the stored site links are removed`);
+        } else if (outsideHouseholdNotSelected) {
+            logger.info(`Campaign ${campaignNumber} does not use the Outside Household delivery method; ${outsideHouseholdSheetName} is not read`);
         } else {
             logger.info(`Searching ${outsideHouseholdSheetName} sheet data...`);
         }
-        const outsideHouseholdRowTotal = outsideHouseholdDropped ? 0 : await forEachSheetDataPage(
+        const outsideHouseholdRowTotal = (outsideHouseholdDropped || outsideHouseholdNotSelected) ? 0 : await forEachSheetDataPage(
             tenantId,
             campaignId,
             fileStoreId,
@@ -1215,6 +1220,22 @@ export function isOutsideHouseholdDeliveryDropped(campaignDetails: any, existing
         .map((delivery: any) => normalizeDeliveryMethodCode(delivery?.deliveryMethod));
     if (ruleCodes.includes(OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)) return false;
     return Array.from(existingFacilityMap.values()).some((entry: any) => Boolean(entry?.data?.[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY]));
+}
+
+/**
+ * True when the campaign does not use Outside Household: the switch is on, its deliveryMethods list is non-empty and
+ * every entry is readable with none being OUTSIDEHOUSEHOLD, and no delivery in its rules names OUTSIDEHOUSEHOLD. A
+ * campaign without a readable list keeps reading the sheet as before.
+ */
+export function isOutsideHouseholdNotSelected(campaignDetails: any): boolean {
+    if (!config.mapping?.outsideHouseholdIgnoreSheetWhenNotSelected) return false;
+    const methodCodes = readDeliveryMethodCodes(campaignDetails?.additionalDetails?.cycleData?.deliveryMethods);
+    if (!methodCodes || methodCodes.length === 0 || methodCodes.includes(OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)) return false;
+    const rules = Array.isArray(campaignDetails?.deliveryRules) ? campaignDetails.deliveryRules : [];
+    const ruleCodes = rules.flatMap((rule: any) => (Array.isArray(rule?.cycles) ? rule.cycles : []))
+        .flatMap((cycle: any) => (Array.isArray(cycle?.deliveries) ? cycle.deliveries : []))
+        .map((delivery: any) => normalizeDeliveryMethodCode(delivery?.deliveryMethod));
+    return !ruleCodes.includes(OUTSIDE_HOUSEHOLD_DELIVERY_METHOD);
 }
 
 /** Normalised codes of a deliveryMethods list; null when it is not a list or any entry cannot be read. */

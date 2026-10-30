@@ -38,7 +38,7 @@ function isCampaignTypeSame(request: any) {
 const OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = "OUTSIDEHOUSEHOLD";
 
 /** Whether additionalDetails.cycleData.deliveryMethods (codes or {code} objects) holds OUTSIDEHOUSEHOLD, compared as excel-ingestion does; null when there is no list. */
-function hasOutsideHouseholdDelivery(campaignDetails: any): boolean | null {
+export function hasOutsideHouseholdDelivery(campaignDetails: any): boolean | null {
     const methods = campaignDetails?.additionalDetails?.cycleData?.deliveryMethods;
     if (!Array.isArray(methods)) return null;
     return methods.some((method: any) => {
@@ -48,10 +48,22 @@ function hasOutsideHouseholdDelivery(campaignDetails: any): boolean | null {
 }
 
 /** True when the update adds or removes OUTSIDEHOUSEHOLD (the template gains or loses its Outside Household sheet); an update without a deliveryMethods list changes nothing. */
-function isOutsideHouseholdDeliveryChanged(request: any): boolean {
+export function isOutsideHouseholdDeliveryChanged(request: any): boolean {
     const incoming = hasOutsideHouseholdDelivery(request?.body?.CampaignDetails);
     if (incoming === null) return false;
     return incoming !== (hasOutsideHouseholdDelivery(request?.body?.ExistingCampaignDetails) ?? false);
+}
+
+/**
+ * True when the clone's Outside Household choice (its deliveryMethods) differs from its source's, so the source's file
+ * (with or without the Outside Household sheet) does not match the clone's template. False when the switch is off, the
+ * clone carries no deliveryMethods list, or the source is unknown - the clone then keeps the source's file as before.
+ */
+export function isOutsideHouseholdChoiceDifferentFromSource(cloneDetails: any, sourceCampaign: any): boolean {
+  if (!config.mapping?.detachStaleResourcesOnConfigChange || !sourceCampaign) return false;
+  const cloneChoice = hasOutsideHouseholdDelivery(cloneDetails);
+  if (cloneChoice === null) return false;
+  return cloneChoice !== (hasOutsideHouseholdDelivery(sourceCampaign) ?? false);
 }
 
 /**

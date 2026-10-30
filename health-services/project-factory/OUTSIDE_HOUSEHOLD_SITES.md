@@ -173,6 +173,19 @@ The unlink on OH removal runs only when all guards hold: an edit (`parentId`), a
 `deliveryMethods` list without `OUTSIDEHOUSEHOLD`, no delivery rule still naming it, and stored sites
 (`isOutsideHouseholdDeliveryDropped`). Switch: `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`.
 
+### 4a. Changing the Outside Household choice after a file is attached (draft, edit, clone)
+The attached file must match the template, and the template follows the campaign's own choice.
+
+| Case | Result |
+|---|---|
+| A save adds or removes `OUTSIDEHOUSEHOLD` | A new template is generated; the files attached before are deactivated and **not attached again** from the same save (the console sends them back), nor saved on the campaign row. A file uploaded in that save is kept. The user downloads the new template and uploads it. |
+| Clone with the same choice as its source (both with, or both without, OH) | Unchanged: the clone keeps the source's file. |
+| Clone created with a different choice from its source | The source's file is not kept, and it is not borrowed at create (`isOutsideHouseholdChoiceDifferentFromSource`). The clone's template has the 4th sheet only if the clone uses OH, generated as for any campaign on that hierarchy and area. |
+| Any campaign whose `deliveryMethods` list has no `OUTSIDEHOUSEHOLD` | The Outside Household sheet of an uploaded file is not read, so no site is saved or linked (`isOutsideHouseholdNotSelected`). Without a readable list the sheet is read as before. |
+
+Boundary, campaign type and hierarchy changes keep their existing behaviour. Switches:
+`CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE` and `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED`.
+
 ### 5. Searching Sites
 The facility and project-facility **tables** hold every site and site link. Only the **default answers** of two searches
 leave them out, so existing consumers (the app's normal facility download, stock / warehouse / referral pickers) keep
@@ -217,6 +230,8 @@ update's own delivery methods, so it does not depend on the stored copy being sa
 | facility | `egov.mdms.host` (`http://mdms-v2.egov:8080/`, env `EGOV_MDMS_HOST`), `egov.mdms.v2.search.path` (`egov-mdms-service/v2/_search`) | Reading site types to hide sites |
 | health-project | `egov.mdms.v2.search.path` (`egov-mdms-service/v2/_search`); host = existing `EGOV_MDMS_HOST` | Reading site types to hide site links |
 | project-factory | `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL` (`true`) | Edit that removes OH unlinks the sites |
+| project-factory | `CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE` (`true`) | After an OH choice change the old file is not attached again; a clone with a different OH choice does not keep its source's file |
+| project-factory | `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED` (`true`) | A campaign without OH does not read the Outside Household sheet of an uploaded file |
 | project-factory | `EGOV_PROJECT_FACILITY_UPDATE_PATH` (`health-project/facility/v1/_update`) | Updating a link's worker in an edit |
 | project-factory | `BOUNDARY_SYNC_RETRY_DELAY_MS` (`4000`, existing) | Wait between checks before a template rebuild |
 

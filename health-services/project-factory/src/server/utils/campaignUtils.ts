@@ -76,6 +76,7 @@ import {
   callGenerateIfBoundariesOrCampaignTypeDiffer,
   isGenerationTriggerNeeded,
   isOutsideHouseholdDeliveryPersisted,
+  isOutsideHouseholdChoiceDifferentFromSource,
 } from "./generateUtils";
 import {
   generateDynamicTargetHeaders,
@@ -2390,6 +2391,30 @@ async function copyResourcesFromParentToChildInDB(
 }
 
 /**
+ * A clone created with an Outside Household choice different from its source's does not keep the source's file the
+ * console copied into it: the file is removed from the request's resources before the clone is saved, so the user
+ * downloads the clone's own template (with or without the Outside Household sheet) and uploads that.
+ */
+export async function dropCloneSourceFileIfOutsideHouseholdChoiceDiffers(campaignDetails: any): Promise<void> {
+  const cloneFromNumber = campaignDetails?.additionalDetails?.cloneFrom;
+  if (!cloneFromNumber || campaignDetails?.parentId || !config.mapping?.detachStaleResourcesOnConfigChange
+    || !Array.isArray(campaignDetails?.resources) || campaignDetails.resources.length === 0) return;
+  try {
+    const resp = await searchProjectTypeCampaignService({ tenantId: campaignDetails.tenantId, campaignNumber: cloneFromNumber });
+    const source = resp?.CampaignDetails?.[0];
+    if (!isOutsideHouseholdChoiceDifferentFromSource(campaignDetails, source)) return;
+    const sourceFileIds = new Set((source?.resources || []).map((r: any) => r?.filestoreId).filter(Boolean));
+    const kept = campaignDetails.resources.filter((r: any) => !sourceFileIds.has(r?.filestoreId));
+    if (kept.length !== campaignDetails.resources.length) {
+      logger.info(`Clone ${campaignDetails?.campaignNumber}: Outside Household choice differs from ${cloneFromNumber}; ${campaignDetails.resources.length - kept.length} file(s) of the source not kept`);
+      campaignDetails.resources = kept;
+    }
+  } catch (err: any) {
+    logger.warn(`Could not compare clone ${campaignDetails?.campaignNumber} with ${cloneFromNumber}; keeping its files: ${err?.message ?? err}`);
+  }
+}
+
+/**
  * Fetches the unified-console-resources filestoreId from the cloneFrom campaign and injects it
  * into campaignDetails.resources so the clone can be processed as a unified template campaign.
  * Returns true if a filestoreId was successfully borrowed, false otherwise.
@@ -2400,6 +2425,10 @@ async function borrowUnifiedSheetFromCloneCampaign(campaignDetails: any): Promis
 
   const resp = await searchProjectTypeCampaignService({ tenantId: campaignDetails.tenantId, campaignNumber: cloneFromNumber });
   const cloneFromCampaign = resp?.CampaignDetails?.[0];
+  if (isOutsideHouseholdChoiceDifferentFromSource(campaignDetails, cloneFromCampaign)) {
+    logger.info(`Clone ${campaignDetails?.campaignNumber} does not borrow the sheet of ${cloneFromNumber}: its Outside Household choice differs, so the source's file does not match its template`);
+    return false;
+  }
   const cloneFromUnified = cloneFromCampaign?.resources?.find((r: any) => r?.type === resourceTypes.unifiedConsoleResources);
 
   if (!cloneFromUnified?.filestoreId) {

@@ -80,7 +80,7 @@ jest.mock('../config', () => ({
         host: { facilityHost: 'http://facility/', projectHost: 'http://project/' },
         paths: { facilitySearch: 'facility/v1/_search', facilityDelete: 'facility/v1/_delete',
             projectFacilitySearch: 'health-project/facility/v1/_search', projectFacilityUpdate: 'health-project/facility/v1/_update' },
-        mapping: { searchPageSize: 100, outsideHouseholdUnlinkOnDeliveryRemoval: true },
+        mapping: { searchPageSize: 100, outsideHouseholdUnlinkOnDeliveryRemoval: true, outsideHouseholdIgnoreSheetWhenNotSelected: true },
         localisation: { defaultLocale: 'en_IN' },
         DB_CONFIG: { DB_CAMPAIGN_DATA_TABLE_NAME: 'eg_cm_campaign_data' },
         // Page size 1 → sites span multiple pages too.
@@ -98,6 +98,7 @@ import { logger } from '../utils/logger';
 import {
     convertOutsideHouseholdRowsToFacilityRows,
     isOutsideHouseholdDeliveryDropped,
+    isOutsideHouseholdNotSelected,
     buildStoredOutsideHouseholdNormalizedIndex,
     outsideHouseholdMatchKey,
     processCampaignFacilitiesFromExcelData,
@@ -299,6 +300,72 @@ describe('convertOutsideHouseholdRowsToFacilityRows', () => {
             ]);
             const index = buildStoredOutsideHouseholdNormalizedIndex(stored);
             expect(Array.from(index.entries())).toEqual([[outsideHouseholdMatchKey('OUTSIDE_HOUSEHOLD_PLACES', 'CAT_A', 'B2', 'P1'), 'CRID-1']]);
+        });
+    });
+});
+
+describe('a campaign that does not use Outside Household, e.g. a clone that borrowed its source file', () => {
+    const using = (deliveryMethods: unknown, extra: Record<string, unknown> = {}) =>
+        ({ ...campaignDetails, parentId: null, additionalDetails: { cycleData: { deliveryMethods } }, ...extra });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        getRelatedMock.mockResolvedValue([] as any);
+        setFacilityLinks([] as any);
+    });
+
+    it('does not read the Outside Household sheet, so its rows are neither saved nor linked', async () => {
+        const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
+        const topics = collectAllTopics();
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY']));
+        expect(requested).not.toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
+        expect((topics['save-sheet'] || []).filter((d: any) => d.type === 'facility').map((d: any) => d.uniqueIdentifier)).toEqual(['F1']);
+        expect(mapKeys(topics['save-map'])).toEqual(['F1#B1']);
+    });
+
+    it('reads the sheet as before when the campaign uses Outside Household', async () => {
+        installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
+        const topics = collectAllTopics();
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY', { code: 'OUTSIDEHOUSEHOLD' }]));
+        expect(mapKeys(topics['save-map'])).toEqual(['F1#B1', 'P1#B2']);
+    });
+
+    it('reads the sheet as before when the campaign carries no deliveryMethods list', async () => {
+        const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
+        collectAllTopics();
+        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        expect(requested).toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
+    });
+
+    it('reads the sheet as before when the switch is off', async () => {
+        (config as any).mapping.outsideHouseholdIgnoreSheetWhenNotSelected = false;
+        try {
+            const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
+            collectAllTopics();
+            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY']));
+            expect(requested).toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
+        } finally {
+            (config as any).mapping.outsideHouseholdIgnoreSheetWhenNotSelected = true;
+        }
+    });
+
+    describe('isOutsideHouseholdNotSelected', () => {
+        it('is true for a readable list without OUTSIDEHOUSEHOLD and no rule naming it', () => {
+            expect(isOutsideHouseholdNotSelected(using(['HOUSEHOLDSTRATEGY']))).toBe(true);
+            expect(isOutsideHouseholdNotSelected(using([{ code: 'HOUSEHOLDSTRATEGY' }]))).toBe(true);
+        });
+
+        it('is false when OUTSIDEHOUSEHOLD is in the list or in a delivery rule', () => {
+            expect(isOutsideHouseholdNotSelected(using(['outside-household']))).toBe(false);
+            expect(isOutsideHouseholdNotSelected(using(['HOUSEHOLDSTRATEGY'], {
+                deliveryRules: [{ cycles: [{ deliveries: [{ deliveryMethod: 'OUTSIDEHOUSEHOLD' }] }] }],
+            }))).toBe(false);
+        });
+
+        it('is false without a list, with an empty list, or with an unreadable entry', () => {
+            expect(isOutsideHouseholdNotSelected(campaignDetails)).toBe(false);
+            expect(isOutsideHouseholdNotSelected(using([]))).toBe(false);
+            expect(isOutsideHouseholdNotSelected(using(['HOUSEHOLDSTRATEGY', 42]))).toBe(false);
         });
     });
 });
@@ -558,8 +625,9 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
             expect(topics['update-map'] || []).toHaveLength(0);
         });
 
-        it('keeps site links and reads the sheet as before when the switch is off', async () => {
+        it('keeps site links and reads the sheet as before when the switches are off', async () => {
             (config as any).mapping.outsideHouseholdUnlinkOnDeliveryRemoval = false;
+            (config as any).mapping.outsideHouseholdIgnoreSheetWhenNotSelected = false;
             try {
                 const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
                 const topics = collectAllTopics();
@@ -568,6 +636,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
                 expect(requested).toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
             } finally {
                 (config as any).mapping.outsideHouseholdUnlinkOnDeliveryRemoval = true;
+                (config as any).mapping.outsideHouseholdIgnoreSheetWhenNotSelected = true;
             }
         });
 
