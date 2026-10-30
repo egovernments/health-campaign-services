@@ -121,7 +121,8 @@ public class ExcelGenerationService {
         List<SheetGenerationConfig> applicable = new ArrayList<>();
         for (SheetGenerationConfig sheet : sheets) {
             if (outsideHouseholdTypeMasterService.isSheetApplicable(sheet.getSheetName(), generateResource.getReferenceId(),
-                    generateResource.getReferenceType(), generateResource.getTenantId(), requestInfo)) {
+                    generateResource.getReferenceType(), generateResource.getTenantId(), requestInfo,
+                    generateResource.getAdditionalDetails())) {
                 applicable.add(sheet);
             } else {
                 log.info("Skipping sheet {} for reference {}", sheet.getSheetName(), generateResource.getReferenceId());

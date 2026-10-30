@@ -12,6 +12,13 @@ Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
 - **Failed campaigns are resumable, and user creation is retry-safe.** A failed campaign can be corrected and re-run; already-completed rows are skipped and only pending/failed rows are retried. User creation specifically now skips workers already in HRMS, tolerates partial-batch failures without failing the whole campaign, keeps a per-row error history, and reconciles a worker whose phone already exists in HRMS to a completed `EXISTING` row (see §6 Failure / Retry Handling).
 - **More resilient creation overall.** Numerous fixes for large user batches, child-campaign resource copying, attendance-register re-upload, credential-sheet accuracy, and clearer per-request logging (tenant + correlation id), reducing the "campaign reached a dead end with only a generic 500" class of incidents.
 
+## Outside Household sites (HCMPRE-2371)
+
+- Rows of the Outside Household sheet become facilities (`usage` = site type, category in `additionalFields`) and, when Active, project-facility links that carry the frontline worker.
+- In an edit: a changed worker is written onto the existing link, a site set Inactive loses its link, and removing `OUTSIDEHOUSEHOLD` from the delivery methods deletes every site link of the campaign (guarded; switch `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`).
+- A draft update that adds or removes `OUTSIDEHOUSEHOLD` in `cycleData.deliveryMethods` generates a new template.
+- Full flow: [OUTSIDE_HOUSEHOLD_SITES.md](OUTSIDE_HOUSEHOLD_SITES.md).
+
 ## 1. Purpose
 
 Project Factory turns an admin clicking **"Create Campaign"** into a fully set-up campaign — boundaries, projects, facilities, workers, and products all created and linked, in the right order, behind the scenes. It is a **Node.js / TypeScript** service (not a Java/Maven service) and is the **orchestrator** of the health vertical: it owns the campaign lifecycle, validates the Excel files the admin uploads, calls every other registry to create records, and tracks status until the campaign is ready.
@@ -189,6 +196,8 @@ sequenceDiagram
 
 - **Persister Config**: [Link](https://github.com/egovernments/configs/blob/UNIFIED-UAT/health/egov-persister/project-factory-persister.yml)
 - **Helm Chart Details**: [Link](https://github.com/egovernments/DIGIT-DevOps/blob/unified-env/deploy-as-code/helm/charts/health-services/project-factory/values.yaml)
+- **`OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`** (default `true`): an edit that removes the Outside Household delivery method deletes the campaign's site links; `false` keeps them.
+- **`EGOV_PROJECT_FACILITY_UPDATE_PATH`** (default `health-project/facility/v1/_update`): used to update a site link's frontline worker in an edit.
 
 ## Redis Caching
 

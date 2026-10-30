@@ -93,6 +93,9 @@ public class ProcessingConstants {
     // Outside Household sheet: generated and required only for campaigns using the outside-household delivery method
     public static final String OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST";
     public static final String OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = "OUTSIDEHOUSEHOLD";
+    // Generate-request additionalDetails keys: the campaign values of the update that triggered the generation
+    public static final String GENERATE_DETAIL_DELIVERY_METHODS_KEY = "deliveryMethods";
+    public static final String GENERATE_DETAIL_PROJECT_TYPE_KEY = "projectType";
 
     /**
      * Whether the given generation class produces a free-entry (user-typed) console sheet — currently

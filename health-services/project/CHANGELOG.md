@@ -2,6 +2,11 @@
 
 All notable changes to this module will be documented in this file.
 
+## Unreleased - 2026-10-29
+
+- Outside Household sites (HCMPRE-2371): `facility/v1/_search` (including the `boundaryTypes` hierarchy search) leaves out links to facilities whose `usage` is a site type from MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`, unless the request has `facilityId` or `id`.
+- New config: `egov.mdms.v2.search.path`.
+
 ## 1.2.5 - 2026-10-13
 
 - Added `VACCINATED_ELSEWHERE` to the no-resource task statuses (`project.task.no.resource.validation.status`), so a task with this status is accepted without resources.

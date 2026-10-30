@@ -54,6 +54,18 @@ function isOutsideHouseholdDeliveryChanged(request: any): boolean {
     return incoming !== (hasOutsideHouseholdDelivery(request?.body?.ExistingCampaignDetails) ?? false);
 }
 
+/**
+ * The update's deliveryMethods and projectType for the generate request, so excel-ingestion decides the Outside Household
+ * sheet from this update rather than from a stored copy that may not have it yet; empty when the update carries neither.
+ */
+export function generationDetailsFromUpdate(campaignDetails: any): Record<string, any> {
+    const details: Record<string, any> = {};
+    const methods = campaignDetails?.additionalDetails?.cycleData?.deliveryMethods;
+    if (Array.isArray(methods)) details.deliveryMethods = methods;
+    if (typeof campaignDetails?.projectType === "string" && campaignDetails.projectType.trim()) details.projectType = campaignDetails.projectType;
+    return details;
+}
+
 /** True when the stored campaign already holds the update's Outside Household choice (or the update carries no deliveryMethods list), so a template generated now gets the right sheets. */
 export function isOutsideHouseholdDeliveryPersisted(incomingCampaign: any, persistedCampaign: any): boolean {
     const incoming = hasOutsideHouseholdDelivery(incomingCampaign);
@@ -145,7 +157,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
         const isUnifiedCampaign = campaignDetails?.additionalDetails?.isUnifiedCampaign;
         if(isUnifiedCampaign){
-            await callExcelIngestionService(request?.body);
+            await callExcelIngestionService(request?.body, undefined, undefined, undefined, generationDetailsFromUpdate(campaignDetails));
             return;
         }
 

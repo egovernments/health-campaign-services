@@ -89,6 +89,16 @@ public class OutsideHouseholdTypeMasterService {
      */
     public boolean isSheetApplicable(String sheetNameKey, String referenceId, String referenceType,
                                      String tenantId, RequestInfo requestInfo) {
+        return isSheetApplicable(sheetNameKey, referenceId, referenceType, tenantId, requestInfo, null);
+    }
+
+    /**
+     * Same rule, for a generate request: when its additionalDetails carry the campaign's deliveryMethods / projectType
+     * (project-factory sends those of the update that triggered the generation), they win over the stored campaign, which
+     * may not have that update yet. Without them the stored campaign decides, as before.
+     */
+    public boolean isSheetApplicable(String sheetNameKey, String referenceId, String referenceType,
+                                     String tenantId, RequestInfo requestInfo, Map<String, Object> requestDetails) {
         if (!ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY.equals(sheetNameKey)) {
             return true;
         }
@@ -96,15 +106,22 @@ public class OutsideHouseholdTypeMasterService {
                 || ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER.equals(referenceType)) {
             return false;
         }
-        CampaignSearchResponse.CampaignDetail campaign =
-                campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
-        return isOutsideHouseholdSitesCampaignType(campaign)
-                && extractDeliveryMethods(campaign).contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)
+        Object requestedMethods = requestDetails == null ? null : requestDetails.get(ProcessingConstants.GENERATE_DETAIL_DELIVERY_METHODS_KEY);
+        Object requestedType = requestDetails == null ? null : requestDetails.get(ProcessingConstants.GENERATE_DETAIL_PROJECT_TYPE_KEY);
+        String projectType = requestedType instanceof String ? normalize((String) requestedType) : null;
+        CampaignSearchResponse.CampaignDetail campaign = requestedMethods instanceof List && projectType != null
+                ? null : campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
+        if (projectType == null && campaign != null) {
+            projectType = normalize(campaign.getProjectType());
+        }
+        Set<String> methods = requestedMethods instanceof List
+                ? deliveryMethodCodes((List<?>) requestedMethods) : extractDeliveryMethods(campaign);
+        return isOutsideHouseholdSitesCampaignType(projectType)
+                && methods.contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)
                 && !getOutsideHouseholdTypes(requestInfo, tenantId).isEmpty();
     }
 
-    private boolean isOutsideHouseholdSitesCampaignType(CampaignSearchResponse.CampaignDetail campaign) {
-        String projectType = campaign == null ? null : normalize(campaign.getProjectType());
+    private boolean isOutsideHouseholdSitesCampaignType(String projectType) {
         List<String> types = config.getOutsideHouseholdCampaignTypes();
         return projectType != null && types != null
                 && types.stream().map(OutsideHouseholdTypeMasterService::normalize).anyMatch(projectType::equals);
@@ -183,17 +200,20 @@ public class OutsideHouseholdTypeMasterService {
 
     /** Normalized codes of additionalDetails.cycleData.deliveryMethods (codes or {code} objects), as the console saves them. */
     private static Set<String> extractDeliveryMethods(CampaignSearchResponse.CampaignDetail campaign) {
-        Set<String> codes = new HashSet<>();
         Object cycleData = campaign == null || campaign.getAdditionalDetails() == null
                 ? null : campaign.getAdditionalDetails().getCycleData();
         Object methods = cycleData instanceof Map ? ((Map<?, ?>) cycleData).get(CYCLE_DATA_DELIVERY_METHODS_KEY) : null;
-        if (methods instanceof List) {
-            for (Object method : (List<?>) methods) {
-                Object code = method instanceof Map ? ((Map<?, ?>) method).get(CODE_KEY) : method;
-                String normalized = code instanceof String ? normalizeDeliveryMethod((String) code) : null;
-                if (normalized != null) {
-                    codes.add(normalized);
-                }
+        return methods instanceof List ? deliveryMethodCodes((List<?>) methods) : new HashSet<>();
+    }
+
+    /** Normalized codes of a deliveryMethods list (codes or {code} objects). */
+    private static Set<String> deliveryMethodCodes(List<?> methods) {
+        Set<String> codes = new HashSet<>();
+        for (Object method : methods) {
+            Object code = method instanceof Map ? ((Map<?, ?>) method).get(CODE_KEY) : method;
+            String normalized = code instanceof String ? normalizeDeliveryMethod((String) code) : null;
+            if (normalized != null) {
+                codes.add(normalized);
             }
         }
         return codes;

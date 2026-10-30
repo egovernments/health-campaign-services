@@ -7,7 +7,8 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { isGenerationTriggerNeeded, isOutsideHouseholdDeliveryPersisted } from '../utils/generateUtils';
+import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryPersisted } from '../utils/generateUtils';
+import { httpRequest } from '../utils/request';
 
 const boundaries = [{ code: 'B1', isRoot: true, includeAllChildren: true }];
 const campaign = (deliveryMethods?: unknown, extra: Record<string, unknown> = {}) => ({
@@ -90,4 +91,33 @@ describe('isOutsideHouseholdDeliveryPersisted (generation waits for the stored O
     it('is false when the stored campaign could not be read and the update has OUTSIDEHOUSEHOLD', () => {
         expect(isOutsideHouseholdDeliveryPersisted(campaign(['OUTSIDEHOUSEHOLD']), undefined)).toBe(false);
     });
+});
+
+describe('generationDetailsFromUpdate (the update decides the Outside Household sheet, not a stored copy)', () => {
+    it('sends the update\'s deliveryMethods and projectType', () => {
+        expect(generationDetailsFromUpdate(campaign(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'])))
+            .toEqual({ deliveryMethods: ['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], projectType: 'POLIO' });
+    });
+
+    it('sends a list without OUTSIDEHOUSEHOLD as it is, so a removed method drops the sheet', () => {
+        expect(generationDetailsFromUpdate(campaign(['HOUSEHOLDSTRATEGY']))).toEqual({ deliveryMethods: ['HOUSEHOLDSTRATEGY'], projectType: 'POLIO' });
+    });
+
+    it('leaves deliveryMethods out when the update carries no list, so excel-ingestion reads the stored campaign', () => {
+        expect(generationDetailsFromUpdate(campaign())).toEqual({ projectType: 'POLIO' });
+        expect(generationDetailsFromUpdate({})).toEqual({});
+    });
+});
+
+describe('callGenerateIfBoundariesOrCampaignTypeDiffer for a unified campaign', () => {
+    afterEach(() => jest.clearAllMocks());
+
+    it('passes the update\'s deliveryMethods and projectType in the generate request', async () => {
+        const update = { ...campaign(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD']), id: 'cmp-1', tenantId: 'dev', hierarchyType: 'H',
+            additionalDetails: { isUnifiedCampaign: true, cycleData: { deliveryMethods: ['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'] } } };
+        await callGenerateIfBoundariesOrCampaignTypeDiffer({ body: { CampaignDetails: update, RequestInfo: {} } });
+        const body: any = jest.mocked(httpRequest).mock.calls[0][1];
+        expect(body.GenerateResource.referenceId).toBe('cmp-1');
+        expect(body.GenerateResource.additionalDetails).toEqual({ deliveryMethods: ['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], projectType: 'POLIO' });
+    }, 10000);
 });

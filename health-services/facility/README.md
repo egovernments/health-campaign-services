@@ -12,6 +12,14 @@ For the facility service specifically, **v2.1 is a maintenance / dependency rele
 
 > Scope note for QA/leads: feature branches exist for richer facility search (search by project/boundary, a task-status enum, and an "updated by others" / `lastModifiedByFilter` sync filter — the `featurefacilitysearch*` branches). **None of those are merged into this release**, so the `_search` filters today remain `isPermanent` / `usage` / `storageCapacity` / `boundaryCode` plus the standard sync/pagination params. Don't document or test the project / updated-by-others filters against this build.
 
+## Outside Household sites (HCMPRE-2371)
+
+Outside Household sites (Outside Household Places, Transit Posts) are stored as facilities whose `usage` is a site type from MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`. Full flow: [OUTSIDE_HOUSEHOLD_SITES.md](../project-factory/OUTSIDE_HOUSEHOLD_SITES.md).
+
+- `_search` leaves sites out unless the request has `usage`, `id` or `clientReferenceId`, so existing facility lists are unchanged. `TotalCount` counts only the returned records.
+- The site types are read from MDMS v2 (`OutsideHouseholdTypeService`, cached 5 minutes). If MDMS cannot be read the last list is kept; with no list nothing is hidden.
+- New config: `egov.mdms.host` (default `http://mdms-v2.egov:8080/`, env `EGOV_MDMS_HOST`) and `egov.mdms.v2.search.path` (default `egov-mdms-service/v2/_search`).
+
 ## 1. Purpose
 
 Facility is the **registry of physical places** in a health campaign — warehouses, health posts, clinics, storage points, distribution centres. Each facility row records what the place is (name, type/usage, permanent or temporary), how much it can hold (storage capacity), and where it sits on the map (a shared **address** with GPS coordinates and a boundary/locality code).

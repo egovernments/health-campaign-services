@@ -26,6 +26,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -155,6 +157,49 @@ class OutsideHouseholdTypeMasterServiceTest {
         assertFalse(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, "", null, TENANT, new RequestInfo()));
         assertFalse(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID,
                 ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER, TENANT, new RequestInfo()));
+    }
+
+    @Test
+    void isSheetApplicable_generateRequestAddsTheMethod_winsOverStoredCampaignWithoutIt() {
+        mockMaster(masterRow("OUTSIDE_HOUSEHOLD_PLACES", true, true));
+        Map<String, Object> request = Map.of("deliveryMethods", List.of("HOUSEHOLDSTRATEGY", "OUTSIDEHOUSEHOLD"), "projectType", "POLIO");
+
+        assertTrue(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo(), request));
+        verify(campaignService, never()).searchCampaignById(any(), any(), any());
+    }
+
+    @Test
+    void isSheetApplicable_generateRequestRemovesTheMethod_winsOverStoredCampaignWithIt() {
+        lenient().when(mdmsService.searchMDMS(any(), eq(STATE_TENANT),
+                eq(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPES_SCHEMA_CODE), isNull(), anyInt(), eq(0)))
+                .thenReturn(List.of(masterRow("OUTSIDE_HOUSEHOLD_PLACES", true, true)));
+        lenient().when(campaignService.searchCampaignById(eq(CAMPAIGN_ID), eq(TENANT), any()))
+                .thenReturn(campaignWithCycleDataDeliveryMethods("OUTSIDEHOUSEHOLD"));
+        Map<String, Object> request = Map.of("deliveryMethods", List.of("HOUSEHOLDSTRATEGY"), "projectType", "POLIO");
+
+        assertFalse(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo(), request));
+    }
+
+    @Test
+    void isSheetApplicable_generateRequestWithMethodsOnly_takesProjectTypeFromStoredCampaign() {
+        mockMaster(masterRow("OUTSIDE_HOUSEHOLD_PLACES", true, true));
+        CampaignSearchResponse.CampaignDetail stored = campaignWithCycleDataDeliveryMethods("HOUSEHOLDSTRATEGY");
+        when(campaignService.searchCampaignById(eq(CAMPAIGN_ID), eq(TENANT), any())).thenReturn(stored);
+        Map<String, Object> request = Map.of("deliveryMethods", List.of(Map.of("code", "OUTSIDEHOUSEHOLD")));
+
+        assertTrue(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo(), request));
+        stored.setProjectType("SMC");
+        assertFalse(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo(), request));
+    }
+
+    @Test
+    void isSheetApplicable_generateRequestWithoutMethods_usesStoredCampaign() {
+        mockMaster(masterRow("OUTSIDE_HOUSEHOLD_PLACES", true, true));
+        when(campaignService.searchCampaignById(eq(CAMPAIGN_ID), eq(TENANT), any()))
+                .thenReturn(campaignWithCycleDataDeliveryMethods("OUTSIDEHOUSEHOLD"));
+
+        assertTrue(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo(),
+                Map.of("registerId", "r-1")));
     }
 
     private void mockMaster(Map<String, Object>... rows) {

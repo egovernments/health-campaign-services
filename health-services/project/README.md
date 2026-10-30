@@ -40,6 +40,14 @@ sequenceDiagram
     Transformer->>ES: Refresh dashboard index
 ```
 
+## Outside Household sites (HCMPRE-2371)
+
+A site's use in a campaign is a normal project-facility link with `additionalFields.schema = "OutsideHouseholdAssignment"` (version 1); the frontline worker name and phone are in its `fields`. Full flow: [OUTSIDE_HOUSEHOLD_SITES.md](../project-factory/OUTSIDE_HOUSEHOLD_SITES.md).
+
+- `facility/v1/_search` leaves links to sites out unless the request has `facilityId` or `id`; the `boundaryTypes` hierarchy search leaves them out too. Links to normal facilities are unchanged.
+- The site types are read from MDMS v2 (`OutsideHouseholdTypeService`, cached 5 minutes), using the existing `EGOV_MDMS_HOST`.
+- New config: `egov.mdms.v2.search.path` (default `egov-mdms-service/v2/_search`).
+
 ## 1. Purpose
 
 Project is the **operational backbone** of a health campaign. A "project" is the on-the-ground unit of work — for example "Measles vaccination round in District X". Around that unit, the service keeps track of everything needed to run it and everything that actually happened:

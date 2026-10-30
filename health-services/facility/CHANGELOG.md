@@ -1,5 +1,10 @@
 All notable changes to this module will be documented in this file.
 
+## Unreleased - 2026-10-29
+
+- Outside Household sites (HCMPRE-2371): `_search` leaves out facilities whose `usage` is a site type from MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`, unless the request has `usage`, `id` or `clientReferenceId`.
+- New config: `egov.mdms.host`, `egov.mdms.v2.search.path`.
+
 ## 1.2.1 - 2026-03-10
 
 - Upgraded `health-services-common` to 1.1.3 with tracer 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.
