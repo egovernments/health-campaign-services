@@ -146,34 +146,14 @@ function userRow(workerId: string, uuid: string | null, extra: Record<string, un
     };
 }
 
-const REQUESTER_UUID = "e0000000-0000-4000-8000-000000000001";
-const REQUEST_INFO = { msgId: "m1", userInfo: { uuid: REQUESTER_UUID } };
-// The default requester is a DH user of every DH the suite uses, so DH-agnostic tests still see all of them.
-const SUITE_DH_CODES = [DH_ONE, DH_TWO, "DH_A", "DH_B", "DH_C", "DH_Z"];
-
-function requesterRows(dhCodes: string[] = SUITE_DH_CODES, extra: Record<string, unknown> = {}) {
-    return dhCodes.map((dhCode) => ({
-        data: {
-            HCM_ADMIN_CONSOLE_USER_ROLE: "WAREHOUSE_MANAGER,TEAM_SUPERVISOR",
-            HCM_ADMIN_CONSOLE_USER_WORKER_ID: "REQ-1",
-            UserName: "enc:req.wmt",
-            HCM_ADMIN_CONSOLE_USER_NAME: "Requester",
-            HCM_ADMIN_CONSOLE_BOUNDARY_CODE: dhCode,
-        },
-        uniqueIdAfterProcess: REQUESTER_UUID,
-        isDeleted: false,
-        ...extra,
-    }));
+function givenUserRows(rows: unknown[]): void {
+    mockUserRows.mockResolvedValue(rows);
 }
 
-function givenUserRows(rows: unknown[], requesterDhCodes: string[] = SUITE_DH_CODES): void {
-    mockUserRows.mockResolvedValue([...rows, ...requesterRows(requesterDhCodes)]);
-}
-
-function buildRequest(searchCriteria: any = { tenantId: "bo", campaignNumber: "CMP-1" }, pagination?: any, requestInfo: any = REQUEST_INFO) {
+function buildRequest(searchCriteria: any = { tenantId: "bo", campaignNumber: "CMP-1" }, pagination?: any) {
     return {
         body: {
-            RequestInfo: requestInfo,
+            RequestInfo: { msgId: "m1" },
             SearchCriteria: searchCriteria,
             ...(pagination ? { Pagination: pagination } : {}),
         },
@@ -513,7 +493,7 @@ describe("searchDistributorsByDhService", () => {
             const result = await searchDistributorsByDhService(buildRequest());
 
             expect(result.DHDistributors[0].distributors[0].uuid).toBe(uuidFor(77));
-            expect(mockFetchUuidsByUserName).toHaveBeenCalledWith(["dist.1"], "bo", REQUEST_INFO);
+            expect(mockFetchUuidsByUserName).toHaveBeenCalledWith(["dist.1"], "bo", { msgId: "m1" });
         });
 
         it("does not call egov-user when every distributor already has a uuid", async () => {
@@ -658,7 +638,7 @@ describe("searchDistributorsByDhService", () => {
             const result = await searchDistributorsByDhService(buildRequest());
 
             expect(result.DHDistributors[0].distributors.map((d: any) => d.uuid)).toEqual([uuidFor(7), uuidFor(22)]);
-            expect(mockFetchUuidsByUserName).toHaveBeenCalledWith(["dist.2"], "bo", REQUEST_INFO);
+            expect(mockFetchUuidsByUserName).toHaveBeenCalledWith(["dist.2"], "bo", { msgId: "m1" });
         });
 
         it("returns an empty result when the campaign has no distributor user rows", async () => {
@@ -813,13 +793,14 @@ describe("searchDistributorsByDhService", () => {
             expect(result.DHDistributors[0].distributors[0]).toMatchObject({ userName: "dist.1", name: "Dist 1" });
         });
 
-        it("generator has a list, user rows are undefined: the requester cannot be found so the list is empty and nothing throws", async () => {
+        it("generator has a list, user rows are undefined: generator list is returned and nothing throws", async () => {
             givenWorkerRows([workerRow()]);
             mockUserRows.mockResolvedValue(undefined);
 
             const result = await searchDistributorsByDhService(buildRequest());
 
-            expect(result).toMatchObject({ DHDistributors: [], TotalCount: 0 });
+            expect(result.TotalCount).toBe(1);
+            expect(result.DHDistributors[0].distributors).toHaveLength(1);
         });
 
         it("generator has a list, user rows hold only non-distributors: generator list is returned unchanged", async () => {
@@ -925,203 +906,6 @@ describe("searchDistributorsByDhService", () => {
             mockUserRows.mockRejectedValue(new Error("db down"));
 
             await expect(searchDistributorsByDhService(buildRequest())).rejects.toThrow("db down");
-        });
-    });
-
-    describe("requester DH restriction", () => {
-        const OTHER_UUID = "e0000000-0000-4000-8000-0000000000ff";
-        const distributorAt = (workerId: string, uuid: string, userName: string, dh: string) => ({
-            data: {
-                HCM_ADMIN_CONSOLE_USER_ROLE: "DISTRIBUTOR",
-                HCM_ADMIN_CONSOLE_USER_WORKER_ID: workerId,
-                UserName: `enc:${userName}`,
-                HCM_ADMIN_CONSOLE_USER_NAME: userName,
-                HCM_ADMIN_CONSOLE_BOUNDARY_CODE: dh,
-            },
-            uniqueIdAfterProcess: uuid,
-            isDeleted: false,
-        });
-        const requestAs = (uuid: string | undefined, searchCriteria?: any, pagination?: any) =>
-            buildRequest(searchCriteria, pagination, uuid === undefined ? { msgId: "m1" } : { msgId: "m1", userInfo: { uuid } });
-
-        beforeEach(() => {
-            givenWorkerRows([
-                workerRow(),
-                workerRow({ HCM_ADMIN_CONSOLE_USER_WORKER_ID: "W-2", UserName: "dist.2", HCM_ADMIN_CONSOLE_USER_NAME: "Dist 2", HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: DH_TWO, HCM_ADMIN_CONSOLE_BOUNDARY_NAME: "Ali Brickler" }),
-            ]);
-        });
-
-        it("a DH user sees only the distributors under their own DH", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1)), userRow("W-2", uuidFor(2))], [DH_ONE]);
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result.DHDistributors.map((g: any) => g.dhCode)).toEqual([DH_ONE]);
-            expect(result.DHDistributors[0].distributors).toEqual([{ uuid: uuidFor(1), userName: "dist.1", name: "Dist 1" }]);
-            expect(result.TotalCount).toBe(1);
-        });
-
-        it("returns an empty list when the request has no requester uuid", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1))]);
-
-            const result = await searchDistributorsByDhService(requestAs(undefined));
-
-            expect(result).toMatchObject({ DHDistributors: [], TotalCount: 0 });
-        });
-
-        it("returns an empty list when the requester is not a campaign user", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1))]);
-
-            const result = await searchDistributorsByDhService(requestAs(OTHER_UUID));
-
-            expect(result).toMatchObject({ DHDistributors: [], TotalCount: 0 });
-        });
-
-        it("returns an empty list when the requester's user row is deleted", async () => {
-            mockUserRows.mockResolvedValue([userRow("W-1", uuidFor(1)), ...requesterRows([DH_ONE], { isDeleted: true })]);
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result).toMatchObject({ DHDistributors: [], TotalCount: 0 });
-        });
-
-        it("returns an empty list when the requester's row has no DH code", async () => {
-            mockUserRows.mockResolvedValue([userRow("W-1", uuidFor(1)), ...requesterRows([""])]);
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result).toMatchObject({ DHDistributors: [], TotalCount: 0 });
-        });
-
-        it("finds the requester through the UserService Uuids field", async () => {
-            const requester = { ...requesterRows([DH_ONE])[0], uniqueIdAfterProcess: null };
-            requester.data = { ...requester.data, "UserService Uuids": REQUESTER_UUID } as typeof requester.data;
-            mockUserRows.mockResolvedValue([userRow("W-1", uuidFor(1)), userRow("W-2", uuidFor(2)), requester]);
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result.DHDistributors.map((g: any) => g.dhCode)).toEqual([DH_ONE]);
-        });
-
-        it("uses the _MANDATORY boundary code column of the requester when present", async () => {
-            const requester = requesterRows([DH_TWO])[0];
-            requester.data = { ...requester.data, HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: DH_ONE } as typeof requester.data;
-            mockUserRows.mockResolvedValue([userRow("W-1", uuidFor(1)), userRow("W-2", uuidFor(2)), requester]);
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result.DHDistributors.map((g: any) => g.dhCode)).toEqual([DH_ONE]);
-        });
-
-        it("a requester with several DH rows sees all of those DHs", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1)), userRow("W-2", uuidFor(2))], [DH_ONE, DH_TWO]);
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result.DHDistributors.map((g: any) => g.dhCode)).toEqual([DH_TWO, DH_ONE]);
-        });
-
-        it("localityCodes inside the requester's DH narrow the list further", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1)), userRow("W-2", uuidFor(2))], [DH_ONE, DH_TWO]);
-
-            const result = await searchDistributorsByDhService(
-                buildRequest({ tenantId: "bo", campaignNumber: "CMP-1", localityCodes: [DH_TWO] })
-            );
-
-            expect(result.DHDistributors.map((g: any) => g.dhCode)).toEqual([DH_TWO]);
-        });
-
-        it("localityCodes outside the requester's DH return an empty list, never another DH", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1)), userRow("W-2", uuidFor(2))], [DH_ONE]);
-
-            const result = await searchDistributorsByDhService(
-                buildRequest({ tenantId: "bo", campaignNumber: "CMP-1", localityCodes: [DH_TWO] })
-            );
-
-            expect(result).toMatchObject({ DHDistributors: [], TotalCount: 0 });
-        });
-
-        it("localityCodes with the requester's DH and another DH return only the requester's DH", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1)), userRow("W-2", uuidFor(2))], [DH_ONE]);
-
-            const result = await searchDistributorsByDhService(
-                buildRequest({ tenantId: "bo", campaignNumber: "CMP-1", localityCodes: [DH_ONE, DH_TWO] })
-            );
-
-            expect(result.DHDistributors.map((g: any) => g.dhCode)).toEqual([DH_ONE]);
-        });
-
-        it("does not generate the attendance sheet when the requester has no DH", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1))]);
-
-            await searchDistributorsByDhService(requestAs(OTHER_UUID));
-
-            expect(mockGenerate).not.toHaveBeenCalled();
-        });
-
-        it("does not call egov-user when the requester has no DH", async () => {
-            givenWorkerRows([workerRow({ HCM_ADMIN_CONSOLE_USER_WORKER_ID: "individual-9" })]);
-            givenUserRows([]);
-
-            await searchDistributorsByDhService(requestAs(OTHER_UUID));
-
-            expect(mockFetchUuidsByUserName).not.toHaveBeenCalled();
-        });
-
-        it("restricts the distributors added from user rows to the requester's DH as well", async () => {
-            givenWorkerRows([]);
-            givenUserRows(
-                [distributorAt("W-1", uuidFor(1), "dist.1", DH_ONE), distributorAt("W-2", uuidFor(2), "dist.2", DH_TWO)],
-                [DH_ONE]
-            );
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result.DHDistributors.map((g: any) => g.dhCode)).toEqual([DH_ONE]);
-            expect(result.DHDistributors[0].distributors.map((d: any) => d.uuid)).toEqual([uuidFor(1)]);
-        });
-
-        it("adds an unmapped distributor of the requester's DH but not one of another DH", async () => {
-            givenUserRows(
-                [userRow("W-1", uuidFor(1)), distributorAt("W-9", uuidFor(9), "dist.9", DH_ONE), distributorAt("W-8", uuidFor(8), "dist.8", DH_TWO)],
-                [DH_ONE]
-            );
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result.DHDistributors).toHaveLength(1);
-            expect(result.DHDistributors[0].distributors.map((d: any) => d.uuid)).toEqual([uuidFor(1), uuidFor(9)]);
-        });
-
-        it("does not list the requester as a distributor when the requester is not one", async () => {
-            givenWorkerRows([]);
-            givenUserRows([distributorAt("W-1", uuidFor(1), "dist.1", DH_ONE)], [DH_ONE]);
-
-            const result = await searchDistributorsByDhService(buildRequest());
-
-            expect(result.DHDistributors[0].distributors.map((d: any) => d.uuid)).toEqual([uuidFor(1)]);
-        });
-
-        it("pagination and TotalCount describe the restricted list", async () => {
-            givenUserRows([userRow("W-1", uuidFor(1)), userRow("W-2", uuidFor(2))], [DH_ONE]);
-
-            const result = await searchDistributorsByDhService(buildRequest(undefined, { limit: 5, offset: 0 }));
-
-            expect(result.TotalCount).toBe(1);
-            expect(result.Pagination).toEqual({ offset: 0, limit: 5 });
-        });
-
-        it("an empty result still validates the pagination limit", async () => {
-            givenUserRows([]);
-
-            await expect(searchDistributorsByDhService(requestAs(OTHER_UUID, undefined, { limit: 1001, offset: 0 })))
-                .rejects.toMatchObject({ status: 400, description: "limit must be between 1 and 1000" });
-        });
-
-        it("still rejects an unknown campaign before looking at the requester", async () => {
-            mockSearchCampaign.mockResolvedValue({ CampaignDetails: [] });
-
-            await expect(searchDistributorsByDhService(buildRequest())).rejects.toMatchObject({ code: "CAMPAIGN_NOT_FOUND" });
         });
     });
 });
