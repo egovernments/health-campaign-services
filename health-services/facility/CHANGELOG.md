@@ -4,6 +4,7 @@ All notable changes to this module will be documented in this file.
 
 - Outside Household sites (HCMPRE-2371): `_search` leaves out facilities whose `usage` is a site type from MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`, unless the request has `usage`, `id` or `clientReferenceId`.
 - New config: `egov.mdms.host`, `egov.mdms.v2.search.path`.
+- `_create` / `bulk/_create`: a facility whose `clientReferenceId` is already saved (same tenant) is not created again; the saved record, with its id, is returned. Before, the caller got a new id that the persister then failed to store. Switch: `facility.create.return.existing.on.duplicate.client.reference.id` (default `true`).
 
 ## 1.2.1 - 2026-03-10
 

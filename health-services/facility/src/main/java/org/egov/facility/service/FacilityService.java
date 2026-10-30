@@ -1,6 +1,7 @@
 package org.egov.facility.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -25,11 +26,13 @@ import org.springframework.util.ReflectionUtils;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
@@ -95,11 +98,16 @@ public class FacilityService {
                 isBulk);
         Map<Facility, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Facility> validEntities = tuple.getX();
+        Map<String, Facility> alreadySaved = Collections.emptyMap();
         try {
             if (!validEntities.isEmpty()) {
-                log.info("processing {} valid entities", validEntities.size());
-                enrichmentService.create(validEntities, request);
-                facilityRepository.save(validEntities, configuration.getCreateFacilityTopic());
+                alreadySaved = findAlreadySaved(validEntities);
+                List<Facility> newEntities = withoutAlreadySaved(validEntities, alreadySaved);
+                if (!newEntities.isEmpty()) {
+                    log.info("processing {} valid entities", newEntities.size());
+                    enrichmentService.create(newEntities, request);
+                    facilityRepository.save(newEntities, configuration.getCreateFacilityTopic());
+                }
             }
         } catch (Exception exception) {
             log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
@@ -108,7 +116,54 @@ public class FacilityService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed create method for facility");
-        return validEntities;
+        return withSavedRecords(validEntities, alreadySaved);
+    }
+
+    /**
+     * The facilities of this create that are already saved, by clientReferenceId. A phone that lost the answer to an
+     * earlier create sends the same facility again; clientReferenceId is unique in the table, so a new id would never
+     * be stored. Empty when the switch is off, no entity has a clientReferenceId, or the lookup fails (create then
+     * goes on exactly as before).
+     */
+    private Map<String, Facility> findAlreadySaved(List<Facility> entities) {
+        if (!Boolean.TRUE.equals(configuration.getReturnExistingOnDuplicateClientReferenceId())) {
+            return Collections.emptyMap();
+        }
+        List<String> clientReferenceIds = entities.stream().map(Facility::getClientReferenceId)
+                .filter(StringUtils::isNotBlank).distinct().collect(Collectors.toList());
+        if (clientReferenceIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            Map<String, Facility> saved = facilityRepository
+                    .findByClientReferenceIdFromDb(getTenantId(entities), clientReferenceIds).stream()
+                    .collect(Collectors.toMap(Facility::getClientReferenceId, facility -> facility, (first, second) -> first));
+            if (!saved.isEmpty()) {
+                log.info("{} facilities are already saved with the same clientReferenceId; returning the saved records", saved.size());
+            }
+            return saved;
+        } catch (Exception exception) {
+            log.warn("could not look up saved facilities by clientReferenceId, creating all: {}", exception.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    /** The saved record for this entity: same clientReferenceId and same tenant, else null. */
+    private static Facility savedRecordOf(Facility entity, Map<String, Facility> alreadySaved) {
+        Facility saved = entity.getClientReferenceId() == null ? null : alreadySaved.get(entity.getClientReferenceId());
+        return saved != null && Objects.equals(saved.getTenantId(), entity.getTenantId()) ? saved : null;
+    }
+
+    private static List<Facility> withoutAlreadySaved(List<Facility> entities, Map<String, Facility> alreadySaved) {
+        return entities.stream().filter(entity -> savedRecordOf(entity, alreadySaved) == null).collect(Collectors.toList());
+    }
+
+    /** The entities in request order, each already-saved one swapped for its saved record. */
+    private static List<Facility> withSavedRecords(List<Facility> entities, Map<String, Facility> alreadySaved) {
+        return entities.stream().map(entity -> {
+            Facility saved = savedRecordOf(entity, alreadySaved);
+            return saved != null ? saved : entity;
+        }).collect(Collectors.toList());
     }
 
     public Facility update(FacilityRequest request) {

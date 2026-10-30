@@ -89,6 +89,26 @@ public class FacilityRepository extends GenericRepository<Facility> {
     }
 
     /**
+     * Finds facilities by clientReferenceId straight from the database, deleted ones included, without reading the
+     * cache. clientReferenceId is unique in the table, so this is the record a repeated create can never replace; the
+     * cache may still hold a record from such a failed attempt, and is refreshed here with the saved one.
+     *
+     * @param tenantId           the tenant identifier to scope the query
+     * @param clientReferenceIds the clientReferenceIds to look up
+     * @return the saved facilities with these clientReferenceIds
+     * @throws InvalidTenantIdException if the provided tenantId is invalid
+     */
+    public List<Facility> findByClientReferenceIdFromDb(String tenantId, List<String> clientReferenceIds) throws InvalidTenantIdException {
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id WHERE f.clientReferenceId IN (:ids)", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("ids", clientReferenceIds);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        List<Facility> objFound = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+        putInCache(objFound);
+        return objFound;
+    }
+
+    /**
      * Finds and retrieves a list of Facility objects based on the given search criteria and pagination details.
      *
      * @param searchObject    the search object containing query criteria for filtering Facility records

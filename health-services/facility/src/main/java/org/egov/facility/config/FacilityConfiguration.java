@@ -47,4 +47,7 @@ public class FacilityConfiguration {
 
     @Value("${egov.mdms.v2.search.path}")
     private String mdmsV2SearchPath;
+
+    @Value("${facility.create.return.existing.on.duplicate.client.reference.id:true}")
+    private Boolean returnExistingOnDuplicateClientReferenceId;
 }
