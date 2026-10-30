@@ -34,7 +34,7 @@ const sheetManageGenerationTypes = new Set<string>(
 );
 
 const downloadGeneratedStatusPollIntervalMs = 1000;
-const downloadGeneratedStatusPollMaxAttempts = 45;
+const downloadGeneratedStatusPollMaxAttempts = 500;
 const staleInProgressResourceThresholdMs = 5 * 60 * 1000;
 const ALWAYS_FRESH_DOWNLOAD_TYPES = new Set<string>([
     "attendanceRegisterUserBulkMapping"
