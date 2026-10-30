@@ -77,6 +77,8 @@ import {
   isGenerationTriggerNeeded,
   isOutsideHouseholdDeliveryPersisted,
   isOutsideHouseholdChoiceDifferentFromSource,
+  isOutsideHouseholdDeliveryChanged,
+  cloneSourceFileToReattach,
 } from "./generateUtils";
 import {
   generateDynamicTargetHeaders,
@@ -2411,6 +2413,27 @@ export async function dropCloneSourceFileIfOutsideHouseholdChoiceDiffers(campaig
     }
   } catch (err: any) {
     logger.warn(`Could not compare clone ${campaignDetails?.campaignNumber} with ${cloneFromNumber}; keeping its files: ${err?.message ?? err}`);
+  }
+}
+
+/**
+ * A clone whose save changes its Outside Household choice back to its source's gets the source's file again (the file a
+ * clone keeps while it agrees with its source), unless the save brings a file of its own. Returns true when attached.
+ */
+export async function reattachCloneSourceFileIfChoiceAgrees(request: any): Promise<boolean> {
+  const campaignDetails = request?.body?.CampaignDetails;
+  const cloneFromNumber = campaignDetails?.additionalDetails?.cloneFrom;
+  if (!cloneFromNumber || campaignDetails?.parentId || !isOutsideHouseholdDeliveryChanged(request)) return false;
+  try {
+    const resp = await searchProjectTypeCampaignService({ tenantId: campaignDetails.tenantId, campaignNumber: cloneFromNumber });
+    const file = cloneSourceFileToReattach(campaignDetails, resp?.CampaignDetails?.[0], true);
+    if (!file) return false;
+    campaignDetails.resources = [...(Array.isArray(campaignDetails.resources) ? campaignDetails.resources : []), file];
+    logger.info(`Clone ${campaignDetails?.campaignNumber}: Outside Household choice agrees with ${cloneFromNumber} again; its file ${file.filestoreId} is attached again`);
+    return true;
+  } catch (err: any) {
+    logger.warn(`Could not attach the source file of clone ${campaignDetails?.campaignNumber} again: ${err?.message ?? err}`);
+    return false;
   }
 }
 

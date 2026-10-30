@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { logger } from "./logger";
 import { generateDataService } from "../service/sheetManageService";
 import config from "../config";
+import { resourceTypes } from "../config/constants";
 import { getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundarySheetData } from "../api/genericApis";
 import { checkIfSourceIsMicroplan } from "./campaignUtils";
@@ -64,6 +65,21 @@ export function isOutsideHouseholdChoiceDifferentFromSource(cloneDetails: any, s
   const cloneChoice = hasOutsideHouseholdDelivery(cloneDetails);
   if (cloneChoice === null) return false;
   return cloneChoice !== (hasOutsideHouseholdDelivery(sourceCampaign) ?? false);
+}
+
+/**
+ * The source's unified file to attach again to a clone whose Outside Household choice changed back to its source's, or
+ * null. Only for a clone (cloneFrom, no parent) whose save changed the choice, carries a readable deliveryMethods list
+ * that now agrees with the source, and brings no unified file of its own, when the source has one.
+ */
+export function cloneSourceFileToReattach(cloneDetails: any, sourceCampaign: any, outsideHouseholdChanged: boolean): any | null {
+    if (!config.mapping?.detachStaleResourcesOnConfigChange || !outsideHouseholdChanged || !sourceCampaign) return null;
+    if (!cloneDetails?.additionalDetails?.cloneFrom || cloneDetails?.parentId) return null;
+    if (hasOutsideHouseholdDelivery(cloneDetails) === null || isOutsideHouseholdChoiceDifferentFromSource(cloneDetails, sourceCampaign)) return null;
+    const isUnifiedFile = (r: any) => r?.type === resourceTypes.unifiedConsoleResources && r?.filestoreId;
+    if ((Array.isArray(cloneDetails.resources) ? cloneDetails.resources : []).some(isUnifiedFile)) return null;
+    const file = (Array.isArray(sourceCampaign.resources) ? sourceCampaign.resources : []).find(isUnifiedFile);
+    return file ? { type: resourceTypes.unifiedConsoleResources, filestoreId: file.filestoreId, filename: file.filename || null, additionalDetails: {} } : null;
 }
 
 // additionalDetails keys that tie a clone to the campaign it was copied from

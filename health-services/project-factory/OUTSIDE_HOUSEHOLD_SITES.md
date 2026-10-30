@@ -180,6 +180,7 @@ The attached file must match the template, and the template follows the campaign
 |---|---|
 | A save adds or removes `OUTSIDEHOUSEHOLD` | A new template is generated; the files attached before are deactivated and **not attached again** from the same save (the console sends them back), nor saved on the campaign row. A file uploaded in that save is kept. The user downloads the new template and uploads it. |
 | Clone with the same choice as its source (both with, or both without, OH) | Unchanged: the clone keeps the source's file. |
+| Clone whose choice changes back to its source's (e.g. OH removed, then added again) | The source's file is attached again, as on a fresh clone, unless that save brings a file of its own (`reattachCloneSourceFileIfChoiceAgrees`). |
 | Clone created with a different choice from its source | The source's file is not kept, and it is not borrowed at create (`isOutsideHouseholdChoiceDifferentFromSource`). The clone's template has the 4th sheet only if the clone uses OH, generated as for any campaign on that hierarchy and area. |
 | Any campaign whose `deliveryMethods` list has no `OUTSIDEHOUSEHOLD` | The Outside Household sheet of an uploaded file is not read, so no site is saved or linked (`isOutsideHouseholdNotSelected`). Without a readable list the sheet is read as before. |
 

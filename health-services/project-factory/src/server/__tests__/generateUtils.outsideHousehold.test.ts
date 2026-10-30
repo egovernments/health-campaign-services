@@ -7,7 +7,7 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage } from '../utils/generateUtils';
+import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach } from '../utils/generateUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
 
@@ -186,5 +186,43 @@ describe('keepCloneLineage (the console final create sends additionalDetails wit
         const incoming: any = { additionalDetails: {} };
         expect(keepCloneLineage(incoming, saved)).toEqual([]);
         expect(incoming.additionalDetails).toEqual({});
+    });
+});
+
+describe('cloneSourceFileToReattach (a clone whose Outside Household choice is back to its source\'s)', () => {
+    const UNIFIED = 'unified-console-resources';
+    const source = { ...campaign(['OUTSIDEHOUSEHOLD']), resources: [{ type: UNIFIED, filestoreId: 'SRC-FILE', filename: 'src.xlsx' }] };
+    const clone = (deliveryMethods: unknown, extra: Record<string, unknown> = {}) =>
+        ({ ...campaign(deliveryMethods), additionalDetails: { cloneFrom: 'CMP-SRC', cycleData: { deliveryMethods } }, resources: [], ...extra });
+    beforeEach(() => { (config as any).mapping = { detachStaleResourcesOnConfigChange: true }; });
+    afterAll(() => { delete (config as any).mapping; });
+
+    it('gives back the source file when the save changed the choice and it agrees with the source again', () => {
+        expect(cloneSourceFileToReattach(clone(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD']), source, true))
+            .toEqual({ type: UNIFIED, filestoreId: 'SRC-FILE', filename: 'src.xlsx', additionalDetails: {} });
+    });
+
+    it('gives nothing when the save did not change the choice', () => {
+        expect(cloneSourceFileToReattach(clone(['OUTSIDEHOUSEHOLD']), source, false)).toBeNull();
+    });
+
+    it('gives nothing while the clone still disagrees with the source', () => {
+        expect(cloneSourceFileToReattach(clone(['HOUSEHOLDSTRATEGY']), source, true)).toBeNull();
+    });
+
+    it('gives nothing when the save brings a unified file of its own', () => {
+        expect(cloneSourceFileToReattach(clone(['OUTSIDEHOUSEHOLD'], { resources: [{ type: UNIFIED, filestoreId: 'OWN' }] }), source, true)).toBeNull();
+    });
+
+    it('gives nothing without a readable deliveryMethods list, for an edit, or when the source has no file', () => {
+        expect(cloneSourceFileToReattach({ ...clone(['OUTSIDEHOUSEHOLD']), additionalDetails: { cloneFrom: 'CMP-SRC' } }, source, true)).toBeNull();
+        expect(cloneSourceFileToReattach(clone(['OUTSIDEHOUSEHOLD'], { parentId: 'p1' }), source, true)).toBeNull();
+        expect(cloneSourceFileToReattach(clone(['OUTSIDEHOUSEHOLD']), { ...source, resources: [] }, true)).toBeNull();
+    });
+
+    it('gives nothing for a campaign that is not a clone, or when the switch is off', () => {
+        expect(cloneSourceFileToReattach({ ...campaign(['OUTSIDEHOUSEHOLD']), resources: [] }, source, true)).toBeNull();
+        (config as any).mapping.detachStaleResourcesOnConfigChange = false;
+        expect(cloneSourceFileToReattach(clone(['OUTSIDEHOUSEHOLD']), source, true)).toBeNull();
     });
 });

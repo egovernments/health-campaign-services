@@ -1,6 +1,6 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import express from "express";
-import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
+import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, reattachCloneSourceFileIfChoiceAgrees, prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
 import { campaignStatuses, processStatuses } from "../config/constants";
@@ -102,6 +102,9 @@ async function updateProjectTypeCampaignService(request: express.Request) {
             logger.info(`Campaign ${campaignId}: ${detached} file(s) from before the configuration change are not attached again`);
         }
     }
+    // A clone whose Outside Household choice is back to its source's gets the source's file again (after the old files
+    // are dropped above, before the campaign and its files are saved below)
+    await reattachCloneSourceFileIfChoiceAgrees(request);
 
     await processBasedOnAction(request, "update");
 

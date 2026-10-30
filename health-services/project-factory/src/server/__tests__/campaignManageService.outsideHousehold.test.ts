@@ -1,6 +1,7 @@
 jest.mock('../utils/logger', () => ({ logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() } }));
 jest.mock('../utils/campaignUtils', () => ({
     dropCloneSourceFileIfOutsideHouseholdChoiceDiffers: jest.fn(),
+    reattachCloneSourceFileIfChoiceAgrees: jest.fn(),
     prepareAndProduceCancelMessage: jest.fn(),
     processBasedOnAction: jest.fn(),
     processFetchMicroPlan: jest.fn(),
@@ -27,7 +28,7 @@ jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(
 
 import config from '../config';
 import { createProjectTypeCampaignService, updateProjectTypeCampaignService } from '../service/campaignManageService';
-import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, processBasedOnAction, searchProjectCampaignResourcData } from '../utils/campaignUtils';
+import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, processBasedOnAction, reattachCloneSourceFileIfChoiceAgrees, searchProjectCampaignResourcData } from '../utils/campaignUtils';
 import { validateProjectCampaignRequest } from '../validators/campaignValidators';
 import { createResourceDetail, deactivateAllResourcesForCampaign, updateResourceDetail } from '../service/resourceDetailsService';
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
@@ -134,5 +135,26 @@ describe('updateProjectTypeCampaignService keeps the clone lineage', () => {
         expect(keepCloneLineage).toHaveBeenCalledWith(update.body.CampaignDetails, existing);
         expect((keepCloneLineage as jest.Mock).mock.invocationCallOrder[0])
             .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
+    });
+});
+
+describe('updateProjectTypeCampaignService gives a clone its source file back', () => {
+    it('attaches the file the re-attach step adds, after the old files are dropped and before the campaign is saved', async () => {
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: true });
+        (isOutsideHouseholdDeliveryChanged as jest.Mock).mockReturnValue(true);
+        let resourcesSeenByReattach: any[] | undefined;
+        (reattachCloneSourceFileIfChoiceAgrees as jest.Mock).mockImplementation(async (r: any) => {
+            resourcesSeenByReattach = [...r.body.CampaignDetails.resources];
+            r.body.CampaignDetails.resources = [...r.body.CampaignDetails.resources, { type: UNIFIED, filestoreId: 'SRC-FILE' }];
+            return true;
+        });
+
+        await updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'OLD' }]));
+
+        expect(resourcesSeenByReattach).toEqual([]);   // the old file was already dropped
+        expect((reattachCloneSourceFileIfChoiceAgrees as jest.Mock).mock.invocationCallOrder[0])
+            .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
+        expect(savedResources).toEqual([{ type: UNIFIED, filestoreId: 'SRC-FILE' }]);
+        expect(attachedFileIds()).toEqual(['SRC-FILE']);
     });
 });
