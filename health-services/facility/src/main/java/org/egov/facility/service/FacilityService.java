@@ -15,6 +15,7 @@ import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.repository.FacilityRepository;
 import org.egov.facility.service.enrichment.FacilityEnrichmentService;
 import org.egov.facility.validator.FBoundaryValidator;
+import org.egov.facility.validator.FOutsideHouseholdSiteValidator;
 import org.egov.facility.validator.FIsDeletedValidator;
 import org.egov.facility.validator.FNonExistentValidator;
 import org.egov.facility.validator.FNullIdValidator;
@@ -60,7 +61,8 @@ public class FacilityService {
     private final BoundaryDescendantService boundaryDescendantService;
 
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForCreate =
-            validator -> validator.getClass().equals(FBoundaryValidator.class);
+            validator -> validator.getClass().equals(FBoundaryValidator.class)
+                    || validator.getClass().equals(FOutsideHouseholdSiteValidator.class);
 
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForUpdate =
             validator -> validator.getClass().equals(FIsDeletedValidator.class)
@@ -68,7 +70,8 @@ public class FacilityService {
                     || validator.getClass().equals(FNonExistentValidator.class)
                     || validator.getClass().equals(FNullIdValidator.class)
                     || validator.getClass().equals(FRowVersionValidator.class)
-                    || validator.getClass().equals(FUniqueEntityValidator.class);
+                    || validator.getClass().equals(FUniqueEntityValidator.class)
+                    || validator.getClass().equals(FOutsideHouseholdSiteValidator.class);
 
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForDelete =
             validator -> validator.getClass().equals(FNonExistentValidator.class)
@@ -252,6 +255,21 @@ public class FacilityService {
                                            Long lastChangedSince,
                                            Boolean includeDeleted,
                                            boolean includeDescendants) throws Exception  {
+        return search(facilitySearchRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, includeDescendants, null);
+    }
+
+    /**
+     * As above; hierarchyType is the boundaryCode's hierarchy. Without it, the hierarchy is found when boundary-service
+     * needs one to place the boundary.
+     */
+    public SearchResponse<Facility> search(FacilitySearchRequest facilitySearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted,
+                                           boolean includeDescendants,
+                                           String hierarchyType) throws Exception  {
         log.info("starting search method for facility");
         String idFieldName = getIdFieldName(facilitySearchRequest.getFacility());
         if (isSearchByIdOnly(facilitySearchRequest.getFacility(), idFieldName)) {
@@ -272,7 +290,7 @@ public class FacilityService {
         List<String> localityCodes = null;
         String boundaryCode = facilitySearchRequest.getFacility() == null ? null : facilitySearchRequest.getFacility().getLocalityCode();
         if (includeDescendants && StringUtils.isNotBlank(boundaryCode)) {
-            localityCodes = boundaryDescendantService.getCodesAtAndBelow(tenantId, boundaryCode.trim(),
+            localityCodes = boundaryDescendantService.getCodesAtAndBelow(tenantId, boundaryCode.trim(), hierarchyType,
                     facilitySearchRequest.getRequestInfo());
             log.info("searching {} boundaries at and below {}", localityCodes.size(), boundaryCode);
         }

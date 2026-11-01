@@ -112,6 +112,7 @@ public class FacilityApiController {
     public ResponseEntity<FacilityBulkResponse> facilityV1SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Details for existing facility.", required = true) @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") boolean includeDescendants,
+            @ApiParam(value = "Boundary hierarchy of the boundaryCode, used with includeDescendants") @RequestParam(value = "hierarchyType", required = false) String hierarchyType,
             @Valid @RequestBody FacilitySearchRequest request
     ) throws Exception {
         SearchResponse<Facility> searchResponse = facilityService.search(
@@ -121,7 +122,8 @@ public class FacilityApiController {
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
                 urlParams.getIncludeDeleted(),
-                includeDescendants);
+                includeDescendants,
+                hierarchyType);
         FacilityBulkResponse response = FacilityBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true))
                 .facilities(searchResponse.getResponse())

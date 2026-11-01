@@ -40,6 +40,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -258,13 +259,25 @@ class FacilityServiceTest {
     @Test
     @DisplayName("includeDescendants with a boundaryCode searches the boundary and every boundary below it")
     void shouldSearchBoundariesBelowWhenIncludeDescendants() throws Exception {
-        when(boundaryDescendantService.getCodesAtAndBelow(eq("dev"), eq("DISTRICT"), any()))
+        when(boundaryDescendantService.getCodesAtAndBelow(eq("dev"), eq("DISTRICT"), isNull(), any()))
                 .thenReturn(List.of("DISTRICT", "VILLAGE_1", "VILLAGE_2"));
         FacilitySearchRequest request = siteSearch("DISTRICT");
 
         facilityService.search(request, 100, 0, "dev", null, false, true);
 
         verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, List.of("DISTRICT", "VILLAGE_1", "VILLAGE_2"));
+    }
+
+    @Test
+    @DisplayName("includeDescendants passes the request's hierarchyType on")
+    void shouldPassTheHierarchyTypeOn() throws Exception {
+        when(boundaryDescendantService.getCodesAtAndBelow(eq("dev"), eq("LOCALITY_1"), eq("BM1807"), any()))
+                .thenReturn(List.of("LOCALITY_1", "VILLAGE_1"));
+        FacilitySearchRequest request = siteSearch("LOCALITY_1");
+
+        facilityService.search(request, 100, 0, "dev", null, false, true, "BM1807");
+
+        verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, List.of("LOCALITY_1", "VILLAGE_1"));
     }
 
     @Test
@@ -275,7 +288,7 @@ class FacilityServiceTest {
         facilityService.search(request, 100, 0, "dev", null, false);
 
         verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, null);
-        verify(boundaryDescendantService, never()).getCodesAtAndBelow(anyString(), anyString(), any());
+        verify(boundaryDescendantService, never()).getCodesAtAndBelow(anyString(), anyString(), any(), any());
     }
 
     @Test
@@ -286,7 +299,7 @@ class FacilityServiceTest {
         facilityService.search(request, 100, 0, "dev", null, false, true);
 
         verify(repository).find(request.getFacility(), 100, 0, "dev", null, false, null);
-        verify(boundaryDescendantService, never()).getCodesAtAndBelow(anyString(), anyString(), any());
+        verify(boundaryDescendantService, never()).getCodesAtAndBelow(anyString(), anyString(), any(), any());
     }
 
     @Test
