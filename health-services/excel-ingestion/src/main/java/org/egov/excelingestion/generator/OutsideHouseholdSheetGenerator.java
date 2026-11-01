@@ -110,7 +110,7 @@ public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
             // Delivery-method gate (ExcelGenerationService) already keeps this sheet from generating at
             // all when the master has no active codes.
             Map<String, Boolean> outsideHouseholdTypes = outsideHouseholdTypeMasterService.getOutsideHouseholdTypes(requestInfo, generateResource.getTenantId());
-            List<Map<String, Object>> data = fetchExistingOutsideHouseholdData(generateResource, requestInfo, outsideHouseholdTypes);
+            List<Map<String, Object>> data = fetchExistingOutsideHouseholdData(generateResource, requestInfo, outsideHouseholdTypes, columns);
 
             if (workbook.getSheetIndex(sheetName) >= 0) {
                 workbook.removeSheetAt(workbook.getSheetIndex(sheetName));
@@ -155,7 +155,8 @@ public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
 
     /** Pre-filled rows: this campaign's own sites, then permanent sites carried over from earlier campaigns. */
     private List<Map<String, Object>> fetchExistingOutsideHouseholdData(GenerateResource generateResource,
-                                                            RequestInfo requestInfo, Map<String, Boolean> outsideHouseholdTypes) {
+                                                            RequestInfo requestInfo, Map<String, Boolean> outsideHouseholdTypes,
+                                                            List<ColumnDef> columns) {
         String referenceId = generateResource.getReferenceId();
         if (isBlank(referenceId)) {
             log.info("No reference ID provided for Outside Household sheet");
@@ -182,6 +183,8 @@ public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
                         generateResource.getHierarchyType(), CARRY_OVER_LEVEL_COUNT, requestInfo);
                 carryOverOutsideHouseholdSites = fetchCarryOverOutsideHouseholdSites(generateResource.getTenantId(), carryOverCodes,
                         campaignOutsideHouseholdSites, outsideHouseholdTypes, requestInfo);
+                carryOverOutsideHouseholdSites = withoutRowsTheUploadWouldReject(carryOverOutsideHouseholdSites, columns,
+                        outsideHouseholdTypeMasterService.getCategoriesByOutsideHouseholdType(requestInfo, generateResource.getTenantId()));
             }
 
             List<Map<String, Object>> rows = new ArrayList<>(campaignOutsideHouseholdSites.size() + carryOverOutsideHouseholdSites.size());
@@ -223,6 +226,42 @@ public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
         }
         log.info("Found {} sites carried over from earlier campaigns", sites.size());
         return sites;
+    }
+
+    /**
+     * Drops carried sites whose locked values the upload would reject: a Site Name outside the sheet's length limits,
+     * or a category that is not one of its type's categories (site-types master). Such sites come from other clients
+     * (e.g. the app or the API); the planner cannot edit a pre-filled name or category nor delete the row, so carrying
+     * them would block every upload on that area. A blank name or category stays (those cells are editable when blank).
+     */
+    static List<Map<String, Object>> withoutRowsTheUploadWouldReject(List<Map<String, Object>> carried, List<ColumnDef> columns,
+                                                                     Map<String, List<String>> categoriesByType) {
+        ColumnDef nameColumn = columns == null ? null : columns.stream()
+                .filter(c -> ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY.equals(c.getName())).findFirst().orElse(null);
+        Integer minLength = nameColumn == null ? null : nameColumn.getMinLength();
+        Integer maxLength = nameColumn == null ? null : nameColumn.getMaxLength();
+        List<Map<String, Object>> kept = new ArrayList<>();
+        for (Map<String, Object> row : carried) {
+            String name = asTrimmedString(row.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY));
+            String type = OutsideHouseholdTypeMasterService.normalize(asTrimmedString(row.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY)));
+            String category = OutsideHouseholdTypeMasterService.normalize(asTrimmedString(row.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY)));
+            List<String> allowed = type == null || categoriesByType == null ? null : categoriesByType.get(type);
+            String reason = null;
+            if (name != null && minLength != null && name.length() < minLength) {
+                reason = "Site Name shorter than " + minLength + " characters";
+            } else if (name != null && maxLength != null && name.length() > maxLength) {
+                reason = "Site Name longer than " + maxLength + " characters";
+            } else if (category != null && allowed != null && !allowed.isEmpty() && !allowed.contains(category)) {
+                reason = "category " + category + " is not one of the categories of " + type;
+            }
+            if (reason == null) {
+                kept.add(row);
+            } else {
+                log.warn("Not carrying site {} into the template: {} (fix the site through the facility API to offer it again)",
+                        row.get(ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY), reason);
+            }
+        }
+        return kept;
     }
 
     /**

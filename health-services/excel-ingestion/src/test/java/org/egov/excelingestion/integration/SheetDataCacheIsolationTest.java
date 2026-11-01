@@ -152,17 +152,26 @@ class SheetDataCacheIsolationTest {
         assertDoesNotThrow(() -> runUpload("unified-console-parse", UPLOAD_FS, upload, true));
     }
 
-    // Reproduces the UAT failure: without the run-start evict, creation reads validation's canonical
-    // rows from the cache and rejects the unedited file. Proves the harness detects the bug.
+    // Without the run-start evict, creation still reads validation's canonical rows from the cache (the HCS#2262
+    // mechanism), but the join now compares a multi-select role as codes, so the unedited file is not rejected either.
     @Test
-    void withoutTheEvictCreationRejectsTheUnchangedFile() throws Exception {
+    void withoutTheEvictTheCachedCodesStillMatchTheBaselineLabels() throws Exception {
         byte[] upload = userWorkbook("Proximity Supervisor");
 
         runUpload("unified-console-validation", UPLOAD_FS, upload, true);
+        Workbook probe = open(upload);
+        assertEquals("PROXIMITY_SUPERVISOR", excelUtil.convertSheetToMapListCached(UPLOAD_FS, SHEET, probe.getSheet(SHEET)).get(0).get(ROLE_1));
 
-        CustomException ex = assertThrows(CustomException.class,
-                () -> runUpload("unified-console-parse", UPLOAD_FS, upload, false));
-        assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+        assertDoesNotThrow(() -> runUpload("unified-console-parse", UPLOAD_FS, upload, false));
+    }
+
+    // The planner typed the role code instead of the label in a pre-filled row: the same role, not an edit.
+    @Test
+    void aRoleCodeTypedInsteadOfItsLabelIsNotAnEdit() throws Exception {
+        byte[] codeTyped = userWorkbook("PROXIMITY_SUPERVISOR");
+
+        assertDoesNotThrow(() -> runUpload("unified-console-validation", UPLOAD_FS, codeTyped, true));
+        assertDoesNotThrow(() -> runUpload("unified-console-parse", UPLOAD_FS, codeTyped, true));
     }
 
     @Test

@@ -5,6 +5,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
@@ -36,6 +37,8 @@ import java.util.*;
 @Service
 @Slf4j
 public class ExcelProcessingService {
+
+    private static final String OUTSIDE_HOUSEHOLD_COLUMN_PREFIX = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_";
 
     private final ValidationService validationService;
     private final SchemaValidationService schemaValidationService;
@@ -227,7 +230,9 @@ public class ExcelProcessingService {
                             resource.getFileStoreId(), sheetName, sheet);
 
                     // Enrich resource additionalDetails with error count and status for this sheet
-                    enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors);
+                    // On the Outside Household sheet, rows the schema rejects (blank required cell, value not in the
+                    // list, bad phone) make outsideHouseholdSheetStatus invalid too; its processor keeps it invalid
+                    enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors, sheetKindOf(sheet));
 
                     // Enrich resource additionalDetails with row count for this sheet
                     enrichmentUtil.enrichRowCountInAdditionalDetails(resource, sheetData.size());
@@ -275,6 +280,24 @@ public class ExcelProcessingService {
         return null; // This should never be reached due to exception above
     }
 
+
+    /**
+     * The per-sheet status kind of a sheet, known here only for the Outside Household sheet, found by its technical
+     * column names (row 0), which are the same in every locale; null for the other sheets.
+     */
+    static String sheetKindOf(Sheet sheet) {
+        Row header = sheet == null ? null : sheet.getRow(0);
+        if (header == null) {
+            return null;
+        }
+        for (Cell cell : header) {
+            if (cell != null && cell.getCellType() == CellType.STRING
+                    && cell.getStringCellValue().startsWith(OUTSIDE_HOUSEHOLD_COLUMN_PREFIX)) {
+                return ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD;
+            }
+        }
+        return null;
+    }
 
     /**
      * Fail-fast guardrail: rejects the upload if any visible sheet has more data rows than

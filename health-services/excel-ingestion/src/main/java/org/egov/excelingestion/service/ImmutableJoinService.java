@@ -262,7 +262,7 @@ public class ImmutableJoinService {
         // in the processed file even though validation/persistence used the correct baseline value.
         Map<String, Integer> uploadedColIndex = headerIndex(uploadedSheet);
         SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut, localizationMap,
-                immutable.enumReverseMaps);
+                immutable.enumReverseMaps, immutable.multiSelectReverseMaps);
 
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
@@ -386,6 +386,14 @@ public class ImmutableJoinService {
                         name, col.getEnumValues(), localizationMap, col.getPrefix());
                 if (!reverseMap.isEmpty()) {
                     result.enumReverseMaps.put(name, reverseMap);
+                }
+            } else if (col.getMultiSelectDetails() != null && col.getMultiSelectDetails().getEnumValues() != null) {
+                // The multi-select parent holds the comma-joined selections (e.g. the user roles); an earlier
+                // request on the same file may already have rebuilt it from codes, while the baseline has labels.
+                Map<String, String> reverseMap = EnumLocalizationUtil.buildReverseMap(
+                        name, col.getMultiSelectDetails().getEnumValues(), localizationMap, col.getPrefix());
+                if (!reverseMap.isEmpty()) {
+                    result.multiSelectReverseMaps.put(name, reverseMap);
                 }
             }
             if (col.isFreezeColumn() || col.isFreezeTillData()) {
@@ -517,9 +525,31 @@ public class ImmutableJoinService {
         if (sameTrimmed(uploaded, baseline)) {
             return true;
         }
+        Map<String, String> multiSelectMap = sj.multiSelectReverseMaps.get(col);
+        if (multiSelectMap != null) {
+            List<String> canonical = canonicalSelections(uploaded, multiSelectMap);
+            return canonical != null && canonical.equals(canonicalSelections(baseline, multiSelectMap));
+        }
         Map<String, String> reverseMap = sj.enumReverseMaps.get(col);
         String canonical = EnumLocalizationUtil.toCanonical(norm(uploaded), reverseMap);
         return canonical != null && canonical.equals(EnumLocalizationUtil.toCanonical(norm(baseline), reverseMap));
+    }
+
+    /** The comma-joined selections as sorted codes, or null when one of them is not a known value. */
+    private static List<String> canonicalSelections(Object value, Map<String, String> reverseMap) {
+        List<String> out = new ArrayList<>();
+        for (String part : norm(value).split(",")) {
+            if (part.trim().isEmpty()) {
+                continue;
+            }
+            String canonical = EnumLocalizationUtil.toCanonical(part, reverseMap);
+            if (canonical == null) {
+                return null;
+            }
+            out.add(canonical);
+        }
+        Collections.sort(out);
+        return out;
     }
 
     /** True when two cell values are equal as trimmed strings (null/empty treated as equal). */
@@ -543,16 +573,19 @@ public class ImmutableJoinService {
         final List<ValidationError> warnings;
         final Map<String, String> localizationMap;
         final Map<String, Map<String, String>> enumReverseMaps;
+        final Map<String, Map<String, String>> multiSelectReverseMaps;
 
         SheetJoin(Sheet sheet, Map<String, Integer> colIndex, String sheetName,
                   List<ValidationError> warnings, Map<String, String> localizationMap,
-                  Map<String, Map<String, String>> enumReverseMaps) {
+                  Map<String, Map<String, String>> enumReverseMaps,
+                  Map<String, Map<String, String>> multiSelectReverseMaps) {
             this.sheet = sheet;
             this.colIndex = colIndex;
             this.sheetName = sheetName;
             this.warnings = warnings;
             this.localizationMap = localizationMap;
             this.enumReverseMaps = enumReverseMaps;
+            this.multiSelectReverseMaps = multiSelectReverseMaps;
         }
     }
 
@@ -586,6 +619,7 @@ public class ImmutableJoinService {
         final Set<String> alwaysRestore = new HashSet<>();          // freezeColumn / freezeTillData
         final Set<String> restoreIfBaselineFilled = new HashSet<>(); // freezeColumnIfFilled
         final Map<String, Map<String, String>> enumReverseMaps = new HashMap<>(); // localized label -> code
+        final Map<String, Map<String, String>> multiSelectReverseMaps = new HashMap<>(); // multi-select parent: label -> code
 
         boolean isEmpty() {
             return alwaysRestore.isEmpty() && restoreIfBaselineFilled.isEmpty();

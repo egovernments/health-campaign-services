@@ -24,6 +24,7 @@ import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -293,6 +294,48 @@ class ImmutableJoinServiceTest {
                     new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "School", ROW_NUM, 3))));
 
             CustomException ex = assertThrows(CustomException.class, this::runWithCategoryLabels);
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+        }
+
+        // reject-on-change: the multi-select PARENT (user roles). After validation the shared row cache holds the
+        // parent rebuilt from codes ("DISTRIBUTOR"); the baseline holds the label ("Distributor"). Bug 1.
+        private void runWithRoleLabels() {
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(List.of(
+                    ColumnDef.builder().name("roles").freezeColumn(true)
+                            .multiSelectDetails(MultiSelectDetails.builder().maxSelections(2)
+                                    .enumValues(List.of("DISTRIBUTOR", "REGISTRAR", "TEAM_SUPERVISOR")).build()).build()));
+            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, null, new ArrayList<>(),
+                    Map.of("roles_DISTRIBUTOR", "Distributor", "roles_REGISTRAR", "Registrar", "roles_TEAM_SUPERVISOR", "Team Supervisor"));
+        }
+
+        @Test
+        void rejectOnChange_multiSelectParent_codesMatchLabels_notRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "DISTRIBUTOR", ROW_NUM, 3),
+                            row(ROW_ID, "r2", "roles", "TEAM_SUPERVISOR,DISTRIBUTOR", ROW_NUM, 4))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "Distributor", ROW_NUM, 3),
+                            row(ROW_ID, "r2", "roles", "Distributor,Team Supervisor", ROW_NUM, 4))));
+
+            assertDoesNotThrow(this::runWithRoleLabels);
+        }
+
+        @Test
+        void rejectOnChange_multiSelectParent_realChange_stillRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "REGISTRAR", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "Distributor", ROW_NUM, 3))));
+
+            CustomException ex = assertThrows(CustomException.class, this::runWithRoleLabels);
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+        }
+
+        @Test
+        void rejectOnChange_multiSelectParent_roleAdded_stillRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "DISTRIBUTOR,REGISTRAR", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "Distributor", ROW_NUM, 3))));
+
+            CustomException ex = assertThrows(CustomException.class, this::runWithRoleLabels);
             assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
         }
 

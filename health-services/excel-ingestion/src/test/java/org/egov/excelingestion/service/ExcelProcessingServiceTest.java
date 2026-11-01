@@ -352,6 +352,28 @@ class ExcelProcessingServiceTest {
                 "a visible no-schema sheet must still be included in the immutable-join sheet list");
     }
 
+    @Test
+    void outsideHouseholdSheet_schemaStepPassesItsSheetKind() {
+        // Bug 10: a sheet with the Outside Household technical columns (any localized name) is enriched with its
+        // sheet kind in the schema step, so its own row errors set outsideHouseholdSheetStatus
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Hors ménage");
+        Row tech = sheet.createRow(0);
+        tech.createCell(0).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+        tech.createCell(1).setCellValue("HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_NAME");
+        sheet.createRow(1).createCell(0).setCellValue("Code");
+        sheet.createRow(2).createCell(1).setCellValue("Site");
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString())).thenReturn(workbook);
+        when(config.getMaxProcessRowLimit()).thenReturn(100000);
+        doThrow(new RuntimeException("stop after the schema step")).when(configBasedProcessingService)
+                .processWorkbookWithProcessor(any(), any(), any(), any());
+
+        assertThrows(RuntimeException.class, () -> excelProcessingService.processExcelFile(request));
+
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(any(), any(),
+                eq(org.egov.excelingestion.config.ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD));
+    }
+
     private Workbook createTestWorkbook() {
         return createWorkbookWithDataRows(1);
     }
