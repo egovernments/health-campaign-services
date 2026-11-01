@@ -48,6 +48,9 @@ public class AsyncProcessingService {
             // Drop stale campaign cache entries so validation runs against the latest campaign data.
             campaignCacheEvictor.evictCampaign(processResource.getReferenceId(),
                     processResource.getTenantId());
+            // Start from the file's own cells, not row maps a previous run (e.g. validation of this same
+            // file) already joined/normalized in place - else creation rejects an unedited file.
+            campaignCacheEvictor.evictSheetData(processResource.getFileStoreId());
 
             // Create the request object for the processing service
             ProcessResourceRequest request = ProcessResourceRequest.builder()
