@@ -24,7 +24,7 @@ export class TemplateClass {
     ): Promise<SheetMap> {
         await validateResourceDetailsBeforeProcess("boundaryValidation", resourceDetails, localizationMap);
         logger.info("Processing file...");
-        logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
+        logger.info(`ResourceDetails: id=${resourceDetails?.id}, type=${resourceDetails?.type}, campaignId=${resourceDetails?.campaignId}, fileStoreId=${resourceDetails?.fileStoreId}`);
         const {
             campaignDetails,
             boundaries,

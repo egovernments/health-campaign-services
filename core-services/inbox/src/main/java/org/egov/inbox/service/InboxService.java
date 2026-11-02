@@ -1042,7 +1042,7 @@ public class InboxService {
 			}
 		});
 		
-		log.info("\nfetchModuleObjects URL :::: " + url.toString());
+		log.info("\nfetchModuleObjects URL :::: " + srvMap.get("searchPath"));
 		
         RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(requestInfo).build();
         Object result = serviceRequestRepository.fetchResult(url, requestInfoWrapper);
@@ -1151,7 +1151,7 @@ public class InboxService {
 			}
 		});
 
-		log.info("\nfetchModulSearcheObjects URL :::: " + url.toString());
+		log.info("\nfetchModulSearcheObjects URL :::: " + srvMap.get("searchPath"));
 
 		RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(requestInfo).build();
 		Object result = serviceRequestRepository.fetchResult(url, requestInfoWrapper);

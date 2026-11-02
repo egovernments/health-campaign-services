@@ -33,7 +33,7 @@ export class TemplateClass {
     ): Promise<SheetMap> {
         await validateResourceDetailsBeforeProcess("facilityValidation", resourceDetails, localizationMap);
         logger.info("Processing Facility file...");
-        logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
+        logger.info(`ResourceDetails: id=${resourceDetails?.id}, type=${resourceDetails?.type}, campaignId=${resourceDetails?.campaignId}, fileStoreId=${resourceDetails?.fileStoreId}`);
 
         const campaign = await this.getCampaignDetails(resourceDetails);
         const userUuid = campaign?.auditDetails?.createdBy;

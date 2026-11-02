@@ -44,7 +44,6 @@ public class ServiceRequestRepository {
 		Object response = null;
 		//log.debug("URI: " + uri.toString());
 		try {
-			log.info("Request: " + mapper.writeValueAsString(request));
 			response = restTemplate.postForObject(uri.toString(), request, Map.class);
 		} catch (HttpClientErrorException e) {
 			//log.error("External Service threw an Exception: ", e);
@@ -64,8 +63,6 @@ public class ServiceRequestRepository {
 			final HttpHeaders headers = new HttpHeaders();
 			headers.add("Authorization", esAuthUtil.getESEncodedCredentials());
 			final HttpEntity<Object> entity = new HttpEntity<>(request, headers);
-			log.info("Request: " + mapper.writeValueAsString(request));
-			log.info("Entity: " + mapper.writeValueAsString(entity));
 			response = restTemplate.postForObject(uri.toString(), entity, Map.class);
 		} catch (HttpClientErrorException e) {
 			//log.error("External Service threw an Exception: ", e);

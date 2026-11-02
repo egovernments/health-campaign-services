@@ -1,6 +1,6 @@
 import { Kafka, logLevel, EachMessagePayload, ConfigResourceTypes } from 'kafkajs';
 import config from '../config';
-import { getFormattedStringForDebug, logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
 import { requestContextStore } from '../utils/requestContext';
 import { handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
@@ -212,7 +212,7 @@ async function processMessageKJS(
 
         await requestContextStore.run({ correlationId, tenantId }, async () => {
             logger.info(`KAFKA :: LISTENER :: Received a message from topic ${topic}`);
-            logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
+            logger.debug(`KAFKA :: LISTENER :: Message keys: ${JSON.stringify(Object.keys(messageObject || {}))}`);
 
             // Strip prefix from incoming topic to resolve the base topic for routing
             const baseTopic = stripTopicPrefix(topic);

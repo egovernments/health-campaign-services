@@ -108,7 +108,7 @@ public class HealthNotificationUtils {
                 // Fetch the child's details for their name
                 Individual child = individualService.searchIndividualById(member.getIndividualId(), tenantId);
                 String childName = child.getName() != null ? child.getName().getGivenName() : null;
-                log.info("Child name resolved: {}", childName);
+                log.info("Child name resolved for individualId: {}", member.getIndividualId());
 
                 HouseholdMember head = householdService.searchHouseholdHead(householdId, tenantId);
                 headIndividualId = head.getIndividualId();

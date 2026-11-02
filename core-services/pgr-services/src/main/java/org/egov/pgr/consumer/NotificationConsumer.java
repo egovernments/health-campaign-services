@@ -53,7 +53,7 @@ public class NotificationConsumer {
 
             notificationService.process(request, topic);
         } catch (Exception ex) {
-            StringBuilder builder = new StringBuilder("Error while listening to value: ").append(record)
+            StringBuilder builder = new StringBuilder("Error while listening to value ")
                     .append("on topic: ").append(topic);
             log.error(builder.toString(), ex);
         }

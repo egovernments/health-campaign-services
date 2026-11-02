@@ -215,7 +215,7 @@ public class ProjectFacilityService {
                 applicableValidators, request,
                 SET_PROJECT_FACILITIES);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
-            log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
+            log.error("validation error occurred for {} entities", errorDetailsMap.size());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<ProjectFacility> validEntities = request.getProjectFacilities().stream()

@@ -171,7 +171,7 @@ public class DeviceTokenService {
 
 	public void deleteStaleTokens(List<String> deviceTokens, String tenantId) {
 		int deleted = repository.deleteByDeviceTokens(deviceTokens, tenantId);
-		log.info("Deleted {} stale device token row(s) for tokens: {}", deleted, deviceTokens);
+		log.info("Deleted {} stale device token row(s) for {} token(s)", deleted, deviceTokens.size());
 	}
 
 	/**

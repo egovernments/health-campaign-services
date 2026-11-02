@@ -89,7 +89,7 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
                 List<HFReferral> nonExistentReferrals = checkNonExistentEntities(iMap,
                         existingReferrals, idMethod);
                 nonExistentReferrals.forEach(hfReferral -> {
-                    log.error("Entity doesn't exist in the db {}", hfReferral);
+                    log.error("Entity doesn't exist in the db {}", hfReferral.getClientReferenceId());
                     Error error = getErrorForNonExistentEntity();
                     populateErrorDetails(hfReferral, error, errorDetailsMap);
                 });

@@ -508,11 +508,11 @@ public class IndividualService {
                 try {
                     if (apiOperation.equals(ApiOperation.UPDATE)) {
                         userIntegrationService.updateUser(individual, request.getRequestInfo());
-                        log.info("successfully updated user for {} ", individual.getName());
+                        log.info("successfully updated user for individual {} ", individual.getId());
                     } else {
                         userIntegrationService.deleteUser(Collections.singletonList(individual),
                                 request.getRequestInfo());
-                        log.info("successfully soft deleted user for {} ", individual.getName());
+                        log.info("successfully soft deleted user for individual {} ", individual.getId());
                     }
                 } catch (Exception exception) {
                     log.error("error occurred in user service call", ExceptionUtils.getStackTrace(exception));
@@ -616,7 +616,7 @@ public class IndividualService {
                                 + "Likely causes: username collision without dedup metadata, or downstream INSERT rollback.",
                         expectedUsername, cliRef, mobile, indId);
             }
-            log.warn("bulk create failed for username={} code={} message={}", expectedUsername, code, message);
+            log.warn("bulk create failed for username={} individualClientRef={} code={}", expectedUsername, cliRef, code);
             recordUserServiceError(request, errorDetails, validIndividuals, individual, code, message);
         }
     }

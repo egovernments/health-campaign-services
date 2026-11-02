@@ -14,14 +14,13 @@ public class ConsolePushService implements PushNotificationService {
     @Override
     public void sendPushNotification(PushNotificationRequest request) {
         log.info("=== CONSOLE PUSH NOTIFICATION (FCM disabled) ===");
-        log.info("Title: {}", request.getTitle());
-        log.info("Body: {}", request.getBody());
+        log.info("Title length: {}", request.getTitle() != null ? request.getTitle().length() : 0);
+        log.info("Body length: {}", request.getBody() != null ? request.getBody().length() : 0);
         log.info("TenantId: {}", request.getTenantId());
         log.info("FacilityId: {}", request.getFacilityId()); // Log facilityId
-        log.info("Data: {}", request.getData());
-        log.info("Device tokens ({}): {}",
-                request.getDeviceTokens() != null ? request.getDeviceTokens().size() : 0,
-                request.getDeviceTokens());
+        log.info("Data keys: {}", request.getData() != null ? request.getData().keySet() : null);
+        log.info("Device tokens count: {}",
+                request.getDeviceTokens() != null ? request.getDeviceTokens().size() : 0);
         log.info("=================================================");
     }
 

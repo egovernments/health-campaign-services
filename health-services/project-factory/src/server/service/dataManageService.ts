@@ -95,7 +95,6 @@ const getBoundaryDataService = async (
         }
         if (cachedData) {
             logger.info("CACHE HIT :: " + cacheKey);
-            logger.debug(`CACHED DATA :: ${getFormattedStringForDebug(cachedData)}`);
 
             if (config.cacheValues.resetCache) {
                 await redis.expire(cacheKey, cacheTTL);
@@ -190,7 +189,7 @@ const searchCampaignDataService = async (request: any) => {
             }
         }
 
-        logger.info(`Searching campaign data: ${getFormattedStringForDebug(searchParams)}`);
+        logger.info(`Searching campaign data: ${getFormattedStringForDebug({ ...searchParams, uniqueIdentifiers: searchParams.uniqueIdentifiers ? `[${searchParams.uniqueIdentifiers.length} values]` : undefined })}`);
 
         const result = await searchCampaignData(searchParams);
 
@@ -245,7 +244,7 @@ const searchMappingDataService = async (request: any) => {
             }
         }
 
-        logger.info(`Searching mapping data: ${getFormattedStringForDebug(searchParams)}`);
+        logger.info(`Searching mapping data: ${getFormattedStringForDebug({ ...searchParams, uniqueIdentifierForData: searchParams.uniqueIdentifierForData ? "[redacted]" : undefined })}`);
 
         const result = await searchMappingData(searchParams);
 

@@ -294,7 +294,7 @@ async function processToBeMappedGroup(
                 if (mappingId) mapping.mappingId = mappingId;
                 updateBatch.push(mapping);
             } catch (error) {
-                logger.error(`Failed to create project ${adapter.type} mapping for ${mapping.uniqueIdentifierForData}:`, error);
+                logger.error(`Failed to create project ${adapter.type} mapping for ${adapter.type === 'user' ? `user in boundary ${mapping.boundaryCode}` : mapping.uniqueIdentifierForData}:`, error);
                 mapping.status = mappingStatuses.failed;
                 updateBatch.push(mapping);
                 failures.push({ mapping, errorMessage: error instanceof Error ? error.message : String(error) });
@@ -497,7 +497,7 @@ async function processUserMappings(
         if (!userMap[mapping.uniqueIdentifierForData]) {
             mapping.status = mappingStatuses.skipped;
             skipped.push(mapping);
-            logger.info(`Skipping user mapping for ${mapping.uniqueIdentifierForData} — user not created`);
+            logger.info(`Skipping user mapping in boundary ${mapping.boundaryCode} — user not created`);
         } else {
             eligible.push(mapping);
         }
@@ -652,7 +652,7 @@ async function processUserDemappings(
             await fetchAndDeleteProjectStaff(RequestInfo, tenantId, projectId, userId);
             deleteBatch.push(mapping);
         } catch (error) {
-            logger.error(`Failed to demap user ${mapping.uniqueIdentifierForData}:`, error);
+            logger.error(`Failed to demap user (userId ${userMap[mapping.uniqueIdentifierForData]}) in boundary ${mapping.boundaryCode}:`, error);
 
             mapping.status = mappingStatuses.deMapFailed;
             failedBatch.push(mapping);
