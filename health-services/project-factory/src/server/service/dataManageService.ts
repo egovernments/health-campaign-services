@@ -34,7 +34,7 @@ const sheetManageGenerationTypes = new Set<string>(
 );
 
 const downloadGeneratedStatusPollIntervalMs = 1000;
-const downloadGeneratedStatusPollMaxAttempts = 500;
+const downloadGeneratedStatusPollMaxAttempts = 60;
 const staleInProgressResourceThresholdMs = 5 * 60 * 1000;
 
 const DISTRIBUTOR_ROLE_CODE = "DISTRIBUTOR";
