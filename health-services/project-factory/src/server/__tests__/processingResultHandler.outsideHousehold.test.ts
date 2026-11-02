@@ -102,6 +102,7 @@ import {
     buildStoredOutsideHouseholdNormalizedIndex,
     outsideHouseholdMatchKey,
     processCampaignFacilitiesFromExcelData,
+    reusableOtherCampaignUsers,
 } from '../utils/processingResultHandler';
 import { DataTransformer } from '../utils/transFormUtil';
 import { transformConfigs } from '../config/transformConfigs';
@@ -899,5 +900,25 @@ describe('edit: frontline worker changed on an Active site with an existing link
             [existingLink([{ key: 'frontlineWorkerName', value: 'New Worker' }, { key: 'frontlineWorkerPhone', value: '9876500011' }])]);
         await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
         expect(updates).toHaveLength(0);
+    });
+});
+
+describe('reusableOtherCampaignUsers (clone with its own sheet)', () => {
+    const users = [
+        { campaignNumber: 'CMP-SOURCE', data: { HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER: '9000000001' } },
+        { campaignNumber: 'CMP-OTHER', data: { HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER: '9000000002' } },
+        { campaignNumber: 'CMP-CLONE', data: { HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER: '9000000003' } },
+    ];
+
+    it('reuses users of any other campaign when the sheet is the source\'s file', () => {
+        expect(reusableOtherCampaignUsers(users, 'CMP-CLONE', false).map((u: any) => u.campaignNumber)).toEqual(['CMP-SOURCE', 'CMP-OTHER']);
+    });
+
+    it('reuses only the source campaign\'s users when the clone has its own sheet', () => {
+        expect(reusableOtherCampaignUsers(users, 'CMP-CLONE', true, 'CMP-SOURCE').map((u: any) => u.campaignNumber)).toEqual(['CMP-SOURCE']);
+    });
+
+    it('reuses none when the clone has its own sheet and no source is given (switch off)', () => {
+        expect(reusableOtherCampaignUsers(users, 'CMP-CLONE', true)).toEqual([]);
     });
 });

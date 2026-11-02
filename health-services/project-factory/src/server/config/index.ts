@@ -137,6 +137,9 @@ const config = {
     // A clone's site rows without a clientReferenceId (rows its source typed in) reuse the source's site with the same
     // type, category, boundary and name instead of creating a copy; "false" creates new sites, as before
     outsideHouseholdReuseCloneSourceSites: (process.env.OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES || "true").toLowerCase() !== "false",
+    // A clone whose sheet is not its source's file (e.g. a template that added or dropped Outside Household and carries the
+    // source's users) still reuses its source campaign's users, matched by phone; "false" reuses none, as before
+    cloneReuseSourceUsersOnNewSheet: (process.env.CAMPAIGN_CLONE_REUSE_SOURCE_USERS_ON_NEW_SHEET || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 

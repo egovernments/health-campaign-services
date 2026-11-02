@@ -1595,6 +1595,17 @@ async function updateOutsideHouseholdLinkWorkers(
 }
 
 /**
+ * Users of other campaigns an upload may reuse (matched by phone). A clone's own sheet reuses none, except the users of
+ * reuseOnlyFromCampaign (its source) when given.
+ */
+export function reusableOtherCampaignUsers(users: any[], campaignNumber: string, skipOtherCampaignReuse: boolean,
+                                           reuseOnlyFromCampaign?: string): any[] {
+    return users
+        .filter((u: any) => u.campaignNumber !== campaignNumber)
+        .filter((u: any) => !skipOtherCampaignReuse || (!!reuseOnlyFromCampaign && u.campaignNumber === reuseOnlyFromCampaign));
+}
+
+/**
  * Returns true when the clone campaign has a newly uploaded sheet (filestoreId differs from the source campaign).
  * Returns false when the borrowed sheet is reused (same filestoreId), allowing HRMS account reuse.
  */
@@ -1674,12 +1685,17 @@ async function processCampaignUsersFromExcelData(
         logger.info(`Processing ${phoneNumbers.length} unique phone numbers`);
 
         let skipOtherCampaignReuse = false;
+        let reuseOnlyFromCampaign: string | undefined;
         const isCloneCampaign = !!campaignDetails?.additionalDetails?.cloneFrom && !campaignDetails?.parentId;
         if (isCloneCampaign) {
             skipOtherCampaignReuse = await isNewSheetUploadedForClone(campaignDetails, tenantId, fileStoreId);
+            // A clone's own sheet may still carry its source's users (e.g. a template that added or dropped Outside Household)
+            if (skipOtherCampaignReuse && config.mapping?.cloneReuseSourceUsersOnNewSheet) {
+                reuseOnlyFromCampaign = campaignDetails.additionalDetails.cloneFrom;
+            }
         }
 
-        const count = await processUsersSimple(tenantId, campaignId, fileStoreId, userSheetName, phoneNumbers, campaignNumber, skipOtherCampaignReuse);
+        const count = await processUsersSimple(tenantId, campaignId, fileStoreId, userSheetName, phoneNumbers, campaignNumber, skipOtherCampaignReuse, reuseOnlyFromCampaign);
 
         logger.info('=== CAMPAIGN USERS PROCESSING COMPLETED ===');
         return count;
@@ -1700,7 +1716,8 @@ async function processUsersSimple(
     userSheetName: string,
     phoneNumbers: any[],
     campaignNumber: string,
-    skipOtherCampaignReuse: boolean = false
+    skipOtherCampaignReuse: boolean = false,
+    reuseOnlyFromCampaign?: string
 ): Promise<number> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
     const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
@@ -1713,12 +1730,12 @@ async function processUsersSimple(
         currentCampaignUsers.map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
     );
 
-    const otherCampaignUsers = skipOtherCampaignReuse
+    // With skipOtherCampaignReuse, only users of reuseOnlyFromCampaign (a clone's source) may be reused, if given
+    const otherCampaignUsers = skipOtherCampaignReuse && !reuseOnlyFromCampaign
         ? []
         : await getRelatedDataWithUniqueIdentifiers("user", phoneNumbers, tenantId, dataRowStatuses.completed);
     const otherUserMap = new Map(
-        otherCampaignUsers
-            .filter((u: any) => u.campaignNumber !== campaignNumber)
+        reusableOtherCampaignUsers(otherCampaignUsers, campaignNumber, skipOtherCampaignReuse, reuseOnlyFromCampaign)
             .map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
     );
 
