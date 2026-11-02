@@ -3,3 +3,6 @@ dst_data_analysis_report
 
 # Not a DAG: the hcm_data_healer package, imported BY hcm_data_healer_dag.py.
 hcm_data_healer
+
+# Not a DAG: the hcm_dup package (config, pipeline steps, SQL), imported BY hcm_dup_pipeline.py.
+hcm_dup
