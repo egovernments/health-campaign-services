@@ -38,8 +38,10 @@ public class CampaignSearchResponse {
         private String hierarchyType;
         private String boundaryCode;
         private String campaignNumber;
+        private String parentId;
         private List<BoundaryDetail> boundaries;
         private AdditionalDetails additionalDetails;
+        private List<java.util.Map<String, Object>> resources;
     }
 
     @Data

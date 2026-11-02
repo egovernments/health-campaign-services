@@ -199,7 +199,7 @@ public class OutsideHouseholdTypeMasterService {
     }
 
     /** Normalized codes of additionalDetails.cycleData.deliveryMethods (codes or {code} objects), as the console saves them. */
-    private static Set<String> extractDeliveryMethods(CampaignSearchResponse.CampaignDetail campaign) {
+    static Set<String> extractDeliveryMethods(CampaignSearchResponse.CampaignDetail campaign) {
         Object cycleData = campaign == null || campaign.getAdditionalDetails() == null
                 ? null : campaign.getAdditionalDetails().getCycleData();
         Object methods = cycleData instanceof Map ? ((Map<?, ?>) cycleData).get(CYCLE_DATA_DELIVERY_METHODS_KEY) : null;
@@ -207,7 +207,7 @@ public class OutsideHouseholdTypeMasterService {
     }
 
     /** Normalized codes of a deliveryMethods list (codes or {code} objects). */
-    private static Set<String> deliveryMethodCodes(List<?> methods) {
+    static Set<String> deliveryMethodCodes(List<?> methods) {
         Set<String> codes = new HashSet<>();
         for (Object method : methods) {
             Object code = method instanceof Map ? ((Map<?, ?>) method).get(CODE_KEY) : method;

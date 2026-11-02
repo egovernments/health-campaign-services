@@ -43,6 +43,10 @@ public class ExcelIngestionConfig {
     @Value("${excel.ingestion.outside.household.campaign.types:POLIO}")
     private List<String> outsideHouseholdCampaignTypes;
 
+    // A clone that agrees with its source on Outside Household, on the same boundaries, gets the source's filled file as its template
+    @Value("${excel.ingestion.clone.reuse.source.template:true}")
+    private boolean cloneReuseSourceTemplate;
+
     // Put the user's localized dropdown labels back into the processed file after validation (codes stay in the saved data)
     @Value("${excel.ingestion.processed.file.keep.localized.enum.values:true}")
     private boolean keepLocalizedEnumValuesInProcessedFile;
