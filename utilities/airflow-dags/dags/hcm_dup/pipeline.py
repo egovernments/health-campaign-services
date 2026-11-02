@@ -124,7 +124,7 @@ class Tenant:
         self.match = cfg["match"]
 
     def source_schema(self, spec):
-        return self.cfg[spec["source_schema"]] if "source_schema" in spec else self.schema
+        return self.cfg.get(spec.get("source_schema")) or self.schema
 
 
 def tenant_by_schema(schema):
@@ -198,7 +198,8 @@ def table_ref(t, spec):
 
 def base_conditions(t, spec):
     if "where" in spec:
-        return [sql.SQL(spec["where"]).format(message_module=sql.Literal(t.cfg["message_module"]))]
+        return [sql.SQL(spec["where"]).format(message_module=sql.Literal(t.cfg["message_module"]),
+                                              tenant=sql.Literal(t.cfg["boundary_tenant"]))]
     return []
 
 
@@ -321,13 +322,15 @@ def sync_address(pg, ch, t, spec, state, sync_started):
     return rows, f"{len(ids)} ids referenced, {len(ids) - rows} not in Postgres"
 
 
-def swap_in(ch, t, table, load):
-    """Load a table into a staging copy with load(staging) and swap it in (readers never see it empty)."""
+def swap_in(ch, t, table, load, allow_empty=True):
+    """Load a table into a staging copy with load(staging) and swap it in (readers never see it empty).
+    With allow_empty=False an empty load is not swapped in and returns 0, so the live table is kept."""
     live, staging = f"{t.raw}.{table}", f"{t.raw}.{table}__staging"
     ch.command(f"CREATE TABLE IF NOT EXISTS {staging} AS {live}")
     ch.command(f"TRUNCATE TABLE {staging}")
     rows = load(staging)
-    ch.command(f"EXCHANGE TABLES {live} AND {staging}")
+    if rows or allow_empty:
+        ch.command(f"EXCHANGE TABLES {live} AND {staging}")
     ch.command(f"DROP TABLE {staging}")
     return rows
 
@@ -342,13 +345,22 @@ def sync_full(pg, ch, t, spec):
 
 
 def sync_reference(pg, ch, t, spec, state, force):
-    """Reload a small table in full every REFERENCE_REFRESH_HOURS (or when forced). None = skipped."""
-    if state and not force:
+    """Reload a small table in full every REFERENCE_REFRESH_HOURS (or when forced, or while the copy is empty).
+    None = skipped."""
+    if state and not force and int(ch.command(f"SELECT count() FROM {t.raw}.{spec['table']}")) > 0:
         age_h = (datetime.now(timezone.utc) - state[3].replace(tzinfo=timezone.utc)).total_seconds() / 3600
         if age_h < config.REFERENCE_REFRESH_HOURS:
             return None, f"skipped, reloaded {age_h:.1f} h ago"
     rows = swap_in(ch, t, spec["table"],
-                   lambda staging: copy_rows(pg, ch, t, spec, base_conditions(t, spec), target=staging))
+                   lambda staging: copy_rows(pg, ch, t, spec, base_conditions(t, spec), target=staging),
+                   allow_empty=False)
+    if rows == 0:
+        # wrong schema / module, or not loaded yet: keep what we have and try again next run
+        source = f"{t.source_schema(spec)}.{spec['table']}"
+        logger.warning("%s returned no rows: kept the current copy, will retry next run "
+                       "(check boundary_schema / message_schema / boundary_tenant / message_module in hcm_dup/config.py)",
+                       source)
+        return None, f"EMPTY in {source}, kept current copy"
     set_state(ch, t, spec["table"], "reference", 0)
     return rows, "reloaded"
 
@@ -468,6 +480,11 @@ def level_columns(ch, t, codes, names, wrap="{}"):
     return columns
 
 
+def leading(columns):
+    """Columns as a select-list prefix ("c1,\n    c2,\n    "); empty when there are no boundary levels yet."""
+    return "".join(f"{c},\n    " for c in columns)
+
+
 def build_flat_views(ch, t):
     """Views for BI tools (Superset), with plain boundary columns of the LATER record (where the duplicate
     happened) instead of boundary maps. Regenerated on every boundary rebuild, as the levels come from the data."""
@@ -478,10 +495,9 @@ def build_flat_views(ch, t):
     ch.command(f"CREATE OR REPLACE VIEW {h}.v_scenario_pairs_flat AS SELECT\n    {select}\nFROM {h}.v_scenario_pairs")
 
     # one row per scenario x pair x child: COUNT DISTINCT member_id = children involved (not pairs)
-    levels = ",\n    ".join(pair_levels)
+    levels = leading(pair_levels)
     ch.command(f"""CREATE OR REPLACE VIEW {h}.v_scenario_members_flat AS SELECT
-    {levels},
-    scenario_id, scenario_description, sort_order,
+    {levels}scenario_id, scenario_description, sort_order,
     member_id, if(member_id = id_a, 'EARLIER', 'LATER') AS side,
     id_a, id_b, household_crid_a, household_crid_b,
     registered_date_b, day_relation, days_apart, distance_m,
@@ -497,10 +513,9 @@ FROM {h}.v_scenario_pairs
 ARRAY JOIN [id_a, id_b] AS member_id""")
 
     # one row per scenario x pair of households (different households) with how many children they share
-    hh_levels = ",\n    ".join(level_columns(ch, t, "boundary_codes_b", "boundary_names_b", wrap="any({})"))
+    hh_levels = leading(level_columns(ch, t, "boundary_codes_b", "boundary_names_b", wrap="any({})"))
     ch.command(f"""CREATE OR REPLACE VIEW {h}.v_household_dups_flat AS SELECT
-    {hh_levels},
-    scenario_id, any(scenario_description) AS scenario_description,
+    {hh_levels}scenario_id, any(scenario_description) AS scenario_description,
     household_crid_a, household_crid_b,
     max(registered_date_b) AS registered_date_b,
     count() AS duplicated_children,
@@ -511,7 +526,7 @@ GROUP BY scenario_id, household_crid_a, household_crid_b""")
 
     # child registrations and duplicated registrations per locality x day x scenario; both are additive,
     # so SUM(duplicate_records) / SUM(child_registrations) is the duplicate rate at any boundary level
-    reg_levels = ",\n    ".join(level_columns(ch, t, "reg.codes", "reg.names"))
+    reg_levels = leading(level_columns(ch, t, "reg.codes", "reg.names"))
     ch.command(f"""CREATE OR REPLACE VIEW {h}.v_daily_duplicate_rate AS
 WITH
     reg AS (
@@ -530,8 +545,7 @@ WITH
         SELECT scenario_id, description FROM {h}.dup_scenarios FINAL WHERE enabled = 1
     )
 SELECT
-    {reg_levels},
-    reg.day AS registered_date_b,
+    {reg_levels}reg.day AS registered_date_b,
     sc.scenario_id AS scenario_id,
     sc.description AS scenario_description,
     reg.child_registrations AS child_registrations,

@@ -22,21 +22,25 @@ import copy
 # Tenants (Postgres schemas)
 # -----------------------------------------------------------------------------
 # VERIFY per schema before enabling, in Postgres:
-#   SELECT DISTINCT tenantid, hierarchytype, boundarytype FROM <schema>.boundary_relationship;
+#   SELECT table_schema, table_name FROM information_schema.tables
+#   WHERE table_name IN ('boundary_relationship', 'message');
+#       -> boundary_schema / message_schema: the schema whose table has rows (public on central-dev)
+#   SELECT tenantid, hierarchytype, boundarytype, count(*) FROM <boundary_schema>.boundary_relationship
+#   WHERE tenantid = '<schema>' GROUP BY 1, 2, 3;
 #       -> boundary_tenant, boundary_hierarchy, match.block_level (one of the boundarytype values)
-#   SELECT table_schema FROM information_schema.tables WHERE table_name = 'message';
-#       -> message_schema
-#   SELECT module, locale, count(*) FROM <message_schema>.message WHERE module LIKE 'hcm-boundary-%' GROUP BY 1, 2;
-#       -> message_module, boundary_locales
+#   SELECT tenantid, module, locale, count(*) FROM <message_schema>.message
+#   WHERE module LIKE 'hcm-boundary-%' AND tenantid = '<schema>' GROUP BY 1, 2, 3;
+#       -> message_module, boundary_locales (rows must exist for boundary_tenant)
 TENANTS = [
     {
         "schema": "ba",
         "enabled": True,
         "schedule": "*/15 * * * *",             # UTC; nothing runs while the cluster is stopped (catchup off)
         "timezone": "Africa/Lagos",             # decides what "same day" means
-        "boundary_tenant": "ba",                # boundary_relationship.tenantid
+        "boundary_tenant": "ba",                # tenantid of this schema's rows in boundary_relationship / message
         "boundary_hierarchy": "ADMIN",          # boundary_relationship.hierarchytype
-        "message_schema": "ba",                 # schema of the localization table "message"
+        "boundary_schema": "public",            # schema of boundary_relationship (shared by all tenants)
+        "message_schema": "public",             # schema of the localization table "message" (shared by all tenants)
         "message_module": "hcm-boundary-admin", # boundary names module
         "boundary_locales": ["en_NG"],          # preferred name locales, first wins; others are fallback
         "match": {
@@ -145,7 +149,9 @@ SYNC_TABLES = [
     {
         "table": "boundary_relationship",
         "mode": "reference",
+        "source_schema": "boundary_schema",     # read from the tenant's boundary_schema (default: its schema)
         "key": ["id"],
+        "where": "tenantid = {tenant}",         # only this tenant's rows of a table shared by all tenants
         "columns": ["id", "tenantid", "code", "hierarchytype", "boundarytype", "parent", "createdtime",
                     "lastmodifiedtime"],
         "select": f"""id, tenantid, code, hierarchytype, boundarytype, coalesce(parent, ''),
@@ -154,9 +160,9 @@ SYNC_TABLES = [
     {
         "table": "message",
         "mode": "reference",
-        "source_schema": "message_schema",      # read from the tenant's message_schema instead of its schema
+        "source_schema": "message_schema",      # read from the tenant's message_schema (default: its schema)
         "key": ["id"],
-        "where": "module = {message_module}",
+        "where": "module = {message_module} AND tenantid = {tenant}",
         "columns": ["id", "tenantid", "module", "locale", "code", "message"],
         "select": "id, tenantid, module, locale, code, message",
     },
