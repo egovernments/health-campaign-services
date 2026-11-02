@@ -3,7 +3,7 @@ import { logger } from './logger';
 import { getRelatedDataWithCampaign } from './genericUtils';
 import { mappingStatuses, outsideHouseholdFacilityFields } from '../config/constants';
 import { outsideHouseholdLinkAdditionalFields } from './outsideHouseholdLinkFields';
-import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
+import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects, deleteProjectFacilitiesById } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
 import { httpRequest } from './request';
@@ -609,34 +609,35 @@ async function processFacilityDemappings(
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} facility demappings`);
 
-    const RequestInfo = requestInfo;
-
     const deleteBatch: any[] = [];
     const failedBatch: any[] = [];
 
-    const promises = mappings.map(async (mapping) => {
-        try {
-            const projectId = boundaryToProjectId[mapping.boundaryCode];
-            const facilityId = facilityMap[mapping.uniqueIdentifierForData];
-            const mappingId = mapping.mappingId;
+    // Each link is removed by the id recorded when it was made. Parallel searches by project and facility could return
+    // another search's link, so two demaps deleted the same link and left the other one active.
+    const removable: { mapping: any; id: string; projectId: string; facilityId: string }[] = [];
+    for (const mapping of mappings) {
+        const projectId = boundaryToProjectId[mapping.boundaryCode];
+        const facilityId = facilityMap[mapping.uniqueIdentifierForData];
 
-            // Nothing to demap server-side for unresolvable rows — drop the local row.
-            if (!projectId || !facilityId || !mappingId) {
-                deleteBatch.push(mapping);
-                return;
-            }
-
-            await fetchAndDeleteProjectFacility(RequestInfo, tenantId, projectId, facilityId);
+        // Nothing to demap server-side for unresolvable rows — drop the local row.
+        if (!projectId || !facilityId || !mapping.mappingId) {
             deleteBatch.push(mapping);
-        } catch (error) {
-            logger.error(`Failed to demap facility ${mapping.uniqueIdentifierForData}:`, error);
+            continue;
+        }
+        removable.push({ mapping, id: mapping.mappingId, projectId, facilityId });
+    }
 
+    const outcomes = await deleteProjectFacilitiesById(removable, tenantId, requestInfo);
+    for (const { mapping, id } of removable) {
+        const outcome = outcomes.get(id);
+        if (outcome?.result === 'deleted' || outcome?.result === 'absent') {
+            deleteBatch.push(mapping);
+        } else {
+            logger.error(`Failed to demap facility ${mapping.uniqueIdentifierForData}: ${outcome?.error ?? 'no outcome'}`);
             mapping.status = mappingStatuses.deMapFailed;
             failedBatch.push(mapping);
         }
-    });
-
-    await Promise.all(promises);
+    }
 
     await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
     await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
@@ -690,37 +691,6 @@ async function processUserDemappings(
 
     await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
     await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
-}
-
-async function fetchAndDeleteProjectFacility(RequestInfo: any, tenantId: string, projectId: string, facilityId: string) {
-    const searchBody = {
-        RequestInfo,
-        ProjectFacility: {
-            projectId: [projectId],
-            facilityId: [facilityId]
-        }
-    };
-    
-    const searchParams = {
-        tenantId,
-        offset: 0,
-        limit: 1
-    };
-    
-    const response = await httpRequest(
-        config?.host?.projectHost + config?.paths?.projectFacilitySearch,
-        searchBody,
-        searchParams
-    );
-    
-    if (response?.ProjectFacilities?.length > 0) {
-        const deleteBody = {
-            RequestInfo,
-            ProjectFacilities: [response?.ProjectFacilities[0]]
-        };
-        
-        await httpRequest(config?.host?.projectHost + config?.paths?.projectFacilityDelete, deleteBody);
-    }
 }
 
 async function fetchAndDeleteProjectStaff(RequestInfo: any, tenantId: string, projectId: string, userId: string) {

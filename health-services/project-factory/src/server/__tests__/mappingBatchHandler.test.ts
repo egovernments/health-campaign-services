@@ -16,6 +16,7 @@ jest.mock('../api/genericApis', () => ({
     searchProjectResourcesByProjects: jest.fn().mockResolvedValue(new Map()),
     searchProjectFacilitiesByProjects: jest.fn().mockResolvedValue(new Map()),
     searchProjectStaffByProjects: jest.fn().mockResolvedValue(new Map()),
+    deleteProjectFacilitiesById: jest.fn().mockResolvedValue(new Map()),
 }));
 
 jest.mock('../utils/db', () => ({
@@ -59,7 +60,7 @@ jest.mock('../config', () => ({
 }));
 
 import { getRelatedDataWithCampaign } from '../utils/genericUtils';
-import { createProjectFacility, createProjectResource, createStaff, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
+import { createProjectFacility, createProjectResource, createStaff, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects, deleteProjectFacilitiesById } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { sendCampaignFailureMessage } from '../utils/campaignFailureHandler';
 import { getCurrentMappingGeneration } from '../utils/mappingGenerationUtils';
@@ -72,6 +73,7 @@ const createProjectResourceMock = createProjectResource as jest.MockedFunction<t
 const searchProjectResourcesByProjectsMock = searchProjectResourcesByProjects as jest.MockedFunction<typeof searchProjectResourcesByProjects>;
 const searchProjectFacilitiesByProjectsMock = searchProjectFacilitiesByProjects as jest.MockedFunction<typeof searchProjectFacilitiesByProjects>;
 const searchProjectStaffByProjectsMock = searchProjectStaffByProjects as jest.MockedFunction<typeof searchProjectStaffByProjects>;
+const deleteProjectFacilitiesByIdMock = deleteProjectFacilitiesById as jest.MockedFunction<typeof deleteProjectFacilitiesById>;
 const produceModifiedMessagesMock = produceModifiedMessages as jest.MockedFunction<typeof produceModifiedMessages>;
 const sendCampaignFailureMessageMock = sendCampaignFailureMessage as jest.MockedFunction<typeof sendCampaignFailureMessage>;
 const getCurrentMappingGenerationMock = getCurrentMappingGeneration as jest.MockedFunction<typeof getCurrentMappingGeneration>;
@@ -372,8 +374,7 @@ describe('mappingBatchHandler — adopt-existing pre-pass', () => {
                 return Promise.resolve([{ uniqueIdentifier: 'F-1', uniqueIdAfterProcess: 'fac-1' }] as any);
             return Promise.resolve([] as any);
         });
-        const { httpRequest } = require('../utils/request');
-        (httpRequest as jest.Mock).mockRejectedValueOnce(new Error('staff search exploded'));
+        deleteProjectFacilitiesByIdMock.mockResolvedValueOnce(new Map([['pf-1', { result: 'failed' as const, error: 'facility search exploded' }]]));
 
         await handleMappingBatch({
             ...baseMessage,
@@ -386,6 +387,53 @@ describe('mappingBatchHandler — adopt-existing pre-pass', () => {
             .map(c => c[0])
             .find((arg: any) => Array.isArray(arg?.datas) && arg.datas[0]?.type === 'facility');
         expect((persisted as any).datas[0].status).toBe(mappingStatuses.deMapFailed);
+    });
+
+    it('removes every demapped facility link by its recorded id in one call', async () => {
+        getRelatedDataWithCampaignMock.mockImplementation((type: string) => {
+            if (type === 'boundary')
+                return Promise.resolve([
+                    { uniqueIdentifier: 'B-1', uniqueIdAfterProcess: 'project-1' },
+                    { uniqueIdentifier: 'B-2', uniqueIdAfterProcess: 'project-2' },
+                ] as any);
+            if (type === 'facility')
+                return Promise.resolve([
+                    { uniqueIdentifier: 'F-1', uniqueIdAfterProcess: 'fac-1' },
+                    { uniqueIdentifier: 'F-2', uniqueIdAfterProcess: 'fac-2' },
+                    { uniqueIdentifier: 'F-3', uniqueIdAfterProcess: 'fac-3' },
+                ] as any);
+            return Promise.resolve([] as any);
+        });
+        deleteProjectFacilitiesByIdMock.mockResolvedValueOnce(new Map([
+            ['pf-1', { result: 'deleted' as const }],
+            ['pf-2', { result: 'absent' as const }],
+            ['pf-3', { result: 'mismatch' as const, error: 'joins another project' }],
+        ]));
+        const { httpRequest } = require('../utils/request');
+
+        await handleMappingBatch({
+            ...baseMessage,
+            mappings: [
+                { type: 'facility', status: mappingStatuses.toBeDeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: 'F-1', mappingId: 'pf-1', campaignNumber: 'CMP-1' },
+                { type: 'facility', status: mappingStatuses.toBeDeMapped, boundaryCode: 'B-2', uniqueIdentifierForData: 'F-2', mappingId: 'pf-2', campaignNumber: 'CMP-1' },
+                { type: 'facility', status: mappingStatuses.toBeDeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: 'F-3', mappingId: 'pf-3', campaignNumber: 'CMP-1' },
+                { type: 'facility', status: mappingStatuses.toBeDeMapped, boundaryCode: 'B-1', uniqueIdentifierForData: 'F-4', mappingId: 'pf-4', campaignNumber: 'CMP-1' },
+            ],
+        });
+
+        expect(httpRequest).not.toHaveBeenCalled();
+        expect(deleteProjectFacilitiesByIdMock).toHaveBeenCalledTimes(1);
+        expect(deleteProjectFacilitiesByIdMock.mock.calls[0][0]).toEqual([
+            { mapping: expect.anything(), id: 'pf-1', projectId: 'project-1', facilityId: 'fac-1' },
+            { mapping: expect.anything(), id: 'pf-2', projectId: 'project-2', facilityId: 'fac-2' },
+            { mapping: expect.anything(), id: 'pf-3', projectId: 'project-1', facilityId: 'fac-3' },
+        ]);
+        const sent = (topic: string) => produceModifiedMessagesMock.mock.calls
+            .filter(c => c[1] === topic)
+            .flatMap(c => (c[0] as any).datas)
+            .filter((m: any) => m?.type === 'facility');
+        expect(sent('delete-mapping').map((m: any) => m.mappingId).sort()).toEqual(['pf-1', 'pf-2', 'pf-4']);
+        expect(sent('update-mapping').map((m: any) => [m.mappingId, m.status])).toEqual([['pf-3', mappingStatuses.deMapFailed]]);
     });
 
     it('persists lastError via direct SQL when a create fails', async () => {
