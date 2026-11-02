@@ -137,6 +137,9 @@ public class ProjectConfiguration {
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsEndPoint;
 
+    @Value("${egov.mdms.v2.search.path:egov-mdms-service/v2/_search}")
+    private String mdmsV2SearchPath;
+
     @Value("${project.document.id.verification.required}")
     private String documentIdVerificationRequired;
 
