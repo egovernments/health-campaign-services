@@ -118,6 +118,15 @@ public class ImmutableJoinService {
                                        Map<String, Map<String, Object>> sheetNameToSchema,
                                        RequestInfo requestInfo,
                                        List<ValidationError> warningsOut, Map<String, String> localizationMap) {
+        return applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, requestInfo,
+                warningsOut, localizationMap, localizationMap);
+    }
+
+    public Map<String, Set<String>> applyImmutableBaseline(Workbook uploadedWorkbook, ProcessResource resource,
+                                       Map<String, Map<String, Object>> sheetNameToSchema,
+                                       RequestInfo requestInfo,
+                                       List<ValidationError> warningsOut, Map<String, String> localizationMap,
+                                       Map<String, String> errorLocalizationMap) {
         // Scope: only the join-mode template families (unified-console, attendanceRegister,
         // attendanceRegisterAttendee) use join-mode. Any other type is processed as before, with no
         // baseline reconstruction.
@@ -129,7 +138,8 @@ public class ImmutableJoinService {
         String generationId = readGenerationId(uploadedWorkbook);
         if (generationId == null || generationId.trim().isEmpty()) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID,
-                    ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID_MESSAGE);
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID,
+                            ErrorConstants.IMMUTABLE_MISSING_GENERATION_ID_MESSAGE));
             return Collections.emptyMap();
         }
         generationId = generationId.trim();
@@ -141,13 +151,17 @@ public class ImmutableJoinService {
             baselineGen = generatedFileRepository.findByGenerationId(generationId, resource.getTenantId());
         } catch (InvalidTenantIdException e) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND,
-                    ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE.replace("{0}", generationId), e);
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND,
+                            ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE,
+                            generationId), e);
             return Collections.emptyMap();
         }
         if (baselineGen == null || baselineGen.getFileStoreId() == null
                 || baselineGen.getFileStoreId().isEmpty()) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND,
-                    ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE.replace("{0}", generationId));
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND,
+                            ErrorConstants.IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE,
+                            generationId));
             return Collections.emptyMap();
         }
 
@@ -180,7 +194,8 @@ public class ImmutableJoinService {
             log.info("Upload sheet is belong to the cloned campaign ");
         } else {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
-                    ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE);
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
+                            ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH_MESSAGE));
             return Collections.emptyMap();
         }
 
@@ -192,7 +207,7 @@ public class ImmutableJoinService {
 
             for (Map.Entry<String, Map<String, Object>> entry : sheetNameToSchema.entrySet()) {
                 Set<String> restored = joinSheet(entry.getKey(), entry.getValue(), uploadedWorkbook, baselineWorkbook,
-                        baselineGen.getFileStoreId(), resource, warningsOut, localizationMap);
+                        baselineGen.getFileStoreId(), resource, warningsOut, localizationMap, errorLocalizationMap);
                 if (!restored.isEmpty()) {
                     immutableColumnsBySheet.put(entry.getKey(), restored);
                 }
@@ -201,7 +216,8 @@ public class ImmutableJoinService {
             throw ce; // fail-closed business errors propagate as-is
         } catch (Exception e) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_BASELINE_READ_ERROR,
-                    ErrorConstants.IMMUTABLE_BASELINE_READ_ERROR_MESSAGE, e);
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_BASELINE_READ_ERROR,
+                            ErrorConstants.IMMUTABLE_BASELINE_READ_ERROR_MESSAGE), e);
         }
         return immutableColumnsBySheet;
     }
@@ -216,7 +232,8 @@ public class ImmutableJoinService {
     private Set<String> joinSheet(String sheetName, Map<String, Object> schemaMap,
                            Workbook uploadedWorkbook, Workbook baselineWorkbook,
                            String baselineFileStoreId, ProcessResource resource,
-                           List<ValidationError> warningsOut, Map<String, String> localizationMap) {
+                           List<ValidationError> warningsOut, Map<String, String> localizationMap,
+                           Map<String, String> errorLocalizationMap) {
         Sheet uploadedSheet = uploadedWorkbook.getSheet(sheetName);
         Sheet baselineSheet = baselineWorkbook.getSheet(sheetName);
         if (uploadedSheet == null || baselineSheet == null) {
@@ -262,7 +279,7 @@ public class ImmutableJoinService {
         // in the processed file even though validation/persistence used the correct baseline value.
         Map<String, Integer> uploadedColIndex = headerIndex(uploadedSheet);
         SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut, localizationMap,
-                immutable.enumReverseMaps, immutable.multiSelectReverseMaps);
+                errorLocalizationMap, immutable.enumReverseMaps, immutable.multiSelectReverseMaps);
 
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
@@ -274,12 +291,16 @@ public class ImmutableJoinService {
             if (baseRow == null) {
                 // row-id present but unknown to baseline -> a forged/disguised existing row
                 exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID,
-                        ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID_MESSAGE.replace("{0}", sheetName));
+                        localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID,
+                            ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID_MESSAGE,
+                                localizedName(errorLocalizationMap, localizationMap, sheetName)));
             }
             if (!seen.add(rid)) {
                 // Two uploaded rows claim the same baseline identity (a duplicated pre-filled row).
                 exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID,
-                        ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID_MESSAGE.replace("{0}", sheetName));
+                        localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID,
+                            ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID_MESSAGE,
+                                localizedName(errorLocalizationMap, localizationMap, sheetName)));
             }
             // Reconstruct every immutable column AND its expanded _MULTISELECT_* child columns from the
             // baseline, overwriting whatever the file contains. We iterate the BASELINE row's own keys so
@@ -348,7 +369,9 @@ public class ImmutableJoinService {
         // deleted (or its id wiped to disguise an edit as a new row).
         if (seen.size() < baselineByRowId.size()) {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_ORPHAN_ROWS,
-                    ErrorConstants.IMMUTABLE_ORPHAN_ROWS_MESSAGE.replace("{0}", sheetName));
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_ORPHAN_ROWS,
+                            ErrorConstants.IMMUTABLE_ORPHAN_ROWS_MESSAGE,
+                            localizedName(errorLocalizationMap, localizationMap, sheetName)));
         }
 
         log.info("Immutable-baseline join applied on sheet '{}': {} existing rows reconstructed from baseline",
@@ -464,10 +487,11 @@ public class ImmutableJoinService {
             log.info("Immutable-join REJECTED upload: sheet '{}' row {} column '{}' changed from baseline",
                     sj.sheetName, poiRowIdx + 1, col);
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
-                    ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE
-                            .replace("{0}", sj.sheetName)
-                            .replace("{1}", String.valueOf(poiRowIdx + 1))
-                            .replace("{2}", col));
+                    localizedError(sj.errorLocalizationMap, ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                            ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE,
+                            localizedName(sj.errorLocalizationMap, sj.localizationMap, sj.sheetName),
+                            String.valueOf(poiRowIdx + 1),
+                            localizedName(sj.errorLocalizationMap, sj.localizationMap, col)));
         }
 
         upRow.put(col, value);
@@ -572,11 +596,13 @@ public class ImmutableJoinService {
         final String sheetName;
         final List<ValidationError> warnings;
         final Map<String, String> localizationMap;
+        final Map<String, String> errorLocalizationMap;
         final Map<String, Map<String, String>> enumReverseMaps;
         final Map<String, Map<String, String>> multiSelectReverseMaps;
 
         SheetJoin(Sheet sheet, Map<String, Integer> colIndex, String sheetName,
                   List<ValidationError> warnings, Map<String, String> localizationMap,
+                  Map<String, String> errorLocalizationMap,
                   Map<String, Map<String, String>> enumReverseMaps,
                   Map<String, Map<String, String>> multiSelectReverseMaps) {
             this.sheet = sheet;
@@ -584,6 +610,7 @@ public class ImmutableJoinService {
             this.sheetName = sheetName;
             this.warnings = warnings;
             this.localizationMap = localizationMap;
+            this.errorLocalizationMap = errorLocalizationMap;
             this.enumReverseMaps = enumReverseMaps;
             this.multiSelectReverseMaps = multiSelectReverseMaps;
         }
@@ -608,6 +635,108 @@ public class ImmutableJoinService {
         }
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    /**
+     * Resolves an upload-error message from the request-locale localization map, falling back to the
+     * English text in {@link ErrorConstants} when the localization service has no entry for the code.
+     *
+     * <p>Placeholders are substituted on BOTH branches on purpose:
+     * {@code LocalizationUtil.getLocalizedMessage} only substitutes when the key was found, which
+     * would leave raw {@code {0}} markers in the fallback text.
+     */
+    /**
+     * Display name for a column header inside a user-facing message.
+     *
+     * <p>Sheet headers are stored as technical keys (row 0), so inserting one raw into an error leaves
+     * the user reading {@code HCM_ADMIN_CONSOLE_USER_ROLE} instead of "User Role". This resolves any
+     * column generically - there is no per-column special-casing - using the same
+     * lookup-then-fall-back-to-the-key convention the generator uses when it writes the localized
+     * header row.
+     *
+     * <p>Deliberately uses the WORKBOOK's localization map, not the request-locale one: the name has to
+     * match the header the user is actually looking at in the file they uploaded, which was written in
+     * the generation locale. The surrounding sentence stays in the request locale.
+     *
+     * <p>Expanded multi-select children ({@code PARENT_MULTISELECT_2}) have no key of their own, so the
+     * parent is localized and the child suffix preserved.
+     *
+     * <p>NOTE: this is for DISPLAY text only. {@code ValidationError.columnName} must keep the technical
+     * key - it is looked up against a row-0-derived index to highlight the offending cell
+     * (UserValidationProcessor), and a localized value would never match.
+     */
+    private static String localizedName(Map<String, String> requestLocale,
+                                        Map<String, String> workbookLocale, String col) {
+        if (col == null || col.isEmpty()) {
+            return col;
+        }
+        // Prefer the READER's locale so the whole sentence is in one language; fall back to the
+        // workbook's locale (which at least matches the header text in the file they uploaded).
+        String resolved = lookupName(requestLocale, col);
+        return resolved != null ? resolved : (lookupName(workbookLocale, col) != null
+                ? lookupName(workbookLocale, col) : col);
+    }
+
+    /** Single-map resolution: exact key, multi-select parent, then Excel-truncated sheet name. */
+    private static String lookupName(Map<String, String> messages, String col) {
+        String direct = LocalizationUtil.getLocalizedMessage(messages, col, null);
+        if (direct != null && !direct.isEmpty()) {
+            return direct;
+        }
+        String parent = parentColumnOf(col);
+        if (!parent.equals(col)) {
+            String localizedParent = LocalizationUtil.getLocalizedMessage(messages, parent, null);
+            if (localizedParent != null && !localizedParent.isEmpty()) {
+                // Match the convention the catalogue itself uses for these
+                // ("..._USER_ROLE_MULTISELECT_2" -> "User Role 2") so ANY multi-select column reads
+                // correctly without needing a per-child entry seeded for it.
+                String index = col.substring(parent.length() + MULTISELECT_MARKER.length());
+                return index.isEmpty() ? localizedParent : localizedParent + " " + index;
+            }
+        }
+        return resolveTruncatedSheetName(messages, col);
+    }
+
+    /** Excel's hard cap on a sheet name; longer names are silently truncated when the file is written. */
+    private static final int EXCEL_SHEET_NAME_LIMIT = 31;
+
+    /**
+     * Recovers the display name for a sheet whose key was truncated when the workbook was written.
+     *
+     * <p>Excel caps sheet names at {@value #EXCEL_SHEET_NAME_LIMIT} characters, so a configured sheet
+     * like {@code HCM_ADMIN_CONSOLE_FACILITIES_LIST} (33) reaches us as
+     * {@code HCM_ADMIN_CONSOLE_FACILITIES_LI} (31). A catalogue entry authored against the full name
+     * can then never match an exact lookup - the name we hold is not the name anyone would seed.
+     *
+     * <p>Only engages for names sitting exactly on the limit, and only when exactly one key extends it,
+     * so an ambiguous prefix falls through to the raw key rather than guessing wrong.
+     */
+    private static String resolveTruncatedSheetName(Map<String, String> messages, String name) {
+        if (messages == null || name.length() != EXCEL_SHEET_NAME_LIMIT) {
+            return null;
+        }
+        String match = null;
+        for (Map.Entry<String, String> e : messages.entrySet()) {
+            String key = e.getKey();
+            if (key != null && key.length() > EXCEL_SHEET_NAME_LIMIT && key.startsWith(name)) {
+                if (match != null) {
+                    return null; // ambiguous - two keys share this truncation, do not guess
+                }
+                match = e.getValue();
+            }
+        }
+        return (match == null || match.isEmpty()) ? null : match;
+    }
+
+    private static String localizedError(Map<String, String> messages, String code, String defaultMessage,
+                                         String... params) {
+        String message = LocalizationUtil.getLocalizedMessage(messages, code, defaultMessage);
+        for (int i = 0; i < params.length; i++) {
+            if (params[i] != null) {
+                message = message.replace("{" + i + "}", params[i]);
+            }
+        }
+        return message;
     }
 
     private static boolean equalsNullSafe(String a, String b) {

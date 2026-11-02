@@ -85,8 +85,7 @@ public class CustomExceptionHandler {
      * Throw CustomException directly - used when immediate failure is needed
      */
     public void throwCustomException(String errorCode, String errorMessage) {
-        // Use 3-parameter version for consistency - create generic RuntimeException
-        throwCustomException(errorCode, errorMessage, new RuntimeException("Generic error: " + errorMessage));
+        throw new CustomException(errorCode, errorMessage);
     }
 
     /**
@@ -94,8 +93,7 @@ public class CustomExceptionHandler {
      */
     public void throwCustomException(String errorCode, String errorMessageTemplate, String param) {
         String errorMessage = errorMessageTemplate.replace("{0}", param);
-        // Use 3-parameter version for consistency - create generic RuntimeException
-        throwCustomException(errorCode, errorMessage, new RuntimeException("Formatted error: " + errorMessage));
+        throwCustomException(errorCode, errorMessage);
     }
     
     /**
@@ -103,10 +101,7 @@ public class CustomExceptionHandler {
      * Combines error message with exception details for description
      */
     public void throwCustomException(String errorCode, String errorMessage, Exception originalException) {
-        String detailedMessage = errorMessage;
-        if (originalException != null && originalException.getMessage() != null) {
-            detailedMessage = errorMessage + "::: " + originalException.getMessage();
-        }
-        throw new CustomException(errorCode, detailedMessage);
+        log.error("{}: {}", errorCode, errorMessage, originalException);
+        throwCustomException(errorCode, errorMessage);
     }
 }

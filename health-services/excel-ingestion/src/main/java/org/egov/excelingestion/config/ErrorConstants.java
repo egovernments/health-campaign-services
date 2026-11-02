@@ -39,7 +39,9 @@ public class ErrorConstants {
     public static final String LOCALIZATION_SERVICE_ERROR = "LOCALIZATION_SERVICE_ERROR";
     public static final String LOCALIZATION_SERVICE_ERROR_MESSAGE = "Error while fetching localization data";
 
-    // Immutable-baseline (unprotected join mode) Errors
+    // Immutable-baseline (unprotected join mode) Errors.
+    // The *_MESSAGE texts are the English fallback used only when the localization service carries no
+    // entry for the code in the upload request's locale. {0}/{1}/{2} are substituted by the thrower.
     public static final String IMMUTABLE_BASELINE_NOT_FOUND = "IMMUTABLE_BASELINE_NOT_FOUND";
     public static final String IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE = "Could not find the original generated template for this upload (generationId: {0}). The uploaded file may not be a recognized template.";
 

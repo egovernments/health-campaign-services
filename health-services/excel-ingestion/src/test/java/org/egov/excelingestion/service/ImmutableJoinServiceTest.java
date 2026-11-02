@@ -247,6 +247,266 @@ class ImmutableJoinServiceTest {
             CustomException ex = assertThrows(CustomException.class, this::run);
             assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode(),
                     "a changed pre-filled cell is rejected, not reverted");
+            assertFalse(ex.getMessage().contains("Generic error:"), "error is not repeated");
+            assertTrue(ex.getMessage().contains("sheet 'Users', row 3, column 'name'"),
+                    "the packaged fallback retains the original context when a translation is absent");
+        }
+
+        @Test
+        void rejectOnChange_usesLocalizedErrorWithCellDetails() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> messages = Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                    "Localized sheet {0}, row {1}, column {2}");
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Collections.emptyMap(), messages));
+
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+            assertEquals("Localized sheet Users, row 3, column name", ex.getMessage());
+        }
+
+        /**
+         * Column headers are technical keys, so a raw one in the message leaves the user reading
+         * HCM_ADMIN_CONSOLE_USER_ROLE instead of "User Role". The display name must come from the
+         * WORKBOOK's localization map - that is the locale the header row they are looking at was
+         * written in - while the sentence around it stays in the request locale.
+         */
+        @Test
+        void rejectOnChange_localizesTheColumnNameFromTheWorkbookLocale() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of("name", "Nome do utilizador");
+            Map<String, String> errorLocalization = Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                    "Coluna {2} na folha {0}, linha {1}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization, errorLocalization));
+
+            assertEquals("Coluna Nome do utilizador na folha Users, linha 3", ex.getMessage());
+            assertFalse(ex.getMessage().contains("name,"), "the technical key must not leak into the message");
+        }
+
+        /**
+         * Nothing about the fix is tied to one column. A different immutable column resolves through
+         * the same generic lookup - no per-column handling anywhere.
+         */
+        @Test
+        void rejectOnChange_localizesAnyColumnNotJustOne() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "Real Name", "village", "TAMPERED",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of(
+                    "name", "Nome do utilizador",
+                    "village", "Aldeia");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization,
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "col={2}")));
+
+            assertEquals("col=Aldeia", ex.getMessage());
+        }
+
+        /**
+         * The SHEET name is a technical key too. It must resolve to its display name exactly like the
+         * column does, and for every error that names a sheet - not only the tamper one.
+         */
+        @Test
+        void rejectOnChange_localizesTheSheetNameAsWellAsTheColumn() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of(
+                    "Users", "Lista de Utilizadores",
+                    "name", "Nome do utilizador");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization,
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0} coluna={2}")));
+
+            assertEquals("folha=Lista de Utilizadores coluna=Nome do utilizador", ex.getMessage());
+        }
+
+        /** Sheet-name localization must apply to the row-level errors too, not just the tamper one. */
+        @Test
+        void orphanRows_localizesTheSheetName() {
+            Map<String, Object> base1 = row(ROW_ID, "r1", "name", "A", ROW_NUM, 3);
+            Map<String, Object> base2 = row(ROW_ID, "r2", "name", "B", ROW_NUM, 4);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "A", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base1, base2)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Map.of("Users", "Lista de Utilizadores"),
+                            Map.of(ErrorConstants.IMMUTABLE_ORPHAN_ROWS, "folha={0}")));
+
+            assertEquals("folha=Lista de Utilizadores", ex.getMessage());
+        }
+
+        /**
+         * Excel truncates sheet names at 31 chars, so a catalogue entry authored against the full
+         * configured name would never match an exact lookup. The display name must still resolve.
+         */
+        @Test
+        void tamper_resolvesASheetNameThatExcelTruncated() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+
+            // The workbook sheet is the 31-char truncation of a 33-char configured name.
+            String truncated = "HCM_ADMIN_CONSOLE_FACILITIES_LI";
+            String full = "HCM_ADMIN_CONSOLE_FACILITIES_LIST";
+            assertEquals(31, truncated.length());
+            uploadedWorkbook.createSheet(truncated);
+            baselineWorkbook.createSheet(truncated);
+            sheetNameToSchema.clear();
+            sheetNameToSchema.put(truncated, new HashMap<>());
+            when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(truncated), any()))
+                    .thenReturn(new ArrayList<>(List.of(up)));
+            when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(truncated), any()))
+                    .thenReturn(new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Map.of(full, "Facilities"),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0}")));
+
+            assertEquals("folha=Facilities", ex.getMessage());
+        }
+
+        /** Two keys sharing a truncation must NOT be guessed between - fall back to the raw name. */
+        @Test
+        void tamper_doesNotGuessWhenTheTruncationIsAmbiguous() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+            String truncated = "HCM_ADMIN_CONSOLE_FACILITIES_LI";
+            uploadedWorkbook.createSheet(truncated);
+            baselineWorkbook.createSheet(truncated);
+            sheetNameToSchema.clear();
+            sheetNameToSchema.put(truncated, new HashMap<>());
+            when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(truncated), any()))
+                    .thenReturn(new ArrayList<>(List.of(up)));
+            when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(truncated), any()))
+                    .thenReturn(new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(),
+                            Map.of("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "Facilities",
+                                   "HCM_ADMIN_CONSOLE_FACILITIES_LIVE", "Live Facilities"),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0}")));
+
+            assertEquals("folha=" + truncated, ex.getMessage());
+        }
+
+        /**
+         * The reader's locale wins for names, so the whole sentence is in one language. The workbook
+         * locale is only a fallback for names the reader's catalogue has not translated.
+         */
+        @Test
+        void tamper_prefersTheRequestLocaleForSheetAndColumnNames() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> workbook = Map.of("Users", "User List", "name", "Name");
+            Map<String, String> request = Map.of("Users", "Lista de Utilizadores", "name", "Nome",
+                    ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0} coluna={2}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), workbook, request));
+
+            assertEquals("folha=Lista de Utilizadores coluna=Nome", ex.getMessage());
+        }
+
+        /** Untranslated in the reader's locale -> fall back to the workbook's, never to the raw key. */
+        @Test
+        void tamper_fallsBackToTheWorkbookLocaleWhenTheRequestLocaleLacksTheName() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> workbook = Map.of("Users", "User List", "name", "Name");
+            Map<String, String> request = Map.of(
+                    ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0} coluna={2}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), workbook, request));
+
+            assertEquals("folha=User List coluna=Name", ex.getMessage());
+        }
+
+        /**
+         * REGRESSION GUARD. When the generator already wrote a localized sheet name into the
+         * workbook (e.g. "User List"), that name must pass through untouched - the lookup misses in
+         * both catalogues and must NOT turn a human-readable name into anything else.
+         */
+        @Test
+        void alreadyLocalizedSheetNamePassesThroughUnchanged() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+
+            String human = "User List";                 // the sheet name as written in the file
+            uploadedWorkbook.createSheet(human);
+            baselineWorkbook.createSheet(human);
+            sheetNameToSchema.clear();
+            sheetNameToSchema.put(human, new HashMap<>());
+            when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(human), any()))
+                    .thenReturn(new ArrayList<>(List.of(up)));
+            when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(human), any()))
+                    .thenReturn(new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Collections.emptyMap(),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "sheet={0}")));
+
+            assertEquals("sheet=User List", ex.getMessage());
+        }
+
+        /** No translation for the header: the key is still better than a blank. */
+        @Test
+        void rejectOnChange_fallsBackToTheTechnicalKeyWhenTheColumnIsNotLocalized() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Collections.emptyMap(),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "col={2}")));
+
+            assertEquals("col=name", ex.getMessage());
         }
 
         // reject-on-change: an unchanged pre-filled row with only the EDITABLE column edited passes (no throw).
