@@ -38,10 +38,10 @@ TENANTS = [
         "schedule": "*/15 * * * *",             # UTC; nothing runs while the cluster is stopped (catchup off)
         "timezone": "Africa/Lagos",             # decides what "same day" means
         "boundary_tenant": "ba",                # tenantid of this schema's rows in boundary_relationship / message
-        "boundary_hierarchy": "ADMIN",          # boundary_relationship.hierarchytype
+        "boundary_hierarchy": "NIGERIAUAT",     # boundary_relationship.hierarchytype (the one address localitycodes use)
         "boundary_schema": "public",            # schema of boundary_relationship (shared by all tenants)
         "message_schema": "public",             # schema of the localization table "message" (shared by all tenants)
-        "message_module": "hcm-boundary-admin", # boundary names module
+        "message_module": "hcm-boundary-nigeriauat",  # boundary names module: hcm-boundary-<hierarchy, lower case>
         "boundary_locales": ["en_NG"],          # preferred name locales, first wins; others are fallback
         "match": {
             "block_level": "LGA",               # boundary type both children must share (falls back to locality)
