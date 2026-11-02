@@ -7,7 +7,7 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach } from '../utils/generateUtils';
+import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates } from '../utils/generateUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
 
@@ -224,5 +224,44 @@ describe('cloneSourceFileToReattach (a clone whose Outside Household choice is b
         expect(cloneSourceFileToReattach({ ...campaign(['OUTSIDEHOUSEHOLD']), resources: [] }, source, true)).toBeNull();
         (config as any).mapping.detachStaleResourcesOnConfigChange = false;
         expect(cloneSourceFileToReattach(clone(['OUTSIDEHOUSEHOLD']), source, true)).toBeNull();
+    });
+});
+
+describe('dropCloneSourceDeliveryDates (a new clone does not keep its source\'s delivery dates)', () => {
+    const clone = (): any => ({
+        additionalDetails: {
+            cloneFrom: 'CMP-SRC', clonedCampaignId: 'src-id',
+            cycleData: {
+                deliveryMethods: ['OUTSIDEHOUSEHOLD'],
+                cycleConfgureDate: { cycle: 1, deliveries: 1 },
+                cycleData: [{ key: 1, fromDate: '2026-10-30T00:00:00.000Z', toDate: '2026-11-06T00:00:00.000Z' }],
+            },
+        },
+        deliveryRules: [{ code: 'POLIO', cycles: [{ id: 1, startDate: 1793298600000, endDate: 1793989799000, deliveries: [{ id: 1, doseCriteria: [{ condition: '0<=ageandage<=59' }] }] }] }],
+    });
+    beforeEach(() => { (config as any).mapping = { clearCloneDeliveryDates: true }; });
+    afterAll(() => { delete (config as any).mapping; });
+
+    it('removes the cycle dates in cycleData and deliveryRules and keeps everything else', () => {
+        const c = clone();
+        expect(dropCloneSourceDeliveryDates(c)).toBe(4);
+        expect(c.additionalDetails.cycleData).toEqual({ deliveryMethods: ['OUTSIDEHOUSEHOLD'], cycleConfgureDate: { cycle: 1, deliveries: 1 }, cycleData: [{ key: 1 }] });
+        expect(c.deliveryRules[0].cycles[0]).toEqual({ id: 1, deliveries: [{ id: 1, doseCriteria: [{ condition: '0<=ageandage<=59' }] }] });
+        expect(c.additionalDetails.cloneFrom).toBe('CMP-SRC');
+    });
+
+    it('changes nothing for a campaign that is not a clone, an edit, or when the switch is off', () => {
+        const notClone = clone(); delete notClone.additionalDetails.cloneFrom; delete notClone.additionalDetails.clonedCampaignId;
+        expect(dropCloneSourceDeliveryDates(notClone)).toBe(0);
+        const edit = { ...clone(), parentId: 'parent-1' };
+        expect(dropCloneSourceDeliveryDates(edit)).toBe(0);
+        (config as any).mapping.clearCloneDeliveryDates = false;
+        const off = clone();
+        expect(dropCloneSourceDeliveryDates(off)).toBe(0);
+        expect(off.deliveryRules[0].cycles[0].startDate).toBe(1793298600000);
+    });
+
+    it('handles a clone without cycle data or delivery rules', () => {
+        expect(dropCloneSourceDeliveryDates({ additionalDetails: { cloneFrom: 'CMP-SRC' } })).toBe(0);
     });
 });

@@ -105,6 +105,32 @@ export function keepCloneLineage(incomingCampaign: any, savedCampaign: any): str
 }
 
 /**
+ * A clone being created starts without its source's delivery dates (the cycles' fromDate / toDate in cycleData and their
+ * startDate / endDate in deliveryRules): they belong to the source's period, and the planner picks the clone's own in the
+ * delivery step. Cycles, deliveries, doses, conditions and delivery methods stay. Returns the number of dates removed;
+ * none for a campaign that is not a clone, an edit (parentId), or when the switch is off.
+ */
+export function dropCloneSourceDeliveryDates(campaignDetails: any): number {
+    const details = campaignDetails?.additionalDetails;
+    if (!config.mapping?.clearCloneDeliveryDates || !campaignDetails || campaignDetails.parentId
+        || !(details?.cloneFrom || details?.clonedCampaignId)) return 0;
+    let removed = 0;
+    const drop = (target: any, keys: string[]) => {
+        for (const key of keys) {
+            if (target && typeof target === "object" && target[key] !== undefined) {
+                delete target[key];
+                removed++;
+            }
+        }
+    };
+    const cycleDates = details?.cycleData?.cycleData;
+    (Array.isArray(cycleDates) ? cycleDates : []).forEach((cycle: any) => drop(cycle, ["fromDate", "toDate"]));
+    (Array.isArray(campaignDetails.deliveryRules) ? campaignDetails.deliveryRules : [])
+        .forEach((rule: any) => (Array.isArray(rule?.cycles) ? rule.cycles : []).forEach((cycle: any) => drop(cycle, ["startDate", "endDate"])));
+    return removed;
+}
+
+/**
  * The update's deliveryMethods and projectType for the generate request, so excel-ingestion decides the Outside Household
  * sheet from this update rather than from a stored copy that may not have it yet; empty when the update carries neither.
  */
