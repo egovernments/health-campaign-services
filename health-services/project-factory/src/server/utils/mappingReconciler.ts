@@ -296,8 +296,11 @@ export async function runMappingReconciler(
         try {
             await pollUntilCountFn(async () => {
                 const status = await checkCampaignMappingCompletionStatus(campaignNumber, tenantId);
-                logger.info(`Campaign ${campaignNumber} mapping cycle ${cycle}/${maxCycles}: ${status.completedMappings}/${status.totalMappings} completed, ${status.failedMappings} failed, ${status.pendingMappings} pending`);
-                return status.completedMappings + status.failedMappings;
+                // A demapped row is deleted once its link is removed (an edit), so rows gone since the snapshot are done;
+                // otherwise the wait could never reach the snapshot's total and would run to the stall timeout
+                const removed = Math.max(0, snapshot.totalMappings - status.totalMappings);
+                logger.info(`Campaign ${campaignNumber} mapping cycle ${cycle}/${maxCycles}: ${status.completedMappings}/${status.totalMappings} completed, ${status.failedMappings} failed, ${status.pendingMappings} pending, ${removed} removed`);
+                return status.completedMappings + status.failedMappings + removed;
             }, snapshot.totalMappings, {
                 label: `mapping resolution (cycle ${cycle}/${maxCycles})`,
                 stallTimeoutMs: config.mapping.reconcileStallTimeoutMs,
