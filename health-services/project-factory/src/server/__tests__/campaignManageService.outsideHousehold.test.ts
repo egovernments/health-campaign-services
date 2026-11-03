@@ -24,7 +24,7 @@ jest.mock('../utils/resourceDetailsUtils', () => ({ findActiveResourceByUpsertKe
 jest.mock('../utils/genericUtils', () => ({ prepareProcessesForResourceTypes: jest.fn(), getCurrentProcesses: jest.fn() }));
 jest.mock('../kafka/Producer', () => ({ produceModifiedMessages: jest.fn() }));
 jest.mock('../config/resourceTypeRegistry', () => ({ getRegistryEntry: jest.fn() }));
-jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(), isOutsideHouseholdDeliveryChanged: jest.fn(), keepCloneLineage: jest.fn(() => []), dropCloneSourceDeliveryDates: jest.fn(() => 0), fileBeforeOutsideHouseholdChange: jest.fn(() => null) }));
+jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(), isOutsideHouseholdDeliveryChanged: jest.fn(), keepCloneLineage: jest.fn(() => []), dropCloneSourceDeliveryDates: jest.fn(() => 0), fileBeforeOutsideHouseholdChange: jest.fn(() => null), keepFileForOutsideHouseholdChange: jest.fn(() => null) }));
 
 import config from '../config';
 import { createProjectTypeCampaignService, updateProjectTypeCampaignService } from '../service/campaignManageService';

@@ -67,6 +67,8 @@ export function isOutsideHouseholdChoiceDifferentFromSource(cloneDetails: any, s
   return cloneChoice !== (hasOutsideHouseholdDelivery(sourceCampaign) ?? false);
 }
 
+const isUnifiedFile = (r: any) => r?.type === resourceTypes.unifiedConsoleResources && r?.filestoreId;
+
 /**
  * The source's unified file to attach again to a clone whose Outside Household choice changed back to its source's, or
  * null. Only for a clone (cloneFrom, no parent) whose save changed the choice, carries a readable deliveryMethods list
@@ -76,7 +78,6 @@ export function cloneSourceFileToReattach(cloneDetails: any, sourceCampaign: any
     if (!config.mapping?.detachStaleResourcesOnConfigChange || !outsideHouseholdChanged || !sourceCampaign) return null;
     if (!cloneDetails?.additionalDetails?.cloneFrom || cloneDetails?.parentId) return null;
     if (hasOutsideHouseholdDelivery(cloneDetails) === null || isOutsideHouseholdChoiceDifferentFromSource(cloneDetails, sourceCampaign)) return null;
-    const isUnifiedFile = (r: any) => r?.type === resourceTypes.unifiedConsoleResources && r?.filestoreId;
     if ((Array.isArray(cloneDetails.resources) ? cloneDetails.resources : []).some(isUnifiedFile)) return null;
     const file = (Array.isArray(sourceCampaign.resources) ? sourceCampaign.resources : []).find(isUnifiedFile);
     return file ? { type: resourceTypes.unifiedConsoleResources, filestoreId: file.filestoreId, filename: file.filename || null, additionalDetails: {} } : null;
@@ -154,25 +155,70 @@ export function generationDetailsFromUpdate(campaignDetails: any, previousFileSt
     return details;
 }
 
+/** additionalDetails key: the file whose data the templates keep when Outside Household is added or dropped, with its campaign's id. */
+export const KEPT_FILE_KEY = "fileKeptOnOutsideHouseholdChange";
+
+/** The kept file of this campaign itself (not one copied over from a cloned or edited campaign), or null. */
+function keptFile(campaign: any): string | null {
+    const kept = campaign?.additionalDetails?.[KEPT_FILE_KEY];
+    return kept?.campaignId && kept.campaignId === campaign?.id && typeof kept.fileStoreId === "string" && kept.fileStoreId ? kept.fileStoreId : null;
+}
+
+/** True when the update keeps the saved hierarchy and boundaries (an update that sends no boundaries keeps them). */
+function sameAreaAsSaved(existing: any, incoming: any): boolean {
+    if (incoming.hierarchyType && existing.hierarchyType && incoming.hierarchyType !== existing.hierarchyType) return false;
+    const codes = (c: any) => new Set<string>((Array.isArray(c?.boundaries) ? c.boundaries : []).map((b: any) => b?.code).filter(Boolean));
+    const before = codes(existing), after = codes(incoming);
+    return after.size === 0 || (after.size === before.size && [...after].every(code => before.has(code)));
+}
+
+/** True when the update sends a unified file the campaign does not have yet (attached or kept). */
+function bringsNewFile(existing: any, incoming: any): boolean {
+    const known = new Set((Array.isArray(existing.resources) ? existing.resources : []).filter(isUnifiedFile).map((r: any) => r.filestoreId));
+    const kept = keptFile(existing);
+    if (kept) known.add(kept);
+    return (Array.isArray(incoming.resources) ? incoming.resources : []).some((r: any) => isUnifiedFile(r) && !known.has(r.filestoreId));
+}
+
 /**
  * The campaign's file from before a save that adds or drops Outside Household, so the new template keeps its users,
- * targets and facilities (only the Outside Household sheet follows the new choice). Null when the switch is off, the
- * choice did not change, the hierarchy or boundaries changed, the campaign has no file, or the save brings a new file.
+ * targets and facilities (only the Outside Household sheet follows the new choice): the attached file, or else the file
+ * kept by an earlier change (that save detached it). Null when the switch is off, the choice did not change, the hierarchy
+ * or boundaries changed, the campaign has no such file, or the save brings a new file.
  */
 export function fileBeforeOutsideHouseholdChange(request: any): string | null {
     const existing = request?.body?.ExistingCampaignDetails;
     const incoming = request?.body?.CampaignDetails;
     if (!config.mapping?.keepDataOnOutsideHouseholdChange || !existing || !incoming || !isOutsideHouseholdDeliveryChanged(request)) return null;
     if (!isDeliveryConditionCampaignType(incoming.projectType || existing.projectType)) return null;
-    if (incoming.hierarchyType && existing.hierarchyType && incoming.hierarchyType !== existing.hierarchyType) return null;
-    const codes = (c: any) => new Set<string>((Array.isArray(c?.boundaries) ? c.boundaries : []).map((b: any) => b?.code).filter(Boolean));
-    const before = codes(existing), after = codes(incoming);
-    if (after.size > 0 && (after.size !== before.size || [...after].some(code => !before.has(code)))) return null;
-    const isUnifiedFile = (r: any) => r?.type === resourceTypes.unifiedConsoleResources && r?.filestoreId;
+    if (!sameAreaAsSaved(existing, incoming) || bringsNewFile(existing, incoming)) return null;
     const existingFiles = (Array.isArray(existing.resources) ? existing.resources : []).filter(isUnifiedFile);
-    const known = new Set(existingFiles.map((r: any) => r.filestoreId));
-    const bringsNewFile = (Array.isArray(incoming.resources) ? incoming.resources : []).some((r: any) => isUnifiedFile(r) && !known.has(r.filestoreId));
-    return existingFiles.length > 0 && !bringsNewFile ? existingFiles[0].filestoreId : null;
+    return existingFiles.length > 0 ? existingFiles[0].filestoreId : keptFile(existing);
+}
+
+/**
+ * Saves on the campaign the file whose data its templates keep when Outside Household is added or dropped, since the save
+ * that changes the choice detaches the file: this save's file before the change, else the saved one (the console's saves
+ * leave it out). Dropped when the save changes the hierarchy or boundaries (the data is uploaded again for the new area)
+ * or brings a new file (the next change keeps that one). Returns the kept file id, or null.
+ */
+export function keepFileForOutsideHouseholdChange(request: any, fileBefore: string | null): string | null {
+    const existing = request?.body?.ExistingCampaignDetails;
+    const incoming = request?.body?.CampaignDetails;
+    if (!config.mapping?.keepDataOnOutsideHouseholdChange || !incoming) return null;
+    const saved = existing ? keptFile(existing) : null;
+    const file = fileBefore || (saved && sameAreaAsSaved(existing, incoming) && !bringsNewFile(existing, incoming) ? saved : null);
+    const campaignId = incoming.id || existing?.id;
+    if (file && campaignId) {
+        incoming.additionalDetails = { ...(incoming.additionalDetails || {}), [KEPT_FILE_KEY]: { campaignId, fileStoreId: file } };
+        return file;
+    }
+    if (incoming.additionalDetails && KEPT_FILE_KEY in incoming.additionalDetails) {
+        const rest = { ...incoming.additionalDetails };
+        delete rest[KEPT_FILE_KEY];
+        incoming.additionalDetails = rest;
+    }
+    return null;
 }
 
 /** True when the stored campaign already holds the update's Outside Household choice (or the update carries no deliveryMethods list), so a template generated now gets the right sheets. */

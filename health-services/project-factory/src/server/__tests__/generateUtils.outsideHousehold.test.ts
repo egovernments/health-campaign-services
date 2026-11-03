@@ -7,7 +7,7 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates, fileBeforeOutsideHouseholdChange } from '../utils/generateUtils';
+import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates, fileBeforeOutsideHouseholdChange, keepFileForOutsideHouseholdChange, KEPT_FILE_KEY } from '../utils/generateUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
 
@@ -306,6 +306,63 @@ describe('fileBeforeOutsideHouseholdChange (the new template keeps the data of t
     it('gives nothing when the switch is off', () => {
         (config as any).mapping.keepDataOnOutsideHouseholdChange = false;
         expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1'])))).toBeNull();
+    });
+
+    // The save that changes the choice detaches the file; the campaign keeps its id for the next change
+    const kept = (c: any, fileStoreId: string, campaignId = 'c1') => ({ ...c, id: 'c1', additionalDetails: { ...c.additionalDetails, [KEPT_FILE_KEY]: { campaignId, fileStoreId } } });
+
+    it('gives the kept file when Outside Household is added back and no file is attached any more', () => {
+        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F1');
+        // the console sending the detached file back is not a new file
+        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], ['F1'])))).toBe('F1');
+        // an attached file comes first
+        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F2']), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F2');
+    });
+
+    it('does not give a kept file copied from another campaign, or after the area changed', () => {
+        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1', 'source'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBeNull();
+        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A', 'B'], [])))).toBeNull();
+        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], ['F2'])))).toBeNull();
+    });
+
+    describe('keepFileForOutsideHouseholdChange', () => {
+        const keptOn = (c: any) => c.additionalDetails?.[KEPT_FILE_KEY];
+
+        it('saves the file the template keeps, with the campaign id', () => {
+            const incoming = { ...camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']), id: 'c1' };
+            expect(keepFileForOutsideHouseholdChange(req({ ...camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], ['F1']), id: 'c1' }, incoming), 'F1')).toBe('F1');
+            expect(keptOn(incoming)).toEqual({ campaignId: 'c1', fileStoreId: 'F1' });
+            expect(incoming.additionalDetails.cycleData.deliveryMethods).toEqual(['HOUSEHOLDSTRATEGY']);
+        });
+
+        it('carries the saved file over a save that leaves it out, and replaces a stale one the console sends', () => {
+            const incoming = camp(['HOUSEHOLDSTRATEGY'], ['A'], []);
+            expect(keepFileForOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), incoming), null)).toBe('F1');
+            expect(keptOn(incoming)).toEqual({ campaignId: 'c1', fileStoreId: 'F1' });
+            const stale = kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F0');
+            keepFileForOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), stale), null);
+            expect(keptOn(stale)).toEqual({ campaignId: 'c1', fileStoreId: 'F1' });
+        });
+
+        it('drops it when the area changes or a new file comes, and leaves a campaign with none untouched', () => {
+            const newArea = kept(camp(['HOUSEHOLDSTRATEGY'], ['A', 'B'], []), 'F1');
+            expect(keepFileForOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), newArea), null)).toBeNull();
+            expect(newArea.additionalDetails).not.toHaveProperty(KEPT_FILE_KEY);
+            expect(newArea.additionalDetails.cycleData).toBeDefined();
+            const newFile = camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F2']);
+            expect(keepFileForOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), newFile), null)).toBeNull();
+            expect(newFile.additionalDetails).not.toHaveProperty(KEPT_FILE_KEY);
+            const none: any = { id: 'c1' };
+            expect(keepFileForOutsideHouseholdChange(req(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), none), null)).toBeNull();
+            expect(none).toEqual({ id: 'c1' });
+        });
+
+        it('does nothing when the switch is off', () => {
+            (config as any).mapping.keepDataOnOutsideHouseholdChange = false;
+            const incoming = { ...camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']), id: 'c1' };
+            expect(keepFileForOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), incoming), 'F1')).toBeNull();
+            expect(keptOn(incoming)).toBeUndefined();
+        });
     });
 
     it('passes the file to excel-ingestion with the update details', () => {
