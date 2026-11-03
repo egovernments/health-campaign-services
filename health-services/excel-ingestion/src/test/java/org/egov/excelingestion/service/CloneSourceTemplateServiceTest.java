@@ -233,6 +233,91 @@ class CloneSourceTemplateServiceTest {
         verify(fileStoreService, never()).downloadExcelFromFileStore(eq("file-older"), any());
     }
 
+    // Pre-filled Outside Household rows in the order the planner filled them (generated: places first, then posts)
+
+    private static byte[] ohFile(Object[]... rows) throws Exception {
+        try (Workbook wb = new XSSFWorkbook()) {
+            CloneSourceDataMergerTest.sheet(wb, "Outside Household", OutsideHouseholdRowOrderTest.KEYS, rows);
+            return bytes(wb);
+        }
+    }
+
+    private static final Object[] MARKET = {"Z", "ohp-1", "Outside Household Places", "Market"};
+    private static final Object[] SCHOOL = {"Z", "ohp-2", "Outside Household Places", "School"};
+    private static final Object[] BUS_STOP = {"Z", "tp-1", "Transit Posts", "Bus Stop"};
+    private static final Object[] TYPED_SCHOOL = {null, null, "Outside Household Places", "School"};
+
+    private static List<String> ohNames(byte[] file) throws Exception {
+        try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(file))) {
+            return OutsideHouseholdRowOrderTest.names(wb.getSheet("Outside Household"));
+        }
+    }
+
+    @Test
+    void anEditSheetListsTheSitesInTheOrderOfTheCampaignsFile() throws Exception {
+        CampaignSearchResponse.CampaignDetail edit = campaign("clone-1", List.of("OUTSIDEHOUSEHOLD"), List.of("Z"), "campaign-file");
+        edit.setParentId("parent-1");
+        when(campaignService.searchCampaignById(eq("clone-1"), eq("dev"), any())).thenReturn(edit);
+        when(fileStoreService.downloadFileBytes("campaign-file", "dev")).thenReturn(ohFile(BUS_STOP, TYPED_SCHOOL, MARKET));
+
+        byte[] result = service.inEarlierRowOrder(generate(null), requestInfo, ohFile(MARKET, SCHOOL, BUS_STOP));
+
+        assertEquals(List.of("Bus Stop", "School", "Market"), ohNames(result));
+        verify(fileStoreService, never()).downloadFileBytes(eq(null), any());
+    }
+
+    @Test
+    void outsideHouseholdAddedBackKeepsTheOrderOfTheLatestEarlierFileWithSites() throws Exception {
+        CampaignSearchResponse.CampaignDetail draft = campaign("clone-1", List.of("OUTSIDEHOUSEHOLD"), List.of("Z"), null);
+        when(campaignService.searchCampaignById(eq("clone-1"), eq("dev"), any())).thenReturn(draft);
+        try (Workbook householdOnly = new XSSFWorkbook()) {
+            CloneSourceDataMergerTest.sheet(householdOnly, "User List", new String[]{"HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"}, new Object[]{9000000002.0});
+            when(fileStoreService.downloadFileBytes("file-before", "dev")).thenReturn(bytes(householdOnly));
+        }
+        when(fileStoreService.downloadFileBytes("file-older", "dev")).thenReturn(ohFile(TYPED_SCHOOL, BUS_STOP, MARKET));
+        GenerateResource resource = generate(null);
+        resource.getAdditionalDetails().put("previousFileStoreId", "file-before");
+        resource.getAdditionalDetails().put("earlierFileStoreIds", List.of("file-before", "file-older"));
+
+        byte[] result = service.inEarlierRowOrder(resource, requestInfo, ohFile(MARKET, BUS_STOP, TYPED_SCHOOL));
+
+        assertEquals(List.of("School", "Bus Stop", "Market"), ohNames(result));
+    }
+
+    @Test
+    void aCloneWithoutItsOwnFileFollowsItsSourcesFile() throws Exception {
+        stub(clone(List.of("OUTSIDEHOUSEHOLD"), List.of("Z"), null), source(List.of("OUTSIDEHOUSEHOLD"), List.of("Z"), "src-file"));
+        when(fileStoreService.downloadFileBytes("src-file", "dev")).thenReturn(ohFile(BUS_STOP, MARKET));
+
+        byte[] result = service.inEarlierRowOrder(generate(null), requestInfo, ohFile(MARKET, BUS_STOP));
+
+        assertEquals(List.of("Bus Stop", "Market"), ohNames(result));
+    }
+
+    @Test
+    void sitesAlreadyInOrderOrAnUnreadableFileKeepTheGeneratedBytes() throws Exception {
+        CampaignSearchResponse.CampaignDetail draft = campaign("clone-1", List.of("OUTSIDEHOUSEHOLD"), List.of("Z"), "campaign-file");
+        when(campaignService.searchCampaignById(eq("clone-1"), eq("dev"), any())).thenReturn(draft);
+        byte[] generated = ohFile(MARKET, BUS_STOP);
+        when(fileStoreService.downloadFileBytes("campaign-file", "dev")).thenReturn(ohFile(MARKET, BUS_STOP));
+        assertSame(generated, service.inEarlierRowOrder(generate(null), requestInfo, generated));
+
+        when(fileStoreService.downloadFileBytes("campaign-file", "dev")).thenThrow(new RuntimeException("filestore down"));
+        assertSame(generated, service.inEarlierRowOrder(generate(null), requestInfo, generated));
+    }
+
+    @Test
+    void aTemplateWithFewerThanTwoSitesOrOfAnotherTypeIsNotReordered() throws Exception {
+        byte[] oneSite = ohFile(MARKET);
+        assertSame(oneSite, service.inEarlierRowOrder(generate(null), requestInfo, oneSite));
+        GenerateResource attendance = generate(null);
+        attendance.setType("attendanceRegister");
+        byte[] twoSites = ohFile(MARKET, BUS_STOP);
+        assertSame(twoSites, service.inEarlierRowOrder(attendance, requestInfo, twoSites));
+        verify(campaignService, never()).searchCampaignById(any(), any(), any());
+        verify(fileStoreService, never()).downloadFileBytes(any(), any());
+    }
+
     private static byte[] bytes(Workbook wb) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         wb.write(out);

@@ -48,6 +48,8 @@ public class ExcelWorkflowService {
             excelBytes = excelGenerationService.generateExcel(generateResource, request.getRequestInfo());
             // A clone that adds or drops Outside Household keeps its source's users, targets and facilities
             excelBytes = cloneSourceTemplateService.withSourceData(generateResource, request.getRequestInfo(), excelBytes);
+            // Pre-filled Outside Household rows keep the order the planner gave them in the campaign's earlier file
+            excelBytes = cloneSourceTemplateService.inEarlierRowOrder(generateResource, request.getRequestInfo(), excelBytes);
             
         } catch (Exception e) {
             log.error("Error generating Excel for type: {}, ID: {}", generateResource.getType(), generateResource.getId(), e);
