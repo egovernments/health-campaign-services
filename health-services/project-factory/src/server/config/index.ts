@@ -142,6 +142,9 @@ const config = {
     cloneReuseSourceUsersOnNewSheet: (process.env.CAMPAIGN_CLONE_REUSE_SOURCE_USERS_ON_NEW_SHEET || "true").toLowerCase() !== "false",
     // A new clone does not keep its source's delivery (cycle) dates; the planner picks the clone's own; "false" keeps them
     clearCloneDeliveryDates: (process.env.CAMPAIGN_CLONE_CLEAR_DELIVERY_DATES || "true").toLowerCase() !== "false",
+    // After a save that adds or drops Outside Household, the new template keeps the users, targets and facilities of the
+    // file the campaign had before; "false" gives an empty template, as before
+    keepDataOnOutsideHouseholdChange: (process.env.CAMPAIGN_KEEP_DATA_ON_OUTSIDE_HOUSEHOLD_CHANGE || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 

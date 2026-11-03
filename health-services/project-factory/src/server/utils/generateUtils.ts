@@ -134,12 +134,34 @@ export function dropCloneSourceDeliveryDates(campaignDetails: any): number {
  * The update's deliveryMethods and projectType for the generate request, so excel-ingestion decides the Outside Household
  * sheet from this update rather than from a stored copy that may not have it yet; empty when the update carries neither.
  */
-export function generationDetailsFromUpdate(campaignDetails: any): Record<string, any> {
+export function generationDetailsFromUpdate(campaignDetails: any, previousFileStoreId?: string | null): Record<string, any> {
     const details: Record<string, any> = {};
     const methods = campaignDetails?.additionalDetails?.cycleData?.deliveryMethods;
     if (Array.isArray(methods)) details.deliveryMethods = methods;
     if (typeof campaignDetails?.projectType === "string" && campaignDetails.projectType.trim()) details.projectType = campaignDetails.projectType;
+    // excel-ingestion copies this file's users, targets and facilities into the new template
+    if (previousFileStoreId) details.previousFileStoreId = previousFileStoreId;
     return details;
+}
+
+/**
+ * The campaign's file from before a save that adds or drops Outside Household, so the new template keeps its users,
+ * targets and facilities (only the Outside Household sheet follows the new choice). Null when the switch is off, the
+ * choice did not change, the hierarchy or boundaries changed, the campaign has no file, or the save brings a new file.
+ */
+export function fileBeforeOutsideHouseholdChange(request: any): string | null {
+    const existing = request?.body?.ExistingCampaignDetails;
+    const incoming = request?.body?.CampaignDetails;
+    if (!config.mapping?.keepDataOnOutsideHouseholdChange || !existing || !incoming || !isOutsideHouseholdDeliveryChanged(request)) return null;
+    if (incoming.hierarchyType && existing.hierarchyType && incoming.hierarchyType !== existing.hierarchyType) return null;
+    const codes = (c: any) => new Set<string>((Array.isArray(c?.boundaries) ? c.boundaries : []).map((b: any) => b?.code).filter(Boolean));
+    const before = codes(existing), after = codes(incoming);
+    if (after.size > 0 && (after.size !== before.size || [...after].some(code => !before.has(code)))) return null;
+    const isUnifiedFile = (r: any) => r?.type === resourceTypes.unifiedConsoleResources && r?.filestoreId;
+    const existingFiles = (Array.isArray(existing.resources) ? existing.resources : []).filter(isUnifiedFile);
+    const known = new Set(existingFiles.map((r: any) => r.filestoreId));
+    const bringsNewFile = (Array.isArray(incoming.resources) ? incoming.resources : []).some((r: any) => isUnifiedFile(r) && !known.has(r.filestoreId));
+    return existingFiles.length > 0 && !bringsNewFile ? existingFiles[0].filestoreId : null;
 }
 
 /** True when the stored campaign already holds the update's Outside Household choice (or the update carries no deliveryMethods list), so a template generated now gets the right sheets. */
@@ -233,7 +255,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
         const isUnifiedCampaign = campaignDetails?.additionalDetails?.isUnifiedCampaign;
         if(isUnifiedCampaign){
-            await callExcelIngestionService(request?.body, undefined, undefined, undefined, generationDetailsFromUpdate(campaignDetails));
+            await callExcelIngestionService(request?.body, undefined, undefined, undefined, generationDetailsFromUpdate(campaignDetails, request?.body?.fileBeforeOutsideHouseholdChange));
             return;
         }
 

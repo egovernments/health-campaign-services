@@ -10,7 +10,7 @@ import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
-import { dropCloneSourceDeliveryDates, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from "../utils/generateUtils";
+import { dropCloneSourceDeliveryDates, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from "../utils/generateUtils";
 import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 
 /** Validates and creates a project-type campaign, persisting its resources to eg_cm_resource_details so they survive the Flow 2 JSONB overwrite. */
@@ -72,6 +72,13 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const campaignId = request?.body?.CampaignDetails?.id;
     const tenantId = request?.body?.CampaignDetails?.tenantId;
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
+
+    // A save that adds or drops Outside Household detaches the file below; the new template keeps that file's data
+    const fileBefore = fileBeforeOutsideHouseholdChange(request);
+    if (fileBefore) {
+        request.body.fileBeforeOutsideHouseholdChange = fileBefore;
+        logger.info(`Campaign ${campaignId}: Outside Household changed; the new template keeps the data of file ${fileBefore}`);
+    }
 
     // Deactivate stale resources when hierarchyType or boundaries change — user must re-upload for the new configuration
     const existingCampaign = request?.body?.ExistingCampaignDetails;

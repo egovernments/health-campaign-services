@@ -155,6 +155,24 @@ class CloneSourceTemplateServiceTest {
         assertArrayEquals(generated, service.withSourceData(generate(null), requestInfo, generated));
     }
 
+    @Test
+    void aCampaignThatAddedOrDroppedOutsideHouseholdGetsTheRowsOfItsFileFromBefore() throws Exception {
+        Workbook before = new XSSFWorkbook();
+        CloneSourceDataMergerTest.sheet(before, "User List", new String[]{"HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"}, new Object[]{9000000002.0});
+        when(fileStoreService.downloadExcelFromFileStore("file-before", "dev")).thenReturn(before);
+        Workbook generated = new XSSFWorkbook();
+        CloneSourceDataMergerTest.sheet(generated, "User List", new String[]{"HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"});
+        GenerateResource resource = generate(null);
+        resource.getAdditionalDetails().put("previousFileStoreId", "file-before");
+
+        byte[] result = service.withSourceData(resource, requestInfo, bytes(generated));
+
+        try (Workbook merged = new XSSFWorkbook(new ByteArrayInputStream(result))) {
+            assertEquals(9000000002.0, merged.getSheet("User List").getRow(2).getCell(0).getNumericCellValue());
+        }
+        verify(campaignService, never()).searchCampaignById(any(), any(), any());
+    }
+
     private static byte[] bytes(Workbook wb) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         wb.write(out);

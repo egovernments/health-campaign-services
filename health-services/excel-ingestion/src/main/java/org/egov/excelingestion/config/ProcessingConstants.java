@@ -95,6 +95,8 @@ public class ProcessingConstants {
     public static final String OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = "OUTSIDEHOUSEHOLD";
     // Generate-request additionalDetails keys: the campaign values of the update that triggered the generation
     public static final String GENERATE_DETAIL_DELIVERY_METHODS_KEY = "deliveryMethods";
+    // The campaign's file from before a save that added or dropped Outside Household (sent by project-factory)
+    public static final String GENERATE_DETAIL_PREVIOUS_FILE_KEY = "previousFileStoreId";
     public static final String GENERATE_DETAIL_PROJECT_TYPE_KEY = "projectType";
 
     /**

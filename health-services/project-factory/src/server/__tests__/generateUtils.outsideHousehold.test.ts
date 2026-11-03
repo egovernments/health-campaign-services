@@ -7,7 +7,7 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates } from '../utils/generateUtils';
+import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates, fileBeforeOutsideHouseholdChange } from '../utils/generateUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
 
@@ -263,5 +263,40 @@ describe('dropCloneSourceDeliveryDates (a new clone does not keep its source\'s 
 
     it('handles a clone without cycle data or delivery rules', () => {
         expect(dropCloneSourceDeliveryDates({ additionalDetails: { cloneFrom: 'CMP-SRC' } })).toBe(0);
+    });
+});
+
+describe('fileBeforeOutsideHouseholdChange (the new template keeps the data of the file uploaded before)', () => {
+    const UNIFIED = 'unified-console-resources';
+    const camp = (methods: string[], codes: string[], files: string[], hierarchyType = 'H'): any => ({
+        hierarchyType, boundaries: codes.map(code => ({ code })), resources: files.map(f => ({ type: UNIFIED, filestoreId: f })),
+        additionalDetails: { cycleData: { deliveryMethods: methods } },
+    });
+    const req = (existing: any, incoming: any) => ({ body: { ExistingCampaignDetails: existing, CampaignDetails: incoming } });
+    beforeEach(() => { (config as any).mapping = { keepDataOnOutsideHouseholdChange: true }; });
+    afterAll(() => { delete (config as any).mapping; });
+
+    it('gives the file of a campaign that drops or adds Outside Household on the same area', () => {
+        expect(fileBeforeOutsideHouseholdChange(req(camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A', 'B'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['B', 'A'], ['F1'])))).toBe('F1');
+        expect(fileBeforeOutsideHouseholdChange(req(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F1');
+    });
+
+    it('gives nothing when the choice did not change, the area or hierarchy changed, or the save brings a new file', () => {
+        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['OUTSIDEHOUSEHOLD', 'HOUSEHOLDSTRATEGY'], ['A'], ['F1'])))).toBeNull();
+        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A', 'C'], ['F1'])))).toBeNull();
+        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1'], 'H2')))).toBeNull();
+        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F2'])))).toBeNull();
+        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], []), camp(['HOUSEHOLDSTRATEGY'], ['A'], [])))).toBeNull();
+    });
+
+    it('gives nothing when the switch is off', () => {
+        (config as any).mapping.keepDataOnOutsideHouseholdChange = false;
+        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1'])))).toBeNull();
+    });
+
+    it('passes the file to excel-ingestion with the update details', () => {
+        expect(generationDetailsFromUpdate({ projectType: 'POLIO', additionalDetails: { cycleData: { deliveryMethods: ['HOUSEHOLDSTRATEGY'] } } }, 'F1'))
+            .toEqual({ deliveryMethods: ['HOUSEHOLDSTRATEGY'], projectType: 'POLIO', previousFileStoreId: 'F1' });
+        expect(generationDetailsFromUpdate({ projectType: 'POLIO' })).toEqual({ projectType: 'POLIO' });
     });
 });
