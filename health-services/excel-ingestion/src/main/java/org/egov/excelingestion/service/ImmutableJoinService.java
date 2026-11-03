@@ -63,6 +63,8 @@ public class ImmutableJoinService {
     private final CampaignService campaignService;
 
     private static final String MULTISELECT_MARKER = "_MULTISELECT_";
+    // How many campaigns up a clone chain an uploaded file's template may come from
+    private static final int MAX_CLONE_CHAIN = 10;
 
     /** Columns never restored from the baseline even if the schema marks them immutable. */
     private static final Set<String> ALWAYS_EXCLUDED = Set.of(
@@ -190,9 +192,10 @@ public class ImmutableJoinService {
 
         if (equalsNullSafe(baselineGen.getReferenceId(), resource.getReferenceId())) {
             log.info("Upload sheet is belong to the campaign itself");
-        } else if (clonedCampaignId != null && !clonedCampaignId.trim().isEmpty()
-                && equalsNullSafe(baselineGen.getReferenceId(), clonedCampaignId.trim())) {
-            log.info("Upload sheet is belong to the cloned campaign ");
+        } else if (isCloneAncestor(baselineGen.getReferenceId(), clonedCampaignId, resource.getTenantId(), requestInfo)) {
+            // A clone gets its source's file as its template, and a clone of a clone gets that same file, so the file can
+            // be the template of the source's source (or earlier)
+            log.info("Upload sheet is belong to campaign {}, an earlier campaign of this clone's chain", baselineGen.getReferenceId());
         } else {
             exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
                     localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH,
@@ -596,6 +599,29 @@ public class ImmutableJoinService {
         }
         String s = ExcelUtil.getValueAsString(o);
         return s == null ? "" : s.trim();
+    }
+
+    /**
+     * Whether referenceId is the campaign this one was cloned from, or one that campaign was cloned from, and so on (at
+     * most MAX_CLONE_CHAIN campaigns up, stopping at a loop or a campaign that cannot be read).
+     */
+    private boolean isCloneAncestor(String referenceId, String clonedCampaignId, String tenantId, RequestInfo requestInfo) {
+        String ancestor = trimToNull(clonedCampaignId);
+        Set<String> seen = new HashSet<>();
+        for (int depth = 0; ancestor != null && depth < MAX_CLONE_CHAIN && seen.add(ancestor); depth++) {
+            if (equalsNullSafe(referenceId, ancestor)) {
+                return true;
+            }
+            try {
+                CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(ancestor, tenantId, requestInfo);
+                ancestor = campaign == null || campaign.getAdditionalDetails() == null ? null
+                        : trimToNull(campaign.getAdditionalDetails().getClonedCampaignId());
+            } catch (Exception e) {
+                log.warn("Could not read campaign {} of the clone chain: {}", ancestor, e.getMessage());
+                return false;
+            }
+        }
+        return false;
     }
 
     /** Per-sheet context: where to graft baseline values back + where to collect revert warnings. */

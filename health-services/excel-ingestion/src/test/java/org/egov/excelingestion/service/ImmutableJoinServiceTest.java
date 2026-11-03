@@ -993,6 +993,54 @@ class ImmutableJoinServiceTest {
             verify(campaignService).searchCampaignById(anyString(), anyString(), any());
         }
 
+        private CampaignSearchResponse.CampaignDetail cloneOf(String id, String source) {
+            return CampaignSearchResponse.CampaignDetail.builder().id(id).tenantId(TENANT)
+                    .additionalDetails(CampaignSearchResponse.AdditionalDetails.builder().clonedCampaignId(source).build()).build();
+        }
+
+        private ProcessResource uploadTo(String campaignId) {
+            return ProcessResource.builder().tenantId(TENANT).type(TYPE).referenceId(campaignId)
+                    .referenceType("campaign").fileStoreId(UPLOAD_FS).build();
+        }
+
+        // health-campaign-services#2391: a clone of a clone gets its source's file, which is the template of the
+        // source's own source, so the file's template belongs to a campaign two steps up the clone chain.
+        @Test
+        void cloneOfAClone_acceptsTheTemplateOfTheSourcesSource() {
+            when(campaignService.searchCampaignById(eq("campaign-3"), anyString(), any())).thenReturn(cloneOf("campaign-3", "campaign-2"));
+            when(campaignService.searchCampaignById(eq("campaign-2"), anyString(), any())).thenReturn(cloneOf("campaign-2", REF));
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, uploadTo("campaign-3"), sheetNameToSchema, null);
+
+            assertEquals("Real Name", up.get("name"), "the template of an earlier campaign of the clone chain is accepted");
+        }
+
+        @Test
+        void aTemplateOutsideTheCloneChain_isStillRejected() {
+            when(campaignService.searchCampaignById(eq("campaign-3"), anyString(), any())).thenReturn(cloneOf("campaign-3", "campaign-2"));
+            when(campaignService.searchCampaignById(eq("campaign-2"), anyString(), any())).thenReturn(cloneOf("campaign-2", "campaign-4"));
+            when(campaignService.searchCampaignById(eq("campaign-4"), anyString(), any())).thenReturn(cloneOf("campaign-4", null));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, uploadTo("campaign-3"), sheetNameToSchema, null));
+
+            assertEquals(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH, ex.getCode());
+        }
+
+        @Test
+        void aLoopInTheCloneChain_isRejectedWithoutLoopingForever() {
+            when(campaignService.searchCampaignById(eq("campaign-3"), anyString(), any())).thenReturn(cloneOf("campaign-3", "campaign-2"));
+            when(campaignService.searchCampaignById(eq("campaign-2"), anyString(), any())).thenReturn(cloneOf("campaign-2", "campaign-3"));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, uploadTo("campaign-3"), sheetNameToSchema, null));
+
+            assertEquals(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH, ex.getCode());
+        }
+
         private void removeMetaSheet() {
             uploadedWorkbook.removeSheetAt(uploadedWorkbook.getSheetIndex(GenerationConstants.META_SHEET_NAME));
         }
