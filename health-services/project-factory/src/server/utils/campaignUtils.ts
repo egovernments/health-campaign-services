@@ -96,6 +96,7 @@ import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
 import { createMdmsData, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { copyCampaignMdmsRows, searchAllMdmsRows } from "./appConfigCloneUtils";
 import { createServiceDefinition, searchServiceDefinitions } from "../api/serviceRequestApis";
 import {
   fetchFacilityData,
@@ -1091,12 +1092,9 @@ async function enrichAndPersistCampaignForCreate(
 async function processAppConfig(campaignDetails: any, RequestInfo: any) {
   try {
     if (!campaignDetails?.parentId) {
-      if (campaignDetails?.additionalDetails?.cloneFrom) {
-        await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo);
-      }
-      else {
-        await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
-      }
+      // A clone gets the app configuration of its campaign type, as a new campaign does: the source's FormConfig is not
+      // copied, since the console's editor works on its own copy of the pages, which a copied FormConfig would not match
+      await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
     }
   } catch (error) {
     logger.error("Error while processing app config", error);
@@ -3150,13 +3148,7 @@ export async function createAppConfigFromClone(
       Localisation.getInstance(),
     ]);
 
-    const cloneResponse = await fetchCloneModules(
-      tenantId,
-      configSchema,
-      cloneFromCampaignNumber
-    );
-
-    const modulesToClone = (cloneResponse?.mdms || [])
+    const modulesToClone = (await searchAllMdmsRows(tenantId, configSchema, { project: cloneFromCampaignNumber }))
       .map((item: any) => item?.data)
       .flat()
       .filter(Boolean);
@@ -3184,34 +3176,19 @@ export async function createAppConfigFromClone(
       await createMdmsData(tenantId, configSchema, newModule, RequestInfo);
     }
 
+    // The console edits the configuration through its editor copy (pages and flows) and only writes the result back to
+    // FormConfig; without that copy a clone's editor would be rebuilt from FormConfig instead of showing the source's pages
+    const pages = await copyCampaignMdmsRows(tenantId, `${moduleName}.${config.values.transformedFormConfigName}`, cloneFromCampaignNumber,
+      newCampaignNumber, (data: any) => `${data?.module}|${data?.flow}|${data?.page}`, RequestInfo);
+    const flows = await copyCampaignMdmsRows(tenantId, `${moduleName}.${config.values.appFlowConfigName}`, cloneFromCampaignNumber,
+      newCampaignNumber, (data: any) => `${data?.name}`, RequestInfo);
+    logger.info(`Campaign ${newCampaignNumber}: copied ${modulesToClone.length} app modules, ${pages} editor pages and ${flows} flow lists of ${cloneFromCampaignNumber}`);
+
     logger.info("App configuration cloned successfully.");
   } catch (err: any) {
     logger.error(`Failed to clone app config: ${err?.message}`);
     throw err;
   }
-}
-
-async function fetchCloneModules(
-  tenantId: string,
-  configSchema: string,
-  cloneFromCampaignNumber: string
-): Promise<any> {
-  if (!cloneFromCampaignNumber) {
-    throw new Error(`fetchCloneModules: cloneFromCampaignNumber is required but got: ${cloneFromCampaignNumber}`);
-  }
-
-  const cloneCriteria = {
-    tenantId,
-    schemaCode: configSchema,
-    filters: { project: cloneFromCampaignNumber },
-    isActive: true,
-  };
-
-  logger.info(
-    `MDMS SEARCH [fetchCloneModules] schemaCode=${configSchema} | request body: ${JSON.stringify({ MdmsCriteria: cloneCriteria })}`
-  );
-
-  return await searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria });
 }
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {

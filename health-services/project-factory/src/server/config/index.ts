@@ -378,6 +378,9 @@ const config = {
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
     formConfigTemplateName: process.env.FORM_CONFIG_TEMPLATE_NAME || "FormConfigTemplate",
     formConfigName: process.env.FORM_CONFIG_NAME || "FormConfig",
+    // The console's editor copy of a campaign's app configuration (its pages) and its flow list; a clone gets both
+    transformedFormConfigName: process.env.TRANSFORMED_FORM_CONFIG_NAME || "TransformedFormConfig",
+    appFlowConfigName: process.env.APP_FLOW_CONFIG_NAME || "AppFlowConfig",
     emailNotificationId: process.env.EMAIL_NOTIFICATION_ID || "support@egov.org.in" ,
     egovLogoLink: process.env.EGOV_LOGO_LINK || "https://digit-sandbox-prod-s3.s3.ap-south-1.amazonaws.com/assets/Reverse+Orange+%26+White.png",
     readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
