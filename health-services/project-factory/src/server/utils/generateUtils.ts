@@ -142,13 +142,15 @@ export function dropCloneSourceDeliveryDates(campaignDetails: any): number {
  * The update's deliveryMethods and projectType for the generate request, so excel-ingestion decides the Outside Household
  * sheet from this update rather than from a stored copy that may not have it yet; empty when the update carries neither.
  */
-export function generationDetailsFromUpdate(campaignDetails: any, previousFileStoreId?: string | null): Record<string, any> {
+export function generationDetailsFromUpdate(campaignDetails: any, previousFileStoreId?: string | null, earlierFileStoreIds?: string[] | null): Record<string, any> {
     const details: Record<string, any> = {};
     const methods = campaignDetails?.additionalDetails?.cycleData?.deliveryMethods;
     if (Array.isArray(methods)) details.deliveryMethods = methods;
     if (typeof campaignDetails?.projectType === "string" && campaignDetails.projectType.trim()) details.projectType = campaignDetails.projectType;
     // excel-ingestion copies this file's users, targets and facilities into the new template
     if (previousFileStoreId) details.previousFileStoreId = previousFileStoreId;
+    // ... and its Outside Household rows from the latest of these that has any, when the sheet comes back
+    if (previousFileStoreId && Array.isArray(earlierFileStoreIds) && earlierFileStoreIds.length > 0) details.earlierFileStoreIds = earlierFileStoreIds;
     return details;
 }
 
@@ -264,7 +266,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
         const isUnifiedCampaign = campaignDetails?.additionalDetails?.isUnifiedCampaign;
         if(isUnifiedCampaign){
-            await callExcelIngestionService(request?.body, undefined, undefined, undefined, generationDetailsFromUpdate(campaignDetails, request?.body?.fileBeforeOutsideHouseholdChange));
+            await callExcelIngestionService(request?.body, undefined, undefined, undefined, generationDetailsFromUpdate(campaignDetails, request?.body?.fileBeforeOutsideHouseholdChange, request?.body?.earlierFilesBeforeOutsideHouseholdChange));
             return;
         }
 

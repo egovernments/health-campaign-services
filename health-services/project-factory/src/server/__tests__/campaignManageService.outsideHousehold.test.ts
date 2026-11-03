@@ -32,7 +32,7 @@ import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, processBasedOnActio
 import { validateProjectCampaignRequest } from '../validators/campaignValidators';
 import { createResourceDetail, deactivateAllResourcesForCampaign, updateResourceDetail } from '../service/resourceDetailsService';
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
-import { dropCloneSourceDeliveryDates, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from '../utils/generateUtils';
+import { dropCloneSourceDeliveryDates, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from '../utils/generateUtils';
 
 const UNIFIED = 'unified-console-resources';
 const existing = { id: 'c1', tenantId: 'tn', hierarchyType: 'H', resources: [{ type: UNIFIED, filestoreId: 'OLD' }] };
@@ -69,6 +69,38 @@ describe('updateProjectTypeCampaignService after the Outside Household choice ch
         expect(deactivateAllResourcesForCampaign).toHaveBeenCalledWith('c1', 'tn', 'u1');
         expect(savedResources).toEqual([]);
         expect(attachedFileIds()).toEqual([]);
+    });
+
+    it('sends the earlier files, active or not and newest first, so the Outside Household rows can come back', async () => {
+        (fileBeforeOutsideHouseholdChange as jest.Mock).mockReturnValueOnce('F2');
+        (searchResourceDetailsFromDB as jest.Mock).mockImplementation(async (criteria: any) => criteria.isActive === false
+            ? [{ filestoreid: 'F1', createdtime: 20 }, { filestoreid: 'F0', createdtime: 10 }]
+            : [{ filestoreid: 'F2', type: UNIFIED, createdtime: 30 }, { filestoreid: 'F1', createdtime: 25 }]);
+        const r = request([{ type: UNIFIED, filestoreId: 'F2' }]);
+
+        await updateProjectTypeCampaignService(r);
+
+        expect(r.body.fileBeforeOutsideHouseholdChange).toBe('F2');
+        expect(r.body.earlierFilesBeforeOutsideHouseholdChange).toEqual(['F1', 'F0']);
+        for (const isActive of [false, true]) {
+            expect(searchResourceDetailsFromDB).toHaveBeenCalledWith(
+                expect.objectContaining({ tenantId: 'tn', campaignId: 'c1', type: [UNIFIED], parentResourceId: null, isActive }),
+                expect.objectContaining({ sortBy: 'createdtime', sortOrder: 'DESC' }));
+        }
+    });
+
+    it('still keeps the file from before when the earlier files cannot be read', async () => {
+        (fileBeforeOutsideHouseholdChange as jest.Mock).mockReturnValueOnce('F2');
+        (searchResourceDetailsFromDB as jest.Mock).mockImplementation(async (criteria: any) => {
+            if (criteria.isActive === false) throw new Error('db down');
+            return [{ filestoreid: 'F2', type: UNIFIED }];
+        });
+        const r = request([{ type: UNIFIED, filestoreId: 'F2' }]);
+
+        await updateProjectTypeCampaignService(r);
+
+        expect(r.body.fileBeforeOutsideHouseholdChange).toBe('F2');
+        expect(r.body.earlierFilesBeforeOutsideHouseholdChange).toEqual([]);
     });
 
     it('attaches a file uploaded in the same save', async () => {

@@ -28,6 +28,12 @@ final class CloneSourceDataMerger {
     private static final String FACILITY_CODE = "HCM_ADMIN_CONSOLE_FACILITY_CODE";
     private static final String FACILITY_NAME = "HCM_ADMIN_CONSOLE_FACILITY_NAME";
     private static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
+    private static final String OUTSIDE_HOUSEHOLD_SITE_ID = OUTSIDE_HOUSEHOLD_PREFIX + "CLIENT_REFERENCE_ID";
+    private static final String OUTSIDE_HOUSEHOLD_NAME = OUTSIDE_HOUSEHOLD_PREFIX + "NAME";
+    private static final String OUTSIDE_HOUSEHOLD_TYPE = OUTSIDE_HOUSEHOLD_PREFIX + "TYPE";
+    // The columns a pre-filled site row may change: Site Usage and the frontline worker
+    private static final List<String> OUTSIDE_HOUSEHOLD_EDITABLE = List.of(OUTSIDE_HOUSEHOLD_PREFIX + "USAGE",
+            OUTSIDE_HOUSEHOLD_PREFIX + "WORKER_NAME", OUTSIDE_HOUSEHOLD_PREFIX + "WORKER_PHONE");
     private static final int FIRST_DATA_ROW = 2;   // row 0 = column keys, row 1 = localized headers
 
     private CloneSourceDataMerger() {
@@ -86,6 +92,115 @@ final class CloneSourceDataMerger {
             }
         }
         return written;
+    }
+
+    /**
+     * Copies an earlier file's Outside Household rows into target's Outside Household sheet, for a campaign that drops Outside
+     * Household and adds it back: a site the template already lists (same site id) takes the earlier Site Usage and
+     * frontline worker, the only columns a pre-filled row may change; a row typed without a site id is added after the
+     * template's rows, the earlier value replacing the template's Site Status default. The template's row ids stay, and a
+     * site id the template does not list is left out. Returns the number of rows written.
+     */
+    static int copyOutsideHouseholdRows(Workbook source, Workbook target) {
+        Sheet targetSheet = outsideHouseholdSheet(target);
+        Sheet sourceSheet = outsideHouseholdSheet(source);
+        if (targetSheet == null || sourceSheet == null) {
+            return 0;
+        }
+        Map<String, Integer> targetColumns = columns(targetSheet);
+        Map<String, Integer> sourceColumns = columns(sourceSheet);
+        Map<String, Integer> targetRowBySite = new HashMap<>();
+        int nextFreeRow = FIRST_DATA_ROW;
+        for (int r = FIRST_DATA_ROW; r <= targetSheet.getLastRowNum(); r++) {
+            Row row = targetSheet.getRow(r);
+            String site = valueAt(row, targetColumns, OUTSIDE_HOUSEHOLD_SITE_ID);
+            if (site != null) {
+                targetRowBySite.putIfAbsent(site, r);
+            }
+            if (site != null || valueAt(row, targetColumns, OUTSIDE_HOUSEHOLD_NAME) != null) {
+                nextFreeRow = r + 1;
+            }
+        }
+        int written = 0;
+        for (int r = FIRST_DATA_ROW; r <= sourceSheet.getLastRowNum(); r++) {
+            Row sourceRow = sourceSheet.getRow(r);
+            if (sourceRow == null) {
+                continue;
+            }
+            String site = valueAt(sourceRow, sourceColumns, OUTSIDE_HOUSEHOLD_SITE_ID);
+            if (site != null) {
+                Integer targetRow = targetRowBySite.get(site);
+                if (targetRow != null) {
+                    for (String key : OUTSIDE_HOUSEHOLD_EDITABLE) {
+                        copyOver(sourceRow, sourceColumns, targetSheet.getRow(targetRow), targetColumns, key);
+                    }
+                    written++;
+                }
+                continue;
+            }
+            if (valueAt(sourceRow, sourceColumns, OUTSIDE_HOUSEHOLD_NAME) == null
+                    && valueAt(sourceRow, sourceColumns, OUTSIDE_HOUSEHOLD_TYPE) == null) {
+                continue;
+            }
+            Row targetRow = targetSheet.getRow(nextFreeRow) != null ? targetSheet.getRow(nextFreeRow) : targetSheet.createRow(nextFreeRow);
+            nextFreeRow++;
+            for (String key : sourceColumns.keySet()) {
+                if (!NEVER_COPIED.contains(key) && !OUTSIDE_HOUSEHOLD_SITE_ID.equals(key)) {
+                    copyOver(sourceRow, sourceColumns, targetRow, targetColumns, key);
+                }
+            }
+            written++;
+        }
+        return written;
+    }
+
+    /** Whether the workbook has an Outside Household sheet. */
+    static boolean hasOutsideHouseholdSheet(Workbook workbook) {
+        return outsideHouseholdSheet(workbook) != null;
+    }
+
+    /** Whether the workbook has an Outside Household sheet with at least one site row. */
+    static boolean hasOutsideHouseholdRows(Workbook workbook) {
+        Sheet sheet = outsideHouseholdSheet(workbook);
+        if (sheet == null) {
+            return false;
+        }
+        Map<String, Integer> columns = columns(sheet);
+        for (int r = FIRST_DATA_ROW; r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (valueAt(row, columns, OUTSIDE_HOUSEHOLD_SITE_ID) != null || valueAt(row, columns, OUTSIDE_HOUSEHOLD_NAME) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The visible sheet whose column keys include the Outside Household site name; null when there is none. */
+    private static Sheet outsideHouseholdSheet(Workbook workbook) {
+        for (Sheet sheet : workbook) {
+            if (!sheet.getSheetName().startsWith("_h_") && columns(sheet).containsKey(OUTSIDE_HOUSEHOLD_NAME)) {
+                return sheet;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Writes the source row's non-blank typed value of one column into the target row, replacing a formula (the Site Status
+     * default). A formula in the source is the template's own default, often saved without a value, so the target keeps its own.
+     */
+    private static void copyOver(Row sourceRow, Map<String, Integer> sourceColumns, Row targetRow, Map<String, Integer> targetColumns, String key) {
+        Integer from = sourceColumns.get(key);
+        Integer to = targetColumns.get(key);
+        if (from == null || to == null || targetRow == null || text(sourceRow.getCell(from)) == null
+                || sourceRow.getCell(from).getCellType() == CellType.FORMULA) {
+            return;
+        }
+        Cell existing = targetRow.getCell(to);
+        if (existing != null && existing.getCellType() == CellType.FORMULA) {
+            existing.setBlank();
+        }
+        copyValue(sourceRow.getCell(from), targetRow, to);
     }
 
     /** Column key (row 0) -> column index. */

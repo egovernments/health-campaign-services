@@ -312,5 +312,9 @@ describe('fileBeforeOutsideHouseholdChange (the new template keeps the data of t
         expect(generationDetailsFromUpdate({ projectType: 'POLIO', additionalDetails: { cycleData: { deliveryMethods: ['HOUSEHOLDSTRATEGY'] } } }, 'F1'))
             .toEqual({ deliveryMethods: ['HOUSEHOLDSTRATEGY'], projectType: 'POLIO', previousFileStoreId: 'F1' });
         expect(generationDetailsFromUpdate({ projectType: 'POLIO' })).toEqual({ projectType: 'POLIO' });
+        expect(generationDetailsFromUpdate({ projectType: 'POLIO' }, 'F2', ['F1', 'F0']))
+            .toEqual({ projectType: 'POLIO', previousFileStoreId: 'F2', earlierFileStoreIds: ['F1', 'F0'] });
+        expect(generationDetailsFromUpdate({ projectType: 'POLIO' }, null, ['F1'])).toEqual({ projectType: 'POLIO' });
+        expect(generationDetailsFromUpdate({ projectType: 'POLIO' }, 'F2', [])).toEqual({ projectType: 'POLIO', previousFileStoreId: 'F2' });
     });
 });

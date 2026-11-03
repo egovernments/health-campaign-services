@@ -97,6 +97,8 @@ public class ProcessingConstants {
     public static final String GENERATE_DETAIL_DELIVERY_METHODS_KEY = "deliveryMethods";
     // The campaign's file from before a save that added or dropped Outside Household (sent by project-factory)
     public static final String GENERATE_DETAIL_PREVIOUS_FILE_KEY = "previousFileStoreId";
+    // The campaign's earlier files (newest first), for the Outside Household rows when the sheet comes back
+    public static final String GENERATE_DETAIL_EARLIER_FILES_KEY = "earlierFileStoreIds";
     public static final String GENERATE_DETAIL_PROJECT_TYPE_KEY = "projectType";
 
     /**

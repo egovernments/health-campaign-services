@@ -3,7 +3,7 @@ import express from "express";
 import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, reattachCloneSourceFileIfChoiceAgrees, prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
-import { campaignStatuses, processStatuses } from "../config/constants";
+import { campaignStatuses, processStatuses, resourceTypes } from "../config/constants";
 import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB, deactivateAllResourcesForCampaign } from "./resourceDetailsService";
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from "../utils/resourceDetailsUtils";
 import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/genericUtils";
@@ -57,6 +57,25 @@ async function createProjectTypeCampaignService(request: express.Request) {
     return request?.body?.CampaignDetails;
 }
 
+/**
+ * The campaign's earlier unified files, newest first (at most 5), not counting the given one; none if they cannot be read.
+ * Both active and inactive rows are read: a file replaced by a later one is not always left inactive.
+ */
+async function earlierUnifiedFiles(tenantId: string, campaignId: string, exclude: string): Promise<string[]> {
+    try {
+        const criteria = { tenantId, campaignId, type: [resourceTypes.unifiedConsoleResources], parentResourceId: null };
+        const page = { sortBy: "createdtime", sortOrder: "DESC" as const, limit: 10, offset: 0 };
+        const rows = [
+            ...((await searchResourceDetailsFromDB({ ...criteria, isActive: false }, page)) || []),
+            ...((await searchResourceDetailsFromDB({ ...criteria, isActive: true }, page)) || []),
+        ].sort((a: any, b: any) => Number(b?.createdtime || 0) - Number(a?.createdtime || 0));
+        return [...new Set(rows.map((row: any) => row?.filestoreid).filter((id: any) => id && id !== exclude))].slice(0, 5) as string[];
+    } catch (error) {
+        logger.warn(`Could not read the earlier files of campaign ${campaignId}: ${error instanceof Error ? error.message : error}`);
+        return [];
+    }
+}
+
 /** Validates and updates a campaign, deactivating stale resources when hierarchy/boundaries change and re-fetching so the response carries table-backed resources. */
 async function updateProjectTypeCampaignService(request: express.Request) {
 
@@ -77,6 +96,8 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const fileBefore = fileBeforeOutsideHouseholdChange(request);
     if (fileBefore) {
         request.body.fileBeforeOutsideHouseholdChange = fileBefore;
+        // Files detached by earlier Outside Household changes: when the sheet comes back, its rows come from the latest one
+        request.body.earlierFilesBeforeOutsideHouseholdChange = await earlierUnifiedFiles(tenantId, campaignId, fileBefore);
         logger.info(`Campaign ${campaignId}: Outside Household changed; the new template keeps the data of file ${fileBefore}`);
     }
 

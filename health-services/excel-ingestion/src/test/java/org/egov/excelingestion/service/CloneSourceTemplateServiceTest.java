@@ -190,6 +190,49 @@ class CloneSourceTemplateServiceTest {
         verify(campaignService, never()).searchCampaignById(any(), any(), any());
     }
 
+    private static final String[] OH_COLUMNS = {"HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_NAME", "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_TYPE"};
+
+    // Outside Household dropped, a file uploaded without the sheet, then Outside Household added back: the users come from the
+    // latest file, the typed sites from the latest earlier file that has them.
+    @Test
+    void outsideHouseholdAddedBackGetsTheSiteRowsOfTheLatestFileThatHasThem() throws Exception {
+        Workbook before = new XSSFWorkbook();
+        CloneSourceDataMergerTest.sheet(before, "User List", new String[]{"HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"}, new Object[]{9000000002.0});
+        Workbook older = new XSSFWorkbook();
+        CloneSourceDataMergerTest.sheet(older, "Outside Household", OH_COLUMNS, new Object[]{"Typed School", "Outside Household Places"});
+        when(fileStoreService.downloadExcelFromFileStore("file-before", "dev")).thenReturn(before);
+        when(fileStoreService.downloadExcelFromFileStore("file-older", "dev")).thenReturn(older);
+        Workbook generated = new XSSFWorkbook();
+        CloneSourceDataMergerTest.sheet(generated, "User List", new String[]{"HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"});
+        CloneSourceDataMergerTest.sheet(generated, "Outside Household", OH_COLUMNS);
+        GenerateResource resource = generate(null);
+        resource.getAdditionalDetails().put("previousFileStoreId", "file-before");
+        resource.getAdditionalDetails().put("earlierFileStoreIds", List.of("file-before", "file-older"));
+
+        byte[] result = service.withSourceData(resource, requestInfo, bytes(generated));
+
+        try (Workbook merged = new XSSFWorkbook(new ByteArrayInputStream(result))) {
+            assertEquals(9000000002.0, merged.getSheet("User List").getRow(2).getCell(0).getNumericCellValue());
+            assertEquals("Typed School", merged.getSheet("Outside Household").getRow(2).getCell(0).getStringCellValue());
+        }
+    }
+
+    @Test
+    void aTemplateWithoutTheOutsideHouseholdSheetReadsNoEarlierFile() throws Exception {
+        Workbook before = new XSSFWorkbook();
+        CloneSourceDataMergerTest.sheet(before, "User List", new String[]{"HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"}, new Object[]{9000000002.0});
+        when(fileStoreService.downloadExcelFromFileStore("file-before", "dev")).thenReturn(before);
+        Workbook generated = new XSSFWorkbook();
+        CloneSourceDataMergerTest.sheet(generated, "User List", new String[]{"HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"});
+        GenerateResource resource = generate(null);
+        resource.getAdditionalDetails().put("previousFileStoreId", "file-before");
+        resource.getAdditionalDetails().put("earlierFileStoreIds", List.of("file-older"));
+
+        service.withSourceData(resource, requestInfo, bytes(generated));
+
+        verify(fileStoreService, never()).downloadExcelFromFileStore(eq("file-older"), any());
+    }
+
     private static byte[] bytes(Workbook wb) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         wb.write(out);
