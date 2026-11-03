@@ -181,6 +181,22 @@ describe('runMappingReconciler', () => {
         expect(flag.value).toBe(false);
     });
 
+    it('concludes in the first cycle when an edit\'s demapped rows are deleted', async () => {
+        // Snapshot: 27 rows (26 to map or keep, 1 to demap). The demap succeeds and its row is deleted: 26 rows, all done.
+        const before = mkStatus({ totalMappings: 27, completedMappings: 26, pendingMappings: 1 });
+        const after = mkStatus({ totalMappings: 26, completedMappings: 26, allCompleted: true });
+        let calls = 0;
+        checkMappingStatusMock.mockImplementation((_c: string, _t: string, type?: string) =>
+            Promise.resolve(type ? after : (calls++ === 0 ? before : after)));
+
+        const flag = { value: false };
+        await runMappingReconciler(campaignDetails, 'u-uuid', 'tn', undefined, flag);
+
+        expect(bumpMappingGenerationMock).toHaveBeenCalledTimes(1);   // no stalled cycle, so no second dispatch
+        expect(sendCampaignFailureMessageMock).not.toHaveBeenCalled();
+        expect(flag.value).toBe(false);
+    });
+
     it('returns without reconciling when the campaign has no mappings at all', async () => {
         const empty = mkStatus();
         wireWorld({ overall: empty, facility: empty, resource: empty, user: empty });

@@ -4,6 +4,7 @@ export const CONSTANTS: any = {
     ERROR_CODES: {
         COMMON: {
             UNKNOWN_ERROR: "Unknown error. Check logs",
+            PROCESSING_FAILED: "The uploaded file could not be processed",
             IDGEN_ERROR: "Error during generating campaign number",
             VALIDATION_ERROR: "Validation error",
             INTERNAL_SERVER_ERROR: "Internal server error",

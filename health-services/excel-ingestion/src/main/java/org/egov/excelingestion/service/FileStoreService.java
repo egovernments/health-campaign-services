@@ -210,39 +210,52 @@ public class FileStoreService {
      */
     public Workbook downloadExcelFromFileStore(String fileStoreId, String tenantId) {
         return executeWithRetry("FileStore download for fileStoreId: " + fileStoreId, () -> {
-            String fileStoreUrl = config.getFilestoreHost() + config.getFilestoreUrlEndpoint();
-            
-            // Build URL with query parameters
-            String url = String.format("%s?tenantId=%s&fileStoreIds=%s", fileStoreUrl, tenantId, fileStoreId);
-            
-            ResponseEntity<FileStoreResponse> response = restTemplate.exchange(
-                    url, HttpMethod.GET, null, FileStoreResponse.class);
-            
-            FileStoreResponse responseBody = response.getBody();
-            if (responseBody != null) {
-                String fileUrl = null;
-                
-                // Try to get URL from fileStoreIds array first
-                if (responseBody.getFiles() != null && !responseBody.getFiles().isEmpty()) {
-                    fileUrl = responseBody.getFiles().get(0).getUrl();
-                }
-                
-                // If not found in array, try the file ID to URL mapping
-                if (fileUrl == null && responseBody.getFileIdToUrlMap() != null) {
-                    fileUrl = responseBody.getFileIdToUrlMap().get(fileStoreId);
-                }
-                
-                if (fileUrl != null) {
-                    try (InputStream inputStream = new URL(fileUrl).openStream()) {
-                        return new XSSFWorkbook(inputStream);
-                    }
-                }
+            try (InputStream inputStream = new URL(fileUrl(fileStoreId, tenantId)).openStream()) {
+                return new XSSFWorkbook(inputStream);
             }
-            
-            exceptionHandler.throwCustomException(ErrorConstants.FILE_URL_RETRIEVAL_ERROR, 
-                    ErrorConstants.FILE_URL_RETRIEVAL_ERROR_MESSAGE);
-            return null; // This should never be reached due to exceptions above
         });
+    }
+
+    /** The raw bytes of a file in the file store (for reading one sheet without loading the whole workbook). */
+    public byte[] downloadFileBytes(String fileStoreId, String tenantId) {
+        return executeWithRetry("FileStore byte download for fileStoreId: " + fileStoreId, () -> {
+            try (InputStream inputStream = new URL(fileUrl(fileStoreId, tenantId)).openStream()) {
+                return inputStream.readAllBytes();
+            }
+        });
+    }
+
+    private String fileUrl(String fileStoreId, String tenantId) {
+        String fileStoreUrl = config.getFilestoreHost() + config.getFilestoreUrlEndpoint();
+
+        // Build URL with query parameters
+        String url = String.format("%s?tenantId=%s&fileStoreIds=%s", fileStoreUrl, tenantId, fileStoreId);
+
+        ResponseEntity<FileStoreResponse> response = restTemplate.exchange(
+                url, HttpMethod.GET, null, FileStoreResponse.class);
+
+        FileStoreResponse responseBody = response.getBody();
+        if (responseBody != null) {
+            String fileUrl = null;
+
+            // Try to get URL from fileStoreIds array first
+            if (responseBody.getFiles() != null && !responseBody.getFiles().isEmpty()) {
+                fileUrl = responseBody.getFiles().get(0).getUrl();
+            }
+
+            // If not found in array, try the file ID to URL mapping
+            if (fileUrl == null && responseBody.getFileIdToUrlMap() != null) {
+                fileUrl = responseBody.getFileIdToUrlMap().get(fileStoreId);
+            }
+
+            if (fileUrl != null) {
+                return fileUrl;
+            }
+        }
+
+        exceptionHandler.throwCustomException(ErrorConstants.FILE_URL_RETRIEVAL_ERROR,
+                ErrorConstants.FILE_URL_RETRIEVAL_ERROR_MESSAGE);
+        return null; // This should never be reached due to exceptions above
     }
 
     /**

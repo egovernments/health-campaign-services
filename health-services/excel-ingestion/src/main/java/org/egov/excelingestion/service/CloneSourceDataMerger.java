@@ -176,7 +176,7 @@ final class CloneSourceDataMerger {
     }
 
     /** The visible sheet whose column keys include the Outside Household site name; null when there is none. */
-    private static Sheet outsideHouseholdSheet(Workbook workbook) {
+    static Sheet outsideHouseholdSheet(Workbook workbook) {
         for (Sheet sheet : workbook) {
             if (!sheet.getSheetName().startsWith("_h_") && columns(sheet).containsKey(OUTSIDE_HOUSEHOLD_NAME)) {
                 return sheet;
@@ -204,7 +204,7 @@ final class CloneSourceDataMerger {
     }
 
     /** Column key (row 0) -> column index. */
-    private static Map<String, Integer> columns(Sheet sheet) {
+    static Map<String, Integer> columns(Sheet sheet) {
         Map<String, Integer> columns = new HashMap<>();
         Row header = sheet.getRow(0);
         if (header != null) {
@@ -249,7 +249,7 @@ final class CloneSourceDataMerger {
         return name == null ? List.of() : List.of("name:" + name + "|" + boundary);
     }
 
-    private static String valueAt(Row row, Map<String, Integer> columns, String key) {
+    static String valueAt(Row row, Map<String, Integer> columns, String key) {
         Integer col = columns.get(key);
         return col == null ? null : text(row.getCell(col));
     }
