@@ -457,6 +457,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         }
         
         // Step 2: Add campaign facilities - CAMPAIGN TAKES PRIORITY in ID collisions
+        Set<String> campaignKeys = new HashSet<>(); // keys of this campaign's own rows (with or without an ID)
         for (Map<String, Object> facility : campaignFacilities) {
             String facilityId = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE");
             
@@ -472,6 +473,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     log.debug("Added existing campaign facility with ID: {}", facilityId);
                 }
                 facilityMap.put(facilityId, facility); // Campaign facility replaces or adds
+                campaignKeys.add(facilityId);
             } else {
                 // New facility without ID - use name as key for deduplication
                 String facilityName = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_NAME");
@@ -479,6 +481,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     String nameKey = "NEW_" + facilityName; // Prefix to avoid collision with IDs
                     if (!facilityMap.containsKey(nameKey)) {
                         facilityMap.put(nameKey, facility);
+                        campaignKeys.add(nameKey);
                         log.debug("Added new facility without ID: {}", facilityName);
                     }
                 }
@@ -502,8 +505,10 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     finalMap.put(key, facility);
                     nameToKeyMap.put(dedupKey, key);
                 } else {
-                    boolean isCurrentFromCampaign = key.startsWith("NEW_"); // Campaign data (new facilities)
-                    boolean isExistingFromCampaign = existingKey.startsWith("NEW_"); // Existing campaign data
+                    // A campaign row wins over another facility of the same name and boundary, also when it has an ID:
+                    // the edit sheet must show the facility the campaign uses, not a same-named one in its place
+                    boolean isCurrentFromCampaign = campaignKeys.contains(key);
+                    boolean isExistingFromCampaign = campaignKeys.contains(existingKey);
 
                     if (isCurrentFromCampaign && !isExistingFromCampaign) {
                         finalMap.remove(existingKey);
