@@ -29,6 +29,7 @@ class AsyncGenerationServiceTest {
     @Mock private KafkaTopicConfig kafkaTopicConfig;
     @Mock private EnrichmentUtil enrichmentUtil;
     @Mock private CampaignCacheEvictor campaignCacheEvictor;
+    @Mock private CloneSourceTemplateService cloneSourceTemplateService;
 
     private AsyncGenerationService asyncGenerationService;
 
@@ -36,7 +37,7 @@ class AsyncGenerationServiceTest {
     void setUp() {
         when(kafkaTopicConfig.getGenerationUpdateTopic()).thenReturn("test-update-topic");
         asyncGenerationService = new AsyncGenerationService(
-                excelWorkflowService, producer, kafkaTopicConfig, enrichmentUtil, campaignCacheEvictor);
+                excelWorkflowService, producer, kafkaTopicConfig, enrichmentUtil, campaignCacheEvictor, cloneSourceTemplateService);
     }
 
     @Test
@@ -88,6 +89,18 @@ class AsyncGenerationServiceTest {
         verify(enrichmentUtil).enrichErrorDetailsInAdditionalDetails(any(GenerateResource.class), any(Exception.class));
         assertEquals(Arrays.asList(GenerationConstants.STATUS_IN_PROGRESS, GenerationConstants.STATUS_FAILED),
                 pushedStatuses);
+    }
+
+    @Test
+    void unchangedCloneCompletesWithTheSourcesFileWithoutBuildingATemplate() throws Exception {
+        GenerateResource generateResource = createGenerateResource("test-id", "dev");
+        when(cloneSourceTemplateService.sourceFileForUnchangedClone(eq(generateResource), any())).thenReturn("source-file-id");
+
+        asyncGenerationService.processGeneration(generateResource, createRequestInfo());
+
+        assertEquals(GenerationConstants.STATUS_COMPLETED, generateResource.getStatus());
+        assertEquals("source-file-id", generateResource.getFileStoreId());
+        verify(excelWorkflowService, never()).generateAndUploadExcel(any());
     }
 
     private GenerateResource createGenerateResource(String id, String tenantId) {

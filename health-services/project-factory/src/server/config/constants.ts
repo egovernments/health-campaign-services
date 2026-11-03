@@ -292,6 +292,7 @@ export const additionalDetailKeys = {
     userSheetStatus: "userSheetStatus",
     boundarySheetStatus: "boundarySheetStatus",
     facilitySheetStatus: "facilitySheetStatus",
+    outsideHouseholdSheetStatus: "outsideHouseholdSheetStatus",
 } as const;
 
 // Sheet validation status values
@@ -326,6 +327,28 @@ export const userDataFields = {
     boundaryCode: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
     boundaryName: "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
+} as const;
+
+// Site sheet header keys read by the facility transform to stamp a site facility
+export const outsideHouseholdFacilityFields = {
+    clientReferenceId: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID",
+    category: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY",
+    workerName: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME",
+    workerPhone: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE",
+} as const;
+
+// ProjectFacility.additionalFields of a site's link: the frontline worker for this campaign only
+export const outsideHouseholdLinkAdditionalFieldsSchema = {
+    schema: "OutsideHouseholdAssignment",
+    version: 1,
+    workerNameKey: "frontlineWorkerName",
+    workerPhoneKey: "frontlineWorkerPhone",
+} as const;
+
+// Facility.additionalFields entry of a site: its category. A site is told apart from a facility by its
+// usage (the site type code, MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES), not by additionalFields.
+export const outsideHouseholdFacilityAdditionalFields = {
+    categoryKey: "outsideHouseholdCategory",
 } as const;
 
 // MDMS schema code for template validation

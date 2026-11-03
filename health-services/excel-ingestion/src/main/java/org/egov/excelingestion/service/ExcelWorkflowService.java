@@ -20,13 +20,16 @@ public class ExcelWorkflowService {
     private final ExcelGenerationService excelGenerationService;
     private final FileStoreService fileStoreService;
     private final CustomExceptionHandler exceptionHandler;
+    private final CloneSourceTemplateService cloneSourceTemplateService;
 
     public ExcelWorkflowService(ExcelGenerationService excelGenerationService,
                                FileStoreService fileStoreService,
-                               CustomExceptionHandler exceptionHandler) {
+                               CustomExceptionHandler exceptionHandler,
+                               CloneSourceTemplateService cloneSourceTemplateService) {
         this.excelGenerationService = excelGenerationService;
         this.fileStoreService = fileStoreService;
         this.exceptionHandler = exceptionHandler;
+        this.cloneSourceTemplateService = cloneSourceTemplateService;
     }
 
     /**
@@ -43,6 +46,8 @@ public class ExcelWorkflowService {
         try {
             // Generate Excel using the clean type->config->generation flow
             excelBytes = excelGenerationService.generateExcel(generateResource, request.getRequestInfo());
+            // A clone that adds or drops Outside Household keeps its source's users, targets and facilities
+            excelBytes = cloneSourceTemplateService.withSourceData(generateResource, request.getRequestInfo(), excelBytes);
             
         } catch (Exception e) {
             log.error("Error generating Excel for type: {}, ID: {}", generateResource.getType(), generateResource.getId(), e);

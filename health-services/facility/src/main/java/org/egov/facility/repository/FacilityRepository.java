@@ -11,6 +11,7 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilitySearch;
 import org.egov.common.producer.Producer;
 import org.egov.facility.repository.rowmapper.FacilityRowMapper;
+import org.egov.facility.service.OutsideHouseholdTypeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -31,12 +32,17 @@ import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING
 
 @Repository
 public class FacilityRepository extends GenericRepository<Facility> {
+
+    private final OutsideHouseholdTypeService outsideHouseholdTypeService;
+
     @Autowired
     public FacilityRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                               RedisTemplate<String, Object> redisTemplate,
-                              SelectQueryBuilder selectQueryBuilder, FacilityRowMapper facilityRowMapper) {
+                              SelectQueryBuilder selectQueryBuilder, FacilityRowMapper facilityRowMapper,
+                              OutsideHouseholdTypeService outsideHouseholdTypeService) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
                 facilityRowMapper, Optional.of("facility"));
+        this.outsideHouseholdTypeService = outsideHouseholdTypeService;
     }
 
     /**
@@ -83,6 +89,26 @@ public class FacilityRepository extends GenericRepository<Facility> {
     }
 
     /**
+     * Finds facilities by clientReferenceId straight from the database, deleted ones included, without reading the
+     * cache. clientReferenceId is unique in the table, so this is the record a repeated create can never replace; the
+     * cache may still hold a record from such a failed attempt, and is refreshed here with the saved one.
+     *
+     * @param tenantId           the tenant identifier to scope the query
+     * @param clientReferenceIds the clientReferenceIds to look up
+     * @return the saved facilities with these clientReferenceIds
+     * @throws InvalidTenantIdException if the provided tenantId is invalid
+     */
+    public List<Facility> findByClientReferenceIdFromDb(String tenantId, List<String> clientReferenceIds) throws InvalidTenantIdException {
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id WHERE f.clientReferenceId IN (:ids)", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("ids", clientReferenceIds);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        List<Facility> objFound = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+        putInCache(objFound);
+        return objFound;
+    }
+
+    /**
      * Finds and retrieves a list of Facility objects based on the given search criteria and pagination details.
      *
      * @param searchObject    the search object containing query criteria for filtering Facility records
@@ -96,11 +122,32 @@ public class FacilityRepository extends GenericRepository<Facility> {
      * @throws InvalidTenantIdException   if the provided tenantId is invalid
      */
     public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
+        return find(searchObject, limit, offset, tenantId, lastChangedSince, includeDeleted, null);
+    }
+
+    /**
+     * As {@link #find(FacilitySearch, Integer, Integer, String, Long, Boolean)}; when localityCodes is not empty the
+     * facility's boundary must be one of them instead of equal to the search object's boundaryCode (a search with
+     * includeDescendants=true passes the boundary and every boundary below it).
+     */
+    public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, List<String> localityCodes) throws QueryBuilderException, InvalidTenantIdException {
         String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
-        List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
+        boolean byLocalityCodes = !CollectionUtils.isEmpty(localityCodes);
+        String requestedLocalityCode = searchObject.getLocalityCode();
+        List<String> whereFields;
+        if (byLocalityCodes) {
+            searchObject.setLocalityCode(null); // matched by the IN clause below instead
+        }
+        try {
+            whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
+        } finally {
+            searchObject.setLocalityCode(requestedLocalityCode);
+        }
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "f.id IN (:id)");
+        // clientReferenceId exists on both facility and address; qualify it so it is unambiguous.
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "f.clientReferenceId IN (:clientReferenceId)");
 
         if(CollectionUtils.isEmpty(whereFields)) {
             query = query + " where f.tenantId=:tenantId ";
@@ -114,6 +161,25 @@ public class FacilityRepository extends GenericRepository<Facility> {
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
         }
+
+        if (byLocalityCodes) {
+            query = query + "and a.localityCode IN (:localityCodes) ";
+            paramsMap.put("localityCodes", localityCodes);
+        }
+
+        // A site (a facility whose usage is an outside household type, MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES) is left
+        // out of a broad search, unless the caller asked for it specifically by usage, id or clientReferenceId.
+        boolean callerAskedForSpecificFacility = searchObject.getUsage() != null
+                || !CollectionUtils.isEmpty(searchObject.getId())
+                || !CollectionUtils.isEmpty(searchObject.getClientReferenceId());
+        if (!callerAskedForSpecificFacility) {
+            List<String> siteTypes = outsideHouseholdTypeService.getTypes(tenantId);
+            if (!siteTypes.isEmpty()) {
+                query = query + "and (f.usage IS NULL OR f.usage NOT IN (:outsideHouseholdTypes)) ";
+                paramsMap.put("outsideHouseholdTypes", siteTypes);
+            }
+        }
+
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);

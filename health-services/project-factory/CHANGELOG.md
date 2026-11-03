@@ -1,4 +1,16 @@
 # Changelog
+
+## Unreleased - 2026-10-29
+#### Outside Household sites (HCMPRE-2371)
+  1. Outside Household sheet rows are created as facilities (`usage` = site type, category in `additionalFields`) and, when Active, linked to the campaign's projects with `additionalFields.schema = OutsideHouseholdAssignment` carrying the frontline worker.
+  2. Edit: a changed frontline worker is written onto the existing link; a site set Inactive loses its link.
+  3. Edit that removes `OUTSIDEHOUSEHOLD` from `cycleData.deliveryMethods` deletes every site link of the campaign (guarded; new switch `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`, default `true`).
+  4. A draft update that adds or removes `OUTSIDEHOUSEHOLD` generates a new template.
+  5. New config: `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`, `EGOV_PROJECT_FACILITY_UPDATE_PATH`. See `OUTSIDE_HOUSEHOLD_SITES.md`.
+  9. A clone that uses its source's file links the source's saved sites for rows without a `clientReferenceId` (matched on type, category, boundary and name) instead of creating copies. New switch `OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES` (default `true`).
+  8. A clone whose Outside Household choice changes back to its source's gets the source's file attached again (unless the save brings its own file).
+  7. A save that leaves out a clone's `cloneFrom` / `clonedCampaignId` keeps the saved values (the console's final create sends a fresh `additionalDetails`; without them excel-ingestion rejects the source's file with `IMMUTABLE_IDENTITY_MISMATCH`). New switch `CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE` (default `true`).
+  6. A save that adds or removes `OUTSIDEHOUSEHOLD` does not attach the old file again; a clone whose OH choice differs from its source does not keep or borrow the source's file; a campaign without OH does not read the Outside Household sheet. New switches `CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE`, `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED` (both default `true`).
 All notable changes to this module will be documented in this file.
 
 ## 0.1.0 - 2024-05-28

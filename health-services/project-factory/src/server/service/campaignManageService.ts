@@ -1,16 +1,16 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import express from "express";
-import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
+import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, reattachCloneSourceFileIfChoiceAgrees, prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
-import { campaignStatuses, processStatuses } from "../config/constants";
+import { campaignStatuses, processStatuses, resourceTypes } from "../config/constants";
 import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB, deactivateAllResourcesForCampaign } from "./resourceDetailsService";
-import { findActiveResourceByUpsertKey } from "../utils/resourceDetailsUtils";
+import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from "../utils/resourceDetailsUtils";
 import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/genericUtils";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
-import { isGenerationTriggerNeeded } from "../utils/generateUtils";
+import { dropCloneSourceDeliveryDates, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage, keepFileForOutsideHouseholdChange } from "../utils/generateUtils";
 import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 
 /** Validates and creates a project-type campaign, persisting its resources to eg_cm_resource_details so they survive the Flow 2 JSONB overwrite. */
@@ -18,6 +18,14 @@ async function createProjectTypeCampaignService(request: express.Request) {
     logger.info("VALIDATING:: for project type");
     await validateProjectCampaignRequest(request, "create");
     logger.info("VALIDATED:: THE PROJECT TYPE CREATE REQUEST");
+
+    // A clone whose Outside Household choice differs from its source's does not keep the source's file
+    await dropCloneSourceFileIfOutsideHouseholdChoiceDiffers(request?.body?.CampaignDetails);
+    // A new clone starts without its source's delivery dates; the planner picks its own
+    const datesRemoved = dropCloneSourceDeliveryDates(request?.body?.CampaignDetails);
+    if (datesRemoved > 0) {
+        logger.info(`New clone of ${request?.body?.CampaignDetails?.additionalDetails?.cloneFrom}: removed ${datesRemoved} delivery dates copied from the source`);
+    }
 
     await processBasedOnAction(request, "create");
 
@@ -49,15 +57,51 @@ async function createProjectTypeCampaignService(request: express.Request) {
     return request?.body?.CampaignDetails;
 }
 
+/**
+ * The campaign's earlier unified files, newest first (at most 5), not counting the given one; none if they cannot be read.
+ * Both active and inactive rows are read: a file replaced by a later one is not always left inactive.
+ */
+async function earlierUnifiedFiles(tenantId: string, campaignId: string, exclude: string): Promise<string[]> {
+    try {
+        const criteria = { tenantId, campaignId, type: [resourceTypes.unifiedConsoleResources], parentResourceId: null };
+        const page = { sortBy: "createdtime", sortOrder: "DESC" as const, limit: 10, offset: 0 };
+        const rows = [
+            ...((await searchResourceDetailsFromDB({ ...criteria, isActive: false }, page)) || []),
+            ...((await searchResourceDetailsFromDB({ ...criteria, isActive: true }, page)) || []),
+        ].sort((a: any, b: any) => Number(b?.createdtime || 0) - Number(a?.createdtime || 0));
+        return [...new Set(rows.map((row: any) => row?.filestoreid).filter((id: any) => id && id !== exclude))].slice(0, 5) as string[];
+    } catch (error) {
+        logger.warn(`Could not read the earlier files of campaign ${campaignId}: ${error instanceof Error ? error.message : error}`);
+        return [];
+    }
+}
+
 /** Validates and updates a campaign, deactivating stale resources when hierarchy/boundaries change and re-fetching so the response carries table-backed resources. */
 async function updateProjectTypeCampaignService(request: express.Request) {
 
     await validateProjectCampaignRequest(request, "update");
     logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
 
+    // The console's final create sends a fresh additionalDetails without cloneFrom / clonedCampaignId; keep them
+    const lineageKept = keepCloneLineage(request?.body?.CampaignDetails, request?.body?.ExistingCampaignDetails);
+    if (lineageKept.length > 0) {
+        logger.info(`Campaign ${request?.body?.CampaignDetails?.id}: kept ${lineageKept.join(", ")} the save left out`);
+    }
+
     const campaignId = request?.body?.CampaignDetails?.id;
     const tenantId = request?.body?.CampaignDetails?.tenantId;
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
+
+    // A save that adds or drops Outside Household detaches the file below; the new template keeps that file's data,
+    // and the campaign keeps the file's id for the next change (when no file is attached any more)
+    const fileBefore = fileBeforeOutsideHouseholdChange(request);
+    keepFileForOutsideHouseholdChange(request, fileBefore);
+    if (fileBefore) {
+        request.body.fileBeforeOutsideHouseholdChange = fileBefore;
+        // Files detached by earlier Outside Household changes: when the sheet comes back, its rows come from the latest one
+        request.body.earlierFilesBeforeOutsideHouseholdChange = await earlierUnifiedFiles(tenantId, campaignId, fileBefore);
+        logger.info(`Campaign ${campaignId}: Outside Household changed; the new template keeps the data of file ${fileBefore}`);
+    }
 
     // Deactivate stale resources when hierarchyType or boundaries change — user must re-upload for the new configuration
     const existingCampaign = request?.body?.ExistingCampaignDetails;
@@ -65,14 +109,37 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const hierarchyChanged = existingCampaign && incomingHierarchyType &&
         existingCampaign.hierarchyType !== incomingHierarchyType;
     const boundariesOrTypeChanged = isGenerationTriggerNeeded(request)?.trigger === true;
+    // Only an Outside Household choice change keeps the old files detached (the template gains or loses its sheet);
+    // other configuration changes keep attaching the files the save sends, as before.
+    const detachStaleFiles = Boolean(config.mapping?.detachStaleResourcesOnConfigChange) && isOutsideHouseholdDeliveryChanged(request);
+    const staleFileStoreIds = new Set<string>();
     if (campaignId && tenantId && (hierarchyChanged || boundariesOrTypeChanged)) {
         logger.info(`Campaign config changed (hierarchyChanged=${hierarchyChanged}, boundariesOrTypeChanged=${boundariesOrTypeChanged}) for campaign ${campaignId}. Deactivating stale resources.`);
         try {
+            const activeBefore = detachStaleFiles ? await searchResourceDetailsFromDB({ tenantId, campaignId, isActive: true }) : [];
             await deactivateAllResourcesForCampaign(campaignId, tenantId, useruuid);
+            if (detachStaleFiles) {
+                activeBefore.forEach((row: any) => row?.filestoreid && staleFileStoreIds.add(row.filestoreid));
+                (existingCampaign?.resources || []).forEach((r: any) => r?.filestoreId && staleFileStoreIds.add(r.filestoreId));
+            }
         } catch (err) {
             logger.error(`Failed to deactivate resources on campaign config change for campaign ${campaignId}: ${err}`);
         }
     }
+    // The console sends the campaign's files back on every save. After an Outside Household choice change the old files
+    // no longer match the template, so they are neither attached again below nor saved on the campaign row (which
+    // search falls back to); the user downloads the new template and uploads it. A newly uploaded file is kept.
+    if (staleFileStoreIds.size > 0 && Array.isArray(request?.body?.CampaignDetails?.resources)) {
+        const sent = request.body.CampaignDetails.resources;
+        request.body.CampaignDetails.resources = sent.filter((r: any) => !staleFileStoreIds.has(r?.filestoreId));
+        const detached = sent.length - request.body.CampaignDetails.resources.length;
+        if (detached > 0) {
+            logger.info(`Campaign ${campaignId}: ${detached} file(s) from before the configuration change are not attached again`);
+        }
+    }
+    // A clone whose Outside Household choice is back to its source's gets the source's file again (after the old files
+    // are dropped above, before the campaign and its files are saved below)
+    await reattachCloneSourceFileIfChoiceAgrees(request);
 
     await processBasedOnAction(request, "update");
 

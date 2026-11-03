@@ -3,9 +3,8 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign } from "./genericUtils";
 import { mappingStatuses } from "../config/constants";
 import { logger } from "./logger";
-import { createProjectFacility } from "../api/genericApis";
+import { createProjectFacility, deleteProjectFacilitiesById } from "../api/genericApis";
 import config from "../config";
-import { httpRequest } from "./request";
 
 /** Reconciles facility→project mappings for a campaign by mapping newly-added facilities and demapping removed ones. */
 export async function startFacilityMappingAndDemapping(campaignDetails: any, useruuid: string, requestInfo: RequestInfo) {
@@ -103,7 +102,11 @@ export async function startFacilityDemapping(campaignDetails: any, useruuid: str
                 continue;
             }
 
-            await fetchAndDeleteProjectFacility(RequestInfo, campaignDetails.tenantId, projectId, facilityId);
+            // Removed by the recorded link id; a search by project and facility can return another search's link
+            const outcome = (await deleteProjectFacilitiesById([{ id: mappingId, projectId, facilityId }], campaignDetails.tenantId, RequestInfo)).get(mappingId);
+            if (outcome?.result !== "deleted" && outcome?.result !== "absent") {
+                throw new Error(outcome?.error ?? `Project facility ${mappingId} was not removed`);
+            }
             await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails?.tenantId);
         } catch (err) {
             logger.error(`Facility Demapping Failed for ${row?.uniqueIdentifierForData}: `, err);
@@ -112,38 +115,3 @@ export async function startFacilityDemapping(campaignDetails: any, useruuid: str
     }
 }
 
-
-async function fetchAndDeleteProjectFacility(RequestInfo: any, tenantId: string, projectId: string, facilityId: string) {
-    const searchBody = {
-        RequestInfo,
-        ProjectFacility: {
-            projectId: [projectId],
-            facilityId: [facilityId]
-        }
-    };
-
-    const searchParams = {
-        tenantId,
-        offset: 0,
-        limit: 1
-    };
-
-    const response = await httpRequest(
-        config?.host?.projectHost + config?.paths?.projectFacilitySearch,
-        searchBody,
-        searchParams
-    );
-
-    if (response?.ProjectFacilities?.length > 0) {
-        await deleteProjectFacilityMapping(RequestInfo, response);
-    }
-}
-
-async function deleteProjectFacilityMapping(RequestInfo: any, response: any) {
-    const deleteBody = {
-        RequestInfo,
-        ProjectFacilities: [response?.ProjectFacilities[0]]
-    };
-
-    await httpRequest(config?.host?.projectHost + config?.paths?.projectFacilityDelete, deleteBody);
-}

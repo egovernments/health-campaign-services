@@ -158,7 +158,7 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
     /**
      * Process validation errors and enrich existing error data with semicolon separation
      */
-    private void processValidationErrors(Sheet sheet, List<ValidationError> errors, 
+    static void processValidationErrors(Sheet sheet, List<ValidationError> errors,
                                        ValidationColumnInfo columnInfo, Map<String, String> localizationMap) {
         // Create a map of row number to errors for quick lookup
         Map<Integer, List<ValidationError>> errorsByRow = new HashMap<>();
@@ -294,7 +294,7 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
     }
 
     /** True when any visible hierarchy-level column of the row has a value. */
-    private boolean hasBoundarySelection(Map<String, Object> rowData, String hierarchyPrefix) {
+    static boolean hasBoundarySelection(Map<String, Object> rowData, String hierarchyPrefix) {
         for (Map.Entry<String, Object> entry : rowData.entrySet()) {
             String key = entry.getKey();
             if (!key.toUpperCase().startsWith(hierarchyPrefix)

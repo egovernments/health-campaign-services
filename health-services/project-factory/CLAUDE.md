@@ -336,6 +336,10 @@ The console downloads the current register list from `resource_details.processed
 
 Child (and nested-child) campaigns inherit the parent's `campaignNumber` (`campaignUtils.ts:1065`) but get a distinct `campaignId`. `eg_cm_resource_details` is keyed by `campaignid`, so a search by a descendant's id misses rows held under an ancestor. Resource types whose underlying entity is `campaignNumber`-scoped (currently `attendanceRegister`, `attendanceRegisterAttendee`) set `sharedAcrossCampaignFamily: true` in `resourceTypeRegistry.ts`. When **every** searched type is shared, `searchResourceDetails` resolves `campaignNumber` (`getCampaignStatusFromDB`) → all family `campaignId`s (`getCampaignIdsByCampaignNumber`) → queries `campaignid = ANY(...)` newest-first, dedupe by `(type, parentResourceId)`. Read-side only — the API contract is unchanged (internal `campaignIds` field, not on the zod schema). Write-path parent validation (`createResourceDetail`) stays `campaignId`-scoped.
 
+### Outside Household sites (HCMPRE-2371)
+
+Sites are facilities whose `usage` is a site type (MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`); their campaign use is a project-facility link with `additionalFields.schema = OutsideHouseholdAssignment` carrying the frontline worker. Site rows go through the facility path keyed by `clientReferenceId` (`processCampaignFacilitiesFromExcelData`). Active/Inactive exists only as link / no link. Removing `OUTSIDEHOUSEHOLD` in an edit unlinks every site only when all guards hold (`isOutsideHouseholdDeliveryDropped`; switch `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`), and adding or removing it in a draft regenerates the template (`isGenerationTriggerNeeded`). Full flow: `OUTSIDE_HOUSEHOLD_SITES.md`.
+
 ---
 
 ## Campaign Failure Semantics

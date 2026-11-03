@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
+import java.util.List;
 
 @Component
 @Getter
@@ -38,6 +39,17 @@ public class ExcelIngestionConfig {
 
     @Value("${egov.campaign.host}")
     private String campaignHost;
+
+    @Value("${excel.ingestion.outside.household.campaign.types:POLIO}")
+    private List<String> outsideHouseholdCampaignTypes;
+
+    // A clone that agrees with its source on Outside Household, on the same boundaries, gets the source's filled file as its template
+    @Value("${excel.ingestion.clone.reuse.source.template:true}")
+    private boolean cloneReuseSourceTemplate;
+
+    // Put the user's localized dropdown labels back into the processed file after validation (codes stay in the saved data)
+    @Value("${excel.ingestion.processed.file.keep.localized.enum.values:true}")
+    private boolean keepLocalizedEnumValuesInProcessedFile;
 
     @Value("${egov.campaign.data.search.path}")
     private String campaignDataSearchPath;
@@ -73,6 +85,10 @@ public class ExcelIngestionConfig {
     // Default true. Set false to restore the legacy silent-revert-with-warning behaviour.
     @Value("${egov.excel.immutable-reject-on-change:true}")
     private boolean immutableRejectOnChange;
+
+    // How many changed pre-filled cells the rejection message names; all of them are counted. Default 20.
+    @Value("${egov.excel.immutable-reject-max-listed:20}")
+    private int immutableRejectMaxListed;
 
     // When true, the sole editable active/inactive (usage) column is validated server-side against the
     // allowed values {Active, Inactive}. Excel list-validation is bypassed on paste/drag-fill, so this is

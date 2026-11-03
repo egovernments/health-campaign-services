@@ -51,12 +51,13 @@ jest.mock('../config', () => ({
             projectResourceSearch: 'health-project/resource/v1/_search',
             projectFacilitySearch: 'health-project/facility/v1/_search',
             projectStaffSearch: 'health-project/staff/v1/_search',
+            projectFacilityDelete: 'health-project/facility/v1/bulk/_delete',
         },
         mapping: { projectSearchChunkSize: 2, searchPageSize: 3 },
     },
 }));
 
-import { searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
+import { searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects, deleteProjectFacilitiesById } from '../api/genericApis';
 import { httpRequest } from '../utils/request';
 
 const httpRequestMock = httpRequest as jest.MockedFunction<typeof httpRequest>;
@@ -199,6 +200,74 @@ describe('project mapping bulk search helpers', () => {
                 projectId: ['p-1'],
                 staffId: ['u-1', 'u-2'],
             });
+        });
+    });
+
+    describe('deleteProjectFacilitiesById', () => {
+        const link = (id: string, projectId: string, facilityId: string) => ({ id, projectId, facilityId });
+        const searchCalls = () => httpRequestMock.mock.calls.filter(c => String(c[0]).endsWith('_search'));
+        const deleteCalls = () => httpRequestMock.mock.calls.filter(c => String(c[0]).endsWith('_delete'));
+
+        it('makes no call when there is nothing to remove', async () => {
+            const result = await deleteProjectFacilitiesById([], 'tn', requestInfo);
+
+            expect(result.size).toBe(0);
+            expect(httpRequestMock).not.toHaveBeenCalled();
+        });
+
+        it('reads the links back by id only and deletes the ones that still join the expected project and facility', async () => {
+            httpRequestMock
+                .mockResolvedValueOnce({ ProjectFacilities: [{ ...link('pf-1', 'p-1', 'f-1'), rowVersion: 1 }, { ...link('pf-2', 'p-2', 'f-2'), rowVersion: 1 }] })
+                .mockResolvedValueOnce({});
+
+            const result = await deleteProjectFacilitiesById([link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2')], 'tn', requestInfo);
+
+            expect(searchCalls()[0][1]).toEqual({ RequestInfo: requestInfo, ProjectFacility: { id: ['pf-1', 'pf-2'] } });
+            expect(searchCalls()[0][2]).toEqual({ tenantId: 'tn', limit: 2, offset: 0, includeDeleted: false });
+            expect(deleteCalls()).toHaveLength(1);
+            expect((deleteCalls()[0][1] as any).ProjectFacilities.map((l: any) => l.id)).toEqual(['pf-1', 'pf-2']);
+            expect(result.get('pf-1')).toEqual({ result: 'deleted' });
+            expect(result.get('pf-2')).toEqual({ result: 'deleted' });
+        });
+
+        it('leaves alone a link whose id now joins another project or facility, and reports a link already gone as absent', async () => {
+            httpRequestMock
+                .mockResolvedValueOnce({ ProjectFacilities: [link('pf-1', 'p-9', 'f-1')] })
+                .mockResolvedValueOnce({ ProjectFacilities: [link('pf-3', 'p-3', 'f-3')] })
+                .mockResolvedValueOnce({});
+
+            const result = await deleteProjectFacilitiesById(
+                [link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2'), link('pf-3', 'p-3', 'f-3')], 'tn', requestInfo);
+
+            expect(result.get('pf-1')?.result).toBe('mismatch');
+            expect(result.get('pf-2')).toEqual({ result: 'absent' });
+            expect(result.get('pf-3')).toEqual({ result: 'deleted' });
+            expect(deleteCalls()).toHaveLength(1);
+            expect((deleteCalls()[0][1] as any).ProjectFacilities.map((l: any) => l.id)).toEqual(['pf-3']);
+        });
+
+        it('sends a link listed twice once', async () => {
+            httpRequestMock.mockResolvedValueOnce({ ProjectFacilities: [link('pf-1', 'p-1', 'f-1')] }).mockResolvedValueOnce({});
+
+            const result = await deleteProjectFacilitiesById([link('pf-1', 'p-1', 'f-1'), link('pf-1', 'p-1', 'f-1')], 'tn', requestInfo);
+
+            expect((searchCalls()[0][1] as any).ProjectFacility.id).toEqual(['pf-1']);
+            expect((deleteCalls()[0][1] as any).ProjectFacilities).toHaveLength(1);
+            expect(result.get('pf-1')).toEqual({ result: 'deleted' });
+        });
+
+        it('marks only the ids of a chunk whose call failed as failed', async () => {
+            httpRequestMock
+                .mockRejectedValueOnce(new Error('search down'))
+                .mockResolvedValueOnce({ ProjectFacilities: [link('pf-3', 'p-3', 'f-3')] })
+                .mockResolvedValueOnce({});
+
+            const result = await deleteProjectFacilitiesById(
+                [link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2'), link('pf-3', 'p-3', 'f-3')], 'tn', requestInfo);
+
+            expect(result.get('pf-1')).toEqual({ result: 'failed', error: 'search down' });
+            expect(result.get('pf-2')).toEqual({ result: 'failed', error: 'search down' });
+            expect(result.get('pf-3')).toEqual({ result: 'deleted' });
         });
     });
 });

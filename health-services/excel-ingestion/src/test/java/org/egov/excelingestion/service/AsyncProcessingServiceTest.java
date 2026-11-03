@@ -88,6 +88,20 @@ class AsyncProcessingServiceTest {
     }
 
     @Test
+    void shouldEvictTheUploadedFilesCachedSheetsBeforeProcessing() throws Exception {
+        // Validation and creation process the same fileStoreId; creation must not start from the rows
+        // validation already normalized in the shared cache (HCS#2262).
+        ProcessResource processResource = createProcessResource("test-id-789", "dev");
+        when(excelProcessingService.processExcelFile(any())).thenReturn(processResource);
+
+        asyncProcessingService.processExcelAsync(processResource, createRequestInfo());
+
+        org.mockito.InOrder inOrder = inOrder(campaignCacheEvictor, excelProcessingService);
+        inOrder.verify(campaignCacheEvictor).evictSheetData("file-test-id-789");
+        inOrder.verify(excelProcessingService).processExcelFile(any(ProcessResourceRequest.class));
+    }
+
+    @Test
     void shouldUpdateStatusToFailedOnProcessingException() throws Exception {
         // Given
         ProcessResource processResource = createProcessResource("test-id-456", "dev");

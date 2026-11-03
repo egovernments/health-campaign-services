@@ -11,6 +11,7 @@ import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,12 +58,14 @@ public class EnumValueNormalizer {
      * @param sheetNameToSchema per-sheet MDMS schema (as already resolved by the processing flow)
      * @param localizationMap   the resolved generation locale's messages; the same map used to build
      *                          the dropdown at generation, so the mapping is exactly invertible
+     * @return the cells rewritten, with the label each held, for {@link #restoreLocalizedLabels}
      */
-    public void normalizeToCanonical(Workbook workbook, ProcessResource resource,
-                                     Map<String, Map<String, Object>> sheetNameToSchema,
-                                     Map<String, String> localizationMap) {
+    public List<NormalizedCell> normalizeToCanonical(Workbook workbook, ProcessResource resource,
+                                                     Map<String, Map<String, Object>> sheetNameToSchema,
+                                                     Map<String, String> localizationMap) {
+        List<NormalizedCell> normalizedCells = new ArrayList<>();
         if (workbook == null || sheetNameToSchema == null || localizationMap == null || localizationMap.isEmpty()) {
-            return;
+            return normalizedCells;
         }
 
         int totalNormalized = 0;
@@ -80,12 +83,47 @@ public class EnumValueNormalizer {
                 continue;
             }
 
-            totalNormalized += normalizeSheet(sheet, reverseMaps, resource, sheetName);
+            totalNormalized += normalizeSheet(sheet, reverseMaps, resource, sheetName, normalizedCells);
         }
 
         if (totalNormalized > 0) {
             log.info("Normalized {} localized enum cell(s) back to canonical MDMS values", totalNormalized);
         }
+        return normalizedCells;
+    }
+
+    /**
+     * Writes the user's localized label back into each cell {@link #normalizeToCanonical} rewrote, so the processed
+     * file shows what the user uploaded. Run after validation, processors and persistence, which have all read the
+     * canonical values (from the cells or the cached rows) by then. A cell is restored only while it still holds
+     * the canonical value written into it, so a later write to that cell is never undone.
+     *
+     * @return the number of cells restored
+     */
+    public int restoreLocalizedLabels(Workbook workbook, List<NormalizedCell> normalizedCells) {
+        if (workbook == null || normalizedCells == null || normalizedCells.isEmpty()) {
+            return 0;
+        }
+        int restored = 0;
+        for (NormalizedCell normalizedCell : normalizedCells) {
+            Sheet sheet = workbook.getSheet(normalizedCell.sheetName());
+            Row row = sheet == null ? null : sheet.getRow(normalizedCell.rowIndex());
+            Cell cell = row == null ? null : row.getCell(normalizedCell.columnIndex());
+            if (cell != null && cell.getCellType() == CellType.STRING
+                    && normalizedCell.canonicalValue().equals(cell.getStringCellValue())) {
+                cell.setCellValue(normalizedCell.localizedLabel());
+                restored++;
+            }
+        }
+        if (restored > 0) {
+            log.info("Restored {} localized enum label(s) in the processed file", restored);
+        }
+        return restored;
+    }
+
+    /** A cell rewritten from a localized label to its canonical value. */
+    public record NormalizedCell(String sheetName, int rowIndex, int columnIndex, String localizedLabel,
+                                 String canonicalValue) {
     }
 
     /** Builds the per-column reverse maps for every translated enum column in the schema. */
@@ -139,7 +177,7 @@ public class EnumValueNormalizer {
      * @return the number of cells rewritten
      */
     private int normalizeSheet(Sheet sheet, ReverseMaps reverseMaps,
-                               ProcessResource resource, String sheetName) {
+                               ProcessResource resource, String sheetName, List<NormalizedCell> normalizedCells) {
         Map<String, Map<String, String>> reverseMapsByColumn = reverseMaps.byColumn;
         Row technicalRow = sheet.getRow(0); // row 0 holds the hidden technical column names
         if (technicalRow == null) {
@@ -164,8 +202,9 @@ public class EnumValueNormalizer {
 
         int normalized = 0;
 
-        // Rewrite the workbook cells so the processed file returned to the user, and anything that
-        // re-reads the sheet, carry canonical values.
+        // Rewrite the workbook cells so anything that re-reads the sheet carries canonical values. Each
+        // rewrite is recorded so restoreLocalizedLabels can put the label back before the processed file
+        // is uploaded.
         int lastRow = ExcelUtil.findActualLastRowWithData(sheet);
         for (int rowIdx = 2; rowIdx <= lastRow; rowIdx++) { // data starts at row 2 (0=technical, 1=headers)
             Row row = sheet.getRow(rowIdx);
@@ -182,6 +221,7 @@ public class EnumValueNormalizer {
                 // Null = unrecognized value: leave it for the existing validators to reject.
                 if (canonical != null && !canonical.equals(cellValue)) {
                     cell.setCellValue(canonical);
+                    normalizedCells.add(new NormalizedCell(sheetName, rowIdx, col.getKey(), cellValue, canonical));
                     normalized++;
                 }
             }

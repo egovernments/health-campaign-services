@@ -1,8 +1,9 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { getRelatedDataWithCampaign } from './genericUtils';
-import { mappingStatuses } from '../config/constants';
-import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects } from '../api/genericApis';
+import { mappingStatuses, outsideHouseholdFacilityFields } from '../config/constants';
+import { outsideHouseholdLinkAdditionalFields } from './outsideHouseholdLinkFields';
+import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects, deleteProjectFacilitiesById } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
 import { httpRequest } from './request';
@@ -39,6 +40,7 @@ export async function handleMappingBatch(messageObject: any) {
 
         const boundaryToProjectId = createLookupMap(boundaryData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
         const facilityMap = createLookupMap(facilityData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
+        const outsideHouseholdLinkFieldsMap = buildOutsideHouseholdLinkAdditionalFields(facilityData);
         const userMap = createLookupMap(userData, 'uniqueIdentifier', 'uniqueIdAfterProcess');
 
         const mappingGroups = groupMappings(mappings);
@@ -49,7 +51,7 @@ export async function handleMappingBatch(messageObject: any) {
             promises.push(processResourceMappings(mappingGroups.resourceToBeMapped, boundaryToProjectId, tenantId, useruuid, requestInfo));
         }
         if (mappingGroups.facilityToBeMapped.length > 0) {
-            promises.push(processFacilityMappings(mappingGroups.facilityToBeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo));
+            promises.push(processFacilityMappings(mappingGroups.facilityToBeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo, outsideHouseholdLinkFieldsMap));
         }
         if (mappingGroups.userToBeMapped.length > 0) {
             promises.push(processUserMappings(mappingGroups.userToBeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
@@ -198,7 +200,7 @@ type MappingCreateAdapter = {
     searchExisting: (projectIds: string[], entityIds: string[], tenantId: string, requestInfo: RequestInfo) => Promise<Map<string, string>>;
     entityIdFor: (mapping: any) => string;
     create: (mapping: any, projectId: string, entityId: string, tenantId: string, requestInfo: RequestInfo) => Promise<string | undefined>;
-    buildBulkEntity: (projectId: string, entityId: string, tenantId: string) => any;
+    buildBulkEntity: (projectId: string, entityId: string, tenantId: string, mapping?: any) => any;
     bulkCreate: (entities: any[], requestInfo: RequestInfo) => Promise<void>;
 };
 
@@ -330,12 +332,12 @@ async function bulkCreateAndConfirm(
         chunks.push(creatable.slice(i, i + CHUNK));
     }
 
-    // A chunk whose bulk POST throws (5xx / network) marks its own rows failed with the reason
+    // A chunk whose bulk OUTSIDE_HOUSEHOLD throws (5xx / network) marks its own rows failed with the reason
     // instead of aborting the whole batch — so other chunks, the confirm pass, and already-adopted
     // rows still get processed and persisted, and the failure reason is captured in lastError.
     const failedKeys = new Set<string>();
     await runBoundedCreates(chunks, async (chunk: { mapping: any; projectId: string; entityId: string }[]) => {
-        const entities = chunk.map(c => adapter.buildBulkEntity(c.projectId, c.entityId, tenantId));
+        const entities = chunk.map(c => adapter.buildBulkEntity(c.projectId, c.entityId, tenantId, c.mapping));
         try {
             await adapter.bulkCreate(entities, requestInfo);
         } catch (error) {
@@ -350,7 +352,7 @@ async function bulkCreateAndConfirm(
         }
     });
 
-    // Confirm-by-search only the rows whose bulk POST was accepted.
+    // Confirm-by-search only the rows whose bulk OUTSIDE_HOUSEHOLD was accepted.
     const pending = new Map<string, { mapping: any; projectId: string; entityId: string }>();
     for (const c of creatable) {
         const key = `${c.entityId}|${c.projectId}`;
@@ -434,6 +436,28 @@ async function processResourceMappings(
 }
 
 /**
+ * additionalFields for the project-facility link of every site, keyed by the site's uniqueIdentifier (its
+ * clientReferenceId). The OutsideHouseholdAssignment schema marks the link as a site link (the indexer filters on it);
+ * fields carry the frontline worker, if given. The worker is campaign data: it is stored on this campaign's
+ * link only, never on the site facility, so it does not follow the site to the next campaign.
+ */
+export function buildOutsideHouseholdLinkAdditionalFields(facilityData: any[]): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const row of facilityData || []) {
+        const data = row?.data || {};
+        if (!data[outsideHouseholdFacilityFields.clientReferenceId]) continue;
+        result[row.uniqueIdentifier] = outsideHouseholdLinkAdditionalFields(data);
+    }
+    return result;
+}
+
+/** { additionalFields } for a site link; {} for every other link. */
+function withOutsideHouseholdLinkFields(outsideHouseholdLinkFieldsMap: Record<string, any>, mapping: any): Record<string, any> {
+    const additionalFields = mapping ? outsideHouseholdLinkFieldsMap[mapping.uniqueIdentifierForData] : undefined;
+    return additionalFields ? { additionalFields } : {};
+}
+
+/**
  * Process facility mappings — project facilities live under the root tenant,
  * so both search and create use tenantId.split(".")[0] inside the adapter.
  */
@@ -443,7 +467,8 @@ async function processFacilityMappings(
     facilityMap: Record<string, string>,
     tenantId: string,
     useruuid: string,
-    requestInfo: RequestInfo
+    requestInfo: RequestInfo,
+    outsideHouseholdLinkFieldsMap: Record<string, any> = {}
 ): Promise<void> {
     await processToBeMappedGroup(mappings, boundaryToProjectId, tenantId, requestInfo, {
         type: 'facility',
@@ -462,17 +487,19 @@ async function processFacilityMappings(
                 projectId,
                 facilityId: entityId,
                 startDate: null,
-                endDate: null
+                endDate: null,
+                ...withOutsideHouseholdLinkFields(outsideHouseholdLinkFieldsMap, mapping)
             };
             const response = await createProjectFacility({ RequestInfo, ProjectFacility });
             return response?.ProjectFacility?.id;
         },
-        buildBulkEntity: (projectId, entityId, tenant) => ({
+        buildBulkEntity: (projectId, entityId, tenant, mapping) => ({
             tenantId: tenant.split(".")?.[0],
             projectId,
             facilityId: entityId,
             startDate: null,
             endDate: null,
+            ...withOutsideHouseholdLinkFields(outsideHouseholdLinkFieldsMap, mapping)
         }),
         bulkCreate: (entities, RequestInfo) => createProjectFacilityBulk(entities, RequestInfo),
     });
@@ -582,34 +609,35 @@ async function processFacilityDemappings(
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} facility demappings`);
 
-    const RequestInfo = requestInfo;
-
     const deleteBatch: any[] = [];
     const failedBatch: any[] = [];
 
-    const promises = mappings.map(async (mapping) => {
-        try {
-            const projectId = boundaryToProjectId[mapping.boundaryCode];
-            const facilityId = facilityMap[mapping.uniqueIdentifierForData];
-            const mappingId = mapping.mappingId;
+    // Each link is removed by the id recorded when it was made. Parallel searches by project and facility could return
+    // another search's link, so two demaps deleted the same link and left the other one active.
+    const removable: { mapping: any; id: string; projectId: string; facilityId: string }[] = [];
+    for (const mapping of mappings) {
+        const projectId = boundaryToProjectId[mapping.boundaryCode];
+        const facilityId = facilityMap[mapping.uniqueIdentifierForData];
 
-            // Nothing to demap server-side for unresolvable rows — drop the local row.
-            if (!projectId || !facilityId || !mappingId) {
-                deleteBatch.push(mapping);
-                return;
-            }
-
-            await fetchAndDeleteProjectFacility(RequestInfo, tenantId, projectId, facilityId);
+        // Nothing to demap server-side for unresolvable rows — drop the local row.
+        if (!projectId || !facilityId || !mapping.mappingId) {
             deleteBatch.push(mapping);
-        } catch (error) {
-            logger.error(`Failed to demap facility ${mapping.uniqueIdentifierForData}:`, error);
+            continue;
+        }
+        removable.push({ mapping, id: mapping.mappingId, projectId, facilityId });
+    }
 
+    const outcomes = await deleteProjectFacilitiesById(removable, tenantId, requestInfo);
+    for (const { mapping, id } of removable) {
+        const outcome = outcomes.get(id);
+        if (outcome?.result === 'deleted' || outcome?.result === 'absent') {
+            deleteBatch.push(mapping);
+        } else {
+            logger.error(`Failed to demap facility ${mapping.uniqueIdentifierForData}: ${outcome?.error ?? 'no outcome'}`);
             mapping.status = mappingStatuses.deMapFailed;
             failedBatch.push(mapping);
         }
-    });
-
-    await Promise.all(promises);
+    }
 
     await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
     await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
@@ -663,37 +691,6 @@ async function processUserDemappings(
 
     await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
     await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
-}
-
-async function fetchAndDeleteProjectFacility(RequestInfo: any, tenantId: string, projectId: string, facilityId: string) {
-    const searchBody = {
-        RequestInfo,
-        ProjectFacility: {
-            projectId: [projectId],
-            facilityId: [facilityId]
-        }
-    };
-    
-    const searchParams = {
-        tenantId,
-        offset: 0,
-        limit: 1
-    };
-    
-    const response = await httpRequest(
-        config?.host?.projectHost + config?.paths?.projectFacilitySearch,
-        searchBody,
-        searchParams
-    );
-    
-    if (response?.ProjectFacilities?.length > 0) {
-        const deleteBody = {
-            RequestInfo,
-            ProjectFacilities: [response?.ProjectFacilities[0]]
-        };
-        
-        await httpRequest(config?.host?.projectHost + config?.paths?.projectFacilityDelete, deleteBody);
-    }
 }
 
 async function fetchAndDeleteProjectStaff(RequestInfo: any, tenantId: string, projectId: string, userId: string) {

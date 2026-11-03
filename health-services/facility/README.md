@@ -12,6 +12,16 @@ For the facility service specifically, **v2.1 is a maintenance / dependency rele
 
 > Scope note for QA/leads: feature branches exist for richer facility search (search by project/boundary, a task-status enum, and an "updated by others" / `lastModifiedByFilter` sync filter — the `featurefacilitysearch*` branches). **None of those are merged into this release**, so the `_search` filters today remain `isPermanent` / `usage` / `storageCapacity` / `boundaryCode` plus the standard sync/pagination params. Don't document or test the project / updated-by-others filters against this build.
 
+## Outside Household sites (HCMPRE-2371)
+
+Outside Household sites (Outside Household Places, Transit Posts) are stored as facilities whose `usage` is a site type from MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`. Full flow: [OUTSIDE_HOUSEHOLD_SITES.md](../project-factory/OUTSIDE_HOUSEHOLD_SITES.md).
+
+- `_search` leaves sites out unless the request has `usage`, `id` or `clientReferenceId`, so existing facility lists are unchanged. `TotalCount` counts only the returned records.
+- `_search?includeDescendants=true` with a `boundaryCode` returns facilities in that boundary and in every boundary below it (e.g. a site an app user added at a village, when searching its district). The boundaries below are read from boundary-service (`egov.boundary.relationship.search.url`, cached 5 minutes); if it cannot be read, only the boundary itself is searched. Without the flag `boundaryCode` is matched exactly, as before.
+- The site types are read from MDMS v2 (`OutsideHouseholdTypeService`, cached 5 minutes). If MDMS cannot be read the last list is kept; with no list nothing is hidden.
+- New config: `egov.mdms.host` (default `http://mdms-v2.egov:8080/`, env `EGOV_MDMS_HOST`) and `egov.mdms.v2.search.path` (default `egov-mdms-service/v2/_search`).
+- A phone that lost the answer to a site `_create` sends the same site again. If its `clientReferenceId` is already saved for the tenant, create returns the saved record with its id and saves nothing (the lookup reads the DB, not the cache). Switch: `facility.create.return.existing.on.duplicate.client.reference.id` (default `true`, env `FACILITY_CREATE_RETURN_EXISTING_ON_DUPLICATE_CLIENT_REFERENCE_ID`).
+
 ## 1. Purpose
 
 Facility is the **registry of physical places** in a health campaign — warehouses, health posts, clinics, storage points, distribution centres. Each facility row records what the place is (name, type/usage, permanent or temporary), how much it can hold (storage capacity), and where it sits on the map (a shared **address** with GPS coordinates and a boundary/locality code).
@@ -112,7 +122,7 @@ sequenceDiagram
 
 - **Async, no batch rollback.** A bulk request returns `202` before persistence. If one record in the batch fails validation in the consumer, it does not roll back the others — check consumer logs and the record's status. The consumer catches its own errors and logs them rather than re-throwing.
 - **Boundary check is hard-stop.** If a facility's locality code is unknown, that record is flagged `NON_EXISTENT_ENTITY`; if the boundary-service call itself fails, the whole batch errors with `BOUNDARY_SERVICE_SEARCH_ERROR` (so a flaky boundary-service blocks creation — a common environment gotcha).
-- **Idempotency** is via `clientReferenceId` — re-submitting the same one should not create a duplicate row.
+- **Idempotency** is via `clientReferenceId` — re-submitting a saved one returns the saved record and its id instead of creating again (switch above). With the switch off, the caller gets a new id that the persister cannot store (`clientReferenceId` is unique).
 - **Optimistic locking** via `rowVersion` protects against concurrent edits on update.
 - **Soft delete** (`isDeleted`) everywhere — nothing is hard-deleted; the search default excludes deleted rows unless `includeDeleted=true`.
 - If the **persister config** for the facility topics is missing/stale in an environment, the API will accept writes but rows will silently not appear in Postgres — a classic "it worked in QA" trap.
