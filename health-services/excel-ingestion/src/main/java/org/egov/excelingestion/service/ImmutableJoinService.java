@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -202,15 +203,22 @@ public class ImmutableJoinService {
         // 4. Download + parse the baseline, then join per sheet. Collect, per sheet, the always-immutable
         // columns we reconstructed onto existing rows so validation can skip re-checking those cells.
         Map<String, Set<String>> immutableColumnsBySheet = new HashMap<>();
+        // Changed pre-filled cells from every sheet; the upload is rejected once, naming all of them, so the
+        // user does not have to fix and re-upload one cell at a time.
+        List<TamperedCell> tampered = new ArrayList<>();
         try (Workbook baselineWorkbook = fileStoreService.downloadExcelFromFileStore(
                 baselineGen.getFileStoreId(), resource.getTenantId())) {
 
             for (Map.Entry<String, Map<String, Object>> entry : sheetNameToSchema.entrySet()) {
                 Set<String> restored = joinSheet(entry.getKey(), entry.getValue(), uploadedWorkbook, baselineWorkbook,
-                        baselineGen.getFileStoreId(), resource, warningsOut, localizationMap, errorLocalizationMap);
+                        baselineGen.getFileStoreId(), resource, warningsOut, localizationMap, errorLocalizationMap,
+                        tampered);
                 if (!restored.isEmpty()) {
                     immutableColumnsBySheet.put(entry.getKey(), restored);
                 }
+            }
+            if (!tampered.isEmpty()) {
+                rejectTampered(tampered, errorLocalizationMap);
             }
         } catch (org.egov.tracer.model.CustomException ce) {
             throw ce; // fail-closed business errors propagate as-is
@@ -233,7 +241,7 @@ public class ImmutableJoinService {
                            Workbook uploadedWorkbook, Workbook baselineWorkbook,
                            String baselineFileStoreId, ProcessResource resource,
                            List<ValidationError> warningsOut, Map<String, String> localizationMap,
-                           Map<String, String> errorLocalizationMap) {
+                           Map<String, String> errorLocalizationMap, List<TamperedCell> tampered) {
         Sheet uploadedSheet = uploadedWorkbook.getSheet(sheetName);
         Sheet baselineSheet = baselineWorkbook.getSheet(sheetName);
         if (uploadedSheet == null || baselineSheet == null) {
@@ -279,7 +287,8 @@ public class ImmutableJoinService {
         // in the processed file even though validation/persistence used the correct baseline value.
         Map<String, Integer> uploadedColIndex = headerIndex(uploadedSheet);
         SheetJoin sj = new SheetJoin(uploadedSheet, uploadedColIndex, sheetName, warningsOut, localizationMap,
-                errorLocalizationMap, immutable.enumReverseMaps, immutable.multiSelectReverseMaps);
+                errorLocalizationMap, immutable.enumReverseMaps, immutable.multiSelectReverseMaps, tampered,
+                uploadedWorkbook.getSheetIndex(uploadedSheet));
 
         Set<String> seen = new HashSet<>();
         for (Map<String, Object> upRow : uploadedRows) {
@@ -475,23 +484,23 @@ public class ImmutableJoinService {
                            boolean immutableData) {
         Object oldVal = upRow.get(col);
 
-        // Fail-closed (reject-on-change): a pre-filled server-managed DATA cell was changed. Reject the whole
-        // upload instead of silently reverting it - even if the user shifted the cell, the join matches on the
-        // row-id so a moved-but-changed value is still caught. Derived formula cells (boundary code / register
-        // id) pass immutableData=false and are still restored silently. Multi-select child cells are excluded
-        // from the reject (their per-child order can differ harmlessly) and are restored silently instead.
-        // Toggle: egov.excel.immutable-reject-on-change.
+        // Fail-closed (reject-on-change): a pre-filled server-managed DATA cell was changed. The whole upload
+        // is rejected instead of silently reverting it - even if the user shifted the cell, the join matches on
+        // the row-id so a moved-but-changed value is still caught. The cell is only noted here, and left as the
+        // user wrote it; applyImmutableBaseline rejects once after every sheet is joined, naming every changed
+        // cell. Derived formula cells (boundary code / register id) pass immutableData=false and are still
+        // restored silently. Multi-select child cells are excluded from the reject (their per-child order can
+        // differ harmlessly) and are restored silently instead. Toggle: egov.excel.immutable-reject-on-change.
         boolean multiSelectChild = col.contains(MULTISELECT_MARKER);
         if (immutableData && !multiSelectChild && config.isImmutableRejectOnChange()
                 && poiRowIdx >= 0 && !sameValue(sj, col, oldVal, value)) {
             log.info("Immutable-join REJECTED upload: sheet '{}' row {} column '{}' changed from baseline",
                     sj.sheetName, poiRowIdx + 1, col);
-            exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
-                    localizedError(sj.errorLocalizationMap, ErrorConstants.IMMUTABLE_CELL_TAMPERED,
-                            ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE,
-                            localizedName(sj.errorLocalizationMap, sj.localizationMap, sj.sheetName),
-                            String.valueOf(poiRowIdx + 1),
-                            localizedName(sj.errorLocalizationMap, sj.localizationMap, col)));
+            Integer ci = sj.colIndex.get(col);
+            sj.tampered.add(new TamperedCell(sj.sheetIndex, poiRowIdx + 1, ci == null ? Integer.MAX_VALUE : ci,
+                    localizedName(sj.errorLocalizationMap, sj.localizationMap, sj.sheetName),
+                    localizedName(sj.errorLocalizationMap, sj.localizationMap, col)));
+            return;
         }
 
         upRow.put(col, value);
@@ -599,12 +608,15 @@ public class ImmutableJoinService {
         final Map<String, String> errorLocalizationMap;
         final Map<String, Map<String, String>> enumReverseMaps;
         final Map<String, Map<String, String>> multiSelectReverseMaps;
+        final List<TamperedCell> tampered;
+        final int sheetIndex;
 
         SheetJoin(Sheet sheet, Map<String, Integer> colIndex, String sheetName,
                   List<ValidationError> warnings, Map<String, String> localizationMap,
                   Map<String, String> errorLocalizationMap,
                   Map<String, Map<String, String>> enumReverseMaps,
-                  Map<String, Map<String, String>> multiSelectReverseMaps) {
+                  Map<String, Map<String, String>> multiSelectReverseMaps,
+                  List<TamperedCell> tampered, int sheetIndex) {
             this.sheet = sheet;
             this.colIndex = colIndex;
             this.sheetName = sheetName;
@@ -613,7 +625,47 @@ public class ImmutableJoinService {
             this.errorLocalizationMap = errorLocalizationMap;
             this.enumReverseMaps = enumReverseMaps;
             this.multiSelectReverseMaps = multiSelectReverseMaps;
+            this.tampered = tampered;
+            this.sheetIndex = sheetIndex;
         }
+    }
+
+    /** A changed pre-filled cell: workbook position (for ordering) and the display names used in the error. */
+    record TamperedCell(int sheetIndex, int row, int column, String sheetName, String columnName) {
+    }
+
+    /**
+     * Rejects the upload naming every changed pre-filled cell, in workbook order (sheet, row, column). One cell
+     * keeps the single-cell message; more list up to egov.excel.immutable-reject-max-listed cells, with the total.
+     */
+    private void rejectTampered(List<TamperedCell> tampered, Map<String, String> errorLocalizationMap) {
+        tampered.sort(Comparator.comparingInt(TamperedCell::sheetIndex).thenComparingInt(TamperedCell::row)
+                .thenComparingInt(TamperedCell::column));
+        if (tampered.size() == 1) {
+            TamperedCell t = tampered.get(0);
+            exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                    localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                            ErrorConstants.IMMUTABLE_CELL_TAMPERED_MESSAGE,
+                            t.sheetName(), String.valueOf(t.row()), t.columnName()));
+            return;
+        }
+        int maxListed = Math.max(1, config.getImmutableRejectMaxListed());
+        StringBuilder cells = new StringBuilder();
+        for (TamperedCell t : tampered.subList(0, Math.min(maxListed, tampered.size()))) {
+            if (cells.length() > 0) {
+                cells.append("; ");
+            }
+            cells.append(localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_CELLS_TAMPERED_ITEM,
+                    ErrorConstants.IMMUTABLE_CELLS_TAMPERED_ITEM_MESSAGE,
+                    t.sheetName(), String.valueOf(t.row()), t.columnName()));
+        }
+        if (tampered.size() > maxListed) {
+            cells.append("; ...");
+        }
+        exceptionHandler.throwCustomException(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                localizedError(errorLocalizationMap, ErrorConstants.IMMUTABLE_CELLS_TAMPERED,
+                        ErrorConstants.IMMUTABLE_CELLS_TAMPERED_MESSAGE,
+                        String.valueOf(tampered.size()), cells.toString()));
     }
 
     private String readGenerationId(Workbook workbook) {

@@ -65,6 +65,11 @@ public class ErrorConstants {
 
     public static final String IMMUTABLE_CELL_TAMPERED = "IMMUTABLE_CELL_TAMPERED";
     public static final String IMMUTABLE_CELL_TAMPERED_MESSAGE = "A pre-filled (read-only) value was changed on sheet '{0}', row {1}, column '{2}'. Pre-filled values must not be edited. Please re-download the template and re-enter your changes in the editable columns.";
+    // More than one changed pre-filled cell: {0} = how many, {1} = the cells, each written with the ITEM message
+    public static final String IMMUTABLE_CELLS_TAMPERED = "IMMUTABLE_CELLS_TAMPERED";
+    public static final String IMMUTABLE_CELLS_TAMPERED_MESSAGE = "{0} pre-filled (read-only) values were changed: {1}. Pre-filled values must not be edited. Please re-download the template and re-enter your changes in the editable columns.";
+    public static final String IMMUTABLE_CELLS_TAMPERED_ITEM = "IMMUTABLE_CELLS_TAMPERED_ITEM";
+    public static final String IMMUTABLE_CELLS_TAMPERED_ITEM_MESSAGE = "sheet '{0}', row {1}, column '{2}'";
 
     // File Store Service Errors
     public static final String FILE_STORE_SERVICE_ERROR = "FILE_STORE_SERVICE_ERROR";

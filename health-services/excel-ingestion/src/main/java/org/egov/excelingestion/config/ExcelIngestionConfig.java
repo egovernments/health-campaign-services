@@ -86,6 +86,10 @@ public class ExcelIngestionConfig {
     @Value("${egov.excel.immutable-reject-on-change:true}")
     private boolean immutableRejectOnChange;
 
+    // How many changed pre-filled cells the rejection message names; all of them are counted. Default 20.
+    @Value("${egov.excel.immutable-reject-max-listed:20}")
+    private int immutableRejectMaxListed;
+
     // When true, the sole editable active/inactive (usage) column is validated server-side against the
     // allowed values {Active, Inactive}. Excel list-validation is bypassed on paste/drag-fill, so this is
     // the real gate against an out-of-list value. Default true.

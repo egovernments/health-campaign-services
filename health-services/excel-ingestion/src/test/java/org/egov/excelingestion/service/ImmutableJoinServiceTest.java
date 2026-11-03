@@ -252,6 +252,96 @@ class ImmutableJoinServiceTest {
                     "the packaged fallback retains the original context when a translation is absent");
         }
 
+        // DIGIT-Frontend#4687: several changed pre-filled cells are named in ONE rejection, so the user does not
+        // fix one row, re-upload, and only then hear about the next.
+        @Test
+        void rejectOnChange_manyChangedCells_rejectedOnceNamingEveryCell() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(config.getImmutableRejectMaxListed()).thenReturn(20);
+            List<Map<String, Object>> up = new ArrayList<>(List.of(
+                    row(ROW_ID, "r1", "name", "HACKED-1", "village", "V1", ROW_NUM, 3),
+                    row(ROW_ID, "r2", "name", "Same", "village", "V2", ROW_NUM, 4),
+                    row(ROW_ID, "r3", "name", "HACKED-3", "village", "V3", ROW_NUM, 5),
+                    row(ROW_ID, "r4", "name", "HACKED-4", "village", "V4", ROW_NUM, 6)));
+            List<Map<String, Object>> base = new ArrayList<>(List.of(
+                    row(ROW_ID, "r1", "name", "One", "village", "V1", ROW_NUM, 3),
+                    row(ROW_ID, "r2", "name", "Same", "village", "V2", ROW_NUM, 4),
+                    row(ROW_ID, "r3", "name", "Three", "village", "V3", ROW_NUM, 5),
+                    row(ROW_ID, "r4", "name", "Four", "village", "V4", ROW_NUM, 6)));
+            stubRows(up, base);
+
+            CustomException ex = assertThrows(CustomException.class, this::run);
+
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode(), "same error code as one cell");
+            assertEquals("3 pre-filled (read-only) values were changed: sheet 'Users', row 3, column 'name'; "
+                    + "sheet 'Users', row 5, column 'name'; sheet 'Users', row 6, column 'name'. Pre-filled values "
+                    + "must not be edited. Please re-download the template and re-enter your changes in the "
+                    + "editable columns.", ex.getMessage());
+            assertEquals("HACKED-1", up.get(0).get("name"), "a changed cell is left as uploaded, so a re-run still sees it");
+        }
+
+        @Test
+        void rejectOnChange_changedCellsOnTwoSheets_bothNamedInWorkbookOrder() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(config.getImmutableRejectMaxListed()).thenReturn(20);
+            String other = "Facilities";
+            uploadedWorkbook.createSheet(other);
+            baselineWorkbook.createSheet(other);
+            Map<String, Map<String, Object>> schemas = new LinkedHashMap<>();
+            schemas.put(other, new HashMap<>());   // joined first, still listed after 'Users' (earlier in the workbook)
+            schemas.put(SHEET, new HashMap<>());
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "u1", "name", "HACKED", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "u1", "name", "Real", ROW_NUM, 3))));
+            when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(other), any())).thenReturn(
+                    new ArrayList<>(List.of(row(ROW_ID, "f1", "village", "HACKED", ROW_NUM, 7))));
+            when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(other), any())).thenReturn(
+                    new ArrayList<>(List.of(row(ROW_ID, "f1", "village", "V9", ROW_NUM, 7))));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, schemas, null));
+
+            assertTrue(ex.getMessage().startsWith("2 pre-filled (read-only) values were changed: "
+                    + "sheet 'Users', row 3, column 'name'; sheet 'Facilities', row 7, column 'village'."),
+                    ex.getMessage());
+        }
+
+        @Test
+        void rejectOnChange_moreChangedCellsThanListed_countsAllAndListsTheFirst() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(config.getImmutableRejectMaxListed()).thenReturn(2);
+            List<Map<String, Object>> up = new ArrayList<>(), base = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                up.add(row(ROW_ID, "r" + i, "name", "HACKED", ROW_NUM, 3 + i));
+                base.add(row(ROW_ID, "r" + i, "name", "Real" + i, ROW_NUM, 3 + i));
+            }
+            stubRows(up, base);
+
+            CustomException ex = assertThrows(CustomException.class, this::run);
+
+            assertTrue(ex.getMessage().startsWith("3 pre-filled (read-only) values were changed: sheet 'Users', "
+                    + "row 3, column 'name'; sheet 'Users', row 4, column 'name'; .... "), ex.getMessage());
+            assertFalse(ex.getMessage().contains("row 5"), "only the configured number of cells is listed");
+        }
+
+        @Test
+        void rejectOnChange_manyChangedCells_usesTheLocalizedListMessages() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(config.getImmutableRejectMaxListed()).thenReturn(20);
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "name", "X", "village", "Y", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "name", "Real", "village", "V1", ROW_NUM, 3))));
+            Map<String, String> messages = Map.of(
+                    ErrorConstants.IMMUTABLE_CELLS_TAMPERED, "{0} valores alterados: {1}",
+                    ErrorConstants.IMMUTABLE_CELLS_TAMPERED_ITEM, "{0}/{1}/{2}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Map.of("name", "Nome", "village", "Aldeia"), messages));
+
+            assertTrue(ex.getMessage().startsWith("2 valores alterados: Users/3/"), ex.getMessage());
+            assertTrue(ex.getMessage().contains("Users/3/Nome") && ex.getMessage().contains("Users/3/Aldeia"),
+                    ex.getMessage());
+        }
+
         @Test
         void rejectOnChange_usesLocalizedErrorWithCellDetails() {
             when(config.isImmutableRejectOnChange()).thenReturn(true);
