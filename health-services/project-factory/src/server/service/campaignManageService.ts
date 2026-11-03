@@ -76,6 +76,46 @@ async function earlierUnifiedFiles(tenantId: string, campaignId: string, exclude
     }
 }
 
+/** Backward compat: stores the files of a save in eg_cm_resource_details (an existing row of the type is replaced). */
+async function saveRequestResources(requestResources: CampaignResource[], tenantId: string, campaignId: string, useruuid: string) {
+    for (const res of requestResources) {
+        const fileStoreId = res.filestoreId;
+        if (!res.type || !fileStoreId) continue;
+        try {
+            const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
+            if (existing) {
+                await updateResourceDetail({
+                    id: existing.id,
+                    tenantId,
+                    campaignId,
+                    fileStoreId,
+                    filename: res.filename !== undefined ? res.filename : undefined
+                }, useruuid);
+                logger.info(`Updated existing resource id=${existing.id} type=${res.type} for campaign ${campaignId} via update`);
+            } else {
+                await createResourceDetail({
+                    tenantId,
+                    campaignId,
+                    type: res.type,
+                    parentResourceId: res.parentResourceId || null,
+                    fileStoreId,
+                    filename: res.filename || null,
+                    additionalDetails: res.additionalDetails || {}
+                }, useruuid);
+                logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
+            }
+        } catch (err: any) {
+            // Surface the real cause instead of collapsing to `${err}` (which hides
+            // the downstream code/status/stack behind a generic "Unknown Error. Check Logs").
+            logger.error(
+                `Failed to upsert resource type=${res.type} for campaign ${campaignId}: ` +
+                `code=${err?.code ?? "n/a"} status=${err?.status ?? "n/a"} message=${err?.message ?? String(err)}`
+            );
+            logger.error(`:: UPSERT ERROR STACK :: ${err?.stack ?? err}`);
+        }
+    }
+}
+
 /** Validates and updates a campaign, deactivating stale resources when hierarchy/boundaries change and re-fetching so the response carries table-backed resources. */
 async function updateProjectTypeCampaignService(request: express.Request) {
 
@@ -141,47 +181,16 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     // are dropped above, before the campaign and its files are saved below)
     await reattachCloneSourceFileIfChoiceAgrees(request);
 
-    await processBasedOnAction(request, "update");
-
-    // Backward compat: if resources are in the request body, upsert into eg_cm_resource_details
+    // The files of the save are stored first: a Create starts the campaign (status started), after which a file can no
+    // longer be stored, so a clone whose file came only with its Create kept its source's file
     const requestResources = request?.body?.CampaignDetails?.resources || [];
     if (requestResources.length > 0 && tenantId && campaignId) {
-        for (const res of requestResources as CampaignResource[]) {
-            const fileStoreId = res.filestoreId;
-            if (!res.type || !fileStoreId) continue;
-            try {
-                const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
-                if (existing) {
-                    await updateResourceDetail({
-                        id: existing.id,
-                        tenantId,
-                        campaignId,
-                        fileStoreId,
-                        filename: res.filename !== undefined ? res.filename : undefined
-                    }, useruuid);
-                    logger.info(`Updated existing resource id=${existing.id} type=${res.type} for campaign ${campaignId} via update`);
-                } else {
-                    await createResourceDetail({
-                        tenantId,
-                        campaignId,
-                        type: res.type,
-                        parentResourceId: res.parentResourceId || null,
-                        fileStoreId,
-                        filename: res.filename || null,
-                        additionalDetails: res.additionalDetails || {}
-                    }, useruuid);
-                    logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
-                }
-            } catch (err: any) {
-                // Surface the real cause instead of collapsing to `${err}` (which hides
-                // the downstream code/status/stack behind a generic "Unknown Error. Check Logs").
-                logger.error(
-                    `Failed to upsert resource type=${res.type} for campaign ${campaignId}: ` +
-                    `code=${err?.code ?? "n/a"} status=${err?.status ?? "n/a"} message=${err?.message ?? String(err)}`
-                );
-                logger.error(`:: UPSERT ERROR STACK :: ${err?.stack ?? err}`);
-            }
-        }
+        await saveRequestResources(requestResources as CampaignResource[], tenantId, campaignId, useruuid);
+    }
+
+    await processBasedOnAction(request, "update");
+
+    if (requestResources.length > 0 && tenantId && campaignId) {
         // Re-fetch campaign so response includes full resources from table
         const updatedResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         return updatedResp?.CampaignDetails?.[0] || request?.body?.CampaignDetails;

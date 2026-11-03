@@ -57,6 +57,21 @@ beforeEach(() => {
     (searchProjectCampaignResourcData as jest.Mock).mockResolvedValue({ responseData: [{ id: 'c1' }], totalCount: 1 });
 });
 
+describe('updateProjectTypeCampaignService stores the files of a save before processing it', () => {
+    it('stores the uploaded file before a Create starts the campaign', async () => {
+        const order: string[] = [];
+        (createResourceDetail as jest.Mock).mockImplementation(async () => { order.push('store file'); });
+        (processBasedOnAction as jest.Mock).mockImplementation(async () => { order.push('process'); });
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: false });
+        (isOutsideHouseholdDeliveryChanged as jest.Mock).mockReturnValue(false);
+
+        await updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'OWN' }]));
+
+        expect(order).toEqual(['store file', 'process']);
+        expect(attachedFileIds()).toEqual(['OWN']);
+    });
+});
+
 describe('updateProjectTypeCampaignService after the Outside Household choice changes', () => {
     beforeEach(() => {
         (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: true });
