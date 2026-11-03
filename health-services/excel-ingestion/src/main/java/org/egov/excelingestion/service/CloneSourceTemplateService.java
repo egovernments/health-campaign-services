@@ -23,7 +23,8 @@ import java.util.stream.Collectors;
  * it, or neither does) gets the source's filled file itself. When a campaign adds or drops Outside Household after a file
  * was uploaded, or a clone adds or drops it compared with its source, the template is generated as for any campaign (so
  * the Outside Household sheet appears with the area's sites, or not at all) and the earlier file's users, targets and
- * facilities are copied into it. The clone rules apply only to a clone on its source's area.
+ * facilities are copied into it. The clone rules apply only to a clone on its source's area, of a campaign type listed in
+ * excel.ingestion.outside.household.campaign.types (POLIO by default); other clones get their template as before.
  */
 @Service
 @Slf4j
@@ -120,6 +121,9 @@ public class CloneSourceTemplateService {
         if (sourceId == null || trimToNull(clone.getParentId()) != null) {
             return null;   // not a clone, or an edit of a created campaign
         }
+        if (!isDeliveryConditionCampaignType(clone.getProjectType())) {
+            return null;   // the clone rules follow the delivery conditions, which only these campaign types have (POLIO)
+        }
         CampaignSearchResponse.CampaignDetail source = campaignService.searchCampaignById(sourceId, tenantId, requestInfo);
         if (source == null
                 || !Objects.equals(trimToNull(clone.getHierarchyType()), trimToNull(source.getHierarchyType()))
@@ -141,6 +145,14 @@ public class CloneSourceTemplateService {
         boolean sourceUsesOutsideHousehold = OutsideHouseholdTypeMasterService.extractDeliveryMethods(source)
                 .contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD);
         return new CloneOfSource(sourceId, sourceFileStoreId, cloneUsesOutsideHousehold == sourceUsesOutsideHousehold);
+    }
+
+    /** One of excel.ingestion.outside.household.campaign.types (POLIO by default), the types with delivery conditions. */
+    private boolean isDeliveryConditionCampaignType(String projectType) {
+        String type = OutsideHouseholdTypeMasterService.normalize(projectType);
+        List<String> types = config.getOutsideHouseholdCampaignTypes();
+        return type != null && types != null
+                && types.stream().map(OutsideHouseholdTypeMasterService::normalize).anyMatch(type::equals);
     }
 
     private static Set<String> boundaryCodes(CampaignSearchResponse.CampaignDetail campaign) {

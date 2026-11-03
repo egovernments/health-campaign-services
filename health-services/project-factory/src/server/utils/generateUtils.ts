@@ -104,16 +104,24 @@ export function keepCloneLineage(incomingCampaign: any, savedCampaign: any): str
     return filled;
 }
 
+/** One of CAMPAIGN_DELIVERY_CONDITION_TYPES (POLIO by default), the campaign types with delivery conditions. */
+export function isDeliveryConditionCampaignType(projectType: unknown): boolean {
+    const types: string[] = config.mapping?.deliveryConditionCampaignTypes || [];
+    return typeof projectType === "string" && types.includes(projectType.trim().toUpperCase());
+}
+
 /**
  * A clone being created starts without its source's delivery dates (the cycles' fromDate / toDate in cycleData and their
  * startDate / endDate in deliveryRules): they belong to the source's period, and the planner picks the clone's own in the
  * delivery step. Cycles, deliveries, doses, conditions and delivery methods stay. Returns the number of dates removed;
- * none for a campaign that is not a clone, an edit (parentId), or when the switch is off.
+ * none for a campaign that is not a clone, an edit (parentId), a campaign type outside CAMPAIGN_DELIVERY_CONDITION_TYPES
+ * (POLIO by default), or when the switch is off.
  */
 export function dropCloneSourceDeliveryDates(campaignDetails: any): number {
     const details = campaignDetails?.additionalDetails;
     if (!config.mapping?.clearCloneDeliveryDates || !campaignDetails || campaignDetails.parentId
         || !(details?.cloneFrom || details?.clonedCampaignId)) return 0;
+    if (!isDeliveryConditionCampaignType(campaignDetails.projectType)) return 0;
     let removed = 0;
     const drop = (target: any, keys: string[]) => {
         for (const key of keys) {
@@ -153,6 +161,7 @@ export function fileBeforeOutsideHouseholdChange(request: any): string | null {
     const existing = request?.body?.ExistingCampaignDetails;
     const incoming = request?.body?.CampaignDetails;
     if (!config.mapping?.keepDataOnOutsideHouseholdChange || !existing || !incoming || !isOutsideHouseholdDeliveryChanged(request)) return null;
+    if (!isDeliveryConditionCampaignType(incoming.projectType || existing.projectType)) return null;
     if (incoming.hierarchyType && existing.hierarchyType && incoming.hierarchyType !== existing.hierarchyType) return null;
     const codes = (c: any) => new Set<string>((Array.isArray(c?.boundaries) ? c.boundaries : []).map((b: any) => b?.code).filter(Boolean));
     const before = codes(existing), after = codes(incoming);

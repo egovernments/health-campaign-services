@@ -23,6 +23,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -45,6 +46,7 @@ class CloneSourceTemplateServiceTest {
     @BeforeEach
     void setUp() {
         when(config.isCloneReuseSourceTemplate()).thenReturn(true);
+        when(config.getOutsideHouseholdCampaignTypes()).thenReturn(List.of("POLIO"));
         service = new CloneSourceTemplateService(campaignService, fileStoreService, config);
     }
 
@@ -103,6 +105,21 @@ class CloneSourceTemplateServiceTest {
     void sourceWithoutAnAttachedFileGivesANewTemplate() {
         stub(clone(List.of("OUTSIDEHOUSEHOLD"), List.of("A"), null), source(List.of("OUTSIDEHOUSEHOLD"), List.of("A"), null));
         assertNull(service.sourceFileForUnchangedClone(generate(null), requestInfo));
+    }
+
+    @Test
+    void aCloneOfACampaignTypeWithoutDeliveryConditionsGetsItsTemplateAsBefore() {
+        CampaignSearchResponse.CampaignDetail clone = clone(List.of("HOUSEHOLDSTRATEGY"), List.of("A"), null);
+        CampaignSearchResponse.CampaignDetail source = source(List.of("HOUSEHOLDSTRATEGY"), List.of("A"), "src-file");
+        clone.setProjectType("MR-DN");
+        source.setProjectType("MR-DN");
+        stub(clone, source);
+        assertNull(service.sourceFileForUnchangedClone(generate(null), requestInfo), "not POLIO: no source file");
+        byte[] generated = {1, 2, 3};
+        assertSame(generated, service.withSourceData(generate(null), requestInfo, generated), "not POLIO: generated template unchanged");
+        clone.setProjectType(" polio ");
+        source.setProjectType("POLIO");
+        assertEquals("src-file", service.sourceFileForUnchangedClone(generate(null), requestInfo), "POLIO, any case: the source's file");
     }
 
     @Test

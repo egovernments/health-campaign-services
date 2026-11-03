@@ -229,6 +229,7 @@ describe('cloneSourceFileToReattach (a clone whose Outside Household choice is b
 
 describe('dropCloneSourceDeliveryDates (a new clone does not keep its source\'s delivery dates)', () => {
     const clone = (): any => ({
+        projectType: 'POLIO',
         additionalDetails: {
             cloneFrom: 'CMP-SRC', clonedCampaignId: 'src-id',
             cycleData: {
@@ -239,8 +240,16 @@ describe('dropCloneSourceDeliveryDates (a new clone does not keep its source\'s 
         },
         deliveryRules: [{ code: 'POLIO', cycles: [{ id: 1, startDate: 1793298600000, endDate: 1793989799000, deliveries: [{ id: 1, doseCriteria: [{ condition: '0<=ageandage<=59' }] }] }] }],
     });
-    beforeEach(() => { (config as any).mapping = { clearCloneDeliveryDates: true }; });
+    beforeEach(() => { (config as any).mapping = { clearCloneDeliveryDates: true, deliveryConditionCampaignTypes: ['POLIO'] }; });
     afterAll(() => { delete (config as any).mapping; });
+
+    it('keeps the dates of a clone whose campaign type is not listed (POLIO only by default)', () => {
+        const c = { ...clone(), projectType: 'MR-DN' };
+        expect(dropCloneSourceDeliveryDates(c)).toBe(0);
+        expect(c.deliveryRules[0].cycles[0].startDate).toBe(1793298600000);
+        expect(dropCloneSourceDeliveryDates({ ...clone(), projectType: undefined })).toBe(0);
+        expect(dropCloneSourceDeliveryDates({ ...clone(), projectType: ' polio ' })).toBe(4);
+    });
 
     it('removes the cycle dates in cycleData and deliveryRules and keeps everything else', () => {
         const c = clone();
@@ -269,12 +278,17 @@ describe('dropCloneSourceDeliveryDates (a new clone does not keep its source\'s 
 describe('fileBeforeOutsideHouseholdChange (the new template keeps the data of the file uploaded before)', () => {
     const UNIFIED = 'unified-console-resources';
     const camp = (methods: string[], codes: string[], files: string[], hierarchyType = 'H'): any => ({
-        hierarchyType, boundaries: codes.map(code => ({ code })), resources: files.map(f => ({ type: UNIFIED, filestoreId: f })),
+        projectType: 'POLIO', hierarchyType, boundaries: codes.map(code => ({ code })), resources: files.map(f => ({ type: UNIFIED, filestoreId: f })),
         additionalDetails: { cycleData: { deliveryMethods: methods } },
     });
     const req = (existing: any, incoming: any) => ({ body: { ExistingCampaignDetails: existing, CampaignDetails: incoming } });
-    beforeEach(() => { (config as any).mapping = { keepDataOnOutsideHouseholdChange: true }; });
+    beforeEach(() => { (config as any).mapping = { keepDataOnOutsideHouseholdChange: true, deliveryConditionCampaignTypes: ['POLIO'] }; });
     afterAll(() => { delete (config as any).mapping; });
+
+    it('gives nothing for a campaign type that is not listed (POLIO only by default)', () => {
+        const other = (c: any) => ({ ...c, projectType: 'MR-DN' });
+        expect(fileBeforeOutsideHouseholdChange(req(other(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1'])), other(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']))))).toBeNull();
+    });
 
     it('gives the file of a campaign that drops or adds Outside Household on the same area', () => {
         expect(fileBeforeOutsideHouseholdChange(req(camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A', 'B'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['B', 'A'], ['F1'])))).toBe('F1');
