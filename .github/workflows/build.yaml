@@ -488,8 +488,6 @@ jobs:
   create-manifest:
     name: Create and Push Manifest
     needs: [resolve-config, build-matrix]
-    # Run whenever both images were built, also when the master-only scans were skipped (a branch build)
-    if: ${{ !cancelled() && needs.build-matrix.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Docker Login
