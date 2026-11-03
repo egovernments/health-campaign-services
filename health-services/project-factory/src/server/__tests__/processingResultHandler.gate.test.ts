@@ -12,7 +12,7 @@
  * by asserting that mock was called rather than expecting promise rejection.
  */
 
-import { handleProcessingResult } from '../utils/processingResultHandler';
+import { handleProcessingResult, processingFailure } from '../utils/processingResultHandler';
 import { logger } from '../utils/logger';
 import { additionalDetailKeys } from '../config/constants';
 
@@ -319,6 +319,30 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             'test-tenant',
             expect.any(Error)
         );
+    });
+
+    it('B7b: fails the campaign with excel-ingestion\'s own error code and message', async () => {
+        await handleProcessingResult({
+            tenantId: 'test-tenant',
+            referenceId: 'campaign-7b',
+            fileStoreId: 'file-7b',
+            status: 'failed',
+            additionalDetails: {
+                errorCode: 'IMMUTABLE_IDENTITY_MISMATCH',
+                errorMessage: 'The uploaded file does not match the template it was generated from. Please download a fresh template.',
+            },
+        });
+
+        const error: any = sendFailureMock.mock.calls.find(c => c[0] === 'campaign-7b')?.[2];
+        expect(error.code).toBe('IMMUTABLE_IDENTITY_MISMATCH');
+        expect(error.message).toBe('The uploaded file does not match the template it was generated from. Please download a fresh template.');
+        expect(error.description).toBe('Excel ingestion processing failed with status: failed');
+    });
+
+    it('B7c: without a code from excel-ingestion the campaign fails with PROCESSING_FAILED, not UNKNOWN_ERROR', () => {
+        const error = processingFailure({ referenceId: 'campaign-7c', status: 'failed', additionalDetails: {} });
+        expect(error.code).toBe('PROCESSING_FAILED');
+        expect(error.message).toBe('Excel ingestion processing failed with status: failed');
     });
 
     /**

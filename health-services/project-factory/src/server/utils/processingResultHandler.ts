@@ -98,6 +98,17 @@ export function resolveCreationRequestInfo(requestInfo: RequestInfo | undefined,
  * This handler receives the ProcessResource object after Excel processing is complete
  * @param messageObject - The ProcessResource object from excel-ingestion service
  */
+/** The error a campaign fails with when excel-ingestion could not process its file: excel-ingestion's code and message. */
+export function processingFailure(messageObject: any): any {
+    const details = messageObject?.additionalDetails || {};
+    const failure: any = new Error(details.errorMessage || `Excel ingestion processing failed with status: ${messageObject?.status}`);
+    failure.status = httpStatusCodes.badRequest;
+    failure.code = details.errorCode || errorCodes.processingFailed;
+    failure.description = `Excel ingestion processing failed with status: ${messageObject?.status}`;
+    logger.error(`Excel ingestion processing failed for ${messageObject?.referenceId}: ${failure.code} - ${failure.message}`);
+    return failure;
+}
+
 export async function handleProcessingResult(messageObject: any) {
     try {
         logger.info('=== HCM PROCESSING RESULT RECEIVED ===');
@@ -241,8 +252,9 @@ export async function handleProcessingResult(messageObject: any) {
         if (messageObject.status !== 'completed') {
             logger.warn('=== MESSAGE STATUS IS NOT COMPLETED - STOPPING PROCESSING ===');
             logger.warn(`Message Status: ${messageObject.status}, cannot proceed with campaign data processing`);
-            throwError(errorModules.common, httpStatusCodes.badRequest, errorCodes.processingFailed, `Excel ingestion processing failed with status: ${messageObject.status}. Error: ${messageObject.additionalDetails?.errorMessage || 'unknown'}`);
-            return;
+            // The campaign keeps excel-ingestion's own error code and message (e.g. IMMUTABLE_IDENTITY_MISMATCH, which the
+            // console shows localized); without a code it is PROCESSING_FAILED, never the unmapped UNKNOWN_ERROR
+            throw processingFailure(messageObject);
         }
 
         // Boundary, facility or sites validation failures hard-block the campaign; user-sheet failures do not.
