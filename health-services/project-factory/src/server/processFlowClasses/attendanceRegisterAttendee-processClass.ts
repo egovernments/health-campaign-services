@@ -29,6 +29,8 @@ const EXCEL_EPOCH_MS = Date.UTC(1899, 11, 30); // Excel epoch: Dec 30, 1899
 const MS_PER_DAY = 86_400_000;
 const EXCEL_SERIAL_THRESHOLD = 100_000_000; // Below = Excel serial, above = epoch ms
 const ISO_DATE_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}/; // Matches YYYY-MM-DD start
+const WORKER_ID_COLUMN = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
+const FALLBACK_INDIVIDUAL_SEARCH_PATH = "individual/v1/_search";
 
 /** Maps sheet name constant to a short slug used in uniqueIdentifier and _sheetName */
 function sheetTypeOf(sheetName: string): AttendeeSheetType {
@@ -105,6 +107,12 @@ export class TemplateClass {
         const rootTenantId = tenantId.split(".")[0];
         const usernameToIndividualId = await this.resolveIndividualIds(usernames, rootTenantId, requestInfo);
         this.mergeResolvedIndividualIdsFromCache(resourceDetails, usernameToIndividualId);
+        await this.resolveMissingIndividualIdsFromRowCandidates(
+            usernameToRows,
+            usernameToIndividualId,
+            tenantId,
+            requestInfo
+        );
         logger.info(`Resolved ${usernameToIndividualId.size}/${usernames.length} usernames via HRMS`);
 
         Array.from(usernameToRows.entries()).forEach(([username, rowEntries]) => {
@@ -751,6 +759,96 @@ export class TemplateClass {
             }
         }
         return result;
+    }
+
+    /**
+     * Some downloaded attendee sheets (notably marker rows) may carry Individual UUIDs
+     * in UserName when a profile username was unavailable during generation.
+     * Resolve those rows by validating candidate individualIds from sheet values.
+     */
+    private static async resolveMissingIndividualIdsFromRowCandidates(
+        usernameToRows: Map<string, Array<{ row: any; sheetName: string }>>,
+        usernameToIndividualId: Map<string, string>,
+        tenantId: string,
+        requestInfo: RequestInfo
+    ): Promise<void> {
+        const unresolved = Array.from(usernameToRows.entries()).filter(([username]) => !usernameToIndividualId.has(username));
+        if (!unresolved.length) return;
+
+        const usernameToCandidates = new Map<string, Set<string>>();
+        const candidateIds = new Set<string>();
+
+        for (const [username, rowEntries] of unresolved) {
+            const candidates = new Set<string>();
+            for (const { row } of rowEntries) {
+                const workerId = this.getCellAsString(row?.[WORKER_ID_COLUMN]);
+                if (workerId) candidates.add(workerId);
+            }
+            candidates.add(username);
+            usernameToCandidates.set(username, candidates);
+            for (const id of candidates) candidateIds.add(id);
+        }
+
+        const existingIds = await this.fetchExistingIndividualIds(Array.from(candidateIds), tenantId, requestInfo);
+        let fallbackResolvedCount = 0;
+        for (const [username, candidates] of usernameToCandidates.entries()) {
+            const existingCandidates = Array.from(candidates).filter((id) => existingIds.has(id));
+            if (existingCandidates.length !== 1) continue;
+            usernameToIndividualId.set(username, existingCandidates[0]);
+            fallbackResolvedCount++;
+        }
+
+        if (fallbackResolvedCount > 0) {
+            logger.info(`Resolved ${fallbackResolvedCount} username(s) via workerId/individualId fallback`);
+        }
+    }
+
+    private static async fetchExistingIndividualIds(
+        candidateIds: string[],
+        tenantId: string,
+        requestInfo: RequestInfo
+    ): Promise<Set<string>> {
+        const existing = new Set<string>();
+        if (!candidateIds.length) return existing;
+
+        const uniqueIds = Array.from(new Set(candidateIds.map((id) => this.getCellAsString(id)).filter(Boolean)));
+        if (!uniqueIds.length) return existing;
+
+        const rootTenantId = tenantId.split(".")[0];
+        const primaryUrl = config.host.healthIndividualHost + config.paths.healthIndividualSearch;
+        const fallbackUrl = config.host.healthIndividualHost + FALLBACK_INDIVIDUAL_SEARCH_PATH;
+        const useFallbackProbe = config.paths.healthIndividualSearch !== FALLBACK_INDIVIDUAL_SEARCH_PATH;
+        const batchSize = Math.max(1, config.user?.individualSearchBatchSize || 50);
+
+        for (let offset = 0; offset < uniqueIds.length; offset += batchSize) {
+            const batch = uniqueIds.slice(offset, offset + batchSize);
+            const payload = { RequestInfo: requestInfo || {}, Individual: { id: batch } };
+            const params = { tenantId: rootTenantId, limit: batch.length + 5, offset: 0 };
+
+            let individuals: any[] = [];
+            try {
+                const primary = await httpRequest(primaryUrl, payload, params, "post", "", undefined, false, false, true);
+                individuals = Array.isArray(primary?.Individual) ? primary.Individual : [];
+            } catch (error: any) {
+                logger.warn(`Primary individual lookup failed for attendee fallback resolution: ${error?.message}`);
+            }
+
+            if (individuals.length === 0 && useFallbackProbe) {
+                try {
+                    const fallback = await httpRequest(fallbackUrl, payload, params, "post", "", undefined, false, false, true);
+                    individuals = Array.isArray(fallback?.Individual) ? fallback.Individual : [];
+                } catch (error: any) {
+                    logger.warn(`Fallback individual lookup failed for attendee fallback resolution: ${error?.message}`);
+                }
+            }
+
+            for (const individual of individuals) {
+                const id = this.getCellAsString(individual?.id);
+                if (id) existing.add(id);
+            }
+        }
+
+        return existing;
     }
 
     /**
