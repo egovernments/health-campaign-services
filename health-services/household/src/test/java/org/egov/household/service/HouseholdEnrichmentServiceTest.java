@@ -1,6 +1,7 @@
 package org.egov.household.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.household.HouseHoldType;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.producer.Producer;
@@ -129,5 +130,35 @@ class HouseholdEnrichmentServiceTest {
         assertNull(households.get(0).getAddress());
         verify(idGenService, times(1))
                 .getIdList(any(RequestInfo.class), anyString(), anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("should default householdType to FAMILY when not provided")
+    void shouldDefaultHouseholdTypeToFamilyWhenNull() throws Exception {
+        Household withoutType = HouseholdTestBuilder.builder().withHousehold().build();
+        withoutType.setHouseholdType(null);
+        HouseholdBulkRequest householdBulkRequest = HouseholdBulkRequestTestBuilder.builder()
+                .withHouseholds(Arrays.asList(withoutType)).withRequestInfo()
+                .build();
+
+        List<Household> households = householdBulkRequest.getHouseholds();
+        householdService.create(households, householdBulkRequest);
+
+        assertEquals(HouseHoldType.FAMILY, households.get(0).getHouseholdType());
+    }
+
+    @Test
+    @DisplayName("should retain householdType when provided")
+    void shouldRetainHouseholdTypeWhenProvided() throws Exception {
+        Household withCommunityType = HouseholdTestBuilder.builder().withHousehold().build();
+        withCommunityType.setHouseholdType(HouseHoldType.COMMUNITY);
+        HouseholdBulkRequest householdBulkRequest = HouseholdBulkRequestTestBuilder.builder()
+                .withHouseholds(Arrays.asList(withCommunityType)).withRequestInfo()
+                .build();
+
+        List<Household> households = householdBulkRequest.getHouseholds();
+        householdService.create(households, householdBulkRequest);
+
+        assertEquals(HouseHoldType.COMMUNITY, households.get(0).getHouseholdType());
     }
 }
