@@ -10,10 +10,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @Import(TracerConfiguration.class)
 @EnableKafka
+@EnableScheduling
 public class EgovNotificationPushApplication {
 
     public static void main(String[] args) {

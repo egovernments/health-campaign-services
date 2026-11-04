@@ -70,7 +70,7 @@ class DeviceTokenRepositoryTest {
     }
 
     @Test
-    void fetchTokensByUserIds_dbException_returnsEmpty() {
+    void fetchTokensByUserIds_dbException_throws() {
         List<String> userIds = List.of("user-1");
 
         when(namedParameterJdbcTemplate.query(
@@ -79,9 +79,7 @@ class DeviceTokenRepositoryTest {
                 eq(rowMapper)))
                 .thenThrow(new RuntimeException("DB down"));
 
-        List<DeviceToken> result = repository.fetchTokensByUserIds(userIds, "ba");
-
-        assertTrue(result.isEmpty());
+        assertThrows(RuntimeException.class, () -> repository.fetchTokensByUserIds(userIds, "ba"));
     }
 
     @Test
@@ -117,15 +115,13 @@ class DeviceTokenRepositoryTest {
     }
 
     @Test
-    void fetchTokensByFacilityId_dbException_returnsEmpty() {
+    void fetchTokensByFacilityId_dbException_throws() {
         when(namedParameterJdbcTemplate.query(
                 anyString(),
                 any(Map.class),
                 eq(rowMapper)))
                 .thenThrow(new RuntimeException("Connection refused"));
 
-        List<DeviceToken> result = repository.fetchTokensByFacilityId("fac-err", "ba");
-
-        assertTrue(result.isEmpty());
+        assertThrows(RuntimeException.class, () -> repository.fetchTokensByFacilityId("fac-err", "ba"));
     }
 }

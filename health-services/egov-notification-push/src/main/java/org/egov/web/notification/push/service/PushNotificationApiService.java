@@ -22,13 +22,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PushNotificationApiService {
 
+	static final String API_EVENT_PREFIX = "api-";
+
 	@Autowired
 	private DeviceTokenService deviceTokenService;
 
 	@Autowired
 	private PushNotificationService pushNotificationService;
 
-	public int sendNotification(PushNotificationApiRequest request) {
+	public SendResult sendNotification(PushNotificationApiRequest request) {
 		validateRequest(request);
 
 		Set<String> tokenSet = new LinkedHashSet<>();
@@ -49,7 +51,7 @@ public class PushNotificationApiService {
 
 		if (tokenSet.isEmpty()) {
 			log.warn("No device tokens resolved for push notification request");
-			return 0;
+			return SendResult.EMPTY;
 		}
 
 		List<String> allTokens = new ArrayList<>(tokenSet);
@@ -60,12 +62,14 @@ public class PushNotificationApiService {
 				.data(request.getData())
 				.deviceTokens(allTokens)
 				.tenantId(request.getTenantId())
+				.eventId(StringUtils.hasText(request.getEventId()) ? API_EVENT_PREFIX + request.getEventId() : null)
+				.type(request.getType())
 				.build();
 
-		pushNotificationService.sendPushNotification(pushRequest);
-		log.info("Push notification sent to {} devices", allTokens.size());
-
-		return allTokens.size();
+		SendResult result = pushNotificationService.sendPushNotification(pushRequest);
+		log.info("Push notification attempted={} sent={} failedPermanent={} queuedForRetry={}",
+				result.attempted(), result.sent(), result.failedPermanent(), result.queuedForRetry());
+		return result;
 	}
 
 	private void validateRequest(PushNotificationApiRequest request) {

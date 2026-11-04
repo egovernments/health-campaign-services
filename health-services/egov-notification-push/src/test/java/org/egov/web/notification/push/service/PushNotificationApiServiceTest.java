@@ -2,6 +2,7 @@ package org.egov.web.notification.push.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,6 +16,7 @@ import org.egov.tracer.model.CustomException;
 import org.egov.web.notification.push.consumer.contract.PushNotificationRequest;
 import org.egov.web.notification.push.web.contract.DeviceToken;
 import org.egov.web.notification.push.web.contract.PushNotificationApiRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,6 +36,14 @@ class PushNotificationApiServiceTest {
     @Mock
     private PushNotificationService pushNotificationService;
 
+    @BeforeEach
+    void setUp() {
+        lenient().when(pushNotificationService.sendPushNotification(any())).thenAnswer(inv -> {
+            int n = inv.<PushNotificationRequest>getArgument(0).getDeviceTokens().size();
+            return new SendResult(n, n, 0, 0);
+        });
+    }
+
     @Test
     void sendNotification_withUserUuids_resolvesTokensAndSends() {
         List<String> userUuids = Arrays.asList("uuid-1", "uuid-2");
@@ -51,7 +61,7 @@ class PushNotificationApiServiceTest {
                 .tenantId("tenant1")
                 .build();
 
-        int count = apiService.sendNotification(request);
+        int count = apiService.sendNotification(request).attempted();
 
         assertEquals(2, count);
         ArgumentCaptor<PushNotificationRequest> captor = ArgumentCaptor.forClass(PushNotificationRequest.class);
@@ -73,7 +83,7 @@ class PushNotificationApiServiceTest {
                 .tenantId("tenant1")
                 .build();
 
-        int count = apiService.sendNotification(request);
+        int count = apiService.sendNotification(request).attempted();
 
         assertEquals(1, count);
         verify(deviceTokenService, never()).getActiveTokensForUsers(any(), any());
@@ -95,7 +105,7 @@ class PushNotificationApiServiceTest {
                 .tenantId("tenant1")
                 .build();
 
-        int count = apiService.sendNotification(request);
+        int count = apiService.sendNotification(request).attempted();
 
         // "shared-token" appears in both resolved and direct, should be deduplicated
         assertEquals(2, count); // shared-token + extra-token
@@ -113,7 +123,7 @@ class PushNotificationApiServiceTest {
                 .tenantId("tenant1")
                 .build();
 
-        int count = apiService.sendNotification(request);
+        int count = apiService.sendNotification(request).attempted();
 
         assertEquals(0, count);
         verify(pushNotificationService, never()).sendPushNotification(any());
@@ -177,5 +187,18 @@ class PushNotificationApiServiceTest {
         assertEquals("REFERRAL", sentData.get("notificationType"));
         assertEquals("HF_REFERRAL_PUSH_NOTIFICATION", sentData.get("eventType"));
         assertEquals("REFERRAL_SCREEN", sentData.get("screen"));
+    }
+
+    @Test
+    void sendNotification_callerEventIdIsNamespacedAwayFromKafkaEvents() {
+        PushNotificationApiRequest request = PushNotificationApiRequest.builder()
+                .title("T").body("B").tenantId("ng").eventId("stock-123")
+                .deviceTokens(List.of("tok")).build();
+
+        apiService.sendNotification(request);
+
+        ArgumentCaptor<PushNotificationRequest> captor = ArgumentCaptor.forClass(PushNotificationRequest.class);
+        verify(pushNotificationService).sendPushNotification(captor.capture());
+        assertEquals("api-stock-123", captor.getValue().getEventId());
     }
 }

@@ -1,6 +1,7 @@
 package org.egov.web.notification.push.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,7 @@ class ConsolePushServiceTest {
                 .deviceTokens(List.of("token1", "token2"))
                 .build();
 
-        assertDoesNotThrow(() -> consolePushService.sendPushNotification(request));
+        assertEquals(new SendResult(2, 2, 0, 0), consolePushService.sendPushNotification(request));
     }
 
     @Test

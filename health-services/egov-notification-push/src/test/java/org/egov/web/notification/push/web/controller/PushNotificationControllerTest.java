@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.egov.web.notification.push.service.PushNotificationApiService;
+import org.egov.web.notification.push.service.SendResult;
 import org.egov.web.notification.push.utils.ResponseInfoFactory;
 import org.egov.web.notification.push.web.contract.PushNotificationApiRequest;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ class PushNotificationControllerTest {
     @Test
     void sendPushNotification_validRequest_returns200() throws Exception {
         when(pushNotificationApiService.sendNotification(any(PushNotificationApiRequest.class)))
-                .thenReturn(3);
+                .thenReturn(new SendResult(3, 3, 0, 0));
 
         String requestBody = """
                 {
@@ -62,13 +63,14 @@ class PushNotificationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Push notification sent to 3 devices"));
+                .andExpect(jsonPath("$.message").value("Push notification sent to 3 of 3 devices"))
+                .andExpect(jsonPath("$.sent").value(3));
     }
 
     @Test
     void sendPushNotification_withUserUuids_returns200() throws Exception {
         when(pushNotificationApiService.sendNotification(any(PushNotificationApiRequest.class)))
-                .thenReturn(2);
+                .thenReturn(new SendResult(2, 1, 0, 1));
 
         String requestBody = """
                 {
@@ -90,6 +92,7 @@ class PushNotificationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Push notification sent to 2 devices"));
+                .andExpect(jsonPath("$.message").value("Push notification sent to 1 of 2 devices"))
+                .andExpect(jsonPath("$.queuedForRetry").value(1));
     }
 }

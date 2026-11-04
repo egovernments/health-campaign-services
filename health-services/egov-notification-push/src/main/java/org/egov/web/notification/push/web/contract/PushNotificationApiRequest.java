@@ -41,4 +41,8 @@ public class PushNotificationApiRequest {
 	@NotNull
 	private String tenantId;
 
+	private String eventId;
+
+	private String type;
+
 }

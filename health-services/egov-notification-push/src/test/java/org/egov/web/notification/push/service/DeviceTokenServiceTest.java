@@ -3,6 +3,7 @@ package org.egov.web.notification.push.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,8 +17,10 @@ import org.egov.web.notification.push.config.PushProperties;
 import org.egov.web.notification.push.producer.DeviceTokenProducer;
 import org.egov.web.notification.push.repository.DeviceTokenRepository;
 import org.egov.web.notification.push.web.contract.DeviceToken;
+import org.egov.web.notification.push.web.contract.DeviceTokenRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -60,7 +63,7 @@ class DeviceTokenServiceTest {
         assertEquals("user-uuid-1", result.get(0).getUserId());
         assertNotNull(result.get(0).getAuditDetails());
         assertEquals("user-uuid-1", result.get(0).getAuditDetails().getCreatedBy());
-        verify(producer).push(eq("tenant1"), eq("save-topic"), any());
+        verify(producer).push(eq("tenant1"), eq("save-topic"), any(), any());
     }
 
     @Test
@@ -108,18 +111,40 @@ class DeviceTokenServiceTest {
     }
 
     @Test
-    void deleteDeviceTokens_validRequest_publishes() {
+    void deleteDeviceTokens_withFacilityIds_publishesPerFacilityDeleteWithTimestamp() {
         when(properties.getDeleteDeviceTokenTopic()).thenReturn("delete-topic");
+
+        DeviceToken token = DeviceToken.builder()
+                .deviceToken("tok-to-delete")
+                .userId("user-1")
+                .facilityIds(List.of("F1", "F2"))
+                .build();
+
+        RequestInfo requestInfo = createRequestInfo("user-1");
+        deviceTokenService.deleteDeviceTokens(requestInfo, List.of(token));
+
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(producer).push(any(), eq("delete-topic"), eq("tok-to-delete"), captor.capture());
+        List<DeviceToken> rows = ((DeviceTokenRequest) captor.getValue()).getDeviceTokens();
+        assertEquals(List.of("F1", "F2"), rows.stream().map(DeviceToken::getFacilityId).toList());
+        assertNotNull(rows.get(0).getAuditDetails().getLastModifiedTime());
+        verify(producer, never()).push(any(), eq("unregister-topic"), any(), any());
+    }
+
+    @Test
+    void deleteDeviceTokens_withoutFacilityIds_softDeletesAllFacilitiesViaUnregister() {
+        when(properties.getUnregisterDeviceTokenTopic()).thenReturn("unregister-topic");
 
         DeviceToken token = DeviceToken.builder()
                 .deviceToken("tok-to-delete")
                 .userId("user-1")
                 .build();
 
-        RequestInfo requestInfo = createRequestInfo("user-1");
-        deviceTokenService.deleteDeviceTokens(requestInfo, List.of(token));
+        deviceTokenService.deleteDeviceTokens(createRequestInfo("user-1"), List.of(token));
 
-        verify(producer).push(any(), eq("delete-topic"), any());
+        verify(producer).push(any(), eq("unregister-topic"), eq("tok-to-delete"), any());
+        verify(producer, never()).push(any(), eq("delete-topic"), any(), any());
+        assertNotNull(token.getAuditDetails().getLastModifiedTime());
     }
 
     @Test
@@ -136,7 +161,7 @@ class DeviceTokenServiceTest {
 
     @Test
     void deleteDeviceTokens_noUserId_setsFromRequestInfo() {
-        when(properties.getDeleteDeviceTokenTopic()).thenReturn("delete-topic");
+        when(properties.getUnregisterDeviceTokenTopic()).thenReturn("unregister-topic");
 
         DeviceToken token = DeviceToken.builder()
                 .deviceToken("tok")
@@ -188,7 +213,7 @@ class DeviceTokenServiceTest {
         RequestInfo requestInfo = createRequestInfo("user-1");
         deviceTokenService.unregisterDeviceTokens(requestInfo, List.of(token));
 
-        verify(producer).push(eq("t1"), eq("unregister-topic"), any());
+        verify(producer).push(eq("t1"), eq("unregister-topic"), any(), any());
     }
 
     @Test

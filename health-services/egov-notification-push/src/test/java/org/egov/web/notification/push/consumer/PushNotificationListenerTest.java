@@ -13,6 +13,7 @@ import java.util.Map;
 
 import org.egov.web.notification.push.consumer.contract.PushNotificationRequest;
 import org.egov.web.notification.push.service.DeviceTokenService;
+import org.egov.web.notification.push.service.PushMetrics;
 import org.egov.web.notification.push.service.PushNotificationService;
 import org.egov.web.notification.push.web.contract.DeviceToken;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 class PushNotificationListenerTest {
 
+    private static final String TOPIC = "ba-egov.core.notification.push";
+
     @InjectMocks
     private PushNotificationListener listener;
 
@@ -39,6 +42,9 @@ class PushNotificationListenerTest {
 
     @Mock
     private DeviceTokenService deviceTokenService;
+
+    @Mock
+    private PushMetrics metrics;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper()
@@ -52,7 +58,7 @@ class PushNotificationListenerTest {
         record.put("tenantId", "tenant1");
         record.put("deviceTokens", Arrays.asList("token1", "token2"));
 
-        listener.processPushNotification(record);
+        listener.processPushNotification(record, TOPIC, 2, 7L);
 
         verify(pushNotificationService).sendPushNotification(any(PushNotificationRequest.class));
         verify(deviceTokenService, never()).getTokensByFacilityId(any(), any());
@@ -76,7 +82,7 @@ class PushNotificationListenerTest {
         );
         when(deviceTokenService.getTokensByFacilityId("facility-123", "tenant1")).thenReturn(tokens);
 
-        listener.processPushNotification(record);
+        listener.processPushNotification(record, TOPIC, 2, 7L);
 
         verify(deviceTokenService).getTokensByFacilityId("facility-123", "tenant1");
         ArgumentCaptor<PushNotificationRequest> captor = ArgumentCaptor.forClass(PushNotificationRequest.class);
@@ -98,7 +104,7 @@ class PushNotificationListenerTest {
         when(deviceTokenService.getTokensByFacilityId("facility-empty", null))
                 .thenReturn(Collections.emptyList());
 
-        listener.processPushNotification(record);
+        listener.processPushNotification(record, TOPIC, 2, 7L);
 
         verify(deviceTokenService).getTokensByFacilityId("facility-empty", null);
         verify(pushNotificationService, never()).sendPushNotification(any());
@@ -111,14 +117,14 @@ class PushNotificationListenerTest {
         record.put("body", "Body");
         record.put("tenantId", "tenant1");
 
-        listener.processPushNotification(record);
+        listener.processPushNotification(record, TOPIC, 2, 7L);
 
         verify(pushNotificationService).sendPushNotification(any(PushNotificationRequest.class));
         verify(deviceTokenService, never()).getTokensByFacilityId(any(), any());
     }
 
     @Test
-    void processPushNotification_exceptionDuringProcessing_doesNotThrow() {
+    void processPushNotification_exceptionDuringProcessing_propagates() {
         HashMap<String, Object> record = new HashMap<>();
         record.put("title", "Test");
         record.put("body", "Body");
@@ -127,7 +133,7 @@ class PushNotificationListenerTest {
         when(deviceTokenService.getTokensByFacilityId("facility-err", null))
                 .thenThrow(new RuntimeException("DB error"));
 
-        assertDoesNotThrow(() -> listener.processPushNotification(record));
+        assertThrows(RuntimeException.class, () -> listener.processPushNotification(record, TOPIC, 2, 7L));
     }
 
     @Test
@@ -142,7 +148,7 @@ class PushNotificationListenerTest {
         data.put("screen", "REFERRAL_SCREEN");
         record.put("data", data);
 
-        listener.processPushNotification(record);
+        listener.processPushNotification(record, TOPIC, 2, 7L);
 
         ArgumentCaptor<PushNotificationRequest> captor = ArgumentCaptor.forClass(PushNotificationRequest.class);
         verify(pushNotificationService).sendPushNotification(captor.capture());
@@ -151,5 +157,65 @@ class PushNotificationListenerTest {
         assertEquals("REFERRAL", sentData.get("notificationType"));
         assertEquals("HF_REFERRAL_PUSH_NOTIFICATION", sentData.get("eventType"));
         assertEquals("REFERRAL_SCREEN", sentData.get("screen"));
+    }
+
+    @Test
+    void processPushNotification_withUserIds_resolvesTokensByUserBeforeFacility() {
+        HashMap<String, Object> record = new HashMap<>();
+        record.put("title", "T");
+        record.put("tenantId", "ng.kano");
+        record.put("userIds", Arrays.asList("u1", "u2"));
+        record.put("facilityId", "F1");
+        when(deviceTokenService.getActiveTokensForUsers(Arrays.asList("u1", "u2"), "ng.kano")).thenReturn(Arrays.asList(
+                DeviceToken.builder().deviceToken("t1").build(),
+                DeviceToken.builder().deviceToken("t1").build(),
+                DeviceToken.builder().deviceToken("t2").build()));
+
+        listener.processPushNotification(record, TOPIC, 2, 7L);
+
+        ArgumentCaptor<PushNotificationRequest> captor = ArgumentCaptor.forClass(PushNotificationRequest.class);
+        verify(pushNotificationService).sendPushNotification(captor.capture());
+        assertEquals(Arrays.asList("t1", "t2"), captor.getValue().getDeviceTokens());
+        verify(deviceTokenService, never()).getTokensByFacilityId(any(), any());
+    }
+
+    @Test
+    void processPushNotification_withUserIds_noTokens_skips() {
+        HashMap<String, Object> record = new HashMap<>();
+        record.put("title", "T");
+        record.put("tenantId", "ng");
+        record.put("userIds", Arrays.asList("u1"));
+        when(deviceTokenService.getActiveTokensForUsers(Arrays.asList("u1"), "ng")).thenReturn(Collections.emptyList());
+
+        listener.processPushNotification(record, TOPIC, 2, 7L);
+
+        verify(pushNotificationService, never()).sendPushNotification(any());
+    }
+
+    @Test
+    void processPushNotification_missingEventId_usesRecordCoordinates() {
+        HashMap<String, Object> record = new HashMap<>();
+        record.put("tenantId", "ba");
+        record.put("deviceTokens", Arrays.asList("token1"));
+
+        listener.processPushNotification(record, TOPIC, 2, 7L);
+
+        ArgumentCaptor<PushNotificationRequest> captor = ArgumentCaptor.forClass(PushNotificationRequest.class);
+        verify(pushNotificationService).sendPushNotification(captor.capture());
+        assertEquals(TOPIC + "-2-7", captor.getValue().getEventId());
+    }
+
+    @Test
+    void processPushNotification_givenEventId_isKept() {
+        HashMap<String, Object> record = new HashMap<>();
+        record.put("tenantId", "ba");
+        record.put("eventId", "stock-1");
+        record.put("deviceTokens", Arrays.asList("token1"));
+
+        listener.processPushNotification(record, TOPIC, 2, 7L);
+
+        ArgumentCaptor<PushNotificationRequest> captor = ArgumentCaptor.forClass(PushNotificationRequest.class);
+        verify(pushNotificationService).sendPushNotification(captor.capture());
+        assertEquals("stock-1", captor.getValue().getEventId());
     }
 }

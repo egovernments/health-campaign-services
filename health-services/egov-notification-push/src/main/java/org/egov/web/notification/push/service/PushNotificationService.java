@@ -4,6 +4,10 @@ import org.egov.web.notification.push.consumer.contract.PushNotificationRequest;
 
 public interface PushNotificationService {
 
-    void sendPushNotification(PushNotificationRequest request);
+    SendResult sendPushNotification(PushNotificationRequest request, int attempt);
+
+    default SendResult sendPushNotification(PushNotificationRequest request) {
+        return sendPushNotification(request, 0);
+    }
 
 }
