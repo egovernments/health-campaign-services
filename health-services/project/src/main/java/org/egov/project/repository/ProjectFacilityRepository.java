@@ -136,7 +136,8 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                                                           String tenantId,
                                                           Long lastChangedSince,
                                                           Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
-        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING);
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING, paramsMap);
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE");
@@ -147,8 +148,6 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
         if (lastChangedSince != null) {
             query += "AND lastModifiedTime>=:lastModifiedTime ";
         }
-
-        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
 
         ProjectFacilitySearch search = (ProjectFacilitySearch) searchObject;
         boolean callerAskedForSpecificFacility = !CollectionUtils.isEmpty(search.getFacilityId())
