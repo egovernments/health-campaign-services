@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_individual_identifier_individual_client_ref_id_is_deleted ON INDIVIDUAL_IDENTIFIER (individualClientReferenceId, isDeleted);
