@@ -135,4 +135,28 @@ describe("attendanceRegisterUserBulkMapping utils", () => {
             true
         );
     });
+
+    it("does not cache unresolved worker ids as resolved individual ids", () => {
+        const wholeSheetData = {
+            HCM_REGISTER_WORKER_SHEET: [
+                {
+                    "!row#number!": 3,
+                    [bulkAttendanceColumnKeys.registerCode]: "REG-1",
+                    [bulkAttendanceColumnKeys.workerId]: "BA-DC-UNKNOWN-1",
+                    [bulkAttendanceColumnKeys.userName]: "Worker Name",
+                },
+            ],
+            HCM_REGISTER_MARKER_SHEET: [],
+            HCM_REGISTER_APPROVER_SHEET: [],
+        };
+
+        const allRowsBySheetName = getBulkRowsBySheetName(wholeSheetData, {});
+        const profiles = new Map();
+        const { resolvedIndividualIds } = normalizeBulkRowsForAttendeeFlow(
+            allRowsBySheetName,
+            profiles
+        );
+
+        expect(resolvedIndividualIds).toEqual({});
+    });
 });

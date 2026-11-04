@@ -211,7 +211,10 @@ export function normalizeBulkRowsForAttendeeFlow(
                 row[bulkAttendanceColumnKeys.workerId] = workerId;
                 row[attendanceColumnKeys.USERNAME] = username;
                 row[bulkAttendanceColumnKeys.userName] = displayName;
-                if (username) {
+                // Cache only verified individual ids (i.e. ids that resolved to a profile).
+                // Unverified workerIds can be non-individual identifiers and must not bypass
+                // downstream lookup validation.
+                if (username && profile) {
                     resolvedIndividualIds[username] = workerId;
                 }
             }
