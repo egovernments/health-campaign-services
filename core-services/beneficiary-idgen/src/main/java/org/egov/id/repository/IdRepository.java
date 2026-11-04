@@ -1,9 +1,11 @@
 package org.egov.id.repository;
 
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdStatus;
 import org.egov.common.models.idgen.IdTransactionLog;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.id.config.PropertiesManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 /**
  * IdRepository handles interactions with the PostgreSQL database
@@ -30,6 +34,7 @@ public class IdRepository {
     private final IdRecordRowMapper idRecordRowMapper;
     private final IdTransactionLogRowMapper idTransactionLogRowMapper;
     private final PropertiesManager propertiesManager;
+    private final MultiStateInstanceUtil multiStateInstanceUtil;
 
     /**
      * Constructs a new IdRepository instance with required dependencies for database operations.
@@ -39,12 +44,13 @@ public class IdRepository {
      * @param idRecordRowMapper Custom row mapper for converting database rows to IdRecord objects
      * @param idTransactionLogRowMapper Custom row mapper for converting database rows to IdTransactionLog objects
      */
-    public IdRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, IdRecordRowMapper idRecordRowMapper, IdTransactionLogRowMapper idTransactionLogRowMapper, PropertiesManager propertiesManager) {
+    public IdRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, IdRecordRowMapper idRecordRowMapper, IdTransactionLogRowMapper idTransactionLogRowMapper, PropertiesManager propertiesManager, MultiStateInstanceUtil multiStateInstanceUtil) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.idRecordRowMapper = idRecordRowMapper;
         this.idTransactionLogRowMapper = idTransactionLogRowMapper;
         this.propertiesManager = propertiesManager;
+        this.multiStateInstanceUtil = multiStateInstanceUtil;
     }
 
     /**
@@ -56,7 +62,7 @@ public class IdRepository {
      * @param count The number of unassigned IDs to fetch.
      * @return A list of {@link IdRecord} objects representing the fetched and updated IDs.
      */
-    public List<IdRecord> fetchUnassigned(String tenantId, String userUuid, int count) {
+    public List<IdRecord> fetchUnassigned(String tenantId, String userUuid, int count) throws InvalidTenantIdException {
         /**
          * This SQL query performs an atomic update operation to fetch and mark unassigned IDs as dispatched:
          * 1. Uses FOR UPDATE SKIP LOCKED to prevent concurrent access to the same rows
@@ -65,11 +71,16 @@ public class IdRepository {
          * 4. RETURNING clause fetches the complete updated records
          * This approach ensures thread-safe ID allocation without deadlocks
          */
-        String query =
-                "UPDATE id_pool p SET status = :updatedStatus, rowVersion = rowVersion + 1, " +
+        /* ANY(ARRAY(...)) forces the locking subquery into an InitPlan evaluated exactly once;
+           a plain IN-subselect with FOR UPDATE SKIP LOCKED may be re-executed as rows lock,
+           cascading past the LIMIT, while staying as fast as the original plan */
+        String query = String.format(
+                "UPDATE %s.id_pool p SET status = :updatedStatus, rowVersion = rowVersion + 1, " +
                         "lastModifiedBy = :lastModifiedBy, lastModifiedTime = :lastModifiedTime " +
-                        "WHERE p.id IN (SELECT id FROM id_pool WHERE status = :status AND tenantId = :tenantId " +
-                        "ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED) AND p.status = :status RETURNING p.*";
+                        "WHERE p.id = ANY(ARRAY(SELECT id FROM %s.id_pool WHERE tenantId = :tenantId AND status = :status " +
+                        "ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED)) AND p.status = :status RETURNING p.*",
+                SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("tenantId", tenantId)
@@ -84,7 +95,7 @@ public class IdRepository {
 
     public Tuple<String, Map<String, Object>> getIDsUserDeviceQuery(String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, boolean restrictToday, Integer limit, Integer offset, boolean isCountQuery) {
         StringBuilder queryBuilder = new StringBuilder(isCountQuery ? "SELECT count(*) " : "SELECT * ");
-        queryBuilder.append("FROM id_transaction_log");
+        queryBuilder.append(String.format("FROM %s.id_transaction_log", SCHEMA_REPLACE_STRING));
         Map<String, Object> paramMap = new HashMap<>();
         List<String> conditions = new ArrayList<>();
         // Add optional filters based on device, user, tenant
@@ -137,10 +148,11 @@ public class IdRepository {
      * Filters only for today’s records and orders by recent creation time.
      */
     public Tuple<List<IdTransactionLog>, Long> selectIDsForUserDevice(
-            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, Integer limit, Integer offset, boolean restrictToday) {
+            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, Integer limit, Integer offset, boolean restrictToday) throws InvalidTenantIdException {
 
         Tuple<String, Map<String, Object>> queryAndParams = getIDsUserDeviceQuery(tenantId, deviceUuid, userUuid, idStatus, restrictToday, limit, offset, false);
-        List<IdTransactionLog> idTransactionLogs = namedParameterJdbcTemplate.query(queryAndParams.getX(), queryAndParams.getY(), this.idTransactionLogRowMapper);
+        String query = multiStateInstanceUtil.replaceSchemaPlaceholder(queryAndParams.getX(), tenantId);
+        List<IdTransactionLog> idTransactionLogs = namedParameterJdbcTemplate.query(query, queryAndParams.getY(), this.idTransactionLogRowMapper);
 
         long totalCount = selectIDsForUserDeviceCount(tenantId, deviceUuid, userUuid, idStatus, limit, offset, restrictToday);
 
@@ -148,22 +160,23 @@ public class IdRepository {
     }
 
     public long selectIDsForUserDeviceCount(
-            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, Integer limit, Integer offset, boolean restrictToday) {
+            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, Integer limit, Integer offset, boolean restrictToday) throws InvalidTenantIdException {
 
         Tuple<String, Map<String, Object>> queryAndParams = getIDsUserDeviceQuery(tenantId, deviceUuid, userUuid, idStatus, restrictToday, limit, offset, true);
+        String query = multiStateInstanceUtil.replaceSchemaPlaceholder(queryAndParams.getX(), tenantId);
 
-        return namedParameterJdbcTemplate.queryForObject(queryAndParams.getX(), queryAndParams.getY(), Long.class);
+        return namedParameterJdbcTemplate.queryForObject(query, queryAndParams.getY(), Long.class);
     }
 
     /**
      * Fetches ID records for a specific set of IDs filtered by status and tenant.
      */
-    public List<IdRecord> findByIDsAndStatus(List<String> ids, IdStatus idStatus, String tenantId) {
+    public List<IdRecord> findByIDsAndStatus(List<String> ids, IdStatus idStatus, String tenantId) throws InvalidTenantIdException {
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("tenantId", tenantId);
         paramMap.put("ids", ids);
 
-        String query = "SELECT * FROM id_pool WHERE tenantId = :tenantId ";
+        String query = String.format("SELECT * FROM %s.id_pool WHERE tenantId = :tenantId ", SCHEMA_REPLACE_STRING);
 
         // Optionally filter by status if provided
         if (!ObjectUtils.isEmpty(idStatus)) {
@@ -173,6 +186,7 @@ public class IdRepository {
 
         // Match only IDs in the provided list
         query += "AND id IN (:ids) ORDER BY createdTime ASC";
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
         return namedParameterJdbcTemplate.query(query, paramMap, this.idRecordRowMapper);
     }
