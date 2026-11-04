@@ -13,6 +13,7 @@ import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { decrypt } from "../utils/cryptUtils";
 
 const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
 const MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
@@ -106,6 +107,12 @@ export class TemplateClass {
         const usernames = Array.from(usernameToRows.keys());
         const rootTenantId = tenantId.split(".")[0];
         const usernameToIndividualId = await this.resolveIndividualIds(usernames, rootTenantId, requestInfo);
+        await this.resolveIndividualIdsFromCampaignUsers(
+            usernameToRows,
+            usernameToIndividualId,
+            campaignNumber,
+            tenantId
+        );
         this.mergeResolvedIndividualIdsFromCache(resourceDetails, usernameToIndividualId);
         await this.resolveMissingIndividualIdsFromRowCandidates(
             usernameToRows,
@@ -759,6 +766,63 @@ export class TemplateClass {
             }
         }
         return result;
+    }
+
+    private static decryptSafe(value: string): string {
+        const raw = this.getCellAsString(value);
+        if (!raw) return "";
+        try {
+            return this.getCellAsString(decrypt(raw));
+        } catch {
+            return raw;
+        }
+    }
+
+    private static async resolveIndividualIdsFromCampaignUsers(
+        usernameToRows: Map<string, Array<{ row: any; sheetName: string }>>,
+        usernameToIndividualId: Map<string, string>,
+        campaignNumber: string,
+        tenantId: string
+    ): Promise<void> {
+        if (!campaignNumber) return;
+        const userRows = await getRelatedDataWithCampaign("user", campaignNumber, tenantId, dataRowStatuses.completed) as CampaignDataRow[];
+        if (!Array.isArray(userRows) || userRows.length === 0) return;
+
+        const byWorkerId = new Map<string, string>();
+        const byUserName = new Map<string, string>();
+
+        for (const userRow of userRows) {
+            if (userRow?.isDeleted) continue;
+            const uuid = this.getCellAsString(userRow?.uniqueIdAfterProcess);
+            if (!uuid) continue;
+            const data = (userRow?.data || {}) as Record<string, unknown>;
+            const workerId = this.getCellAsString(data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"]);
+            if (workerId && !byWorkerId.has(workerId)) byWorkerId.set(workerId, uuid);
+            const userName = this.decryptSafe(this.getCellAsString(data["UserName"]));
+            if (userName && !byUserName.has(userName)) byUserName.set(userName, uuid);
+        }
+
+        let resolvedFromCampaignUserRows = 0;
+        for (const [username, rowEntries] of usernameToRows.entries()) {
+            if (usernameToIndividualId.has(username)) continue;
+            let resolved = byUserName.get(username);
+            if (!resolved) {
+                for (const { row } of rowEntries) {
+                    const workerId = this.getCellAsString(row?.[WORKER_ID_COLUMN]);
+                    if (workerId && byWorkerId.has(workerId)) {
+                        resolved = byWorkerId.get(workerId);
+                        break;
+                    }
+                }
+            }
+            if (!resolved) continue;
+            usernameToIndividualId.set(username, resolved);
+            resolvedFromCampaignUserRows++;
+        }
+
+        if (resolvedFromCampaignUserRows > 0) {
+            logger.info(`Resolved ${resolvedFromCampaignUserRows} username(s) via campaign user data`);
+        }
     }
 
     /**

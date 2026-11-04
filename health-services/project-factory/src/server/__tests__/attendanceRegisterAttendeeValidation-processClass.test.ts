@@ -50,9 +50,15 @@ jest.mock('../service/campaignManageService', () => ({
     searchProjectTypeCampaignService: jest.fn(),
 }));
 
+jest.mock('../utils/cryptUtils', () => ({
+    decrypt: jest.fn((v: string) => v),
+    encrypt: jest.fn((v: string) => v),
+}));
+
 import { TemplateClass } from "../processFlowClasses/attendanceRegisterAttendeeValidation-processClass";
 import { httpRequest } from "../utils/request";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { getRelatedDataWithCampaign } from "../utils/genericUtils";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -112,6 +118,37 @@ describe("attendee validation user fallback resolution", () => {
         );
 
         expect(usernameToIndividualId.get("ind-marker-1")).toBe("ind-marker-1");
+    });
+
+    test("resolves unresolved UserName via campaign user workerId map", async () => {
+        (getRelatedDataWithCampaign as jest.Mock).mockResolvedValue([
+            {
+                uniqueIdAfterProcess: "uuid-1",
+                data: {
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "BA-DC-0821-2026-10-177593",
+                    UserName: "Abuja-Dem-Dis-11",
+                },
+            },
+        ]);
+        const rows = [
+            {
+                row: {
+                    UserName: "Abuja-Dem-Dis-11",
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "BA-DC-0821-2026-10-177593",
+                },
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
+            },
+        ];
+        const usernameToIndividualId = new Map<string, string>();
+
+        await (TemplateClass as any).resolveIndividualIdsFromCampaignUsers(
+            rows,
+            usernameToIndividualId,
+            "CMP-1",
+            "bednet"
+        );
+
+        expect(usernameToIndividualId.get("Abuja-Dem-Dis-11")).toBe("uuid-1");
     });
 });
 

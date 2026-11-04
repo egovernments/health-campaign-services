@@ -9,10 +9,13 @@ import {
     attendanceStaffTypes,
     attendanceErrorKeys,
     attendanceCacheKeys,
+    dataRowStatuses,
 } from "../config/constants";
 import { httpRequest, defaultheader } from "../utils/request";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import config from "../config";
+import { getRelatedDataWithCampaign } from "../utils/genericUtils";
+import { decrypt } from "../utils/cryptUtils";
 
 const WORKER_SHEET = attendanceSheetNames.WORKER;
 const MARKER_SHEET = attendanceSheetNames.MARKER;
@@ -125,6 +128,12 @@ export class TemplateClass {
 
         const usernames = this.collectUniqueUsernames(allRows);
         const { usernameToIndividualId, usernameToRoles } = await this.resolveIndividualIds(usernames, tenantId, resourceDetails?.requestInfo);
+        await this.resolveIndividualIdsFromCampaignUsers(
+            allRows,
+            usernameToIndividualId,
+            campaignNumber,
+            tenantId
+        );
         this.mergeResolvedIndividualIdsFromCache(resourceDetails, usernameToIndividualId);
         await this.resolveMissingIndividualIdsFromRowCandidates(
             allRows,
@@ -446,6 +455,56 @@ export class TemplateClass {
 
         logger.info(`Resolved ${usernameToIndividualId.size}/${usernames.length} usernames via HRMS`);
         return { usernameToIndividualId, usernameToRoles };
+    }
+
+    private static decryptSafe(value: string): string {
+        const raw = this.getCellAsString(value);
+        if (!raw) return "";
+        try {
+            return this.getCellAsString(decrypt(raw));
+        } catch {
+            return raw;
+        }
+    }
+
+    private static async resolveIndividualIdsFromCampaignUsers(
+        allRows: Array<{ row: any; sheetName: string }>,
+        usernameToIndividualId: Map<string, string>,
+        campaignNumber: string,
+        tenantId: string
+    ): Promise<void> {
+        if (!campaignNumber) return;
+        const userRows = await getRelatedDataWithCampaign("user", campaignNumber, tenantId, dataRowStatuses.completed);
+        if (!Array.isArray(userRows) || userRows.length === 0) return;
+
+        const byWorkerId = new Map<string, string>();
+        const byUserName = new Map<string, string>();
+
+        for (const userRow of userRows as any[]) {
+            if (userRow?.isDeleted) continue;
+            const uuid = this.getCellAsString(userRow?.uniqueIdAfterProcess);
+            if (!uuid) continue;
+            const data = (userRow?.data || {}) as Record<string, unknown>;
+            const workerId = this.getCellAsString(data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"]);
+            if (workerId && !byWorkerId.has(workerId)) byWorkerId.set(workerId, uuid);
+            const userName = this.decryptSafe(this.getCellAsString(data["UserName"]));
+            if (userName && !byUserName.has(userName)) byUserName.set(userName, uuid);
+        }
+
+        let resolvedFromCampaignUserRows = 0;
+        for (const { row } of allRows) {
+            const username = this.getCellAsString(row?.[attendanceColumnKeys.USERNAME]);
+            if (!username || usernameToIndividualId.has(username)) continue;
+            const workerId = this.getCellAsString(row?.[WORKER_ID_COLUMN]);
+            const resolved = byWorkerId.get(workerId) || byUserName.get(username);
+            if (!resolved) continue;
+            usernameToIndividualId.set(username, resolved);
+            resolvedFromCampaignUserRows++;
+        }
+
+        if (resolvedFromCampaignUserRows > 0) {
+            logger.info(`Validation resolved ${resolvedFromCampaignUserRows} username(s) via campaign user data`);
+        }
     }
 
     /**
