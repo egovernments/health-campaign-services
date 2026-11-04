@@ -31,6 +31,9 @@ export const generateRequestSchema = {
     "campaignId": {
       "type": "string"
     },
+    "localityCode": {
+      "type": "string"
+    },
     "source": {
       "type": "string",
     }

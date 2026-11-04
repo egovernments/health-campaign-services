@@ -14,6 +14,9 @@ import { logger } from "./utils/logger";
 import { validateRequiredSchema } from "./utils/schemaValidation";
 import { Server } from "http";
 import { createTerminus } from "@godaddy/terminus";
+import swaggerUi from "swagger-ui-express";
+import { existsSync, readFileSync } from "fs";
+import path from "path";
 
 class App {
   public app: express.Application;
@@ -26,6 +29,7 @@ class App {
 
     this.initializeMiddlewares();
     this.initializeControllers(controllers);
+    this.initializeSwagger();
     this.app.use(invalidPathHandler);
 
     this.startMemoryLogging();
@@ -92,6 +96,33 @@ class App {
     controllers.forEach((ctr: any) => {
       this.app.use(config.app.contextPath, ctr.router);
     });
+  }
+
+  private initializeSwagger() {
+    const swaggerSpecPath = path.resolve(process.cwd(), "swagger.generated.json");
+
+    if (!existsSync(swaggerSpecPath)) {
+      logger.warn(
+        `Swagger specification file not found at ${swaggerSpecPath}. Run "yarn swagger:generate" to generate it.`
+      );
+      return;
+    }
+
+    try {
+      const swaggerSpec = JSON.parse(readFileSync(swaggerSpecPath, "utf-8"));
+      const swaggerJsonPath = `${config.app.contextPath}/swagger.json`;
+      const swaggerUiPath = `${config.app.contextPath}/swagger`;
+
+      this.app.get(swaggerJsonPath, (_req, res) => {
+        res.setHeader("Content-Type", "application/json");
+        res.send(swaggerSpec);
+      });
+      this.app.use(swaggerUiPath, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+      logger.info(`Swagger UI available at ${swaggerUiPath}`);
+    } catch (error) {
+      logger.error("Failed to initialize swagger routes", error);
+    }
   }
 
   public async listen() {

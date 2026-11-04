@@ -97,5 +97,22 @@ export const generationtTemplateConfigs : any = {
                 schemaName: "attendance-register-attendee-approver"
             }
         ]
+    },
+
+    attendanceRegisterUserBulkMapping: {
+        sheets: [
+            {
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
+                schemaName: "attendance-register-attendee-worker"
+            },
+            {
+                sheetName: "HCM_REGISTER_MARKER_SHEET",
+                schemaName: "attendance-register-attendee-marker"
+            },
+            {
+                sheetName: "HCM_REGISTER_APPROVER_SHEET",
+                schemaName: "attendance-register-attendee-approver"
+            }
+        ]
     }
 }

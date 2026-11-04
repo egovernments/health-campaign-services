@@ -1,5 +1,5 @@
 import * as express from "express";
-import { createDataService, downloadDataService, generateDataService, searchDataService, searchCampaignDataService, searchMappingDataService } from "../../service/dataManageService";
+import { createDataService, downloadDataService, generateDataService, searchDataService, searchCampaignDataService, searchMappingDataService, searchDistributorsByDhService } from "../../service/dataManageService";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
 import { logger } from "../../utils/logger";
 
@@ -19,12 +19,48 @@ class dataManageController {
     }
 
     public intializeRoutes() {
-        this.router.post(`${this.path}/_generate`, this.generateData);
-        this.router.post(`${this.path}/_download`, this.downloadData)
-        this.router.post(`${this.path}/_create`, this.createData);
-        this.router.post(`${this.path}/_search`, this.searchData);
-        this.router.post(`${this.path}/campaign/_search`, this.searchCampaignData);
-        this.router.post(`${this.path}/mapping/_search`, this.searchMappingData);
+        this.router.post(
+            "/v1/data/_generate",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Generate data' */
+            this.generateData
+        );
+        this.router.post(
+            "/v1/data/_download",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Download data' */
+            this.downloadData
+        );
+        this.router.post(
+            "/v1/data/_create",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Create data' */
+            this.createData
+        );
+        this.router.post(
+            "/v1/data/_search",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Search data' */
+            this.searchData
+        );
+        this.router.post(
+            "/v1/data/campaign/_search",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Search campaign data' */
+            this.searchCampaignData
+        );
+        this.router.post(
+            "/v1/data/mapping/_search",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Search mapping data' */
+            this.searchMappingData
+        );
+        this.router.post(
+            "/v1/data/distributor-by-dh/_search",
+            /* #swagger.tags = ['Data Management (V1)'] */
+            /* #swagger.summary = 'Search distributors by DH' */
+            this.searchDistributorsByDh
+        );
     }
     /**
 * Generates data based on the request and sends the response.
@@ -128,8 +164,22 @@ class dataManageController {
         }
     }
 
+    /**
+     * Searches distributors grouped by DH boundary code.
+     * @param request The Express request object.
+     * @param response The Express response object.
+     */
+    searchDistributorsByDh = async (request: any, response: any) => {
+        try {
+            logger.info("RECEIVED A DISTRIBUTOR-BY-DH SEARCH REQUEST");
+            const result = await searchDistributorsByDhService(request);
+            return sendResponse(response, result, request);
+        } catch (e: any) {
+            console.log(e)
+            logger.error(String(e))
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    }
+
 };
 export default dataManageController;
-
-
-
