@@ -7,6 +7,7 @@ import org.egov.common.contract.request.Role;
 import org.egov.common.contract.request.User;
 import org.egov.encryption.EncryptionService;
 import org.egov.tracer.model.CustomException;
+import org.egov.workerregistry.config.TenantProperties;
 import org.egov.workerregistry.config.WorkerRegistryConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -27,20 +28,24 @@ public class EncryptionDecryptionUtil {
     private final WorkerRegistryConfiguration config;
 
     @Autowired
+    private TenantProperties tenantProperties;
+
+    @Autowired
     public EncryptionDecryptionUtil(EncryptionService encryptionService, WorkerRegistryConfiguration config) {
         this.encryptionService = encryptionService;
         this.config = config;
     }
 
-    public <T> T encryptObject(Object objectToEncrypt, String key, Class<T> classType) {
+    public <T> T encryptObject(String tenantId, Object objectToEncrypt, String key, Class<T> classType) {
         try {
             if (objectToEncrypt == null) {
                 return null;
             }
+            String stateLevelTenantId = tenantProperties.getStateLevelTenant(tenantId, config.getStateLevelTenantId());
             T encryptedObject = encryptionService.encryptJson(
                 objectToEncrypt,
                 key,
-                config.getStateLevelTenantId(),
+                stateLevelTenantId,
                 classType
             );
             if (encryptedObject == null) {
@@ -56,7 +61,7 @@ public class EncryptionDecryptionUtil {
         }
     }
 
-    public <E, P> P decryptObject(Object objectToDecrypt, String key, Class<E> classType, RequestInfo requestInfo) {
+    public <E, P> P decryptObject(String tenantId, Object objectToDecrypt, String key, Class<E> classType, RequestInfo requestInfo) {
         try {
             boolean objectToDecryptNotList = false;
             if (objectToDecrypt == null) {
@@ -77,7 +82,8 @@ public class EncryptionDecryptionUtil {
 
             String purpose = "search";
 
-            P decryptedObject = (P) encryptionService.decryptJson(requestInfo, objectToDecrypt, key, purpose, classType);
+            String stateLevelTenantId = tenantProperties.getStateLevelTenant(tenantId, config.getStateLevelTenantId());
+            P decryptedObject = (P) encryptionService.decryptJson(requestInfo, stateLevelTenantId, objectToDecrypt, key, purpose, classType);
 
             if (decryptedObject == null) {
                 throw new CustomException("DECRYPTION_NULL_ERROR", "Null object found on performing decryption");
