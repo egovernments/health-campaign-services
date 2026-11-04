@@ -140,10 +140,12 @@ const config = {
     // A clone whose sheet is not its source's file (e.g. a template that added or dropped Outside Household and carries the
     // source's users) still reuses its source campaign's users, matched by phone; "false" reuses none, as before
     cloneReuseSourceUsersOnNewSheet: (process.env.CAMPAIGN_CLONE_REUSE_SOURCE_USERS_ON_NEW_SHEET || "true").toLowerCase() !== "false",
-    // A new clone does not keep its source's delivery (cycle) dates; the planner picks the clone's own; "false" keeps them
+    // A new clone does not keep its source's delivery (cycle) dates, nor, for a campaign type outside
+    // CAMPAIGN_DELIVERY_CONDITION_TYPES, its delivery rules (dates and conditions); the planner sets the clone's own;
+    // "false" keeps them
     clearCloneDeliveryDates: (process.env.CAMPAIGN_CLONE_CLEAR_DELIVERY_DATES || "true").toLowerCase() !== "false",
-    // Campaign types (comma-separated) with delivery conditions: only their clones lose the source's delivery dates and
-    // only their templates keep the earlier data when Outside Household is changed; other types behave as before
+    // Campaign types (comma-separated) with delivery conditions: only their clones keep the source's delivery rules (without
+    // the dates) and only their templates keep the earlier data when Outside Household is changed
     deliveryConditionCampaignTypes: (process.env.CAMPAIGN_DELIVERY_CONDITION_TYPES || "POLIO")
         .split(",").map(type => type.trim().toUpperCase()).filter(Boolean),
     // After a save that adds or drops Outside Household, the new template keeps the users, targets and facilities of the

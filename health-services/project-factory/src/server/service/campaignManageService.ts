@@ -10,7 +10,7 @@ import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
-import { dropCloneSourceDeliveryDates, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage, keepFileForOutsideHouseholdChange } from "../utils/generateUtils";
+import { dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage, keepFileForOutsideHouseholdChange } from "../utils/generateUtils";
 import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 
 /** Validates and creates a project-type campaign, persisting its resources to eg_cm_resource_details so they survive the Flow 2 JSONB overwrite. */
@@ -25,6 +25,10 @@ async function createProjectTypeCampaignService(request: express.Request) {
     const datesRemoved = dropCloneSourceDeliveryDates(request?.body?.CampaignDetails);
     if (datesRemoved > 0) {
         logger.info(`New clone of ${request?.body?.CampaignDetails?.additionalDetails?.cloneFrom}: removed ${datesRemoved} delivery dates copied from the source`);
+    }
+    // ...and a clone of another campaign type starts without its source's delivery rules (dates and conditions)
+    if (dropCloneSourceDeliveryRules(request?.body?.CampaignDetails)) {
+        logger.info(`New clone of ${request?.body?.CampaignDetails?.additionalDetails?.cloneFrom}: removed the delivery rules copied from the source`);
     }
 
     await processBasedOnAction(request, "create");
