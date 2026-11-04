@@ -15,6 +15,10 @@ public class ProcessingConstants {
     // User active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String USER_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_USAGE";
 
+    // User List columns tying a row to its existing user, with UserName and the worker id (service uuid, password)
+    public static final String USER_SERVICE_UUIDS_COLUMN_KEY = "UserService Uuids";
+    public static final String USER_PASSWORD_COLUMN_KEY = "Password";
+
     // Facility active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String FACILITY_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_USAGE";
     public static final String FACILITY_NAME_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_NAME";
