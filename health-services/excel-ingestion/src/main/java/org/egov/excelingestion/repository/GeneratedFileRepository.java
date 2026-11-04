@@ -19,8 +19,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
@@ -130,18 +132,27 @@ public class GeneratedFileRepository {
         }
 
         if (!CollectionUtils.isEmpty(criteria.getReferenceTypes())) {
-            query.append(" AND referenceType IN (:referenceTypes)");
-            preparedStmtList.put("referenceTypes", criteria.getReferenceTypes());
+            List<String> referenceTypes = normalizeToLowerCase(criteria.getReferenceTypes());
+            if (!referenceTypes.isEmpty()) {
+                query.append(" AND LOWER(referenceType) IN (:referenceTypes)");
+                preparedStmtList.put("referenceTypes", referenceTypes);
+            }
         }
 
         if (!CollectionUtils.isEmpty(criteria.getTypes())) {
-            query.append(" AND type IN (:types)");
-            preparedStmtList.put("types", criteria.getTypes());
+            List<String> types = normalizeToLowerCase(criteria.getTypes());
+            if (!types.isEmpty()) {
+                query.append(" AND LOWER(type) IN (:types)");
+                preparedStmtList.put("types", types);
+            }
         }
 
         if (!CollectionUtils.isEmpty(criteria.getStatuses())) {
-            query.append(" AND status IN (:statuses)");
-            preparedStmtList.put("statuses", criteria.getStatuses());
+            List<String> statuses = normalizeToLowerCase(criteria.getStatuses());
+            if (!statuses.isEmpty()) {
+                query.append(" AND LOWER(status) IN (:statuses)");
+                preparedStmtList.put("statuses", statuses);
+            }
         }
 
         if (criteria.getLocale() != null && !criteria.getLocale().trim().isEmpty()) {
@@ -165,6 +176,13 @@ public class GeneratedFileRepository {
                 adIndex++;
             }
         }
+    }
+
+    private List<String> normalizeToLowerCase(List<String> values) {
+        return values.stream()
+                .filter(value -> value != null && !value.trim().isEmpty())
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toList());
     }
 
     private class GeneratedFileRowMapper implements RowMapper<GenerateResource> {

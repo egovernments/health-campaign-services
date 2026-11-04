@@ -10,6 +10,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -68,6 +69,7 @@ class GenerationServiceTest {
     void shouldReturnEmptyResultsWhenNoDataFound() throws InvalidTenantIdException {
         GenerationSearchRequest request = createSearchRequest("dev");
         when(generatedFileRepository.search(any())).thenReturn(Collections.emptyList());
+        when(generatedFileRepository.getCount(any())).thenReturn(0L);
 
         GenerationSearchResponse response = generationService.searchGenerations(request);
 
@@ -82,6 +84,20 @@ class GenerationServiceTest {
         when(generatedFileRepository.search(any())).thenThrow(new InvalidTenantIdException("Invalid tenant"));
 
         assertThrows(InvalidTenantIdException.class, () -> generationService.searchGenerations(request));
+    }
+
+    @Test
+    void shouldNotInjectLocaleWhenSearchCriteriaDoesNotProvideIt() throws InvalidTenantIdException {
+        GenerationSearchRequest request = createSearchRequest("dev");
+        request.getRequestInfo().setMsgId("12345|en_NG");
+        when(generatedFileRepository.search(any())).thenReturn(Collections.emptyList());
+        when(generatedFileRepository.getCount(any())).thenReturn(0L);
+
+        generationService.searchGenerations(request);
+
+        ArgumentCaptor<GenerationSearchCriteria> criteriaCaptor = ArgumentCaptor.forClass(GenerationSearchCriteria.class);
+        verify(generatedFileRepository).search(criteriaCaptor.capture());
+        assertNull(criteriaCaptor.getValue().getLocale());
     }
 
     private GenerationSearchRequest createSearchRequest(String tenantId) {

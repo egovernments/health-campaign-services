@@ -239,7 +239,7 @@ paths:
                 ids: ["550e8400-e29b-41d4-a716-446655440000"]
                 referenceIds: ["REF-2023-001"]
                 types: ["boundary"]
-                statuses: ["COMPLETED"]
+                statuses: ["completed"]
                 locale: "en_IN"
                 limit: 10
                 offset: 0
@@ -291,7 +291,7 @@ paths:
                 ids: ["550e8400-e29b-41d4-a716-446655440001"]
                 referenceIds: ["REF-2023-001"]
                 types: ["boundary"]
-                statuses: ["COMPLETED"]
+                statuses: ["completed"]
                 limit: 10
                 offset: 0
       responses:
@@ -798,7 +798,7 @@ components:
       properties:
         ResponseInfo:
           $ref: '#/components/schemas/ResponseInfo'
-        GenerateResources:
+        GenerationDetails:
           type: array
           items:
             $ref: '#/components/schemas/GenerateResource'
