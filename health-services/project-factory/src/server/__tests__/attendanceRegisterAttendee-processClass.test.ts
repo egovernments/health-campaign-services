@@ -12,8 +12,9 @@ const mockServerTimezone = { value: "Asia/Kolkata" };
 
 jest.mock('../config', () => ({
     default: {
-        host: {},
-        paths: {},
+        host: { healthIndividualHost: "http://individual/" },
+        paths: { healthIndividualSearch: "health-individual/v1/_search" },
+        user: { individualSearchBatchSize: 50 },
         kafka: { KAFKA_SAVE_SHEET_DATA_TOPIC: 'save-sheet-data', KAFKA_UPDATE_SHEET_DATA_TOPIC: 'update-sheet-data' },
         hrms: { hrmsParallelSearchLimit: 5 },
         attendanceRegister: { serviceCodeParallelSearchLimit: 5, batchSize: 50, attendeePersistBatchSize: 100 },
@@ -61,6 +62,7 @@ import { TemplateClass } from "../processFlowClasses/attendanceRegisterAttendee-
 import { CampaignDataRow } from "../config/models/campaignDataRow";
 import { CampaignNumber, TenantId } from "../config/models/brandedTypes";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { httpRequest } from "../utils/request";
 
 const ENROLLMENT_EPOCH = 1700000000000;   // 2023-11-14
 const DEENROLLMENT_EPOCH = 1700100000000; // ~2023-11-15
@@ -157,6 +159,32 @@ describe("bulk campaign-date placeholder normalization", () => {
     beforeEach(() => {
         (TemplateClass as any).tzFormatter = null;
         mockServerTimezone.value = "Asia/Kolkata";
+    });
+
+    describe("attendee process user fallback resolution", () => {
+        beforeEach(() => {
+            (httpRequest as jest.Mock).mockReset();
+        });
+
+        test("resolves unresolved UserName from workerId candidate when individual exists", async () => {
+            (httpRequest as jest.Mock).mockResolvedValue({
+                Individual: [{ id: "ind-marker-1" }],
+            });
+
+            const usernameToRows = new Map<string, Array<{ row: any; sheetName: string }>>([
+                ["ind-marker-1", [{ row: { HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-marker-1" }, sheetName: "HCM_REGISTER_MARKER_SHEET" }]],
+            ]);
+            const usernameToIndividualId = new Map<string, string>();
+
+            await (TemplateClass as any).resolveMissingIndividualIdsFromRowCandidates(
+                usernameToRows,
+                usernameToIndividualId,
+                "bednet",
+                { apiId: "hcm" }
+            );
+
+            expect(usernameToIndividualId.get("ind-marker-1")).toBe("ind-marker-1");
+        });
     });
 
     test("treats campaign start/end prefill as no-op for existing rows in bulk flow", () => {

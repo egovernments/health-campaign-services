@@ -9,8 +9,9 @@ const mockServerTimezone = { value: "Asia/Kolkata" };
 
 jest.mock('../config', () => ({
     default: {
-        host: {},
-        paths: {},
+        host: { healthIndividualHost: "http://individual/" },
+        paths: { healthIndividualSearch: "health-individual/v1/_search" },
+        user: { individualSearchBatchSize: 50 },
         kafka: {},
         hrms: { hrmsParallelSearchLimit: 5 },
         attendanceRegister: { attendeeSearchPageSize: 100, staffSearchPageSize: 100 },
@@ -81,6 +82,38 @@ function isInRange(parsedEpoch: number, startEpoch: number, endEpoch: number): b
     return compareDateParts(parsedParts, startParts) >= 0
         && compareDateParts(parsedParts, endParts) <= 0;
 }
+
+describe("attendee validation user fallback resolution", () => {
+    beforeEach(() => {
+        (httpRequest as jest.Mock).mockReset();
+    });
+
+    test("resolves unresolved UserName via workerId when individual id exists", async () => {
+        (httpRequest as jest.Mock).mockResolvedValue({
+            Individual: [{ id: "ind-marker-1" }],
+        });
+
+        const rows = [
+            {
+                row: {
+                    UserName: "ind-marker-1",
+                    HCM_ADMIN_CONSOLE_USER_WORKER_ID: "ind-marker-1",
+                },
+                sheetName: "HCM_REGISTER_MARKER_SHEET",
+            },
+        ];
+        const usernameToIndividualId = new Map<string, string>();
+
+        await (TemplateClass as any).resolveMissingIndividualIdsFromRowCandidates(
+            rows,
+            usernameToIndividualId,
+            "bednet",
+            { apiId: "hcm" }
+        );
+
+        expect(usernameToIndividualId.get("ind-marker-1")).toBe("ind-marker-1");
+    });
+});
 
 // Excel serial for a given UTC date
 function excelSerial(year: number, month: number, day: number): number {
