@@ -5,6 +5,7 @@ import org.egov.common.models.Error;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.common.validator.Validator;
+import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.service.FacilityService;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -26,14 +27,23 @@ public class SrReferenceIdValidator implements Validator<StockReconciliationBulk
 
     private final FacilityService facilityService;
 
-    public SrReferenceIdValidator(FacilityService facilityService) {
+    private final StockReconciliationConfiguration stockReconciliationConfiguration;
+
+    public SrReferenceIdValidator(FacilityService facilityService,
+                                  StockReconciliationConfiguration stockReconciliationConfiguration) {
         this.facilityService = facilityService;
+        this.stockReconciliationConfiguration = stockReconciliationConfiguration;
     }
 
     @Override
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         log.info("validating for reference id");
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+
+        if (!stockReconciliationConfiguration.getProjectFacilityValidationEnabled()) {
+            log.info("project facility validation disabled for stock reconciliation, skipping");
+            return errorDetailsMap;
+        }
 
         List<StockReconciliation> validEntities = request.getStockReconciliation().stream()
                 .filter(notHavingErrors())

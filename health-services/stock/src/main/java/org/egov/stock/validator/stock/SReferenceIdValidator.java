@@ -7,6 +7,7 @@ import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.validator.Validator;
+import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.service.FacilityService;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -28,14 +29,22 @@ public class SReferenceIdValidator implements Validator<StockBulkRequest, Stock>
 
     private final FacilityService facilityService;
 
-    public SReferenceIdValidator(FacilityService facilityService) {
+    private final StockConfiguration stockConfiguration;
+
+    public SReferenceIdValidator(FacilityService facilityService, StockConfiguration stockConfiguration) {
         this.facilityService = facilityService;
+        this.stockConfiguration = stockConfiguration;
     }
 
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         log.info("validating for reference id");
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+
+        if (!stockConfiguration.getProjectFacilityValidationEnabled()) {
+            log.info("project facility validation disabled for stock, skipping");
+            return errorDetailsMap;
+        }
 
         List<Stock> validEntities = request.getStock().stream()
                 .filter(notHavingErrors())
