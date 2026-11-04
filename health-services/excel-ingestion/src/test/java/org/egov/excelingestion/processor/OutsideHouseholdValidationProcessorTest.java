@@ -158,16 +158,17 @@ class OutsideHouseholdValidationProcessorTest {
     void aTypedSiteNameMayNotUseTheBlockedCharacters() {
         List<Map<String, Object>> rows = new ArrayList<>();
         String[] allowed = {"St. Mary", "Escola Primária N'Gola (2)", "Bus Stop 3/4 - North", "Market & Shop_1, `A`",
-                "Clinic: North [B] {C} \"D\" +=", "  Old Well  ", "-North", "1+1=2 Market"};
+                "Clinic: North 1+1", "  Old Well  ", "-North"};
         for (int i = 0; i < allowed.length; i++) {
             Map<String, Object> row = validRow(3 + i, "Active", "V1");
             row.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, allowed[i]);
             rows.add(row);
         }
-        // one name for each blocked character ! @ # $ % ^ * ; < > ? | \ ~, a line break, a tab, and a leading = or +
+        // one name for each blocked character ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " =, a line break, a tab, and a leading +
         String[] rejected = {"Market!", "Shop@Home", "School #2", "Price $1", "50% Off", "Up^Down", "Star*", "Market;",
                 "<b>Site", "Site>", "Why?", "Pipe|Post", "Back\\slash", "Tilde~Post",
-                "Line\nBreak", "Tab\tName", "=HYPERLINK(1)", "+North", " =Market"};
+                "Line\nBreak", "Tab\tName", "=HYPERLINK(1)", "+North", " +Market",
+                "Clinic {C}", "Post [B]", "Ferry \"D\"", "1+1=2 Market"};
         for (int i = 0; i < rejected.length; i++) {
             Map<String, Object> row = validRow(20 + i, "Active", "V1");
             row.put(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, rejected[i]);
@@ -176,7 +177,7 @@ class OutsideHouseholdValidationProcessorTest {
 
         List<ValidationError> errors = run(rows);
 
-        assertEquals(List.of(20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38),
+        assertEquals(List.of(20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42),
                 errors.stream().map(ValidationError::getRowNumber).toList(), errors.toString());
         assertEquals(ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY, errors.get(0).getColumnName());
         assertEquals(ValidationConstants.DEFAULT_NAME_INVALID_CHARACTERS, errors.get(0).getErrorDetails());

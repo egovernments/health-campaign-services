@@ -481,10 +481,10 @@ class ActiveUserFacilityValidationTest {
     @Test
     void testFacilityNameCharacters_TypedNamesAreCheckedPreFilledNamesAreNot() {
         List<Map<String, Object>> rows = Arrays.asList(
-                createFacilityRow("Escola Primária (Sede) 1/2 - N'Gola & PHC_1, `A`. [x]", null, "Active", 3),
+                createFacilityRow("Escola Primária (Sede) 1/2 - N'Gola & PHC_1, `A`. x: 1+1", null, "Active", 3),
                 createFacilityRow("Store; Warehouse", null, "Active", 4),
                 createFacilityRow("PHC North?", null, "Active", 5),
-                createFacilityRow("=Store", null, "Active", 9),
+                createFacilityRow("Store [9]", null, "Active", 9),
                 createFacilityRow("Store\nEast", null, "Active", 10),
                 createFacilityRow("Old Store #6", "F-2026-01-01-000001", "Active", 6),   // existing facility
                 createFacilityRow("", null, "Inactive", 7));                                 // blank: left to the schema
@@ -499,7 +499,7 @@ class ActiveUserFacilityValidationTest {
 
         assertEquals(Arrays.asList(4, 5, 9, 10), errors.stream().map(ValidationError::getRowNumber).toList());
         assertEquals("HCM_ADMIN_CONSOLE_FACILITY_NAME", errors.get(0).getColumnName());
-        assertEquals("Name cannot have ! @ # $ % ^ * ; < > ? | \\ ~, a line break or a tab, and cannot start with = or +",
+        assertEquals("Name cannot have ! @ # $ % ^ * ; < > ? | \\ ~ { } [ ] \" =, a line break or a tab, and cannot start with +",
                 errors.get(0).getErrorDetails());
     }
 

@@ -26,10 +26,10 @@ import java.util.regex.Pattern;
 public class FacilityValidationProcessor implements IWorkbookProcessor {
 
     /**
-     * A Facility Name or Site Name may use any character except ! @ # $ % ^ * ; < > ? | \ ~ and control characters (line
-     * break, tab), and may not start with = or + (a spreadsheet would read it as a formula)
+     * A Facility Name or Site Name may use any character except ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " = and control
+     * characters (line break, tab), and may not start with + (a spreadsheet would read it as a formula)
      */
-    static final Pattern ALLOWED_NAME = Pattern.compile("(?![=+])[^!@#$%^*;<>?|\\\\~\\p{Cntrl}]+");
+    static final Pattern ALLOWED_NAME = Pattern.compile("(?!\\+)[^!@#$%^*;<>?|\\\\~{}\\[\\]\"=\\p{Cntrl}]+");
 
     private final ValidationService validationService;
     private final ExcelIngestionConfig config;
@@ -305,7 +305,7 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
     }
 
     /**
-     * The name of a row may not use ! @ # $ % ^ * ; < > ? | \ ~ or a control character, nor start with = or +. Shared by the
+     * The name of a row may not use ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " = or a control character, nor start with +. Shared by the
      * Facilities List and the Outside Household sheet. Pre-filled rows (a hidden row id, or the id of an existing
      * facility or site) are skipped: their name is locked and comes from the facility registry, so a name saved
      * before this rule must not block the upload. A blank name is left to the schema checks; the length limits stay

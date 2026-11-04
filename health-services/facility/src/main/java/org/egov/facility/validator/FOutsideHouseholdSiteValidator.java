@@ -33,10 +33,10 @@ public class FOutsideHouseholdSiteValidator implements Validator<FacilityBulkReq
     static final String INVALID_NAME = "INVALID_OUTSIDE_HOUSEHOLD_SITE_NAME";
     static final String INVALID_CATEGORY = "INVALID_OUTSIDE_HOUSEHOLD_SITE_CATEGORY";
     /**
-     * As in the Excel upload, a site name may use any character except ! @ # $ % ^ * ; < > ? | \ ~ and control characters
-     * (line break, tab), and may not start with = or +
+     * As in the Excel upload, a site name may use any character except ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " = and control
+     * characters (line break, tab), and may not start with +
      */
-    static final Pattern ALLOWED_NAME = Pattern.compile("(?![=+])[^!@#$%^*;<>?|\\\\~\\p{Cntrl}]+");
+    static final Pattern ALLOWED_NAME = Pattern.compile("(?!\\+)[^!@#$%^*;<>?|\\\\~{}\\[\\]\"=\\p{Cntrl}]+");
 
     private final OutsideHouseholdTypeService outsideHouseholdTypeService;
     private final FacilityConfiguration configuration;
@@ -66,7 +66,7 @@ public class FOutsideHouseholdSiteValidator implements Validator<FacilityBulkReq
                         "Site name must be between " + min + " and " + max + " characters"), errorDetailsMap);
             } else if (!ALLOWED_NAME.matcher(name).matches()) {
                 populateErrorDetails(facility, error(INVALID_NAME,
-                        "Site name cannot have ! @ # $ % ^ * ; < > ? | \\ ~, a line break or a tab, and cannot start with = or +"), errorDetailsMap);
+                        "Site name cannot have ! @ # $ % ^ * ; < > ? | \\ ~ { } [ ] \" =, a line break or a tab, and cannot start with +"), errorDetailsMap);
             }
             String category = category(facility);
             List<String> allowed = categoriesByType.get(type);
