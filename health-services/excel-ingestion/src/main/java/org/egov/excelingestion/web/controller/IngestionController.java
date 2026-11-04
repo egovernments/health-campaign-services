@@ -36,11 +36,18 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.HashMap;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/v1/data")
 @Validated
 @Slf4j
+@Tag(name = "Data Management (V1)", description = "Legacy data generation and processing endpoints")
 public class IngestionController {
 
     private final ExcelWorkflowService excelWorkflowService;
@@ -65,6 +72,15 @@ public class IngestionController {
     }
 
     @PostMapping("/generate/_init")
+    @Operation(
+            summary = "Initialize template generation",
+            description = "Kicks off asynchronous template generation and returns a queued generation resource."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Generation request accepted",
+                    content = @Content(schema = @Schema(implementation = GenerateResourceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload")
+    })
     public ResponseEntity<GenerateResourceResponse> generate(@RequestBody @Valid GenerateResourceRequest request) {
         log.info("Received async generation request for type: {} and tenantId: {}", 
                 request.getGenerateResource().getType(), 
@@ -110,6 +126,15 @@ public class IngestionController {
     }
 
     @PostMapping("/process/_validation")
+    @Operation(
+            summary = "Validate uploaded excel",
+            description = "Performs validation-only processing and returns queued processing status."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Validation request accepted",
+                    content = @Content(schema = @Schema(implementation = ProcessResourceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload")
+    })
     public ResponseEntity<ProcessResourceResponse> processExcelValidation(
             @Valid @RequestBody ProcessResourceRequest request) {
 
@@ -153,6 +178,15 @@ public class IngestionController {
     }
 
     @PostMapping("/process/_create")
+    @Operation(
+            summary = "Create processing job",
+            description = "Validates and starts asynchronous parse/create flow for uploaded excel."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Processing request accepted",
+                    content = @Content(schema = @Schema(implementation = ProcessResourceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload")
+    })
     public ResponseEntity<ProcessResourceResponse> processExcelParse(
             @Valid @RequestBody ProcessResourceRequest request) {
 
@@ -196,6 +230,15 @@ public class IngestionController {
     }
 
     @PostMapping("/generate/_search")
+    @Operation(
+            summary = "Search generation jobs",
+            description = "Searches generation records by criteria and returns current status/details."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Generation search results",
+                    content = @Content(schema = @Schema(implementation = GenerationSearchResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload")
+    })
     public ResponseEntity<GenerationSearchResponse> searchGenerations(
             @Valid @RequestBody GenerationSearchRequest request) throws InvalidTenantIdException {
         
@@ -208,6 +251,15 @@ public class IngestionController {
     }
 
     @PostMapping("/process/_search")
+    @Operation(
+            summary = "Search processing jobs",
+            description = "Searches processing records by criteria and returns current status/details."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Processing search results",
+                    content = @Content(schema = @Schema(implementation = ProcessingSearchResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload")
+    })
     public ResponseEntity<ProcessingSearchResponse> searchProcessing(
             @Valid @RequestBody ProcessingSearchRequest request) throws InvalidTenantIdException {
         
@@ -223,6 +275,15 @@ public class IngestionController {
      * Search sheet data temp records
      */
     @PostMapping("/sheet/_search")
+    @Operation(
+            summary = "Search temporary sheet rows",
+            description = "Fetches staged sheet row data using the provided search criteria."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Sheet data search results",
+                    content = @Content(schema = @Schema(implementation = SheetDataSearchResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload")
+    })
     public ResponseEntity<SheetDataSearchResponse> searchSheetData(@Valid @RequestBody SheetDataSearchRequest request) {
         log.info("Received sheet data search request for tenant: {}", 
                 request.getSheetDataSearchCriteria().getTenantId());
@@ -236,6 +297,15 @@ public class IngestionController {
      * Delete sheet data using URL parameters
      */
     @PostMapping("/sheet/_delete")
+    @Operation(
+            summary = "Delete temporary sheet rows",
+            description = "Deletes staged sheet data for the given tenantId, referenceId and fileStoreId."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Sheet data delete accepted",
+                    content = @Content(schema = @Schema(implementation = SheetDataDeleteResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Missing or invalid query parameters")
+    })
     public ResponseEntity<SheetDataDeleteResponse> deleteSheetData(
             @RequestParam @NotBlank(message = "SHEET_DATA_INVALID_TENANT") String tenantId,
             @RequestParam @NotBlank(message = "SHEET_DATA_DELETE_MISSING_PARAMS") String referenceId,
