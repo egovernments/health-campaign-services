@@ -1,17 +1,21 @@
 package org.egov.referralmanagement.service;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.io.SerializedString;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zaxxer.hikari.HikariDataSource;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
+import org.egov.referralmanagement.repository.DownsyncSqlFragments;
 import org.egov.referralmanagement.service.DownsyncS3Service.S3Result;
 import org.egov.referralmanagement.web.models.LocalityDownsyncCriteria;
 import org.egov.tracer.config.TracerProperties;
@@ -29,6 +33,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClientException;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
@@ -41,6 +48,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,22 +75,6 @@ public class DownsyncFileGenService {
             "  (SELECT clientReferenceId FROM {schema}.household_address_mv " +
             "   WHERE localitycode = :locality AND isdeleted = false) " +
             "AND isDeleted = false";
-
-    private static final String LOCALITY_BENE_SUBQUERY =
-            "SELECT pb.clientReferenceId FROM {schema}.PROJECT_BENEFICIARY pb " +
-            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
-            "AND pb.beneficiaryClientReferenceId IN (" +
-            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "  WHERE localitycode = :locality AND isdeleted = false " +
-            "  UNION " +
-            "  SELECT hm.individualClientReferenceId " +
-            "  FROM {schema}.HOUSEHOLD_MEMBER hm " +
-            "  WHERE hm.isDeleted = false " +
-            "  AND hm.householdClientReferenceId IN (" +
-            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "    WHERE localitycode = :locality AND isdeleted = false" +
-            "  )" +
-            ")";
 
     private static final String INDIVIDUAL_QUERY =
             "SELECT ind.*," +
@@ -167,37 +159,40 @@ public class DownsyncFileGenService {
             "  )" +
             ") AND ind.isDeleted = false";
 
-    private static final String BENEFICIARY_QUERY =
-            "SELECT pb.* FROM {schema}.PROJECT_BENEFICIARY pb " +
-            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
-            "AND pb.beneficiaryClientReferenceId IN (" +
-            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "  WHERE localitycode = :locality AND isdeleted = false " +
-            "  UNION " +
-            "  SELECT hm.individualClientReferenceId " +
-            "  FROM {schema}.HOUSEHOLD_MEMBER hm " +
-            "  WHERE hm.isDeleted = false " +
-            "  AND hm.householdClientReferenceId IN (" +
-            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "    WHERE localitycode = :locality AND isdeleted = false" +
-            "  )" +
-            ")";
+    // ── PROJECT file queries — campaign-wide, beneficiary-type aware ─────────
+    // Built per locality because the beneficiary-reference branch depends on the
+    // campaign's MDMS beneficiaryType. Parameters: :rootProjectId, :locality.
+    // See DownsyncSqlFragments for the design notes and measured plans.
 
-    private static final String SIDE_EFFECT_QUERY =
-            "SELECT se.* FROM {schema}.SIDE_EFFECT se " +
-            "WHERE se.isDeleted = false " +
-            "AND se.projectBeneficiaryClientReferenceId IN (" + LOCALITY_BENE_SUBQUERY + ")";
+    static String beneficiaryQuery(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaries(beneficiaryType);
+    }
 
-    private static final String REFERRAL_QUERY =
-            "SELECT r.* FROM {schema}.REFERRAL r " +
-            "WHERE r.projectid = :projectId AND r.isDeleted = false " +
-            "AND r.projectBeneficiaryClientReferenceId IN (" + LOCALITY_BENE_SUBQUERY + ")";
+    static String sideEffectQuery(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT se.* FROM {schema}.SIDE_EFFECT se " +
+               "JOIN village_bene vb ON vb.clientReferenceId = se.projectBeneficiaryClientReferenceId " +
+               "WHERE se.isDeleted = false";
+    }
 
-    private static final String HF_REFERRAL_QUERY =
-            "SELECT * FROM {schema}.HF_REFERRAL " +
-            "WHERE projectid = :projectId AND localitycode = :locality AND isdeleted = false";
+    static String referralQuery(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT r.* FROM {schema}.REFERRAL r " +
+               "JOIN village_bene vb ON vb.clientReferenceId = r.projectBeneficiaryClientReferenceId " +
+               "WHERE r.isDeleted = false " +
+               "AND r.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+    }
 
-    private static final String TASK_QUERY =
+    static final String HF_REFERRAL_QUERY =
+            "SELECT hfr.* FROM {schema}.HF_REFERRAL hfr " +
+            "WHERE hfr.localitycode = :locality AND hfr.isdeleted = false " +
+            "AND hfr.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+
+    static String taskQuery(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) + TASK_QUERY_BODY;
+    }
+
+    private static final String TASK_QUERY_BODY =
             "SELECT pt.*," +
             "  CASE WHEN a.id IS NOT NULL THEN json_build_object(" +
             "    'id', a.id," +
@@ -221,9 +216,8 @@ public class DownsyncFileGenService {
             "  res_agg.resources_json" +
             " FROM {schema}.PROJECT_TASK pt" +
             " LEFT JOIN {schema}.ADDRESS a ON a.id = pt.addressId" +
-            " LEFT JOIN (" +
-            "   SELECT tr.taskId," +
-            "     json_agg(json_build_object(" +
+            " LEFT JOIN LATERAL (" +
+            "   SELECT json_agg(json_build_object(" +
             "       'id', tr.id," +
             "       'tenantId', tr.tenantId," +
             "       'clientReferenceId', tr.clientReferenceId," +
@@ -239,13 +233,11 @@ public class DownsyncFileGenService {
             "         'lastModifiedBy', tr.lastModifiedBy, 'lastModifiedTime', tr.lastModifiedTime)" +
             "     )) AS resources_json" +
             "   FROM {schema}.TASK_RESOURCE tr" +
-            "   JOIN {schema}.PROJECT_TASK pt2 ON pt2.id = tr.taskId" +
-            "     AND pt2.projectId = :projectId AND pt2.isDeleted = false" +
-            "   WHERE tr.isDeleted = false" +
-            "   GROUP BY tr.taskId" +
-            " ) res_agg ON res_agg.taskId = pt.id" +
-            " WHERE pt.projectId = :projectId AND pt.isDeleted = false" +
-            " AND pt.projectBeneficiaryClientReferenceId IN (" + LOCALITY_BENE_SUBQUERY + ")";
+            "   WHERE tr.taskId = pt.id AND tr.isDeleted = false" +
+            " ) res_agg ON true" +
+            " JOIN village_bene vb ON vb.clientReferenceId = pt.projectBeneficiaryClientReferenceId" +
+            " WHERE pt.isDeleted = false" +
+            " AND pt.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
 
     @Autowired private NamedParameterJdbcTemplate namedJdbcTemplate;
     @Autowired private MultiStateInstanceUtil multiStateInstanceUtil;
@@ -254,6 +246,19 @@ public class DownsyncFileGenService {
     @Autowired @Qualifier("objectMapper") private ObjectMapper objectMapper;
     @Autowired private DownsyncGenerationJobRepository jobRepository;
     @Autowired private DownsyncS3Service s3Service;
+    @Autowired private DataSource dataSource;
+
+    /** Connections reserved outside the wardPool. Covers:
+     *   • household_address_mv refresh (1)
+     *   • Spring Boot DataSourceHealthIndicator probe (1)
+     *   • worker status writes — updateFileStarted / Completed / claim — that run
+     *     in parallel with active workers (~1)
+     *   • other in-flight API calls — /jobs/_search, conflict-gate checks,
+     *     /beneficiary-downsync (~1)
+     *
+     *  Sized to keep the pool comfortably ahead of demand and avoid the
+     *  "Connection is not available" error path even under load. */
+    private static final int RESERVED_CONNECTIONS = 4;
     @Autowired private TracerProperties tracerProperties;
 
     private RestTemplate restTemplate;
@@ -275,6 +280,8 @@ public class DownsyncFileGenService {
 
     @PostConstruct
     public void init() {
+        validateDbPoolSize();
+        checkPostgresVersion();
         wardPool   = Executors.newFixedThreadPool(config.getWardPoolSize());
         readOnlyTx = new TransactionTemplate(txManager);
         readOnlyTx.setReadOnly(true);
@@ -283,6 +290,63 @@ public class DownsyncFileGenService {
         httpFactory.setReadTimeout(30_000);
         restTemplate = new RestTemplate(httpFactory);
         restTemplate.getInterceptors().add(new RestTemplateLoggingInterceptor(tracerProperties));
+    }
+
+    /**
+     * Verifies that the HikariCP pool is sized to support concurrent file generation.
+     * <p>
+     * Required floor: {@code wardPoolSize + RESERVED_CONNECTIONS}. Anything less guarantees
+     * connection starvation under load — wards block waiting for a connection, the health
+     * probe times out, and Kubernetes restarts the pod. Failing fast at startup is far
+     * cheaper than diagnosing the resulting crash loop in production.
+     * <p>
+     * Can be bypassed via {@code egov.downsync.pool.check.enabled=false} for local dev or
+     * intentionally tiny deployments. Not recommended for production.
+     */
+    /**
+     * PROJECT file queries use {@code WITH … AS MATERIALIZED}, which needs PostgreSQL 12+.
+     * Older servers would fail every BENE_AE_REF/TASKS file with a syntax error, so say so loudly at startup.
+     */
+    private void checkPostgresVersion() {
+        try {
+            Integer v = namedJdbcTemplate.getJdbcTemplate().queryForObject("SHOW server_version_num", Integer.class);
+            if (v != null && v < 120000) {
+                log.error("PostgreSQL server_version_num={} is below 120000 — downsync PROJECT file generation " +
+                          "requires PostgreSQL 12+ (MATERIALIZED CTE). PROJECT files will FAIL on this database.", v);
+            } else {
+                log.info("PostgreSQL server_version_num={} — MATERIALIZED CTE supported", v);
+            }
+        } catch (Exception e) {
+            log.warn("Could not determine PostgreSQL version at startup: {}", e.getMessage());
+        }
+    }
+
+    private void validateDbPoolSize() {
+        if (!config.isPoolCheckEnabled()) {
+            log.warn("Downsync DB pool size check is DISABLED (egov.downsync.pool.check.enabled=false). " +
+                     "Skipping the safety guard.");
+            return;
+        }
+        if (!(dataSource instanceof HikariDataSource hds)) {
+            log.warn("DataSource is not a HikariDataSource (got {}). Skipping pool size check.",
+                     dataSource.getClass().getName());
+            return;
+        }
+        int hikariMax = hds.getMaximumPoolSize();
+        int wardPoolSize = config.getWardPoolSize();
+        int required = wardPoolSize + RESERVED_CONNECTIONS;
+        if (hikariMax < required) {
+            throw new IllegalStateException(String.format(
+                    "Downsync DB pool too small: spring.datasource.hikari.maximum-pool-size=%d, " +
+                    "but wardPool=%d needs at least %d connections " +
+                    "(wardPool + %d reserved for MV refresh, health probe, status writes, " +
+                    "and concurrent API calls). " +
+                    "Bump the pool to %d or higher, OR set egov.downsync.pool.check.enabled=false " +
+                    "to bypass (not recommended for production).",
+                    hikariMax, wardPoolSize, required, RESERVED_CONNECTIONS, required));
+        }
+        log.info("Downsync DB pool size check passed: hikariMax={}, required={}, wardPool={}, reserved={}",
+                 hikariMax, required, wardPoolSize, RESERVED_CONNECTIONS);
     }
 
     @PreDestroy
@@ -304,31 +368,37 @@ public class DownsyncFileGenService {
         String localityRowId = criteria.getLocalityRowId();
         jobRepository.updateLocalityStarted(tid, localityRowId, System.currentTimeMillis());
         try {
-            List<String> fileTypesToRun = jobRepository.findResumableFileTypes(tid, localityRowId);
-            if (fileTypesToRun.isEmpty()) {
+            List<DownsyncGenerationJobRepository.ResumableFile> resumable = filterResumable(
+                    jobRepository.findResumableFileTypes(tid, localityRowId));
+            if (resumable.isEmpty()) {
                 jobRepository.updateLocalityCompleted(tid, localityRowId, "SUCCESS", null, System.currentTimeMillis());
                 return;
             }
 
-            int skipped = 0, failed = 0;
-            for (String ft : fileTypesToRun) {
+            int skipped = 0, failed = 0, run = 0;
+            for (DownsyncGenerationJobRepository.ResumableFile rf : resumable) {
+                String workingId = resolveWorkingId(tid, localityRowId, jobId, rf);
+                if (workingId == null) continue;   // raced with another worker; latest is terminal
+                run++;
                 if (!criteria.isForceRefresh()) {
-                    String skipReason = getFileSkipReason(criteria, ft);
+                    String skipReason = getFileSkipReason(criteria, rf.fileType());
                     if (skipReason != null) {
-                        log.info("File SKIPPED — type={} locality={} reason={}", ft, criteria.getLocality(), skipReason);
-                        jobRepository.updateFileCompleted(tid, localityRowId, ft, "SKIPPED",
+                        log.info("File SKIPPED — type={} locality={} reason={}",
+                                rf.fileType(), criteria.getLocality(), skipReason);
+                        jobRepository.updateFileCompleted(tid, workingId, "SKIPPED",
                                 null, null, null, skipReason, System.currentTimeMillis());
                         skipped++;
                         continue;
                     }
                 }
-                if (!runRegistryFile(ft, criteria, localityRowId).success()) failed++;
+                if (!runRegistryFile(rf.fileType(), criteria, localityRowId, workingId).success()) failed++;
             }
 
             String localityStatus;
-            if (skipped == fileTypesToRun.size())   localityStatus = "SKIPPED";
-            else if (failed == 0)                   localityStatus = "SUCCESS";
-            else                                    localityStatus = "PARTIAL_SUCCESS";
+            if (run == 0)                            localityStatus = "SUCCESS";   // nothing to do; everything was already terminal
+            else if (skipped == run)                 localityStatus = "SKIPPED";
+            else if (failed == 0)                    localityStatus = "SUCCESS";
+            else                                     localityStatus = "PARTIAL_SUCCESS";
 
             jobRepository.updateLocalityCompleted(tid, localityRowId, localityStatus, null, System.currentTimeMillis());
             log.info("Registry locality {} → {}", criteria.getLocality(), localityStatus);
@@ -353,31 +423,37 @@ public class DownsyncFileGenService {
         String localityRowId = criteria.getLocalityRowId();
         jobRepository.updateLocalityStarted(tid, localityRowId, System.currentTimeMillis());
         try {
-            List<String> fileTypesToRun = jobRepository.findResumableFileTypes(tid, localityRowId);
-            if (fileTypesToRun.isEmpty()) {
+            List<DownsyncGenerationJobRepository.ResumableFile> resumable = filterResumable(
+                    jobRepository.findResumableFileTypes(tid, localityRowId));
+            if (resumable.isEmpty()) {
                 jobRepository.updateLocalityCompleted(tid, localityRowId, "SUCCESS", null, System.currentTimeMillis());
                 return;
             }
 
-            int skipped = 0, failed = 0;
-            for (String ft : fileTypesToRun) {
+            int skipped = 0, failed = 0, run = 0;
+            for (DownsyncGenerationJobRepository.ResumableFile rf : resumable) {
+                String workingId = resolveWorkingId(tid, localityRowId, jobId, rf);
+                if (workingId == null) continue;
+                run++;
                 if (!criteria.isForceRefresh()) {
-                    String skipReason = getFileSkipReason(criteria, ft);
+                    String skipReason = getFileSkipReason(criteria, rf.fileType());
                     if (skipReason != null) {
-                        log.info("File SKIPPED — type={} locality={} reason={}", ft, criteria.getLocality(), skipReason);
-                        jobRepository.updateFileCompleted(tid, localityRowId, ft, "SKIPPED",
+                        log.info("File SKIPPED — type={} locality={} reason={}",
+                                rf.fileType(), criteria.getLocality(), skipReason);
+                        jobRepository.updateFileCompleted(tid, workingId, "SKIPPED",
                                 null, null, null, skipReason, System.currentTimeMillis());
                         skipped++;
                         continue;
                     }
                 }
-                if (!runProjectFile(ft, criteria, localityRowId).success()) failed++;
+                if (!runProjectFile(rf.fileType(), criteria, localityRowId, workingId).success()) failed++;
             }
 
             String localityStatus;
-            if (skipped == fileTypesToRun.size())   localityStatus = "SKIPPED";
-            else if (failed == 0)                   localityStatus = "SUCCESS";
-            else                                    localityStatus = "PARTIAL_SUCCESS";
+            if (run == 0)                            localityStatus = "SUCCESS";
+            else if (skipped == run)                 localityStatus = "SKIPPED";
+            else if (failed == 0)                    localityStatus = "SUCCESS";
+            else                                     localityStatus = "PARTIAL_SUCCESS";
 
             jobRepository.updateLocalityCompleted(tid, localityRowId, localityStatus, null, System.currentTimeMillis());
             log.info("Project locality {} → {}", criteria.getLocality(), localityStatus);
@@ -385,6 +461,65 @@ public class DownsyncFileGenService {
             log.error("Project locality {} FAILED: {}", criteria.getLocality(), e.getMessage());
             jobRepository.updateLocalityCompleted(tid, localityRowId, "FAILED",
                     truncate(e.getMessage()), System.currentTimeMillis());
+        }
+    }
+
+    /** Drop terminal-state rows; only PENDING / IN_PROGRESS / FAILED need work. */
+    private List<DownsyncGenerationJobRepository.ResumableFile> filterResumable(
+            List<DownsyncGenerationJobRepository.ResumableFile> all) {
+        return all.stream()
+                .filter(rf -> {
+                    String s = rf.status();
+                    return "PENDING".equals(s) || "IN_PROGRESS".equals(s) || "FAILED".equals(s);
+                })
+                .toList();
+    }
+
+    /**
+     * Resolve the row id we'll write to for this attempt.
+     *
+     * Decision table based on the latest attempt's status:
+     *   FAILED      → INSERT a new attempt row. The FAILED row stays as history.
+     *   PENDING     → CAS-claim the existing row in place. Returns null if claim lost
+     *                 (another worker beat us — a parallel scan won the race).
+     *   IN_PROGRESS → Another LIVE worker owns this row. Skip silently.
+     *
+     *                 Note: a CRASHED IN_PROGRESS row gets converted to FAILED by the
+     *                 resume runner's sweepStaleFilesForJob before workers ever start,
+     *                 so by the time we see IN_PROGRESS here, the only explanation is
+     *                 "another live worker is processing it" — never "crashed". With
+     *                 the strict PENDING-only CAS in claimFileAttempt, leaving the row
+     *                 alone is the safe behavior.
+     */
+    private String resolveWorkingId(String tid, String localityRowId, String jobId,
+                                     DownsyncGenerationJobRepository.ResumableFile rf) {
+        switch (rf.status()) {
+            case "FAILED" -> {
+                String newId = UUID.randomUUID().toString();
+                jobRepository.insertRetryAttempt(tid, newId, localityRowId, jobId,
+                        rf.fileType(), System.currentTimeMillis());
+                return newId;
+            }
+            case "PENDING" -> {
+                boolean won = jobRepository.claimFileAttempt(tid, rf.id(), System.currentTimeMillis());
+                if (!won) {
+                    log.info("File attempt {} ({}) PENDING but claim lost to another worker; skipping",
+                            rf.id(), rf.fileType());
+                    return null;
+                }
+                return rf.id();
+            }
+            case "IN_PROGRESS" -> {
+                log.info("File attempt {} ({}) IN_PROGRESS — another live worker owns it; skipping",
+                        rf.id(), rf.fileType());
+                return null;
+            }
+            default -> {
+                // SUCCESS / SKIPPED — already filtered out by filterResumable, but defensive.
+                log.warn("File attempt {} ({}) in unexpected status {} — skipping",
+                        rf.id(), rf.fileType(), rf.status());
+                return null;
+            }
         }
     }
 
@@ -397,7 +532,8 @@ public class DownsyncFileGenService {
     public String getFileSkipReason(LocalityDownsyncCriteria c, String fileType) {
         String tenantId  = c.getTenantId();
         String locality  = c.getLocality();
-        String projectId = c.getProjectId();
+        String projectId = c.getProjectId();        // PROJECT rows: the campaign root
+        String beneficiaryType = c.getBeneficiaryType();
 
         Long lastEndTime = projectId == null
                 ? jobRepository.findLatestFileEndTime(tenantId, locality, fileType)
@@ -410,11 +546,11 @@ public class DownsyncFileGenService {
                     jobRepository.findMaxHhMemberModifiedTime(tenantId, locality));
             case "INDIVIDUALS" -> jobRepository.findMaxIndividualModifiedTime(tenantId, locality);
             case "BENE_AE_REF" -> maxOf(
-                    jobRepository.findMaxBeneficiaryModifiedTime(tenantId, locality, projectId),
-                    jobRepository.findMaxSideEffectModifiedTime(tenantId, locality, projectId),
-                    jobRepository.findMaxReferralModifiedTime(tenantId, locality, projectId),
-                    jobRepository.findMaxHfReferralModifiedTime(tenantId, locality, projectId));
-            case "TASKS"       -> jobRepository.findMaxTaskModifiedTime(tenantId, locality, projectId);
+                    jobRepository.findMaxBeneficiaryModifiedTime(tenantId, locality, projectId, beneficiaryType),
+                    jobRepository.findMaxSideEffectModifiedTime(tenantId, locality, projectId, beneficiaryType),
+                    jobRepository.findMaxReferralModifiedTime(tenantId, locality, projectId, beneficiaryType),
+                    jobRepository.findMaxHfReferralModifiedTime(tenantId, locality, projectId, beneficiaryType));
+            case "TASKS"       -> jobRepository.findMaxTaskModifiedTime(tenantId, locality, projectId, beneficiaryType);
             default            -> null;
         };
 
@@ -433,95 +569,101 @@ public class DownsyncFileGenService {
 
     // ── File dispatchers ──────────────────────────────────────────────────────
 
-    private FileResult runRegistryFile(String fileType, LocalityDownsyncCriteria c, String rowId) {
+    /** rowId here is the FILE row id (the working attempt) — already claimed/inserted upstream. */
+    private FileResult runRegistryFile(String fileType, LocalityDownsyncCriteria c, String localityRowId, String fileRowId) {
         return switch (fileType) {
-            case "HH_MEMBERS"  -> streamHhMembersFile(c, rowId);
-            case "INDIVIDUALS" -> streamIndividualsFile(c, rowId);
+            case "HH_MEMBERS"  -> streamHhMembersFile(c, fileRowId);
+            case "INDIVIDUALS" -> streamIndividualsFile(c, fileRowId);
             default -> throw new CustomException("UNKNOWN_REGISTRY_FILE_TYPE",
                     "Unrecognised registry file type '" + fileType + "'. Expected one of: HH_MEMBERS, INDIVIDUALS.");
         };
     }
 
-    private FileResult runProjectFile(String fileType, LocalityDownsyncCriteria c, String rowId) {
+    private FileResult runProjectFile(String fileType, LocalityDownsyncCriteria c, String localityRowId, String fileRowId) {
         return switch (fileType) {
-            case "BENE_AE_REF" -> streamBeneAeRefFile(c, rowId);
-            case "TASKS"       -> streamTasksFile(c, rowId);
+            case "BENE_AE_REF" -> streamBeneAeRefFile(c, fileRowId);
+            case "TASKS"       -> streamTasksFile(c, fileRowId);
             default -> throw new CustomException("UNKNOWN_PROJECT_FILE_TYPE",
                     "Unrecognised project file type '" + fileType + "'. Expected one of: BENE_AE_REF, TASKS.");
         };
     }
 
     // ── File streaming methods ────────────────────────────────────────────────
+    //
+    // The "IN_PROGRESS / startTime" stamp has already been written upstream by
+    // resolveWorkingId() (via claimFileAttempt or insertRetryAttempt), so these
+    // methods do their work and write only the terminal completion. updateFileCompleted
+    // is a CAS on status='IN_PROGRESS' — so even if the row was finalized in parallel
+    // by another writer, our write is a no-op and we still return our own FileResult.
 
-    private FileResult streamHhMembersFile(LocalityDownsyncCriteria c, String rowId) {
+    private FileResult streamHhMembersFile(LocalityDownsyncCriteria c, String fileRowId) {
         String tid = c.getTenantId();
         String key = s3RegistryKey(c, "hh_members");
-        jobRepository.updateFileStarted(tid, rowId, "HH_MEMBERS", System.currentTimeMillis());
         try {
             S3Result s3 = s3Service.streamToS3(key, gzip -> {
                 long n = streamQuery(gzip, resolveSql(HH_QUERY, tid), localityParams(c), "HOUSEHOLD");
                 return n + streamQuery(gzip, resolveSql(HH_MEMBER_QUERY, tid), localityParams(c), "HOUSEHOLD_MEMBER");
             });
-            jobRepository.updateFileCompleted(tid, rowId, "HH_MEMBERS", "SUCCESS",
+            jobRepository.updateFileCompleted(tid, fileRowId, "SUCCESS",
                     s3.rowCount() > 0 ? key : null, s3.rowCount(), s3.fileSize(), null, System.currentTimeMillis());
             return new FileResult("HH_MEMBERS", true, s3.rowCount() > 0 ? key : null, s3.rowCount(), null);
         } catch (Exception e) {
-            jobRepository.updateFileCompleted(tid, rowId, "HH_MEMBERS", "FAILED",
+            jobRepository.updateFileCompleted(tid, fileRowId, "FAILED",
                     null, null, null, truncate(e.getMessage()), System.currentTimeMillis());
             return new FileResult("HH_MEMBERS", false, null, 0, e.getMessage());
         }
     }
 
-    private FileResult streamIndividualsFile(LocalityDownsyncCriteria c, String rowId) {
+    private FileResult streamIndividualsFile(LocalityDownsyncCriteria c, String fileRowId) {
         String tid = c.getTenantId();
         String key = s3RegistryKey(c, "individuals");
-        jobRepository.updateFileStarted(tid, rowId, "INDIVIDUALS", System.currentTimeMillis());
         try {
             S3Result s3 = s3Service.streamToS3(key, gzip ->
                     streamIndividualQuery(gzip, resolveSql(INDIVIDUAL_QUERY, tid), localityParams(c)));
-            jobRepository.updateFileCompleted(tid, rowId, "INDIVIDUALS", "SUCCESS",
+            jobRepository.updateFileCompleted(tid, fileRowId, "SUCCESS",
                     s3.rowCount() > 0 ? key : null, s3.rowCount(), s3.fileSize(), null, System.currentTimeMillis());
             return new FileResult("INDIVIDUALS", true, s3.rowCount() > 0 ? key : null, s3.rowCount(), null);
         } catch (Exception e) {
-            jobRepository.updateFileCompleted(tid, rowId, "INDIVIDUALS", "FAILED",
-                    null, null, null, truncate(e.getMessage()), System.currentTimeMillis());
-            return new FileResult("INDIVIDUALS", false, null, 0, e.getMessage());
+            log.error("INDIVIDUALS file failed for key={}", key, e);
+            String diag = diagnosticMessage(e);
+            jobRepository.updateFileCompleted(tid, fileRowId, "FAILED",
+                    null, null, null, truncate(diag), System.currentTimeMillis());
+            return new FileResult("INDIVIDUALS", false, null, 0, diag);
         }
     }
 
-    private FileResult streamBeneAeRefFile(LocalityDownsyncCriteria c, String rowId) {
+    private FileResult streamBeneAeRefFile(LocalityDownsyncCriteria c, String fileRowId) {
         String tid = c.getTenantId();
         String key = s3ProjectKey(c, "bene_ae_ref");
-        jobRepository.updateFileStarted(tid, rowId, "BENE_AE_REF", System.currentTimeMillis());
         try {
             S3Result s3 = s3Service.streamToS3(key, gzip -> {
-                long n = streamQuery(gzip, resolveSql(BENEFICIARY_QUERY, tid), projectLocalityParams(c), "PROJECT_BENEFICIARY");
-                n += streamQuery(gzip, resolveSql(SIDE_EFFECT_QUERY, tid), projectLocalityParams(c), "SIDE_EFFECT");
-                n += streamQuery(gzip, resolveSql(REFERRAL_QUERY, tid), projectLocalityParams(c), "REFERRAL");
+                String bt = c.getBeneficiaryType();
+                long n = streamQuery(gzip, resolveSql(beneficiaryQuery(bt), tid), projectLocalityParams(c), "PROJECT_BENEFICIARY");
+                n += streamQuery(gzip, resolveSql(sideEffectQuery(bt), tid), projectLocalityParams(c), "SIDE_EFFECT");
+                n += streamQuery(gzip, resolveSql(referralQuery(bt), tid), projectLocalityParams(c), "REFERRAL");
                 return n + streamQuery(gzip, resolveSql(HF_REFERRAL_QUERY, tid), projectLocalityParams(c), "HF_REFERRAL");
             });
-            jobRepository.updateFileCompleted(tid, rowId, "BENE_AE_REF", "SUCCESS",
+            jobRepository.updateFileCompleted(tid, fileRowId, "SUCCESS",
                     s3.rowCount() > 0 ? key : null, s3.rowCount(), s3.fileSize(), null, System.currentTimeMillis());
             return new FileResult("BENE_AE_REF", true, s3.rowCount() > 0 ? key : null, s3.rowCount(), null);
         } catch (Exception e) {
-            jobRepository.updateFileCompleted(tid, rowId, "BENE_AE_REF", "FAILED",
+            jobRepository.updateFileCompleted(tid, fileRowId, "FAILED",
                     null, null, null, truncate(e.getMessage()), System.currentTimeMillis());
             return new FileResult("BENE_AE_REF", false, null, 0, e.getMessage());
         }
     }
 
-    private FileResult streamTasksFile(LocalityDownsyncCriteria c, String rowId) {
+    private FileResult streamTasksFile(LocalityDownsyncCriteria c, String fileRowId) {
         String tid = c.getTenantId();
         String key = s3ProjectKey(c, "tasks");
-        jobRepository.updateFileStarted(tid, rowId, "TASKS", System.currentTimeMillis());
         try {
             S3Result s3 = s3Service.streamToS3(key, gzip ->
-                    streamQuery(gzip, resolveSql(TASK_QUERY, tid), projectLocalityParams(c), "PROJECT_TASK"));
-            jobRepository.updateFileCompleted(tid, rowId, "TASKS", "SUCCESS",
+                    streamQuery(gzip, resolveSql(taskQuery(c.getBeneficiaryType()), tid), projectLocalityParams(c), "PROJECT_TASK"));
+            jobRepository.updateFileCompleted(tid, fileRowId, "SUCCESS",
                     s3.rowCount() > 0 ? key : null, s3.rowCount(), s3.fileSize(), null, System.currentTimeMillis());
             return new FileResult("TASKS", true, s3.rowCount() > 0 ? key : null, s3.rowCount(), null);
         } catch (Exception e) {
-            jobRepository.updateFileCompleted(tid, rowId, "TASKS", "FAILED",
+            jobRepository.updateFileCompleted(tid, fileRowId, "FAILED",
                     null, null, null, truncate(e.getMessage()), System.currentTimeMillis());
             return new FileResult("TASKS", false, null, 0, e.getMessage());
         }
@@ -551,18 +693,33 @@ public class DownsyncFileGenService {
                         try {
                             JsonGenerator gen = objectMapper.getFactory().createGenerator(gzip);
                             gen.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+                            // NDJSON: tell Jackson to use "\n" as the separator between root
+                            // values so its internal write-context stays consistent across
+                            // multiple writeStartObject/writeEndObject cycles. Without this,
+                            // certain multi-root sequences trip "Trying to output second root"
+                            // when a raw JSON value (writeRawValue) has just been embedded.
+                            gen.setRootValueSeparator(new SerializedString("\n"));
                             try {
                                 while (rs.next()) {
                                     gen.writeStartObject();
                                     gen.writeStringField("_t", typeTag);
                                     writeTypedRow(gen, rs, typeTag);
                                     gen.writeEndObject();
-                                    gen.writeRaw('\n');
                                     count[0]++;
                                 }
                             } finally {
                                 gen.flush();
                                 gen.close();
+                                // A generator's rootValueSeparator only fires BETWEEN roots emitted
+                                // by that same generator. If another streamQuery / writer follows on
+                                // the same gzip stream (e.g. streamHhMembersFile chains HOUSEHOLD +
+                                // HOUSEHOLD_MEMBER, streamBeneAeRefFile chains 4 entity types), its
+                                // first root would concatenate onto our last root as one physical
+                                // NDJSON line — a bug that broke every HH_MEMBERS file until this fix.
+                                // Emit an explicit '\n' at the seam so downstream writers, or an
+                                // empty follow-up, always start on a fresh line. Trailing blank
+                                // lines are ignored by every NDJSON consumer.
+                                gzip.write('\n');
                             }
                         } catch (IOException | SQLException e) {
                             throw new CustomException(typeTag + "_STREAM_ERROR",
@@ -819,6 +976,10 @@ public class DownsyncFileGenService {
                     try {
                         JsonGenerator gen = objectMapper.getFactory().createGenerator(gzip);
                         gen.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+                        // See note in streamQuery(): explicit "\n" root separator prevents
+                        // the "Trying to output second root, <ArrayNode>" write-context
+                        // assertion that fires under some raw-value + multi-batch flows.
+                        gen.setRootValueSeparator(new SerializedString("\n"));
                         try {
                             List<Map<String, Object>> buffer = new ArrayList<>(CURSOR_FETCH_SIZE);
                             while (rs.next()) {
@@ -838,6 +999,10 @@ public class DownsyncFileGenService {
                         } finally {
                             gen.flush();
                             gen.close();
+                            // See streamQuery for the seam rationale — INDIVIDUALS is currently the
+                            // only writer on its stream, but emitting a trailing '\n' keeps the
+                            // invariant "any streamXxx call leaves the stream ready for concatenation".
+                            gzip.write('\n');
                         }
                     } catch (IOException | SQLException e) {
                         throw new CustomException("INDIVIDUAL_STREAM_ERROR",
@@ -859,7 +1024,12 @@ public class DownsyncFileGenService {
     }
 
     private void decryptIndividualBatch(List<Map<String, Object>> batch) {
-        List<Integer> targets = new ArrayList<>();
+        // Build a per-row plan capturing which fields are encrypted and which identifier
+        // positions need decryption. The payload sent to enc-service contains ONLY
+        // ciphertext-bearing fields (no identifierType or other plaintext alongside) —
+        // enc-service walks the JSON tree decrypting every string value, so any plaintext
+        // value sent in the payload would cause an "Invalid Ciphertext" 500.
+        List<DecryptPlan> plans = new ArrayList<>();
         ArrayNode payload = objectMapper.createArrayNode();
 
         for (int i = 0; i < batch.size(); i++) {
@@ -867,58 +1037,122 @@ public class DownsyncFileGenService {
             String mobile = (String) row.get("mobileNumber");
             JsonNode identifiers = parseIdentifiersJson(row.get("identifiers_json"));
             boolean mobileEnc = isCipherText(mobile);
-            boolean identEnc  = hasEncryptedIdentifier(identifiers);
-            if (!mobileEnc && !identEnc) continue;
+
+            List<Integer> encryptedIdIdx = new ArrayList<>();
+            if (identifiers != null && identifiers.isArray()) {
+                for (int k = 0; k < identifiers.size(); k++) {
+                    JsonNode iid = identifiers.get(k).get("identifierId");
+                    if (iid != null && isCipherText(iid.asText(null))) {
+                        encryptedIdIdx.add(k);
+                    }
+                }
+            }
+            if (!mobileEnc && encryptedIdIdx.isEmpty()) continue;
 
             ObjectNode node = objectMapper.createObjectNode();
             if (mobileEnc) node.put("mobileNumber", mobile);
-            if (identEnc)  node.set("identifiers", identifiers);
+            if (!encryptedIdIdx.isEmpty()) {
+                ArrayNode filteredIds = objectMapper.createArrayNode();
+                for (int k : encryptedIdIdx) {
+                    ObjectNode flat = objectMapper.createObjectNode();
+                    flat.put("identifierId", identifiers.get(k).get("identifierId").asText());
+                    filteredIds.add(flat);
+                }
+                node.set("identifiers", filteredIds);
+            }
             payload.add(node);
-            targets.add(i);
+            plans.add(new DecryptPlan(i, mobileEnc, encryptedIdIdx, identifiers));
         }
 
-        if (targets.isEmpty()) return;
+        if (plans.isEmpty()) return;
 
         String decryptUrl = config.getEncHost() + config.getEncDecryptEndpoint();
         JsonNode decrypted;
         try {
-            decrypted = restTemplate.postForObject(decryptUrl, payload, JsonNode.class);
+            // Explicit Content-Type: application/json — otherwise Spring can pick the
+            // Jackson XML message converter (pulled in transitively by azure-storage-blob
+            // via jackson-dataformat-xml) and try to serialise our ArrayNode payload as
+            // XML. StAX then throws "Trying to output second root, <ArrayNode>" because
+            // XML has no notion of an array root. Wrapping the body in an HttpEntity with
+            // MediaType.APPLICATION_JSON forces content-negotiation onto the JSON path.
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<ArrayNode> request = new HttpEntity<>(payload, headers);
+            decrypted = restTemplate.postForObject(decryptUrl, request, JsonNode.class);
         } catch (RestClientException e) {
             throw new CustomException("ENC_SERVICE_DECRYPT_FAILED",
                     "HTTP call to enc-service decrypt endpoint '" + decryptUrl + "' failed for a batch of "
-                    + targets.size() + " individual(s). Verify egov.enc.host and egov.enc.decrypt.endpoint config. Cause: " + e.getMessage());
+                    + plans.size() + " individual(s). Verify egov.enc.host and egov.enc.decrypt.endpoint config. Cause: " + e.getMessage());
         }
 
         if (decrypted == null || !decrypted.isArray()) {
             throw new CustomException("ENC_SERVICE_INVALID_RESPONSE",
                     "Enc-service decrypt endpoint '" + decryptUrl + "' returned a null or non-array response "
-                    + "for a batch of " + targets.size() + " individual(s). Expected a JSON array of the same size.");
+                    + "for a batch of " + plans.size() + " individual(s). Expected a JSON array of the same size.");
         }
 
-        if (decrypted.size() != targets.size()) {
+        if (decrypted.size() != plans.size()) {
             throw new CustomException("ENC_SERVICE_RESPONSE_SIZE_MISMATCH",
                     "Enc-service decrypt endpoint returned " + decrypted.size() + " element(s) but "
-                    + targets.size() + " were sent. Cannot safely map decrypted values back to their rows.");
+                    + plans.size() + " were sent. Cannot safely map decrypted values back to their rows.");
         }
 
-        for (int j = 0; j < targets.size(); j++) {
-            Map<String, Object> row = batch.get(targets.get(j));
+        for (int j = 0; j < plans.size(); j++) {
+            DecryptPlan plan = plans.get(j);
+            Map<String, Object> row = batch.get(plan.rowIndex);
             JsonNode dec = decrypted.get(j);
-            if (dec.has("mobileNumber"))
+
+            if (plan.mobileEnc && dec.has("mobileNumber")) {
                 row.put("mobileNumber", dec.get("mobileNumber").asText(null));
-            if (dec.has("identifiers"))
-                row.put("identifiers_json", dec.get("identifiers").toString());
+            }
+
+            if (!plan.encryptedIdIdx.isEmpty() && dec.has("identifiers") && dec.get("identifiers").isArray()) {
+                JsonNode decIds = dec.get("identifiers");
+                // Merge decrypted identifierId values back into the ORIGINAL identifiers array,
+                // preserving identifierType and any other sibling fields.
+                ArrayNode merged = (ArrayNode) plan.originalIdentifiers;
+                for (int k = 0; k < plan.encryptedIdIdx.size(); k++) {
+                    int targetIdx = plan.encryptedIdIdx.get(k);
+                    JsonNode decId = decIds.get(k);
+                    if (decId != null && decId.has("identifierId")
+                            && merged.get(targetIdx) instanceof ObjectNode targetObj) {
+                        targetObj.put("identifierId", decId.get("identifierId").asText(null));
+                    }
+                }
+                row.put("identifiers_json", merged.toString());
+            }
+        }
+    }
+
+    private static final class DecryptPlan {
+        final int rowIndex;
+        final boolean mobileEnc;
+        final List<Integer> encryptedIdIdx;
+        final JsonNode originalIdentifiers;
+        DecryptPlan(int rowIndex, boolean mobileEnc, List<Integer> encryptedIdIdx, JsonNode originalIdentifiers) {
+            this.rowIndex = rowIndex;
+            this.mobileEnc = mobileEnc;
+            this.encryptedIdIdx = encryptedIdIdx;
+            this.originalIdentifiers = originalIdentifiers;
         }
     }
 
     private static boolean isCipherText(String text) {
-        // EGOV cipher format: <UUID>|<base64>  — UUID is exactly 36 chars with dashes at [8,13,18,23]
-        if (text == null || text.length() < 38) return false;
-        if (text.charAt(8) != '-' || text.charAt(13) != '-'
-                || text.charAt(18) != '-' || text.charAt(23) != '-'
-                || text.charAt(36) != '|') return false;
-        String base64 = text.substring(37);
-        return !base64.isEmpty() && (base64.length() % 4 == 0 || base64.endsWith("="));
+        // EGOV cipher format: <keyId>|<base64>. keyId is either a short numeric key-version
+        // identifier (e.g. "104227") or a 36-char UUID — match both by only requiring a
+        // non-empty prefix, a '|' separator, and a valid base64 suffix.
+        if (text == null) return false;
+        int pipe = text.indexOf('|');
+        if (pipe <= 0 || pipe == text.length() - 1) return false;
+        String base64 = text.substring(pipe + 1);
+        if (base64.length() % 4 != 0) return false;
+        for (int i = 0; i < base64.length(); i++) {
+            char c = base64.charAt(i);
+            boolean isB64 = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+                    || (c >= '0' && c <= '9') || c == '+' || c == '/' || c == '=';
+            if (!isB64) return false;
+        }
+        return true;
     }
 
     private JsonNode parseIdentifiersJson(Object pgObj) {
@@ -934,23 +1168,18 @@ public class DownsyncFileGenService {
         }
     }
 
-    private boolean hasEncryptedIdentifier(JsonNode identifiers) {
-        if (identifiers == null || !identifiers.isArray()) return false;
-        for (JsonNode id : identifiers) {
-            JsonNode v = id.get("identifierId");
-            if (v != null && isCipherText(v.asText(null))) return true;
-        }
-        return false;
-    }
 
     private void writeIndividualBuffer(JsonGenerator gen, List<Map<String, Object>> buffer)
             throws IOException {
+        // No manual \n here — the generator's rootValueSeparator (set at creation)
+        // handles the newline between successive root objects. Emitting it manually
+        // via writeRaw('\n') bypasses Jackson's write-context and can leave the
+        // internal state inconsistent with the actual bytes on the wire.
         for (Map<String, Object> row : buffer) {
             gen.writeStartObject();
             gen.writeStringField("_t", "INDIVIDUAL");
             writeIndividualFromMap(gen, row);
             gen.writeEndObject();
-            gen.writeRaw('\n');
         }
     }
 
@@ -1148,8 +1377,10 @@ public class DownsyncFileGenService {
         return Map.of("locality", c.getLocality());
     }
 
+    /** PROJECT file parameters: the campaign root (never a leaf project) and the village locality. */
     private Map<String, Object> projectLocalityParams(LocalityDownsyncCriteria c) {
-        return Map.of("projectId", c.getProjectId(), "locality", c.getLocality());
+        String root = c.getRootProjectId() != null ? c.getRootProjectId() : c.getProjectId();
+        return Map.of("rootProjectId", root, "locality", c.getLocality());
     }
 
     private String resolveSql(String template, String tenantId) {
@@ -1174,6 +1405,34 @@ public class DownsyncFileGenService {
     private String truncate(String msg) {
         if (msg == null) return "unknown";
         return msg.length() > 2000 ? msg.substring(0, 2000) : msg;
+    }
+
+    /**
+     * Diagnostic string built from an exception chain: top-level message +
+     * cause chain messages + the first 6 stack frames of the deepest cause.
+     * Stored in the failureReason column so post-mortem doesn't require pod
+     * logs. Capped by {@link #truncate} at the call site.
+     */
+    private String diagnosticMessage(Throwable e) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(e.getClass().getSimpleName()).append(": ").append(e.getMessage());
+        Throwable t = e.getCause(); int depth = 1;
+        while (t != null && depth <= 4) {
+            sb.append(" | cause[").append(depth).append("] ").append(t.getClass().getSimpleName())
+              .append(": ").append(t.getMessage());
+            t = t.getCause(); depth++;
+        }
+        // Walk to the deepest cause for the stack frames
+        Throwable deepest = e;
+        while (deepest.getCause() != null) deepest = deepest.getCause();
+        StackTraceElement[] st = deepest.getStackTrace();
+        int n = Math.min(6, st.length);
+        for (int i = 0; i < n; i++) {
+            sb.append(" @ ").append(st[i].getClassName())
+              .append(".").append(st[i].getMethodName())
+              .append(":").append(st[i].getLineNumber());
+        }
+        return sb.toString();
     }
 
     private record FileResult(String fileType, boolean success, String s3Key,

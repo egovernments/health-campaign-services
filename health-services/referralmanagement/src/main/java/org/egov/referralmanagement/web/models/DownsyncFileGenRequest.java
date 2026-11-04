@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.web.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -13,6 +14,7 @@ import org.egov.common.contract.request.RequestInfo;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DownsyncFileGenRequest {
+    @JsonProperty("RequestInfo")
     @NotNull
     private RequestInfo requestInfo;
 

@@ -3,6 +3,7 @@ package org.egov.referralmanagement.repository;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.utils.MultiStateInstanceUtil;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.web.models.DownsyncGenerationJob;
 import org.egov.referralmanagement.web.models.DownsyncGenerationLocality;
 import org.egov.referralmanagement.web.models.DownsyncJobDetail;
@@ -14,6 +15,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,14 +30,17 @@ public class DownsyncGenerationJobRepository {
     @Autowired
     private MultiStateInstanceUtil multiStateInstanceUtil;
 
+    @Autowired
+    private ReferralManagementConfiguration config;
+
     // ── SQL templates — {schema} replaced at call time ────────────────────────
 
     private static final String INSERT_JOB =
             "INSERT INTO {schema}.downsync_generation_job " +
             "(id, tenantId, projectId, totalRequested, totalSucceeded, totalFailed, status, " +
-            " createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion) " +
+            " createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, lastHeartbeat) " +
             "VALUES (:id, :tenantId, :projectId, :totalRequested, :totalSucceeded, :totalFailed, :status, " +
-            " :createdBy, :createdTime, :lastModifiedBy, :lastModifiedTime, :rowVersion)";
+            " :createdBy, :createdTime, :lastModifiedBy, :lastModifiedTime, :rowVersion, :lastHeartbeat)";
 
     private static final String UPDATE_JOB =
             "UPDATE {schema}.downsync_generation_job " +
@@ -45,13 +50,73 @@ public class DownsyncGenerationJobRepository {
             "WHERE id=:id";
 
     private static final String FIND_IN_PROGRESS_JOBS_IN_SCHEMA =
-            "SELECT id, tenantId, projectId, createdBy, rowVersion FROM {schema}.downsync_generation_job " +
-            "WHERE status = 'IN_PROGRESS'";
+            "SELECT id, tenantId, projectId, createdBy, rowVersion, lastHeartbeat " +
+            "FROM {schema}.downsync_generation_job WHERE status = 'IN_PROGRESS'";
 
+    /**
+     * Same shape as {@link #FIND_IN_PROGRESS_JOBS_IN_SCHEMA} but pre-filtered to jobs
+     * whose owner has apparently gone away — used by the periodic OrphanReclaimer.
+     * Two-condition filter:
+     * <ul>
+     *   <li>{@code lastHeartbeat IS NULL} — job was just inserted and its owning pod
+     *       died before the first heartbeat fired.</li>
+     *   <li>{@code lastHeartbeat &lt; :staleThreshold} — job's owning pod has stopped
+     *       bumping (dead, hung, or partitioned).</li>
+     * </ul>
+     * Ordered by createdTime so the oldest orphans are recovered first; LIMIT bounds
+     * the per-tick batch so a mass-recovery scenario doesn't stampede the DB pool.
+     */
+    private static final String FIND_STALE_HEARTBEAT_JOBS_IN_SCHEMA =
+            "SELECT id, tenantId, projectId, createdBy, rowVersion, lastHeartbeat " +
+            "FROM {schema}.downsync_generation_job " +
+            "WHERE status = 'IN_PROGRESS' " +
+            "  AND (lastHeartbeat IS NULL OR lastHeartbeat < :staleThreshold) " +
+            "ORDER BY createdTime ASC " +
+            "LIMIT :batchSize";
+
+    /**
+     * Claim an abandoned IN_PROGRESS job. Two protections in one statement:
+     *   • rowVersion CAS — defeats SIMULTANEOUS claims (only one of N pods
+     *     reading the same snapshot wins).
+     *   • lastHeartbeat freshness — defeats STAGGERED claims (a later-starting
+     *     pod sees a fresh heartbeat from the live owner and gets rowsAffected=0).
+     * Sets lastHeartbeat = :now atomically so the new owner is immediately
+     * visible as "alive" to any other pod that races in next.
+     */
     private static final String CLAIM_RESUME_JOB =
             "UPDATE {schema}.downsync_generation_job " +
-            "SET rowVersion = rowVersion + 1, lastModifiedBy = 'system-resume', lastModifiedTime = :now " +
-            "WHERE id = :id AND status = 'IN_PROGRESS' AND rowVersion = :expectedRowVersion";
+            "SET rowVersion = rowVersion + 1, " +
+            "    lastHeartbeat = :now, " +
+            "    lastModifiedBy = 'system-resume', " +
+            "    lastModifiedTime = :now " +
+            "WHERE id = :id " +
+            "  AND status = 'IN_PROGRESS' " +
+            "  AND rowVersion = :expectedRowVersion " +
+            "  AND (lastHeartbeat IS NULL OR lastHeartbeat < :staleThreshold)";
+
+    /**
+     * Periodic heartbeat from the owning pod. CAS by rowVersion — if another pod
+     * has stolen ownership (rowVersion incremented), this returns 0 and the
+     * heartbeat scheduler self-cancels.
+     */
+    private static final String BUMP_JOB_HEARTBEAT =
+            "UPDATE {schema}.downsync_generation_job " +
+            "SET lastHeartbeat = :now " +
+            "WHERE id = :id AND rowVersion = :expectedRowVersion AND status = 'IN_PROGRESS'";
+
+    /**
+     * Sweep ALL IN_PROGRESS file rows under a job that we've just claimed and know
+     * is abandoned (heartbeat was stale AND we won the CAS). No timestamp filter
+     * needed — the job-level claim guarantees no live worker exists. Each swept
+     * row becomes FAILED, and the attempt-per-row flow will INSERT a new attempt
+     * for it on the next worker pass.
+     */
+    private static final String SWEEP_STALE_FILES_FOR_JOB =
+            "UPDATE {schema}.downsync_locality_file " +
+            "SET status = 'FAILED', " +
+            "    endTime = :now, " +
+            "    failureReason = 'abandoned: prior worker did not complete (pod restart, heartbeat stale)' " +
+            "WHERE jobId = :jobId AND status = 'IN_PROGRESS'";
 
     private static final String HAS_IN_PROGRESS_JOB =
             "SELECT COUNT(*) FROM {schema}.downsync_generation_job " +
@@ -102,7 +167,11 @@ public class DownsyncGenerationJobRepository {
             "  AND ((:projectId IS NULL AND l.projectId IS NULL) OR l.projectId = :projectId) " +
             "  AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
             "  AND f.status = 'SUCCESS' AND f.s3Key IS NOT NULL " +
-            "ORDER BY f.fileType, f.endTime DESC";
+            // Multiple attempts may exist per (locality, fileType); pick the latest
+            // successful one. attemptNumber is the source of truth for ordering across
+            // attempts; endTime is a deterministic tiebreaker for rows backfilled to
+            // attemptNumber=1.
+            "ORDER BY f.fileType, f.attemptNumber DESC, f.endTime DESC";
 
     private static final String FIND_ALL_LOCALITIES_BY_JOB =
             "SELECT id, tenantId, projectId, locality, category, status, failureReason, " +
@@ -120,18 +189,40 @@ public class DownsyncGenerationJobRepository {
 
     private static final String INSERT_FILE =
             "INSERT INTO {schema}.downsync_locality_file " +
-            "(id, localityRowId, jobId, fileType, status) " +
-            "VALUES (:id, :localityRowId, :jobId, :fileType, :status)";
+            "(id, localityRowId, jobId, fileType, status, attemptNumber, createdTime) " +
+            "VALUES (:id, :localityRowId, :jobId, :fileType, :status, 1, :createdTime)";
 
-    private static final String UPDATE_FILE_STARTED =
-            "UPDATE {schema}.downsync_locality_file SET status='IN_PROGRESS', startTime=:startTime " +
-            "WHERE localityRowId=:localityRowId AND fileType=:fileType";
+    /**
+     * Claim a PENDING attempt row in place. STRICT CAS — PENDING only.
+     *
+     * Crash recovery is handled separately by SWEEP_STALE_FILES_FOR_JOB, which
+     * marks abandoned IN_PROGRESS rows as FAILED at startup BEFORE workers run.
+     * Once that sweep happens, an IN_PROGRESS row only ever means "another live
+     * worker owns it" — never "crashed", so this claim must NOT match it.
+     */
+    private static final String CLAIM_FILE_ATTEMPT =
+            "UPDATE {schema}.downsync_locality_file " +
+            "SET status='IN_PROGRESS', startTime=:startTime, " +
+            "    endTime=NULL, failureReason=NULL, s3Key=NULL, recordCount=NULL, filesize=NULL " +
+            "WHERE id=:id AND status='PENDING'";
 
+    /** INSERT a brand-new attempt row when retrying from a terminal-state row.
+     *  attemptNumber = (max existing for same locality+fileType) + 1. */
+    private static final String INSERT_RETRY_ATTEMPT =
+            "INSERT INTO {schema}.downsync_locality_file " +
+            "(id, localityRowId, jobId, fileType, status, startTime, attemptNumber, createdTime) " +
+            "VALUES (:id, :localityRowId, :jobId, :fileType, 'IN_PROGRESS', :startTime, " +
+            "  (SELECT COALESCE(MAX(attemptNumber), 0) + 1 FROM {schema}.downsync_locality_file " +
+            "   WHERE localityRowId=:localityRowId AND fileType=:fileType), " +
+            ":createdTime)";
+
+    /** Finalize an in-flight row. CAS on status='IN_PROGRESS' — terminal-state rows are
+     *  immutable, so this is a no-op if another writer beat us to it. */
     private static final String UPDATE_FILE_COMPLETED =
             "UPDATE {schema}.downsync_locality_file " +
             "SET status=:status, s3Key=:s3Key, recordCount=:recordCount, filesize=:fileSize, " +
             "    failureReason=:failureReason, endTime=:endTime " +
-            "WHERE localityRowId=:localityRowId AND fileType=:fileType";
+            "WHERE id=:id AND status='IN_PROGRESS'";
 
     // ── New queries for registry staleness and locality resolution ─────────────
 
@@ -141,13 +232,43 @@ public class DownsyncGenerationJobRepository {
             "JOIN {schema}.address a ON (h.addressid)::text = (a.id)::text " +
             "WHERE h.tenantid = :tenantId AND h.isdeleted = false AND a.localitycode IS NOT NULL";
 
-    private static final String FETCH_PROJECT_LOCALITY_MAPPING =
-            "SELECT pa.projectid, pa.boundary AS locality " +
-            "FROM {schema}.project_address pa " +
-            "JOIN {schema}.project p ON p.id = pa.projectid " +
-            "WHERE p.projecthierarchy LIKE '%' || :rootProjectId || '%' " +
-            "  AND p.id != :rootProjectId " +
-            "  AND pa.boundary IS NOT NULL";
+    /** Any project id in a campaign → the campaign root: first element of projecthierarchy, or the id itself for a root. */
+    private static final String RESOLVE_ROOT_PROJECT_ID =
+            "SELECT COALESCE(NULLIF(split_part(projecthierarchy, '.', 1), ''), id) " +
+            "FROM {schema}.project WHERE id = :projectId AND COALESCE(isDeleted, false) = false";
+
+    /** Number of projects strictly below the root. 0 ⇒ not a campaign root with children. */
+    private static final String COUNT_DESCENDANT_PROJECTS =
+            "SELECT COUNT(*) FROM {schema}.project " +
+            "WHERE COALESCE(isDeleted, false) = false AND projecthierarchy LIKE :rootProjectId || '.%'";
+
+    /** MDMS project-type code stored on the project row (HCM-PROJECT-TYPES.projectTypes[].code). */
+    private static final String FIND_PROJECT_TYPE_CODE =
+            "SELECT projecttype FROM {schema}.project WHERE id = :projectId AND COALESCE(isDeleted, false) = false";
+
+    /**
+     * Villages that need PROJECT files for a campaign: every locality where a campaign beneficiary
+     * lives (by the campaign's beneficiary type), plus localities with campaign HF referrals, plus
+     * village-level boundaries configured on the campaign's projects that actually have households.
+     * Keeps a campaign job scoped to its own footprint instead of every locality in the tenant.
+     */
+    private static String fetchCampaignLocalitiesSql(String beneficiaryType) {
+        String beneVillages = DownsyncSqlFragments.BENEFICIARY_TYPE_HOUSEHOLD.equals(DownsyncSqlFragments.normalize(beneficiaryType))
+                ? "SELECT mv.localitycode AS loc FROM {schema}.PROJECT_BENEFICIARY pb " +
+                  "JOIN {schema}.household_address_mv mv ON mv.clientReferenceId = pb.beneficiaryClientReferenceId AND mv.isdeleted = false " +
+                  "WHERE pb.isDeleted = false AND pb.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")"
+                : "SELECT mv.localitycode AS loc FROM {schema}.PROJECT_BENEFICIARY pb " +
+                  "JOIN {schema}.HOUSEHOLD_MEMBER hm ON hm.individualClientReferenceId = pb.beneficiaryClientReferenceId AND hm.isDeleted = false " +
+                  "JOIN {schema}.household_address_mv mv ON mv.clientReferenceId = hm.householdClientReferenceId AND mv.isdeleted = false " +
+                  "WHERE pb.isDeleted = false AND pb.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+        return "SELECT DISTINCT loc FROM (" + beneVillages +
+               " UNION SELECT hfr.localitycode FROM {schema}.HF_REFERRAL hfr " +
+               "   WHERE hfr.isdeleted = false AND hfr.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")" +
+               " UNION SELECT pa.boundary FROM {schema}.project_address pa " +
+               "   WHERE pa.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")" +
+               "   AND pa.boundary IN (SELECT DISTINCT localitycode FROM {schema}.household_address_mv WHERE isdeleted = false)" +
+               ") x WHERE loc IS NOT NULL ORDER BY loc";
+    }
 
     private static final String FIND_LATEST_FILE_END_TIME =
             "SELECT MAX(f.endTime) " +
@@ -195,56 +316,44 @@ public class DownsyncGenerationJobRepository {
             "  AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
             "  AND f.fileType = :fileType AND f.status = 'SUCCESS'";
 
-    // Reusable subquery: all beneficiary clientReferenceIds in a given project+locality
-    private static final String BENE_LOCALITY_SUBQUERY =
-            "SELECT pb.clientReferenceId FROM {schema}.PROJECT_BENEFICIARY pb " +
-            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
-            "AND pb.beneficiaryClientReferenceId IN (" +
-            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "  WHERE localitycode = :locality AND isdeleted = false " +
-            "  UNION " +
-            "  SELECT hm.individualClientReferenceId " +
-            "  FROM {schema}.HOUSEHOLD_MEMBER hm " +
-            "  WHERE hm.isDeleted = false " +
-            "  AND hm.householdClientReferenceId IN (" +
-            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "    WHERE localitycode = :locality AND isdeleted = false" +
-            "  )" +
-            ")";
+    // ── Project file staleness — campaign-wide + beneficiary-type aware ──────
+    // Parameters: :rootProjectId, :locality. See DownsyncSqlFragments for the design.
 
-    private static final String FIND_MAX_BENEFICIARY_MODIFIED_TIME =
-            "SELECT MAX(pb.lastmodifiedtime) FROM {schema}.PROJECT_BENEFICIARY pb " +
-            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
-            "AND pb.beneficiaryClientReferenceId IN (" +
-            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "  WHERE localitycode = :locality AND isdeleted = false " +
-            "  UNION " +
-            "  SELECT hm.individualClientReferenceId FROM {schema}.HOUSEHOLD_MEMBER hm " +
-            "  WHERE hm.isDeleted = false " +
-            "  AND hm.householdClientReferenceId IN (" +
-            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
-            "    WHERE localitycode = :locality AND isdeleted = false" +
-            "  )" +
-            ")";
+    private static String maxBeneficiaryModifiedSql(String beneficiaryType) {
+        return "SELECT MAX(pb.lastmodifiedtime) FROM {schema}.PROJECT_BENEFICIARY pb " +
+               "WHERE pb.isDeleted = false " +
+               "AND pb.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ") " +
+               "AND pb.beneficiaryClientReferenceId IN (" +
+               DownsyncSqlFragments.beneficiaryRefsInLocality(beneficiaryType) + ")";
+    }
 
-    private static final String FIND_MAX_SIDE_EFFECT_MODIFIED_TIME =
-            "SELECT MAX(se.lastmodifiedtime) FROM {schema}.SIDE_EFFECT se " +
-            "WHERE se.isDeleted = false " +
-            "AND se.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+    private static String maxSideEffectModifiedSql(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT MAX(se.lastmodifiedtime) FROM {schema}.SIDE_EFFECT se " +
+               "JOIN village_bene vb ON vb.clientReferenceId = se.projectBeneficiaryClientReferenceId " +
+               "WHERE se.isDeleted = false";
+    }
 
-    private static final String FIND_MAX_REFERRAL_MODIFIED_TIME =
-            "SELECT MAX(r.lastmodifiedtime) FROM {schema}.REFERRAL r " +
-            "WHERE r.projectid = :projectId AND r.isDeleted = false " +
-            "AND r.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+    private static String maxReferralModifiedSql(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT MAX(r.lastmodifiedtime) FROM {schema}.REFERRAL r " +
+               "JOIN village_bene vb ON vb.clientReferenceId = r.projectBeneficiaryClientReferenceId " +
+               "WHERE r.isDeleted = false " +
+               "AND r.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+    }
 
     private static final String FIND_MAX_HF_REFERRAL_MODIFIED_TIME =
             "SELECT MAX(hfr.lastmodifiedtime) FROM {schema}.HF_REFERRAL hfr " +
-            "WHERE hfr.projectid = :projectId AND hfr.localitycode = :locality AND hfr.isdeleted = false";
+            "WHERE hfr.localitycode = :locality AND hfr.isdeleted = false " +
+            "AND hfr.projectid IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
 
-    private static final String FIND_MAX_TASK_MODIFIED_TIME =
-            "SELECT MAX(pt.lastmodifiedtime) FROM {schema}.PROJECT_TASK pt " +
-            "WHERE pt.projectId = :projectId AND pt.isDeleted = false " +
-            "AND pt.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+    private static String maxTaskModifiedSql(String beneficiaryType) {
+        return DownsyncSqlFragments.villageBeneficiaryCte(beneficiaryType) +
+               "SELECT MAX(pt.lastmodifiedtime) FROM {schema}.PROJECT_TASK pt " +
+               "JOIN village_bene vb ON vb.clientReferenceId = pt.projectBeneficiaryClientReferenceId " +
+               "WHERE pt.isDeleted = false " +
+               "AND pt.projectId IN (" + DownsyncSqlFragments.CAMPAIGN_PROJECT_IDS + ")";
+    }
 
     private static final String REFRESH_HOUSEHOLD_ADDRESS_MV =
             "REFRESH MATERIALIZED VIEW CONCURRENTLY {schema}.household_address_mv";
@@ -256,18 +365,22 @@ public class DownsyncGenerationJobRepository {
             "SELECT MAX(createdTime) FROM {schema}.downsync_generation_job " +
             "WHERE tenantId = :tenantId AND status IN ('COMPLETED','PARTIAL_FAILURE')";
 
-    private static final String FIND_LEAF_PROJECT_ID_FOR_LOCALITY =
-            "SELECT pa.projectid " +
-            "FROM {schema}.project_address pa " +
-            "JOIN {schema}.project p ON p.id = pa.projectid " +
-            "WHERE p.projecthierarchy LIKE '%' || :rootProjectId || '%' " +
-            "  AND p.id != :rootProjectId " +
-            "  AND pa.boundary = :locality " +
-            "LIMIT 1";
-
+    /**
+     * Returns the LATEST attempt per fileType, with that attempt's id + status.
+     *
+     * The caller decides how to start work based on the latest row's status:
+     *   PENDING / IN_PROGRESS → claim the existing row in place (CLAIM_FILE_ATTEMPT).
+     *   FAILED                → INSERT a new attempt row (INSERT_RETRY_ATTEMPT).
+     *   SUCCESS / SKIPPED     → not returned at all; file is already done.
+     *
+     * Skipping the terminal states here keeps the SQL aligned with the invariant
+     * "terminal-state rows are immutable" — we never even hand them to a worker.
+     */
     private static final String FIND_RESUMABLE_FILE_TYPES =
-            "SELECT fileType FROM {schema}.downsync_locality_file " +
-            "WHERE localityRowId=:localityRowId AND status IN ('PENDING','IN_PROGRESS','FAILED')";
+            "SELECT DISTINCT ON (fileType) id, fileType, status " +
+            "FROM {schema}.downsync_locality_file " +
+            "WHERE localityRowId=:localityRowId " +
+            "ORDER BY fileType, attemptNumber DESC";
 
     // ── Schema resolution ─────────────────────────────────────────────────────
 
@@ -279,12 +392,67 @@ public class DownsyncGenerationJobRepository {
         }
     }
 
-    /** Discovers all schemas that contain the downsync audit tables. Used by startup scanner. */
+    /**
+     * Tenant schemas the startup resume scanner should walk.
+     *
+     * <p>Reads directly from ops config — no {@code information_schema} probing.
+     *
+     * <ol>
+     *   <li><b>Central instance</b>
+     *       ({@code MultiStateInstanceUtil.getIsEnvironmentCentralInstance() == true})
+     *       — returns the parsed {@code SCHEMA_NAME} env var (bound as
+     *       {@code schema.name}), the exact same value the Helm chart gives the
+     *       db-migration init container. Each entry is a real Postgres schema name.</li>
+     *
+     *   <li><b>Non-central instance</b> — returns a single-element list containing an
+     *       empty string {@code [""]}. Callers detect the empty entry and strip
+     *       {@code {schema}.} entirely from the SQL, so the query runs unqualified
+     *       against the JDBC connection's default {@code search_path} — which is
+     *       exactly what a single-tenant deploy wants. The value of
+     *       {@code egov.state.level.tenant.id} is NOT used as a schema name (it's a
+     *       tenant identifier, not necessarily a Postgres schema).</li>
+     * </ol>
+     *
+     * <p>Any schema in the DB not covered by these values is ignored (previous
+     * deploy's orphans, tables from other apps, etc.) — the app never touches them.
+     */
     private List<String> auditTableSchemas() {
-        return jdbcTemplate.queryForList(
-                "SELECT table_schema FROM information_schema.tables " +
-                "WHERE table_name = 'downsync_generation_job' ORDER BY table_schema",
-                new MapSqlParameterSource(), String.class);
+        Boolean central = multiStateInstanceUtil.getIsEnvironmentCentralInstance();
+        boolean isCentral = central != null && central;
+
+        if (!isCentral) {
+            // Single-tenant deploy — one iteration, no schema qualifier. Callers must
+            // handle "" by stripping the "{schema}." placeholder from the SQL.
+            return List.of("");
+        }
+
+        String csv = config.getTenantSchemas();
+        if (csv == null || csv.isBlank()) {
+            log.warn("Central instance mode but SCHEMA_NAME is empty on the app container — " +
+                    "no schemas will be scanned. Wire SCHEMA_NAME via Helm (same value passed " +
+                    "to the db-migration init container).");
+            return List.of();
+        }
+        return Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    /**
+     * Prepare a schema-templated SQL for execution.
+     * <ul>
+     *   <li>{@code schema.isEmpty()} → strip {@code "{schema}."} entirely. SQL becomes
+     *       unqualified and hits whatever the JDBC connection's search_path points at
+     *       (non-central single-tenant mode).</li>
+     *   <li>Otherwise substitute {@code schema} for the {@code "{schema}"} token
+     *       (central multi-tenant mode).</li>
+     * </ul>
+     */
+    private String qualifySql(String template, String schema) {
+        return schema.isEmpty()
+                ? template.replace("{schema}.", "")
+                : template.replace("{schema}", schema);
     }
 
     // ── Public methods — Job ──────────────────────────────────────────────────
@@ -302,7 +470,11 @@ public class DownsyncGenerationJobRepository {
                 .addValue("createdTime", job.getCreatedTime())
                 .addValue("lastModifiedBy", job.getLastModifiedBy())
                 .addValue("lastModifiedTime", job.getLastModifiedTime())
-                .addValue("rowVersion", job.getRowVersion()));
+                .addValue("rowVersion", job.getRowVersion())
+                // Fresh job is owned by the creating pod from the moment of insert.
+                // The caller starts the heartbeat scheduler immediately so no other
+                // pod can grab the job during the gap between insert and first heartbeat.
+                .addValue("lastHeartbeat", System.currentTimeMillis()));
     }
 
     public void updateJob(DownsyncGenerationJob job) {
@@ -317,17 +489,58 @@ public class DownsyncGenerationJobRepository {
     }
 
     /**
-     * Atomically claims a resume job using optimistic locking on rowVersion.
-     * Returns true only if this pod wins the race (rowsAffected == 1).
-     * If another pod already claimed it, rowVersion will have changed and this returns false.
+     * Claim an abandoned IN_PROGRESS job. Two CAS conditions in one UPDATE:
+     *   • rowVersion CAS — defeats simultaneous claims (multiple pods reading
+     *     the same snapshot all attempt the UPDATE; exactly one matches)
+     *   • lastHeartbeat freshness — defeats staggered claims (a later-starting
+     *     pod sees the recorded heartbeat from the live owner and skips)
+     * Sets lastHeartbeat = :now on success so the new owner is immediately
+     * visible as "alive" to any other pod that races in next.
+     *
+     * @return true iff this pod won the claim (rowsAffected == 1).
      */
-    public boolean claimResumeJob(String tenantId, String jobId, long expectedRowVersion) {
+    public boolean claimResumeJob(String tenantId, String jobId, long expectedRowVersion,
+                                   long staleHeartbeatThreshold) {
         int rows = jdbcTemplate.update(resolveSql(CLAIM_RESUME_JOB, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("id", jobId)
+                        .addValue("expectedRowVersion", expectedRowVersion)
+                        .addValue("now", System.currentTimeMillis())
+                        .addValue("staleThreshold", staleHeartbeatThreshold));
+        return rows == 1;
+    }
+
+    /**
+     * Bump lastHeartbeat for a job this pod owns. CAS by rowVersion — if another
+     * pod has stolen ownership, rowsAffected=0 and the caller's heartbeat
+     * scheduler should self-cancel.
+     *
+     * @return true iff the heartbeat write took effect (we still own the job).
+     */
+    public boolean bumpJobHeartbeat(String tenantId, String jobId, long expectedRowVersion) {
+        int rows = jdbcTemplate.update(resolveSql(BUMP_JOB_HEARTBEAT, tenantId),
                 new MapSqlParameterSource()
                         .addValue("id", jobId)
                         .addValue("expectedRowVersion", expectedRowVersion)
                         .addValue("now", System.currentTimeMillis()));
         return rows == 1;
+    }
+
+    /**
+     * Mark all IN_PROGRESS file rows under this job as FAILED. Used by the
+     * resume runner immediately after winning a job claim — at that point we
+     * know no live worker exists for this job (job-level heartbeat was stale),
+     * so any per-row IN_PROGRESS is genuinely abandoned. Each swept row stays
+     * in the table as history; the attempt-per-row flow will INSERT a new
+     * attempt for it on the next worker pass.
+     *
+     * @return number of rows swept.
+     */
+    public int sweepStaleFilesForJob(String tenantId, String jobId) {
+        return jdbcTemplate.update(resolveSql(SWEEP_STALE_FILES_FOR_JOB, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("jobId", jobId)
+                        .addValue("now", System.currentTimeMillis()));
     }
 
     public boolean hasInProgressJob(String tenantId) {
@@ -337,21 +550,57 @@ public class DownsyncGenerationJobRepository {
     }
 
     /**
-     * Scans all schemas that have the audit table — used only at startup to resume
-     * interrupted jobs. Schemas are discovered dynamically from information_schema.
+     * Scans the ops-configured tenant schemas for IN_PROGRESS jobs. Used only at
+     * startup by the resume runner. Schema list comes from {@link #auditTableSchemas()}
+     * (SCHEMA_NAME in central mode; state-level tenant otherwise).
      */
     public List<DownsyncGenerationJob> findInProgressJobs() {
         return auditTableSchemas().stream()
                 .flatMap(schema -> {
-                    String sql = FIND_IN_PROGRESS_JOBS_IN_SCHEMA.replace("{schema}", schema);
-                    return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, i) ->
-                            DownsyncGenerationJob.builder()
-                                    .id(rs.getString("id"))
-                                    .tenantId(rs.getString("tenantId"))
-                                    .projectId(rs.getString("projectId"))
-                                    .createdBy(rs.getString("createdBy"))
-                                    .rowVersion(rs.getLong("rowVersion"))
-                                    .build()).stream();
+                    String sql = qualifySql(FIND_IN_PROGRESS_JOBS_IN_SCHEMA, schema);
+                    return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, i) -> {
+                        long heartbeat = rs.getLong("lastHeartbeat");
+                        return DownsyncGenerationJob.builder()
+                                .id(rs.getString("id"))
+                                .tenantId(rs.getString("tenantId"))
+                                .projectId(rs.getString("projectId"))
+                                .createdBy(rs.getString("createdBy"))
+                                .rowVersion(rs.getLong("rowVersion"))
+                                .lastHeartbeat(rs.wasNull() ? null : heartbeat)
+                                .build();
+                    }).stream();
+                })
+                .toList();
+    }
+
+    /**
+     * Returns up to {@code batchSize} IN_PROGRESS jobs whose {@code lastHeartbeat}
+     * is either {@code NULL} or older than {@code staleThreshold} millis — i.e.
+     * jobs whose owning pod has apparently gone away. Scans every ops-configured
+     * tenant schema and merges results ordered by createdTime.
+     *
+     * <p>Used by {@link org.egov.referralmanagement.service.OrphanReclaimer} on
+     * every scheduled tick. The caller iterates the returned list and tries
+     * {@link #claimResumeJob} on each — the CAS decides which pod wins each row.
+     */
+    public List<DownsyncGenerationJob> findStaleHeartbeatJobs(long staleThreshold, int batchSize) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("staleThreshold", staleThreshold)
+                .addValue("batchSize", batchSize);
+        return auditTableSchemas().stream()
+                .flatMap(schema -> {
+                    String sql = qualifySql(FIND_STALE_HEARTBEAT_JOBS_IN_SCHEMA, schema);
+                    return jdbcTemplate.query(sql, params, (rs, i) -> {
+                        long heartbeat = rs.getLong("lastHeartbeat");
+                        return DownsyncGenerationJob.builder()
+                                .id(rs.getString("id"))
+                                .tenantId(rs.getString("tenantId"))
+                                .projectId(rs.getString("projectId"))
+                                .createdBy(rs.getString("createdBy"))
+                                .rowVersion(rs.getLong("rowVersion"))
+                                .lastHeartbeat(rs.wasNull() ? null : heartbeat)
+                                .build();
+                    }).stream();
                 })
                 .toList();
     }
@@ -394,29 +643,52 @@ public class DownsyncGenerationJobRepository {
                 .addValue("endTime", endTime));
     }
 
+    /**
+     * Schema-scanning lookup. Only for callers that genuinely have no
+     * tenant context — the resume-runner and conflict-response paths. Every
+     * caller with a tenantId in hand should use
+     * {@link #findJobById(String, String)}, which is a single-query O(1)
+     * lookup against the resolved schema.
+     */
     public DownsyncGenerationJob findJobById(String jobId) {
         for (String schema : auditTableSchemas()) {
-            String sql = FIND_JOB_BY_ID.replace("{schema}", schema);
+            String sql = qualifySql(FIND_JOB_BY_ID, schema);
             List<DownsyncGenerationJob> rows = jdbcTemplate.query(sql,
-                    new MapSqlParameterSource("id", jobId), (rs, i) ->
-                            DownsyncGenerationJob.builder()
-                                    .id(rs.getString("id"))
-                                    .tenantId(rs.getString("tenantId"))
-                                    .projectId(rs.getString("projectId"))
-                                    .totalRequested(rs.getInt("totalRequested"))
-                                    .totalSucceeded(rs.getInt("totalSucceeded"))
-                                    .totalFailed(rs.getInt("totalFailed"))
-                                    .status(rs.getString("status"))
-                                    .createdBy(rs.getString("createdBy"))
-                                    .createdTime(rs.getLong("createdTime"))
-                                    .lastModifiedBy(rs.getString("lastModifiedBy"))
-                                    .lastModifiedTime(rs.getLong("lastModifiedTime"))
-                                    .rowVersion(rs.getLong("rowVersion"))
-                                    .build());
+                    new MapSqlParameterSource("id", jobId), JOB_ROW_MAPPER);
             if (!rows.isEmpty()) return rows.get(0);
         }
         return null;
     }
+
+    /**
+     * Tenant-scoped lookup. Resolves the schema from the tenantId directly
+     * (no {@code SCHEMA_NAME} env var, no cross-schema scan). Also acts as
+     * an implicit authorisation gate: a caller who guesses another tenant's
+     * jobId still gets a null result because the query hits the wrong
+     * schema and finds nothing.
+     */
+    public DownsyncGenerationJob findJobById(String jobId, String tenantId) {
+        List<DownsyncGenerationJob> rows = jdbcTemplate.query(
+                resolveSql(FIND_JOB_BY_ID, tenantId),
+                new MapSqlParameterSource("id", jobId), JOB_ROW_MAPPER);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private static final org.springframework.jdbc.core.RowMapper<DownsyncGenerationJob> JOB_ROW_MAPPER =
+            (rs, i) -> DownsyncGenerationJob.builder()
+                    .id(rs.getString("id"))
+                    .tenantId(rs.getString("tenantId"))
+                    .projectId(rs.getString("projectId"))
+                    .totalRequested(rs.getInt("totalRequested"))
+                    .totalSucceeded(rs.getInt("totalSucceeded"))
+                    .totalFailed(rs.getInt("totalFailed"))
+                    .status(rs.getString("status"))
+                    .createdBy(rs.getString("createdBy"))
+                    .createdTime(rs.getLong("createdTime"))
+                    .lastModifiedBy(rs.getString("lastModifiedBy"))
+                    .lastModifiedTime(rs.getLong("lastModifiedTime"))
+                    .rowVersion(rs.getLong("rowVersion"))
+                    .build();
 
     public DownsyncGenerationJob findInProgressJobByTenant(String tenantId) {
         List<DownsyncGenerationJob> rows = jdbcTemplate.query(
@@ -440,11 +712,25 @@ public class DownsyncGenerationJobRepository {
         return count != null ? count : 0;
     }
 
+    /**
+     * Tenant-scoped detail lookup — call this from the search endpoint.
+     * Uses the resolved schema directly, one query, no scan.
+     */
+    public DownsyncJobDetail findJobDetail(String jobId, String tenantId) {
+        DownsyncGenerationJob job = findJobById(jobId, tenantId);
+        if (job == null) return null;
+        return assembleDetail(job);
+    }
+
     /** Fetches job + all localities + all files in 3 queries and assembles the nested detail. */
     public DownsyncJobDetail findJobDetail(String jobId) {
         DownsyncGenerationJob job = findJobById(jobId);
         if (job == null) return null;
+        return assembleDetail(job);
+    }
 
+    private DownsyncJobDetail assembleDetail(DownsyncGenerationJob job) {
+        String jobId = job.getId();
         String tenantId = job.getTenantId();
         List<DownsyncLocalityFile> allFiles = findAllFilesByJob(tenantId, jobId);
         Map<String, List<DownsyncLocalityFile>> filesByLocality = allFiles.stream()
@@ -553,34 +839,75 @@ public class DownsyncGenerationJobRepository {
                 .addValue("localityRowId", file.getLocalityRowId())
                 .addValue("jobId", file.getJobId())
                 .addValue("fileType", file.getFileType())
-                .addValue("status", file.getStatus()));
+                .addValue("status", file.getStatus())
+                .addValue("createdTime", System.currentTimeMillis()));
     }
 
-    public void updateFileStarted(String tenantId, String localityRowId, String fileType, long startTime) {
-        jdbcTemplate.update(resolveSql(UPDATE_FILE_STARTED, tenantId), new MapSqlParameterSource()
-                .addValue("localityRowId", localityRowId)
-                .addValue("fileType", fileType)
+    /**
+     * Claim a PENDING/IN_PROGRESS attempt row in place.
+     * Returns true iff this caller won the claim (rowsAffected==1). A return of false
+     * means the row is no longer in a claimable state — another worker or pod already
+     * moved it on, OR it has reached a terminal state. Caller should skip silently.
+     */
+    public boolean claimFileAttempt(String tenantId, String id, long startTime) {
+        int n = jdbcTemplate.update(resolveSql(CLAIM_FILE_ATTEMPT, tenantId), new MapSqlParameterSource()
+                .addValue("id", id)
                 .addValue("startTime", startTime));
+        return n == 1;
     }
 
-    public void updateFileCompleted(String tenantId, String localityRowId, String fileType, String status,
-                                     String s3Key, Long recordCount, Long fileSize,
-                                     String failureReason, long endTime) {
-        jdbcTemplate.update(resolveSql(UPDATE_FILE_COMPLETED, tenantId), new MapSqlParameterSource()
+    /**
+     * INSERT a brand-new attempt row when retrying after a terminal state. Auto-increments
+     * attemptNumber from the existing rows for the same (localityRowId, fileType). The
+     * caller chooses the new row's id.
+     */
+    public void insertRetryAttempt(String tenantId, String newId, String localityRowId,
+                                    String jobId, String fileType, long startTime) {
+        jdbcTemplate.update(resolveSql(INSERT_RETRY_ATTEMPT, tenantId), new MapSqlParameterSource()
+                .addValue("id", newId)
                 .addValue("localityRowId", localityRowId)
+                .addValue("jobId", jobId)
                 .addValue("fileType", fileType)
+                .addValue("startTime", startTime)
+                .addValue("createdTime", System.currentTimeMillis()));
+    }
+
+    /**
+     * Finalize an in-flight attempt by id. CAS — only updates if the row is still
+     * IN_PROGRESS, making terminal-state rows immutable. Returns true on a successful
+     * write, false if another writer already finalized this row (last-writer-loses).
+     */
+    public boolean updateFileCompleted(String tenantId, String id, String status,
+                                        String s3Key, Long recordCount, Long fileSize,
+                                        String failureReason, long endTime) {
+        int n = jdbcTemplate.update(resolveSql(UPDATE_FILE_COMPLETED, tenantId), new MapSqlParameterSource()
+                .addValue("id", id)
                 .addValue("status", status)
                 .addValue("s3Key", s3Key)
                 .addValue("recordCount", recordCount)
                 .addValue("fileSize", fileSize)
                 .addValue("failureReason", failureReason)
                 .addValue("endTime", endTime));
+        return n == 1;
     }
 
-    public List<String> findResumableFileTypes(String tenantId, String localityRowId) {
-        return jdbcTemplate.queryForList(resolveSql(FIND_RESUMABLE_FILE_TYPES, tenantId),
-                new MapSqlParameterSource("localityRowId", localityRowId), String.class);
+    /**
+     * Returns the latest attempt per fileType for a locality, with its id and status.
+     * Terminal states (SUCCESS / SKIPPED) are filtered out by the caller, since they
+     * don't need any further work. PENDING / IN_PROGRESS rows are claimed in place;
+     * FAILED rows trigger a new attempt (insertRetryAttempt).
+     */
+    public List<ResumableFile> findResumableFileTypes(String tenantId, String localityRowId) {
+        return jdbcTemplate.query(resolveSql(FIND_RESUMABLE_FILE_TYPES, tenantId),
+                new MapSqlParameterSource("localityRowId", localityRowId),
+                (rs, i) -> new ResumableFile(
+                        rs.getString("id"),
+                        rs.getString("fileType"),
+                        rs.getString("status")));
     }
+
+    /** DTO returned by {@link #findResumableFileTypes}. */
+    public record ResumableFile(String id, String fileType, String status) {}
 
     // ── New queries — locality resolution and registry staleness ─────────────
 
@@ -589,11 +916,31 @@ public class DownsyncGenerationJobRepository {
                 new MapSqlParameterSource("tenantId", tenantId), String.class);
     }
 
-    /** Returns list of [projectId, locality] pairs for all leaf projects under rootProjectId. */
-    public List<String[]> fetchProjectLocalityMapping(String tenantId, String rootProjectId) {
-        return jdbcTemplate.query(resolveSql(FETCH_PROJECT_LOCALITY_MAPPING, tenantId),
-                new MapSqlParameterSource("rootProjectId", rootProjectId),
-                (rs, i) -> new String[]{rs.getString("projectid"), rs.getString("locality")});
+    /** Resolves any project id inside a campaign to the campaign root project id; null if the project does not exist. */
+    public String resolveRootProjectId(String tenantId, String projectId) {
+        List<String> rows = jdbcTemplate.queryForList(resolveSql(RESOLVE_ROOT_PROJECT_ID, tenantId),
+                new MapSqlParameterSource("projectId", projectId), String.class);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** Number of projects strictly below the root. 0 means the id is not a campaign root with children. */
+    public int countDescendantProjects(String tenantId, String rootProjectId) {
+        Integer n = jdbcTemplate.queryForObject(resolveSql(COUNT_DESCENDANT_PROJECTS, tenantId),
+                new MapSqlParameterSource("rootProjectId", rootProjectId), Integer.class);
+        return n == null ? 0 : n;
+    }
+
+    /** Localities that need PROJECT files for the campaign (see fetchCampaignLocalitiesSql). */
+    public List<String> fetchCampaignLocalities(String tenantId, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForList(resolveSql(fetchCampaignLocalitiesSql(beneficiaryType), tenantId),
+                new MapSqlParameterSource("rootProjectId", rootProjectId), String.class);
+    }
+
+    /** MDMS project-type code stored on the project row, or null. */
+    public String findProjectTypeCode(String tenantId, String projectId) {
+        List<String> rows = jdbcTemplate.queryForList(resolveSql(FIND_PROJECT_TYPE_CODE, tenantId),
+                new MapSqlParameterSource("projectId", projectId), String.class);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     /** Returns the endTime of the last successful generation of fileType for this locality, or null. */
@@ -676,50 +1023,40 @@ public class DownsyncGenerationJobRepository {
                 Long.class);
     }
 
-    public Long findMaxBeneficiaryModifiedTime(String tenantId, String locality, String projectId) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_BENEFICIARY_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
+    // ── Campaign-wide max-modified lookups (PROJECT file staleness) ───────────
+    // rootProjectId is the campaign root stored on the PROJECT locality row;
+    // beneficiaryType is the campaign's MDMS beneficiaryType (HOUSEHOLD | INDIVIDUAL).
+
+    private MapSqlParameterSource campaignLocalityParams(String tenantId, String locality, String rootProjectId) {
+        return new MapSqlParameterSource()
+                .addValue("tenantId", tenantId)
+                .addValue("locality", locality)
+                .addValue("rootProjectId", rootProjectId);
     }
 
-    public Long findMaxSideEffectModifiedTime(String tenantId, String locality, String projectId) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_SIDE_EFFECT_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
+    public Long findMaxBeneficiaryModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForObject(resolveSql(maxBeneficiaryModifiedSql(beneficiaryType), tenantId),
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
     }
 
-    public Long findMaxReferralModifiedTime(String tenantId, String locality, String projectId) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_REFERRAL_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
+    public Long findMaxSideEffectModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForObject(resolveSql(maxSideEffectModifiedSql(beneficiaryType), tenantId),
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
     }
 
-    public Long findMaxHfReferralModifiedTime(String tenantId, String locality, String projectId) {
+    public Long findMaxReferralModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForObject(resolveSql(maxReferralModifiedSql(beneficiaryType), tenantId),
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
+    }
+
+    public Long findMaxHfReferralModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
         return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_HF_REFERRAL_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
     }
 
-    public Long findMaxTaskModifiedTime(String tenantId, String locality, String projectId) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_TASK_MODIFIED_TIME, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
-                Long.class);
-    }
-
-    /** Finds the leaf projectId for a given (rootProjectId, locality) pair. Used by DownsyncPregenService. */
-    public String findLeafProjectIdForLocality(String tenantId, String rootProjectId, String locality) {
-        List<String> rows = jdbcTemplate.queryForList(
-                resolveSql(FIND_LEAF_PROJECT_ID_FOR_LOCALITY, tenantId),
-                new MapSqlParameterSource()
-                        .addValue("rootProjectId", rootProjectId)
-                        .addValue("locality", locality),
-                String.class);
-        return rows.isEmpty() ? null : rows.get(0);
+    public Long findMaxTaskModifiedTime(String tenantId, String locality, String rootProjectId, String beneficiaryType) {
+        return jdbcTemplate.queryForObject(resolveSql(maxTaskModifiedSql(beneficiaryType), tenantId),
+                campaignLocalityParams(tenantId, locality, rootProjectId), Long.class);
     }
 
 }

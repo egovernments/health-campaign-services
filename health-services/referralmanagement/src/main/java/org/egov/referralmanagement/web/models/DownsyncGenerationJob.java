@@ -22,4 +22,6 @@ public class DownsyncGenerationJob {
     private String lastModifiedBy;
     private Long lastModifiedTime;
     private Long rowVersion;
+    /** Updated periodically by the owning pod's heartbeat scheduler. Null until first claim. */
+    private Long lastHeartbeat;
 }

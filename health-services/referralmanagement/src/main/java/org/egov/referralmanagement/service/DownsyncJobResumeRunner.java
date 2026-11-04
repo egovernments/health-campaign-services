@@ -1,6 +1,8 @@
 package org.egov.referralmanagement.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
 import org.egov.referralmanagement.web.models.DownsyncGenerationJob;
 import org.egov.referralmanagement.web.models.DownsyncGenerationLocality;
@@ -21,6 +23,9 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
     @Autowired private DownsyncGenerationJobRepository jobRepository;
     @Autowired private DownsyncFileGenService service;
     @Autowired private DownsyncJobRegistry jobRegistry;
+    @Autowired private JobHeartbeatScheduler heartbeat;
+    @Autowired private ReferralManagementConfiguration config;
+    @Autowired private MasterDataService masterDataService;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -50,12 +55,52 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
     }
 
     private void resumeJob(DownsyncGenerationJob job) {
-        if (!jobRepository.claimResumeJob(job.getTenantId(), job.getId(), job.getRowVersion())) {
-            log.info("Job {} already claimed by another pod — skipping resume", job.getId());
+        // Heartbeat-aware claim: only win if the existing heartbeat is stale (or NULL).
+        // A live competitor will have a fresh heartbeat → our claim returns 0 → we skip.
+        long staleThreshold = System.currentTimeMillis()
+                - (config.getHeartbeatStaleThresholdSeconds() * 1000L);
+        if (!jobRepository.claimResumeJob(job.getTenantId(), job.getId(),
+                job.getRowVersion(), staleThreshold)) {
+            log.info("Job {} not claimable — another pod's heartbeat is fresh, or another pod " +
+                     "already won the rowVersion CAS. Skipping.", job.getId());
             jobRegistry.release(job.getTenantId(), job.getProjectId());
             return;
         }
-        log.info("Resuming job {} for tenant {}", job.getId(), job.getTenantId());
+        // Our claim incremented rowVersion. Delegate the post-claim work to the shared
+        // helper so both the startup path (this method) and the periodic OrphanReclaimer
+        // reuse the exact same sweep + generate + finalize flow.
+        long ownedRowVersion = job.getRowVersion() + 1;
+        resumeAlreadyClaimed(job, ownedRowVersion);
+    }
+
+    /**
+     * Post-claim resume logic — sweep abandoned files, refresh MV, run
+     * generateRegistry/Project on the remaining PENDING localities, and CAS the
+     * job to its terminal state. Callers MUST have already won the job-level
+     * claim (either via {@link DownsyncGenerationJobRepository#claimResumeJob}
+     * from the startup runner, or via the periodic
+     * {@link OrphanReclaimer#tick}).
+     *
+     * @param job              the claimed job row as read from the DB BEFORE the claim
+     * @param ownedRowVersion  the rowVersion this pod now owns (= job.getRowVersion() + 1)
+     */
+    public void resumeAlreadyClaimed(DownsyncGenerationJob job, long ownedRowVersion) {
+        log.info("Resuming job {} for tenant {} (ownedRowVersion={})",
+                job.getId(), job.getTenantId(), ownedRowVersion);
+
+        // Sweep any IN_PROGRESS file rows under this job to FAILED. Safe because
+        // job-level heartbeat was stale AND we won the claim → no live worker exists.
+        // The attempt-per-row flow will INSERT a fresh attempt for each swept row.
+        int swept = jobRepository.sweepStaleFilesForJob(job.getTenantId(), job.getId());
+        if (swept > 0) {
+            log.info("Job {} — swept {} stale IN_PROGRESS file row(s) to FAILED for retry",
+                    job.getId(), swept);
+        }
+
+        // Start heartbeating BEFORE we start any work. From this moment on, any
+        // other pod racing to claim will see our fresh heartbeat and skip.
+        heartbeat.start(job.getTenantId(), job.getId(), ownedRowVersion);
+
         try {
             List<DownsyncGenerationLocality> resumable =
                     jobRepository.findResumableLocalities(job.getTenantId(), job.getId());
@@ -75,12 +120,36 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
                                 .locality(l.getLocality()).category("REGISTRY").build())
                         .toList();
 
-                List<LocalityDownsyncCriteria> projectCriteria = resumable.stream()
-                        .filter(l -> "PROJECT".equals(l.getCategory()))
+                // PROJECT rows need the campaign beneficiaryType from MDMS. If that lookup fails
+                // (MDMS down during a rollout, missing type config) the registry half must still
+                // run and the job must still reach a terminal state: mark the PROJECT localities
+                // FAILED with the reason instead of leaving them PENDING for the reclaimer loop.
+                List<DownsyncGenerationLocality> projectRows = resumable.stream()
+                        .filter(l -> "PROJECT".equals(l.getCategory())).toList();
+                String beneficiaryType = null;
+                if (!projectRows.isEmpty()) {
+                    try {
+                        beneficiaryType = resolveBeneficiaryType(job);
+                    } catch (Exception e) {
+                        String reason = "beneficiaryType unresolved on resume: " + e.getMessage();
+                        log.error("Job {} — {} — failing {} PROJECT localities, continuing with registry",
+                                job.getId(), reason, projectRows.size());
+                        long now = System.currentTimeMillis();
+                        for (DownsyncGenerationLocality l : projectRows) {
+                            jobRepository.updateLocalityCompleted(l.getTenantId(), l.getId(), "FAILED",
+                                    reason.length() > 2000 ? reason.substring(0, 2000) : reason, now);
+                        }
+                        projectRows = List.of();
+                    }
+                }
+                final String resolvedType = beneficiaryType;
+
+                List<LocalityDownsyncCriteria> projectCriteria = projectRows.stream()
                         .map(l -> LocalityDownsyncCriteria.builder()
                                 .localityRowId(l.getId()).tenantId(l.getTenantId())
-                                .projectId(l.getProjectId()).locality(l.getLocality())
-                                .rootProjectId(job.getProjectId()).category("PROJECT").build())
+                                .projectId(job.getProjectId()).locality(l.getLocality())
+                                .rootProjectId(job.getProjectId()).beneficiaryType(resolvedType)
+                                .category("PROJECT").build())
                         .toList();
 
                 log.info("Job {} — resuming {} registry + {} project localities",
@@ -116,7 +185,26 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
         } catch (Exception e) {
             log.error("Resume failed for job {}: {}", job.getId(), e.getMessage(), e);
         } finally {
+            // Stop heartbeating BEFORE releasing the registry slot. Once heartbeat
+            // stops bumping, the row's lastHeartbeat will age past staleness and
+            // any future pod restart can reclaim if needed.
+            heartbeat.stop(job.getId());
             jobRegistry.release(job.getTenantId(), job.getProjectId());
         }
+    }
+
+    /**
+     * PROJECT files need the campaign beneficiaryType (HOUSEHOLD | INDIVIDUAL) from MDMS.
+     * On resume there is no caller RequestInfo, so a minimal system RequestInfo is used.
+     * Throws on failure; the caller fails the PROJECT localities rather than guessing a branch,
+     * because a wrong branch would silently produce empty files.
+     */
+    private String resolveBeneficiaryType(DownsyncGenerationJob job) {
+        String typeCode = jobRepository.findProjectTypeCode(job.getTenantId(), job.getProjectId());
+        RequestInfo systemInfo = RequestInfo.builder()
+                .apiId("referralmanagement").msgId("downsync-resume-" + job.getId()).build();
+        String type = masterDataService.getBeneficiaryType(job.getTenantId(), typeCode, systemInfo);
+        log.info("Job {} — campaign root {} beneficiaryType={}", job.getId(), job.getProjectId(), type);
+        return type;
     }
 }
