@@ -146,7 +146,7 @@ const config = {
     clearCloneDeliveryDates: (process.env.CAMPAIGN_CLONE_CLEAR_DELIVERY_DATES || "true").toLowerCase() !== "false",
     // Campaign types (comma-separated) with delivery conditions: only their clones keep the source's delivery rules (without
     // the dates) and only their templates keep the earlier data when Outside Household is changed
-    deliveryConditionCampaignTypes: (process.env.CAMPAIGN_DELIVERY_CONDITION_TYPES || "POLIO")
+    deliveryConditionCampaignTypes: (process.env.CAMPAIGN_DELIVERY_CONDITION_TYPES || "POLIO,IMMUNISATION")
         .split(",").map(type => type.trim().toUpperCase()).filter(Boolean),
     // After a save that adds or drops Outside Household, the new template keeps the users, targets and facilities of the
     // file the campaign had before; "false" gives an empty template, as before
