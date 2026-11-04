@@ -65,23 +65,48 @@ async function validateBoundarySheetData(request: any, fileUrl: any, localizatio
     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
     await validateHeaders(localizedHierarchy, headersOfBoundarySheet, request, localizationMap)
     const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap, request);
-    //validate for whether root boundary level column should not be empty
-    validateForRootElementExists(boundaryData, localizedHierarchy, localizedBoundaryTab);
+    // Reported in TWO stages, deliberately - not one combined message, and not one message per check.
+    //
+    // Duplicates go first and ALONE, because the only way to fix them is to DELETE rows, which shifts
+    // every row number below the deletion. Any "row 24244, column Village" reported alongside them would
+    // be stale the moment the operator removes a duplicate row above it. Everything else is fixed by
+    // editing a cell in place, so those row numbers stay valid.
+    //
+    // Stage 2 then reports the remaining checks TOGETHER against a sheet whose numbering is stable, so
+    // the operator is not walked through one round trip per class of error - which is what the original
+    // throw-on-first-failure behaviour did (strip duplicates, re-upload, only then hear about illegal
+    // characters, re-upload again).
     // validate for duplicate rows(array of objects)
-    validateForDuplicateRows(boundaryData);
+    const duplicateProblems = collectDuplicateRowProblems(boundaryData);
+    if (duplicateProblems.length > 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", duplicateProblems.join(" | "));
+    }
+
+    const problems: string[] = [];
+    //validate for whether root boundary level column should not be empty
+    problems.push(...collectRootElementProblems(boundaryData, localizedHierarchy, localizedBoundaryTab));
     // validate boundary names contain only allowed characters (reject [] {} <> etc.; allow letters of any
     // language plus the punctuation that occurs in real place names)
-    validateBoundaryNameCharacters(boundaryData, localizedHierarchy);
-}
+    problems.push(...collectBoundaryNameCharacterProblems(boundaryData, localizedHierarchy));
 
-function validateForRootElementExists(boundaryData: any[], hierachy: any[], sheetName: string) {
-    const root = hierachy[0];
-    if (!(boundaryData.filter(e => e[root]).length == boundaryData.length)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid Boundary Sheet. Root level Boundary not present in every row  of Sheet ${sheetName}`)
+    if (problems.length > 0) {
+        // One VALIDATION_ERROR carrying every remaining problem. Kept as the registered code so this
+        // still surfaces as a clean HTTP 400; an unregistered code resolves to UNKNOWN_ERROR -> 500.
+        throwError("COMMON", 400, "VALIDATION_ERROR", problems.join(" | "));
     }
 }
 
-function validateForDuplicateRows(boundaryData: any[]) {
+/** Root-level problem, if any, returned rather than thrown so it can be reported with the other checks. */
+function collectRootElementProblems(boundaryData: any[], hierachy: any[], sheetName: string): string[] {
+    const root = hierachy[0];
+    if (!(boundaryData.filter(e => e[root]).length == boundaryData.length)) {
+        return [`Invalid Boundary Sheet. Root level Boundary not present in every row  of Sheet ${sheetName}`];
+    }
+    return [];
+}
+
+/** Duplicate rows, if any, returned rather than thrown. Behaviour of the check itself is unchanged. */
+function collectDuplicateRowProblems(boundaryData: any[]): string[] {
     // Step 1: Trim strings in all rows
     boundaryData = boundaryData.map(row =>
         Object.fromEntries(
@@ -104,10 +129,15 @@ function validateForDuplicateRows(boundaryData: any[]) {
             seen.add(rowKey);
         }
     }
-    if (duplicateRowNumbers.length > 0) {
-        const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersSeparatedWithCommas}`);
+    if (duplicateRowNumbers.length === 0) {
+        return [];
     }
+    // Capped like the name-character check: a wholesale-duplicated 50k-row sheet must not produce a
+    // multi-megabyte message, especially now that several problems share one response.
+    const shown = duplicateRowNumbers.slice(0, MAX_REPORTED_DUPLICATE_ROWS);
+    const extra = duplicateRowNumbers.length > MAX_REPORTED_DUPLICATE_ROWS
+        ? ` ... and ${duplicateRowNumbers.length - MAX_REPORTED_DUPLICATE_ROWS} more` : "";
+    return [`Boundary Sheet has duplicate rows at rowNumber ${shown.join(', ')}${extra}`];
 }
 
 // Boundary names may contain letters of ANY script, combining marks, digits, spaces and a small set of
@@ -140,7 +170,14 @@ const ALLOWED_BOUNDARY_NAME_CHARS = new RegExp(
 // multi-megabyte message; the count of the remainder is still reported.
 const MAX_REPORTED_NAME_PROBLEMS = 20;
 
-function validateBoundaryNameCharacters(boundaryData: any[], localizedHierarchy: any[]) {
+// Same cap for duplicate row numbers - a sheet can be duplicated wholesale.
+const MAX_REPORTED_DUPLICATE_ROWS = 20;
+
+/**
+ * Every cell whose name contains a disallowed character, as one message, or an empty array.
+ * Collects across the whole sheet before returning so all offending cells surface at once.
+ */
+function collectBoundaryNameCharacterProblems(boundaryData: any[], localizedHierarchy: any[]): string[] {
     const problems: string[] = [];
     for (const row of boundaryData) {
         const rowNumber = row?.["!row#number!"];
@@ -157,19 +194,17 @@ function validateBoundaryNameCharacters(boundaryData: any[], localizedHierarchy:
             }
         }
     }
-    if (problems.length > 0) {
-        const shown = problems.slice(0, MAX_REPORTED_NAME_PROBLEMS);
-        const extra = problems.length > MAX_REPORTED_NAME_PROBLEMS
-            ? ` ... and ${problems.length - MAX_REPORTED_NAME_PROBLEMS} more` : "";
-        // Use the registered VALIDATION_ERROR code (like the duplicate-row / root checks) so this surfaces
-        // as a clean HTTP 400; a new unregistered code resolves to UNKNOWN_ERROR -> 500 in throwError.
-        throwError(
-            "COMMON", 400, "VALIDATION_ERROR",
-            `Boundary names contain characters that are not allowed. ` +
-            `Allowed: letters (any language), numbers, spaces and ' & - / . ( ) _ , : ; @ + ! ? . ` +
-            `Problems: ${shown.join("; ")}${extra}`
-        );
+    if (problems.length === 0) {
+        return [];
     }
+    const shown = problems.slice(0, MAX_REPORTED_NAME_PROBLEMS);
+    const extra = problems.length > MAX_REPORTED_NAME_PROBLEMS
+        ? ` ... and ${problems.length - MAX_REPORTED_NAME_PROBLEMS} more` : "";
+    return [
+        `Boundary names contain characters that are not allowed. ` +
+        `Allowed: letters (any language), numbers, spaces and ' & - / . ( ) _ , : ; @ + ! ? . ` +
+        `Problems: ${shown.join("; ")}${extra}`
+    ];
 }
 
 function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localizedHeadersOfBoundarySheet: any) {
