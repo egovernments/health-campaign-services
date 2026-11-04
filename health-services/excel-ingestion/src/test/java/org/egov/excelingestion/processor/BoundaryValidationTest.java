@@ -55,7 +55,8 @@ class BoundaryValidationTest {
     void setUp() throws Exception {
         targetProcessor = new BoundaryHierarchyTargetProcessor(
             mdmsService, schemaValidationService, validationService, 
-            enrichmentUtil, exceptionHandler, excelUtil, campaignService, boundaryUtil
+            enrichmentUtil, exceptionHandler, excelUtil, campaignService, boundaryUtil,
+            new org.egov.excelingestion.util.DynamicTargetSchemaUtil()
         );
         
         // Get private method for testing

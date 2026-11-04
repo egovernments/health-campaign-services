@@ -11,6 +11,7 @@ import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.SchemaValidationService;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.util.BoundaryUtil;
+import org.egov.excelingestion.util.DynamicTargetSchemaUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
@@ -36,15 +37,18 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
     private final ExcelUtil excelUtil;
     private final CampaignService campaignService;
     private final BoundaryUtil boundaryUtil;
+    private final DynamicTargetSchemaUtil dynamicTargetSchemaUtil;
 
-    public BoundaryHierarchyTargetProcessor(MDMSService mdmsService, 
+    public BoundaryHierarchyTargetProcessor(MDMSService mdmsService,
                                           SchemaValidationService schemaValidationService,
                                           ValidationService validationService,
                                           EnrichmentUtil enrichmentUtil,
                                           CustomExceptionHandler exceptionHandler,
                                           ExcelUtil excelUtil,
                                           CampaignService campaignService,
-                                          BoundaryUtil boundaryUtil) {
+                                          BoundaryUtil boundaryUtil,
+                                          DynamicTargetSchemaUtil dynamicTargetSchemaUtil) {
+        this.dynamicTargetSchemaUtil = dynamicTargetSchemaUtil;
         this.mdmsService = mdmsService;
         this.schemaValidationService = schemaValidationService;
         this.validationService = validationService;
@@ -85,24 +89,30 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                 return workbook;
             }
 
-            // Fetch target schema from MDMS
-            String schemaName = "target-" + projectType;
-            Map<String, Object> schema = fetchTargetSchema(schemaName, resource.getTenantId(), requestInfo);
-            if (schema == null) {
-                log.error("Target schema '{}' not found in MDMS for tenant: {}", schemaName, resource.getTenantId());
-                exceptionHandler.throwCustomException(ErrorConstants.SCHEMA_NOT_FOUND_IN_MDMS,
-                        ErrorConstants.SCHEMA_NOT_FOUND_IN_MDMS_MESSAGE
-                                .replace("{0}", schemaName)
-                                .replace("{1}", resource.getTenantId()));
-            }
-
-            log.info("Validating target sheet data with schema: {}", schemaName);
-
-            // Perform validation - extract properties from schema
-            Map<String, Object> schemaProperties = (Map<String, Object>) schema.get("properties");
+            // Prefer target columns derived from the campaign's configured delivery resources so
+            // validation matches the dynamically generated template; fall back to the static
+            // "target-<projectType>" MDMS schema when no resources are configured.
+            Map<String, Object> schemaProperties = buildDynamicTargetProperties(resource, projectType, requestInfo, localizationMap);
             if (schemaProperties == null) {
-                log.warn("No properties found in schema {}, skipping validation", schemaName);
-                return workbook;
+                // Fetch target schema from MDMS
+                String schemaName = "target-" + projectType;
+                Map<String, Object> schema = fetchTargetSchema(schemaName, resource.getTenantId(), requestInfo);
+                if (schema == null) {
+                    log.error("Target schema '{}' not found in MDMS for tenant: {}", schemaName, resource.getTenantId());
+                    exceptionHandler.throwCustomException(ErrorConstants.SCHEMA_NOT_FOUND_IN_MDMS,
+                            ErrorConstants.SCHEMA_NOT_FOUND_IN_MDMS_MESSAGE
+                                    .replace("{0}", schemaName)
+                                    .replace("{1}", resource.getTenantId()));
+                }
+
+                log.info("Validating target sheet data with schema: {}", schemaName);
+
+                // Perform validation - extract properties from schema
+                schemaProperties = (Map<String, Object>) schema.get("properties");
+                if (schemaProperties == null) {
+                    log.warn("No properties found in schema {}, skipping validation", schemaName);
+                    return workbook;
+                }
             }
             
             // First validate boundary codes against campaign enriched boundaries
@@ -153,6 +163,30 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
         }
     }
 
+
+    /**
+     * Build target schema properties from the campaign's configured delivery resources. Returns null
+     * when the campaign has no resources configured (or the lookup fails) so the caller falls back to
+     * the static MDMS schema.
+     */
+    private Map<String, Object> buildDynamicTargetProperties(ProcessResource resource, String projectType,
+                                                             RequestInfo requestInfo, Map<String, String> localizationMap) {
+        try {
+            List<String> resourceNames = campaignService.getDeliveryResourceNamesFromCampaign(
+                    resource.getReferenceId(), resource.getTenantId(), requestInfo);
+            if (resourceNames == null || resourceNames.isEmpty()) {
+                return null;
+            }
+            log.info("Validating target sheet with {} dynamic columns from configured delivery resources for campaign: {}",
+                    resourceNames.size(), resource.getReferenceId());
+            dynamicTargetSchemaUtil.addHeaderLocalizations(resourceNames, projectType, localizationMap);
+            return dynamicTargetSchemaUtil.buildTargetSchemaProperties(resourceNames, projectType);
+        } catch (Exception e) {
+            log.warn("Failed building dynamic target properties for campaign {}, falling back to static schema: {}",
+                    resource.getReferenceId(), e.getMessage());
+            return null;
+        }
+    }
 
     /**
      * Fetch target schema from MDMS

@@ -13,6 +13,7 @@ import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.ColumnDefMaker;
+import org.egov.excelingestion.util.DynamicTargetSchemaUtil;
 import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.ExcelStyleHelper;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
@@ -72,7 +73,8 @@ class NonAsciiBoundaryCodeTest {
         ColumnDefMaker columnDefMaker = new ColumnDefMaker();
         SchemaColumnDefUtil schemaColumnDefUtil = new SchemaColumnDefUtil(columnDefMaker, exceptionHandler);
         generator = new BoundaryHierarchySheetGenerator(
-                boundaryService, boundaryUtil, mdmsService, campaignService, exceptionHandler, schemaColumnDefUtil);
+                boundaryService, boundaryUtil, mdmsService, campaignService, exceptionHandler, schemaColumnDefUtil,
+                new DynamicTargetSchemaUtil());
         // createHeaderRows uses only the style helper; config/protection are unused on that path.
         populator = new ExcelDataPopulator(mock(ExcelIngestionConfig.class), new ExcelStyleHelper(),
                 mock(CellProtectionManager.class));
