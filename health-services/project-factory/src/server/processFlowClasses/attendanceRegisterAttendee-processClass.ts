@@ -13,6 +13,8 @@ import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { decrypt } from "../utils/cryptUtils";
+import { searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
 const MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
@@ -106,6 +108,18 @@ export class TemplateClass {
         const usernames = Array.from(usernameToRows.keys());
         const rootTenantId = tenantId.split(".")[0];
         const usernameToIndividualId = await this.resolveIndividualIds(usernames, rootTenantId, requestInfo);
+        await this.resolveIndividualIdsFromCampaignUsers(
+            usernameToRows,
+            usernameToIndividualId,
+            campaignNumber,
+            tenantId
+        );
+        await this.resolveIndividualIdsFromWorkerRegistry(
+            usernameToRows,
+            usernameToIndividualId,
+            tenantId,
+            requestInfo
+        );
         this.mergeResolvedIndividualIdsFromCache(resourceDetails, usernameToIndividualId);
         await this.resolveMissingIndividualIdsFromRowCandidates(
             usernameToRows,
@@ -759,6 +773,113 @@ export class TemplateClass {
             }
         }
         return result;
+    }
+
+    private static decryptSafe(value: string): string {
+        const raw = this.getCellAsString(value);
+        if (!raw) return "";
+        try {
+            return this.getCellAsString(decrypt(raw));
+        } catch {
+            return raw;
+        }
+    }
+
+    private static async resolveIndividualIdsFromCampaignUsers(
+        usernameToRows: Map<string, Array<{ row: any; sheetName: string }>>,
+        usernameToIndividualId: Map<string, string>,
+        campaignNumber: string,
+        tenantId: string
+    ): Promise<void> {
+        if (!campaignNumber) return;
+        const userRows = await getRelatedDataWithCampaign("user", campaignNumber, tenantId, dataRowStatuses.completed) as CampaignDataRow[];
+        if (!Array.isArray(userRows) || userRows.length === 0) return;
+
+        const byWorkerId = new Map<string, string>();
+        const byUserName = new Map<string, string>();
+
+        for (const userRow of userRows) {
+            if (userRow?.isDeleted) continue;
+            const uuid = this.getCellAsString(userRow?.uniqueIdAfterProcess);
+            if (!uuid) continue;
+            const data = (userRow?.data || {}) as Record<string, unknown>;
+            const workerId = this.getCellAsString(data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"]);
+            if (workerId && !byWorkerId.has(workerId)) byWorkerId.set(workerId, uuid);
+            const userName = this.decryptSafe(this.getCellAsString(data["UserName"]));
+            if (userName && !byUserName.has(userName)) byUserName.set(userName, uuid);
+        }
+
+        let resolvedFromCampaignUserRows = 0;
+        for (const [username, rowEntries] of usernameToRows.entries()) {
+            if (usernameToIndividualId.has(username)) continue;
+            let resolved = byUserName.get(username);
+            if (!resolved) {
+                for (const { row } of rowEntries) {
+                    const workerId = this.getCellAsString(row?.[WORKER_ID_COLUMN]);
+                    if (workerId && byWorkerId.has(workerId)) {
+                        resolved = byWorkerId.get(workerId);
+                        break;
+                    }
+                }
+            }
+            if (!resolved) continue;
+            usernameToIndividualId.set(username, resolved);
+            resolvedFromCampaignUserRows++;
+        }
+
+        if (resolvedFromCampaignUserRows > 0) {
+            logger.info(`Resolved ${resolvedFromCampaignUserRows} username(s) via campaign user data`);
+        }
+    }
+
+    private static async resolveIndividualIdsFromWorkerRegistry(
+        usernameToRows: Map<string, Array<{ row: any; sheetName: string }>>,
+        usernameToIndividualId: Map<string, string>,
+        tenantId: string,
+        requestInfo: RequestInfo
+    ): Promise<void> {
+        const unresolvedEntries = Array.from(usernameToRows.entries()).filter(([username]) => !usernameToIndividualId.has(username));
+        if (!unresolvedEntries.length) return;
+
+        const workerIds = Array.from(new Set(
+            unresolvedEntries.flatMap(([, rows]) => rows.map(({ row }) => this.getCellAsString(row?.[WORKER_ID_COLUMN])).filter(Boolean))
+        ));
+        if (!workerIds.length) return;
+
+        let workers: any[] = [];
+        try {
+            workers = await searchWorkersByIds(workerIds, tenantId, requestInfo);
+        } catch (error: any) {
+            logger.warn(`Worker registry lookup failed for attendee resolution fallback: ${error?.message}`);
+            return;
+        }
+
+        const workerIdToIndividualId = new Map<string, string>();
+        for (const worker of workers || []) {
+            const workerId = this.getCellAsString(worker?.id);
+            const individualIds = Array.isArray(worker?.individualIds) ? worker.individualIds : [];
+            const resolvedIndividualId = individualIds
+                .map((id: unknown) => this.getCellAsString(id))
+                .find((id: string) => Boolean(id));
+            if (!workerId || !resolvedIndividualId) continue;
+            workerIdToIndividualId.set(workerId, resolvedIndividualId);
+        }
+
+        let resolvedFromWorkerRegistry = 0;
+        for (const [username, rows] of unresolvedEntries) {
+            for (const { row } of rows) {
+                const workerId = this.getCellAsString(row?.[WORKER_ID_COLUMN]);
+                const individualId = workerIdToIndividualId.get(workerId);
+                if (!individualId) continue;
+                usernameToIndividualId.set(username, individualId);
+                resolvedFromWorkerRegistry++;
+                break;
+            }
+        }
+
+        if (resolvedFromWorkerRegistry > 0) {
+            logger.info(`Resolved ${resolvedFromWorkerRegistry} username(s) via worker registry data`);
+        }
     }
 
     /**
