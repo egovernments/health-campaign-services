@@ -16,6 +16,7 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import config from "../config";
 import { getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { decrypt } from "../utils/cryptUtils";
+import { searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 const WORKER_SHEET = attendanceSheetNames.WORKER;
 const MARKER_SHEET = attendanceSheetNames.MARKER;
@@ -133,6 +134,12 @@ export class TemplateClass {
             usernameToIndividualId,
             campaignNumber,
             tenantId
+        );
+        await this.resolveIndividualIdsFromWorkerRegistry(
+            allRows,
+            usernameToIndividualId,
+            tenantId,
+            resourceDetails?.requestInfo
         );
         this.mergeResolvedIndividualIdsFromCache(resourceDetails, usernameToIndividualId);
         await this.resolveMissingIndividualIdsFromRowCandidates(
@@ -504,6 +511,58 @@ export class TemplateClass {
 
         if (resolvedFromCampaignUserRows > 0) {
             logger.info(`Validation resolved ${resolvedFromCampaignUserRows} username(s) via campaign user data`);
+        }
+    }
+
+    private static async resolveIndividualIdsFromWorkerRegistry(
+        allRows: Array<{ row: any; sheetName: string }>,
+        usernameToIndividualId: Map<string, string>,
+        tenantId: string,
+        requestInfo?: RequestInfo
+    ): Promise<void> {
+        const unresolvedRows = allRows.filter(({ row }) => {
+            const username = this.getCellAsString(row?.[attendanceColumnKeys.USERNAME]);
+            return Boolean(username) && !usernameToIndividualId.has(username);
+        });
+        if (!unresolvedRows.length) return;
+
+        const workerIds = Array.from(new Set(
+            unresolvedRows.map(({ row }) => this.getCellAsString(row?.[WORKER_ID_COLUMN])).filter(Boolean)
+        ));
+        if (!workerIds.length) return;
+
+        let workers: any[] = [];
+        try {
+            workers = await searchWorkersByIds(workerIds, tenantId, requestInfo || ({} as RequestInfo));
+        } catch (error: any) {
+            logger.warn(`Worker registry lookup failed during attendee validation fallback: ${error?.message}`);
+            return;
+        }
+
+        const workerIdToIndividualId = new Map<string, string>();
+        for (const worker of workers || []) {
+            const workerId = this.getCellAsString(worker?.id);
+            const individualIds = Array.isArray(worker?.individualIds) ? worker.individualIds : [];
+            const resolvedIndividualId = individualIds
+                .map((id: unknown) => this.getCellAsString(id))
+                .find((id: string) => Boolean(id));
+            if (!workerId || !resolvedIndividualId) continue;
+            workerIdToIndividualId.set(workerId, resolvedIndividualId);
+        }
+
+        let resolvedFromWorkerRegistry = 0;
+        for (const { row } of unresolvedRows) {
+            const username = this.getCellAsString(row?.[attendanceColumnKeys.USERNAME]);
+            if (!username || usernameToIndividualId.has(username)) continue;
+            const workerId = this.getCellAsString(row?.[WORKER_ID_COLUMN]);
+            const individualId = workerIdToIndividualId.get(workerId);
+            if (!individualId) continue;
+            usernameToIndividualId.set(username, individualId);
+            resolvedFromWorkerRegistry++;
+        }
+
+        if (resolvedFromWorkerRegistry > 0) {
+            logger.info(`Validation resolved ${resolvedFromWorkerRegistry} username(s) via worker registry data`);
         }
     }
 

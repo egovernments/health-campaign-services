@@ -62,6 +62,10 @@ jest.mock('../utils/cryptUtils', () => ({
     encrypt: jest.fn((v: string) => v),
 }));
 
+jest.mock('../utils/workerRegistryUtils', () => ({
+    searchWorkersByIds: jest.fn(),
+}));
+
 import { sheetDataRowStatuses } from "../config/constants";
 import { TemplateClass } from "../processFlowClasses/attendanceRegisterAttendee-processClass";
 import { CampaignDataRow } from "../config/models/campaignDataRow";
@@ -69,6 +73,7 @@ import { CampaignNumber, TenantId } from "../config/models/brandedTypes";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { httpRequest } from "../utils/request";
 import { getRelatedDataWithCampaign } from "../utils/genericUtils";
+import { searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 const ENROLLMENT_EPOCH = 1700000000000;   // 2023-11-14
 const DEENROLLMENT_EPOCH = 1700100000000; // ~2023-11-15
@@ -215,6 +220,26 @@ describe("bulk campaign-date placeholder normalization", () => {
             );
 
             expect(usernameToIndividualId.get("Abuja-Dem-Dis-11")).toBe("uuid-1");
+        });
+
+        test("resolves unresolved UserName via worker registry workerId map", async () => {
+            (searchWorkersByIds as jest.Mock).mockResolvedValue([
+                { id: "BA-DC-0821-2026-10-177593", individualIds: ["ind-11"] },
+            ]);
+
+            const usernameToRows = new Map<string, Array<{ row: any; sheetName: string }>>([
+                ["Abuja-Dem-Dis-11", [{ row: { HCM_ADMIN_CONSOLE_USER_WORKER_ID: "BA-DC-0821-2026-10-177593" }, sheetName: "HCM_REGISTER_WORKER_SHEET" }]],
+            ]);
+            const usernameToIndividualId = new Map<string, string>();
+
+            await (TemplateClass as any).resolveIndividualIdsFromWorkerRegistry(
+                usernameToRows,
+                usernameToIndividualId,
+                "bednet",
+                { apiId: "hcm" }
+            );
+
+            expect(usernameToIndividualId.get("Abuja-Dem-Dis-11")).toBe("ind-11");
         });
     });
 
