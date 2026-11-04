@@ -172,9 +172,9 @@ public class ProjectTaskTransformationService {
                 .quantity(taskResource.getQuantity())
                 .deliveredTo(projectBeneficiaryType)
                 .deliveryComments(taskResource.getDeliveryComment())
-                .latitude(task.getAddress().getLatitude())
-                .longitude(task.getAddress().getLongitude())
-                .locationAccuracy(task.getAddress().getLocationAccuracy())
+                .latitude(task.getAddress() != null ? task.getAddress().getLatitude() : null)
+                .longitude(task.getAddress() != null ? task.getAddress().getLongitude() : null)
+                .locationAccuracy(task.getAddress() != null ? task.getAddress().getLocationAccuracy() : null)
                 .createdTime(task.getClientAuditDetails().getCreatedTime())
                 .taskDates(commonUtils.getDateFromEpoch(task.getClientAuditDetails().getLastModifiedTime()))
                 .createdBy(task.getClientAuditDetails().getCreatedBy())
@@ -334,7 +334,6 @@ public class ProjectTaskTransformationService {
         if (HOUSEHOLD.equalsIgnoreCase(projectBeneficiaryType)) {
             log.info("fetching household details for HOUSEHOLD projectBeneficiaryType");
             List<Household> households = householdService.searchHousehold(beneficiaryClientRefId, tenantId);
-            Integer memberCount = households.get(0).getMemberCount();
 //Commenting below code as it is not needed
 
 //            int deliveryCount = (int) Math.round((Double) (memberCount / transformerProperties.getProgramMandateDividingFactor()));
@@ -342,6 +341,7 @@ public class ProjectTaskTransformationService {
 //            projectTaskIndexV1.setDeliveryComments(taskResource.getDeliveryComment() != null ? taskResource.getDeliveryComment() : isMandateComment ? transformerProperties.getProgramMandateComment() : null);
 
             if (!CollectionUtils.isEmpty(households)) {
+                Integer memberCount = households.get(0).getMemberCount();
                 projectBenfInfoMap.put(MEMBER_COUNT, memberCount);
                 projectBenfInfoMap.put(HOUSEHOLD_ID, households.get(0).getClientReferenceId());
                 if (ObjectUtils.isNotEmpty(households.get(0).getAdditionalFields()) && !CollectionUtils.isEmpty(households.get(0).getAdditionalFields().getFields())) {
