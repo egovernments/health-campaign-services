@@ -71,7 +71,7 @@ export async function handleTaskForCampaign(messageObject: any) {
 
             // Enrich the workbook metadata with locale and campaign ID for future use
             try {
-                enrichTemplateMetaData(workBook, locale, CampaignDetails?.id);
+                enrichTemplateMetaData(workBook, locale, CampaignDetails?.id, resourceType);
                 const updatedFileResponse = await createAndUploadFileWithOutRequest(workBook, resourceDetails?.tenantId);
                 if (updatedFileResponse?.[0]?.fileStoreId) {
                     resourceDetails.fileStoreId = updatedFileResponse[0].fileStoreId;
@@ -97,7 +97,7 @@ export async function handleTaskForCampaign(messageObject: any) {
         // Upload annotated workbook (with #status#/#errorDetails# columns) and persist resource result
         let processedFileStoreId: string | undefined;
         try {
-            enrichTemplateMetaData(workBook, locale, CampaignDetails?.id);
+            enrichTemplateMetaData(workBook, locale, CampaignDetails?.id, resourceType);
             const fileResponse = await createAndUploadFileWithOutRequest(workBook, resourceDetails?.tenantId);
             processedFileStoreId = fileResponse?.[0]?.fileStoreId;
             if (processedFileStoreId && resource) {

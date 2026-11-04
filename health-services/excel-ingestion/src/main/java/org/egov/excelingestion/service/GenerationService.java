@@ -128,10 +128,8 @@ public class GenerationService {
                 criteria.setOffset(0);
             }
 
-            if (request.getRequestInfo() != null) {
-                String locale = criteria.getLocale() != null ? criteria.getLocale()
-                        : requestInfoConverter.extractLocale(request.getRequestInfo());
-                criteria.setLocale(locale);
+            if (criteria.getLocale() != null && criteria.getLocale().trim().isEmpty()) {
+                criteria.setLocale(null);
             }
 
             // The repository already applied ORDER BY + LIMIT/OFFSET, so dbResults IS the

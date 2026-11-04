@@ -1429,13 +1429,29 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
   const campaignIds = responseData.map((d: any) => d.id).filter(Boolean);
   const resourcesMap = new Map<string, any[]>();
   if (campaignIds.length > 0 && tenantId) {
+    logger.info(`BULK-MAP-TRACE campaign-search-resource-enrichment-start ${JSON.stringify({
+      tenantId,
+      campaignCount: campaignIds.length,
+      campaignIds: campaignIds.slice(0, 200),
+    })}`);
     try {
       await Promise.all(campaignIds.map(async (cid: string) => {
         const rows = await searchResourceDetailsFromDB({ tenantId, campaignId: cid, isActive: true, excludeTypes: ['attendanceRegisterAttendee'] });
+        logger.info(`BULK-MAP-TRACE campaign-search-resource-enrichment-rowcount ${JSON.stringify({
+          tenantId,
+          campaignId: cid,
+          resourceRowCount: rows.length,
+          resourceTypes: rows.map((r: any) => r?.type).filter(Boolean),
+        })}`);
         if (rows.length > 0) {
           resourcesMap.set(cid, rows.map(r => toCampaignResource(toResourceDetailsResponse(r))));
         }
       }));
+      logger.info(`BULK-MAP-TRACE campaign-search-resource-enrichment-complete ${JSON.stringify({
+        tenantId,
+        campaignCount: campaignIds.length,
+        campaignsWithTableResources: resourcesMap.size,
+      })}`);
     } catch (err) {
       logger.error(`Failed to enrich resources from table, falling back to JSONB: ${err}`);
     }
@@ -1454,6 +1470,13 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
         status: r?.status ?? 'completed',
         additionalDetails: r?.additionalDetails ?? {},
       }));
+    logger.info(`BULK-MAP-TRACE campaign-search-resource-selection ${JSON.stringify({
+      tenantId,
+      campaignId: data?.id,
+      resourceSource: resourcesMap.has(data?.id) ? "resource_details_table" : "campaign_jsonb_fallback",
+      resourceCount: Array.isArray(data.resources) ? data.resources.length : 0,
+      resourceTypes: Array.isArray(data.resources) ? data.resources.map((r: any) => r?.type).filter(Boolean) : [],
+    })}`);
     // Boundaries dominate this payload, so they ship only when a caller asks or targets a single campaign.
     const campaignBoundaries = Array.isArray(data?.campaignDetails?.boundaries)
       ? data.campaignDetails.boundaries

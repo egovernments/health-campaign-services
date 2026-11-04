@@ -102,6 +102,7 @@ public class ProcessingConstants {
 
     // AdditionalDetails Keys
     public static final String ADDITIONAL_DETAILS_CAMPAIGN_ID = "campaignId";
+    public static final String ADDITIONAL_DETAILS_PROJECT_ID = "projectId";
     public static final String ADDITIONAL_DETAILS_REGISTER_ID = "registerId";
     public static final String ADDITIONAL_DETAILS_CLONED_CAMPAIGN_ID = "clonedCampaignId";
 
