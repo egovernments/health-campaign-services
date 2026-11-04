@@ -10,7 +10,9 @@ import org.egov.common.contract.request.Role;
 import org.egov.common.contract.request.User;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.healthnotification.Constants;
+import org.egov.healthnotification.config.EncTenantSpecificProperties;
 import org.egov.healthnotification.config.HealthNotificationProperties;
+import org.egov.healthnotification.config.TenantProperties;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,12 @@ public class EncryptionDecryptionUtil {
 
     @Autowired
     private HealthNotificationProperties properties;
+
+    @Autowired
+    private TenantProperties tenantProperties;
+
+    @Autowired
+    private EncTenantSpecificProperties encTenantSpecificProperties;
 
     @Autowired
     private ServiceRequestClient serviceRequestClient;
@@ -77,10 +85,15 @@ public class EncryptionDecryptionUtil {
      * Encrypts specific fields in a ScheduledNotification node.
      */
     private ObjectNode encryptNotificationFields(ObjectNode notification) throws Exception {
+        String tenantId = (notification.has("tenantId") && !notification.get("tenantId").isNull())
+                ? notification.get("tenantId").asText()
+                : null;
+        String stateLevelTenantId = tenantProperties.getStateLevelTenant(tenantId, properties.getEgovStateLevelTenantId());
+
         // Encrypt mobileNumber field
         if (notification.has(Constants.FIELD_MOBILE_NUMBER) && !notification.get(Constants.FIELD_MOBILE_NUMBER).isNull()) {
             String mobileNumber = notification.get(Constants.FIELD_MOBILE_NUMBER).asText();
-            String encryptedMobile = encryptValue(mobileNumber, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION);
+            String encryptedMobile = encryptValue(mobileNumber, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION, stateLevelTenantId);
             notification.put(Constants.FIELD_MOBILE_NUMBER, encryptedMobile);
         }
 
@@ -88,7 +101,7 @@ public class EncryptionDecryptionUtil {
         // Store encrypted string in a special field and set contextData to null
         if (notification.has("contextData") && !notification.get("contextData").isNull()) {
             String contextDataStr = objectMapper.writeValueAsString(notification.get("contextData"));
-            String encryptedContext = encryptValue(contextDataStr, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION);
+            String encryptedContext = encryptValue(contextDataStr, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION, stateLevelTenantId);
             // Store encrypted string as plain text value
             notification.put("contextData", encryptedContext);
         }
@@ -99,10 +112,10 @@ public class EncryptionDecryptionUtil {
     /**
      * Encrypts a single value by calling egov-enc-service API.
      */
-    private String encryptValue(String plaintext, String type) throws Exception {
+    private String encryptValue(String plaintext, String type, String stateLevelTenantId) throws Exception {
         // Build encryption request
         ObjectNode encReqObject = objectMapper.createObjectNode();
-        encReqObject.put("tenantId", properties.getEgovStateLevelTenantId());
+        encReqObject.put("tenantId", stateLevelTenantId);
         encReqObject.put("type", Constants.ENCRYPTION_TYPE_NORMAL);
         encReqObject.put("value", plaintext);
 
@@ -114,8 +127,8 @@ public class EncryptionDecryptionUtil {
 
         // Call encryption service
         StringBuilder uri = new StringBuilder();
-        uri.append(properties.getEncryptionServiceHost())
-                .append(properties.getEncryptionEndpoint());
+        uri.append(encTenantSpecificProperties.getHost(stateLevelTenantId, properties.getEncryptionServiceHost()))
+                .append(encTenantSpecificProperties.getEncryptEndpoint(stateLevelTenantId, properties.getEncryptionEndpoint()));
 
         JsonNode response = serviceRequestClient.fetchResult(uri, request, JsonNode.class);
 
@@ -181,9 +194,12 @@ public class EncryptionDecryptionUtil {
      * Decrypts specific fields in a ScheduledNotification object.
      */
     private void decryptNotificationFields(ScheduledNotification notification, RequestInfo requestInfo) throws Exception {
+        String stateLevelTenantId = tenantProperties.getStateLevelTenant(
+                notification.getTenantId(), properties.getEgovStateLevelTenantId());
+
         // Decrypt mobileNumber field
         if (notification.getMobileNumber() != null && isCipherText(notification.getMobileNumber())) {
-            String decryptedMobile = callDecryptionService(notification.getMobileNumber(), requestInfo);
+            String decryptedMobile = callDecryptionService(notification.getMobileNumber(), requestInfo, stateLevelTenantId);
             notification.setMobileNumber(decryptedMobile);
         }
 
@@ -192,7 +208,7 @@ public class EncryptionDecryptionUtil {
         if (contextData != null && contextData instanceof String) {
             String contextDataStr = (String) contextData;
             if (isCipherText(contextDataStr)) {
-                String decryptedContext = callDecryptionService(contextDataStr, requestInfo);
+                String decryptedContext = callDecryptionService(contextDataStr, requestInfo, stateLevelTenantId);
                 // Parse decrypted JSON string back to Map
                 notification.setContextData(objectMapper.readValue(decryptedContext,
                         new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}));
@@ -204,11 +220,11 @@ public class EncryptionDecryptionUtil {
      * Calls the decryption service with a single encrypted value.
      * The service expects a JSON structure containing the encrypted value.
      */
-    private String callDecryptionService(String encryptedValue, RequestInfo requestInfo) throws Exception {
+    private String callDecryptionService(String encryptedValue, RequestInfo requestInfo, String stateLevelTenantId) throws Exception {
         // Call decryption service
         StringBuilder uri = new StringBuilder();
-        uri.append(properties.getEncryptionServiceHost())
-                .append(properties.getDecryptionEndpoint());
+        uri.append(encTenantSpecificProperties.getHost(stateLevelTenantId, properties.getEncryptionServiceHost()))
+                .append(encTenantSpecificProperties.getDecryptEndpoint(stateLevelTenantId, properties.getDecryptionEndpoint()));
 
         log.debug("Calling decryption API for encrypted value: {}...",
                 encryptedValue.length() > 20 ? encryptedValue.substring(0, 20) + "..." : encryptedValue);
