@@ -194,3 +194,9 @@ sequenceDiagram
 
 - **Purpose**: Enhances performance by caching frequently accessed data and reducing the load on the database.
 - **Usage**: Commonly used to store temporary data like search results, and other frequently accessed resources.
+- **Distributor-by-DH endpoint guardrails**:
+  - `DISTRIBUTOR_BY_DH_CACHE_ENABLED=true` enables read-through caching for `/v1/data/distributor-by-dh/_search`.
+  - `DISTRIBUTOR_BY_DH_CACHE_TTL_SECONDS=60` controls cache TTL.
+  - `DISTRIBUTOR_BY_DH_SHADOW_COMPARISON_ENABLED=true` + `DISTRIBUTOR_BY_DH_SHADOW_SAMPLE_RATE=0.05` sample and compare optimized output against fresh reads.
+  - `DISTRIBUTOR_BY_DH_AUTO_ROLLBACK_ENABLED=true` with `DISTRIBUTOR_BY_DH_AUTO_ROLLBACK_MISMATCH_THRESHOLD` / `DISTRIBUTOR_BY_DH_AUTO_ROLLBACK_P99_MS` disables optimization in-process when mismatch or latency thresholds are breached.
+  - The DB index migration for this endpoint uses `CREATE INDEX CONCURRENTLY`; run that migration outside a transaction block.

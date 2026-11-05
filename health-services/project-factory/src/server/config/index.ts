@@ -203,6 +203,15 @@ const config = {
     resetCache: process.env.RESET_CACHE,
     redisPort: process.env.REDIS_PORT || "6379",
   },
+  distributorByDh: {
+    cacheEnabled: process.env.DISTRIBUTOR_BY_DH_CACHE_ENABLED === "true",
+    cacheTtlSeconds: process.env.DISTRIBUTOR_BY_DH_CACHE_TTL_SECONDS ? parseInt(process.env.DISTRIBUTOR_BY_DH_CACHE_TTL_SECONDS, 10) : 60,
+    shadowComparisonEnabled: process.env.DISTRIBUTOR_BY_DH_SHADOW_COMPARISON_ENABLED === "true",
+    shadowComparisonSampleRate: process.env.DISTRIBUTOR_BY_DH_SHADOW_SAMPLE_RATE ? parseFloat(process.env.DISTRIBUTOR_BY_DH_SHADOW_SAMPLE_RATE) : 0.05,
+    autoRollbackEnabled: process.env.DISTRIBUTOR_BY_DH_AUTO_ROLLBACK_ENABLED === "true",
+    autoRollbackP99Ms: process.env.DISTRIBUTOR_BY_DH_AUTO_ROLLBACK_P99_MS ? parseInt(process.env.DISTRIBUTOR_BY_DH_AUTO_ROLLBACK_P99_MS, 10) : 2500,
+    autoRollbackMismatchThreshold: process.env.DISTRIBUTOR_BY_DH_AUTO_ROLLBACK_MISMATCH_THRESHOLD ? parseInt(process.env.DISTRIBUTOR_BY_DH_AUTO_ROLLBACK_MISMATCH_THRESHOLD, 10) : 3,
+  },
       // Kafka configuration
     kafka: {
     CONSUMER_GROUP_ID: process.env.KAFKA_CONSUMER_GROUP_ID || "project-factory",

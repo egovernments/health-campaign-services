@@ -69,13 +69,22 @@ jest.mock("../utils/excelUtils", () => ({
 }));
 
 jest.mock("../utils/redisUtils", () => ({
-    redis: { get: jest.fn(), set: jest.fn(), expire: jest.fn() },
+    redis: { get: jest.fn(), set: jest.fn(), expire: jest.fn(), scan: jest.fn(), del: jest.fn() },
     checkRedisConnection: jest.fn().mockResolvedValue(false),
 }));
 
 const mockConfig = {
     cacheTime: 300,
     cacheValues: { resetCache: false },
+    distributorByDh: {
+        cacheEnabled: false,
+        cacheTtlSeconds: 60,
+        shadowComparisonEnabled: false,
+        shadowComparisonSampleRate: 0,
+        autoRollbackEnabled: false,
+        autoRollbackP99Ms: 2500,
+        autoRollbackMismatchThreshold: 3,
+    },
     generatedResource: { reuseWindowMs: 30000 },
 };
 
@@ -114,11 +123,19 @@ import { TemplateClass } from "../generateFlowClasses/attendanceRegisterUserBulk
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { fetchUserUuidsByUserName } from "../utils/userBatchHandler";
+import { redis, checkRedisConnection } from "../utils/redisUtils";
 
 const mockGenerate = TemplateClass.generate as jest.Mock;
 const mockSearchCampaign = searchProjectTypeCampaignService as jest.Mock;
 const mockUserRows = getRelatedDataWithCampaign as jest.Mock;
 const mockFetchUuidsByUserName = fetchUserUuidsByUserName as jest.Mock;
+const mockRedis = redis as unknown as {
+    get: jest.Mock;
+    set: jest.Mock;
+    scan: jest.Mock;
+    del: jest.Mock;
+};
+const mockCheckRedisConnection = checkRedisConnection as jest.Mock;
 
 const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
 const DH_ONE = "ITN_NI_01_27_GIDAN_LAWAN";
@@ -186,6 +203,14 @@ function givenWorkerRows(rows: Record<string, string>[]): void {
 
 describe("searchDistributorsByDhService", () => {
     beforeEach(() => {
+        mockConfig.distributorByDh.cacheEnabled = false;
+        mockConfig.distributorByDh.shadowComparisonEnabled = false;
+        mockConfig.distributorByDh.autoRollbackEnabled = false;
+        mockCheckRedisConnection.mockResolvedValue(false);
+        mockRedis.get.mockResolvedValue(null);
+        mockRedis.set.mockResolvedValue("OK");
+        mockRedis.scan.mockResolvedValue(["0", []]);
+        mockRedis.del.mockResolvedValue(0);
         mockSearchCampaign.mockResolvedValue({ CampaignDetails: [{ id: "camp-1", campaignName: "Camp One", campaignNumber: "CMP-1", hierarchyType: "ITN" }] });
         givenWorkerRows([]);
         mockFetchUuidsByUserName.mockResolvedValue(new Map<string, string>());
@@ -422,6 +447,43 @@ describe("searchDistributorsByDhService", () => {
             const result = await searchDistributorsByDhService(buildRequest(undefined, { offset: 0 }));
 
             expect(result.Pagination).toEqual({ offset: 0, limit: 100 });
+        });
+    });
+
+    describe("read-through caching", () => {
+        it("returns cached groups for the same tenant/campaign/requester/locality inputs", async () => {
+            mockConfig.distributorByDh.cacheEnabled = true;
+            mockCheckRedisConnection.mockResolvedValue(true);
+            mockRedis.get.mockResolvedValue(JSON.stringify({
+                version: 1,
+                cachedAt: Date.now(),
+                groups: [
+                    { dhCode: DH_TWO, dhName: "Ali Brickler", distributors: [{ uuid: uuidFor(2), userName: "dist.2", name: "Dist 2" }] }
+                ],
+            }));
+
+            const result = await searchDistributorsByDhService(
+                buildRequest({ tenantId: "bo", campaignNumber: "CMP-1", localityCodes: [DH_TWO] }, { limit: 10, offset: 0 })
+            );
+
+            expect(result).toMatchObject({
+                TotalCount: 1,
+                Pagination: { limit: 10, offset: 0 },
+                DHDistributors: [{ dhCode: DH_TWO }],
+            });
+            expect(mockGenerate).not.toHaveBeenCalled();
+        });
+
+        it("writes groups into cache after computing a cache miss", async () => {
+            mockConfig.distributorByDh.cacheEnabled = true;
+            mockCheckRedisConnection.mockResolvedValue(true);
+            mockRedis.get.mockResolvedValue(null);
+            givenWorkerRows([workerRow()]);
+
+            await searchDistributorsByDhService(buildRequest(undefined, { limit: 10, offset: 0 }));
+
+            expect(mockGenerate).toHaveBeenCalledTimes(1);
+            expect(mockRedis.set).toHaveBeenCalled();
         });
     });
 
