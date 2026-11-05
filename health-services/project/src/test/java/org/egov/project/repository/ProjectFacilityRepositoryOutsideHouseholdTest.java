@@ -131,6 +131,15 @@ class ProjectFacilityRepositoryOutsideHouseholdTest {
     }
 
     @Test
+    @DisplayName("site links are matched on the upper-case usage, so a site type saved in small letters is still a site")
+    void sitesAreMatchedOnUpperCaseUsage() throws Exception {
+        when(outsideHouseholdTypeService.getTypes("qa")).thenReturn(SITE_TYPES);
+        assertTrue(hierarchySql(true, false).contains("UPPER(fac.usage) IN (:outsideHouseholdTypes)"));
+        org.mockito.Mockito.clearInvocations(jdbc);
+        assertTrue(hierarchySql(true, true).contains("UPPER(fac.usage) IN (:outsideHouseholdTypes)"));
+    }
+
+    @Test
     @DisplayName("with onlyOutsideHouseholdSites and no site type configured, nothing is returned")
     void noSiteTypeMeansNoSite() throws Exception {
         when(outsideHouseholdTypeService.getTypes("qa")).thenReturn(Collections.emptyList());

@@ -10,6 +10,7 @@ import { logger } from "./logger";
 import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery, getTableName } from "./db";
+import { CampaignNumber, TenantId } from "../config/models/brandedTypes";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
 import { getProcessNamesForResourceTypes } from "../config/resourceTypeRegistry";
@@ -1512,6 +1513,68 @@ export async function getMappingDataRelatedToCampaign(type: string, campaignNumb
   return rows;
 }
 
+// A site link row the worker update may record a failure on: mapped, or already waiting for a worker update
+const SITE_LINK_WORKER_ROW_STATUSES = [mappingStatuses.mapped, mappingStatuses.toBeUpdated, mappingStatuses.updateFailed];
+
+/**
+ * Marks the site link rows (by link id = mappingId) whose frontline worker update failed as updateFailed with the reason,
+ * so the mapping reconciler retries them; retryCount starts at 0 for this new attempt. Returns the link ids marked.
+ */
+export async function markSiteLinkWorkerUpdatesFailed(campaignNumber: CampaignNumber, tenantId: TenantId,
+                                                      failures: { mappingId: string; error: string }[]): Promise<Set<string>> {
+  if (failures.length === 0) return new Set();
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `UPDATE ${tableName} t SET status = $2, retryCount = 0, lastError = v.err
+     FROM unnest($3::text[], $4::text[]) AS v(mid, err)
+     WHERE t.campaignNumber = $1 AND t.type = 'facility' AND t.status = ANY($5::text[]) AND t.mappingId = v.mid
+     RETURNING t.mappingId`,
+    [campaignNumber, mappingStatuses.updateFailed, failures.map(f => f.mappingId), failures.map(f => f.error), SITE_LINK_WORKER_ROW_STATUSES]);
+  return new Set((result?.rows || []).map((row: any) => row.mappingid));
+}
+
+/** As markSiteLinkWorkerUpdatesFailed, for every link row of the given sites (when their links could not even be read). */
+export async function markSiteLinkWorkerUpdatesFailedBySite(campaignNumber: CampaignNumber, tenantId: TenantId,
+                                                            uniqueIdentifiers: string[], error: string): Promise<number> {
+  if (uniqueIdentifiers.length === 0) return 0;
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `UPDATE ${tableName} SET status = $2, retryCount = 0, lastError = $4
+     WHERE campaignNumber = $1 AND type = 'facility' AND status = ANY($5::text[]) AND uniqueIdentifierForData = ANY($3::text[])
+       AND mappingId IS NOT NULL`,
+    [campaignNumber, mappingStatuses.updateFailed, uniqueIdentifiers, error, SITE_LINK_WORKER_ROW_STATUSES]);
+  return result?.rowCount ?? 0;
+}
+
+/** Site link rows waiting for a worker update whose link this upload has just written: back to mapped, nothing left to retry. */
+export async function markSiteLinkWorkerUpdatesDone(campaignNumber: CampaignNumber, tenantId: TenantId, linkIds: string[]): Promise<number> {
+  if (linkIds.length === 0) return 0;
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `UPDATE ${tableName} SET status = $2
+     WHERE campaignNumber = $1 AND type = 'facility' AND status = ANY($4::text[]) AND mappingId = ANY($3::text[])`,
+    [campaignNumber, mappingStatuses.mapped, linkIds, [mappingStatuses.toBeUpdated, mappingStatuses.updateFailed]]);
+  return result?.rowCount ?? 0;
+}
+
+/**
+ * A new upload retries the site links whose worker update failed (or is still queued) from an earlier run, also after its retries ran out - only
+ * the links this upload keeps Active (a link it removes is the demap's, never queued for a worker update).
+ */
+export async function resetFailedSiteLinkWorkerUpdates(campaignNumber: CampaignNumber, tenantId: TenantId,
+                                                       activeLinks: { uniqueIdentifierForData: string; boundaryCode: string }[]): Promise<number> {
+  if (activeLinks.length === 0) return 0;
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `UPDATE ${tableName} t SET status = $2, retryCount = 0
+     FROM unnest($4::text[], $5::text[]) AS v(uid, bc)
+     WHERE t.campaignNumber = $1 AND t.type = 'facility' AND t.status = ANY($3::text[])
+       AND t.uniqueIdentifierForData = v.uid AND t.boundaryCode = v.bc`,
+    [campaignNumber, mappingStatuses.toBeUpdated, [mappingStatuses.updateFailed, mappingStatuses.toBeUpdated],
+     activeLinks.map(l => l.uniqueIdentifierForData), activeLinks.map(l => l.boundaryCode)]);
+  return result?.rowCount ?? 0;
+}
+
 /** Reads process-tracking rows for a campaign (optionally filtered by process name and status). */
 export async function getCurrentProcesses(campaignNumber: string, tenantId: string, processName ?: string, status ?: string) {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME, tenantId);
@@ -2024,7 +2087,7 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
         row.status === mappingStatuses.skipped
       ) {
         completedMappings += count;
-      } else if (row.status === mappingStatuses.failed || row.status === mappingStatuses.deMapFailed) {
+      } else if (row.status === mappingStatuses.failed || row.status === mappingStatuses.deMapFailed || row.status === mappingStatuses.updateFailed) {
         failedMappings += count;
         terminallyFailedMappings += parseInt(row.terminalcount ?? '0');
       }

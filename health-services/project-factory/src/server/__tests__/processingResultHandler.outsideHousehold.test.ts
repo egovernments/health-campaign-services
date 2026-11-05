@@ -66,6 +66,10 @@ jest.mock('../utils/genericUtils', () => ({
     pollUntilCount: jest.fn().mockResolvedValue(undefined),
     pollUntilCountFn: jest.fn().mockResolvedValue(undefined),
     deleteCampaignDataFailedAndInvalid: jest.fn().mockResolvedValue(undefined),
+    markSiteLinkWorkerUpdatesFailed: jest.fn().mockResolvedValue(new Set()),
+    markSiteLinkWorkerUpdatesFailedBySite: jest.fn().mockResolvedValue(0),
+    markSiteLinkWorkerUpdatesDone: jest.fn().mockResolvedValue(0),
+    resetFailedSiteLinkWorkerUpdates: jest.fn().mockResolvedValue(0),
 }));
 jest.mock('../config', () => ({
     __esModule: true,
@@ -91,7 +95,7 @@ jest.mock('../config', () => ({
 }));
 
 import { produceModifiedMessages } from '../kafka/Producer';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign } from '../utils/genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, markSiteLinkWorkerUpdatesFailed, markSiteLinkWorkerUpdatesFailedBySite, markSiteLinkWorkerUpdatesDone, resetFailedSiteLinkWorkerUpdates, pollUntilCountFn } from '../utils/genericUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
 import { logger } from '../utils/logger';
@@ -943,17 +947,111 @@ describe('edit: frontline worker changed on an Active site with an existing link
         expect(maxInFlight).toBe(2);
     });
 
-    it('still fails the run when a link update fails', async () => {
+    function failingUpdate(searchFails = false) {
         getRelatedMock.mockImplementation(async (type: any) =>
             (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
         installSheetRouter({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] });
         const sheetImpl = httpMock.getMockImplementation()!;
         httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
             if (url.endsWith('health-project/facility/v1/_update')) throw new Error('link update failed');
-            if (url.endsWith('health-project/facility/v1/_search')) return { ProjectFacilities: [existingLink(oldFields)] } as any;
+            if (url.endsWith('health-project/facility/v1/_search')) {
+                if (searchFails) throw new Error('link search failed');
+                return { ProjectFacilities: [existingLink(oldFields)] } as any;
+            }
             return sheetImpl(url, body, ...rest);
         });
-        await expect(processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails)).rejects.toThrow('link update failed');
+    }
+
+    it('leaves a failed link update to the mapping retry instead of failing the run', async () => {
+        failingUpdate();
+        jest.mocked(markSiteLinkWorkerUpdatesFailed).mockResolvedValueOnce(new Set(['PF-1']));
+        await expect(processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails)).resolves.toBeUndefined();
+        expect(markSiteLinkWorkerUpdatesFailed).toHaveBeenCalledWith('CMP-1', tn,
+            [{ mappingId: 'PF-1', error: 'Frontline worker update failed: link update failed' }]);
+        expect(jest.mocked(pollUntilCountFn).mock.calls.some(([, , opts]: any[]) => String(opts?.label).includes('stored frontline workers'))).toBe(true);
+    });
+
+    it('stops after the first group with a failure and records the links not attempted after it', async () => {
+        const names = ['P1', 'P2', 'P3'];
+        getRelatedMock.mockImplementation(async (type: any) => (type === 'facility'
+            ? names.map((name, i) => ({ uniqueIdentifier: name, uniqueIdAfterProcess: `F-${i + 1}`,
+                data: { ...convertOutsideHouseholdRowsToFacilityRows([{ rowjson: outsideHouseholdRow(name, 'B2', 'Active', oldWorker) }], new Map())[0].rowjson } }))
+            : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        installSheetRouter({ OUTSIDE_HOUSE: names.map(name => outsideHouseholdRow(name, 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: `New ${name}` })) });
+        const sheetImpl = httpMock.getMockImplementation()!;
+        const attempted: string[] = [];
+        httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
+            if (url.endsWith('health-project/facility/v1/_update')) {
+                attempted.push(body.ProjectFacility.id);
+                if (body.ProjectFacility.id === 'PF-1') throw new Error('down');
+                return {} as any;
+            }
+            if (url.endsWith('health-project/facility/v1/_search')) {
+                return { ProjectFacilities: names.map((_, i) => ({ ...existingLink(oldFields), id: `PF-${i + 1}`, facilityId: `F-${i + 1}` })) } as any;
+            }
+            return sheetImpl(url, body, ...rest);
+        });
+        jest.mocked(markSiteLinkWorkerUpdatesFailed).mockResolvedValueOnce(new Set(['PF-1', 'PF-3']));
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
+        expect(attempted.sort()).toEqual(['PF-1', 'PF-2']);
+        expect(markSiteLinkWorkerUpdatesFailed).toHaveBeenCalledWith('CMP-1', tn, [
+            { mappingId: 'PF-1', error: 'Frontline worker update failed: down' },
+            { mappingId: 'PF-3', error: 'Frontline worker update not attempted after an earlier failure' }]);
+    });
+
+    it('marks the links written now as done when this upload queued earlier failures again', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        jest.mocked(resetFailedSiteLinkWorkerUpdates).mockResolvedValueOnce(1);
+        install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] }, [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
+        expect(markSiteLinkWorkerUpdatesDone).toHaveBeenCalledWith('CMP-1', tn, ['PF-1']);
+    });
+
+    it('does not touch the mapping rows on the plain success path', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] }, [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
+        expect(markSiteLinkWorkerUpdatesDone).not.toHaveBeenCalled();
+        expect(markSiteLinkWorkerUpdatesFailed).not.toHaveBeenCalled();
+        expect(jest.mocked(pollUntilCountFn).mock.calls.some(([, , opts]: any[]) => String(opts?.label).includes('stored frontline workers'))).toBe(false);
+    });
+
+    it('still fails the run when a failed link has no mapping row to mark', async () => {
+        failingUpdate();
+        jest.mocked(markSiteLinkWorkerUpdatesFailed).mockResolvedValueOnce(new Set());
+        await expect(processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails)).rejects.toThrow('PF-1');
+    });
+
+    it('leaves every changed site to the mapping retry when the links cannot be read', async () => {
+        failingUpdate(true);
+        jest.mocked(markSiteLinkWorkerUpdatesFailedBySite).mockResolvedValueOnce(1);
+        await expect(processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails)).resolves.toBeUndefined();
+        expect(markSiteLinkWorkerUpdatesFailedBySite).toHaveBeenCalledWith('CMP-1', tn, ['P1'], 'Could not read the site links: link search failed');
+        expect(markSiteLinkWorkerUpdatesFailed).not.toHaveBeenCalled();
+    });
+
+    it('still fails the run when the links cannot be read and no mapping row can be marked', async () => {
+        failingUpdate(true);
+        jest.mocked(markSiteLinkWorkerUpdatesFailedBySite).mockResolvedValueOnce(0);
+        await expect(processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails)).rejects.toThrow('link search failed');
+    });
+
+    it('asks for the retry of earlier failed worker updates on every upload', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', oldWorker)] }, [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
+        expect(resetFailedSiteLinkWorkerUpdates).toHaveBeenCalledWith('CMP-1', tn, [{ uniqueIdentifierForData: 'P1', boundaryCode: 'B2' }]);
+    });
+
+    it('does not queue the link of a site this upload sets Inactive', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Inactive', oldWorker)] }, [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
+        expect(resetFailedSiteLinkWorkerUpdates).toHaveBeenCalledWith('CMP-1', tn, []);
     });
 });
 

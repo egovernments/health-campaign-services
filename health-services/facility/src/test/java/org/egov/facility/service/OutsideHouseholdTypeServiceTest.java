@@ -68,13 +68,29 @@ class OutsideHouseholdTypeServiceTest {
     }
 
     @Test
-    void mdmsFailureBeforeAnyReadGivesAnEmptyListAndDoesNotRetryOnEveryCall() {
+    void mdmsFailureBeforeAnyReadUsesTheFallbackListAndDoesNotRetryOnEveryCall() {
+        when(configuration.getOutsideHouseholdFallbackTypes()).thenReturn(List.of("outside_household_places", " TRANSIT_POST ", ""));
+        when(serviceRequestClient.fetchResult(any(), any(), eq(Map.class))).thenThrow(new RuntimeException("MDMS down"));
+
+        assertEquals(List.of("OUTSIDE_HOUSEHOLD_PLACES", "TRANSIT_POST"), service.getTypes("mz"));
+        assertEquals(List.of("OUTSIDE_HOUSEHOLD_PLACES", "TRANSIT_POST"), service.getTypes("mz"));
+
+        verify(serviceRequestClient, times(1)).fetchResult(any(), any(), eq(Map.class));
+    }
+
+    @Test
+    void mdmsFailureWithNoFallbackListConfiguredGivesAnEmptyList() {
+        when(configuration.getOutsideHouseholdFallbackTypes()).thenReturn(null);
         when(serviceRequestClient.fetchResult(any(), any(), eq(Map.class))).thenThrow(new RuntimeException("MDMS down"));
 
         assertTrue(service.getTypes("mz").isEmpty());
-        assertTrue(service.getTypes("mz").isEmpty());
+    }
 
-        verify(serviceRequestClient, times(1)).fetchResult(any(), any(), eq(Map.class));
+    @Test
+    void returnsTheCodesInUpperCase() {
+        when(serviceRequestClient.fetchResult(any(), any(), eq(Map.class))).thenReturn(Map.of("mdms", List.of(row(" transit_post ", true, true))));
+
+        assertEquals(List.of("TRANSIT_POST"), service.getTypes("mz"));
     }
 
     @Test

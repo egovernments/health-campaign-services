@@ -67,14 +67,15 @@ async function markMappingProcessesAsCompleted(
 
 /**
  * Resets retryable failed mapping rows for another reconcile cycle. Each failure
- * status carries its own direction (`failed` → map, `deMapFailed` → demap), so the
- * reset is direction-preserving with no inference.
+ * status carries its own direction (`failed` → map, `deMapFailed` → demap, `updateFailed` → site link worker update),
+ * so the reset is direction-preserving with no inference.
  */
 async function resetRetryableFailedMappings(campaignNumber: string, tenantId: string): Promise<number> {
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
     const resetPairs: [string, string][] = [
         [mappingStatuses.failed, mappingStatuses.toBeMapped],
         [mappingStatuses.deMapFailed, mappingStatuses.toBeDeMapped],
+        [mappingStatuses.updateFailed, mappingStatuses.toBeUpdated],
     ];
     let resetCount = 0;
     for (const [fromStatus, toStatus] of resetPairs) {
@@ -91,7 +92,7 @@ async function resetRetryableFailedMappings(campaignNumber: string, tenantId: st
 }
 
 /**
- * Fetches every pending mapping row (toBeMapped + toBeDeMapped, all types) once
+ * Fetches every pending mapping row (toBeMapped + toBeDeMapped, all types, and the facility rows toBeUpdated) once
  * per cycle — shared by the readiness check and the dispatcher.
  */
 async function fetchAllPendingMappings(campaignNumber: string, tenantId: string): Promise<any[]> {
@@ -101,6 +102,7 @@ async function fetchAllPendingMappings(campaignNumber: string, tenantId: string)
         const toBeDeMapped = await getMappingDataRelatedToCampaign(type, campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
         allMappings.push(...toBeMapped, ...toBeDeMapped);
     }
+    allMappings.push(...await getMappingDataRelatedToCampaign('facility', campaignNumber, tenantId, mappingStatuses.toBeUpdated));
     return allMappings;
 }
 

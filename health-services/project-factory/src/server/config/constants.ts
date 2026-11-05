@@ -154,6 +154,10 @@ export const mappingStatuses = {
     // reconciler can reset each toward its original intent without heuristics.
     failed : "failed",
     deMapFailed : "deMapFailed",
+    // A mapped site link whose frontline worker still has to be written (an edit changed the worker and the update
+    // failed); the reconciler retries it like the other directions and resets updateFailed to toBeUpdated.
+    toBeUpdated : "toBeUpdated",
+    updateFailed : "updateFailed",
     // Mapping was not attempted because its dependency (e.g. the user
     // referenced by a project-staff mapping) was never created. Treated
     // as resolved by the mapping monitor — does not block campaign success.

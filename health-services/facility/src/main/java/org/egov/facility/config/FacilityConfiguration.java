@@ -1,5 +1,7 @@
 package org.egov.facility.config;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -57,6 +59,11 @@ public class FacilityConfiguration {
 
     @Value("${egov.mdms.v2.search.path}")
     private String mdmsV2SearchPath;
+
+    // Site types used to hide sites when MDMS cannot be read and no list has been read yet
+    @Value("${egov.outside.household.fallback.types:OUTSIDE_HOUSEHOLD_PLACES,TRANSIT_POST}")
+    private List<String> outsideHouseholdFallbackTypes;
+
 
     // Sites (usage = a site type) are checked like the Excel upload: name length and category of the type
     @Value("${facility.validate.outside.household.sites:true}")

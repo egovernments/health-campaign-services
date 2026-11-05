@@ -54,7 +54,10 @@ jest.mock('../config', () => ({
             searchPageSize: 100,
             createConcurrency: 2,
             maxRetries: 3,
+            outsideHouseholdLinkUpdateConcurrency: 2,
         },
+        host: { projectHost: 'http://project/' },
+        paths: { projectFacilitySearch: 'health-project/facility/v1/_search', projectFacilityUpdate: 'health-project/facility/v1/_update' },
         DB_CONFIG: { DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME: 'eg_cm_campaign_mapping_data' },
     },
 }));
@@ -65,6 +68,7 @@ import { produceModifiedMessages } from '../kafka/Producer';
 import { sendCampaignFailureMessage } from '../utils/campaignFailureHandler';
 import { getCurrentMappingGeneration } from '../utils/mappingGenerationUtils';
 import { executeQuery } from '../utils/db';
+import { httpRequest } from '../utils/request';
 
 const getRelatedDataWithCampaignMock = getRelatedDataWithCampaign as jest.MockedFunction<typeof getRelatedDataWithCampaign>;
 const createStaffMock = createStaff as jest.MockedFunction<typeof createStaff>;
@@ -576,5 +580,121 @@ describe('mappingBatchHandler — bounded create concurrency', () => {
 
         expect(createProjectResourceMock).toHaveBeenCalledTimes(5);
         expect(maxInFlight).toBeLessThanOrEqual(2);
+    });
+});
+
+describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => {
+    const httpMock = httpRequest as jest.MockedFunction<typeof httpRequest>;
+    const row = { campaignNumber: 'CMP-1', type: 'facility', uniqueIdentifierForData: 'site-1', boundaryCode: 'B1', status: mappingStatuses.toBeUpdated, mappingId: 'PF-1' };
+    const message = (mappings: any[]) => ({ tenantId: 'tn', campaignId: 'cmp-id-1', campaignNumber: 'CMP-1', useruuid: 'u-uuid', batchNumber: 1, totalBatches: 1,
+        requestInfo: { userInfo: { uuid: 'u-uuid' } }, mappings });
+    const siteData = [{ uniqueIdentifier: 'site-1', uniqueIdAfterProcess: 'F-1', data: { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID: 'site-1',
+        HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker', HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE: 9876500011 } }];
+    const link = (fields: any[]) => ({ id: 'PF-1', projectId: 'PRJ-1', facilityId: 'F-1', rowVersion: 1, additionalFields: { schema: 'OutsideHouseholdAssignment', version: 1, fields } });
+    const newFields = [{ key: 'frontlineWorkerName', value: 'New Worker' }, { key: 'frontlineWorkerPhone', value: '9876500011' }];
+    let updates: any[];
+    function wire(search: () => any, update?: () => any) {
+        updates = [];
+        httpMock.mockImplementation(async (url: string, body: any) => {
+            if (url.endsWith('/_search')) return search();
+            if (url.endsWith('/_update')) { updates.push(body.ProjectFacility); return update ? update() : {}; }
+            return {};
+        });
+    }
+    const persisted = () => produceModifiedMessagesMock.mock.calls.filter(([, topic]) => topic === 'update-mapping').flatMap(([msg]: any[]) => msg.datas);
+    const lastErrorSql = () => executeQueryMock.mock.calls.filter(([sql]) => String(sql).includes('lastError'));
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        getCurrentMappingGenerationMock.mockResolvedValue(null);
+        executeQueryMock.mockResolvedValue({ rows: [], rowCount: 0 } as any);
+        getRelatedDataWithCampaignMock.mockImplementation(async (type: any) => (type === 'facility' ? siteData : type === 'boundary' ? [{ uniqueIdentifier: 'B1', uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        jest.spyOn(global, 'setTimeout').mockImplementation(((cb: any) => { cb(); return 0 as any; }) as any);
+    });
+    afterEach(() => { (global.setTimeout as any).mockRestore?.(); });
+
+    it('writes the campaign worker onto the link read by its stored id and marks the row mapped', async () => {
+        wire(() => ({ ProjectFacilities: [link([{ key: 'frontlineWorkerName', value: 'Old' }])] }));
+        await handleMappingBatch(message([{ ...row }]));
+        expect(httpMock.mock.calls.find(([url]) => url.endsWith('/_search'))?.[1]).toMatchObject({ ProjectFacility: { id: ['PF-1'] } });
+        expect(updates).toEqual([expect.objectContaining({ id: 'PF-1', additionalFields: { schema: 'OutsideHouseholdAssignment', version: 1, fields: newFields } })]);
+        expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.mapped })]);
+        expect(lastErrorSql()).toHaveLength(0);
+    });
+
+    it('sends no update when the link already has the worker, and marks the row mapped', async () => {
+        wire(() => ({ ProjectFacilities: [link(newFields)] }));
+        await handleMappingBatch(message([{ ...row }]));
+        expect(updates).toHaveLength(0);
+        expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.mapped })]);
+    });
+
+    it('marks the row updateFailed with the reason when the update still fails', async () => {
+        wire(() => ({ ProjectFacilities: [link([])] }), () => { throw new Error('project service down'); });
+        await handleMappingBatch(message([{ ...row }]));
+        expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.updateFailed })]);
+        expect(lastErrorSql()).toHaveLength(1);
+        expect(lastErrorSql()[0][1]).toContain('Frontline worker update failed: project service down');
+        expect(sendCampaignFailureMessageMock).not.toHaveBeenCalled();
+    });
+
+    it('marks the row updateFailed when the links cannot be read', async () => {
+        wire(() => { throw new Error('search down'); });
+        await handleMappingBatch(message([{ ...row }]));
+        expect(updates).toHaveLength(0);
+        expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.updateFailed })]);
+        expect(lastErrorSql()[0][1]).toContain('Could not read the site links: search down');
+    });
+
+    it('marks the row mapped when its link is gone (removing links is the demap rows\' job)', async () => {
+        wire(() => ({ ProjectFacilities: [] }));
+        await handleMappingBatch(message([{ ...row }]));
+        expect(updates).toHaveLength(0);
+        expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.mapped })]);
+    });
+
+    it('updates at most the configured number of links at a time and keeps going after a failure', async () => {
+        const rows = ['PF-1', 'PF-2', 'PF-3'].map((id, i) => ({ ...row, uniqueIdentifierForData: `site-${i + 1}`, mappingId: id }));
+        getRelatedDataWithCampaignMock.mockImplementation(async (type: any) => (type === 'facility'
+            ? rows.map((r, i) => ({ uniqueIdentifier: r.uniqueIdentifierForData, uniqueIdAfterProcess: `F-${i + 1}`, data: { ...siteData[0].data, HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID: r.uniqueIdentifierForData } }))
+            : type === 'boundary' ? [{ uniqueIdentifier: 'B1', uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        let inFlight = 0, maxInFlight = 0;
+        const updated: string[] = [];
+        httpMock.mockImplementation(async (url: string, body: any) => {
+            if (url.endsWith('/_search')) return { ProjectFacilities: rows.map((r, i) => ({ ...link([]), id: r.mappingId, facilityId: `F-${i + 1}` })) } as any;
+            inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+            await Promise.resolve(); await Promise.resolve();
+            inFlight--;
+            if (body.ProjectFacility.id === 'PF-1') throw new Error('one link failed');
+            updated.push(body.ProjectFacility.id); return {} as any;
+        });
+        await handleMappingBatch(message(rows.map(r => ({ ...r }))));
+        expect(updated.sort()).toEqual(['PF-2']);
+        expect(maxInFlight).toBe(2);
+        expect(persisted().map((d: any) => [d.mappingId, d.status]).sort()).toEqual([['PF-1', 'updateFailed'], ['PF-2', 'mapped'], ['PF-3', 'updateFailed']]);
+        expect(lastErrorSql()[0][1]).toEqual(expect.arrayContaining(['Frontline worker update not attempted after an earlier failure']));
+    });
+
+    it('leaves the retries to the reconciler: no httpRequest retry on the link search and update', async () => {
+        wire(() => ({ ProjectFacilities: [link([])] }));
+        await handleMappingBatch(message([{ ...row }]));
+        const search = httpMock.mock.calls.find(([url]) => url.endsWith('/_search'))!;
+        const update = httpMock.mock.calls.find(([url]) => url.endsWith('/_update'))!;
+        expect(search[7]).toBeUndefined();
+        expect(update[7]).toBe(false);
+    });
+
+    it('marks a row with no link id mapped (there is no link to write) without reading any link', async () => {
+        wire(() => ({ ProjectFacilities: [] }));
+        await handleMappingBatch(message([{ ...row, mappingId: null }]));
+        expect(httpMock.mock.calls.filter(([url]) => url.endsWith('/_search') || url.endsWith('/_update'))).toHaveLength(0);
+        expect(persisted()).toEqual([expect.objectContaining({ uniqueIdentifierForData: 'site-1', status: mappingStatuses.mapped })]);
+    });
+
+    it('writes the status of every row that shares a link id', async () => {
+        wire(() => ({ ProjectFacilities: [link([])] }));
+        await handleMappingBatch(message([{ ...row }, { ...row, boundaryCode: 'B2' }]));
+        expect(updates).toHaveLength(1);
+        expect(persisted().map((d: any) => [d.boundaryCode, d.status]).sort()).toEqual([['B1', 'mapped'], ['B2', 'mapped']]);
     });
 });

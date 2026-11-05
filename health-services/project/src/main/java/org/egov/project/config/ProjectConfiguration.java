@@ -140,6 +140,11 @@ public class ProjectConfiguration {
     @Value("${egov.mdms.v2.search.path:egov-mdms-service/v2/_search}")
     private String mdmsV2SearchPath;
 
+    // Site types used to hide sites when MDMS cannot be read and no list has been read yet
+    @Value("${egov.outside.household.fallback.types:OUTSIDE_HOUSEHOLD_PLACES,TRANSIT_POST}")
+    private List<String> outsideHouseholdFallbackTypes;
+
+
     @Value("${project.document.id.verification.required}")
     private String documentIdVerificationRequired;
 
