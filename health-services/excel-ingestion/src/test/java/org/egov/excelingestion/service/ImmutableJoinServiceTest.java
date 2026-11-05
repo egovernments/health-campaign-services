@@ -867,6 +867,314 @@ class ImmutableJoinServiceTest {
             assertThrows(CustomException.class, this::run);
         }
 
+        // ---- a pre-filled row the planner copied (Excel copies its hidden row id and record id too) ----
+        private static final String SITE_NAME = ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY;
+        private static final String SITE_ID = ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY;
+        private static final String CODE = ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY;
+
+        private void siteColumns() {
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(SITE_NAME).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(SITE_ID).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name("comment").build()));
+        }
+
+        private Map<String, Object> site(String rid, String name, String siteId, String code, int rowNumber) {
+            return row(ROW_ID, rid, SITE_NAME, name, SITE_ID, siteId, CODE, code, "comment", "c", ROW_NUM, rowNumber);
+        }
+
+        @Test
+        void copiedSiteRow_isTakenAsANewRow_andTheOriginalStaysTheExistingSite() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            siteColumns();
+            // Real cells too: the processed file must not keep the copied ids
+            Sheet up = uploadedWorkbook.getSheet(SHEET);
+            String[] headers = {SITE_NAME, SITE_ID, CODE, ROW_ID};
+            Row h = up.createRow(0);
+            for (int c = 0; c < headers.length; c++) {
+                h.createCell(c).setCellValue(headers[c]);
+            }
+            up.createRow(1);
+            for (int r = 2; r <= 3; r++) {
+                Row data = up.createRow(r);
+                data.createCell(0).setCellValue(r == 2 ? "Zabi Market" : "Zabi Market North");
+                data.createCell(1).setCellValue("C1");
+                data.createCell(2).setCellValue("B1");
+                data.createCell(3).setCellValue("r1");
+            }
+            Map<String, Object> original = site("r1", "Zabi Market", "C1", "B1", 3);
+            Map<String, Object> copy = site("r1", "Zabi Market North", "C1", "B1", 4);
+            stubRows(new ArrayList<>(List.of(original, copy)),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+
+            run();   // no IMMUTABLE_DUPLICATE_ROW_ID, and the renamed copy is not a changed pre-filled cell
+
+            assertEquals("r1", original.get(ROW_ID));
+            assertEquals("C1", original.get(SITE_ID));
+            assertEquals("Zabi Market", original.get(SITE_NAME));
+            assertNull(copy.get(ROW_ID), "the copy is a new row");
+            assertNull(copy.get(SITE_ID), "the copy does not claim the existing site");
+            assertNull(copy.get(CODE), "the copy's boundary code is resolved again from its own boundary");
+            assertEquals("Zabi Market North", copy.get(SITE_NAME), "the planner's name stays");
+            assertEquals("c", copy.get("comment"));
+            assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK, up.getRow(3).getCell(1).getCellType());
+            assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK, up.getRow(3).getCell(3).getCellType());
+            assertEquals("C1", up.getRow(2).getCell(1).getStringCellValue(), "the original's cells are untouched");
+        }
+
+        @Test
+        void copiedSiteRow_theRowThatMatchesTheTemplateStaysTheExistingSite_evenWhenItComesSecond() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            siteColumns();
+            Map<String, Object> renamed = site("r1", "Zabi Market North", "C1", "B1", 3);   // the planner renamed this one
+            Map<String, Object> unchanged = site("r1", "Zabi Market", "C1", "B1", 4);
+            stubRows(new ArrayList<>(List.of(renamed, unchanged)),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+
+            run();
+
+            assertEquals("r1", unchanged.get(ROW_ID));
+            assertEquals("C1", unchanged.get(SITE_ID));
+            assertNull(renamed.get(ROW_ID));
+            assertNull(renamed.get(SITE_ID));
+            assertEquals("Zabi Market North", renamed.get(SITE_NAME));
+        }
+
+        @Test
+        void exactCopyOfASiteRow_theFirstStaysAndTheSecondIsANewRowForTheDuplicateCheck() {
+            siteColumns();
+            Map<String, Object> first = site("r1", "Zabi Market", "C1", "B1", 3);
+            Map<String, Object> second = site("r1", "Zabi Market", "C1", "B1", 4);
+            Map<String, Object> other = site("r2", "Rahama School", "C2", "B2", 5);
+            stubRows(new ArrayList<>(List.of(first, second, other)), new ArrayList<>(List.of(
+                    site("r1", "Zabi Market", "C1", "B1", 3), site("r2", "Rahama School", "C2", "B2", 4))));
+
+            run();
+
+            assertEquals("r1", first.get(ROW_ID));
+            assertNull(second.get(ROW_ID));
+            assertNull(second.get(SITE_ID));
+            assertEquals("Zabi Market", second.get(SITE_NAME), "left as typed, so the sheet's duplicate-site check names it");
+            assertEquals("r2", other.get(ROW_ID), "rows that are not copied are untouched");
+            assertEquals("C2", other.get(SITE_ID));
+        }
+
+        @Test
+        void copiedFacilityRow_losesItsFacilityId() {
+            final String NAME = ProcessingConstants.FACILITY_NAME_COLUMN_KEY;
+            final String FACILITY_ID = ProcessingConstants.FACILITY_CODE_COLUMN_KEY;
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(NAME).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(FACILITY_ID).build()));   // hidden, not locked
+            Map<String, Object> original = row(ROW_ID, "r1", NAME, "Store A", FACILITY_ID, "F-1", ROW_NUM, 3);
+            Map<String, Object> copy = row(ROW_ID, "r1", NAME, "Store B", FACILITY_ID, "F-1", ROW_NUM, 4);
+            stubRows(new ArrayList<>(List.of(original, copy)),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", NAME, "Store A", FACILITY_ID, "F-1", ROW_NUM, 3))));
+
+            run();
+
+            assertEquals("F-1", original.get(FACILITY_ID));
+            assertNull(copy.get(FACILITY_ID));
+            assertNull(copy.get(ROW_ID));
+            assertEquals("Store B", copy.get(NAME));
+        }
+
+        @Test
+        void copiedUserRow_losesTheExistingUsersLogin_andTheOriginalKeepsIt() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            final String UUIDS = ProcessingConstants.USER_SERVICE_UUIDS_COLUMN_KEY;
+            final String LOGIN = ProcessingConstants.USERNAME_COLUMN_KEY;
+            final String PASSWORD = ProcessingConstants.USER_PASSWORD_COLUMN_KEY;
+            final String WORKER = ProcessingConstants.WORKER_ID_COLUMN_KEY;
+            final String PHONE = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(PHONE).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(LOGIN).freezeColumnIfFilled(true).freezeTillData(true).build(),
+                    ColumnDef.builder().name(WORKER).freezeColumnIfFilled(true).freezeTillData(true).build(),
+                    ColumnDef.builder().name(PASSWORD).freezeColumn(true).build(),
+                    ColumnDef.builder().name(UUIDS).freezeColumn(true).build()));
+            Map<String, Object> original = row(ROW_ID, "r1", PHONE, "9000000001", LOGIN, "u-1", WORKER, "W-1",
+                    PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 3);
+            Map<String, Object> copy = row(ROW_ID, "r1", PHONE, "9000000002", LOGIN, "u-1", WORKER, "W-1",
+                    PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 4);   // the planner typed a new phone
+            stubRows(new ArrayList<>(List.of(original, copy)), new ArrayList<>(List.of(row(ROW_ID, "r1",
+                    PHONE, "9000000001", LOGIN, "u-1", WORKER, "W-1", PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 3))));
+
+            run();
+
+            assertEquals("uuid-1", original.get(UUIDS));
+            assertEquals("u-1", original.get(LOGIN));
+            for (String col : List.of(ROW_ID, UUIDS, LOGIN, PASSWORD, WORKER)) {
+                assertNull(copy.get(col), col + " of the existing user is not carried to the new user");
+            }
+            assertEquals("9000000002", copy.get(PHONE));
+        }
+
+        // ---- a pre-filled row copied without its hidden row id (only its cells up to the last visible column) ----
+        @Test
+        void siteRowCopiedWithoutItsRowId_withANewType_CategoryOrName_getsNewIds() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            siteColumns();
+            final String TYPE = ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY;
+            final String CATEGORY = ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY;
+            // Real cells too: the processed file must not keep the copied ids
+            Sheet up = uploadedWorkbook.getSheet(SHEET);
+            String[] headers = {SITE_NAME, SITE_ID, CODE, ROW_ID};
+            Row h = up.createRow(0);
+            for (int c = 0; c < headers.length; c++) {
+                h.createCell(c).setCellValue(headers[c]);
+            }
+            up.createRow(1);
+            for (int r = 2; r <= 5; r++) {
+                Row data = up.createRow(r);
+                data.createCell(0).setCellValue(r == 3 ? "Zabi Market North" : "Zabi Market");
+                data.createCell(1).setCellValue("C1");
+                data.createCell(2).setCellValue("B1");
+                if (r == 2) {
+                    data.createCell(3).setCellValue("r1");   // the copies have no row id
+                }
+            }
+            Map<String, Object> original = site("r1", "Zabi Market", "C1", "B1", 3);
+            Map<String, Object> renamed = site(null, "Zabi Market North", "C1", "B1", 4);
+            Map<String, Object> retyped = site(null, "Zabi Market", "C1", "B1", 5);
+            retyped.put(TYPE, "TRANSIT_POST");
+            Map<String, Object> recategorised = site(null, "Zabi Market", "C1", "B1", 6);
+            recategorised.put(CATEGORY, "SCHOOL");
+            Map<String, Object> typed = site(null, "New Post", null, null, 7);
+            Map<String, Object> other = site(null, "Old Post", "C9", "B9", 8);   // an id no pre-filled row has: left alone
+            stubRows(new ArrayList<>(List.of(original, renamed, retyped, recategorised, typed, other)),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+
+            run();   // no error: the pre-filled row is there, and the copies are new rows
+
+            assertEquals("r1", original.get(ROW_ID));
+            assertEquals("C1", original.get(SITE_ID));
+            assertEquals("B1", original.get(CODE));
+            for (Map<String, Object> copy : List.of(renamed, retyped, recategorised)) {
+                assertNull(copy.get(SITE_ID), "a copy does not keep the existing site's id");
+                assertNull(copy.get(CODE), "its boundary code is resolved again from its own boundary");
+            }
+            assertEquals("Zabi Market North", renamed.get(SITE_NAME));
+            assertEquals("TRANSIT_POST", retyped.get(TYPE));
+            assertEquals("SCHOOL", recategorised.get(CATEGORY));
+            assertNull(typed.get(SITE_ID));
+            assertEquals("C9", other.get(SITE_ID));
+            assertEquals("B9", other.get(CODE));
+            for (int r = 3; r <= 5; r++) {
+                assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK, up.getRow(r).getCell(1).getCellType());
+                assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK, up.getRow(r).getCell(2).getCellType());
+            }
+            assertEquals("C1", up.getRow(2).getCell(1).getStringCellValue(), "the original's cells are untouched");
+        }
+
+        @Test
+        void exactCopyWithoutItsRowId_losesTheIds_soTheDuplicateSiteCheckNamesIt() {
+            siteColumns();
+            Map<String, Object> original = site("r1", "Zabi Market", "C1", "B1", 3);
+            Map<String, Object> copy = site(null, "Zabi Market", "C1", "B1", 4);
+            stubRows(new ArrayList<>(List.of(original, copy)),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+
+            run();
+
+            assertEquals("C1", original.get(SITE_ID));
+            assertNull(copy.get(SITE_ID));
+            assertEquals("Zabi Market", copy.get(SITE_NAME), "left as typed, so the sheet's duplicate-site check names it");
+        }
+
+        @Test
+        void facilityRowCopiedWithoutItsRowId_losesItsFacilityId() {
+            final String NAME = ProcessingConstants.FACILITY_NAME_COLUMN_KEY;
+            final String FACILITY_ID = ProcessingConstants.FACILITY_CODE_COLUMN_KEY;
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(NAME).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(FACILITY_ID).build()));
+            Map<String, Object> original = row(ROW_ID, "r1", NAME, "Store A", FACILITY_ID, "F-1", ROW_NUM, 3);
+            Map<String, Object> copy = row(NAME, "Store B", FACILITY_ID, "F-1", ROW_NUM, 4);
+            stubRows(new ArrayList<>(List.of(original, copy)),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", NAME, "Store A", FACILITY_ID, "F-1", ROW_NUM, 3))));
+
+            run();
+
+            assertEquals("F-1", original.get(FACILITY_ID));
+            assertNull(copy.get(FACILITY_ID));
+            assertEquals("Store B", copy.get(NAME));
+        }
+
+        @Test
+        void userRowCopiedWithoutItsRowId_losesTheExistingUsersLogin_thoughItsUserIdWasNotCopied() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            final String UUIDS = ProcessingConstants.USER_SERVICE_UUIDS_COLUMN_KEY;
+            final String LOGIN = ProcessingConstants.USERNAME_COLUMN_KEY;
+            final String PASSWORD = ProcessingConstants.USER_PASSWORD_COLUMN_KEY;
+            final String WORKER = ProcessingConstants.WORKER_ID_COLUMN_KEY;
+            final String PHONE = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(PHONE).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(LOGIN).freezeColumnIfFilled(true).freezeTillData(true).build(),
+                    ColumnDef.builder().name(WORKER).freezeColumnIfFilled(true).freezeTillData(true).build(),
+                    ColumnDef.builder().name(PASSWORD).freezeColumn(true).build(),
+                    ColumnDef.builder().name(UUIDS).freezeColumn(true).build()));
+            Map<String, Object> original = row(ROW_ID, "r1", PHONE, "9000000001", LOGIN, "u-1", WORKER, "W-1",
+                    PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 3);
+            // The user id and password sit after the last visible column, so only the username and worker id came along
+            Map<String, Object> copy = row(PHONE, "9000000002", LOGIN, "u-1", WORKER, "W-1", ROW_NUM, 4);
+            // A typed user with the default password every user shares is not a copy
+            Map<String, Object> typed = row(PHONE, "9000000003", PASSWORD, "secret", ROW_NUM, 5);
+            stubRows(new ArrayList<>(List.of(original, copy, typed)), new ArrayList<>(List.of(row(ROW_ID, "r1",
+                    PHONE, "9000000001", LOGIN, "u-1", WORKER, "W-1", PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 3))));
+
+            run();
+
+            assertEquals("uuid-1", original.get(UUIDS));
+            assertEquals("u-1", original.get(LOGIN));
+            assertNull(copy.get(LOGIN), "the copy gets its own username");
+            assertNull(copy.get(WORKER), "and its own worker id");
+            assertEquals("9000000002", copy.get(PHONE));
+            assertEquals("secret", typed.get(PASSWORD), "the shared password alone does not make a row a copy");
+        }
+
+        @Test
+        void copiedRowOnAnAttendanceLikeSheet_stillFailsAsADuplicate() {
+            // UserName and the worker id are the planner's input there, and there is no UserService Uuids column
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(ProcessingConstants.USERNAME_COLUMN_KEY).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(ProcessingConstants.WORKER_ID_COLUMN_KEY).freezeColumnIfFilled(true).build()));
+            Map<String, Object> base = row(ROW_ID, "r1", ProcessingConstants.USERNAME_COLUMN_KEY, "u-1", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(new HashMap<>(base), row(ROW_ID, "r1", ProcessingConstants.USERNAME_COLUMN_KEY, "u-2", ROW_NUM, 4))),
+                    new ArrayList<>(List.of(base)));
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID, ex.getCode());
+        }
+
+        @Test
+        void repeatedRowIdUnknownToTheTemplate_stillFailsClosed_onASiteSheet() {
+            siteColumns();
+            stubRows(new ArrayList<>(List.of(site("ghost", "A", "C9", "B1", 3), site("ghost", "B", "C9", "B1", 4))),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID, ex.getCode());
+        }
+
+        @Test
+        void copyPastedOverAnotherPreFilledRow_stillFailsAsADeletedRow() {
+            siteColumns();
+            // r2 was overwritten by the copy of r1, so r2 is gone from the upload
+            stubRows(new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3), site("r1", "Zabi Market 2", "C1", "B1", 4))),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3), site("r2", "Rahama School", "C2", "B2", 4))));
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_ORPHAN_ROWS, ex.getCode());
+        }
+
+        @Test
+        void copiedRowOnASheetWithoutARecordId_stillFailsAsADuplicate() {
+            // The default columns (a users-like sheet) have no record id column: behaviour unchanged
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "name", "Real", ROW_NUM, 3), row(ROW_ID, "r1", "name", "Real", ROW_NUM, 4))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "name", "Real", ROW_NUM, 3))));
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID, ex.getCode());
+        }
+
         @Test
         void deletedRow_orphan_failsClosed() {
             // baseline has r1 + r2; upload has only r1 -> r2 is an orphan (deleted pre-filled row)
@@ -1249,6 +1557,109 @@ class ImmutableJoinServiceTest {
             assertEquals("NewGuy", rows.get(3).get("name"), "new row trusted verbatim");
             assertNull(rows.get(3).get(ProcessingConstants.ROW_ID_COLUMN_NAME), "new row has no row-id");
 
+            uploaded.close();
+        }
+
+        @Test
+        void endToEnd_copiedSiteRow_withItsHiddenCells_becomesANewRow() throws Exception {
+            config.setImmutableRejectOnChange(true);
+            String siteId = ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY;
+            String schema = "{\"stringProperties\":["
+                    + "{\"name\":\"name\",\"orderNumber\":1,\"freezeColumnIfFilled\":true},"
+                    + "{\"name\":\"" + siteId + "\",\"orderNumber\":2,\"freezeColumnIfFilled\":true,\"hideColumn\":true},"
+                    + "{\"name\":\"comment\",\"orderNumber\":3}]}";
+            List<ColumnDef> columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schema);
+            List<Map<String, Object>> data = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("name", "Site" + i);
+                m.put(siteId, "CRID-" + i);
+                m.put("comment", "c" + i);
+                data.add(m);
+            }
+            Workbook base = populator.populateSheetWithData(new XSSFWorkbook(), SHEET, columns, data, new HashMap<>(), true, true);
+            base.createSheet(GenerationConstants.META_SHEET_NAME).createRow(0).createCell(0).setCellValue(GEN_ID);
+            byte[] baselineBytes = toBytes(base);
+            wireMocks(baselineBytes);
+
+            // The planner copies pre-filled sheet row 2 (all cells, the hidden ones too) to sheet row 4 and renames it
+            Workbook uploaded = fromBytes(baselineBytes);
+            Sheet up = uploaded.getSheet(SHEET);
+            Row from = up.getRow(2);
+            Row to = up.getRow(4) == null ? up.createRow(4) : up.getRow(4);
+            for (int c = 0; c < from.getLastCellNum(); c++) {
+                Cell src = from.getCell(c);
+                if (src != null && src.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) {
+                    (to.getCell(c) == null ? to.createCell(c) : to.getCell(c)).setCellValue(src.getStringCellValue());
+                }
+            }
+            setCell(up, 4, colIndex(up, "name"), "Site0 North");
+            Map<String, Map<String, Object>> schemas = new HashMap<>();
+            schemas.put(SHEET, new ObjectMapper().readValue(schema, Map.class));
+
+            join.applyImmutableBaseline(uploaded, resource(), schemas, null);
+
+            List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(UPLOAD_FS, SHEET, up);
+            assertEquals(3, rows.size(), "2 pre-filled rows + the copy");
+            assertEquals("CRID-0", rows.get(0).get(siteId), "the original keeps its site");
+            assertNotNull(rows.get(0).get(ProcessingConstants.ROW_ID_COLUMN_NAME));
+            assertEquals("Site0 North", rows.get(2).get("name"));
+            assertNull(rows.get(2).get(siteId), "the copy is a new site");
+            assertNull(rows.get(2).get(ProcessingConstants.ROW_ID_COLUMN_NAME), "the copy is a new row");
+            assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK,
+                    up.getRow(4).getCell(colIndex(up, siteId)).getCellType(), "the processed file shows the copy without the id");
+            uploaded.close();
+        }
+
+        @Test
+        void endToEnd_copiedSiteRow_withoutItsRowIdCell_becomesANewRow() throws Exception {
+            config.setImmutableRejectOnChange(true);
+            String siteId = ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY;
+            String schema = "{\"stringProperties\":["
+                    + "{\"name\":\"name\",\"orderNumber\":1,\"freezeColumnIfFilled\":true},"
+                    + "{\"name\":\"" + siteId + "\",\"orderNumber\":2,\"freezeColumnIfFilled\":true,\"hideColumn\":true},"
+                    + "{\"name\":\"comment\",\"orderNumber\":3}]}";
+            List<ColumnDef> columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schema);
+            List<Map<String, Object>> data = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("name", "Site" + i);
+                m.put(siteId, "CRID-" + i);
+                m.put("comment", "c" + i);
+                data.add(m);
+            }
+            Workbook base = populator.populateSheetWithData(new XSSFWorkbook(), SHEET, columns, data, new HashMap<>(), true, true);
+            base.createSheet(GenerationConstants.META_SHEET_NAME).createRow(0).createCell(0).setCellValue(GEN_ID);
+            byte[] baselineBytes = toBytes(base);
+            wireMocks(baselineBytes);
+
+            // The planner copies pre-filled sheet row 2 up to its last visible column (the hidden site id comes along,
+            // the hidden row id after it does not) to sheet row 4, and renames it
+            Workbook uploaded = fromBytes(baselineBytes);
+            Sheet up = uploaded.getSheet(SHEET);
+            int rowIdColumn = colIndex(up, ProcessingConstants.ROW_ID_COLUMN_NAME);
+            assertTrue(rowIdColumn > colIndex(up, siteId), "the row id comes after the site id");
+            Row from = up.getRow(2);
+            Row to = up.getRow(4) == null ? up.createRow(4) : up.getRow(4);
+            for (int c = 0; c < rowIdColumn; c++) {
+                Cell src = from.getCell(c);
+                if (src != null && src.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) {
+                    (to.getCell(c) == null ? to.createCell(c) : to.getCell(c)).setCellValue(src.getStringCellValue());
+                }
+            }
+            setCell(up, 4, colIndex(up, "name"), "Site0 North");
+            Map<String, Map<String, Object>> schemas = new HashMap<>();
+            schemas.put(SHEET, new ObjectMapper().readValue(schema, Map.class));
+
+            join.applyImmutableBaseline(uploaded, resource(), schemas, null);
+
+            List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(UPLOAD_FS, SHEET, up);
+            assertEquals(3, rows.size(), "2 pre-filled rows + the copy");
+            assertEquals("CRID-0", rows.get(0).get(siteId), "the original keeps its site");
+            assertEquals("Site0 North", rows.get(2).get("name"));
+            assertNull(rows.get(2).get(siteId), "the copy is a new site");
+            assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK,
+                    up.getRow(4).getCell(colIndex(up, siteId)).getCellType(), "the processed file shows the copy without the id");
             uploaded.close();
         }
 

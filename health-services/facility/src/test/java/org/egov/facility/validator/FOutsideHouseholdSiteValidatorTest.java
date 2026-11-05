@@ -76,6 +76,37 @@ class FOutsideHouseholdSiteValidatorTest {
     }
 
     @Test
+    void aSiteNameMayNotUseTheBlockedCharacters() {
+        Map<String, List<String>> errors = errorCodesByName(
+                site("St. Mary's (Sede) 1/2 - N'Gola", "OUTSIDE_HOUSEHOLD_PLACES", "SCHOOL"),
+                site("Market & Shop_1, `A` (B)", "OUTSIDE_HOUSEHOLD_PLACES", "MARKET"),
+                site("Market {B}", "OUTSIDE_HOUSEHOLD_PLACES", "MARKET"),
+                site("Post \"C\"", "TRANSIT_POST", "CHECKPOINT"),
+                site("Clinic; South", "TRANSIT_POST", "CHECKPOINT"),
+                site("Post <b>", "TRANSIT_POST", "CHECKPOINT"),
+                site("Back\\slash", "TRANSIT_POST", "CHECKPOINT"),
+                site("Line\nBreak", "TRANSIT_POST", "CHECKPOINT"),
+                site("+North", "TRANSIT_POST", "CHECKPOINT"),
+                site("North 1+1", "TRANSIT_POST", "CHECKPOINT"),
+                site("North 1+1=2", "TRANSIT_POST", "CHECKPOINT"),
+                site("Post \u201CC\u201D", "TRANSIT_POST", "CHECKPOINT"),
+                site("St. Mary\u2019s Post", "TRANSIT_POST", "CHECKPOINT"),
+                site("Store #1", "Warehouse", null));   // not a site: not checked
+
+        assertEquals(Map.of(
+                "Clinic; South", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "Post <b>", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "Back\\slash", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "Line\nBreak", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "+North", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "Market {B}", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "Post \"C\"", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "North 1+1", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "North 1+1=2", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "Post \u201CC\u201D", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME)), errors);
+    }
+
+    @Test
     void checksNothingWhenSwitchedOff() {
         when(configuration.getValidateOutsideHouseholdSites()).thenReturn(false);
 

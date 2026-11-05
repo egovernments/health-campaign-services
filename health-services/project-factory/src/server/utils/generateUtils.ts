@@ -140,6 +140,27 @@ export function dropCloneSourceDeliveryDates(campaignDetails: any): number {
 }
 
 /**
+ * A clone being created of a campaign type outside CAMPAIGN_DELIVERY_CONDITION_TYPES (POLIO by default) starts without its
+ * source's delivery rules: cycles, dates, deliveries, conditions and products (deliveryRules and additionalDetails.cycleData).
+ * The planner sets them in the delivery step, as for a new campaign. Only for the clone's first save as a draft; nothing for
+ * a campaign that is not a clone, an edit (parentId), a campaign without a type, or when the switch is off. Returns true when
+ * the source's rules were removed.
+ */
+export function dropCloneSourceDeliveryRules(campaignDetails: any): boolean {
+    const details = campaignDetails?.additionalDetails;
+    if (!config.mapping?.clearCloneDeliveryDates || !campaignDetails || campaignDetails.parentId || campaignDetails.action !== "draft"
+        || !(details?.cloneFrom || details?.clonedCampaignId)) return false;
+    if (typeof campaignDetails.projectType !== "string" || !campaignDetails.projectType.trim()
+        || isDeliveryConditionCampaignType(campaignDetails.projectType)) return false;
+    const cycleData = details?.cycleData;
+    const hadRules = (Array.isArray(campaignDetails.deliveryRules) && campaignDetails.deliveryRules.length > 0)
+        || (cycleData && typeof cycleData === "object" && Object.keys(cycleData).length > 0);
+    campaignDetails.deliveryRules = [];
+    campaignDetails.additionalDetails = { ...(details || {}), cycleData: {} };
+    return !!hadRules;
+}
+
+/**
  * The update's deliveryMethods and projectType for the generate request, so excel-ingestion decides the Outside Household
  * sheet from this update rather than from a stored copy that may not have it yet; empty when the update carries neither.
  */

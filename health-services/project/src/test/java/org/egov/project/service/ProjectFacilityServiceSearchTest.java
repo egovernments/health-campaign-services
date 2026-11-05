@@ -40,6 +40,8 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 
 @ExtendWith(MockitoExtension.class)
@@ -336,5 +338,74 @@ class ProjectFacilityServiceSearchTest {
 
         assertThrows(CustomException.class, () -> projectFacilityService.searchFacilities(request,
                 10, 0, "default", null, false));
+    }
+
+    // ==================== Only outside household sites ====================
+
+    private ProjectFacilitySearchRequest hierarchyRequest() {
+        return ProjectFacilitySearchRequest.builder().projectFacility(ProjectFacilitySearch.builder()
+                        .projectId(Collections.singletonList("P1"))
+                        .boundaryTypes(Arrays.asList("LOCALITY", "VILLAGE")).build())
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+    }
+
+    @Test
+    @DisplayName("hierarchy search with onlyOutsideHouseholdSites asks the repository for site links only")
+    void shouldAskForSiteLinksOnlyWhenOnlyOutsideHouseholdSites() throws Exception {
+        Project project = Project.builder().id("P1").tenantId("default").projectHierarchy("ROOT.P1").build();
+        when(projectService.searchProject(any(ProjectRequest.class), anyInt(), anyInt(), anyString(), any(),
+                anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
+                .thenReturn(Collections.singletonList(project));
+        when(projectFacilityRepository.findFacilitiesByDescendants(eq("P1"), anyList(), eq("default"), eq(true)))
+                .thenReturn(new HashMap<>(Map.of("VILLAGE", new ArrayList<>(List.of("SITE-V")))));
+        when(projectFacilityRepository.findFacilitiesByAncestors(anyList(), anyList(), eq("default"), eq(true)))
+                .thenReturn(new HashMap<>(Map.of("LOCALITY", new ArrayList<>(List.of("SITE-L")))));
+        when(projectFacilityRepository.findWithCount(any(ProjectFacilitySearch.class), eq(1), eq(0), eq("default"),
+                eq(null), eq(false), eq(true)))
+                .thenReturn(SearchResponse.<ProjectFacility>builder().response(Collections.emptyList()).build());
+
+        ProjectFacilityBulkResponse response = projectFacilityService.searchFacilities(hierarchyRequest(),
+                10, 0, "default", null, false, true);
+
+        assertEquals(List.of("SITE-V"), response.getFacilityMap().get("VILLAGE"));
+        assertEquals(List.of("SITE-L"), response.getFacilityMap().get("LOCALITY"));
+        verify(projectFacilityRepository, never()).findFacilitiesByDescendants(anyString(), anyList(), anyString());
+        verify(projectFacilityRepository, never()).findFacilitiesByAncestors(anyList(), anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("hierarchy search without onlyOutsideHouseholdSites uses the site-hiding queries as before")
+    void shouldKeepTheHidingQueriesByDefault() throws Exception {
+        Project project = Project.builder().id("P1").tenantId("default").projectHierarchy("ROOT.P1").build();
+        when(projectService.searchProject(any(ProjectRequest.class), anyInt(), anyInt(), anyString(), any(),
+                anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(), any(), any(), anyBoolean()))
+                .thenReturn(Collections.singletonList(project));
+        when(projectFacilityRepository.findFacilitiesByDescendants(eq("P1"), anyList(), eq("default")))
+                .thenReturn(new HashMap<>());
+        when(projectFacilityRepository.findFacilitiesByAncestors(anyList(), anyList(), eq("default")))
+                .thenReturn(new HashMap<>());
+        when(projectFacilityRepository.findWithCount(any(ProjectFacilitySearch.class), eq(1), eq(0), eq("default"),
+                eq(null), eq(false)))
+                .thenReturn(SearchResponse.<ProjectFacility>builder().response(Collections.emptyList()).build());
+
+        projectFacilityService.searchFacilities(hierarchyRequest(), 10, 0, "default", null, false);
+
+        verify(projectFacilityRepository, never()).findFacilitiesByDescendants(anyString(), anyList(), anyString(), anyBoolean());
+        verify(projectFacilityRepository, never()).findFacilitiesByAncestors(anyList(), anyList(), anyString(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("onlyOutsideHouseholdSites is ignored by a search without boundaryTypes")
+    void shouldIgnoreOnlyOutsideHouseholdSitesWithoutBoundaryTypes() throws Exception {
+        when(projectFacilityRepository.findWithCount(any(ProjectFacilitySearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
+                .thenReturn(SearchResponse.<ProjectFacility>builder().response(Collections.emptyList()).build());
+        ProjectFacilitySearchRequest request = ProjectFacilitySearchRequest.builder().projectFacility(
+                        ProjectFacilitySearch.builder().projectId(Collections.singletonList("P1")).build())
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+
+        projectFacilityService.searchFacilities(request, 10, 0, "default", null, false, true);
+
+        verify(projectFacilityRepository, never()).findWithCount(any(), any(), any(), any(), any(), any(), anyBoolean());
     }
 }
