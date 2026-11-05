@@ -78,9 +78,10 @@ public class ImmutableJoinService {
 
     /**
      * The columns that tie a pre-filled row to its existing record, per sheet, keyed by the hidden id column that marks
-     * the sheet. On such a sheet a pre-filled row the planner copied (Excel copies its hidden cells too) is taken as a
-     * new row: these columns are cleared on the copy, so it looks like a row the planner typed. Other sheets (e.g. the
-     * attendance sheets, where UserName is the planner's input) keep failing on a copied row as before.
+     * the sheet. On such a sheet a pre-filled row the planner copied is taken as a new row, whether the whole row was
+     * copied (its hidden row id too) or only its cells up to the last visible column (the hidden ids among them come along,
+     * the row id after them does not): these columns are cleared on the copy, so it looks like a row the planner typed. Other sheets
+     * (e.g. the attendance sheets, where UserName is the planner's input) keep failing on a copied row as before.
      */
     private static final Map<String, List<String>> RECORD_COLUMNS_BY_SHEET_ID_COLUMN = Map.of(
             ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY,   // Outside Household: the site
@@ -423,7 +424,10 @@ public class ImmutableJoinService {
      * the others get their row id, record columns and boundary code cleared (row map and workbook cell), so they are validated
      * and created like rows the planner typed: the boundary code is resolved again from the copy's own boundary selection
      * (the planner may have changed it), and an unchanged copy is caught by the sheet's duplicate checks. A row id unknown
-     * to the baseline is left alone, so it still fails closed.
+     * to the baseline is left alone, so it still fails closed. A row without a row id that carries an id of a pre-filled
+     * row (its site id, facility code, user id, username or worker id - not the password, which users share) is that row
+     * copied without its row id (only its cells up to the last visible column, where the row id is not): it is taken as a
+     * new row the same way, so it never keeps the existing record's ids.
      */
     private void takeCopiedRowsAsNewRows(SheetJoin sj, ImmutableColumns immutable, String hierarchyPrefix,
                                          List<Map<String, Object>> uploadedRows,
@@ -456,6 +460,33 @@ public class ImmutableJoinService {
                 log.info("Sheet '{}' row {} is a copy of pre-filled row {}; taken as a new row",
                         sj.sheetName, rowIndexOf(row) + 1, rowIndexOf(existing) + 1);
             }
+        }
+        Map<String, Set<String>> preFilledIds = new HashMap<>();
+        for (String col : immutable.recordIdColumns) {
+            if (ProcessingConstants.USER_PASSWORD_COLUMN_KEY.equals(col)) {
+                continue;
+            }
+            Set<String> values = new HashSet<>();
+            for (Map<String, Object> baseRow : baselineByRowId.values()) {
+                String value = trimToNull(ExcelUtil.getValueAsString(baseRow.get(col)));
+                if (value != null) {
+                    values.add(value);
+                }
+            }
+            preFilledIds.put(col, values);
+        }
+        for (Map<String, Object> row : uploadedRows) {
+            if (trimToNull(ExcelUtil.getValueAsString(row.get(ProcessingConstants.ROW_ID_COLUMN_NAME))) != null
+                    || preFilledIds.entrySet().stream().noneMatch(ids ->
+                            ids.getValue().contains(trimToNull(ExcelUtil.getValueAsString(row.get(ids.getKey())))))) {
+                continue;
+            }
+            for (String col : immutable.recordIdColumns) {
+                clearCell(sj, row, col);
+            }
+            clearCell(sj, row, ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY);
+            log.info("Sheet '{}' row {} carries a pre-filled row's id without its row id (a copy of its visible cells); taken as a new row",
+                    sj.sheetName, rowIndexOf(row) + 1);
         }
     }
 
