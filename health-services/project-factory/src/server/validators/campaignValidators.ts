@@ -18,7 +18,7 @@ import { CampaignResource } from "../config/models/resourceTypes";
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { campaignStatuses, resourceDataStatuses, resourceStatuses, resourceTypes, usageColumnStatus } from "../config/constants";
 import { getAllAllowedTypes } from "../config/resourceTypeRegistry";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
@@ -872,6 +872,41 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
 
 
 
+/**
+ * An edit (child campaign) can only be processed with a file made from its own template: excel-ingestion rejects a file
+ * made from the parent's template (IMMUTABLE_IDENTITY_MISMATCH), but only after the edit has started, so the edit
+ * fails with no error on the screen. The console keeps the parent's file on the edit until a new one is uploaded, and
+ * does not validate it, so the Submit of an edit is refused here when its file is one of the parent's files, or when it
+ * sends no file on a create and the parent's file would be copied to it.
+ */
+async function validateEditFileIsNotParents(request: any, CampaignDetails: any, actionInUrl: any) {
+    const parentId = CampaignDetails?.parentId;
+    const tenantId = CampaignDetails?.tenantId;
+    if (!parentId || !tenantId) {
+        return;
+    }
+    const isUnified = (type: any) => type === resourceTypes.unifiedConsoleResources || type === "unified-console";
+    const parentRows = await searchResourceDetailsFromDB({ tenantId, campaignId: parentId, type: [resourceTypes.unifiedConsoleResources] });
+    const parentFiles = new Set<string>([
+        ...parentRows.map((row: any) => row?.filestoreid),
+        ...(request?.body?.parentCampaign?.resources || []).filter((r: any) => isUnified(r?.type)).map((r: any) => r?.filestoreId)
+    ].filter(Boolean));
+    if (parentFiles.size === 0) {
+        return;
+    }
+    // The file the edit is processed with (processUnifiedTemplateCampaign takes the first unified-console-resources)
+    const editFile = (CampaignDetails?.resources || []).find((r: any) => r?.type === resourceTypes.unifiedConsoleResources)?.filestoreId;
+    // Without a file, a create copies the parent's completed file to the edit (copyResourcesFromParentToChildInDB)
+    const getsParentFile = editFile
+        ? parentFiles.has(editFile)
+        : actionInUrl === "create" && parentRows.some((row: any) => row?.status === resourceStatuses.completed);
+    if (getsParentFile) {
+        logger.info(`Edit of campaign ${parentId}: refused, its file ${editFile ?? "(none)"} is the file of the campaign being edited`);
+        throwError("COMMON", 400, "VALIDATION_ERROR",
+            "The file attached to this edit is the file of the campaign being edited. Download the template from this edit screen, make your changes in it and upload it before you submit.");
+    }
+}
+
 function validateProjectCampaignMissingFields(CampaignDetails: any) {
     validateCampaignBodyViaSchema(campaignDetailsSchema, CampaignDetails)
 }
@@ -1039,6 +1074,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateProjectType(request, projectType, tenantId);
         await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request, CampaignDetails);
+        await validateEditFileIsNotParents(request, CampaignDetails, actionInUrl);
         await validateProductVariant(request);
     }
     else {
@@ -1590,6 +1626,7 @@ function validateAddResourcesRequest(request: any): void {
 }
 
 export {
+    validateEditFileIsNotParents,
     validateSheetData,
     validateCreateRequest,
     validateProjectCampaignRequest,
