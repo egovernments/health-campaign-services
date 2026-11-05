@@ -46,19 +46,15 @@ jest.mock('../models', () => ({ MDMSModels: {} }));
 jest.mock('../config', () => ({
     __esModule: true,
     default: {
-        host: { projectHost: 'http://project/' },
-        paths: {
-            projectResourceSearch: 'health-project/resource/v1/_search',
-            projectFacilitySearch: 'health-project/facility/v1/_search',
-            projectStaffSearch: 'health-project/staff/v1/_search',
-            projectFacilityDelete: 'health-project/facility/v1/bulk/_delete',
-        },
+        host: jest.requireActual('../config').default.host,
+        paths: jest.requireActual('../config').default.paths,
         mapping: { projectSearchChunkSize: 2, searchPageSize: 3 },
     },
 }));
 
 import { searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects, deleteProjectFacilitiesById } from '../api/genericApis';
 import { httpRequest } from '../utils/request';
+import config from '../config';
 import { TenantId } from '../config/models/brandedTypes';
 
 const httpRequestMock = httpRequest as jest.MockedFunction<typeof httpRequest>;
@@ -89,7 +85,7 @@ describe('project mapping bulk search helpers', () => {
             expect(result.get('pvar-1|p-1')).toBe('pr-1');
             expect(result.get('pvar-2|p-2')).toBe('pr-2');
             expect(httpRequestMock).toHaveBeenCalledWith(
-                'http://project/health-project/resource/v1/_search',
+                `${config.host.projectHost}${config.paths.projectResourceSearch}`,
                 { RequestInfo: requestInfo, ProjectResource: { projectId: ['p-1', 'p-2'] } },
                 { tenantId: 'tn', limit: 3, offset: 0, includeDeleted: false }
             );
@@ -207,8 +203,8 @@ describe('project mapping bulk search helpers', () => {
 
     describe('deleteProjectFacilitiesById', () => {
         const link = (id: string, projectId: string, facilityId: string) => ({ id, projectId, facilityId });
-        const searchCalls = () => httpRequestMock.mock.calls.filter(c => String(c[0]).endsWith('_search'));
-        const deleteCalls = () => httpRequestMock.mock.calls.filter(c => String(c[0]).endsWith('_delete'));
+        const searchCalls = () => httpRequestMock.mock.calls.filter(c => String(c[0]).endsWith(config.paths.projectFacilitySearch));
+        const deleteCalls = () => httpRequestMock.mock.calls.filter(c => String(c[0]).endsWith(config.paths.projectFacilityDelete));
 
         it('makes no call when there is nothing to remove', async () => {
             const result = await deleteProjectFacilitiesById([], tn, requestInfo);

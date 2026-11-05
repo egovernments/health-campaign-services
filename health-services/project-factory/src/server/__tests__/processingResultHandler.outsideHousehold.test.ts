@@ -81,9 +81,8 @@ jest.mock('../config', () => ({
             KAFKA_SAVE_MAPPING_DATA_TOPIC: 'save-map',
             KAFKA_UPDATE_MAPPING_DATA_TOPIC: 'update-map',
         },
-        host: { facilityHost: 'http://facility/', projectHost: 'http://project/' },
-        paths: { facilitySearch: 'facility/v1/_search', facilityDelete: 'facility/v1/_delete',
-            projectFacilitySearch: 'health-project/facility/v1/_search', projectFacilityUpdate: 'health-project/facility/v1/_update' },
+        host: jest.requireActual('../config').default.host,
+        paths: jest.requireActual('../config').default.paths,
         mapping: { searchPageSize: 100, outsideHouseholdLinkUpdateConcurrency: 2, outsideHouseholdUnlinkOnDeliveryRemoval: true, outsideHouseholdIgnoreSheetWhenNotSelected: true, outsideHouseholdReuseCloneSourceSites: true },
         localisation: { defaultLocale: 'en_IN' },
         DB_CONFIG: { DB_CAMPAIGN_DATA_TABLE_NAME: 'eg_cm_campaign_data' },
@@ -847,8 +846,8 @@ describe('edit: frontline worker changed on an Active site with an existing link
         installSheetRouter(sheetRows);
         const sheetImpl = httpMock.getMockImplementation()!;
         httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
-            if (url.endsWith('health-project/facility/v1/_update')) { updates.push(body.ProjectFacility); return {} as any; }
-            if (url.endsWith('health-project/facility/v1/_search')) return { ProjectFacilities: links } as any;
+            if (url.endsWith(config.paths.projectFacilityUpdate)) { updates.push(body.ProjectFacility); return {} as any; }
+            if (url.endsWith(config.paths.projectFacilitySearch)) return { ProjectFacilities: links } as any;
             return sheetImpl(url, body, ...rest);
         });
         return updates;
@@ -914,8 +913,9 @@ describe('edit: frontline worker changed on an Active site with an existing link
         install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', {
             HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] }, [existingLink(oldFields)]);
         await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
-        const linkCalls = httpMock.mock.calls.filter((c: any[]) => /health-project\/facility\/v1\/_(search|update)$/.test(c[0]));
-        expect(linkCalls.map((c: any[]) => c[0].split('/').pop())).toEqual(['_search', '_update']);
+        const linkPaths = [config.paths.projectFacilitySearch, config.paths.projectFacilityUpdate];
+        const linkCalls = httpMock.mock.calls.filter((c: any[]) => linkPaths.some((p: string) => String(c[0]).endsWith(p)));
+        expect(linkCalls.map((c: any[]) => c[0])).toEqual(linkPaths.map((p: string) => `${config.host.projectHost}${p}`));
         linkCalls.forEach((c: any[]) => expect(c[7]).toBe(true));
     });
 
@@ -931,13 +931,13 @@ describe('edit: frontline worker changed on an Active site with an existing link
         let inFlight = 0, maxInFlight = 0;
         const updated: string[] = [];
         httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
-            if (url.endsWith('health-project/facility/v1/_update')) {
+            if (url.endsWith(config.paths.projectFacilityUpdate)) {
                 inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
                 await new Promise(resolve => setImmediate(resolve));
                 inFlight--; updated.push(body.ProjectFacility.id);
                 return {} as any;
             }
-            if (url.endsWith('health-project/facility/v1/_search')) {
+            if (url.endsWith(config.paths.projectFacilitySearch)) {
                 return { ProjectFacilities: names.map((_, i) => ({ ...existingLink(oldFields), id: `PF-${i + 1}`, facilityId: `F-${i + 1}` })) } as any;
             }
             return sheetImpl(url, body, ...rest);
@@ -953,8 +953,8 @@ describe('edit: frontline worker changed on an Active site with an existing link
         installSheetRouter({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] });
         const sheetImpl = httpMock.getMockImplementation()!;
         httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
-            if (url.endsWith('health-project/facility/v1/_update')) throw new Error('link update failed');
-            if (url.endsWith('health-project/facility/v1/_search')) {
+            if (url.endsWith(config.paths.projectFacilityUpdate)) throw new Error('link update failed');
+            if (url.endsWith(config.paths.projectFacilitySearch)) {
                 if (searchFails) throw new Error('link search failed');
                 return { ProjectFacilities: [existingLink(oldFields)] } as any;
             }
@@ -981,12 +981,12 @@ describe('edit: frontline worker changed on an Active site with an existing link
         const sheetImpl = httpMock.getMockImplementation()!;
         const attempted: string[] = [];
         httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
-            if (url.endsWith('health-project/facility/v1/_update')) {
+            if (url.endsWith(config.paths.projectFacilityUpdate)) {
                 attempted.push(body.ProjectFacility.id);
                 if (body.ProjectFacility.id === 'PF-1') throw new Error('down');
                 return {} as any;
             }
-            if (url.endsWith('health-project/facility/v1/_search')) {
+            if (url.endsWith(config.paths.projectFacilitySearch)) {
                 return { ProjectFacilities: names.map((_, i) => ({ ...existingLink(oldFields), id: `PF-${i + 1}`, facilityId: `F-${i + 1}` })) } as any;
             }
             return sheetImpl(url, body, ...rest);
