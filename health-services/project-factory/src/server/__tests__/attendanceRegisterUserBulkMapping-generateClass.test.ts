@@ -2026,4 +2026,209 @@ describe("attendanceRegisterUserBulkMapping-generateClass", () => {
         expect(workerRows.map((row) => row[REGISTER_CODE_COLUMN])).toEqual([]);
     });
 
+    describe("distributor DH scope", () => {
+        const DH_CODE_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
+        const WORKER_ID_COLUMN = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
+        const HRMS_URL = "http://hrms.local/health-hrms/employees/_search";
+        const INDIVIDUAL_URL = "http://individual.local/individual/v1/_search";
+
+        const register = (n: number, dhCode: string, referenceId: string, attendees: string[]) => ({
+            id: `reg-${n}`,
+            serviceCode: `REG-${n}`,
+            name: `Register ${n}`,
+            localityCode: dhCode,
+            referenceId,
+            attendees: attendees.map((individualId) => ({ individualId })),
+            staff: []
+        });
+        const userRow = (workerId: string, uuid: string, dhCode: string, userName: string) => ({
+            type: "user",
+            uniqueIdentifier: `phone-${workerId}`,
+            uniqueIdAfterProcess: uuid,
+            status: "completed",
+            isDeleted: false,
+            data: {
+                HCM_ADMIN_CONSOLE_USER_WORKER_ID: workerId,
+                HCM_ADMIN_CONSOLE_USER_ROLE: "DISTRIBUTOR",
+                HCM_ADMIN_CONSOLE_USER_NAME: `Name ${workerId}`,
+                HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: dhCode,
+                UserName: userName,
+                "UserService Uuids": uuid
+            }
+        });
+        const storedAttendeeRow = (registerNumber: number, individualId: string, dhCode: string) => ({
+            type: "attendanceRegisterAttendee",
+            uniqueIdentifier: `REG-${registerNumber}_${individualId}`,
+            uniqueIdAfterProcess: `reg-${registerNumber}_${individualId}_worker`,
+            status: "completed",
+            isDeleted: false,
+            denrollmentDate: null,
+            data: {
+                _registerServiceCode: `REG-${registerNumber}`,
+                _sheetName: WORKER_SHEET,
+                HCM_ADMIN_CONSOLE_USER_WORKER_ID: individualId,
+                HCM_ADMIN_CONSOLE_USER_ROLE: "DISTRIBUTOR",
+                HCM_ADMIN_CONSOLE_USER_NAME: `Name ${individualId}`,
+                UserName: `user.${individualId}`,
+                HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY: dhCode
+            }
+        });
+
+        let registers: any[];
+        let userRows: any[];
+        let attendeeRows: any[];
+
+        beforeEach(() => {
+            registers = [
+                register(1, "DH_A", "proj-A", ["IND-1", "IND-2"]),
+                register(2, "DH_B", "proj-B", ["IND-3"]),
+                register(3, "DH_C", "proj-C", [])
+            ];
+            userRows = [
+                userRow("IND-1", "uuid-1", "DH_A", "user.1"),
+                userRow("WRK-2", "uuid-2", "DH_A", "user.2"),
+                userRow("IND-3", "uuid-3", "DH_B", "user.3"),
+                userRow("IND-4", "uuid-4", "DH_C", "user.4")
+            ];
+            attendeeRows = [storedAttendeeRow(3, "IND-4", "DH_A")];
+
+            mockSearchCampaign.mockResolvedValue({
+                CampaignDetails: [{ campaignNumber: "CMP-S", startDate: Date.UTC(2026, 0, 1), endDate: Date.UTC(2026, 0, 9) }]
+            } as any);
+            routeRelatedData([], attendeeRows, userRows);
+            mockHttpRequest.mockImplementation(async (url: string, body: any, params: any) => {
+                if (url === HRMS_URL) {
+                    const user = userRows.find((row) => row.data.UserName === params?.codes);
+                    return { Employees: user ? [{ user: { uuid: user.uniqueIdAfterProcess, roles: [{ code: "DISTRIBUTOR" }] } }] : [] } as any;
+                }
+                if (url === INDIVIDUAL_URL) {
+                    return { Individual: (body?.Individual?.id || []).map((id: string) => ({ id, name: { givenName: `Profile ${id}` } })) } as any;
+                }
+                if ((params?.offset || 0) > 0) return { attendanceRegister: [] } as any;
+                const pool = params?.referenceIds
+                    ? registers.filter((entry) => String(params.referenceIds).split(",").includes(entry.referenceId))
+                    : registers;
+                const withMembers = params?.includeAttendee === true;
+                return { attendanceRegister: pool.map((entry) => (withMembers ? entry : { ...entry, attendees: [], staff: [] })) } as any;
+            });
+        });
+
+        const run = (distributorScope?: unknown, templateConfig: any = {}) =>
+            TemplateClass.generate(
+                templateConfig,
+                { tenantId: "bednet", campaignId: "cmp-s", requestInfo: {}, ...(distributorScope ? { distributorScope } : {}) },
+                {}
+            );
+        const dhRows = (sheetMap: any, dhCode: string) =>
+            (sheetMap[WORKER_SHEET].data as Record<string, string>[]).filter((row) => row[DH_CODE_COLUMN] === dhCode);
+        const scopeFor = (...dhCodes: string[]) => ({ dhCodes: new Set(dhCodes), campaignUserRows: userRows });
+        const attendanceCalls = () => mockHttpRequest.mock.calls.filter(([url]) => String(url).startsWith("http://attendance.local"));
+        const hrmsCalls = () => mockHttpRequest.mock.calls.filter(([url]) => url === HRMS_URL);
+
+        it("returns exactly the campaign-wide worker rows for the scoped DH", async () => {
+            const full = dhRows(await run(), "DH_A");
+            jest.clearAllMocks();
+            routeRelatedData([], attendeeRows, userRows);
+
+            const scoped = dhRows(await run(scopeFor("DH_A")), "DH_A");
+
+            expect(full.length).toBeGreaterThan(0);
+            expect(scoped).toEqual(full);
+        });
+
+        it("keeps a stored row coded to the DH even when its register sits in another DH", async () => {
+            const scoped = dhRows(await run(scopeFor("DH_A")), "DH_A");
+
+            expect(scoped.map((row) => row[WORKER_ID_COLUMN])).toContain("IND-4");
+        });
+
+        it("fetches members only for the DH registers and never the whole campaign", async () => {
+            await run(scopeFor("DH_A"));
+
+            const memberCalls = attendanceCalls().filter(([, , params]) => params?.includeAttendee === true);
+            expect(memberCalls).toHaveLength(1);
+            expect(memberCalls[0][2]).toMatchObject({ referenceIds: "proj-A,proj-C" });
+            expect(memberCalls[0][2]).not.toHaveProperty("campaignNumber");
+        });
+
+        it("reuses the scope's user rows instead of reading them from the DB again", async () => {
+            await run(scopeFor("DH_A"));
+
+            expect(mockGetRelatedData.mock.calls.map(([type]) => type)).not.toContain("user");
+        });
+
+        it("asks profiles only for people in the DH registers", async () => {
+            await run(scopeFor("DH_A"));
+
+            const askedIds = mockHttpRequest.mock.calls
+                .filter(([url]) => url === INDIVIDUAL_URL)
+                .flatMap(([, body]) => (body as any).Individual.id);
+            expect(askedIds.sort()).toEqual(["IND-1", "IND-2"]);
+        });
+
+        it("falls back to the campaign-wide member search when a selected register has no referenceId", async () => {
+            const full = dhRows(await run(), "DH_A");
+            jest.clearAllMocks();
+            routeRelatedData([], attendeeRows, userRows);
+            registers[0].referenceId = "";
+
+            const scoped = dhRows(await run(scopeFor("DH_A")), "DH_A");
+
+            const memberCalls = attendanceCalls().filter(([, , params]) => params?.includeAttendee === true);
+            expect(memberCalls.some(([, , params]) => params?.campaignNumber === "CMP-S")).toBe(true);
+            expect(scoped).toEqual(full);
+        });
+
+        it("returns no registers' rows and fetches no members when nothing in the campaign belongs to the DH", async () => {
+            const sheetMap = await run(scopeFor("DH_Z"));
+
+            expect(dhRows(sheetMap, "DH_Z")).toEqual([]);
+            expect(attendanceCalls().filter(([, , params]) => params?.includeAttendee === true)).toHaveLength(0);
+        });
+
+        it("still searches HRMS for every campaign username without a scope", async () => {
+            await run();
+
+            expect(hrmsCalls()).toHaveLength(userRows.length);
+        });
+
+        it("skips HRMS with a scope when no campaign user's recorded uuid is unresolved", async () => {
+            await run(scopeFor("DH_A"));
+
+            expect(hrmsCalls()).toHaveLength(0);
+        });
+
+        it("still searches HRMS with a scope for usernames whose uuid was never recorded", async () => {
+            userRows[1].uniqueIdAfterProcess = "";
+            userRows[1].data["UserService Uuids"] = "";
+
+            await run(scopeFor("DH_A"));
+
+            expect(hrmsCalls().map(([, , params]) => params.codes)).toEqual(["user.2"]);
+        });
+
+        it("still searches HRMS with a scope for a username whose recorded uuid is itself an unresolved id", async () => {
+            userRows[1].uniqueIdAfterProcess = "";
+            userRows[1].data["UserService Uuids"] = "IND-2";
+
+            await run(scopeFor("DH_A"));
+
+            expect(hrmsCalls().map(([, , params]) => params.codes)).toEqual(["user.2"]);
+        });
+
+        it("ignores the scope and generates campaign-wide when the worker sheet has a boundaryFilter", async () => {
+            await run(scopeFor("DH_A"), { sheets: [{ sheetName: WORKER_SHEET, boundaryFilter: { mode: "LEVEL_RANGE" } }] });
+
+            const memberCalls = attendanceCalls().filter(([, , params]) => params?.includeAttendee === true);
+            expect(memberCalls[0][2]).toMatchObject({ campaignNumber: "CMP-S" });
+        });
+
+        it("ignores a malformed scope and generates campaign-wide", async () => {
+            await run({ dhCodes: ["DH_A"], campaignUserRows: userRows });
+
+            const memberCalls = attendanceCalls().filter(([, , params]) => params?.includeAttendee === true);
+            expect(memberCalls[0][2]).toMatchObject({ campaignNumber: "CMP-S" });
+        });
+    });
+
 });

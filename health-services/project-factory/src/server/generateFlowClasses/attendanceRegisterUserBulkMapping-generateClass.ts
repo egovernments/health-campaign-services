@@ -47,6 +47,7 @@ const REGISTER_NAME_COLUMN = "HCM_ATTENDANCE_REGISTER_NAME";
 const REGISTER_UUID_COLUMN = "HCM_ATTENDANCE_REGISTER_UUID";
 const USER_NAME_COLUMN = "HCM_ADMIN_CONSOLE_USER_NAME";
 const WORKER_ID_COLUMN = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
+const USER_SERVICE_UUID_COLUMN = "UserService Uuids";
 const ROLE_COLUMN = "HCM_ADMIN_CONSOLE_USER_ROLE";
 const BOUNDARY_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_NAME";
 const BOUNDARY_CODE_COLUMN = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
@@ -68,8 +69,29 @@ interface RegisterData {
     serviceCode: string;
     name: string;
     localityCode: string;
+    referenceId: string;
     attendees: AttendanceAttendeeRow[];
     staff: AttendanceStaffRow[];
+}
+
+/** Limits generation to the registers that can yield worker rows for these DH codes (distributor-by-dh search). */
+export interface DistributorDhScope {
+    dhCodes: ReadonlySet<string>;
+    campaignUserRows: CampaignDataRow[];
+}
+
+interface RegisterSelection {
+    registers: RegisterData[];
+    catalog: RegisterData[];
+}
+
+async function timeStep<T>(step: string, run: () => Promise<T>): Promise<T> {
+    const startedAt = Date.now();
+    try {
+        return await run();
+    } finally {
+        logger.info(`bulk-mapping timing step=${step} durationMs=${Date.now() - startedAt}`);
+    }
 }
 
 interface AttendanceAttendeeRow {
@@ -121,7 +143,7 @@ export class TemplateClass {
             throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "tenantId and campaignId are required for bulk mapping generation");
         }
 
-        const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+        const campaignResp = await timeStep("campaign-search", () => searchProjectTypeCampaignService({ tenantId, ids: [campaignId] }));
         const campaign = campaignResp?.CampaignDetails?.[0];
         logger.info("ENROLL-DEBUG " + JSON.stringify({
             topStart: campaign?.startDate,
@@ -146,33 +168,49 @@ export class TemplateClass {
         logger.info(`ENROLL-DEBUG resolved campaignStartDate=${campaignStartDate}`);
         const campaignEndDate = this.resolveCampaignEndDate(campaign);
 
-        const localityCodes = this.resolveRegisterSearchLocalityCodes(responseToSend?.additionalDetails);
-        const registers = await this.fetchCampaignRegisters(
-            tenantId,
-            String(responseToSend?.hierarchyType || "").trim(),
-            campaignNumber,
-            localityCodes,
-            responseToSend?.requestInfo
-        );
-        const registerByServiceCode = new Map<string, RegisterData>();
-        const registerById = new Map<string, RegisterData>();
-        for (const register of registers) {
-            registerByServiceCode.set(register.serviceCode, register);
-            registerById.set(register.id, register);
-        }
-
-        const attendeeRows = await getRelatedDataWithCampaign(
+        const scope = this.resolveDistributorScope(responseToSend?.distributorScope, templateConfig);
+        const attendeeRows = await timeStep("attendee-rows-db", () => getRelatedDataWithCampaign(
             ATTENDEE_DATA_TYPE,
             campaignNumber,
             tenantId,
             dataRowStatuses.completed
-        ) as CampaignDataRow[];
-        const campaignUserRows = await getRelatedDataWithCampaign(
-            USER_DATA_TYPE,
-            campaignNumber,
-            tenantId,
-            dataRowStatuses.completed
-        ) as CampaignDataRow[];
+        )) as CampaignDataRow[];
+
+        const localityCodes = this.resolveRegisterSearchLocalityCodes(responseToSend?.additionalDetails);
+        const selection: RegisterSelection = scope
+            ? await timeStep("registers-scoped", () => this.fetchScopedRegisters(
+                tenantId,
+                campaignNumber,
+                scope.dhCodes,
+                Array.isArray(attendeeRows) ? attendeeRows : [],
+                responseToSend?.requestInfo
+            ))
+            : await timeStep("registers-campaign-wide", async () => {
+                const campaignRegisters = await this.fetchCampaignRegisters(
+                    tenantId,
+                    String(responseToSend?.hierarchyType || "").trim(),
+                    campaignNumber,
+                    localityCodes,
+                    responseToSend?.requestInfo
+                );
+                return { registers: campaignRegisters, catalog: campaignRegisters };
+            });
+        const registers = selection.registers;
+        const registerByServiceCode = new Map<string, RegisterData>();
+        const registerById = new Map<string, RegisterData>();
+        for (const register of selection.catalog) {
+            registerByServiceCode.set(register.serviceCode, register);
+            registerById.set(register.id, register);
+        }
+
+        const campaignUserRows = scope
+            ? scope.campaignUserRows
+            : await timeStep("user-rows-db", () => getRelatedDataWithCampaign(
+                USER_DATA_TYPE,
+                campaignNumber,
+                tenantId,
+                dataRowStatuses.completed
+            )) as CampaignDataRow[];
         this.logBulkTrace("generation-input-summary", {
             tenantId,
             campaignId,
@@ -205,7 +243,8 @@ export class TemplateClass {
             responseToSend?.requestInfo,
             campaignStartDate,
             campaignEndDate,
-            localizationMap
+            localizationMap,
+            Boolean(scope)
         );
 
         const totalRows = Array.from(outputRowsBySheetName.values()).reduce((sum, rows) => sum + rows.length, 0);
@@ -318,11 +357,13 @@ export class TemplateClass {
         registers: RegisterData[],
         tenantId: string,
         campaignNumber: string,
+        campaignUserRows: CampaignDataRow[],
         requestInfo: RequestInfo | undefined,
         requestingUsername: string,
         campaignStartDate: string,
         campaignEndDate: string,
         localizationMap: Record<string, string>,
+        narrowHrmsLookup: boolean,
         buildMeta?: AttendanceStateBuildMeta
     ): Promise<RowsBySheetName> {
         const dedupedRowsBySheetName = this.createEmptyDedupedRowsBySheetName();
@@ -361,13 +402,17 @@ export class TemplateClass {
             }
         }
 
-        const profiles = await this.fetchIndividualProfiles(tenantId, Array.from(personIds), requestInfo);
-        const roleCodesByIndividualId = await this.fetchRoleCodesByIndividualId(
-            campaignNumber,
+        const profiles = await timeStep(
+            `individual-profiles persons=${personIds.size}`,
+            () => this.fetchIndividualProfiles(tenantId, Array.from(personIds), requestInfo)
+        );
+        const roleCodesByIndividualId = await timeStep("role-codes", () => this.fetchRoleCodesByIndividualId(
+            campaignUserRows,
             tenantId,
             Array.from(personIds),
-            requestInfo
-        );
+            requestInfo,
+            narrowHrmsLookup
+        ));
 
         for (const register of registers) {
             const registerKey = this.registerIdentity(register);
@@ -538,7 +583,8 @@ export class TemplateClass {
         requestInfo: RequestInfo | undefined,
         campaignStartDate: string,
         campaignEndDate: string,
-        localizationMap: Record<string, string>
+        localizationMap: Record<string, string>,
+        narrowHrmsLookup: boolean
     ): Promise<RowsBySheetName> {
         if (!registers.length) {
             return rowsFromStoredData;
@@ -548,7 +594,7 @@ export class TemplateClass {
             skippedRequesterOwnerNoRolesRegisterKeys: new Set<string>()
         };
 
-        const rowsFromCampaignUsers = await this.buildRowsFromCampaignUsers(
+        const rowsFromCampaignUsers = await timeStep("rows-from-campaign-users", () => this.buildRowsFromCampaignUsers(
             registers,
             campaignUserRows,
             campaignStartDate,
@@ -558,19 +604,21 @@ export class TemplateClass {
             templateConfig,
             requestInfo,
             localizationMap
-        );
+        ));
 
-        const rowsFromAttendanceState = await this.buildRowsFromAttendanceState(
+        const rowsFromAttendanceState = await timeStep("rows-from-attendance-state", () => this.buildRowsFromAttendanceState(
             registers,
             tenantId,
             campaignNumber,
+            campaignUserRows,
             requestInfo,
             this.asText((requestInfo as any)?.userInfo?.userName),
             campaignStartDate,
             campaignEndDate,
             localizationMap,
+            narrowHrmsLookup,
             attendanceStateBuildMeta
-        );
+        ));
         this.logBulkTrace("rows-from-attendance-state", {
             rowSummary: this.summarizeRowsBySheetName(rowsFromAttendanceState)
         });
@@ -1192,7 +1240,8 @@ export class TemplateClass {
     private static async searchRegistersByCampaignNumber(
         tenantId: string,
         campaignNumber: string,
-        requestInfo?: RequestInfo
+        requestInfo?: RequestInfo,
+        includeMembers = true
     ): Promise<RegisterData[]> {
         const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
         const RequestInfo = requestInfo || {};
@@ -1209,8 +1258,8 @@ export class TemplateClass {
                 {
                     tenantId,
                     campaignNumber,
-                    includeAttendee: true,
-                    includeStaff: true,
+                    includeAttendee: includeMembers,
+                    includeStaff: includeMembers,
                     limit: pageLimit,
                     offset
                 }
@@ -1225,9 +1274,87 @@ export class TemplateClass {
         }
 
         logger.info(
-            `Fetched ${registers.length} register(s) via ${searchCalls} campaignNumber-scoped search call(s)`
+            `Fetched ${registers.length} register(s) via ${searchCalls} campaignNumber-scoped search call(s) (includeMembers=${includeMembers})`
         );
         return registers;
+    }
+
+    private static resolveDistributorScope(rawScope: unknown, templateConfig: any): DistributorDhScope | null {
+        const scope = this.asRecord(rawScope) as DistributorDhScope | null;
+        if (!scope || !(scope.dhCodes instanceof Set) || !Array.isArray(scope.campaignUserRows)) return null;
+        // A worker boundary filter would let a register outside the DH contribute DH-coded campaign-user rows
+        if (this.resolveCampaignUserBoundaryFilter(WORKER_SHEET, templateConfig)) {
+            logger.info("bulk-mapping scope ignored: worker sheet has a boundaryFilter, generating campaign-wide");
+            return null;
+        }
+        return scope;
+    }
+
+    /**
+     * Registers that can yield a worker row coded to one of the DH codes: those located in the DH (attendance-state
+     * and campaign-user rows take the register's locality) plus those holding a stored row whose own boundary is in it.
+     * The member-less catalog keeps stored-row register resolution identical to a campaign-wide run.
+     */
+    private static async fetchScopedRegisters(
+        tenantId: string,
+        campaignNumber: string,
+        dhCodes: ReadonlySet<string>,
+        attendeeRows: CampaignDataRow[],
+        requestInfo?: RequestInfo
+    ): Promise<RegisterSelection> {
+        const catalog = await this.searchRegistersByCampaignNumber(tenantId, campaignNumber, requestInfo, false);
+        const wantedIds = this.selectRegisterIdsForDhCodes(catalog, dhCodes, attendeeRows);
+        const wanted = catalog.filter((register) => wantedIds.has(register.id));
+        if (!wanted.length) return { registers: [], catalog };
+
+        const referenceIds = Array.from(new Set(wanted.map((register) => register.referenceId)));
+        const fetched = referenceIds.every(Boolean)
+            ? await this.searchRegistersByReferenceIds(tenantId, referenceIds, requestInfo)
+            : [];
+        const fetchedById = new Map(fetched.map((register) => [register.id, register]));
+        const complete = wanted.every((register) => fetchedById.has(register.id));
+        const source = complete
+            ? fetchedById
+            : new Map((await this.searchRegistersByCampaignNumber(tenantId, campaignNumber, requestInfo))
+                .map((register) => [register.id, register]));
+        const registers = wanted
+            .map((register) => source.get(register.id))
+            .filter((register): register is RegisterData => Boolean(register));
+
+        logger.info(
+            `bulk-mapping scoped registers: dhCodes=${Array.from(dhCodes).join(",")} catalog=${catalog.length} `
+            + `selected=${registers.length} via=${complete ? "referenceIds" : "campaignWideFallback"}`
+        );
+        return { registers, catalog };
+    }
+
+    private static selectRegisterIdsForDhCodes(
+        catalog: RegisterData[],
+        dhCodes: ReadonlySet<string>,
+        attendeeRows: CampaignDataRow[]
+    ): Set<string> {
+        const wantedIds = new Set<string>();
+        const byServiceCode = new Map<string, RegisterData>();
+        const byId = new Map<string, RegisterData>();
+        for (const register of catalog) {
+            byServiceCode.set(register.serviceCode, register);
+            byId.set(register.id, register);
+            if (dhCodes.has(register.localityCode)) wantedIds.add(register.id);
+        }
+        for (const attendeeRow of attendeeRows) {
+            if (attendeeRow?.isDeleted) continue;
+            const rawData = this.asRecord(attendeeRow?.data);
+            if (!rawData) continue;
+            const register = this.resolveRegister(rawData, attendeeRow?.uniqueIdAfterProcess, byServiceCode, byId);
+            if (!register || wantedIds.has(register.id)) continue;
+            const rowBoundaryCode = this.firstNonBlank(
+                this.asText(rawData[BOUNDARY_CODE_MANDATORY_COLUMN]),
+                this.asText(rawData[BOUNDARY_CODE_COLUMN]),
+                register.localityCode
+            );
+            if (dhCodes.has(rowBoundaryCode)) wantedIds.add(register.id);
+        }
+        return wantedIds;
     }
 
     private static collectRegisters(
@@ -1248,6 +1375,7 @@ export class TemplateClass {
                 serviceCode,
                 name: String(item?.name || serviceCode).trim(),
                 localityCode: String(item?.localityCode || "").trim(),
+                referenceId: String(item?.referenceId || "").trim(),
                 attendees: Array.isArray(item?.attendees) ? item.attendees : [],
                 staff: Array.isArray(item?.staff) ? item.staff : []
             });
@@ -1846,22 +1974,18 @@ export class TemplateClass {
     }
 
     private static async fetchRoleCodesByIndividualId(
-        campaignNumber: string,
+        userRows: CampaignDataRow[],
         tenantId: string,
         neededIndividualIds: string[],
-        requestInfo?: RequestInfo
+        requestInfo: RequestInfo | undefined,
+        narrowHrmsLookup: boolean
     ): Promise<Map<string, string[]>> {
         const neededIds = new Set(
             neededIndividualIds.map((id) => this.asText(id)).filter(Boolean)
         );
         const roleCodesByIndividualId = new Map<string, Set<string>>();
         const usernames = new Set<string>();
-        const userRows = await getRelatedDataWithCampaign(
-            USER_DATA_TYPE,
-            campaignNumber,
-            tenantId,
-            dataRowStatuses.completed
-        ) as CampaignDataRow[];
+        const userUuidsByUsername = new Map<string, Set<string>>();
 
         for (const userRow of Array.isArray(userRows) ? userRows : []) {
             if (userRow?.isDeleted) continue;
@@ -1884,16 +2008,31 @@ export class TemplateClass {
             }
 
             const username = this.asText(decrypt(this.asText(rawData[USERNAME_COLUMN])));
-            if (username) usernames.add(username);
+            if (username) {
+                usernames.add(username);
+                const uuids = userUuidsByUsername.get(username) || new Set<string>();
+                uuids.add(this.firstNonBlank(
+                    this.asText(userRow?.uniqueIdAfterProcess),
+                    this.asText(rawData[USER_SERVICE_UUID_COLUMN])
+                ));
+                userUuidsByUsername.set(username, uuids);
+            }
         }
 
         const unresolvedIndividualIds = Array.from(neededIds).filter((id) => !roleCodesByIndividualId.has(id));
-        if (unresolvedIndividualIds.length && usernames.size) {
-            const rolesFromHrms = await this.fetchRoleCodesByIndividualIdViaHrms(
+        const hrmsUsernames = narrowHrmsLookup
+            ? this.usernamesThatCanResolve(usernames, userUuidsByUsername, new Set(unresolvedIndividualIds))
+            : Array.from(usernames);
+        logger.info(
+            `bulk-mapping role lookup: neededIds=${neededIds.size} unresolved=${unresolvedIndividualIds.length} `
+            + `hrmsUsernames=${unresolvedIndividualIds.length ? hrmsUsernames.length : 0} narrowed=${narrowHrmsLookup}`
+        );
+        if (unresolvedIndividualIds.length && hrmsUsernames.length) {
+            const rolesFromHrms = await timeStep(`hrms-role-lookup usernames=${hrmsUsernames.length}`, () => this.fetchRoleCodesByIndividualIdViaHrms(
                 tenantId,
-                Array.from(usernames),
+                hrmsUsernames,
                 requestInfo
-            );
+            ));
             for (const unresolvedIndividualId of unresolvedIndividualIds) {
                 const resolvedRoleCodes = rolesFromHrms.get(unresolvedIndividualId);
                 if (!resolvedRoleCodes?.length) continue;
@@ -1906,6 +2045,25 @@ export class TemplateClass {
         return new Map<string, string[]>(
             Array.from(roleCodesByIndividualId.entries()).map(([individualId, codes]) => [individualId, Array.from(codes)])
         );
+    }
+
+    /**
+     * HRMS keys its answer by the employee's user uuid, which is the uuid the campaign user row recorded for that
+     * username, so only usernames whose recorded uuid is unknown or is itself unresolved can add a role.
+     */
+    private static usernamesThatCanResolve(
+        usernames: Set<string>,
+        userUuidsByUsername: Map<string, Set<string>>,
+        unresolvedIds: Set<string>
+    ): string[] {
+        return Array.from(usernames).filter((username) => {
+            const uuids = userUuidsByUsername.get(username);
+            if (!uuids) return true;
+            for (const uuid of uuids) {
+                if (!uuid || unresolvedIds.has(uuid)) return true;
+            }
+            return false;
+        });
     }
 
     private static async fetchRoleCodesByIndividualIdViaHrms(
