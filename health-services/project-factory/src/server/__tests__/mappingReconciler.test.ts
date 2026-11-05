@@ -216,19 +216,19 @@ describe('runMappingReconciler', () => {
         };
         wireWorld(world);
 
-        // The reset runs at the start of every cycle and issues two direction
-        // UPDATEs (failed→toBeMapped, deMapFailed→toBeDeMapped): cycle 1's pair is
-        // a no-op (failure happens during that cycle); cycle 2's pair resolves it.
+        // The reset runs at the start of every cycle and issues three direction
+        // UPDATEs (failed→toBeMapped, deMapFailed→toBeDeMapped, updateFailed→toBeUpdated): cycle 1's are
+        // no-ops (failure happens during that cycle); cycle 2's first one resolves it.
         let resetCallCount = 0;
         executeQueryMock.mockImplementation(async (sql: string) => {
             if (String(sql).includes('retryCount = retryCount + 1')) {
                 resetCallCount++;
-                if (resetCallCount >= 3) {
+                if (resetCallCount >= 4) {
                     const clean = mkStatus({ totalMappings: 2, completedMappings: 2, allCompleted: true });
                     world.overall = clean;
                     world.resource = clean;
                 }
-                return { rows: [], rowCount: resetCallCount >= 3 ? 1 : 0 } as any;
+                return { rows: [], rowCount: resetCallCount >= 4 ? 1 : 0 } as any;
             }
             return { rows: [], rowCount: 0 } as any;
         });
@@ -236,9 +236,26 @@ describe('runMappingReconciler', () => {
         await runMappingReconciler(campaignDetails, 'u-uuid', 'tn', undefined, { value: false });
 
         const resetCalls = executeQueryMock.mock.calls.filter(([sql]) => String(sql).includes('retryCount = retryCount + 1'));
-        expect(resetCalls.length).toBeGreaterThanOrEqual(3);
+        expect(resetCalls.length).toBeGreaterThanOrEqual(4);
         expect(bumpMappingGenerationMock).toHaveBeenCalledTimes(2);
         expect(sendCampaignFailureMessageMock).not.toHaveBeenCalled();
+    });
+
+    it('resets a failed site link worker update to toBeUpdated, direction-preserving like map and demap', async () => {
+        wireWorld({ overall: mkStatus({ totalMappings: 1, completedMappings: 1, allCompleted: true }), facility: mkStatus(), resource: mkStatus(), user: mkStatus() });
+        await runMappingReconciler(campaignDetails, 'u-uuid', 'tn', undefined, { value: false });
+        const pairs = executeQueryMock.mock.calls.filter(([sql]) => String(sql).includes('retryCount = retryCount + 1'))
+            .map(([, params]: any[]) => [params[2], params[0]]);
+        expect(pairs).toEqual(expect.arrayContaining([['failed', 'toBeMapped'], ['deMapFailed', 'toBeDeMapped'], ['updateFailed', 'toBeUpdated']]));
+    });
+
+    it('dispatches the facility rows waiting for a worker update with the other pending rows', async () => {
+        wireWorld({ overall: mkStatus({ totalMappings: 1, completedMappings: 1, allCompleted: true }), facility: mkStatus(), resource: mkStatus(), user: mkStatus() });
+        const waiting = { campaignNumber: 'CMP-1', type: 'facility', uniqueIdentifierForData: 'site-1', boundaryCode: 'B1', status: 'toBeUpdated', mappingId: 'PF-1' };
+        getMappingDataMock.mockImplementation(async (type: any, _n: any, _t: any, status?: any) => (type === 'facility' && status === 'toBeUpdated' ? [waiting] : []) as any);
+        await runMappingReconciler(campaignDetails, 'u-uuid', 'tn', undefined, { value: false });
+        const sent = produceModifiedMessagesMock.mock.calls.flatMap(([msg]: any[]) => msg?.mappings || []);
+        expect(sent).toEqual([waiting]);
     });
 
     it('fails the campaign when facility/resource mappings are terminally failed', async () => {

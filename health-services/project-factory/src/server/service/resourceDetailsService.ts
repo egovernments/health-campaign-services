@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { throwError, getCampaignIdsByCampaignNumber } from "../utils/genericUtils";
+import { throwError, getCampaignIdsByCampaignNumber, pollUntilCountFn } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import {
   searchResourceDetailsFromDB,
@@ -273,6 +273,40 @@ async function searchResourceDetailsAcrossCampaignFamily(
 }
 
 /** Soft-deactivates every active resource of a campaign — used when hierarchy/boundary changes invalidate prior uploads. */
+/** A file row a save stored: the row it created, and the row that new row replaced (if any). */
+export type SavedResourceChange = { createdId: string; replacedId?: string };
+
+/**
+ * Takes back the file rows a save stored when the rest of that save failed: the rows it created are made inactive and the
+ * rows they replaced active again, so the campaign keeps the files it had. Both were written through the persister, so it
+ * first waits (bounded) until they are stored, then switches them with one direct SQL statement.
+ */
+export async function undoSavedResources(changes: SavedResourceChange[], tenantId: TenantId, userUuid: string): Promise<void> {
+  if (changes.length === 0) return;
+  const tableName = getTableName(config.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+  const createdIds = Array.from(new Set(changes.map(change => change.createdId)));
+  const replacedIds = Array.from(new Set(changes.map(change => change.replacedId).filter((id): id is string => Boolean(id))));
+  await pollUntilCountFn(async () => {
+    const result = await executeQuery(
+      `SELECT COUNT(*) FILTER (WHERE id = ANY($1::text[])) AS created,
+              COUNT(*) FILTER (WHERE id = ANY($2::text[]) AND isactive = false) AS replaced
+       FROM ${tableName} WHERE id = ANY($1::text[]) OR id = ANY($2::text[])`,
+      [createdIds, replacedIds]);
+    const row = result?.rows?.[0] || {};
+    return Number(row.created || 0) + Number(row.replaced || 0);
+  }, createdIds.length + replacedIds.length, {
+    label: `stored files of the failed save`,
+    stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs,
+    pollIntervalMs: config.excelIngestion.persistencePollIntervalMs
+  });
+  // One statement: the new rows off and the replaced rows on together
+  await executeQuery(
+    `UPDATE ${tableName} SET isactive = (id = ANY($2::text[])), lastmodifiedby = $3, lastmodifiedtime = $4
+     WHERE id = ANY($1::text[]) OR id = ANY($2::text[])`,
+    [createdIds, replacedIds, userUuid, Date.now()]);
+  logger.info(`Took back ${createdIds.length} file row(s) of a failed save; ${replacedIds.length} earlier row(s) active again`);
+}
+
 export async function deactivateAllResourcesForCampaign(campaignId: string, tenantId: string, userUuid: string): Promise<void> {
   const rows = await searchResourceDetailsFromDB({ tenantId, campaignId, isActive: true });
   await Promise.all(rows.map(row => deactivateResource(row, userUuid, tenantId)));

@@ -2873,6 +2873,8 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
 
   const generationCheck = isGenerationTriggerNeeded(request);
   await enrichAndPersistProjectCampaignForFirst(request, actionInUrl, true);
+  // The campaign is saved: a failure after this point must not take back the files stored for this save
+  request.body.campaignPersisted = true;
 
   const shouldTriggerGeneration =
     request?.body?.CampaignDetails?.action === "draft" &&

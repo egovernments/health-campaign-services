@@ -19,6 +19,7 @@ jest.mock('../service/resourceDetailsService', () => ({
     updateResourceDetail: jest.fn(),
     getCampaignStatusFromDB: jest.fn(),
     deactivateAllResourcesForCampaign: jest.fn(),
+    undoSavedResources: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../utils/resourceDetailsUtils', () => ({ findActiveResourceByUpsertKey: jest.fn(), searchResourceDetailsFromDB: jest.fn() }));
 jest.mock('../utils/genericUtils', () => ({ prepareProcessesForResourceTypes: jest.fn(), getCurrentProcesses: jest.fn() }));
@@ -30,7 +31,7 @@ import config from '../config';
 import { createProjectTypeCampaignService, updateProjectTypeCampaignService } from '../service/campaignManageService';
 import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, processBasedOnAction, reattachCloneSourceFileIfChoiceAgrees, searchProjectCampaignResourcData } from '../utils/campaignUtils';
 import { validateProjectCampaignRequest } from '../validators/campaignValidators';
-import { createResourceDetail, deactivateAllResourcesForCampaign, updateResourceDetail } from '../service/resourceDetailsService';
+import { createResourceDetail, deactivateAllResourcesForCampaign, undoSavedResources, updateResourceDetail } from '../service/resourceDetailsService';
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
 import { dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from '../utils/generateUtils';
 
@@ -69,6 +70,57 @@ describe('updateProjectTypeCampaignService stores the files of a save before pro
 
         expect(order).toEqual(['store file', 'process']);
         expect(attachedFileIds()).toEqual(['OWN']);
+    });
+});
+
+describe('updateProjectTypeCampaignService takes back the files of a save that failed', () => {
+    beforeEach(() => {
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: false });
+        (isOutsideHouseholdDeliveryChanged as jest.Mock).mockReturnValue(false);
+    });
+
+    it('takes back a new file when the save fails before the campaign is saved', async () => {
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('persist failed');
+        expect(undoSavedResources).toHaveBeenCalledWith([{ createdId: 'NEW-ROW' }], 'tn', 'u1');
+    });
+
+    it('puts the replaced file back when the save fails before the campaign is saved', async () => {
+        (findActiveResourceByUpsertKey as jest.Mock).mockResolvedValue({ id: 'OLD-ROW' });
+        (updateResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('persist failed');
+        expect(undoSavedResources).toHaveBeenCalledWith([{ createdId: 'NEW-ROW', replacedId: 'OLD-ROW' }], 'tn', 'u1');
+    });
+
+    it('keeps the files when the save fails after the campaign was saved', async () => {
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockImplementation(async (r: any) => { r.body.campaignPersisted = true; throw new Error('template start failed'); });
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('template start failed');
+        expect(undoSavedResources).not.toHaveBeenCalled();
+    });
+
+    it('keeps the files of a save that works', async () => {
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        await updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]));
+        expect(undoSavedResources).not.toHaveBeenCalled();
+    });
+
+    it('keeps the files of a failed save that also changed the configuration (they were deactivated for it), as before', async () => {
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: true });
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('persist failed');
+        expect(deactivateAllResourcesForCampaign).toHaveBeenCalled();
+        expect(undoSavedResources).not.toHaveBeenCalled();
+    });
+
+    it('still reports the failure of the save when the files cannot be taken back', async () => {
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+        (undoSavedResources as jest.Mock).mockRejectedValueOnce(new Error('db down'));
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('persist failed');
     });
 });
 
