@@ -19,10 +19,17 @@ import org.egov.excelingestion.util.BoundaryUtil;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Component
 @Slf4j
 public class FacilityValidationProcessor implements IWorkbookProcessor {
+
+    /**
+     * A Facility Name or Site Name may use any character except ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " = +, the curly
+     * double quotes and control characters (line break, tab)
+     */
+    static final Pattern ALLOWED_NAME = Pattern.compile("[^!@#$%^*;<>?|\\\\~{}\\[\\]\"\u201C\u201D=+\\p{Cntrl}]+");
 
     private final ValidationService validationService;
     private final ExcelIngestionConfig config;
@@ -78,6 +85,10 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
 
             // Validate the editable active/inactive column against the allowed values (paste/drag-fill safe)
             validateUsageValues(sheetData, errors, localizationMap);
+
+            // Validate the characters of the facility names the planner typed
+            validateNameCharacters(sheetData, ProcessingConstants.FACILITY_NAME_COLUMN_KEY,
+                    ProcessingConstants.FACILITY_CODE_COLUMN_KEY, errors, localizationMap);
 
             // Validate boundary keys for active facilities
             validateBoundaryKeys(sheetData, errors, localizationMap);
@@ -291,6 +302,42 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
                 errors.add(error);
             }
         }
+    }
+
+    /**
+     * The name of a row may not use ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " = or a control character, nor start with +. Shared by the
+     * Facilities List and the Outside Household sheet. Pre-filled rows (a hidden row id, or the id of an existing
+     * facility or site) are skipped: their name is locked and comes from the facility registry, so a name saved
+     * before this rule must not block the upload. A blank name is left to the schema checks; the length limits stay
+     * in the schema.
+     */
+    static void validateNameCharacters(List<Map<String, Object>> sheetData, String nameColumn, String existingIdColumn,
+                                       List<ValidationError> errors, Map<String, String> localizationMap) {
+        for (Map<String, Object> rowData : sheetData) {
+            String name = ExcelUtil.getValueAsString(rowData.get(nameColumn));
+            if (name == null || name.trim().isEmpty() || hasValue(rowData, ProcessingConstants.ROW_ID_COLUMN_NAME)
+                    || hasValue(rowData, existingIdColumn) || hasAllowedNameCharacters(name)) {
+                continue;
+            }
+            ValidationError error = new ValidationError();
+            error.setRowNumber((Integer) rowData.get(ProcessingConstants.ACTUAL_ROW_NUMBER_KEY));
+            error.setColumnName(nameColumn);
+            error.setStatus(ValidationConstants.STATUS_INVALID);
+            error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap,
+                    ValidationConstants.HCM_VALIDATION_NAME_INVALID_CHARACTERS,
+                    ValidationConstants.DEFAULT_NAME_INVALID_CHARACTERS));
+            errors.add(error);
+        }
+    }
+
+    /** True when the name (spaces around it ignored) uses only the allowed characters. */
+    static boolean hasAllowedNameCharacters(String name) {
+        return ALLOWED_NAME.matcher(name.trim()).matches();
+    }
+
+    private static boolean hasValue(Map<String, Object> rowData, String column) {
+        String value = ExcelUtil.getValueAsString(rowData.get(column));
+        return value != null && !value.trim().isEmpty();
     }
 
     /** True when any visible hierarchy-level column of the row has a value. */

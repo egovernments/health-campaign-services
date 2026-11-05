@@ -15,8 +15,15 @@ public class ProcessingConstants {
     // User active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String USER_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_USAGE";
 
+    // User List columns tying a row to its existing user, with UserName and the worker id (service uuid, password)
+    public static final String USER_SERVICE_UUIDS_COLUMN_KEY = "UserService Uuids";
+    public static final String USER_PASSWORD_COLUMN_KEY = "Password";
+
     // Facility active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String FACILITY_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_USAGE";
+    public static final String FACILITY_NAME_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_NAME";
+    // Facility id of a pre-filled (existing) facility row
+    public static final String FACILITY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_CODE";
 
     // Outside Household sheet (Outside Household Places / Transit Posts) column keys; headers come from localization
     public static final String OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID";
