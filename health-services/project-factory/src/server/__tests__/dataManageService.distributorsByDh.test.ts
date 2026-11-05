@@ -463,7 +463,7 @@ describe("searchDistributorsByDhService", () => {
             }));
 
             const result = await searchDistributorsByDhService(
-                buildRequest({ tenantId: "bo", campaignNumber: "CMP-1", localityCodes: [DH_TWO] }, { limit: 10, offset: 0 })
+                buildRequest({ tenantId: "bo", campaignNumber: "CMP-CACHE-HIT-1", localityCodes: [DH_TWO] }, { limit: 10, offset: 0 })
             );
 
             expect(result).toMatchObject({
@@ -480,9 +480,35 @@ describe("searchDistributorsByDhService", () => {
             mockRedis.get.mockResolvedValue(null);
             givenWorkerRows([workerRow()]);
 
-            await searchDistributorsByDhService(buildRequest(undefined, { limit: 10, offset: 0 }));
+            await searchDistributorsByDhService(
+                buildRequest({ tenantId: "bo", campaignNumber: "CMP-CACHE-MISS-1" }, { limit: 10, offset: 0 })
+            );
 
             expect(mockGenerate).toHaveBeenCalledTimes(1);
+            expect(mockRedis.set).toHaveBeenCalled();
+        });
+
+        it("uses campaign base cache on first requester-key miss and skips generation", async () => {
+            mockConfig.distributorByDh.cacheEnabled = true;
+            mockCheckRedisConnection.mockResolvedValue(true);
+            mockRedis.get
+                .mockResolvedValueOnce(null) // requester/locality cache miss
+                .mockResolvedValueOnce(JSON.stringify({
+                    version: 1,
+                    cachedAt: Date.now(),
+                    requesterDhCodesByUuid: { [REQUESTER_UUID]: [DH_TWO] },
+                    groups: [
+                        { dhCode: DH_TWO, dhName: "Ali Brickler", distributors: [{ uuid: uuidFor(2), userName: "dist.2", name: "Dist 2" }] },
+                        { dhCode: DH_ONE, dhName: "Gidan Lawan", distributors: [{ uuid: uuidFor(1), userName: "dist.1", name: "Dist 1" }] },
+                    ],
+                }));
+
+            const result = await searchDistributorsByDhService(
+                buildRequest({ tenantId: "bo", campaignNumber: "CMP-CACHE-BASE-1", localityCodes: [DH_TWO] }, { limit: 10, offset: 0 })
+            );
+
+            expect(result.DHDistributors.map((g: any) => g.dhCode)).toEqual([DH_TWO]);
+            expect(mockGenerate).not.toHaveBeenCalled();
             expect(mockRedis.set).toHaveBeenCalled();
         });
     });

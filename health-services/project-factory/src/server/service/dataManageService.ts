@@ -49,21 +49,29 @@ const USER_DATA_TYPE = "user";
 const USER_SERVICE_UUID_COLUMN = "UserService Uuids";
 const MAX_ROLE_COLUMNS = 5;
 const DISTRIBUTOR_BY_DH_CACHE_PREFIX = "cache:distributor-by-dh";
+const DISTRIBUTOR_BY_DH_BASE_CACHE_SEGMENT = "campaign-base";
 const DISTRIBUTOR_BY_DH_CACHE_KEY_MAX_PART_LENGTH = 200;
 const DISTRIBUTOR_BY_DH_LATENCY_WINDOW_SIZE = 200;
 
 type DistributorRecord = { uuid: string; userName: string; name: string };
 type DistributorGroup = { dhCode: string; dhName: string; distributors: DistributorRecord[] };
+type RequesterDhCodesByUuid = Record<string, string[]>;
 type DistributorByDhCachedPayload = {
     version: 1;
     groups: DistributorGroup[];
+    requesterDhCodesByUuid?: RequesterDhCodesByUuid;
     cachedAt: number;
+};
+type DistributorByDhCampaignDataset = {
+    groups: DistributorGroup[];
+    requesterDhCodesByUuid: RequesterDhCodesByUuid;
 };
 
 let distributorByDhOptimizationDisabled = false;
 let distributorByDhShadowMismatchCount = 0;
 const distributorByDhLatencyWindow: number[] = [];
 const distributorByDhLocalCache = new Map<string, { expiresAt: number; payload: DistributorByDhCachedPayload }>();
+const distributorByDhPrewarmInFlight = new Map<string, Promise<void>>();
 
 function normalizedLocalityCodes(localityCodes: unknown): string[] {
     if (!Array.isArray(localityCodes)) return [];
@@ -86,6 +94,15 @@ function distributorByDhCacheKey(tenantId: string, campaignNumber: string, reque
         boundedKeyPart(campaignNumber || "na"),
         boundedKeyPart(requesterUuid || "na"),
         boundedKeyPart(localityPart),
+    ].join(":");
+}
+
+function distributorByDhCampaignBaseCacheKey(tenantId: string, campaignNumber: string): string {
+    return [
+        DISTRIBUTOR_BY_DH_CACHE_PREFIX,
+        DISTRIBUTOR_BY_DH_BASE_CACHE_SEGMENT,
+        boundedKeyPart(tenantId || "na"),
+        boundedKeyPart(campaignNumber || "na"),
     ].join(":");
 }
 
@@ -158,22 +175,29 @@ function recordDistributorByDhLatency(durationMs: number): void {
 
 async function invalidateDistributorByDhCache(tenantId: string, campaignNumber?: string): Promise<void> {
     if (!tenantId) return;
-    const prefix = campaignNumber
+    const responsePrefix = campaignNumber
         ? `${DISTRIBUTOR_BY_DH_CACHE_PREFIX}:${boundedKeyPart(tenantId)}:${boundedKeyPart(campaignNumber)}:`
         : `${DISTRIBUTOR_BY_DH_CACHE_PREFIX}:${boundedKeyPart(tenantId)}:`;
-    const localDeleted = removeDistributorByDhLocalCacheEntries((key) => key.startsWith(prefix));
+    const basePrefix = campaignNumber
+        ? `${DISTRIBUTOR_BY_DH_CACHE_PREFIX}:${DISTRIBUTOR_BY_DH_BASE_CACHE_SEGMENT}:${boundedKeyPart(tenantId)}:${boundedKeyPart(campaignNumber)}`
+        : `${DISTRIBUTOR_BY_DH_CACHE_PREFIX}:${DISTRIBUTOR_BY_DH_BASE_CACHE_SEGMENT}:${boundedKeyPart(tenantId)}:`;
+    const localDeleted = removeDistributorByDhLocalCacheEntries(
+        (key) => key.startsWith(responsePrefix) || key.startsWith(basePrefix)
+    );
 
     let redisDeleted = 0;
     try {
         const isRedisConnected = await checkRedisConnection();
         if (isRedisConnected) {
-            let cursor = "0";
-            do {
-                const scanResp = await redis.scan(cursor, "MATCH", `${prefix}*`, "COUNT", 200);
-                cursor = scanResp?.[0] || "0";
-                const keys = Array.isArray(scanResp?.[1]) ? scanResp[1] : [];
-                if (keys.length > 0) redisDeleted += await redis.del(...keys);
-            } while (cursor !== "0");
+            for (const prefix of [responsePrefix, basePrefix]) {
+                let cursor = "0";
+                do {
+                    const scanResp = await redis.scan(cursor, "MATCH", `${prefix}*`, "COUNT", 200);
+                    cursor = scanResp?.[0] || "0";
+                    const keys = Array.isArray(scanResp?.[1]) ? scanResp[1] : [];
+                    if (keys.length > 0) redisDeleted += await redis.del(...keys);
+                } while (cursor !== "0");
+            }
         }
     } catch (error) {
         logger.warn(`distributor-by-dh cache invalidation skipped for redis (${tenantId}/${campaignNumber || "*"})`, error);
@@ -496,6 +520,9 @@ const createDataService = async (request: any) => {
         || textValue(request?.body?.ResourceDetails?.additionalDetails?.campaignNumber);
     if (tenantId && (resourceType === USER_DATA_TYPE || resourceType === "campaign")) {
         await invalidateDistributorByDhCache(tenantId, campaignNumber || undefined);
+        if (campaignNumber) {
+            void prewarmDistributorByDhCampaignBaseCache(request, tenantId, campaignNumber);
+        }
     }
     return request?.body?.ResourceDetails;
 }
@@ -744,12 +771,52 @@ function findRequesterDhCodes(userRows: unknown, requesterUuid: string): Set<str
     return dhCodes;
 }
 
-async function buildDistributorsByDhGroups(
+function buildRequesterDhCodesByUuid(userRows: unknown): RequesterDhCodesByUuid {
+    const map: Record<string, Set<string>> = {};
+    if (!Array.isArray(userRows)) return {};
+    for (const userRow of userRows) {
+        if (userRow?.isDeleted) continue;
+        const row = (userRow?.data || {}) as Record<string, unknown>;
+        const dhCode = textValue(row[BOUNDARY_CODE_MANDATORY_COLUMN]) || textValue(row[BOUNDARY_CODE_COLUMN]);
+        if (!dhCode) continue;
+
+        const userUuids = [
+            textValue(userRow?.uniqueIdAfterProcess),
+            textValue(row[USER_SERVICE_UUID_COLUMN]),
+        ].filter(Boolean);
+        for (const uuid of userUuids) {
+            if (!map[uuid]) map[uuid] = new Set<string>();
+            map[uuid].add(dhCode);
+        }
+    }
+
+    const normalized: RequesterDhCodesByUuid = {};
+    for (const [uuid, dhCodes] of Object.entries(map)) {
+        normalized[uuid] = Array.from(dhCodes).sort();
+    }
+    return normalized;
+}
+
+function dhFilterForRequester(
+    requesterDhCodes: Set<string>,
+    requestedLocalityCodes: Set<string>
+): Set<string> {
+    return requestedLocalityCodes.size > 0
+        ? new Set(Array.from(requesterDhCodes).filter((dhCode) => requestedLocalityCodes.has(dhCode)))
+        : requesterDhCodes;
+}
+
+function filterGroupsByDh(groups: DistributorGroup[], dhFilter: Set<string>): DistributorGroup[] {
+    return groups.filter((group) => dhFilter.has(group.dhCode));
+}
+
+async function buildDistributorsByDhCampaignDataset(
     request: any,
     tenantId: string,
     requestedCampaignNumber: string,
-    searchCriteria: any
-): Promise<DistributorGroup[]> {
+    searchCriteria: any,
+    preloadedUserRows?: unknown
+): Promise<DistributorByDhCampaignDataset> {
     // Lazy: a top-level import closes the campaignUtils -> dataManageService -> campaignManageService cycle.
     const { searchProjectTypeCampaignService } = await import("./campaignManageService");
     const { TemplateClass: AttendanceRegisterUserBulkMappingTemplateClass } =
@@ -770,18 +837,13 @@ async function buildDistributorsByDhGroups(
         throwError("COMMON", 400, "VALIDATION_ERROR", "hierarchyType is required in SearchCriteria or campaign");
     }
 
-    const requestedDhCodes = new Set(normalizedLocalityCodes(searchCriteria.localityCodes));
-    const userRows = await getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed);
+    const userRows = Array.isArray(preloadedUserRows)
+        ? preloadedUserRows
+        : await getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed);
+    const requesterDhCodesByUuid = buildRequesterDhCodesByUuid(userRows);
+    const hasAnyDhVisibility = Object.keys(requesterDhCodesByUuid).length > 0;
 
-    // Only the requester's own DH is visible; a requester without a DH in the campaign user data sees nothing.
-    const requesterDhCodes = findRequesterDhCodes(userRows, textValue(request?.body?.RequestInfo?.userInfo?.uuid));
-    const dhFilter = requestedDhCodes.size > 0
-        ? new Set(Array.from(requesterDhCodes).filter((dhCode) => requestedDhCodes.has(dhCode)))
-        : requesterDhCodes;
-    const matchesNothing = dhFilter.size === 0;
-    logger.info(`distributor-by-dh DH filter: ${matchesNothing ? "none (requester has no DH in the campaign user data or localityCodes are outside it)" : Array.from(dhFilter).join(",")}`);
-
-    const sheetMap = matchesNothing
+    const sheetMap = !hasAnyDhVisibility
         ? undefined
         : await AttendanceRegisterUserBulkMappingTemplateClass.generate(
             generationtTemplateConfigs.attendanceRegisterUserBulkMapping,
@@ -814,7 +876,7 @@ async function buildDistributorsByDhGroups(
         if (!roleCodes.has(DISTRIBUTOR_ROLE_CODE)) continue;
 
         const dhCode = textValue(row[BOUNDARY_CODE_MANDATORY_COLUMN]) || textValue(row[BOUNDARY_CODE_COLUMN]);
-        if (!dhCode || !dhFilter.has(dhCode)) continue;
+        if (!dhCode) continue;
 
         const workerId = textValue(row[WORKER_ID_COLUMN]);
         const userName = textValue(row[USERNAME_COLUMN]);
@@ -844,9 +906,7 @@ async function buildDistributorsByDhGroups(
         }
     }
 
-    if (!matchesNothing) {
-        addMissingDistributorsFromUserRows(distributorsByDh, userRows, dhFilter, decrypt);
-    }
+    addMissingDistributorsFromUserRows(distributorsByDh, userRows, new Set<string>(), decrypt);
 
     const unresolvedUserNames = Array.from(distributorsByDh.values())
         .flatMap((group) => group.distributors)
@@ -863,9 +923,51 @@ async function buildDistributorsByDhGroups(
         }
     }
 
-    return Array.from(distributorsByDh.values())
+    return {
+        groups: Array.from(distributorsByDh.values())
         .sort((a, b) => a.dhCode.localeCompare(b.dhCode))
-        .map((entry) => ({ dhCode: entry.dhCode, dhName: entry.dhName, distributors: entry.distributors }));
+        .map((entry) => ({ dhCode: entry.dhCode, dhName: entry.dhName, distributors: entry.distributors })),
+        requesterDhCodesByUuid,
+    };
+}
+
+async function prewarmDistributorByDhCampaignBaseCache(
+    request: any,
+    tenantId: string,
+    campaignNumber: string
+): Promise<void> {
+    if (!distributorByDhFeatureEnabled()) return;
+    if (!tenantId || !campaignNumber) return;
+
+    const baseCacheKey = distributorByDhCampaignBaseCacheKey(tenantId, campaignNumber);
+    if (distributorByDhPrewarmInFlight.has(baseCacheKey)) return distributorByDhPrewarmInFlight.get(baseCacheKey)!;
+
+    const work = (async () => {
+        try {
+            const existing = await readDistributorByDhCache(baseCacheKey);
+            if (existing) return;
+            const dataset = await buildDistributorsByDhCampaignDataset(
+                request,
+                tenantId,
+                campaignNumber,
+                request?.body?.SearchCriteria || {}
+            );
+            await writeDistributorByDhCache(baseCacheKey, {
+                version: 1,
+                groups: dataset.groups,
+                requesterDhCodesByUuid: dataset.requesterDhCodesByUuid,
+                cachedAt: Date.now(),
+            });
+            logger.info(`distributor-by-dh base cache prewarmed for tenant=${tenantId}, campaign=${campaignNumber}`);
+        } catch (error) {
+            logger.warn(`distributor-by-dh base cache prewarm failed for tenant=${tenantId}, campaign=${campaignNumber}`, error);
+        } finally {
+            distributorByDhPrewarmInFlight.delete(baseCacheKey);
+        }
+    })();
+
+    distributorByDhPrewarmInFlight.set(baseCacheKey, work);
+    return work;
 }
 
 const searchDistributorsByDhService = async (request: any) => {
@@ -891,25 +993,81 @@ const searchDistributorsByDhService = async (request: any) => {
     }
 
     const requesterUuid = textValue(request?.body?.RequestInfo?.userInfo?.uuid);
+    if (!requesterUuid) {
+        return toDistributorByDhResponse([], pagination);
+    }
+
     const localityCodes = normalizedLocalityCodes(searchCriteria.localityCodes);
+    const requestedDhCodes = new Set(localityCodes);
     const cacheKey = distributorByDhCacheKey(tenantId, requestedCampaignNumber, requesterUuid, localityCodes);
+    const baseCacheKey = distributorByDhCampaignBaseCacheKey(tenantId, requestedCampaignNumber);
 
     const startedAt = Date.now();
     const useOptimizedPath = distributorByDhFeatureEnabled();
     if (!useOptimizedPath) {
-        const sortedGroups = await buildDistributorsByDhGroups(request, tenantId, requestedCampaignNumber, searchCriteria);
-        return toDistributorByDhResponse(sortedGroups, pagination);
+        const userRows = await getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed);
+        const requesterDhCodes = findRequesterDhCodes(userRows, requesterUuid);
+        const dhFilter = dhFilterForRequester(requesterDhCodes, requestedDhCodes);
+        const matchesNothing = dhFilter.size === 0;
+        logger.info(`distributor-by-dh DH filter: ${matchesNothing ? "none (requester has no DH in the campaign user data or localityCodes are outside it)" : Array.from(dhFilter).join(",")}`);
+        if (matchesNothing) return toDistributorByDhResponse([], pagination);
+
+        const dataset = await buildDistributorsByDhCampaignDataset(
+            request,
+            tenantId,
+            requestedCampaignNumber,
+            searchCriteria,
+            userRows
+        );
+        const filteredGroups = filterGroupsByDh(dataset.groups, dhFilter);
+        return toDistributorByDhResponse(filteredGroups, pagination);
     }
 
     let cachedPayload = await readDistributorByDhCache(cacheKey);
     let sortedGroups: DistributorGroup[];
+    let requesterDhCodes = new Set<string>();
+    let basePayload = await readDistributorByDhCache(baseCacheKey);
 
     if (cachedPayload) {
         logger.info(`distributor-by-dh cache hit for key=${cacheKey}`);
         sortedGroups = cachedPayload.groups;
     } else {
-        sortedGroups = await buildDistributorsByDhGroups(request, tenantId, requestedCampaignNumber, searchCriteria);
-        cachedPayload = { version: 1, groups: sortedGroups, cachedAt: Date.now() };
+        if (!basePayload) {
+            const userRows = await getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed);
+            requesterDhCodes = findRequesterDhCodes(userRows, requesterUuid);
+            const dhFilter = dhFilterForRequester(requesterDhCodes, requestedDhCodes);
+            const matchesNothing = dhFilter.size === 0;
+            logger.info(`distributor-by-dh DH filter: ${matchesNothing ? "none (requester has no DH in the campaign user data or localityCodes are outside it)" : Array.from(dhFilter).join(",")}`);
+            if (matchesNothing) return toDistributorByDhResponse([], pagination);
+
+            const dataset = await buildDistributorsByDhCampaignDataset(
+                request,
+                tenantId,
+                requestedCampaignNumber,
+                searchCriteria,
+                userRows
+            );
+            basePayload = {
+                version: 1,
+                groups: dataset.groups,
+                requesterDhCodesByUuid: dataset.requesterDhCodesByUuid,
+                cachedAt: Date.now(),
+            };
+            await writeDistributorByDhCache(baseCacheKey, basePayload);
+            sortedGroups = filterGroupsByDh(dataset.groups, dhFilter);
+        } else {
+            requesterDhCodes = new Set(basePayload.requesterDhCodesByUuid?.[requesterUuid] || []);
+            const dhFilter = dhFilterForRequester(requesterDhCodes, requestedDhCodes);
+            const matchesNothing = dhFilter.size === 0;
+            logger.info(`distributor-by-dh DH filter: ${matchesNothing ? "none (requester has no DH in the campaign user data or localityCodes are outside it)" : Array.from(dhFilter).join(",")}`);
+            if (matchesNothing) return toDistributorByDhResponse([], pagination);
+            sortedGroups = filterGroupsByDh(basePayload.groups, dhFilter);
+        }
+        cachedPayload = {
+            version: 1,
+            groups: sortedGroups,
+            cachedAt: Date.now(),
+        };
         await writeDistributorByDhCache(cacheKey, cachedPayload);
     }
 
@@ -917,7 +1075,10 @@ const searchDistributorsByDhService = async (request: any) => {
     recordDistributorByDhLatency(Date.now() - startedAt);
 
     if (shouldRunDistributorByDhShadowComparison()) {
-        const freshGroups = await buildDistributorsByDhGroups(request, tenantId, requestedCampaignNumber, searchCriteria);
+        const freshDataset = await buildDistributorsByDhCampaignDataset(request, tenantId, requestedCampaignNumber, searchCriteria);
+        const freshRequesterDhCodes = new Set(freshDataset.requesterDhCodesByUuid[requesterUuid] || []);
+        const freshDhFilter = dhFilterForRequester(freshRequesterDhCodes, requestedDhCodes);
+        const freshGroups = freshDhFilter.size === 0 ? [] : filterGroupsByDh(freshDataset.groups, freshDhFilter);
         if (!areDistributorByDhResponsesEqual(sortedGroups, freshGroups)) {
             distributorByDhShadowMismatchCount += 1;
             logger.error(
