@@ -835,6 +835,16 @@ paths:
         - $ref: '#/parameters/tenantId'
         - $ref: '#/parameters/lastChangedSince'
         - $ref: '#/parameters/includeDeleted'
+        - name: onlyOutsideHouseholdSites
+          in: query
+          type: boolean
+          default: false
+          required: false
+          description: >-
+            URL parameter, used with boundaryTypes (hierarchy search): when true, only links to an outside household
+            site (a facility whose usage is a site type of MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES) are returned in
+            facilityMap and ProjectFacilities. By default the hierarchy search leaves those links out. Ignored without
+            boundaryTypes.
       tags:
         - Project Facility
       responses:

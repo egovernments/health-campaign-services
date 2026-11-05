@@ -222,6 +222,7 @@ public class ProjectApiController {
     @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectFacilityBulkResponse> projectFacilityV2SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "With boundaryTypes: return only the links to an outside household site (sites are left out otherwise)", defaultValue = "false") @RequestParam(value = "onlyOutsideHouseholdSites", required = false, defaultValue = "false") boolean onlyOutsideHouseholdSites,
             @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest
     ) throws Exception {
         ProjectFacilityBulkResponse response = projectFacilityService.searchFacilities(
@@ -230,7 +231,8 @@ public class ProjectApiController {
                 urlParams.getOffset(),
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
-                urlParams.getIncludeDeleted()
+                urlParams.getIncludeDeleted(),
+                onlyOutsideHouseholdSites
         );
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

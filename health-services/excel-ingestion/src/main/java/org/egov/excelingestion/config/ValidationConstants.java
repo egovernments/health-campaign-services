@@ -33,6 +33,12 @@ public class ValidationConstants {
     public static final String DEFAULT_INVALID_USAGE =
             "Usage must be either 'Active' or 'Inactive'.";
 
+    // Facility Name and Site Name may use any character except ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " = +, the curly
+    // double quotes and control characters
+    public static final String HCM_VALIDATION_NAME_INVALID_CHARACTERS = "HCM_VALIDATION_NAME_INVALID_CHARACTERS";
+    public static final String DEFAULT_NAME_INVALID_CHARACTERS =
+            "Name cannot have ! @ # $ % ^ * ; < > ? | \\ ~ { } [ ] \" \u201C \u201D = + or a line break or tab";
+
     // Error when a boundary selection did not resolve to a boundary code: cascading dropdowns are bypassed
     // by Excel on paste/drag-fill, so an out-of-list boundary name leaves the code formula blank.
     public static final String HCM_BOUNDARY_INVALID_SELECTION = "HCM_BOUNDARY_INVALID_SELECTION";

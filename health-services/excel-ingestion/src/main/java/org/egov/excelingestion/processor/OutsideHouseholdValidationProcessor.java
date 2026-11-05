@@ -31,7 +31,8 @@ import java.util.Set;
  * Validates the Outside Household sheet (Outside Household Places / Transit Posts), reusing {@link FacilityValidationProcessor}'s error
  * columns and row-status handling. Required/enum columns are already checked by the MDMS-schema
  * validation; this only adds site-specific checks: the category must belong to the row's site type
- * (site-types master), and boundary at the lowest or second lowest hierarchy level. Errors set {@code outsideHouseholdSheetStatus = invalid} on the row.
+ * (site-types master), boundary at the lowest or second lowest hierarchy level, no repeated site, and a Site Name
+ * that follows the Facility Name character rule. Errors set {@code outsideHouseholdSheetStatus = invalid} on the row.
  */
 @Component
 @Slf4j
@@ -75,6 +76,8 @@ public class OutsideHouseholdValidationProcessor implements IWorkbookProcessor {
                     requestInfo, resource.getTenantId()), errors, localizationMap);
             validateBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
             validateNoDuplicateSites(sheetData, errors, localizationMap);
+            FacilityValidationProcessor.validateNameCharacters(sheetData, ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY,
+                    ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY, errors, localizationMap);
             log.info("Site validation completed with {} errors", errors.size());
             enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 

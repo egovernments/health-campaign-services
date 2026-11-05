@@ -7,7 +7,7 @@ jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn()
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 
-import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates, fileBeforeOutsideHouseholdChange, keepFileForOutsideHouseholdChange, KEPT_FILE_KEY } from '../utils/generateUtils';
+import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, keepFileForOutsideHouseholdChange, KEPT_FILE_KEY } from '../utils/generateUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
 
@@ -272,6 +272,54 @@ describe('dropCloneSourceDeliveryDates (a new clone does not keep its source\'s 
 
     it('handles a clone without cycle data or delivery rules', () => {
         expect(dropCloneSourceDeliveryDates({ additionalDetails: { cloneFrom: 'CMP-SRC' } })).toBe(0);
+    });
+});
+
+describe('dropCloneSourceDeliveryRules (a new clone of another campaign type does not keep its source\'s delivery rules)', () => {
+    const clone = (projectType = 'MR-DN'): any => ({
+        projectType, action: 'draft',
+        additionalDetails: {
+            cloneFrom: 'CMP-SRC', clonedCampaignId: 'src-id', beneficiaryType: 'INDIVIDUAL',
+            cycleData: {
+                cycleConfgureDate: { cycle: 2, deliveries: 1 },
+                cycleData: [{ key: 1, fromDate: '2026-10-30T00:00:00.000Z', toDate: '2026-11-06T00:00:00.000Z' }],
+            },
+        },
+        deliveryRules: [{ code: 'MR-DN', cycles: [{ id: 1, startDate: 1793298600000, endDate: 1793989799000, deliveries: [{ id: 1, doseCriteria: [{ condition: '9<=ageandage<=59' }] }] }] }],
+    });
+    beforeEach(() => { (config as any).mapping = { clearCloneDeliveryDates: true, deliveryConditionCampaignTypes: ['POLIO'] }; });
+    afterAll(() => { delete (config as any).mapping; });
+
+    it('removes the delivery rules and cycle data of a clone whose campaign type is not listed, and keeps the rest', () => {
+        const c = clone();
+        expect(dropCloneSourceDeliveryRules(c)).toBe(true);
+        expect(c.deliveryRules).toEqual([]);
+        expect(c.additionalDetails).toEqual({ cloneFrom: 'CMP-SRC', clonedCampaignId: 'src-id', beneficiaryType: 'INDIVIDUAL', cycleData: {} });
+        // a clone that came with no rules is left in the same empty state and reports nothing removed
+        expect(dropCloneSourceDeliveryRules(c)).toBe(false);
+        expect(c.deliveryRules).toEqual([]);
+    });
+
+    it('keeps the delivery rules of a POLIO clone (its dates are removed separately)', () => {
+        const c = clone(' polio ');
+        expect(dropCloneSourceDeliveryRules(c)).toBe(false);
+        expect(c.deliveryRules[0].cycles[0].deliveries[0].doseCriteria[0].condition).toBe('9<=ageandage<=59');
+        expect(c.additionalDetails.cycleData.cycleConfgureDate).toEqual({ cycle: 2, deliveries: 1 });
+    });
+
+    it('changes nothing for a campaign that is not a clone, an edit, a final create, a missing type, or when the switch is off', () => {
+        const notClone = clone(); delete notClone.additionalDetails.cloneFrom; delete notClone.additionalDetails.clonedCampaignId;
+        const edit = { ...clone(), parentId: 'parent-1' };
+        const finalCreate = { ...clone(), action: 'create' };
+        const noType = { ...clone(), projectType: undefined };
+        for (const c of [notClone, edit, finalCreate, noType]) {
+            expect(dropCloneSourceDeliveryRules(c)).toBe(false);
+            expect(c.deliveryRules).toHaveLength(1);
+        }
+        (config as any).mapping.clearCloneDeliveryDates = false;
+        const off = clone();
+        expect(dropCloneSourceDeliveryRules(off)).toBe(false);
+        expect(off.deliveryRules).toHaveLength(1);
     });
 });
 

@@ -49,6 +49,28 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
             "AND NOT EXISTS (SELECT 1 FROM " + SCHEMA_REPLACE_STRING + ".facility fac " +
                     "WHERE fac.id = %s AND fac.usage IN (:outsideHouseholdTypes)) ";
 
+    // EXISTS fragment that keeps only links to a site; same shape as the hiding fragment above.
+    private static final String OUTSIDE_HOUSEHOLD_ONLY_EXISTS_CLAUSE =
+            "AND EXISTS (SELECT 1 FROM " + SCHEMA_REPLACE_STRING + ".facility fac " +
+                    "WHERE fac.id = %s AND fac.usage IN (:outsideHouseholdTypes)) ";
+
+    /**
+     * The site fragment for a search: by default the site-hiding fragment; with onlyOutsideHouseholdSites, the fragment
+     * that keeps only links to a site (nothing when no site type is configured, as then no facility is a site).
+     */
+    private String outsideHouseholdClause(String facilityIdColumn, String tenantId, Map<String, Object> params,
+                                          boolean onlyOutsideHouseholdSites) {
+        if (!onlyOutsideHouseholdSites) {
+            return outsideHouseholdHidingClause(facilityIdColumn, tenantId, params);
+        }
+        List<String> siteTypes = outsideHouseholdTypeService.getTypes(tenantId);
+        if (siteTypes.isEmpty()) {
+            return "AND 1 = 0 ";
+        }
+        params.put("outsideHouseholdTypes", siteTypes);
+        return String.format(OUTSIDE_HOUSEHOLD_ONLY_EXISTS_CLAUSE, facilityIdColumn);
+    }
+
     /** The site-hiding fragment for this tenant, with its parameter added; empty when no site type is configured. */
     private String outsideHouseholdHidingClause(String facilityIdColumn, String tenantId, Map<String, Object> params) {
         List<String> siteTypes = outsideHouseholdTypeService.getTypes(tenantId);
@@ -67,6 +89,13 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
      */
     public Map<String, List<String>> findFacilitiesByDescendants(
             String projectId, List<String> boundaryTypes, String tenantId) throws InvalidTenantIdException {
+        return findFacilitiesByDescendants(projectId, boundaryTypes, tenantId, false);
+    }
+
+    /** As above; with onlyOutsideHouseholdSites, only links to a site facility instead. */
+    public Map<String, List<String>> findFacilitiesByDescendants(
+            String projectId, List<String> boundaryTypes, String tenantId,
+            boolean onlyOutsideHouseholdSites) throws InvalidTenantIdException {
 
         Map<String, Object> hidingParams = new HashMap<>();
         String query = "SELECT pf.facilityId, addr.boundaryType " +
@@ -77,7 +106,7 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                 "AND LOWER(addr.boundaryType) IN (:boundaryTypes) " +
                 "AND pf.isDeleted = false " +
                 "AND prj.isDeleted = false " +
-                outsideHouseholdHidingClause("pf.facilityId", tenantId, hidingParams);
+                outsideHouseholdClause("pf.facilityId", tenantId, hidingParams, onlyOutsideHouseholdSites);
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
@@ -99,6 +128,13 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
      */
     public Map<String, List<String>> findFacilitiesByAncestors(
             List<String> ancestorProjectIds, List<String> boundaryTypes, String tenantId) throws InvalidTenantIdException {
+        return findFacilitiesByAncestors(ancestorProjectIds, boundaryTypes, tenantId, false);
+    }
+
+    /** As above; with onlyOutsideHouseholdSites, only links to a site facility instead. */
+    public Map<String, List<String>> findFacilitiesByAncestors(
+            List<String> ancestorProjectIds, List<String> boundaryTypes, String tenantId,
+            boolean onlyOutsideHouseholdSites) throws InvalidTenantIdException {
 
         Map<String, Object> hidingParams = new HashMap<>();
         String query = "SELECT pf.facilityId, addr.boundaryType " +
@@ -109,7 +145,7 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                 "AND LOWER(addr.boundaryType) IN (:boundaryTypes) " +
                 "AND pf.isDeleted = false " +
                 "AND prj.isDeleted = false " +
-                outsideHouseholdHidingClause("pf.facilityId", tenantId, hidingParams);
+                outsideHouseholdClause("pf.facilityId", tenantId, hidingParams, onlyOutsideHouseholdSites);
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
@@ -136,6 +172,17 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
                                                           String tenantId,
                                                           Long lastChangedSince,
                                                           Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
+        return findWithCount(searchObject, limit, offset, tenantId, lastChangedSince, includeDeleted, false);
+    }
+
+    /** As above; with onlyOutsideHouseholdSites, only links to a site facility, whatever the search asks for. */
+    public SearchResponse<ProjectFacility> findWithCount(Object searchObject,
+                                                          Integer limit,
+                                                          Integer offset,
+                                                          String tenantId,
+                                                          Long lastChangedSince,
+                                                          Boolean includeDeleted,
+                                                          boolean onlyOutsideHouseholdSites) throws QueryBuilderException, InvalidTenantIdException {
         String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING);
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
@@ -153,7 +200,9 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
         ProjectFacilitySearch search = (ProjectFacilitySearch) searchObject;
         boolean callerAskedForSpecificFacility = !CollectionUtils.isEmpty(search.getFacilityId())
                 || !CollectionUtils.isEmpty(search.getId());
-        if (!callerAskedForSpecificFacility) {
+        if (onlyOutsideHouseholdSites) {
+            query += outsideHouseholdClause("facilityId", tenantId, paramsMap, true);
+        } else if (!callerAskedForSpecificFacility) {
             query += outsideHouseholdHidingClause("facilityId", tenantId, paramsMap);
         }
 
