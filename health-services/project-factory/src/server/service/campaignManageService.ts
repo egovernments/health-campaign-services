@@ -2,7 +2,7 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import express from "express";
 import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, reattachCloneSourceFileIfChoiceAgrees, prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
-import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
+import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest, validateEditFile } from "../validators/campaignValidators";
 import { campaignStatuses, processStatuses, resourceTypes } from "../config/constants";
 import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB, deactivateAllResourcesForCampaign, undoSavedResources, SavedResourceChange } from "./resourceDetailsService";
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from "../utils/resourceDetailsUtils";
@@ -17,6 +17,7 @@ import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from ".
 async function createProjectTypeCampaignService(request: express.Request) {
     logger.info("VALIDATING:: for project type");
     await validateProjectCampaignRequest(request, "create");
+    await validateEditFile(request, "create");
     logger.info("VALIDATED:: THE PROJECT TYPE CREATE REQUEST");
 
     // A clone whose Outside Household choice differs from its source's does not keep the source's file
@@ -129,6 +130,7 @@ async function saveRequestResources(requestResources: CampaignResource[], tenant
 async function updateProjectTypeCampaignService(request: express.Request) {
 
     await validateProjectCampaignRequest(request, "update");
+    await validateEditFile(request, "update");
     logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
 
     // The console's final create sends a fresh additionalDetails without cloneFrom / clonedCampaignId; keep them

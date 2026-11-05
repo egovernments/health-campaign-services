@@ -13,6 +13,7 @@ jest.mock('../validators/campaignValidators', () => ({
     validateMicroplanRequest: jest.fn(),
     validateProjectCampaignRequest: jest.fn(),
     validateAddResourcesRequest: jest.fn(),
+    validateEditFile: jest.fn(),
 }));
 jest.mock('../service/resourceDetailsService', () => ({
     createResourceDetail: jest.fn(),
@@ -30,7 +31,7 @@ jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(
 import config from '../config';
 import { createProjectTypeCampaignService, updateProjectTypeCampaignService } from '../service/campaignManageService';
 import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, processBasedOnAction, reattachCloneSourceFileIfChoiceAgrees, searchProjectCampaignResourcData } from '../utils/campaignUtils';
-import { validateProjectCampaignRequest } from '../validators/campaignValidators';
+import { validateEditFile, validateProjectCampaignRequest } from '../validators/campaignValidators';
 import { createResourceDetail, deactivateAllResourcesForCampaign, undoSavedResources, updateResourceDetail } from '../service/resourceDetailsService';
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
 import { dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from '../utils/generateUtils';
@@ -53,6 +54,7 @@ beforeEach(() => {
     savedResources = undefined;
     (validateProjectCampaignRequest as jest.Mock).mockImplementation(async (r: any) => { r.body.ExistingCampaignDetails = existing; });
     (processBasedOnAction as jest.Mock).mockImplementation(async (r: any) => { savedResources = r.body.CampaignDetails.resources; });
+    (validateEditFile as jest.Mock).mockResolvedValue(undefined);
     (searchResourceDetailsFromDB as jest.Mock).mockResolvedValue([{ filestoreid: 'OLD', type: UNIFIED }]);
     (findActiveResourceByUpsertKey as jest.Mock).mockResolvedValue(null);
     (searchProjectCampaignResourcData as jest.Mock).mockResolvedValue({ responseData: [{ id: 'c1' }], totalCount: 1 });
@@ -208,6 +210,47 @@ describe('updateProjectTypeCampaignService for other saves (unchanged behaviour)
         expect(deactivateAllResourcesForCampaign).not.toHaveBeenCalled();
         expect(savedResources).toEqual([{ type: UNIFIED, filestoreId: 'OLD' }]);
         expect(attachedFileIds()).toEqual(['OLD']);
+    });
+});
+
+describe('the file of an edit is checked right after the request is validated, before anything is saved', () => {
+    it('update: runs the edit file check after the request check and before files are stored or the campaign processed', async () => {
+        const order: string[] = [];
+        (validateProjectCampaignRequest as jest.Mock).mockImplementation(async (r: any) => { order.push('validate request'); r.body.ExistingCampaignDetails = existing; });
+        (validateEditFile as jest.Mock).mockImplementation(async () => { order.push('check edit file'); });
+        (createResourceDetail as jest.Mock).mockImplementation(async () => { order.push('store file'); });
+        (processBasedOnAction as jest.Mock).mockImplementation(async () => { order.push('process'); });
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: false });
+        const update = request([{ type: UNIFIED, filestoreId: 'OWN' }]);
+
+        await updateProjectTypeCampaignService(update);
+
+        expect(validateEditFile).toHaveBeenCalledWith(update, 'update');
+        expect(order).toEqual(['validate request', 'check edit file', 'store file', 'process']);
+    });
+
+    it('update: a refused edit file stores, deactivates and processes nothing', async () => {
+        (validateEditFile as jest.Mock).mockRejectedValueOnce(Object.assign(new Error('VALIDATION_ERROR'), { status: 400 }));
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: true });
+
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'PARENT-FILE' }]))).rejects.toThrow('VALIDATION_ERROR');
+
+        expect(createResourceDetail).not.toHaveBeenCalled();
+        expect(updateResourceDetail).not.toHaveBeenCalled();
+        expect(deactivateAllResourcesForCampaign).not.toHaveBeenCalled();
+        expect(processBasedOnAction).not.toHaveBeenCalled();
+    });
+
+    it('create: runs the edit file check after the request check and before the campaign is processed', async () => {
+        const create = request([{ type: UNIFIED, filestoreId: 'OWN' }]);
+
+        await createProjectTypeCampaignService(create);
+
+        expect(validateEditFile).toHaveBeenCalledWith(create, 'create');
+        expect((validateProjectCampaignRequest as jest.Mock).mock.invocationCallOrder[0])
+            .toBeLessThan((validateEditFile as jest.Mock).mock.invocationCallOrder[0]);
+        expect((validateEditFile as jest.Mock).mock.invocationCallOrder[0])
+            .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
     });
 });
 

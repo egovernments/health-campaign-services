@@ -361,6 +361,7 @@ const config = {
     excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/process/_create",
     excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init",
     excelIngestionGenerateSearch: process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
+    excelIngestionProcessSearch: process.env.EXCEL_INGESTION_PROCESS_SEARCH || "excel-ingestion/v1/data/process/_search",
     attendanceRegisterCreate: process.env.ATTENDANCE_REGISTER_CREATE_PATH || "health-attendance/v1/_create",
     attendanceRegisterSearch: process.env.ATTENDANCE_REGISTER_SEARCH_PATH || "health-attendance/v1/_search",
     attendanceRegisterUpdate: process.env.ATTENDANCE_REGISTER_UPDATE_PATH || "health-attendance/v1/_update",

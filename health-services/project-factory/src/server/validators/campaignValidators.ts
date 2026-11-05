@@ -873,16 +873,19 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
 
 
 /**
- * An edit (child campaign) can only be processed with a file made from its own template: excel-ingestion rejects a file
- * made from the parent's template (IMMUTABLE_IDENTITY_MISMATCH), but only after the edit has started, so the edit
- * fails with no error on the screen. The console keeps the parent's file on the edit until a new one is uploaded, and
- * does not validate it, so the Submit of an edit is refused here when its file is one of the parent's files, or when it
- * sends no file on a create and the parent's file would be copied to it.
+ * An edit (child campaign) can only be processed with a file made from its own template: excel-ingestion rejects any
+ * other file (IMMUTABLE_IDENTITY_MISMATCH), but only in the parse after the edit has started, so the edit fails with no
+ * error on the screen. The console keeps the parent's file on the edit until a new one is uploaded and does not check
+ * it, and it lets an edit be submitted after its upload check failed. So the Submit of an edit is refused here when
+ * - its file is one of the parent's files, or it sends no file on a create and the parent's file would be copied to it;
+ * - on an update, its file has no passed upload check for this edit.
+ * Called by the create and update services right after validateProjectCampaignRequest, which loads the parent.
  */
-async function validateEditFileIsNotParents(request: any, CampaignDetails: any, actionInUrl: any) {
+async function validateEditFile(request: any, actionInUrl: any) {
+    const CampaignDetails = request?.body?.CampaignDetails;
     const parentId = CampaignDetails?.parentId;
     const tenantId = CampaignDetails?.tenantId;
-    if (!parentId || !tenantId) {
+    if (CampaignDetails?.action !== "create" || !parentId || !tenantId) {
         return;
     }
     const isUnified = (type: any) => type === resourceTypes.unifiedConsoleResources || type === "unified-console";
@@ -904,6 +907,56 @@ async function validateEditFileIsNotParents(request: any, CampaignDetails: any, 
         logger.info(`Edit of campaign ${parentId}: refused, its file ${editFile ?? "(none)"} is the file of the campaign being edited`);
         throwError("COMMON", 400, "VALIDATION_ERROR",
             "The file attached to this edit is the file of the campaign being edited. Download the template from this edit screen, make your changes in it and upload it before you submit.");
+    }
+    // On an update the edit exists, so the upload checks of its file can be read
+    const uploadCheck = editFile && CampaignDetails?.id && actionInUrl === "update"
+        ? await editFileUploadCheck(request, CampaignDetails.id, tenantId, editFile) : "passed";
+    if (uploadCheck === "running") {
+        logger.info(`Edit ${CampaignDetails.id} of campaign ${parentId}: refused, the upload check of its file ${editFile} is still running`);
+        throwError("COMMON", 400, "VALIDATION_ERROR",
+            "The upload check of the file attached to this edit is still running. Wait until it finishes, then submit.");
+    }
+    if (uploadCheck === "notPassed") {
+        logger.info(`Edit ${CampaignDetails.id} of campaign ${parentId}: refused, its file ${editFile} has no passed upload check for this edit`);
+        throwError("COMMON", 400, "VALIDATION_ERROR",
+            "The file attached to this edit has not passed the upload check for this edit. Download the template from this edit screen, make your changes in it and upload it again before you submit.");
+    }
+}
+
+const UPLOAD_CHECK_PAGE_SIZE = 100;
+const UPLOAD_CHECK_MAX_PAGES = 10;
+
+/**
+ * The upload check of this file for this edit in excel-ingestion: "passed" when a unified-console-validation of it is
+ * completed, valid and has no errors; "running" when none passed and one is still pending or in progress; else
+ * "notPassed". When excel-ingestion cannot be read, or holds more checks than are read, the Submit goes ahead as before
+ * ("passed"): its parse needs excel-ingestion too.
+ */
+async function editFileUploadCheck(request: any, editId: string, tenantId: string, fileStoreId: string): Promise<"passed" | "running" | "notPassed"> {
+    const url = `${config.host.excelIngestionHost}${config.paths.excelIngestionProcessSearch}`;
+    let running = false;
+    try {
+        for (let page = 0; page < UPLOAD_CHECK_MAX_PAGES; page++) {
+            const response = await httpRequest(url, {
+                RequestInfo: request?.body?.RequestInfo,
+                ProcessingSearchCriteria: { tenantId, referenceIds: [editId], types: ["unified-console-validation"],
+                    limit: UPLOAD_CHECK_PAGE_SIZE, offset: page * UPLOAD_CHECK_PAGE_SIZE }
+            });
+            const checks: any[] = (response?.ProcessingDetails || []).filter((check: any) => check?.fileStoreId === fileStoreId);
+            if (checks.some((check: any) => check?.status === "completed"
+                && check?.additionalDetails?.validationStatus === "valid" && !(Number(check?.additionalDetails?.totalErrors) > 0))) {
+                return "passed";
+            }
+            running = running || checks.some((check: any) => check?.status === "pending" || check?.status === "inprogress");
+            if ((response?.ProcessingDetails || []).length < UPLOAD_CHECK_PAGE_SIZE) {
+                return running ? "running" : "notPassed";
+            }
+        }
+        logger.warn(`Edit ${editId}: more than ${UPLOAD_CHECK_MAX_PAGES * UPLOAD_CHECK_PAGE_SIZE} upload checks, the Submit goes ahead as before`);
+        return "passed";
+    } catch (error: any) {
+        logger.warn(`Edit ${editId}: could not read its upload checks from excel-ingestion, the Submit goes ahead as before: ${error?.message ?? error}`);
+        return "passed";
     }
 }
 
@@ -1074,7 +1127,6 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateProjectType(request, projectType, tenantId);
         await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request, CampaignDetails);
-        await validateEditFileIsNotParents(request, CampaignDetails, actionInUrl);
         await validateProductVariant(request);
     }
     else {
@@ -1626,7 +1678,7 @@ function validateAddResourcesRequest(request: any): void {
 }
 
 export {
-    validateEditFileIsNotParents,
+    validateEditFile,
     validateSheetData,
     validateCreateRequest,
     validateProjectCampaignRequest,
