@@ -59,9 +59,11 @@ jest.mock('../config', () => ({
 
 import { searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects, deleteProjectFacilitiesById } from '../api/genericApis';
 import { httpRequest } from '../utils/request';
+import { TenantId } from '../config/models/brandedTypes';
 
 const httpRequestMock = httpRequest as jest.MockedFunction<typeof httpRequest>;
 const requestInfo: any = { userInfo: { uuid: 'u-1' } };
+const tn = 'tn' as TenantId;
 
 describe('project mapping bulk search helpers', () => {
     afterEach(() => jest.clearAllMocks());
@@ -209,7 +211,7 @@ describe('project mapping bulk search helpers', () => {
         const deleteCalls = () => httpRequestMock.mock.calls.filter(c => String(c[0]).endsWith('_delete'));
 
         it('makes no call when there is nothing to remove', async () => {
-            const result = await deleteProjectFacilitiesById([], 'tn', requestInfo);
+            const result = await deleteProjectFacilitiesById([], tn, requestInfo);
 
             expect(result.size).toBe(0);
             expect(httpRequestMock).not.toHaveBeenCalled();
@@ -220,7 +222,7 @@ describe('project mapping bulk search helpers', () => {
                 .mockResolvedValueOnce({ ProjectFacilities: [{ ...link('pf-1', 'p-1', 'f-1'), rowVersion: 1 }, { ...link('pf-2', 'p-2', 'f-2'), rowVersion: 1 }] })
                 .mockResolvedValueOnce({});
 
-            const result = await deleteProjectFacilitiesById([link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2')], 'tn', requestInfo);
+            const result = await deleteProjectFacilitiesById([link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2')], tn, requestInfo);
 
             expect(searchCalls()[0][1]).toEqual({ RequestInfo: requestInfo, ProjectFacility: { id: ['pf-1', 'pf-2'] } });
             expect(searchCalls()[0][2]).toEqual({ tenantId: 'tn', limit: 2, offset: 0, includeDeleted: false });
@@ -237,7 +239,7 @@ describe('project mapping bulk search helpers', () => {
                 .mockResolvedValueOnce({});
 
             const result = await deleteProjectFacilitiesById(
-                [link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2'), link('pf-3', 'p-3', 'f-3')], 'tn', requestInfo);
+                [link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2'), link('pf-3', 'p-3', 'f-3')], tn, requestInfo);
 
             expect(result.get('pf-1')?.result).toBe('mismatch');
             expect(result.get('pf-2')).toEqual({ result: 'absent' });
@@ -249,7 +251,7 @@ describe('project mapping bulk search helpers', () => {
         it('sends a link listed twice once', async () => {
             httpRequestMock.mockResolvedValueOnce({ ProjectFacilities: [link('pf-1', 'p-1', 'f-1')] }).mockResolvedValueOnce({});
 
-            const result = await deleteProjectFacilitiesById([link('pf-1', 'p-1', 'f-1'), link('pf-1', 'p-1', 'f-1')], 'tn', requestInfo);
+            const result = await deleteProjectFacilitiesById([link('pf-1', 'p-1', 'f-1'), link('pf-1', 'p-1', 'f-1')], tn, requestInfo);
 
             expect((searchCalls()[0][1] as any).ProjectFacility.id).toEqual(['pf-1']);
             expect((deleteCalls()[0][1] as any).ProjectFacilities).toHaveLength(1);
@@ -263,7 +265,7 @@ describe('project mapping bulk search helpers', () => {
                 .mockResolvedValueOnce({});
 
             const result = await deleteProjectFacilitiesById(
-                [link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2'), link('pf-3', 'p-3', 'f-3')], 'tn', requestInfo);
+                [link('pf-1', 'p-1', 'f-1'), link('pf-2', 'p-2', 'f-2'), link('pf-3', 'p-3', 'f-3')], tn, requestInfo);
 
             expect(result.get('pf-1')).toEqual({ result: 'failed', error: 'search down' });
             expect(result.get('pf-2')).toEqual({ result: 'failed', error: 'search down' });

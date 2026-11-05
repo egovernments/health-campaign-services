@@ -116,6 +116,8 @@ const config = {
     searchPageSize: process.env.MAPPING_SEARCH_PAGE_SIZE ? parseInt(process.env.MAPPING_SEARCH_PAGE_SIZE, 10) : 100,
 
     createConcurrency: process.env.MAPPING_CREATE_CONCURRENCY ? parseInt(process.env.MAPPING_CREATE_CONCURRENCY, 10) : 10,
+    // Site links whose frontline worker changed in an edit are updated this many at a time; 1 updates them one by one
+    outsideHouseholdLinkUpdateConcurrency: process.env.OUTSIDE_HOUSEHOLD_LINK_UPDATE_CONCURRENCY ? parseInt(process.env.OUTSIDE_HOUSEHOLD_LINK_UPDATE_CONCURRENCY, 10) : 10,
     bulkCreateChunkSize: process.env.MAPPING_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.MAPPING_BULK_CREATE_CHUNK_SIZE, 10) : 100,
     staffBulkEnabled: process.env.STAFF_MAPPING_BULK === "1" || process.env.STAFF_MAPPING_BULK === "true",
     bulkConfirmPollIntervalMs: process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS ? parseInt(process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS, 10) : 2000,
@@ -380,9 +382,6 @@ const config = {
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
     formConfigTemplateName: process.env.FORM_CONFIG_TEMPLATE_NAME || "FormConfigTemplate",
     formConfigName: process.env.FORM_CONFIG_NAME || "FormConfig",
-    // The console's editor copy of a campaign's app configuration (its pages) and its flow list; a clone gets both
-    transformedFormConfigName: process.env.TRANSFORMED_FORM_CONFIG_NAME || "TransformedFormConfig",
-    appFlowConfigName: process.env.APP_FLOW_CONFIG_NAME || "AppFlowConfig",
     emailNotificationId: process.env.EMAIL_NOTIFICATION_ID || "support@egov.org.in" ,
     egovLogoLink: process.env.EGOV_LOGO_LINK || "https://digit-sandbox-prod-s3.s3.ap-south-1.amazonaws.com/assets/Reverse+Orange+%26+White.png",
     readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
