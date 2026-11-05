@@ -80,7 +80,7 @@ jest.mock('../config', () => ({
         host: { facilityHost: 'http://facility/', projectHost: 'http://project/' },
         paths: { facilitySearch: 'facility/v1/_search', facilityDelete: 'facility/v1/_delete',
             projectFacilitySearch: 'health-project/facility/v1/_search', projectFacilityUpdate: 'health-project/facility/v1/_update' },
-        mapping: { searchPageSize: 100, outsideHouseholdUnlinkOnDeliveryRemoval: true, outsideHouseholdIgnoreSheetWhenNotSelected: true, outsideHouseholdReuseCloneSourceSites: true },
+        mapping: { searchPageSize: 100, outsideHouseholdLinkUpdateConcurrency: 2, outsideHouseholdUnlinkOnDeliveryRemoval: true, outsideHouseholdIgnoreSheetWhenNotSelected: true, outsideHouseholdReuseCloneSourceSites: true },
         localisation: { defaultLocale: 'en_IN' },
         DB_CONFIG: { DB_CAMPAIGN_DATA_TABLE_NAME: 'eg_cm_campaign_data' },
         // Page size 1 → sites span multiple pages too.
@@ -106,6 +106,7 @@ import {
 } from '../utils/processingResultHandler';
 import { DataTransformer } from '../utils/transFormUtil';
 import { transformConfigs } from '../config/transformConfigs';
+import { TenantId } from '../config/models/brandedTypes';
 
 const produceMock = jest.mocked(produceModifiedMessages);
 const getRelatedMock = jest.mocked(getRelatedDataWithCampaign);
@@ -116,6 +117,7 @@ const warnMock = jest.mocked(logger.warn);
 const OUTSIDE_HOUSEHOLD_SHEET = 'HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST';
 const campaignDetails = { id: 'cmp-id', campaignNumber: 'CMP-1', campaignName: 'Test' };
 const localizationMap = {};
+const tn = 'tn' as TenantId;
 
 // Paginates per-sheet fixtures by offset/limit; an unknown sheet name returns no rows.
 function installSheetRouter(sheetRows: Record<string, any[]>): string[] {
@@ -318,7 +320,7 @@ describe('a campaign that does not use Outside Household, e.g. a clone that borr
     it('does not read the Outside Household sheet, so its rows are neither saved nor linked', async () => {
         const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
         const topics = collectAllTopics();
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY']));
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY']));
         expect(requested).not.toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
         expect((topics['save-sheet'] || []).filter((d: any) => d.type === 'facility').map((d: any) => d.uniqueIdentifier)).toEqual(['F1']);
         expect(mapKeys(topics['save-map'])).toEqual(['F1#B1']);
@@ -327,14 +329,14 @@ describe('a campaign that does not use Outside Household, e.g. a clone that borr
     it('reads the sheet as before when the campaign uses Outside Household', async () => {
         installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
         const topics = collectAllTopics();
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY', { code: 'OUTSIDEHOUSEHOLD' }]));
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY', { code: 'OUTSIDEHOUSEHOLD' }]));
         expect(mapKeys(topics['save-map'])).toEqual(['F1#B1', 'P1#B2']);
     });
 
     it('reads the sheet as before when the campaign carries no deliveryMethods list', async () => {
         const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
         collectAllTopics();
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
         expect(requested).toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
     });
 
@@ -343,7 +345,7 @@ describe('a campaign that does not use Outside Household, e.g. a clone that borr
         try {
             const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
             collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY']));
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, using(['HOUSEHOLDSTRATEGY']));
             expect(requested).toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
         } finally {
             (config as any).mapping.outsideHouseholdIgnoreSheetWhenNotSelected = true;
@@ -393,7 +395,7 @@ describe('a clone reuses the sites of its source for rows without a clientRefere
     it('a row the source typed in (no clientReferenceId) reuses the source site, so that site is linked, not a copy', async () => {
         installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
         const topics = collectAllTopics();
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, clone());
         expect(savedSiteIds(topics)).toEqual(['SRC-CRID']);
         expect(mapKeys(topics['save-map'])).toEqual(['F1#B1', 'SRC-CRID#B2']);
     });
@@ -401,7 +403,7 @@ describe('a clone reuses the sites of its source for rows without a clientRefere
     it('matches on category too: another category of the same name is a different site', async () => {
         installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY: 'CAT_B' })] });
         const topics = collectAllTopics();
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, clone());
         expect(savedSiteIds(topics)).toEqual(['SRC-OTHER']);
     });
 
@@ -410,7 +412,7 @@ describe('a clone reuses the sites of its source for rows without a clientRefere
             (number === SRC ? [sourceSite('SRC-CRID', 'P1', 'B2')] : [sourceSite('OWN-CRID', 'P1', 'B2')]) as any);
         installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
         const topics = collectAllTopics();
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, clone());
         expect(savedSiteIds(topics)).toEqual([]);                    // OWN-CRID is already stored: an update, not a new row
         expect(mapKeys(topics['save-map'])).toEqual(['F1#B1', 'OWN-CRID#B2']);
     });
@@ -419,13 +421,13 @@ describe('a clone reuses the sites of its source for rows without a clientRefere
         for (const details of [campaignDetails, clone({ parentId: 'parent-id' })]) {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
             collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, details);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, details);
         }
         (config as any).mapping.outsideHouseholdReuseCloneSourceSites = false;
         try {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, clone());
             expect(savedSiteIds(topics)).not.toContain('SRC-CRID');
         } finally {
             (config as any).mapping.outsideHouseholdReuseCloneSourceSites = true;
@@ -440,7 +442,7 @@ describe('a clone reuses the sites of its source for rows without a clientRefere
         });
         installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [newOutsideHouseholdRow('P1', 'B2')] });
         const topics = collectAllTopics();
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, clone());
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, clone());
         const ids = savedSiteIds(topics);
         expect(ids).toHaveLength(1);
         expect(ids[0]).not.toBe('SRC-CRID');
@@ -516,7 +518,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('reads the Outside Household sheet by its localisation key', async () => {
             const requested = installSheetRouter({ FACILIT: [] });
             collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(requested).toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31)); // sheet names are cut to Excel's 31 characters
         });
     });
@@ -525,7 +527,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('persists site rows as facility rows keyed by clientReferenceId', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2'), outsideHouseholdRow('P2', 'B3', 'Inactive')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
 
             const saved = (topics['save-sheet'] || []).filter((d: any) => d.type === 'facility');
             expect(saved.map((d: any) => d.uniqueIdentifier).sort()).toEqual(['F1', 'P1', 'P2']);
@@ -540,14 +542,14 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('runs the facility link diff once over facilities and sites', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
             collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(facilityMappingSearches()).toHaveLength(1);
         });
 
         it('creates links for Active facilities and Include sites in one batch', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2'), outsideHouseholdRow('P2', 'B3', 'Inactive')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(mapKeys(topics['save-map'])).toEqual(['F1#B1', 'P1#B2']);
         });
 
@@ -558,7 +560,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
                 { uniqueIdentifierForData: 'P1', boundaryCode: 'B2', status: 'mapped' },
             ] as any);
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(topics['update-map'] || []).toHaveLength(0);
             expect(topics['save-map'] || []).toHaveLength(0);
         });
@@ -571,7 +573,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
                 { uniqueIdentifierForData: 'P1', boundaryCode: 'B2', status: 'mapped' },
             ] as any);
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(mapKeys(topics['update-map'])).toEqual(['F-OLD#B9', 'P1#B2']);
         });
     });
@@ -594,7 +596,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('processes sites when the facility sheet has no rows', async () => {
             installSheetRouter({ FACILIT: [], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
 
             const saved = (topics['save-sheet'] || []).filter((d: any) => d.type === 'facility');
             expect(saved.map((d: any) => d.uniqueIdentifier)).toEqual(['P1']);
@@ -604,14 +606,14 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('demaps only site links when the facility sheet has no rows', async () => {
             installSheetRouter({ FACILIT: [], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
         });
 
         it('demaps only site links when no facility row is Active', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1', 'Inactive')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
         });
 
@@ -619,14 +621,14 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
             setFacilityLinks([...storedLinks, { uniqueIdentifierForData: 'P1', boundaryCode: 'B2', status: 'mapped' }] as any);
             installSheetRouter({ FACILIT: [], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Inactive')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5', 'P1#B2']);
         });
 
         it('keeps site links unchanged when the Outside Household sheet is absent (facility sheet alone contributed)', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             // F1 stays (still in the sheet); P-OLD is frozen (Outside Household sheet absent this upload), not demapped.
             expect(topics['update-map'] || []).toHaveLength(0);
         });
@@ -634,7 +636,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('keeps site links unchanged when the Outside Household sheet is present but empty', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(topics['update-map'] || []).toHaveLength(0);
         });
     });
@@ -660,7 +662,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('demaps every stored site link and keeps the facility links still in the sheet', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, withoutOutsideHousehold);
             expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
             expect(topics['save-map'] || []).toHaveLength(0);
         });
@@ -668,7 +670,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('does not read an Outside Household sheet left in an old file', async () => {
             const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')], OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, withoutOutsideHousehold);
             expect(requested).not.toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
             expect(topics['save-map'] || []).toHaveLength(0);
             expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
@@ -677,28 +679,28 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('demaps the stored sites but keeps facility links when no facility row is Active', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1', 'Inactive')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, withoutOutsideHousehold);
             expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
         });
 
         it('demaps the stored sites when the facility sheet has no rows', async () => {
             installSheetRouter({ FACILIT: [] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, withoutOutsideHousehold);
             expect(mapKeys(topics['update-map'])).toEqual(['P-OLD#B5']);
         });
 
         it('keeps site links when OUTSIDEHOUSEHOLD is still a delivery method, also as a {code} object', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withMethods([{ code: 'OUTSIDEHOUSEHOLD' }]));
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, withMethods([{ code: 'OUTSIDEHOUSEHOLD' }]));
             expect(topics['update-map'] || []).toHaveLength(0);
         });
 
         it('keeps site links for a campaign that is not an edit', async () => {
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, { ...withoutOutsideHousehold, parentId: null });
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, { ...withoutOutsideHousehold, parentId: null });
             expect(topics['update-map'] || []).toHaveLength(0);
         });
 
@@ -708,7 +710,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
             try {
                 const requested = installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
                 const topics = collectAllTopics();
-                await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+                await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, withoutOutsideHousehold);
                 expect(topics['update-map'] || []).toHaveLength(0);
                 expect(requested).toContain(OUTSIDE_HOUSEHOLD_SHEET.substring(0, 31));
             } finally {
@@ -721,7 +723,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
             setFacilityLinks([{ uniqueIdentifierForData: 'F1', boundaryCode: 'B1', status: 'mapped' }] as any);
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, withoutOutsideHousehold);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, withoutOutsideHousehold);
             expect(topics['update-map'] || []).toHaveLength(0);
             expect(topics['save-map'] || []).toHaveLength(0);
         });
@@ -731,7 +733,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
         it('does nothing when both sheets are empty', async () => {
             installSheetRouter({ FACILIT: [] });
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(facilityMappingSearches()).toHaveLength(0);
             expect((topics['save-sheet'] || []).filter((d: any) => d.type === 'facility')).toHaveLength(0);
         });
@@ -740,7 +742,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1')] });
             setFacilityLinks([{ uniqueIdentifierForData: 'F-OLD', boundaryCode: 'B9', status: 'mapped' }] as any);
             const topics = collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(mapKeys(topics['save-map'])).toEqual(['F1#B1']);
             expect(mapKeys(topics['update-map'])).toEqual(['F-OLD#B9']);
         });
@@ -749,7 +751,7 @@ describe('processCampaignFacilitiesFromExcelData with the Outside Household shee
             installSheetRouter({ FACILIT: [facilityRow('F1', 'B1', 'Inactive')] });
             setFacilityLinks([{ uniqueIdentifierForData: 'F1', boundaryCode: 'B1', status: 'mapped' }] as any);
             collectAllTopics();
-            await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+            await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
             expect(facilityMappingSearches()).toHaveLength(0);
         });
     });
@@ -860,7 +862,7 @@ describe('edit: frontline worker changed on an Active site with an existing link
         const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', {
             HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker', HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE: 9876500011 })] },
             [existingLink(oldFields)]);
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails, { userInfo: { uuid: 'u1' } } as any);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails, { userInfo: { uuid: 'u1' } } as any);
         expect(updates).toHaveLength(1);
         expect(updates[0]).toMatchObject({ id: 'PF-1', rowVersion: 1, additionalFields: { schema: 'OutsideHouseholdAssignment', version: 1,
             fields: [{ key: 'frontlineWorkerName', value: 'New Worker' }, { key: 'frontlineWorkerPhone', value: '9876500011' }] } });
@@ -870,7 +872,7 @@ describe('edit: frontline worker changed on an Active site with an existing link
         getRelatedMock.mockImplementation(async (type: any) =>
             (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
         const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active')] }, [existingLink(oldFields)]);
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
         expect(updates).toHaveLength(1);
         expect(updates[0].additionalFields).toEqual({ schema: 'OutsideHouseholdAssignment', version: 1, fields: [] });
     });
@@ -879,7 +881,7 @@ describe('edit: frontline worker changed on an Active site with an existing link
         getRelatedMock.mockImplementation(async (type: any) =>
             (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
         const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', oldWorker)] }, [existingLink(oldFields)]);
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
         expect(updates).toHaveLength(0);
     });
 
@@ -888,7 +890,7 @@ describe('edit: frontline worker changed on an Active site with an existing link
             (type === 'facility' ? [storedSite('Inactive', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
         const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Inactive', {
             HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] }, [existingLink(oldFields)]);
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
         expect(updates).toHaveLength(0);
     });
 
@@ -898,8 +900,60 @@ describe('edit: frontline worker changed on an Active site with an existing link
         const newWorker = { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker', HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE: 9876500011 };
         const updates = install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', newWorker)] },
             [existingLink([{ key: 'frontlineWorkerName', value: 'New Worker' }, { key: 'frontlineWorkerPhone', value: '9876500011' }])]);
-        await processCampaignFacilitiesFromExcelData('tn', 'fs-1', localizationMap, campaignDetails);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
         expect(updates).toHaveLength(0);
+    });
+
+    it('asks httpRequest to retry the link search and the link update', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        install({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', {
+            HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] }, [existingLink(oldFields)]);
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
+        const linkCalls = httpMock.mock.calls.filter((c: any[]) => /health-project\/facility\/v1\/_(search|update)$/.test(c[0]));
+        expect(linkCalls.map((c: any[]) => c[0].split('/').pop())).toEqual(['_search', '_update']);
+        linkCalls.forEach((c: any[]) => expect(c[7]).toBe(true));
+    });
+
+    it('updates the links of several changed sites, at most the configured number at a time', async () => {
+        const names = ['P1', 'P2', 'P3'];
+        const stored = names.map((name, i) => ({ uniqueIdentifier: name, uniqueIdAfterProcess: `F-${i + 1}`,
+            data: { ...convertOutsideHouseholdRowsToFacilityRows([{ rowjson: outsideHouseholdRow(name, 'B2', 'Active', oldWorker) }], new Map())[0].rowjson } }));
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? stored : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        setFacilityLinks(names.map((name, i) => ({ uniqueIdentifierForData: name, boundaryCode: 'B2', status: 'mapped', mappingId: `PF-${i + 1}` })) as any);
+        installSheetRouter({ OUTSIDE_HOUSE: names.map(name => outsideHouseholdRow(name, 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: `New ${name}` })) });
+        const sheetImpl = httpMock.getMockImplementation()!;
+        let inFlight = 0, maxInFlight = 0;
+        const updated: string[] = [];
+        httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
+            if (url.endsWith('health-project/facility/v1/_update')) {
+                inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+                await new Promise(resolve => setImmediate(resolve));
+                inFlight--; updated.push(body.ProjectFacility.id);
+                return {} as any;
+            }
+            if (url.endsWith('health-project/facility/v1/_search')) {
+                return { ProjectFacilities: names.map((_, i) => ({ ...existingLink(oldFields), id: `PF-${i + 1}`, facilityId: `F-${i + 1}` })) } as any;
+            }
+            return sheetImpl(url, body, ...rest);
+        });
+        await processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails);
+        expect(updated.sort()).toEqual(['PF-1', 'PF-2', 'PF-3']);
+        expect(maxInFlight).toBe(2);
+    });
+
+    it('still fails the run when a link update fails', async () => {
+        getRelatedMock.mockImplementation(async (type: any) =>
+            (type === 'facility' ? [storedSite('Active', oldWorker)] : type === 'boundary' ? [{ uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        installSheetRouter({ OUTSIDE_HOUSE: [outsideHouseholdRow('P1', 'B2', 'Active', { HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME: 'New Worker' })] });
+        const sheetImpl = httpMock.getMockImplementation()!;
+        httpMock.mockImplementation(async (url: string, body: any, ...rest: any[]) => {
+            if (url.endsWith('health-project/facility/v1/_update')) throw new Error('link update failed');
+            if (url.endsWith('health-project/facility/v1/_search')) return { ProjectFacilities: [existingLink(oldFields)] } as any;
+            return sheetImpl(url, body, ...rest);
+        });
+        await expect(processCampaignFacilitiesFromExcelData(tn, 'fs-1', localizationMap, campaignDetails)).rejects.toThrow('link update failed');
     });
 });
 

@@ -1,4 +1,5 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
+import { TenantId } from "../config/models/brandedTypes";
 import { logger } from './logger';
 import { getRelatedDataWithCampaign } from './genericUtils';
 import { mappingStatuses, outsideHouseholdFacilityFields } from '../config/constants';
@@ -332,7 +333,7 @@ async function bulkCreateAndConfirm(
         chunks.push(creatable.slice(i, i + CHUNK));
     }
 
-    // A chunk whose bulk OUTSIDE_HOUSEHOLD throws (5xx / network) marks its own rows failed with the reason
+    // A chunk whose bulk POST throws (5xx / network) marks its own rows failed with the reason
     // instead of aborting the whole batch — so other chunks, the confirm pass, and already-adopted
     // rows still get processed and persisted, and the failure reason is captured in lastError.
     const failedKeys = new Set<string>();
@@ -352,7 +353,7 @@ async function bulkCreateAndConfirm(
         }
     });
 
-    // Confirm-by-search only the rows whose bulk OUTSIDE_HOUSEHOLD was accepted.
+    // Confirm-by-search only the rows whose bulk POST was accepted.
     const pending = new Map<string, { mapping: any; projectId: string; entityId: string }>();
     for (const c of creatable) {
         const key = `${c.entityId}|${c.projectId}`;
@@ -603,7 +604,7 @@ async function processFacilityDemappings(
     mappings: any[],
     boundaryToProjectId: Record<string, string>,
     facilityMap: Record<string, string>,
-    tenantId: string,
+    tenantId: TenantId,
     useruuid: string,
     requestInfo: RequestInfo
 ): Promise<void> {

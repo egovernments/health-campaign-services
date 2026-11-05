@@ -96,7 +96,6 @@ import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
 import { createMdmsData, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
-import { copyCampaignMdmsRows, searchAllMdmsRows } from "./appConfigCloneUtils";
 import { createServiceDefinition, searchServiceDefinitions } from "../api/serviceRequestApis";
 import {
   fetchFacilityData,
@@ -3110,83 +3109,6 @@ export async function createAppConfig(
     logger.info("App configuration created successfully.");
   } catch (err: any) {
     logger.error(`Failed to create app config: ${err?.message}`);
-    throw err;
-  }
-}
-
-/**
- * Copy the app-config MDMS modules and localisations from an existing campaign into a new one.
- */
-export async function createAppConfigFromClone(
-  tenantId: string,
-  newCampaignNumber: string,
-  cloneFromCampaignNumber: string,
-  RequestInfo: any
-): Promise<void> {
-  try {
-    if (!newCampaignNumber) {
-      throw new Error(`createAppConfigFromClone: newCampaignNumber is required but got: ${newCampaignNumber}`);
-    }
-    if (!cloneFromCampaignNumber) {
-      throw new Error(`createAppConfigFromClone: cloneFromCampaignNumber is required but got: ${cloneFromCampaignNumber}`);
-    }
-    logger.info("Started creating app config from clone...");
-
-    const moduleName = config.values.moduleName;
-    const FormConfig = config.values.formConfigName;
-    const configSchema = `${moduleName}.${FormConfig}`;
-
-    logger.debug(`Config Schema: ${configSchema}`);
-    
-    const useruuid = RequestInfo?.userInfo?.uuid;
-    if (!useruuid) {
-      throw new Error("User uuid not found in request");
-    }
-
-    const [locales, localisation] = await Promise.all([
-      getLocalesFromStateInfo(tenantId),
-      Localisation.getInstance(),
-    ]);
-
-    const modulesToClone = (await searchAllMdmsRows(tenantId, configSchema, { project: cloneFromCampaignNumber }))
-      .map((item: any) => item?.data)
-      .flat()
-      .filter(Boolean);
-
-    if (!modulesToClone.length) {
-      logger.warn("No modules found to clone.");
-      return;
-    }
-
-    for (const module of modulesToClone) {
-      const moduleName = module?.name;
-      if (!moduleName) continue;
-
-      const baseKey = `hcm-${moduleName.toLowerCase()}-${cloneFromCampaignNumber}`;
-      const newKey = `hcm-${moduleName.toLowerCase()}-${newCampaignNumber}`;
-
-      await upsertLocalisations(tenantId, baseKey, newKey, locales, localisation, RequestInfo);
-
-      const newModule = {
-        ...module,
-        project: newCampaignNumber,
-        isSelected: true,
-      };
-
-      await createMdmsData(tenantId, configSchema, newModule, RequestInfo);
-    }
-
-    // The console edits the configuration through its editor copy (pages and flows) and only writes the result back to
-    // FormConfig; without that copy a clone's editor would be rebuilt from FormConfig instead of showing the source's pages
-    const pages = await copyCampaignMdmsRows(tenantId, `${moduleName}.${config.values.transformedFormConfigName}`, cloneFromCampaignNumber,
-      newCampaignNumber, (data: any) => `${data?.module}|${data?.flow}|${data?.page}`, RequestInfo);
-    const flows = await copyCampaignMdmsRows(tenantId, `${moduleName}.${config.values.appFlowConfigName}`, cloneFromCampaignNumber,
-      newCampaignNumber, (data: any) => `${data?.name}`, RequestInfo);
-    logger.info(`Campaign ${newCampaignNumber}: copied ${modulesToClone.length} app modules, ${pages} editor pages and ${flows} flow lists of ${cloneFromCampaignNumber}`);
-
-    logger.info("App configuration cloned successfully.");
-  } catch (err: any) {
-    logger.error(`Failed to clone app config: ${err?.message}`);
     throw err;
   }
 }

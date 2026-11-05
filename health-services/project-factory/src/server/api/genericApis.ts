@@ -1,4 +1,5 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
+import { TenantId } from "../config/models/brandedTypes";
 import config from "../config";
 import FormData from "form-data";
 import { defaultheader, httpRequest } from "../utils/request";
@@ -765,7 +766,7 @@ export type ProjectFacilityRemoval = { result: "deleted" | "absent" | "mismatch"
  */
 export async function deleteProjectFacilitiesById(
   links: { id: string; projectId: string; facilityId: string }[],
-  tenantId: string,
+  tenantId: TenantId,
   requestInfo: RequestInfo
 ): Promise<Map<string, ProjectFacilityRemoval>> {
   const outcomes = new Map<string, ProjectFacilityRemoval>();
