@@ -411,6 +411,9 @@ const config = {
     sheetFetchPageSize: process.env.EXCEL_INGESTION_PAGE_SIZE ? parseInt(process.env.EXCEL_INGESTION_PAGE_SIZE, 10) : 2000,
     persistenceStallTimeoutMs: process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS, 10) : 120000,
     persistencePollIntervalMs: process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS, 10) : 10000,
+    // Upload checks of an edit's file read at its Submit (validateEditFile): page size and number of pages
+    uploadCheckPageSize: process.env.EXCEL_INGESTION_UPLOAD_CHECK_PAGE_SIZE ? parseInt(process.env.EXCEL_INGESTION_UPLOAD_CHECK_PAGE_SIZE, 10) : 100,
+    uploadCheckMaxPages: process.env.EXCEL_INGESTION_UPLOAD_CHECK_MAX_PAGES ? parseInt(process.env.EXCEL_INGESTION_UPLOAD_CHECK_MAX_PAGES, 10) : 10,
   }
 };
 

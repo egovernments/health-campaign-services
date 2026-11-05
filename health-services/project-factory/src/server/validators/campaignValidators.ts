@@ -881,7 +881,7 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
  * - on an update, its file has no passed upload check for this edit.
  * Called by the create and update services right after validateProjectCampaignRequest, which loads the parent.
  */
-async function validateEditFile(request: any, actionInUrl: any) {
+async function validateEditFile(request: any, actionInUrl: any): Promise<void> {
     const CampaignDetails = request?.body?.CampaignDetails;
     const parentId = CampaignDetails?.parentId;
     const tenantId = CampaignDetails?.tenantId;
@@ -923,9 +923,6 @@ async function validateEditFile(request: any, actionInUrl: any) {
     }
 }
 
-const UPLOAD_CHECK_PAGE_SIZE = 100;
-const UPLOAD_CHECK_MAX_PAGES = 10;
-
 /**
  * The upload check of this file for this edit in excel-ingestion: "passed" when a unified-console-validation of it is
  * completed, valid and has no errors; "running" when none passed and one is still pending or in progress; else
@@ -934,13 +931,15 @@ const UPLOAD_CHECK_MAX_PAGES = 10;
  */
 async function editFileUploadCheck(request: any, editId: string, tenantId: string, fileStoreId: string): Promise<"passed" | "running" | "notPassed"> {
     const url = `${config.host.excelIngestionHost}${config.paths.excelIngestionProcessSearch}`;
+    const pageSize = Math.max(1, config.excelIngestion.uploadCheckPageSize || 100);
+    const maxPages = Math.max(1, config.excelIngestion.uploadCheckMaxPages || 10);
     let running = false;
     try {
-        for (let page = 0; page < UPLOAD_CHECK_MAX_PAGES; page++) {
+        for (let page = 0; page < maxPages; page++) {
             const response = await httpRequest(url, {
                 RequestInfo: request?.body?.RequestInfo,
                 ProcessingSearchCriteria: { tenantId, referenceIds: [editId], types: ["unified-console-validation"],
-                    limit: UPLOAD_CHECK_PAGE_SIZE, offset: page * UPLOAD_CHECK_PAGE_SIZE }
+                    limit: pageSize, offset: page * pageSize }
             });
             const checks: any[] = (response?.ProcessingDetails || []).filter((check: any) => check?.fileStoreId === fileStoreId);
             if (checks.some((check: any) => check?.status === "completed"
@@ -948,11 +947,11 @@ async function editFileUploadCheck(request: any, editId: string, tenantId: strin
                 return "passed";
             }
             running = running || checks.some((check: any) => check?.status === "pending" || check?.status === "inprogress");
-            if ((response?.ProcessingDetails || []).length < UPLOAD_CHECK_PAGE_SIZE) {
+            if ((response?.ProcessingDetails || []).length < pageSize) {
                 return running ? "running" : "notPassed";
             }
         }
-        logger.warn(`Edit ${editId}: more than ${UPLOAD_CHECK_MAX_PAGES * UPLOAD_CHECK_PAGE_SIZE} upload checks, the Submit goes ahead as before`);
+        logger.warn(`Edit ${editId}: more than ${maxPages * pageSize} upload checks, the Submit goes ahead as before`);
         return "passed";
     } catch (error: any) {
         logger.warn(`Edit ${editId}: could not read its upload checks from excel-ingestion, the Submit goes ahead as before: ${error?.message ?? error}`);
