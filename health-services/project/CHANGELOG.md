@@ -9,7 +9,7 @@ All notable changes to this module will be documented in this file.
 ## Unreleased - 2026-10-29
 
 - Outside Household sites (HCMPRE-2371): `facility/v1/_search` leaves out links to facilities whose `usage` is a site type from MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`, unless the request has `facilityId` or `id`. The `boundaryTypes` hierarchy search always leaves them out (it does not use `facilityId`).
-- New config: `egov.mdms.v2.search.path`.
+- Site types are read with the MDMS v2 search next to the existing `egov.mdms.search.endpoint` (env `EGOV_MDMS_SEARCH_ENDPOINT`); no new setting.
 
 ## 1.2.5 - 2026-10-13
 

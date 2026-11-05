@@ -6,7 +6,7 @@
   2. Edit: a changed frontline worker is written onto the existing link; a site set Inactive loses its link.
   3. Edit that removes `OUTSIDEHOUSEHOLD` from `cycleData.deliveryMethods` deletes every site link of the campaign (guarded; new switch `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`, default `true`).
   4. A draft update that adds or removes `OUTSIDEHOUSEHOLD` generates a new template.
-  5. New config: `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`, `EGOV_PROJECT_FACILITY_UPDATE_PATH`. See `OUTSIDE_HOUSEHOLD_SITES.md`.
+  5. New config: `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`. The site link update uses the path next to the existing `EGOV_HEALTH_PROJECT_FACILITY_SEARCH`. See `OUTSIDE_HOUSEHOLD_SITES.md`.
   9. A clone that uses its source's file links the source's saved sites for rows without a `clientReferenceId` (matched on type, category, boundary and name) instead of creating copies. New switch `OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES` (default `true`).
   8. A clone whose Outside Household choice changes back to its source's gets the source's file attached again (unless the save brings its own file).
   7. A save that leaves out a clone's `cloneFrom` / `clonedCampaignId` keeps the saved values (the console's final create sends a fresh `additionalDetails`; without them excel-ingestion rejects the source's file with `IMMUTABLE_IDENTITY_MISMATCH`). New switch `CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE` (default `true`).

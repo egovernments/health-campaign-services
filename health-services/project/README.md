@@ -47,7 +47,7 @@ A site's use in a campaign is a normal project-facility link with `additionalFie
 - `facility/v1/_search` leaves links to sites out unless the request has `facilityId` or `id`; the `boundaryTypes` hierarchy search leaves them out too. Links to normal facilities are unchanged.
 - `facility/v1/_search?onlyOutsideHouseholdSites=true` (URL parameter) with `boundaryTypes`: the hierarchy search returns only the links to sites instead, in `facilityMap` and `ProjectFacilities`. Without the parameter, or without `boundaryTypes`, nothing changes.
 - The site types are read from MDMS v2 (`OutsideHouseholdTypeService`, cached 5 minutes), using the existing `EGOV_MDMS_HOST`.
-- New config: `egov.mdms.v2.search.path` (default `egov-mdms-service/v2/_search`).
+- Site types are read with the MDMS v2 search next to the existing `egov.mdms.search.endpoint` (env `EGOV_MDMS_SEARCH_ENDPOINT`); no new setting.
 
 ## 1. Purpose
 

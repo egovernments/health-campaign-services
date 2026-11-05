@@ -44,9 +44,11 @@ the app.
 | `POST /project-factory/v1/project-type/create`, `/update` | project-factory | Campaign drafts, create, edit; template rebuild on OH change |
 | `POST /facility/v1/_create`, `/bulk/_create`, `/_update` | facility | Create / update a site (project-factory, or the app) |
 | `POST /facility/v1/_search` | facility | Sites of an area (`usage` + `boundaryCode`), or by `id` / `clientReferenceId` |
-| `POST /health-project/facility/v1/_create`, `/bulk/_create`, `/_update` | health-project | Link a site to a campaign; update its worker |
-| `POST /health-project/facility/v1/_search` | health-project | Site links of a campaign (`projectId` + `facilityId`) |
-| `POST /egov-mdms-service/v2/_search` (`HCM.OUTSIDE_HOUSEHOLD_TYPES`) | MDMS | Site types, default Site Status, categories per type |
+| `POST /<project>/facility/v1/_create`, `/bulk/_create`, `/_update` | health-project | Link a site to a campaign; update its worker |
+| `POST /<project>/facility/v1/_search` | health-project | Site links of a campaign (`projectId` + `facilityId`) |
+| `POST /<mdms>/v2/_search` (`HCM.OUTSIDE_HOUSEHOLD_TYPES`) | MDMS | Site types, default Site Status, categories per type |
+
+`<project>` and `<mdms>` are the service paths each environment configures: `health-project` and `egov-mdms-service` on dev / QA, `project` and `mdms-v2` on a central instance such as demo. No path is fixed in code: project-factory reads them from its existing `EGOV_HEALTH_PROJECT_*` / `EGOV_PROJECT_*` path settings, and facility / health-project from `EGOV_MDMS_HOST` and `EGOV_MDMS_SEARCH_ENDPOINT`.
 
 ---
 
@@ -165,7 +167,7 @@ Links carry the user who created or edited the campaign in `auditDetails`.
 |---|---|
 | New row | New site; linked if Active |
 | Active -> Inactive | Link deleted (`isDeleted: true`); the site stays |
-| Worker changed on an Active site | Existing link's `additionalFields` updated (`health-project/facility/v1/_update`) |
+| Worker changed on an Active site | Existing link's `additionalFields` updated (`<project>/facility/v1/_update`) |
 | `OUTSIDEHOUSEHOLD` removed from the delivery methods | Every site link of the campaign deleted; facility links and site records stay |
 | `OUTSIDEHOUSEHOLD` added back | Sheet shows each site as before; uploading links the Active ones again |
 
@@ -196,7 +198,7 @@ seeing only normal facilities:
 | API | Left out when the request has... | Returned when the request has... |
 |---|---|---|
 | `POST /facility/v1/_search` | none of `usage`, `id`, `clientReferenceId` | `usage` (a site type), `id` or `clientReferenceId` |
-| `POST /health-project/facility/v1/_search` | neither `facilityId` nor `id` (also `boundaryTypes` searches) | `facilityId` or `id` |
+| `POST /<project>/facility/v1/_search` | neither `facilityId` nor `id` (also `boundaryTypes` searches) | `facilityId` or `id` |
 
 `TotalCount` counts only returned records. `boundaryCode` is an exact match. With `includeDeleted=true` a link removed in
 an edit comes back with `isDeleted: true`. If MDMS cannot be read the last site-type list is used; with no list nothing
@@ -229,14 +231,14 @@ update's own delivery methods, so it does not depend on the stored copy being sa
 | Service | Key (default) | Purpose |
 |---|---|---|
 | excel-ingestion | `excel.ingestion.outside.household.campaign.types` (`POLIO`) | Campaign types that can get the OH sheet |
-| facility | `egov.mdms.host` (`http://mdms-v2.egov:8080/`, env `EGOV_MDMS_HOST`), `egov.mdms.v2.search.path` (`egov-mdms-service/v2/_search`) | Reading site types to hide sites |
-| health-project | `egov.mdms.v2.search.path` (`egov-mdms-service/v2/_search`); host = existing `EGOV_MDMS_HOST` | Reading site types to hide site links |
+| facility | existing `egov.mdms.host` (env `EGOV_MDMS_HOST`) and `egov.mdms.search.endpoint` (env `EGOV_MDMS_SEARCH_ENDPOINT`); the v2 search is the same service path with v2 | Reading site types to hide sites. The facility chart must set both per environment, as the project chart does (e.g. `/mdms-v2/v1/_search` on demo) |
+| health-project | existing `egov.mdms.host` / `egov.mdms.search.endpoint` (env `EGOV_MDMS_HOST` / `EGOV_MDMS_SEARCH_ENDPOINT`), v2 next to the configured endpoint | Reading site types to hide site links |
 | project-factory | `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL` (`true`) | Edit that removes OH unlinks the sites |
 | project-factory | `CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE` (`true`) | After an OH choice change the old file is not attached again; a clone with a different OH choice does not keep its source's file |
 | project-factory | `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED` (`true`) | A campaign without OH does not read the Outside Household sheet of an uploaded file |
 | project-factory | `CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE` (`true`) | A save that leaves out a clone's `cloneFrom` / `clonedCampaignId` (the console's final create) keeps the saved values, so the clone can still use its source's file |
 | project-factory | `OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES` (`true`) | A clone matches site rows without a `clientReferenceId` to its source's saved sites and links them, instead of creating copies |
-| project-factory | `EGOV_PROJECT_FACILITY_UPDATE_PATH` (`health-project/facility/v1/_update`) | Updating a link's worker in an edit |
+| project-factory | none new: the link update path is next to the existing `EGOV_HEALTH_PROJECT_FACILITY_SEARCH`, and the upload-check search next to the existing `EXCEL_INGESTION_PROCESS` | Updating a link's worker in an edit; reading an edit file's upload checks |
 | project-factory | `BOUNDARY_SYNC_RETRY_DELAY_MS` (`4000`, existing) | Wait between checks before a template rebuild |
 
 No new Kafka topics, database migrations or persister changes.

@@ -57,8 +57,8 @@ public class FacilityConfiguration {
     @Value("${egov.mdms.host}")
     private String mdmsHost;
 
-    @Value("${egov.mdms.v2.search.path}")
-    private String mdmsV2SearchPath;
+    @Value("${egov.mdms.search.endpoint}")
+    private String mdmsEndPoint;
 
     // Site types used to hide sites when MDMS cannot be read and no list has been read yet
     @Value("${egov.outside.household.fallback.types:OUTSIDE_HOUSEHOLD_PLACES,TRANSIT_POST}")

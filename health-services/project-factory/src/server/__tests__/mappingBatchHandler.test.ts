@@ -1,5 +1,6 @@
 import { handleMappingBatch } from '../utils/mappingBatchHandler';
 import { mappingStatuses } from '../config/constants';
+import config from '../config';
 
 jest.mock('../utils/logger', () => ({
     logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
@@ -56,8 +57,8 @@ jest.mock('../config', () => ({
             maxRetries: 3,
             outsideHouseholdLinkUpdateConcurrency: 2,
         },
-        host: { projectHost: 'http://project/' },
-        paths: { projectFacilitySearch: 'health-project/facility/v1/_search', projectFacilityUpdate: 'health-project/facility/v1/_update' },
+        host: jest.requireActual('../config').default.host,
+        paths: jest.requireActual('../config').default.paths,
         DB_CONFIG: { DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME: 'eg_cm_campaign_mapping_data' },
     },
 }));
@@ -596,8 +597,8 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
     function wire(search: () => any, update?: () => any) {
         updates = [];
         httpMock.mockImplementation(async (url: string, body: any) => {
-            if (url.endsWith('/_search')) return search();
-            if (url.endsWith('/_update')) { updates.push(body.ProjectFacility); return update ? update() : {}; }
+            if (url.endsWith(config.paths.projectFacilitySearch)) return search();
+            if (url.endsWith(config.paths.projectFacilityUpdate)) { updates.push(body.ProjectFacility); return update ? update() : {}; }
             return {};
         });
     }
@@ -616,7 +617,7 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
     it('writes the campaign worker onto the link read by its stored id and marks the row mapped', async () => {
         wire(() => ({ ProjectFacilities: [link([{ key: 'frontlineWorkerName', value: 'Old' }])] }));
         await handleMappingBatch(message([{ ...row }]));
-        expect(httpMock.mock.calls.find(([url]) => url.endsWith('/_search'))?.[1]).toMatchObject({ ProjectFacility: { id: ['PF-1'] } });
+        expect(httpMock.mock.calls.find(([url]) => url.endsWith(config.paths.projectFacilitySearch))?.[1]).toMatchObject({ ProjectFacility: { id: ['PF-1'] } });
         expect(updates).toEqual([expect.objectContaining({ id: 'PF-1', additionalFields: { schema: 'OutsideHouseholdAssignment', version: 1, fields: newFields } })]);
         expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.mapped })]);
         expect(lastErrorSql()).toHaveLength(0);
@@ -661,7 +662,7 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
         let inFlight = 0, maxInFlight = 0;
         const updated: string[] = [];
         httpMock.mockImplementation(async (url: string, body: any) => {
-            if (url.endsWith('/_search')) return { ProjectFacilities: rows.map((r, i) => ({ ...link([]), id: r.mappingId, facilityId: `F-${i + 1}` })) } as any;
+            if (url.endsWith(config.paths.projectFacilitySearch)) return { ProjectFacilities: rows.map((r, i) => ({ ...link([]), id: r.mappingId, facilityId: `F-${i + 1}` })) } as any;
             inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
             await Promise.resolve(); await Promise.resolve();
             inFlight--;
@@ -678,8 +679,8 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
     it('leaves the retries to the reconciler: no httpRequest retry on the link search and update', async () => {
         wire(() => ({ ProjectFacilities: [link([])] }));
         await handleMappingBatch(message([{ ...row }]));
-        const search = httpMock.mock.calls.find(([url]) => url.endsWith('/_search'))!;
-        const update = httpMock.mock.calls.find(([url]) => url.endsWith('/_update'))!;
+        const search = httpMock.mock.calls.find(([url]) => url.endsWith(config.paths.projectFacilitySearch))!;
+        const update = httpMock.mock.calls.find(([url]) => url.endsWith(config.paths.projectFacilityUpdate))!;
         expect(search[7]).toBeUndefined();
         expect(update[7]).toBe(false);
     });
@@ -687,7 +688,7 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
     it('marks a row with no link id mapped (there is no link to write) without reading any link', async () => {
         wire(() => ({ ProjectFacilities: [] }));
         await handleMappingBatch(message([{ ...row, mappingId: null }]));
-        expect(httpMock.mock.calls.filter(([url]) => url.endsWith('/_search') || url.endsWith('/_update'))).toHaveLength(0);
+        expect(httpMock.mock.calls.filter(([url]) => url.endsWith(config.paths.projectFacilitySearch) || url.endsWith(config.paths.projectFacilityUpdate))).toHaveLength(0);
         expect(persisted()).toEqual([expect.objectContaining({ uniqueIdentifierForData: 'site-1', status: mappingStatuses.mapped })]);
     });
 

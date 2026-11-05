@@ -6,6 +6,10 @@ if (!HOST) {
 }
 
 // Application configuration
+// A sibling endpoint of a configured path: same service prefix and version, last segment replaced
+// (e.g. <prefix>/facility/v1/_search -> <prefix>/facility/v1/_update), so it follows the path each environment configures
+const siblingPath = (path: string, lastSegment: string): string => path.replace(/[^/]*$/, lastSegment);
+
 const config = {
   batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 100,
   cacheTime: 300,
@@ -329,7 +333,6 @@ const config = {
     staffCreate: process.env.EGOV_PROJECT_STAFF_CREATE_PATH || "health-project/staff/v1/_create",
     projectResourceCreate: process.env.EGOV_PROJECT_RESOURCE_CREATE_PATH || "health-project/resource/v1/_create",
     projectFacilityCreate: process.env.EGOV_PROJECT_RESOURCE_FACILITY_PATH || "health-project/facility/v1/_create",
-    projectFacilityUpdate: process.env.EGOV_PROJECT_FACILITY_UPDATE_PATH || "health-project/facility/v1/_update",
     staffBulkCreate: process.env.EGOV_PROJECT_STAFF_BULK_CREATE_PATH || "health-project/staff/v1/bulk/_create",
     projectResourceBulkCreate: process.env.EGOV_PROJECT_RESOURCE_BULK_CREATE_PATH || "health-project/resource/v1/bulk/_create",
     projectFacilityBulkCreate: process.env.EGOV_PROJECT_FACILITY_BULK_CREATE_PATH || "health-project/facility/v1/bulk/_create",
@@ -346,6 +349,8 @@ const config = {
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
     healthIndividualSearch: process.env.EGOV_HEALTH_INDIVIDUAL_SEARCH || "health-individual/v1/_search",
     projectFacilitySearch: process.env.EGOV_HEALTH_PROJECT_FACILITY_SEARCH || "health-project/facility/v1/_search",
+    // Site link worker update: next to the configured project-facility search (health-project or project, per environment)
+    get projectFacilityUpdate(): string { return siblingPath(this.projectFacilitySearch, "_update"); },
     projectResourceSearch: process.env.EGOV_PROJECT_RESOURCE_SEARCH_PATH || "health-project/resource/v1/_search",
     projectStaffSearch: process.env.EGOV_HEALTH_PROJECT_STAFF_SEARCH || "health-project/staff/v1/_search",
     projectFacilityDelete: process.env.EGOV_HEALTH_PROJECT_FACILITY_BULK_DELETE || "health-project/facility/v1/bulk/_delete",
@@ -359,9 +364,10 @@ const config = {
     workerRegistrySearch: process.env.EGOV_WORKER_REGISTRY_SEARCH || "worker/v1/_search",
     excelIngestionSheetSearch: process.env.EXCEL_INGESTION_SHEET_SEARCH || "excel-ingestion/v1/data/sheet/_search",
     excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/process/_create",
+    // Upload checks of an edit's file: next to the configured process path
+    get excelIngestionProcessSearch(): string { return siblingPath(this.excelIngestionProcess, "_search"); },
     excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init",
     excelIngestionGenerateSearch: process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
-    excelIngestionProcessSearch: process.env.EXCEL_INGESTION_PROCESS_SEARCH || "excel-ingestion/v1/data/process/_search",
     attendanceRegisterCreate: process.env.ATTENDANCE_REGISTER_CREATE_PATH || "health-attendance/v1/_create",
     attendanceRegisterSearch: process.env.ATTENDANCE_REGISTER_SEARCH_PATH || "health-attendance/v1/_search",
     attendanceRegisterUpdate: process.env.ATTENDANCE_REGISTER_UPDATE_PATH || "health-attendance/v1/_update",

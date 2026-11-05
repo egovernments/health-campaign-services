@@ -22,6 +22,7 @@ jest.mock('../api/coreApis', () => ({}));
 import { validateEditFile } from '../validators/campaignValidators';
 import { searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
 import { httpRequest } from '../utils/request';
+import config from '../config';
 
 const searchMock = searchResourceDetailsFromDB as jest.Mock;
 const httpMock = httpRequest as jest.Mock;
@@ -93,7 +94,7 @@ describe('validateEditFile: the file of an edit passed its upload check for this
         httpMock.mockResolvedValue(checks(check('OTHER-FILE', 'failed', 'invalid'), check('EDIT-FILE')));
         await expect(validateEditFile(request([{ type: UNIFIED, filestoreId: 'EDIT-FILE' }]), 'update')).resolves.toBeUndefined();
         const [url, body] = httpMock.mock.calls[0];
-        expect(url).toContain('excel-ingestion/v1/data/process/_search');
+        expect(url).toBe(`${config.host.excelIngestionHost}${config.paths.excelIngestionProcessSearch}`);
         expect(body.ProcessingSearchCriteria).toEqual({ tenantId: 'dev', referenceIds: ['CHILD-1'], types: ['unified-console-validation'], limit: 100, offset: 0 });
     });
 
