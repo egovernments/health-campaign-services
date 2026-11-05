@@ -511,6 +511,15 @@ function addMissingDistributorsFromUserRows(
     }
 }
 
+async function timeDistributorStep<T>(step: string, run: () => Promise<T>): Promise<T> {
+    const startedAt = Date.now();
+    try {
+        return await run();
+    } finally {
+        logger.info(`distributor-by-dh timing step=${step} durationMs=${Date.now() - startedAt}`);
+    }
+}
+
 /** DH codes of the requester's own campaign user rows, so a DH user only sees the distributors under their own DH. */
 function findRequesterDhCodes(userRows: unknown, requesterUuid: string): Set<string> {
     const dhCodes = new Set<string>();
@@ -554,7 +563,8 @@ const searchDistributorsByDhService = async (request: any) => {
     const { TemplateClass: AttendanceRegisterUserBulkMappingTemplateClass } =
         await import("../generateFlowClasses/attendanceRegisterUserBulkMapping-generateClass");
 
-    const campaignResponse = await searchProjectTypeCampaignService({ tenantId, campaignNumber: requestedCampaignNumber }, request);
+    const requestStartedAt = Date.now();
+    const campaignResponse = await timeDistributorStep("campaign-search", () => searchProjectTypeCampaignService({ tenantId, campaignNumber: requestedCampaignNumber }, request));
     const matchedCampaigns: any[] = Array.isArray(campaignResponse?.CampaignDetails) ? campaignResponse.CampaignDetails : [];
     const campaignDetail = matchedCampaigns.find((campaign) => !campaign?.parentId) ?? matchedCampaigns[0];
     if (!campaignDetail) {
@@ -574,7 +584,7 @@ const searchDistributorsByDhService = async (request: any) => {
             .filter(Boolean)
     );
 
-    const userRows = await getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed);
+    const userRows = await timeDistributorStep("user-rows-db", () => getRelatedDataWithCampaign(USER_DATA_TYPE, requestedCampaignNumber, tenantId, dataRowStatuses.completed));
     // Lazy: cryptUtils derives its key from config at import time, which must not run for every importer of this service.
     const { decrypt } = await import("../utils/cryptUtils");
 
@@ -588,16 +598,17 @@ const searchDistributorsByDhService = async (request: any) => {
 
     const sheetMap = matchesNothing
         ? undefined
-        : await AttendanceRegisterUserBulkMappingTemplateClass.generate(
+        : await timeDistributorStep("bulk-mapping-generate", () => AttendanceRegisterUserBulkMappingTemplateClass.generate(
             generationtTemplateConfigs.attendanceRegisterUserBulkMapping,
             {
                 tenantId,
                 campaignId,
                 hierarchyType,
-                requestInfo: request?.body?.RequestInfo
+                requestInfo: request?.body?.RequestInfo,
+                distributorScope: { dhCodes: dhFilter, campaignUserRows: userRows }
             },
             {}
-        );
+        ));
 
     const workerRows = Array.isArray(sheetMap?.[attendanceSheetNames.WORKER]?.data)
         ? sheetMap[attendanceSheetNames.WORKER].data
@@ -654,7 +665,10 @@ const searchDistributorsByDhService = async (request: any) => {
     if (unresolvedUserNames.length > 0) {
         // Lazy: userBatchHandler pulls in the user-creation stack, needed only when the campaign data missed a uuid.
         const { fetchUserUuidsByUserName } = await import("../utils/userBatchHandler");
-        const uuidsByUserName = await fetchUserUuidsByUserName(unresolvedUserNames, tenantId, request?.body?.RequestInfo);
+        const uuidsByUserName = await timeDistributorStep(
+            `egov-user-uuid-lookup usernames=${unresolvedUserNames.length}`,
+            () => fetchUserUuidsByUserName(unresolvedUserNames, tenantId, request?.body?.RequestInfo)
+        );
         for (const group of distributorsByDh.values()) {
             for (const distributor of group.distributors) {
                 if (!distributor.uuid) distributor.uuid = uuidsByUserName.get(distributor.userName) ?? "";
@@ -684,6 +698,7 @@ const searchDistributorsByDhService = async (request: any) => {
     }
 
     const pagedGroups = sortedGroups.slice(offset, offset + limit);
+    logger.info(`distributor-by-dh timing step=total durationMs=${Date.now() - requestStartedAt} groups=${sortedGroups.length}`);
 
     return {
         DHDistributors: pagedGroups,

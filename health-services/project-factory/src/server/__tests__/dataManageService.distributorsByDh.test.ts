@@ -1124,4 +1124,32 @@ describe("searchDistributorsByDhService", () => {
             await expect(searchDistributorsByDhService(buildRequest())).rejects.toMatchObject({ code: "CAMPAIGN_NOT_FOUND" });
         });
     });
+
+    describe("scoped generation", () => {
+        it("scopes the generator to the requester's DH codes and reuses the loaded user rows", async () => {
+            givenUserRows([userRow("W-1", uuidFor(1))], [DH_ONE]);
+
+            await searchDistributorsByDhService(buildRequest());
+
+            const scope = mockGenerate.mock.calls[0][1].distributorScope;
+            expect(Array.from(scope.dhCodes)).toEqual([DH_ONE]);
+            expect(scope.campaignUserRows).toBe(await mockUserRows.mock.results[0].value);
+        });
+
+        it("narrows the scope to the requested localityCodes inside the requester's DHs", async () => {
+            givenUserRows([], [DH_ONE, DH_TWO]);
+
+            await searchDistributorsByDhService(buildRequest({ tenantId: "bo", campaignNumber: "CMP-1", localityCodes: [DH_TWO] }));
+
+            expect(Array.from(mockGenerate.mock.calls[0][1].distributorScope.dhCodes)).toEqual([DH_TWO]);
+        });
+
+        it("skips the generator entirely when the requester has no DH", async () => {
+            givenUserRows([], []);
+
+            await searchDistributorsByDhService(buildRequest());
+
+            expect(mockGenerate).not.toHaveBeenCalled();
+        });
+    });
 });
