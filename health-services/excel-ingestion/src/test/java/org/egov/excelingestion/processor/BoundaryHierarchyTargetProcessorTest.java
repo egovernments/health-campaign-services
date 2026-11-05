@@ -162,6 +162,49 @@ public class BoundaryHierarchyTargetProcessorTest {
         verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), eq(validationErrors), anyString());
     }
 
+    /** A Boundary List sheet with the real column keys: one row per given boundary code, sheet rows 3 onwards. */
+    private void boundaryRows(String... codes) {
+        workbook.removeSheetAt(workbook.getSheetIndex("Target Sheet"));
+        Sheet s = workbook.createSheet("Target Sheet");
+        Row header = s.createRow(0);
+        header.createCell(0).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+        header.createCell(1).setCellValue("Target Value");
+        for (int i = 0; i < codes.length; i++) {
+            Row r = s.createRow(2 + i);
+            r.createCell(0).setCellValue(codes[i]);
+            r.createCell(1).setCellValue("100");
+        }
+        when(mdmsService.searchMDMS(any(), eq("test-tenant"), eq("HCM-ADMIN-CONSOLE.schemas"), any(), eq(1), eq(0)))
+                .thenReturn(Arrays.asList(createMdmsResponse(createMockSchema())));
+        when(schemaValidationService.validateDataWithPreFetchedSchema(any(), any(), any(), any())).thenReturn(new ArrayList<>());
+        lenient().when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(any(), any(), any(), any(), any()))
+                .thenReturn(new HashSet<>(Arrays.asList("B001", "B002")));
+        lenient().when(validationService.addValidationColumns(any(), any())).thenReturn(new ValidationColumnInfo(2, 3));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testProcessWorkbook_BoundaryOnASecondRow_OnlyThatRowIsRejected() {
+        boundaryRows("B001", "B002", "B001");   // sheet rows 3, 4, 5: row 5 repeats row 3's boundary (a copied row)
+
+        processor.processWorkbook(workbook, "Target Sheet", resource, requestInfo, localizationMap);
+
+        org.mockito.ArgumentCaptor<List<ValidationError>> errors = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(validationService).processValidationErrors(any(), errors.capture(), any(), any());
+        assertEquals(1, errors.getValue().size(), errors.getValue().toString());
+        assertEquals(5, errors.getValue().get(0).getRowNumber());
+        assertEquals("This boundary is already in the sheet (row 3).", errors.getValue().get(0).getErrorDetails());
+    }
+
+    @Test
+    public void testProcessWorkbook_EachBoundaryOnce_NoBoundaryError() {
+        boundaryRows("B001", "B002");
+
+        processor.processWorkbook(workbook, "Target Sheet", resource, requestInfo, localizationMap);
+
+        verify(validationService, never()).processValidationErrors(any(), any(), any(), any());
+    }
+
     @Test
     public void testProcessWorkbook_NoProjectType_ShouldSkipValidation() {
         // Given
