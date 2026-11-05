@@ -89,6 +89,8 @@ class FOutsideHouseholdSiteValidatorTest {
                 site("+North", "TRANSIT_POST", "CHECKPOINT"),
                 site("North 1+1", "TRANSIT_POST", "CHECKPOINT"),
                 site("North 1+1=2", "TRANSIT_POST", "CHECKPOINT"),
+                site("Post \u201CC\u201D", "TRANSIT_POST", "CHECKPOINT"),
+                site("St. Mary\u2019s Post", "TRANSIT_POST", "CHECKPOINT"),
                 site("Store #1", "Warehouse", null));   // not a site: not checked
 
         assertEquals(Map.of(
@@ -99,7 +101,9 @@ class FOutsideHouseholdSiteValidatorTest {
                 "+North", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
                 "Market {B}", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
                 "Post \"C\"", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
-                "North 1+1=2", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME)), errors);
+                "North 1+1", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "North 1+1=2", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME),
+                "Post \u201CC\u201D", List.of(FOutsideHouseholdSiteValidator.INVALID_NAME)), errors);
     }
 
     @Test

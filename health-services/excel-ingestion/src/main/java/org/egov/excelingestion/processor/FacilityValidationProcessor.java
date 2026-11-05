@@ -26,10 +26,10 @@ import java.util.regex.Pattern;
 public class FacilityValidationProcessor implements IWorkbookProcessor {
 
     /**
-     * A Facility Name or Site Name may use any character except ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " = and control
-     * characters (line break, tab), and may not start with + (a spreadsheet would read it as a formula)
+     * A Facility Name or Site Name may use any character except ! @ # $ % ^ * ; < > ? | \ ~ { } [ ] " = +, the curly
+     * double quotes and control characters (line break, tab)
      */
-    static final Pattern ALLOWED_NAME = Pattern.compile("(?!\\+)[^!@#$%^*;<>?|\\\\~{}\\[\\]\"=\\p{Cntrl}]+");
+    static final Pattern ALLOWED_NAME = Pattern.compile("[^!@#$%^*;<>?|\\\\~{}\\[\\]\"\u201C\u201D=+\\p{Cntrl}]+");
 
     private final ValidationService validationService;
     private final ExcelIngestionConfig config;
