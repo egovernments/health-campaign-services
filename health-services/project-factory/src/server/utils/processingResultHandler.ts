@@ -21,7 +21,7 @@ import { triggerUserCredentialEmailFlow } from './mailUtils';
 import { runMappingReconciler } from './mappingReconciler';
 import { fetchExistingUsersByPhone, selectReconcilableUserRows } from './userBatchHandler';
 import { outsideHouseholdLinkAdditionalFields, sameOutsideHouseholdLinkFields } from './outsideHouseholdLinkFields';
-import { linksNeedingWorkerUpdate, updateLinkWorkers, duplicateLinkGroups, duplicateLinkFailures, LinkWorkerUpdateFailure } from './outsideHouseholdLinkWorkerUpdate';
+import { linksNeedingWorkerUpdate, updateLinkWorkers, duplicateLinkGroups, duplicateLinkFailures, distinctLinks, LinkWorkerUpdateFailure } from './outsideHouseholdLinkWorkerUpdate';
 import { OUTSIDE_HOUSEHOLD_DELIVERY_METHOD, normalizeDeliveryMethodCode } from './deliveryMethodUtils';
 
 /**
@@ -1596,7 +1596,7 @@ async function updateOutsideHouseholdLinkWorkers(
     const rootTenantId = tenantId.split('.')[0];
     const searchUrl = `${config.host.projectHost}${config.paths.projectFacilitySearch}`;
     const pageSize = config.mapping.searchPageSize;
-    const links: any[] = [];
+    let links: any[] = [];
     try {
         for (let offset = 0; ; offset += pageSize) {
             const response = await httpRequest(
@@ -1619,6 +1619,7 @@ async function updateOutsideHouseholdLinkWorkers(
         return;
     }
 
+    links = distinctLinks(links);
     // Rows of the changed sites whose link was not found (it no longer exists): created again, with the worker
     const boundaryCodesWithProject = boundaryData.filter((b: any) => b?.uniqueIdAfterProcess).map((b: any) => b.uniqueIdentifier).filter(Boolean);
     const relinked = await markSiteLinksToCreateAgain(campaignNumber, tenantId, {

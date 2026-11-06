@@ -1,4 +1,4 @@
-import { checkCampaignMappingCompletionStatus, markSiteLinkWorkerUpdatesFailed, markSiteLinkWorkerUpdatesFailedBySite, markSiteLinkWorkerUpdatesDone, resetFailedSiteLinkWorkerUpdates, markSiteLinksToCreateAgain, getFailedMappingRows } from '../utils/genericUtils';
+import { checkCampaignMappingCompletionStatus, markSiteLinkWorkerUpdatesFailed, markSiteLinkWorkerUpdatesFailedBySite, markSiteLinkWorkerUpdatesDone, resetFailedSiteLinkWorkerUpdates, markSiteLinksToCreateAgain, getFailedMappingRows, safeMappingError } from '../utils/genericUtils';
 import config from '../config';
 import { CampaignNumber, TenantId } from '../config/models/brandedTypes';
 import { mappingStatuses } from '../config/constants';
@@ -246,5 +246,23 @@ describe('getFailedMappingRows (reasons for the campaign failure message)', () =
         const [sql, params] = executeQueryMock.mock.calls[0];
         expect(String(sql)).toContain('LIMIT $4');
         expect(params).toEqual(['CMP-1', ['facility', 'resource'], [mappingStatuses.failed, mappingStatuses.deMapFailed, mappingStatuses.updateFailed], 1]);
+    });
+});
+
+describe('safeMappingError (no request dump or token in a stored or shown reason)', () => {
+    it('cuts a health-project refusal down to the text before the dump and its error codes', () => {
+        const dump = 'Failed to create link: [ErrorDetails(apiDetails=ApiDetails(id=null, url=Rainmaker, requestBody={"RequestInfo":{"authToken":"test-token-123"}}), '
+            + 'errors=[Error(exception=null, type=NON_RECOVERABLE, errorCode=DUPLICATE_ENTITY, errorMessage=x, additionalDetails=null)])]';
+        expect(safeMappingError(dump)).toBe('Failed to create link: DUPLICATE_ENTITY (details removed)');
+    });
+
+    it('removes a text that names the RequestInfo or a token even without error codes', () => {
+        expect(safeMappingError('bad request {"RequestInfo":{"authToken":"test-token-123"}}')).toBe('bad request error (details removed)');
+    });
+
+    it('keeps a plain reason, capped at 300 characters, and keeps null as null', () => {
+        expect(safeMappingError('Project not found for boundary B1')).toBe('Project not found for boundary B1');
+        expect(safeMappingError('x'.repeat(400))).toHaveLength(300);
+        expect(safeMappingError(null)).toBeNull();
     });
 });
