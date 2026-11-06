@@ -1,7 +1,7 @@
 * @kavi-egov @sathishp-eGov
-.github/  @kavi-egov @jagankumar-egov
+.github/  @kavi-egov 
 build/  @kavi-egov
 
-health-services/project-factory/  @jagankumar-egov
-health-services/excel-ingestion/  @jagankumar-egov
-health-services/boundary-management/  @jagankumar-egov
+health-services/project-factory/  
+health-services/excel-ingestion/ 
+health-services/boundary-management/  
