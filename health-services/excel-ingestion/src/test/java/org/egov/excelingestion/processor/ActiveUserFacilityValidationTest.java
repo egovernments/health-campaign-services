@@ -478,6 +478,33 @@ class ActiveUserFacilityValidationTest {
         assertTrue(errors.isEmpty());
     }
 
+    @Test
+    void testFacilityNameCharacters_TypedNamesAreCheckedPreFilledNamesAreNot() {
+        List<Map<String, Object>> rows = Arrays.asList(
+                createFacilityRow("Escola Primária (Sede) 1/2 - N'Gola & PHC_1, `A`. x: 1-1 St. Mary\u2019s", null, "Active", 3),
+                createFacilityRow("Store; Warehouse", null, "Active", 4),
+                createFacilityRow("PHC North?", null, "Active", 5),
+                createFacilityRow("Store [9]", null, "Active", 9),
+                createFacilityRow("Store\nEast", null, "Active", 10),
+                createFacilityRow("Store 1+1", null, "Active", 11),
+                createFacilityRow("Store \u201CEast\u201D", null, "Active", 12),
+                createFacilityRow("Old Store #6", "F-2026-01-01-000001", "Active", 6),   // existing facility
+                createFacilityRow("", null, "Inactive", 7));                                 // blank: left to the schema
+        Map<String, Object> stamped = createFacilityRow("Copied Row #8", null, "Active", 8);
+        stamped.put("HCM_ADMIN_CONSOLE____ROW_ID", "row-id-8");                                // pre-filled row
+        List<Map<String, Object>> sheetData = new ArrayList<>(rows);
+        sheetData.add(stamped);
+        List<ValidationError> errors = new ArrayList<>();
+
+        FacilityValidationProcessor.validateNameCharacters(sheetData, "HCM_ADMIN_CONSOLE_FACILITY_NAME",
+                "HCM_ADMIN_CONSOLE_FACILITY_CODE", errors, new HashMap<>());
+
+        assertEquals(Arrays.asList(4, 5, 9, 10, 11, 12), errors.stream().map(ValidationError::getRowNumber).toList());
+        assertEquals("HCM_ADMIN_CONSOLE_FACILITY_NAME", errors.get(0).getColumnName());
+        assertEquals("Name cannot have ! @ # $ % ^ * ; < > ? | \\ ~ { } [ ] \" \u201C \u201D = + or a line break or tab",
+                errors.get(0).getErrorDetails());
+    }
+
     // Helper methods
     private Map<String, Object> createUserRow(String name, String phone, String username, String usage, int rowNumber) {
         Map<String, Object> row = new HashMap<>();

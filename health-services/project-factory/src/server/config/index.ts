@@ -6,6 +6,10 @@ if (!HOST) {
 }
 
 // Application configuration
+// A sibling endpoint of a configured path: same service prefix and version, last segment replaced
+// (e.g. <prefix>/facility/v1/_search -> <prefix>/facility/v1/_update), so it follows the path each environment configures
+const siblingPath = (path: string, lastSegment: string): string => path.replace(/[^/]*$/, lastSegment);
+
 const config = {
   batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 100,
   cacheTime: 300,
@@ -116,12 +120,48 @@ const config = {
     searchPageSize: process.env.MAPPING_SEARCH_PAGE_SIZE ? parseInt(process.env.MAPPING_SEARCH_PAGE_SIZE, 10) : 100,
 
     createConcurrency: process.env.MAPPING_CREATE_CONCURRENCY ? parseInt(process.env.MAPPING_CREATE_CONCURRENCY, 10) : 10,
+    // Site links whose frontline worker changed in an edit are updated this many at a time; 1 updates them one by one
+    outsideHouseholdLinkUpdateConcurrency: process.env.OUTSIDE_HOUSEHOLD_LINK_UPDATE_CONCURRENCY ? parseInt(process.env.OUTSIDE_HOUSEHOLD_LINK_UPDATE_CONCURRENCY, 10) : 10,
+    // A site link update refused for a stale row version reads the link again and resends it, at most this many times, after this wait
+    outsideHouseholdLinkRereadAttempts: process.env.OUTSIDE_HOUSEHOLD_LINK_REREAD_ATTEMPTS ? parseInt(process.env.OUTSIDE_HOUSEHOLD_LINK_REREAD_ATTEMPTS, 10) : 2,
+    outsideHouseholdLinkRereadWaitMs: process.env.OUTSIDE_HOUSEHOLD_LINK_REREAD_WAIT_MS ? parseInt(process.env.OUTSIDE_HOUSEHOLD_LINK_REREAD_WAIT_MS, 10) : 2000,
+    // A campaign that fails on its mappings lists at most this many failed rows, with their reasons, in its failure message
+    failureMessageMaxRows: process.env.MAPPING_FAILURE_MESSAGE_MAX_ROWS ? parseInt(process.env.MAPPING_FAILURE_MESSAGE_MAX_ROWS, 10) : 20,
     bulkCreateChunkSize: process.env.MAPPING_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.MAPPING_BULK_CREATE_CHUNK_SIZE, 10) : 100,
     staffBulkEnabled: process.env.STAFF_MAPPING_BULK === "1" || process.env.STAFF_MAPPING_BULK === "true",
     bulkConfirmPollIntervalMs: process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS ? parseInt(process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS, 10) : 2000,
     bulkConfirmMaxAttempts: process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS ? parseInt(process.env.MAPPING_BULK_CONFIRM_MAX_ATTEMPTS, 10) : 5,
 
     maxRetries: process.env.MAPPING_MAX_RETRY_COUNT ? parseInt(process.env.MAPPING_MAX_RETRY_COUNT, 10) : 3,
+    // An edit that removes the Outside Household delivery method unlinks the campaign's sites; "false" keeps them linked
+    outsideHouseholdUnlinkOnDeliveryRemoval: (process.env.OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL || "true").toLowerCase() !== "false",
+    // A campaign whose delivery methods do not include Outside Household does not read the Outside Household sheet of
+    // an uploaded file (e.g. one a clone borrowed from its source); "false" reads it as before
+    outsideHouseholdIgnoreSheetWhenNotSelected: (process.env.OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED || "true").toLowerCase() !== "false",
+    // Files deactivated by a configuration change (boundaries, campaign type, hierarchy, Outside Household choice) are not
+    // attached again from the same save, and a clone does not keep its source's file when its Outside Household choice
+    // differs; "false" keeps the old behaviour
+    detachStaleResourcesOnConfigChange: (process.env.CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE || "true").toLowerCase() !== "false",
+    // A save that leaves out a clone's cloneFrom / clonedCampaignId (the console's final create does) keeps the saved
+    // values, so the clone can still use its source's file; "false" stores what the save sends, as before
+    keepCloneLineageOnUpdate: (process.env.CAMPAIGN_KEEP_CLONE_LINEAGE_ON_UPDATE || "true").toLowerCase() !== "false",
+    // A clone's site rows without a clientReferenceId (rows its source typed in) reuse the source's site with the same
+    // type, category, boundary and name instead of creating a copy; "false" creates new sites, as before
+    outsideHouseholdReuseCloneSourceSites: (process.env.OUTSIDE_HOUSEHOLD_REUSE_CLONE_SOURCE_SITES || "true").toLowerCase() !== "false",
+    // A clone whose sheet is not its source's file (e.g. a template that added or dropped Outside Household and carries the
+    // source's users) still reuses its source campaign's users, matched by phone; "false" reuses none, as before
+    cloneReuseSourceUsersOnNewSheet: (process.env.CAMPAIGN_CLONE_REUSE_SOURCE_USERS_ON_NEW_SHEET || "true").toLowerCase() !== "false",
+    // A new clone does not keep its source's delivery (cycle) dates, nor, for a campaign type outside
+    // CAMPAIGN_DELIVERY_CONDITION_TYPES, its delivery rules (dates and conditions); the planner sets the clone's own;
+    // "false" keeps them
+    clearCloneDeliveryDates: (process.env.CAMPAIGN_CLONE_CLEAR_DELIVERY_DATES || "true").toLowerCase() !== "false",
+    // Campaign types (comma-separated) with delivery conditions: only their clones keep the source's delivery rules (without
+    // the dates) and only their templates keep the earlier data when Outside Household is changed
+    deliveryConditionCampaignTypes: (process.env.CAMPAIGN_DELIVERY_CONDITION_TYPES || "POLIO")
+        .split(",").map(type => type.trim().toUpperCase()).filter(Boolean),
+    // After a save that adds or drops Outside Household, the new template keeps the users, targets and facilities of the
+    // file the campaign had before; "false" gives an empty template, as before
+    keepDataOnOutsideHouseholdChange: (process.env.CAMPAIGN_KEEP_DATA_ON_OUTSIDE_HOUSEHOLD_CHANGE || "true").toLowerCase() !== "false",
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 
@@ -314,6 +354,8 @@ const config = {
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
     healthIndividualSearch: process.env.EGOV_HEALTH_INDIVIDUAL_SEARCH || "health-individual/v1/_search",
     projectFacilitySearch: process.env.EGOV_HEALTH_PROJECT_FACILITY_SEARCH || "health-project/facility/v1/_search",
+    // Site link worker update: next to the configured project-facility search (health-project or project, per environment)
+    get projectFacilityUpdate(): string { return siblingPath(this.projectFacilitySearch, "_update"); },
     projectResourceSearch: process.env.EGOV_PROJECT_RESOURCE_SEARCH_PATH || "health-project/resource/v1/_search",
     projectStaffSearch: process.env.EGOV_HEALTH_PROJECT_STAFF_SEARCH || "health-project/staff/v1/_search",
     projectFacilityDelete: process.env.EGOV_HEALTH_PROJECT_FACILITY_BULK_DELETE || "health-project/facility/v1/bulk/_delete",
@@ -327,6 +369,8 @@ const config = {
     workerRegistrySearch: process.env.EGOV_WORKER_REGISTRY_SEARCH || "worker/v1/_search",
     excelIngestionSheetSearch: process.env.EXCEL_INGESTION_SHEET_SEARCH || "excel-ingestion/v1/data/sheet/_search",
     excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/process/_create",
+    // Upload checks of an edit's file: next to the configured process path
+    get excelIngestionProcessSearch(): string { return siblingPath(this.excelIngestionProcess, "_search"); },
     excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init",
     excelIngestionGenerateSearch: process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
     attendanceRegisterCreate: process.env.ATTENDANCE_REGISTER_CREATE_PATH || "health-attendance/v1/_create",
@@ -378,6 +422,9 @@ const config = {
     sheetFetchPageSize: process.env.EXCEL_INGESTION_PAGE_SIZE ? parseInt(process.env.EXCEL_INGESTION_PAGE_SIZE, 10) : 2000,
     persistenceStallTimeoutMs: process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_STALL_TIMEOUT_MS, 10) : 120000,
     persistencePollIntervalMs: process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS ? parseInt(process.env.EXCEL_INGESTION_PERSISTENCE_POLL_INTERVAL_MS, 10) : 10000,
+    // Upload checks of an edit's file read at its Submit (validateEditFile): page size and number of pages
+    uploadCheckPageSize: process.env.EXCEL_INGESTION_UPLOAD_CHECK_PAGE_SIZE ? parseInt(process.env.EXCEL_INGESTION_UPLOAD_CHECK_PAGE_SIZE, 10) : 100,
+    uploadCheckMaxPages: process.env.EXCEL_INGESTION_UPLOAD_CHECK_MAX_PAGES ? parseInt(process.env.EXCEL_INGESTION_UPLOAD_CHECK_MAX_PAGES, 10) : 10,
   }
 };
 

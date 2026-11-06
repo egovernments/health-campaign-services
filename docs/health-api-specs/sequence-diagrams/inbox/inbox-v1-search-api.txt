@@ -1,0 +1,243 @@
+@startuml
+title Inbox - V1 Search (workflow + module search inbox)
+!theme vibrant
+participant Client as c
+participant InboxService as s
+participant WorkflowService as wf
+participant EgovSearcher as sr
+participant UserService as us
+participant ModuleSearchService as ms
+participant EncryptionService as enc
+participant ElasticSearch as el
+participant VehicleService as vs
+participant FSMService as fsm
+
+c -> s : POST /inbox/v1/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(inbox.tenantId @NotNull, inbox.limit @Max(300),\nprocessSearchCriteria.businessService @NotNull)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+note right
+    All errors are mapped by the DIGIT tracer to
+    HTTP 400 { ResponseInfo, Errors }. Downstream
+    HttpClientErrorExceptions are rethrown as
+    ServiceCallException (downstream body returned).
+    processSearchCriteria.moduleName is effectively
+    mandatory (null -> 400 NullPointerException).
+end note
+
+s -> s: processCriteria.tenantId = inbox.tenantId\nmoduleName bsWs-service -> WS, bsSw-service -> SW
+
+opt moduleName not ws-services / sw-services
+    loop each businessService
+        s -> wf: /egov-workflow-v2/egov-wf/process/_count\n?tenantId&status&assignee&moduleName&businessService...
+        activate wf
+        wf -> s: Integer count
+        deactivate wf
+    end
+    s -> s: totalCount = sum
+end
+
+loop each businessService
+    s -> wf: /egov-workflow-v2/egov-wf/process/_nearingslacount
+    activate wf
+    wf -> s: Integer count
+    deactivate wf
+end
+alt count response cannot be mapped
+    s -> c: HttpStatus: 400 PARSING_ERROR
+end
+
+opt first role of userInfo == FSM_DSO
+    s -> sr: /egov-searcher/fsm-services/inboxfsmdsoId/_get\n(tenantId, ownerId = user uuid)
+    activate sr
+    sr -> s: vendor[0].id (dsoId - not used further)
+    deactivate sr
+end
+
+s -> s: Clear status and assignee (full status count map)
+loop each businessService
+    s -> wf: /egov-workflow-v2/egov-wf/process/_statuscount
+    activate wf
+    note right
+        FSM_DSO: &assignee=<user uuid>.
+        BPA + CITIZEN: criteria sent in the body.
+    end note
+    wf -> s: [ { applicationstatus, businessservice, statusid, count } ]
+    deactivate wf
+end
+s -> s: Restore input status and assignee
+
+group fetchAppropriateServiceMap (service.search.mapping)
+    alt no mapping key contains businessService[0]
+        s -> c: HttpStatus: 400 EG_INBOX_SEARCH_ERROR\n(Inbox service is not configured for the provided business services)
+    else moduleName != FSM and another businessService not in same key
+        s -> c: HttpStatus: 400 EG_INBOX_SEARCH_ERROR\n(Cross module search is NOT allowed.)
+    end
+end
+alt businessService list empty
+    s -> c: HttpStatus: 400 MODULE_SEARCH_INVLAID
+end
+note right
+    Unreachable in practice: businessService.get(0)
+    above already fails with IndexOutOfBoundsException.
+end note
+
+alt moduleSearchCriteria is not empty
+    s -> s: moduleSearchCriteria += tenantId, offset, limit
+    loop each businessService
+        s -> wf: /egov-workflow-v2/egov-wf/businessservice/_search\n?businessServices=<bs>&tenantId
+        activate wf
+        wf -> s: BusinessService (states, actions, businessServiceSla)
+        deactivate wf
+    end
+    s -> s: getActionableStatusesForRole -> StatusIdNameMap\n(states whose action roles match user roles,\n+ terminate states if inbox.show.closed.applications)
+    s -> s: moduleSearchCriteria[applsStatusParam] =\napplication statuses of requested / actionable states
+
+    group module specific pre-filter (egov-searcher)
+        opt moduleName == BPA and user has CITIZEN role
+            s -> sr: /egov-searcher/bpa-services/inboxbpa(citizen|stakeholder)tenantwiseapplnsearch/_get
+            activate sr
+            sr -> s: [ { tenantid, applicationno } ]
+            deactivate sr
+            loop each tenant
+                s -> wf: /egov-workflow-v2/egov-wf/process/_statuscount (per tenant)
+                activate wf
+                wf -> s: status counts (merged)
+                deactivate wf
+            end
+        end
+        opt moduleName == BPA and locality given
+            loop each status in statusMap
+                s -> sr: /egov-searcher/bpa-services/inboxbpa...count/_get
+                activate sr
+                sr -> s: count (status entry dropped when 0)
+                deactivate sr
+            end
+        end
+        opt mobileNumber in criteria (PT / TL / BPA / NOC / BS)
+            s -> us: /user/_search (userName = mobileNumber)
+            activate us
+            us -> s: user uuids
+            deactivate us
+        end
+        opt moduleName in PT, TL / BPAREG, BPA, NOC, bsWs-service / bsSw-service
+            s -> sr: /egov-searcher/<module>/inbox<module>searchcount/_get
+            activate sr
+            sr -> s: totalCount
+            deactivate sr
+            s -> sr: /egov-searcher/<module>/inbox<module>search[desc]/_get
+            activate sr
+            sr -> s: business ids (acknowledgement / application / consumer codes)
+            deactivate sr
+            s -> s: Put ids into moduleSearchCriteria;\nempty -> isSearchResultEmpty = true
+        end
+    end
+
+    opt moduleName == ws-services / sw-services
+        s -> enc: encryptJson(moduleSearchCriteria, "InboxWnS", state tenant)
+        activate enc
+        enc -> s: Encrypted criteria
+        deactivate enc
+        alt encryption / query build fails (incl. missing sortBy / sortOrder)
+            s -> c: HttpStatus: 400 JSONNODE_ERROR
+        end
+        s -> el: POST <services.esindexer.host>water-services | sewerage-services/_search\n(must: locality, applicationNumber, applicationType, consumerNo,\npropertyId, applicationStatus, assignee, businessService;\nfilter: mobileNumber)
+        activate el
+        alt ES call fails
+            el -> s: Error
+            s -> c: HttpStatus: 400 WNS_ES_SEARCH_ERROR
+        else
+            el -> s: hits (Data), hits.total.value
+            deactivate el
+        end
+        s -> s: totalCount = hits.total.value,\nserviceSLA from additionalDetails.appCreatedDate
+    end
+
+    opt not isSearchResultEmpty and module not ws-services / sw-services
+        s -> ms: POST <searchPath>?tenantId&<moduleSearchCriteria>\n(e.g. /fsm/v1/_search, /property-services/property/_search,\n/tl-services/v1/_search, /bpa-services/v1/bpa/_search ...)
+        activate ms
+        alt search path not configured
+            s -> c: HttpStatus: 400 INVALID_MODULE_SEARCH_PATH
+        else module search fails
+            ms -> s: Error
+            s -> c: HttpStatus: 400 { Errors from module }
+        else dataRoot missing in response
+            ms -> s: Response
+            s -> c: HttpStatus: 400 INVALID_MODULE_DATA
+        else
+            ms -> s: business objects [dataRoot]
+            deactivate ms
+        end
+    end
+
+    opt businessService WS.AMENDMENT / SW.AMENDMENT and objects found
+        s -> ms: POST ws-services/wc/_search | sw-services/swc/_search\n(bs.businesscode.service.search, searchType = CONNECTION)
+        activate ms
+        ms -> s: connections (serviceObject)
+        deactivate ms
+    end
+
+    s -> wf: /egov-workflow-v2/egov-wf/process/_search\n?tenantId&businessIds=<ids>&moduleName...
+    activate wf
+    note right: BPA + CITIZEN: one call per tenant
+    wf -> s: ProcessInstances
+    deactivate wf
+    s -> s: items = { ProcessInstance, businessObject[, serviceObject] }\n(WS / SW: businessObject = { Data, serviceSLA })
+else moduleSearchCriteria empty
+    s -> wf: /egov-workflow-v2/egov-wf/process/_search\n?tenantId&status&assignee&moduleName&limit&offset
+    activate wf
+    wf -> s: ProcessInstances
+    deactivate wf
+    s -> ms: POST <searchPath>?tenantId&<applNosParam>=<businessIds>&limit=-1
+    activate ms
+    ms -> s: business objects [dataRoot]
+    deactivate ms
+    alt dataRoot missing in response
+        s -> c: HttpStatus: 400 INVALID_MODULE_DATA
+    end
+    s -> s: items = { ProcessInstance, businessObject }
+end
+
+opt moduleName == FSM
+    s -> vs: /vehicle/v1/fetchApplicationStatusCount\n(WAITING_FOR_DISPOSAL, DISPOSED)
+    activate vs
+    vs -> s: applicationStatusCount
+    deactivate vs
+    s -> wf: /egov-workflow-v2/egov-wf/businessservice/_search\n?businessServices=FSM_VEHICLE_TRIP
+    activate wf
+    wf -> s: BusinessService
+    deactivate wf
+    s -> s: Append vehicle trip status counts, add to totalCount
+    s -> vs: /vehicle/v1/searchTrip (applicationNos in\nDSO_INPROGRESS, CITIZEN_FEEDBACK_PENDING, COMPLETED)
+    activate vs
+    vs -> s: VehicleTripDetail
+    deactivate vs
+    s -> s: businessObject.vehicleLog = trips
+    opt items empty and totalCount > 0 and no applicationNos
+        s -> fsm: /fsm/v1/fetchApplicationIds (statuses, limit, offset)
+        activate fsm
+        fsm -> s: applicationIdList
+        deactivate fsm
+        s -> wf: /egov-workflow-v2/egov-wf/process/_search (businessIds)
+        activate wf
+        wf -> s: ProcessInstances
+        deactivate wf
+        s -> ms: POST /fsm/v1/_search (applicationNos)
+        activate ms
+        ms -> s: fsm objects
+        deactivate ms
+    end
+    s -> s: Aggregate statusMap by applicationstatus
+    alt vehicle / fsm response cannot be mapped
+        s -> c: HttpStatus: 400 PARSING_ERROR
+    end
+end
+
+s -> s: responseInfo from RequestInfo (status successful)
+s -> c: HttpStatus: 200 { responseInfo, totalCount, nearingSlaCount, statusMap, items }
+deactivate s
+
+@enduml

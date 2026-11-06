@@ -24,6 +24,7 @@ import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -246,6 +247,356 @@ class ImmutableJoinServiceTest {
             CustomException ex = assertThrows(CustomException.class, this::run);
             assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode(),
                     "a changed pre-filled cell is rejected, not reverted");
+            assertFalse(ex.getMessage().contains("Generic error:"), "error is not repeated");
+            assertTrue(ex.getMessage().contains("sheet 'Users', row 3, column 'name'"),
+                    "the packaged fallback retains the original context when a translation is absent");
+        }
+
+        // DIGIT-Frontend#4687: several changed pre-filled cells are named in ONE rejection, so the user does not
+        // fix one row, re-upload, and only then hear about the next.
+        @Test
+        void rejectOnChange_manyChangedCells_rejectedOnceNamingEveryCell() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(config.getImmutableRejectMaxListed()).thenReturn(20);
+            List<Map<String, Object>> up = new ArrayList<>(List.of(
+                    row(ROW_ID, "r1", "name", "HACKED-1", "village", "V1", ROW_NUM, 3),
+                    row(ROW_ID, "r2", "name", "Same", "village", "V2", ROW_NUM, 4),
+                    row(ROW_ID, "r3", "name", "HACKED-3", "village", "V3", ROW_NUM, 5),
+                    row(ROW_ID, "r4", "name", "HACKED-4", "village", "V4", ROW_NUM, 6)));
+            List<Map<String, Object>> base = new ArrayList<>(List.of(
+                    row(ROW_ID, "r1", "name", "One", "village", "V1", ROW_NUM, 3),
+                    row(ROW_ID, "r2", "name", "Same", "village", "V2", ROW_NUM, 4),
+                    row(ROW_ID, "r3", "name", "Three", "village", "V3", ROW_NUM, 5),
+                    row(ROW_ID, "r4", "name", "Four", "village", "V4", ROW_NUM, 6)));
+            stubRows(up, base);
+
+            CustomException ex = assertThrows(CustomException.class, this::run);
+
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode(), "same error code as one cell");
+            assertEquals("3 pre-filled (read-only) values were changed: sheet 'Users', row 3, column 'name'; "
+                    + "sheet 'Users', row 5, column 'name'; sheet 'Users', row 6, column 'name'. Pre-filled values "
+                    + "must not be edited. Please re-download the template and re-enter your changes in the "
+                    + "editable columns.", ex.getMessage());
+            assertEquals("HACKED-1", up.get(0).get("name"), "a changed cell is left as uploaded, so a re-run still sees it");
+        }
+
+        @Test
+        void rejectOnChange_changedCellsOnTwoSheets_bothNamedInWorkbookOrder() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(config.getImmutableRejectMaxListed()).thenReturn(20);
+            String other = "Facilities";
+            uploadedWorkbook.createSheet(other);
+            baselineWorkbook.createSheet(other);
+            Map<String, Map<String, Object>> schemas = new LinkedHashMap<>();
+            schemas.put(other, new HashMap<>());   // joined first, still listed after 'Users' (earlier in the workbook)
+            schemas.put(SHEET, new HashMap<>());
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "u1", "name", "HACKED", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "u1", "name", "Real", ROW_NUM, 3))));
+            when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(other), any())).thenReturn(
+                    new ArrayList<>(List.of(row(ROW_ID, "f1", "village", "HACKED", ROW_NUM, 7))));
+            when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(other), any())).thenReturn(
+                    new ArrayList<>(List.of(row(ROW_ID, "f1", "village", "V9", ROW_NUM, 7))));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, schemas, null));
+
+            assertTrue(ex.getMessage().startsWith("2 pre-filled (read-only) values were changed: "
+                    + "sheet 'Users', row 3, column 'name'; sheet 'Facilities', row 7, column 'village'."),
+                    ex.getMessage());
+        }
+
+        @Test
+        void rejectOnChange_moreChangedCellsThanListed_countsAllAndListsTheFirst() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(config.getImmutableRejectMaxListed()).thenReturn(2);
+            List<Map<String, Object>> up = new ArrayList<>(), base = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                up.add(row(ROW_ID, "r" + i, "name", "HACKED", ROW_NUM, 3 + i));
+                base.add(row(ROW_ID, "r" + i, "name", "Real" + i, ROW_NUM, 3 + i));
+            }
+            stubRows(up, base);
+
+            CustomException ex = assertThrows(CustomException.class, this::run);
+
+            assertTrue(ex.getMessage().startsWith("3 pre-filled (read-only) values were changed: sheet 'Users', "
+                    + "row 3, column 'name'; sheet 'Users', row 4, column 'name'; .... "), ex.getMessage());
+            assertFalse(ex.getMessage().contains("row 5"), "only the configured number of cells is listed");
+        }
+
+        @Test
+        void rejectOnChange_manyChangedCells_usesTheLocalizedListMessages() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            when(config.getImmutableRejectMaxListed()).thenReturn(20);
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "name", "X", "village", "Y", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "name", "Real", "village", "V1", ROW_NUM, 3))));
+            Map<String, String> messages = Map.of(
+                    ErrorConstants.IMMUTABLE_CELLS_TAMPERED, "{0} valores alterados: {1}",
+                    ErrorConstants.IMMUTABLE_CELLS_TAMPERED_ITEM, "{0}/{1}/{2}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Map.of("name", "Nome", "village", "Aldeia"), messages));
+
+            assertTrue(ex.getMessage().startsWith("2 valores alterados: Users/3/"), ex.getMessage());
+            assertTrue(ex.getMessage().contains("Users/3/Nome") && ex.getMessage().contains("Users/3/Aldeia"),
+                    ex.getMessage());
+        }
+
+        @Test
+        void rejectOnChange_usesLocalizedErrorWithCellDetails() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> messages = Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                    "Localized sheet {0}, row {1}, column {2}");
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Collections.emptyMap(), messages));
+
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+            assertEquals("Localized sheet Users, row 3, column name", ex.getMessage());
+        }
+
+        /**
+         * Column headers are technical keys, so a raw one in the message leaves the user reading
+         * HCM_ADMIN_CONSOLE_USER_ROLE instead of "User Role". The display name must come from the
+         * WORKBOOK's localization map - that is the locale the header row they are looking at was
+         * written in - while the sentence around it stays in the request locale.
+         */
+        @Test
+        void rejectOnChange_localizesTheColumnNameFromTheWorkbookLocale() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of("name", "Nome do utilizador");
+            Map<String, String> errorLocalization = Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED,
+                    "Coluna {2} na folha {0}, linha {1}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization, errorLocalization));
+
+            assertEquals("Coluna Nome do utilizador na folha Users, linha 3", ex.getMessage());
+            assertFalse(ex.getMessage().contains("name,"), "the technical key must not leak into the message");
+        }
+
+        /**
+         * Nothing about the fix is tied to one column. A different immutable column resolves through
+         * the same generic lookup - no per-column handling anywhere.
+         */
+        @Test
+        void rejectOnChange_localizesAnyColumnNotJustOne() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "Real Name", "village", "TAMPERED",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of(
+                    "name", "Nome do utilizador",
+                    "village", "Aldeia");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization,
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "col={2}")));
+
+            assertEquals("col=Aldeia", ex.getMessage());
+        }
+
+        /**
+         * The SHEET name is a technical key too. It must resolve to its display name exactly like the
+         * column does, and for every error that names a sheet - not only the tamper one.
+         */
+        @Test
+        void rejectOnChange_localizesTheSheetNameAsWellAsTheColumn() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> sheetLocalization = Map.of(
+                    "Users", "Lista de Utilizadores",
+                    "name", "Nome do utilizador");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), sheetLocalization,
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0} coluna={2}")));
+
+            assertEquals("folha=Lista de Utilizadores coluna=Nome do utilizador", ex.getMessage());
+        }
+
+        /** Sheet-name localization must apply to the row-level errors too, not just the tamper one. */
+        @Test
+        void orphanRows_localizesTheSheetName() {
+            Map<String, Object> base1 = row(ROW_ID, "r1", "name", "A", ROW_NUM, 3);
+            Map<String, Object> base2 = row(ROW_ID, "r2", "name", "B", ROW_NUM, 4);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "A", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base1, base2)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Map.of("Users", "Lista de Utilizadores"),
+                            Map.of(ErrorConstants.IMMUTABLE_ORPHAN_ROWS, "folha={0}")));
+
+            assertEquals("folha=Lista de Utilizadores", ex.getMessage());
+        }
+
+        /**
+         * Excel truncates sheet names at 31 chars, so a catalogue entry authored against the full
+         * configured name would never match an exact lookup. The display name must still resolve.
+         */
+        @Test
+        void tamper_resolvesASheetNameThatExcelTruncated() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+
+            // The workbook sheet is the 31-char truncation of a 33-char configured name.
+            String truncated = "HCM_ADMIN_CONSOLE_FACILITIES_LI";
+            String full = "HCM_ADMIN_CONSOLE_FACILITIES_LIST";
+            assertEquals(31, truncated.length());
+            uploadedWorkbook.createSheet(truncated);
+            baselineWorkbook.createSheet(truncated);
+            sheetNameToSchema.clear();
+            sheetNameToSchema.put(truncated, new HashMap<>());
+            when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(truncated), any()))
+                    .thenReturn(new ArrayList<>(List.of(up)));
+            when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(truncated), any()))
+                    .thenReturn(new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Map.of(full, "Facilities"),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0}")));
+
+            assertEquals("folha=Facilities", ex.getMessage());
+        }
+
+        /** Two keys sharing a truncation must NOT be guessed between - fall back to the raw name. */
+        @Test
+        void tamper_doesNotGuessWhenTheTruncationIsAmbiguous() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+            String truncated = "HCM_ADMIN_CONSOLE_FACILITIES_LI";
+            uploadedWorkbook.createSheet(truncated);
+            baselineWorkbook.createSheet(truncated);
+            sheetNameToSchema.clear();
+            sheetNameToSchema.put(truncated, new HashMap<>());
+            when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(truncated), any()))
+                    .thenReturn(new ArrayList<>(List.of(up)));
+            when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(truncated), any()))
+                    .thenReturn(new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(),
+                            Map.of("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "Facilities",
+                                   "HCM_ADMIN_CONSOLE_FACILITIES_LIVE", "Live Facilities"),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0}")));
+
+            assertEquals("folha=" + truncated, ex.getMessage());
+        }
+
+        /**
+         * The reader's locale wins for names, so the whole sentence is in one language. The workbook
+         * locale is only a fallback for names the reader's catalogue has not translated.
+         */
+        @Test
+        void tamper_prefersTheRequestLocaleForSheetAndColumnNames() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> workbook = Map.of("Users", "User List", "name", "Name");
+            Map<String, String> request = Map.of("Users", "Lista de Utilizadores", "name", "Nome",
+                    ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0} coluna={2}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), workbook, request));
+
+            assertEquals("folha=Lista de Utilizadores coluna=Nome", ex.getMessage());
+        }
+
+        /** Untranslated in the reader's locale -> fall back to the workbook's, never to the raw key. */
+        @Test
+        void tamper_fallsBackToTheWorkbookLocaleWhenTheRequestLocaleLacksTheName() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            Map<String, String> workbook = Map.of("Users", "User List", "name", "Name");
+            Map<String, String> request = Map.of(
+                    ErrorConstants.IMMUTABLE_CELL_TAMPERED, "folha={0} coluna={2}");
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), workbook, request));
+
+            assertEquals("folha=User List coluna=Name", ex.getMessage());
+        }
+
+        /**
+         * REGRESSION GUARD. When the generator already wrote a localized sheet name into the
+         * workbook (e.g. "User List"), that name must pass through untouched - the lookup misses in
+         * both catalogues and must NOT turn a human-readable name into anything else.
+         */
+        @Test
+        void alreadyLocalizedSheetNamePassesThroughUnchanged() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", ROW_NUM, 3);
+
+            String human = "User List";                 // the sheet name as written in the file
+            uploadedWorkbook.createSheet(human);
+            baselineWorkbook.createSheet(human);
+            sheetNameToSchema.clear();
+            sheetNameToSchema.put(human, new HashMap<>());
+            when(excelUtil.convertSheetToMapListCached(eq(UPLOAD_FS), eq(human), any()))
+                    .thenReturn(new ArrayList<>(List.of(up)));
+            when(excelUtil.convertSheetToMapListCached(eq(BASELINE_FS), eq(human), any()))
+                    .thenReturn(new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Collections.emptyMap(),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "sheet={0}")));
+
+            assertEquals("sheet=User List", ex.getMessage());
+        }
+
+        /** No translation for the header: the key is still better than a blank. */
+        @Test
+        void rejectOnChange_fallsBackToTheTechnicalKeyWhenTheColumnIsNotLocalized() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED", "village", "V1",
+                    "comment", "kept", ROW_NUM, 3);
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "RealName", "village", "V1",
+                    "comment", "orig", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema,
+                            null, new ArrayList<>(), Collections.emptyMap(),
+                            Map.of(ErrorConstants.IMMUTABLE_CELL_TAMPERED, "col={2}")));
+
+            assertEquals("col=name", ex.getMessage());
         }
 
         // reject-on-change: an unchanged pre-filled row with only the EDITABLE column edited passes (no throw).
@@ -260,6 +611,82 @@ class ImmutableJoinServiceTest {
 
             assertDoesNotThrow(this::run, "editing only the editable column must not be rejected");
             assertEquals("user changed this", up.get("comment"), "editable column change is kept");
+        }
+
+        // reject-on-change: a localized dropdown cell that an earlier request on the same file already turned
+        // into its code (shared row cache) matches the baseline label - not a change; a real change still is.
+        private void stubCategoryColumn() {
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(List.of(
+                    ColumnDef.builder().name("category").enumValues(List.of("SCHOOL", "MARKET"))
+                            .freezeColumnIfFilled(true).build()));
+        }
+
+        private void runWithCategoryLabels() {
+            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, null, new ArrayList<>(),
+                    Map.of("category_SCHOOL", "School", "category_MARKET", "Market"));
+        }
+
+        @Test
+        void rejectOnChange_localizedEnum_codeMatchesLabel_notRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubCategoryColumn();
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "SCHOOL", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "School", ROW_NUM, 3))));
+
+            assertDoesNotThrow(this::runWithCategoryLabels);
+        }
+
+        @Test
+        void rejectOnChange_localizedEnum_realChange_stillRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubCategoryColumn();
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "MARKET", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "category", "School", ROW_NUM, 3))));
+
+            CustomException ex = assertThrows(CustomException.class, this::runWithCategoryLabels);
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+        }
+
+        // reject-on-change: the multi-select PARENT (user roles). After validation the shared row cache holds the
+        // parent rebuilt from codes ("DISTRIBUTOR"); the baseline holds the label ("Distributor"). Bug 1.
+        private void runWithRoleLabels() {
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(List.of(
+                    ColumnDef.builder().name("roles").freezeColumn(true)
+                            .multiSelectDetails(MultiSelectDetails.builder().maxSelections(2)
+                                    .enumValues(List.of("DISTRIBUTOR", "REGISTRAR", "TEAM_SUPERVISOR")).build()).build()));
+            service.applyImmutableBaseline(uploadedWorkbook, resource, sheetNameToSchema, null, new ArrayList<>(),
+                    Map.of("roles_DISTRIBUTOR", "Distributor", "roles_REGISTRAR", "Registrar", "roles_TEAM_SUPERVISOR", "Team Supervisor"));
+        }
+
+        @Test
+        void rejectOnChange_multiSelectParent_codesMatchLabels_notRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "DISTRIBUTOR", ROW_NUM, 3),
+                            row(ROW_ID, "r2", "roles", "TEAM_SUPERVISOR,DISTRIBUTOR", ROW_NUM, 4))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "Distributor", ROW_NUM, 3),
+                            row(ROW_ID, "r2", "roles", "Distributor,Team Supervisor", ROW_NUM, 4))));
+
+            assertDoesNotThrow(this::runWithRoleLabels);
+        }
+
+        @Test
+        void rejectOnChange_multiSelectParent_realChange_stillRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "REGISTRAR", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "Distributor", ROW_NUM, 3))));
+
+            CustomException ex = assertThrows(CustomException.class, this::runWithRoleLabels);
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
+        }
+
+        @Test
+        void rejectOnChange_multiSelectParent_roleAdded_stillRejected() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "DISTRIBUTOR,REGISTRAR", ROW_NUM, 3))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "roles", "Distributor", ROW_NUM, 3))));
+
+            CustomException ex = assertThrows(CustomException.class, this::runWithRoleLabels);
+            assertEquals(ErrorConstants.IMMUTABLE_CELL_TAMPERED, ex.getCode());
         }
 
         // reject-on-change: a multi-select CHILD cell difference is NOT rejected (restored silently) to avoid
@@ -440,6 +867,314 @@ class ImmutableJoinServiceTest {
             assertThrows(CustomException.class, this::run);
         }
 
+        // ---- a pre-filled row the planner copied (Excel copies its hidden row id and record id too) ----
+        private static final String SITE_NAME = ProcessingConstants.OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY;
+        private static final String SITE_ID = ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY;
+        private static final String CODE = ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY;
+
+        private void siteColumns() {
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(SITE_NAME).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(SITE_ID).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name("comment").build()));
+        }
+
+        private Map<String, Object> site(String rid, String name, String siteId, String code, int rowNumber) {
+            return row(ROW_ID, rid, SITE_NAME, name, SITE_ID, siteId, CODE, code, "comment", "c", ROW_NUM, rowNumber);
+        }
+
+        @Test
+        void copiedSiteRow_isTakenAsANewRow_andTheOriginalStaysTheExistingSite() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            siteColumns();
+            // Real cells too: the processed file must not keep the copied ids
+            Sheet up = uploadedWorkbook.getSheet(SHEET);
+            String[] headers = {SITE_NAME, SITE_ID, CODE, ROW_ID};
+            Row h = up.createRow(0);
+            for (int c = 0; c < headers.length; c++) {
+                h.createCell(c).setCellValue(headers[c]);
+            }
+            up.createRow(1);
+            for (int r = 2; r <= 3; r++) {
+                Row data = up.createRow(r);
+                data.createCell(0).setCellValue(r == 2 ? "Zabi Market" : "Zabi Market North");
+                data.createCell(1).setCellValue("C1");
+                data.createCell(2).setCellValue("B1");
+                data.createCell(3).setCellValue("r1");
+            }
+            Map<String, Object> original = site("r1", "Zabi Market", "C1", "B1", 3);
+            Map<String, Object> copy = site("r1", "Zabi Market North", "C1", "B1", 4);
+            stubRows(new ArrayList<>(List.of(original, copy)),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+
+            run();   // no IMMUTABLE_DUPLICATE_ROW_ID, and the renamed copy is not a changed pre-filled cell
+
+            assertEquals("r1", original.get(ROW_ID));
+            assertEquals("C1", original.get(SITE_ID));
+            assertEquals("Zabi Market", original.get(SITE_NAME));
+            assertNull(copy.get(ROW_ID), "the copy is a new row");
+            assertNull(copy.get(SITE_ID), "the copy does not claim the existing site");
+            assertNull(copy.get(CODE), "the copy's boundary code is resolved again from its own boundary");
+            assertEquals("Zabi Market North", copy.get(SITE_NAME), "the planner's name stays");
+            assertEquals("c", copy.get("comment"));
+            assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK, up.getRow(3).getCell(1).getCellType());
+            assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK, up.getRow(3).getCell(3).getCellType());
+            assertEquals("C1", up.getRow(2).getCell(1).getStringCellValue(), "the original's cells are untouched");
+        }
+
+        @Test
+        void copiedSiteRow_theRowThatMatchesTheTemplateStaysTheExistingSite_evenWhenItComesSecond() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            siteColumns();
+            Map<String, Object> renamed = site("r1", "Zabi Market North", "C1", "B1", 3);   // the planner renamed this one
+            Map<String, Object> unchanged = site("r1", "Zabi Market", "C1", "B1", 4);
+            stubRows(new ArrayList<>(List.of(renamed, unchanged)),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+
+            run();
+
+            assertEquals("r1", unchanged.get(ROW_ID));
+            assertEquals("C1", unchanged.get(SITE_ID));
+            assertNull(renamed.get(ROW_ID));
+            assertNull(renamed.get(SITE_ID));
+            assertEquals("Zabi Market North", renamed.get(SITE_NAME));
+        }
+
+        @Test
+        void exactCopyOfASiteRow_theFirstStaysAndTheSecondIsANewRowForTheDuplicateCheck() {
+            siteColumns();
+            Map<String, Object> first = site("r1", "Zabi Market", "C1", "B1", 3);
+            Map<String, Object> second = site("r1", "Zabi Market", "C1", "B1", 4);
+            Map<String, Object> other = site("r2", "Rahama School", "C2", "B2", 5);
+            stubRows(new ArrayList<>(List.of(first, second, other)), new ArrayList<>(List.of(
+                    site("r1", "Zabi Market", "C1", "B1", 3), site("r2", "Rahama School", "C2", "B2", 4))));
+
+            run();
+
+            assertEquals("r1", first.get(ROW_ID));
+            assertNull(second.get(ROW_ID));
+            assertNull(second.get(SITE_ID));
+            assertEquals("Zabi Market", second.get(SITE_NAME), "left as typed, so the sheet's duplicate-site check names it");
+            assertEquals("r2", other.get(ROW_ID), "rows that are not copied are untouched");
+            assertEquals("C2", other.get(SITE_ID));
+        }
+
+        @Test
+        void copiedFacilityRow_losesItsFacilityId() {
+            final String NAME = ProcessingConstants.FACILITY_NAME_COLUMN_KEY;
+            final String FACILITY_ID = ProcessingConstants.FACILITY_CODE_COLUMN_KEY;
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(NAME).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(FACILITY_ID).build()));   // hidden, not locked
+            Map<String, Object> original = row(ROW_ID, "r1", NAME, "Store A", FACILITY_ID, "F-1", ROW_NUM, 3);
+            Map<String, Object> copy = row(ROW_ID, "r1", NAME, "Store B", FACILITY_ID, "F-1", ROW_NUM, 4);
+            stubRows(new ArrayList<>(List.of(original, copy)),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", NAME, "Store A", FACILITY_ID, "F-1", ROW_NUM, 3))));
+
+            run();
+
+            assertEquals("F-1", original.get(FACILITY_ID));
+            assertNull(copy.get(FACILITY_ID));
+            assertNull(copy.get(ROW_ID));
+            assertEquals("Store B", copy.get(NAME));
+        }
+
+        @Test
+        void copiedUserRow_losesTheExistingUsersLogin_andTheOriginalKeepsIt() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            final String UUIDS = ProcessingConstants.USER_SERVICE_UUIDS_COLUMN_KEY;
+            final String LOGIN = ProcessingConstants.USERNAME_COLUMN_KEY;
+            final String PASSWORD = ProcessingConstants.USER_PASSWORD_COLUMN_KEY;
+            final String WORKER = ProcessingConstants.WORKER_ID_COLUMN_KEY;
+            final String PHONE = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(PHONE).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(LOGIN).freezeColumnIfFilled(true).freezeTillData(true).build(),
+                    ColumnDef.builder().name(WORKER).freezeColumnIfFilled(true).freezeTillData(true).build(),
+                    ColumnDef.builder().name(PASSWORD).freezeColumn(true).build(),
+                    ColumnDef.builder().name(UUIDS).freezeColumn(true).build()));
+            Map<String, Object> original = row(ROW_ID, "r1", PHONE, "9000000001", LOGIN, "u-1", WORKER, "W-1",
+                    PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 3);
+            Map<String, Object> copy = row(ROW_ID, "r1", PHONE, "9000000002", LOGIN, "u-1", WORKER, "W-1",
+                    PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 4);   // the planner typed a new phone
+            stubRows(new ArrayList<>(List.of(original, copy)), new ArrayList<>(List.of(row(ROW_ID, "r1",
+                    PHONE, "9000000001", LOGIN, "u-1", WORKER, "W-1", PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 3))));
+
+            run();
+
+            assertEquals("uuid-1", original.get(UUIDS));
+            assertEquals("u-1", original.get(LOGIN));
+            for (String col : List.of(ROW_ID, UUIDS, LOGIN, PASSWORD, WORKER)) {
+                assertNull(copy.get(col), col + " of the existing user is not carried to the new user");
+            }
+            assertEquals("9000000002", copy.get(PHONE));
+        }
+
+        // ---- a pre-filled row copied without its hidden row id (only its cells up to the last visible column) ----
+        @Test
+        void siteRowCopiedWithoutItsRowId_withANewType_CategoryOrName_getsNewIds() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            siteColumns();
+            final String TYPE = ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY;
+            final String CATEGORY = ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY;
+            // Real cells too: the processed file must not keep the copied ids
+            Sheet up = uploadedWorkbook.getSheet(SHEET);
+            String[] headers = {SITE_NAME, SITE_ID, CODE, ROW_ID};
+            Row h = up.createRow(0);
+            for (int c = 0; c < headers.length; c++) {
+                h.createCell(c).setCellValue(headers[c]);
+            }
+            up.createRow(1);
+            for (int r = 2; r <= 5; r++) {
+                Row data = up.createRow(r);
+                data.createCell(0).setCellValue(r == 3 ? "Zabi Market North" : "Zabi Market");
+                data.createCell(1).setCellValue("C1");
+                data.createCell(2).setCellValue("B1");
+                if (r == 2) {
+                    data.createCell(3).setCellValue("r1");   // the copies have no row id
+                }
+            }
+            Map<String, Object> original = site("r1", "Zabi Market", "C1", "B1", 3);
+            Map<String, Object> renamed = site(null, "Zabi Market North", "C1", "B1", 4);
+            Map<String, Object> retyped = site(null, "Zabi Market", "C1", "B1", 5);
+            retyped.put(TYPE, "TRANSIT_POST");
+            Map<String, Object> recategorised = site(null, "Zabi Market", "C1", "B1", 6);
+            recategorised.put(CATEGORY, "SCHOOL");
+            Map<String, Object> typed = site(null, "New Post", null, null, 7);
+            Map<String, Object> other = site(null, "Old Post", "C9", "B9", 8);   // an id no pre-filled row has: left alone
+            stubRows(new ArrayList<>(List.of(original, renamed, retyped, recategorised, typed, other)),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+
+            run();   // no error: the pre-filled row is there, and the copies are new rows
+
+            assertEquals("r1", original.get(ROW_ID));
+            assertEquals("C1", original.get(SITE_ID));
+            assertEquals("B1", original.get(CODE));
+            for (Map<String, Object> copy : List.of(renamed, retyped, recategorised)) {
+                assertNull(copy.get(SITE_ID), "a copy does not keep the existing site's id");
+                assertNull(copy.get(CODE), "its boundary code is resolved again from its own boundary");
+            }
+            assertEquals("Zabi Market North", renamed.get(SITE_NAME));
+            assertEquals("TRANSIT_POST", retyped.get(TYPE));
+            assertEquals("SCHOOL", recategorised.get(CATEGORY));
+            assertNull(typed.get(SITE_ID));
+            assertEquals("C9", other.get(SITE_ID));
+            assertEquals("B9", other.get(CODE));
+            for (int r = 3; r <= 5; r++) {
+                assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK, up.getRow(r).getCell(1).getCellType());
+                assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK, up.getRow(r).getCell(2).getCellType());
+            }
+            assertEquals("C1", up.getRow(2).getCell(1).getStringCellValue(), "the original's cells are untouched");
+        }
+
+        @Test
+        void exactCopyWithoutItsRowId_losesTheIds_soTheDuplicateSiteCheckNamesIt() {
+            siteColumns();
+            Map<String, Object> original = site("r1", "Zabi Market", "C1", "B1", 3);
+            Map<String, Object> copy = site(null, "Zabi Market", "C1", "B1", 4);
+            stubRows(new ArrayList<>(List.of(original, copy)),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+
+            run();
+
+            assertEquals("C1", original.get(SITE_ID));
+            assertNull(copy.get(SITE_ID));
+            assertEquals("Zabi Market", copy.get(SITE_NAME), "left as typed, so the sheet's duplicate-site check names it");
+        }
+
+        @Test
+        void facilityRowCopiedWithoutItsRowId_losesItsFacilityId() {
+            final String NAME = ProcessingConstants.FACILITY_NAME_COLUMN_KEY;
+            final String FACILITY_ID = ProcessingConstants.FACILITY_CODE_COLUMN_KEY;
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(NAME).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(FACILITY_ID).build()));
+            Map<String, Object> original = row(ROW_ID, "r1", NAME, "Store A", FACILITY_ID, "F-1", ROW_NUM, 3);
+            Map<String, Object> copy = row(NAME, "Store B", FACILITY_ID, "F-1", ROW_NUM, 4);
+            stubRows(new ArrayList<>(List.of(original, copy)),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", NAME, "Store A", FACILITY_ID, "F-1", ROW_NUM, 3))));
+
+            run();
+
+            assertEquals("F-1", original.get(FACILITY_ID));
+            assertNull(copy.get(FACILITY_ID));
+            assertEquals("Store B", copy.get(NAME));
+        }
+
+        @Test
+        void userRowCopiedWithoutItsRowId_losesTheExistingUsersLogin_thoughItsUserIdWasNotCopied() {
+            when(config.isImmutableRejectOnChange()).thenReturn(true);
+            final String UUIDS = ProcessingConstants.USER_SERVICE_UUIDS_COLUMN_KEY;
+            final String LOGIN = ProcessingConstants.USERNAME_COLUMN_KEY;
+            final String PASSWORD = ProcessingConstants.USER_PASSWORD_COLUMN_KEY;
+            final String WORKER = ProcessingConstants.WORKER_ID_COLUMN_KEY;
+            final String PHONE = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(PHONE).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(LOGIN).freezeColumnIfFilled(true).freezeTillData(true).build(),
+                    ColumnDef.builder().name(WORKER).freezeColumnIfFilled(true).freezeTillData(true).build(),
+                    ColumnDef.builder().name(PASSWORD).freezeColumn(true).build(),
+                    ColumnDef.builder().name(UUIDS).freezeColumn(true).build()));
+            Map<String, Object> original = row(ROW_ID, "r1", PHONE, "9000000001", LOGIN, "u-1", WORKER, "W-1",
+                    PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 3);
+            // The user id and password sit after the last visible column, so only the username and worker id came along
+            Map<String, Object> copy = row(PHONE, "9000000002", LOGIN, "u-1", WORKER, "W-1", ROW_NUM, 4);
+            // A typed user with the default password every user shares is not a copy
+            Map<String, Object> typed = row(PHONE, "9000000003", PASSWORD, "secret", ROW_NUM, 5);
+            stubRows(new ArrayList<>(List.of(original, copy, typed)), new ArrayList<>(List.of(row(ROW_ID, "r1",
+                    PHONE, "9000000001", LOGIN, "u-1", WORKER, "W-1", PASSWORD, "secret", UUIDS, "uuid-1", ROW_NUM, 3))));
+
+            run();
+
+            assertEquals("uuid-1", original.get(UUIDS));
+            assertEquals("u-1", original.get(LOGIN));
+            assertNull(copy.get(LOGIN), "the copy gets its own username");
+            assertNull(copy.get(WORKER), "and its own worker id");
+            assertEquals("9000000002", copy.get(PHONE));
+            assertEquals("secret", typed.get(PASSWORD), "the shared password alone does not make a row a copy");
+        }
+
+        @Test
+        void copiedRowOnAnAttendanceLikeSheet_stillFailsAsADuplicate() {
+            // UserName and the worker id are the planner's input there, and there is no UserService Uuids column
+            when(schemaColumnDefUtil.convertSchemaToColumnDefs(anyString())).thenReturn(Arrays.asList(
+                    ColumnDef.builder().name(ProcessingConstants.USERNAME_COLUMN_KEY).freezeColumnIfFilled(true).build(),
+                    ColumnDef.builder().name(ProcessingConstants.WORKER_ID_COLUMN_KEY).freezeColumnIfFilled(true).build()));
+            Map<String, Object> base = row(ROW_ID, "r1", ProcessingConstants.USERNAME_COLUMN_KEY, "u-1", ROW_NUM, 3);
+            stubRows(new ArrayList<>(List.of(new HashMap<>(base), row(ROW_ID, "r1", ProcessingConstants.USERNAME_COLUMN_KEY, "u-2", ROW_NUM, 4))),
+                    new ArrayList<>(List.of(base)));
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID, ex.getCode());
+        }
+
+        @Test
+        void repeatedRowIdUnknownToTheTemplate_stillFailsClosed_onASiteSheet() {
+            siteColumns();
+            stubRows(new ArrayList<>(List.of(site("ghost", "A", "C9", "B1", 3), site("ghost", "B", "C9", "B1", 4))),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3))));
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_UNKNOWN_ROW_ID, ex.getCode());
+        }
+
+        @Test
+        void copyPastedOverAnotherPreFilledRow_stillFailsAsADeletedRow() {
+            siteColumns();
+            // r2 was overwritten by the copy of r1, so r2 is gone from the upload
+            stubRows(new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3), site("r1", "Zabi Market 2", "C1", "B1", 4))),
+                    new ArrayList<>(List.of(site("r1", "Zabi Market", "C1", "B1", 3), site("r2", "Rahama School", "C2", "B2", 4))));
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_ORPHAN_ROWS, ex.getCode());
+        }
+
+        @Test
+        void copiedRowOnASheetWithoutARecordId_stillFailsAsADuplicate() {
+            // The default columns (a users-like sheet) have no record id column: behaviour unchanged
+            stubRows(new ArrayList<>(List.of(row(ROW_ID, "r1", "name", "Real", ROW_NUM, 3), row(ROW_ID, "r1", "name", "Real", ROW_NUM, 4))),
+                    new ArrayList<>(List.of(row(ROW_ID, "r1", "name", "Real", ROW_NUM, 3))));
+            CustomException ex = assertThrows(CustomException.class, this::run);
+            assertEquals(ErrorConstants.IMMUTABLE_DUPLICATE_ROW_ID, ex.getCode());
+        }
+
         @Test
         void deletedRow_orphan_failsClosed() {
             // baseline has r1 + r2; upload has only r1 -> r2 is an orphan (deleted pre-filled row)
@@ -564,6 +1299,54 @@ class ImmutableJoinServiceTest {
 
             assertEquals("Real Name", up.get("name"), "cloned campaign baseline must still be accepted");
             verify(campaignService).searchCampaignById(anyString(), anyString(), any());
+        }
+
+        private CampaignSearchResponse.CampaignDetail cloneOf(String id, String source) {
+            return CampaignSearchResponse.CampaignDetail.builder().id(id).tenantId(TENANT)
+                    .additionalDetails(CampaignSearchResponse.AdditionalDetails.builder().clonedCampaignId(source).build()).build();
+        }
+
+        private ProcessResource uploadTo(String campaignId) {
+            return ProcessResource.builder().tenantId(TENANT).type(TYPE).referenceId(campaignId)
+                    .referenceType("campaign").fileStoreId(UPLOAD_FS).build();
+        }
+
+        // health-campaign-services#2391: a clone of a clone gets its source's file, which is the template of the
+        // source's own source, so the file's template belongs to a campaign two steps up the clone chain.
+        @Test
+        void cloneOfAClone_acceptsTheTemplateOfTheSourcesSource() {
+            when(campaignService.searchCampaignById(eq("campaign-3"), anyString(), any())).thenReturn(cloneOf("campaign-3", "campaign-2"));
+            when(campaignService.searchCampaignById(eq("campaign-2"), anyString(), any())).thenReturn(cloneOf("campaign-2", REF));
+            Map<String, Object> up = row(ROW_ID, "r1", "name", "HACKED");
+            Map<String, Object> base = row(ROW_ID, "r1", "name", "Real Name");
+            stubRows(new ArrayList<>(List.of(up)), new ArrayList<>(List.of(base)));
+
+            service.applyImmutableBaseline(uploadedWorkbook, uploadTo("campaign-3"), sheetNameToSchema, null);
+
+            assertEquals("Real Name", up.get("name"), "the template of an earlier campaign of the clone chain is accepted");
+        }
+
+        @Test
+        void aTemplateOutsideTheCloneChain_isStillRejected() {
+            when(campaignService.searchCampaignById(eq("campaign-3"), anyString(), any())).thenReturn(cloneOf("campaign-3", "campaign-2"));
+            when(campaignService.searchCampaignById(eq("campaign-2"), anyString(), any())).thenReturn(cloneOf("campaign-2", "campaign-4"));
+            when(campaignService.searchCampaignById(eq("campaign-4"), anyString(), any())).thenReturn(cloneOf("campaign-4", null));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, uploadTo("campaign-3"), sheetNameToSchema, null));
+
+            assertEquals(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH, ex.getCode());
+        }
+
+        @Test
+        void aLoopInTheCloneChain_isRejectedWithoutLoopingForever() {
+            when(campaignService.searchCampaignById(eq("campaign-3"), anyString(), any())).thenReturn(cloneOf("campaign-3", "campaign-2"));
+            when(campaignService.searchCampaignById(eq("campaign-2"), anyString(), any())).thenReturn(cloneOf("campaign-2", "campaign-3"));
+
+            CustomException ex = assertThrows(CustomException.class, () ->
+                    service.applyImmutableBaseline(uploadedWorkbook, uploadTo("campaign-3"), sheetNameToSchema, null));
+
+            assertEquals(ErrorConstants.IMMUTABLE_IDENTITY_MISMATCH, ex.getCode());
         }
 
         private void removeMetaSheet() {
@@ -774,6 +1557,109 @@ class ImmutableJoinServiceTest {
             assertEquals("NewGuy", rows.get(3).get("name"), "new row trusted verbatim");
             assertNull(rows.get(3).get(ProcessingConstants.ROW_ID_COLUMN_NAME), "new row has no row-id");
 
+            uploaded.close();
+        }
+
+        @Test
+        void endToEnd_copiedSiteRow_withItsHiddenCells_becomesANewRow() throws Exception {
+            config.setImmutableRejectOnChange(true);
+            String siteId = ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY;
+            String schema = "{\"stringProperties\":["
+                    + "{\"name\":\"name\",\"orderNumber\":1,\"freezeColumnIfFilled\":true},"
+                    + "{\"name\":\"" + siteId + "\",\"orderNumber\":2,\"freezeColumnIfFilled\":true,\"hideColumn\":true},"
+                    + "{\"name\":\"comment\",\"orderNumber\":3}]}";
+            List<ColumnDef> columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schema);
+            List<Map<String, Object>> data = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("name", "Site" + i);
+                m.put(siteId, "CRID-" + i);
+                m.put("comment", "c" + i);
+                data.add(m);
+            }
+            Workbook base = populator.populateSheetWithData(new XSSFWorkbook(), SHEET, columns, data, new HashMap<>(), true, true);
+            base.createSheet(GenerationConstants.META_SHEET_NAME).createRow(0).createCell(0).setCellValue(GEN_ID);
+            byte[] baselineBytes = toBytes(base);
+            wireMocks(baselineBytes);
+
+            // The planner copies pre-filled sheet row 2 (all cells, the hidden ones too) to sheet row 4 and renames it
+            Workbook uploaded = fromBytes(baselineBytes);
+            Sheet up = uploaded.getSheet(SHEET);
+            Row from = up.getRow(2);
+            Row to = up.getRow(4) == null ? up.createRow(4) : up.getRow(4);
+            for (int c = 0; c < from.getLastCellNum(); c++) {
+                Cell src = from.getCell(c);
+                if (src != null && src.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) {
+                    (to.getCell(c) == null ? to.createCell(c) : to.getCell(c)).setCellValue(src.getStringCellValue());
+                }
+            }
+            setCell(up, 4, colIndex(up, "name"), "Site0 North");
+            Map<String, Map<String, Object>> schemas = new HashMap<>();
+            schemas.put(SHEET, new ObjectMapper().readValue(schema, Map.class));
+
+            join.applyImmutableBaseline(uploaded, resource(), schemas, null);
+
+            List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(UPLOAD_FS, SHEET, up);
+            assertEquals(3, rows.size(), "2 pre-filled rows + the copy");
+            assertEquals("CRID-0", rows.get(0).get(siteId), "the original keeps its site");
+            assertNotNull(rows.get(0).get(ProcessingConstants.ROW_ID_COLUMN_NAME));
+            assertEquals("Site0 North", rows.get(2).get("name"));
+            assertNull(rows.get(2).get(siteId), "the copy is a new site");
+            assertNull(rows.get(2).get(ProcessingConstants.ROW_ID_COLUMN_NAME), "the copy is a new row");
+            assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK,
+                    up.getRow(4).getCell(colIndex(up, siteId)).getCellType(), "the processed file shows the copy without the id");
+            uploaded.close();
+        }
+
+        @Test
+        void endToEnd_copiedSiteRow_withoutItsRowIdCell_becomesANewRow() throws Exception {
+            config.setImmutableRejectOnChange(true);
+            String siteId = ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY;
+            String schema = "{\"stringProperties\":["
+                    + "{\"name\":\"name\",\"orderNumber\":1,\"freezeColumnIfFilled\":true},"
+                    + "{\"name\":\"" + siteId + "\",\"orderNumber\":2,\"freezeColumnIfFilled\":true,\"hideColumn\":true},"
+                    + "{\"name\":\"comment\",\"orderNumber\":3}]}";
+            List<ColumnDef> columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schema);
+            List<Map<String, Object>> data = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("name", "Site" + i);
+                m.put(siteId, "CRID-" + i);
+                m.put("comment", "c" + i);
+                data.add(m);
+            }
+            Workbook base = populator.populateSheetWithData(new XSSFWorkbook(), SHEET, columns, data, new HashMap<>(), true, true);
+            base.createSheet(GenerationConstants.META_SHEET_NAME).createRow(0).createCell(0).setCellValue(GEN_ID);
+            byte[] baselineBytes = toBytes(base);
+            wireMocks(baselineBytes);
+
+            // The planner copies pre-filled sheet row 2 up to its last visible column (the hidden site id comes along,
+            // the hidden row id after it does not) to sheet row 4, and renames it
+            Workbook uploaded = fromBytes(baselineBytes);
+            Sheet up = uploaded.getSheet(SHEET);
+            int rowIdColumn = colIndex(up, ProcessingConstants.ROW_ID_COLUMN_NAME);
+            assertTrue(rowIdColumn > colIndex(up, siteId), "the row id comes after the site id");
+            Row from = up.getRow(2);
+            Row to = up.getRow(4) == null ? up.createRow(4) : up.getRow(4);
+            for (int c = 0; c < rowIdColumn; c++) {
+                Cell src = from.getCell(c);
+                if (src != null && src.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) {
+                    (to.getCell(c) == null ? to.createCell(c) : to.getCell(c)).setCellValue(src.getStringCellValue());
+                }
+            }
+            setCell(up, 4, colIndex(up, "name"), "Site0 North");
+            Map<String, Map<String, Object>> schemas = new HashMap<>();
+            schemas.put(SHEET, new ObjectMapper().readValue(schema, Map.class));
+
+            join.applyImmutableBaseline(uploaded, resource(), schemas, null);
+
+            List<Map<String, Object>> rows = excelUtil.convertSheetToMapListCached(UPLOAD_FS, SHEET, up);
+            assertEquals(3, rows.size(), "2 pre-filled rows + the copy");
+            assertEquals("CRID-0", rows.get(0).get(siteId), "the original keeps its site");
+            assertEquals("Site0 North", rows.get(2).get("name"));
+            assertNull(rows.get(2).get(siteId), "the copy is a new site");
+            assertEquals(org.apache.poi.ss.usermodel.CellType.BLANK,
+                    up.getRow(4).getCell(colIndex(up, siteId)).getCellType(), "the processed file shows the copy without the id");
             uploaded.close();
         }
 

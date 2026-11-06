@@ -1,0 +1,91 @@
+@startuml
+title Beneficiary IdGen - Kafka Consumers (ID Pool Bulk Create, ID Pool Bulk Update)
+!theme vibrant
+participant BeneficiaryIdGenAPI as api
+queue Kafka as k
+participant BeneficiaryIdGen as s
+participant MDMSService as mdms
+participant PersisterService as prs
+participant TracerErrorHandler as te
+database Database as db
+
+group ID pool bulk create (/id-gen-consumer-bulk-create-topic)
+    api -> k: IDPoolGenerationKafkaRequest {requestInfo, tenantId, chunkSize}\n/id-gen-consumer-bulk-create-topic (from /id/id_pool/_generate)
+    activate k
+    s -> k: Consume (group healthIdGeneration)
+    activate s
+    s -> s: Convert to IDPoolGenerationKafkaRequest
+    s -> mdms: POST /mdms-v2/v1/_search (common-masters.IdFormat, tenant.tenants)
+    activate mdms
+    mdms -> s: IdFormat for idname id.pool.number
+    deactivate mdms
+    s -> s: Add 5% buffer if the format has a random [d{n}] token
+    s -> db: SELECT NEXTVAL('<seq>') FROM GENERATE_SERIES(1, n)\n(CREATE SEQUENCE when missing and autocreate.new.seq=true)
+    activate db
+    db -> s: Sequence numbers
+    deactivate db
+    s -> s: Build ids from the format
+    note right
+        Same as the async group in id-pool-generate-api.txt
+    end note
+    loop batches of 1000
+        s -> k: { idPool: [...] } /save-in-id-pool
+    end
+    alt any exception
+        s -> s: Log "Error in async ID pool generation" (message dropped, no retry)
+    end
+    deactivate s
+end
+
+group ID pool bulk update (/id-gen-consumer-bulk-update-topic)
+    api -> k: IdRecordBulkRequest /id-gen-consumer-bulk-update-topic\n(from /id/id_pool/_update)
+    s -> k: Consume (group healthIdGeneration)
+    activate s
+    s -> s: Convert to IdRecordBulkRequest, update(request, isBulk = true)
+    s -> db: SELECT * FROM id_pool WHERE tenantId = ? AND id IN (:ids)
+    activate db
+    db -> s: Existing records
+    deactivate db
+    s -> s: IdPoolValidatorForUpdate (INVALID_ID), enrich rowVersion / audit
+    s -> k: { idPool: [...] } /update-id-pool-status
+    s -> k: { idTransactionLog: [...] } /save-dispatch-id-log
+    note right
+        Same as the async group in id-pool-update-api.txt
+    end note
+    alt invalid records
+        s -> te: handleErrors VALIDATION_ERROR (error queue)
+        activate te
+        deactivate te
+    end
+    alt any exception
+        s -> s: Log "error in individual consumer bulk update"
+    end
+    deactivate s
+end
+
+group async persister
+    prs -> k: Consume /save-in-id-pool
+    activate prs
+    prs -> db: INSERT INTO id_pool ... status 'UNASSIGNED'\nON CONFLICT (id) DO NOTHING
+    activate db
+    deactivate db
+    prs -> k: Consume /update-id-pool-status
+    prs -> db: UPDATE id_pool SET status, lastModifiedBy,\nlastModifiedTime, additionalFields WHERE id = ?
+    activate db
+    deactivate db
+    prs -> k: Consume /save-dispatch-id-log
+    prs -> db: INSERT INTO id_transaction_log
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over api, db
+    Persister configs: egov-persister/common/id-pool-persister.yml and
+    id-pool-dispatch-log-persister.yml (service IDGENERATOR, audit module HEALTH-IDGEN).
+    No egov-indexer config exists for any beneficiary-idgen topic.
+    The service has no scheduled jobs.
+end note
+
+@enduml

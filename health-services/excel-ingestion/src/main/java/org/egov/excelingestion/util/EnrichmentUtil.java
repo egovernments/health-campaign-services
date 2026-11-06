@@ -71,9 +71,9 @@ public class EnrichmentUtil {
         for (ValidationError error : errors) {
             if (ValidationConstants.STATUS_INVALID.equals(error.getStatus()) ||
                     ValidationConstants.STATUS_ERROR.equals(error.getStatus())) {
-                log.error("VALIDATION_ERROR | referenceId={} | sheet={} | row={} | column={} | status={} | error={}",
+                log.error("VALIDATION_ERROR | referenceId={} | sheet={} | row={} | column={} | status={}",
                         referenceId, sheetName, error.getRowNumber(), error.getColumnName(),
-                        error.getStatus(), error.getErrorDetails());
+                        error.getStatus());
             }
         }
     }
@@ -146,6 +146,8 @@ public class EnrichmentUtil {
                 return ValidationConstants.ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS;
             case ValidationConstants.SHEET_KIND_FACILITY:
                 return ValidationConstants.ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS;
+            case ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD:
+                return ValidationConstants.ADDITIONAL_DETAILS_OUTSIDE_HOUSEHOLD_SHEET_STATUS;
             default:
                 return null;
         }
@@ -156,11 +158,13 @@ public class EnrichmentUtil {
         String userStatus = (String) additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_USER_SHEET_STATUS);
         String boundaryStatus = (String) additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS);
         String facilityStatus = (String) additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS);
+        String outsideHouseholdStatus = (String) additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_OUTSIDE_HOUSEHOLD_SHEET_STATUS);
 
         // If any per-sheet status is set and is invalid, overall is invalid
         if (ValidationConstants.STATUS_INVALID.equals(userStatus) ||
             ValidationConstants.STATUS_INVALID.equals(boundaryStatus) ||
-            ValidationConstants.STATUS_INVALID.equals(facilityStatus)) {
+            ValidationConstants.STATUS_INVALID.equals(facilityStatus) ||
+            ValidationConstants.STATUS_INVALID.equals(outsideHouseholdStatus)) {
             return ValidationConstants.STATUS_INVALID;
         }
 

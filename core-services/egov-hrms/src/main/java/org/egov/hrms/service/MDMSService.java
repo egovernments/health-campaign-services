@@ -90,7 +90,7 @@ public class MDMSService {
 			response = restTemplate.postForObject(uri.toString(), request, MdmsResponse.class);
 		}catch(Exception e) {
 			log.info("Exception while fetching from MDMS: ",e);
-			log.info("Request: "+ request);
+			log.info("MDMS request failed for tenantId: {}", tenantId);
 		}
 		return response;
 	}
@@ -110,7 +110,7 @@ public class MDMSService {
 			response = restTemplate.postForObject(uri.toString(), request, MdmsResponse.class);
 		}catch(Exception e) {
 			log.info("Exception while fetching from MDMS: ",e);
-			log.info("Request: "+ request);
+			log.info("MDMS request failed for tenantId: {}", tenantId);
 		}
 		return response;
 	}

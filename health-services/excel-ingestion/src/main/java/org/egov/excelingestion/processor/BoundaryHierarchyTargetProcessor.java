@@ -13,6 +13,7 @@ import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -249,6 +250,8 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             }
             
             // Validate each row's boundary code
+            // A boundary on a second row (e.g. a copied row) would give it two targets: only its first row stands
+            Map<String, Integer> firstRowByBoundaryCode = new HashMap<>();
             for (Map<String, Object> rowData : sheetData) {
                 String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
                 Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
@@ -272,6 +275,17 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                     
                     log.debug("Boundary code '{}' at row {} not found in campaign enriched boundaries", 
                              boundaryCode, rowNumber);
+                }
+
+                Integer firstRow = firstRowByBoundaryCode.putIfAbsent(boundaryCode.trim(), rowNumber);
+                if (firstRow != null) {
+                    errors.add(ValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .columnName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE")
+                        .status(ValidationConstants.STATUS_INVALID)
+                        .errorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_BOUNDARY_ALREADY_IN_SHEET",
+                                "This boundary is already in the sheet (row " + firstRow + ").", String.valueOf(firstRow)))
+                        .build());
                 }
             }
             

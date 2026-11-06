@@ -261,7 +261,7 @@ public class WorkerService {
     public void processAttendanceDocumentEvent(AttendanceDocumentEvent event, RequestInfo requestInfo) {
         if (event == null || event.getIndividualId() == null || event.getTenantId() == null
                 || event.getFileStore() == null || event.getType() == null) {
-            log.warn("Skipping invalid AttendanceDocumentEvent: {}", event);
+            log.warn("Skipping invalid AttendanceDocumentEvent for individualId: {}", event != null ? event.getIndividualId() : null);
             return;
         }
 

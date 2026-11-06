@@ -488,6 +488,7 @@ jobs:
   create-manifest:
     name: Create and Push Manifest
     needs: [resolve-config, build-matrix]
+    if: ${{ !cancelled() && needs.build-matrix.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Docker Login

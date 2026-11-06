@@ -494,7 +494,7 @@ public class EmployeeService {
 			userService.updateUser(request);
 		}catch(Exception e) {
 			log.error("Exception while updating user: ",e);
-			log.error("request: "+request);
+			log.error("User update failed for employee code: {}, tenantId: {}", employee.getCode(), employee.getTenantId());
 			String uname = employee.getUser() != null ? employee.getUser().getUserName() : null;
 			String mob = employee.getUser() != null ? employee.getUser().getMobileNumber() : null;
 			String uuid = employee.getUser() != null ? employee.getUser().getUuid() : null;

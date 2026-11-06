@@ -385,8 +385,8 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                     if (uniqueIdentifier != null) {
                         existingInCampaign.add(uniqueIdentifier);
                         String existingCampaignNumber = (String) campaignUser.get("campaignNumber");
-                        log.debug("Phone number {} already exists in campaign {} with completed status", 
-                                uniqueIdentifier, existingCampaignNumber);
+                        log.debug("User already exists in campaign {} with completed status", 
+                                existingCampaignNumber);
                     }
                 }
             }
@@ -464,7 +464,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
 
             // Skip username validation if phone number already exists in campaign with completed status
             if (phoneNumber != null && existingPhonesInCampaign.contains(phoneNumber.trim())) {
-                log.debug("Skipping username validation for phone {} - already exists in campaign", phoneNumber.trim());
+                log.debug("Skipping username validation for row {} - phone already exists in campaign", rowData.get("__actualRowNumber__"));
                 continue;
             }
 

@@ -1,0 +1,120 @@
+@startuml
+title Plan Service - Plan Facility Create
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant FacilityService as fs
+participant MdmsService as mdms
+participant ProjectFactory as pf
+participant BoundaryService as bs
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /plan-service/plan/facility/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, PlanFacility required; tenantId 2-64;\nplanConfigurationId, facilityId max 64; residingBoundary 1-64;\nserviceBoundaries, active required)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validatePlanFacilityCreate
+    s -> db: SELECT FROM plan_facility_linkage\nWHERE plan_configuration_id = ? AND facility_id = ?
+    activate db
+    db -> s: Existing linkage
+    deactivate db
+    alt linkage already exists (active or inactive)
+        s -> c: HttpStatus: 400 PLAN_FACILITY_LINKAGE_ALREADY_EXISTS
+    end
+
+    s -> db: SELECT plan_configuration WHERE id = ? AND tenant_id = <root tenant>
+    activate db
+    db -> s: Plan configuration
+    deactivate db
+    alt plan configuration not found
+        s -> c: HttpStatus: 400 INVALID_PLAN_CONFIG_ID
+    end
+
+    s -> fs: /facility/v1/_search?tenantId&limit=10&offset=0\n(Facility.id = [facilityId])
+    activate fs
+    fs -> s: Facilities
+    deactivate fs
+    alt facility not found (or call failed)
+        s -> c: HttpStatus: 400 FACILITY_NOT_FOUND
+    end
+    s -> s: Enrich facilityName and additionalDetails\n(facilityUsage, capacity, facilityStatus = address.type,\nfacilityType = usage, isPermanent, servingPopulation = 0)
+
+    group validateCampaignDetails
+        s -> mdms: /mdms-v2/v1/_search (root tenant)
+        activate mdms
+        mdms -> s: MdmsRes
+        deactivate mdms
+        alt MdmsRes empty
+            s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+        end
+        s -> pf: /project-factory/v1/project-type/search\n(ids = [plan configuration campaignId])
+        activate pf
+        pf -> s: CampaignDetails (boundaries, hierarchyType)
+        deactivate pf
+        alt no campaign details
+            s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+        end
+        s -> s: Read microplan lowestHierarchy from HierarchySchema
+        alt JSONPath evaluation fails
+            s -> c: HttpStatus: 400 JSONPATH_ERROR
+        end
+        alt residingBoundary not a campaign boundary (any level)
+            s -> c: HttpStatus: 400 INVALID_RESIDING_BOUNDARY
+        else duplicate serviceBoundaries
+            s -> c: HttpStatus: 400 DUPLICATE_SERVICE_BOUNDARY
+        else service boundary not a lowest-hierarchy campaign boundary
+            s -> c: HttpStatus: 400 INVALID_SERVICE_BOUNDARY
+        end
+        s -> bs: /boundary-service/boundary-relationships/_search\n?codes=<residingBoundary>&includeParents=true&includeChildren=false\n&tenantId&hierarchyType
+        activate bs
+        bs -> s: TenantBoundary
+        deactivate bs
+        s -> s: Enrich boundaryAncestralPath and jurisdictionMapping
+    end
+end
+
+group enrichPlanFacilityCreate
+    s -> s: Generate id, set auditDetails, active = true
+    s -> db: SELECT plan_configuration WHERE id = ? AND tenant_id = ?
+    activate db
+    db -> s: Plan configuration
+    deactivate db
+    s -> s: planConfigurationName = plan configuration name
+end
+
+s -> k: PlanFacilityRequestDTO (serviceBoundaries comma-joined)\n/save-plan-facility
+activate k
+s -> c: HttpStatus: 202 PlanFacility
+deactivate s
+
+group async
+    prs -> k: Consume /save-plan-facility
+    activate prs
+    prs -> db: INSERT INTO plan_facility_linkage
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /save-plan-facility
+    activate idx
+    idx -> el: Store PlanFacility /plan-facility-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+note over s
+    servingPopulation is always initialised to 0 on create, even when
+    serviceBoundaries are sent; census records are not updated on create
+    (census-service listens only to /update-plan-facility).
+end note
+
+@enduml

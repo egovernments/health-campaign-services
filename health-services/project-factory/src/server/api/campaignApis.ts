@@ -318,7 +318,7 @@ async function getUuidsError(
   for (const user of response.Individual) {
     if (!user?.userUuid) {
       logger.info(
-        `User with mobileNumber ${user?.mobileNumber} doesn't have userUuid`
+        `User at row ${mobileNumberRowNumberMapping[user?.mobileNumber]} doesn't have userUuid`
       );
       errors.push({
         status: "INVALID",
@@ -328,7 +328,7 @@ async function getUuidsError(
       count++;
     } else if (!user?.userDetails?.username) {
       logger.info(
-        `User with mobileNumber ${user?.mobileNumber} doesn't have username`
+        `User at row ${mobileNumberRowNumberMapping[user?.mobileNumber]} doesn't have username`
       );
       errors.push({
         status: "INVALID",
@@ -338,7 +338,7 @@ async function getUuidsError(
       count++;
     } else if (!user?.userUuid) {
       logger.info(
-        `User with mobileNumber ${user?.mobileNumber} doesn't have userServiceUuid`
+        `User at row ${mobileNumberRowNumberMapping[user?.mobileNumber]} doesn't have userServiceUuid`
       );
       errors.push({
         status: "INVALID",
@@ -417,7 +417,7 @@ export async function getUserWithMobileNumbers(
   mobileNumberRowNumberMapping: any
 ): Promise<Set<any>> {
   logger.debug(
-    "mobileNumbers to search: " + getFormattedStringForDebug(mobileNumbers)
+    "mobileNumbers to search count: " + mobileNumbers?.length
   );
   const BATCH_SIZE = config.user.searchBatchSize;
   let allResults: any[] = [];
@@ -442,7 +442,7 @@ export async function getUserWithMobileNumbers(
     }
   }
   const resultSet = new Set(allResults);
-  logger.info(`Already Existing mobile numbers : ${Array.from(resultSet).join(",")}`);
+  logger.info(`Already Existing mobile numbers count : ${resultSet.size}`);
   return resultSet;
 }
 
@@ -491,8 +491,8 @@ async function matchUserValidation(createdData: any[], request: any) {
   }
 
   logger.debug(
-    "mobileNumberRowNumberMapping : " +
-    getFormattedStringForDebug(mobileNumberRowNumberMapping)
+    "mobileNumberRowNumberMapping count : " +
+    Object.keys(mobileNumberRowNumberMapping).length
   );
   const mobileNumberResponse = await getUserWithMobileNumbers(
     request,
@@ -1246,7 +1246,7 @@ async function handleUserProcess(
           request.body.mobileNumberUuidsMapping[employee?.user?.mobileNumber]
         ) {
           logger.info(
-            `User with mobile number ${employee?.user?.mobileNumber} already exist`
+            `User already exists (userServiceUuid ${request.body.mobileNumberUuidsMapping[employee?.user?.mobileNumber]?.userServiceUuid}); skipping create`
           );
         } else {
           Employees.push(employee);
@@ -1801,7 +1801,6 @@ async function confirmProjectParentCreation(tenantId: string, uuid: string, proj
 async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any) {
   logger.info("Project Update For Targets started");
 
-  logger.debug("Project update request body: " + getFormattedStringForDebug(projectUpdateBody));
   logger.info(`Project update started for boundary code: ${boundaryCode} and project name: ${request?.body?.CampaignDetails?.campaignName}`);
 
   try {
@@ -1811,7 +1810,7 @@ async function projectUpdateForTargets(projectUpdateBody: any, request: any, bou
       undefined, undefined, undefined, undefined, undefined,
       true
     );
-    logger.debug("Project update response: " + getFormattedStringForDebug(projectUpdateResponse));
+    logger.debug("Project update response: project count " + (projectUpdateResponse?.Project?.length ?? 0));
     logger.info(`Project update response for boundary code: ${boundaryCode} and project name: ${request?.body?.CampaignDetails?.campaignName}`);
   } catch (error: any) {
     logger.error("Project update failed", error);

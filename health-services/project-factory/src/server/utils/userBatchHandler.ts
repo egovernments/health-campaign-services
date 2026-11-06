@@ -127,7 +127,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         );
         if (sheetInvalidIdentifiers.length > 0) {
             logger.warn(
-                `Skipping HRMS create for ${sheetInvalidIdentifiers.length} sheet-invalid row(s) in batch ${batchNumber}/${totalBatches}: ${JSON.stringify(sheetInvalidIdentifiers)}`
+                `Skipping HRMS create for ${sheetInvalidIdentifiers.length} sheet-invalid row(s) in batch ${batchNumber}/${totalBatches}`
             );
             sheetInvalidIdentifiers.forEach(id => {
                 const record = userData[id];
@@ -162,12 +162,12 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 
             if (sheetName && hrmsName && sheetName !== hrmsName) {
                 const reason = `${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS as '${existing.existingName}' but sheet provided '${campaignRecord?.data?.[userDataFields.name] ?? ''}'. HRMS user kept as source of truth.`;
-                logger.warn(`Phone ${uniqueIdentifier} → ${reason}`);
+                logger.warn(`${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS (serviceUuid ${existing.serviceUuid}) under a different name than the sheet; HRMS user kept as source of truth.`);
                 // Surface the discrepancy on the row so operators can see it on the credential sheet's error column,
                 // without flipping status back to failed (HRMS user is still valid for this row's purposes).
                 campaignRecord.data[campaignDataRowFields.errorDetails] = reason;
             } else {
-                logger.info(`Row for phone ${uniqueIdentifier} already in HRMS (serviceUuid ${existing.serviceUuid}) — marking completed without create${wasRetry ? ' (retry=true)' : ''}`);
+                logger.info(`Row already in HRMS (serviceUuid ${existing.serviceUuid}) — marking completed without create${wasRetry ? ' (retry=true)' : ''}`);
             }
         });
 
@@ -233,7 +233,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 campaignRecord.data[campaignDataRowFields.errorDetails] = hrmsError;
                 updatedUsers.push(campaignRecord);
                 failureCount++;
-                logger.warn(`HRMS create failed for phone ${phoneNumber}${wasRetry ? ' (retry=true)' : ''}: ${hrmsError}`);
+                logger.warn(`HRMS create failed for user${wasRetry ? ' (retry=true)' : ''}: ${hrmsError}`);
             } else if (serviceUuid) {
                 campaignRecord.status = dataRowStatuses.completed;
                 const userName = transformedUser?.user?.userName;
@@ -252,7 +252,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 updatedUsers.push(campaignRecord);
                 successCount++;
                 if (wasRetry) {
-                    logger.info(`HRMS create succeeded on retry for phone ${phoneNumber}: serviceUuid ${serviceUuid}`);
+                    logger.info(`HRMS create succeeded on retry: serviceUuid ${serviceUuid}`);
                 }
 
                 if (individualId) {
@@ -282,7 +282,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 updatedUsers.push(campaignRecord);
                 failureCount++;
 
-                logger.error(`Failed to create user with phone: ${phoneNumber}${wasRetry ? ' (retry=true)' : ''}`);
+                logger.error(`Failed to create user (no service UUID returned)${wasRetry ? ' (retry=true)' : ''}`);
             }
         });
 
@@ -524,7 +524,7 @@ async function createUsersViaHrmsApi(
                         lastError = extractHrmsErrorMessage(perUserError);
                         if (attempt < maxRetries && isRetryableHrmsError(lastError)) {
                             const delay = backoffMs * (2 ** attempt) + Math.floor((attempt + 1) * 37);
-                            logger.warn(`Per-user create for ${mobileNumber} hit a transient error (attempt ${attempt + 1}/${maxRetries + 1}), backing off ${delay}ms: ${lastError}`);
+                            logger.warn(`Per-user create hit a transient error (attempt ${attempt + 1}/${maxRetries + 1}), backing off ${delay}ms: ${lastError}`);
                             await sleep(delay);
                             continue;
                         }
@@ -558,11 +558,11 @@ async function createUsersViaHrmsApi(
                     const outcome = result.value;
                     if (outcome?.success) {
                         successCount++;
-                        logger.debug(`Per-user creation succeeded for ${outcome.mobileNumber}`);
+                        logger.debug(`Per-user creation succeeded`);
                     } else if (outcome?.error) {
                         failureCount++;
                         failedMobiles[outcome.mobileNumber] = outcome.error;
-                        logger.warn(`Per-user creation failed for ${outcome.mobileNumber}: ${outcome.error}`);
+                        logger.warn(`Per-user creation failed: ${outcome.error}`);
                     }
                 } else {
                     failureCount++;

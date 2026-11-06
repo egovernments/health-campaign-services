@@ -16,6 +16,13 @@ Changes from v2.0 to v2.1, for product owners, QA and ops.
 - **Boundary correctness.** Boundaries with the same display name at different levels no longer collide; facilities map to boundaries by id/code instead of name; multi-hierarchy and root-boundary processing are supported/fixed. A not-yet-localized / non-ASCII boundary now renders its **boundary code** instead of a blank cell (fallback when the localized value is missing **or blank**).
 - **Search and ops.** `process/_search` and `generate/_search` now filter by `additionalDetails` key-value pairs; campaign search pagination was fixed; the original request context now travels with `hcm-processing-result` (fixing downstream campaign-creation failures); and publish logs show the actual tenant-prefixed topic names for easier log correlation.
 
+## Outside Household sites (HCMPRE-2371)
+
+- New 4th sheet `HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST` in the unified template (`OutsideHouseholdSheetGenerator`). It appears only for campaign types in `excel.ingestion.outside.household.campaign.types` whose `additionalDetails.cycleData.deliveryMethods` contains `OUTSIDEHOUSEHOLD`, and only when MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES` has an active row.
+- Pre-filled with the campaign's stored sites, then the Permanent sites of earlier campaigns on its lowest two boundary levels (as Inactive, no worker).
+- Upload checks in `OutsideHouseholdValidationProcessor`: category allowed for the site type, boundary on the lowest or second-lowest level, no duplicate new row (same type, category, boundary and name).
+- MDMS: sheet schema `outside-household-microplan-ingestion`, plus the sheet entries in `excelIngestionGenerate` (`unified-console`) and `excelIngestionProcess` (`unified-console-validation`, `unified-console-parse`). Full flow: [OUTSIDE_HOUSEHOLD_SITES.md](../project-factory/OUTSIDE_HOUSEHOLD_SITES.md).
+
 ## 1. Purpose
 
 Excel Ingestion is the **shared Excel engine** for health campaigns. It does two jobs, kept deliberately simple:
@@ -228,6 +235,8 @@ These environment-tunable keys are new; defaults are shown and match `applicatio
 | `egov.excel.usage-value-validation-enabled` | `true` | Server enforces the usage column is exactly `Active`/`Inactive` (`HCM_VALIDATION_INVALID_USAGE`). |
 | `egov.excel.boundary-selection-validation-enabled` | `true` | Server rejects a boundary selection that does not resolve to a boundary code (`HCM_BOUNDARY_INVALID_SELECTION`). |
 | `excel.ingestion.listener.watchdog.interval.ms` | `60000` | Interval for the Kafka listener watchdog that restarts a stopped generation-init consumer. |
+| `excel.ingestion.outside.household.campaign.types` | `POLIO` | Campaign types (projectType codes, comma-separated) that can get the Outside Household sheet. |
+| `excel.ingestion.processed.file.keep.localized.enum.values` | `true` | The processed file shows the localized dropdown labels the user uploaded. Validation, processors and saved sheet data still use the codes (`EnumValueNormalizer`). `false` keeps the codes in the processed file, as before. |
 
 ## 8. Release Version
 

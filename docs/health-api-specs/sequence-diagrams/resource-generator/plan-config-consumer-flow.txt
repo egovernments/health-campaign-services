@@ -1,0 +1,90 @@
+@startuml
+title Resource Generator - Plan Configuration Consumer (Dispatcher)
+!theme vibrant
+participant PlanService as ps
+queue Kafka as k
+participant ResourceGenerator as s
+participant ProjectFactory as pf
+participant PersisterService as prs
+database Database as db
+
+group Plan configuration create / update (/plan-config-create-topic, /plan-config-update-topic)
+    ps -> k: PlanConfigurationRequest\n/plan-config-create-topic or /plan-config-update-topic
+    activate k
+
+    group async persister (plan-service-persister.yml)
+        prs -> k: Consume /plan-config-create-topic, /plan-config-update-topic
+        activate prs
+        prs -> db: INSERT / UPDATE plan_configuration, plan_configuration_files,\nplan_configuration_assumptions, plan_configuration_operations,\nplan_configuration_mapping
+        activate db
+        deactivate db
+        deactivate prs
+    end
+
+    s -> k: Consume PlanConfigurationRequest (PlanConsumer.listen,\nconsumer group "plan-service")
+    activate s
+
+    alt workflow is empty OR status not in trigger list
+        s -> s: Ignore record
+        note right
+            Trigger statuses (application.properties):
+            RESOURCE_ESTIMATION_IN_PROGRESS (plan estimates)
+            EXECUTION_TO_BE_DONE (census records + facility mappings)
+            RESOURCE_ESTIMATIONS_APPROVED (output file)
+            Updates pushed back by this service set workflow = null,
+            so they are ignored here (no loop)
+        end note
+    else trigger status with workflow
+        group estimateResources
+            opt status == EXECUTION_TO_BE_DONE
+                s -> s: addEstimationsFile + planUtil.update\n(see census-and-facility-creation-flow.txt)
+            end
+
+            s -> pf: /project-factory/v1/project-type/search\n(CampaignDetails ids = [campaignId], tenantId)
+            activate pf
+            pf -> s: CampaignResponse
+            deactivate pf
+            alt campaign search fails
+                s -> s: CustomException ERROR_FETCHING_CAMPAIGN_DETAILS
+            end
+
+            opt status == EXECUTION_TO_BE_DONE
+                s -> pf: /project-factory/v1/data/_create (facility)\n(see census-and-facility-creation-flow.txt)
+                activate pf
+                pf -> s: Response
+                deactivate pf
+            end
+
+            group processFiles
+                loop each file in PlanConfiguration.files
+                    alt file inactive
+                        s -> s: Skip
+                    else inputFileType not EXCEL / SHAPEFILE / GEOJSON
+                        s -> s: IllegalArgumentException "Unsupported file type: <type>"
+                    else templateIdentifier == "EstimationsInprogress"
+                        alt EXCEL
+                            s -> s: ExcelParser.parseFileData\n(status specific, see census-and-facility-creation-flow.txt,\nresource-estimation-flow.txt, output-estimation-file-flow.txt)
+                        else GEOJSON / SHAPEFILE
+                            s -> s: GeoJsonParser / ShapeFileParser.parseFileData\n(see geojson-shapefile-parser-flow.txt)
+                        end
+                        s -> s: Stop iterating (break)
+                    end
+                end
+            end
+        end
+        s -> s: Log "Successfully estimated resources for plan."
+    end
+
+    alt any exception
+        s -> s: Log "Error processing record from topic <topic>"
+        s -> s: Rethrow CustomException("500", exception)
+        note right
+            Exception goes to the Kafka listener container;
+            no custom error handler / DLQ is configured
+        end note
+    end
+    deactivate s
+end
+deactivate k
+
+@enduml

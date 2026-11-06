@@ -1,5 +1,13 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.37 - 2026-10-28
+
+- Added NEW_SETTLEMENT in userAction Enum for user location capture . 
+
+## 1.0.36 - 2026-10-13
+
+- Added VACCINATED_ELSEWHERE in TaskStatus Enum for project tasks
+
 ## 1.0.30 - 2026-02-11
 
 - Added projectId field to Referral model for project tracking

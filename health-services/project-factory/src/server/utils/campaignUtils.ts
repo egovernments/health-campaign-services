@@ -75,6 +75,10 @@ import {
   areBoundariesSame,
   callGenerateIfBoundariesOrCampaignTypeDiffer,
   isGenerationTriggerNeeded,
+  isOutsideHouseholdDeliveryPersisted,
+  isOutsideHouseholdChoiceDifferentFromSource,
+  isOutsideHouseholdDeliveryChanged,
+  cloneSourceFileToReattach,
 } from "./generateUtils";
 import {
   generateDynamicTargetHeaders,
@@ -1087,12 +1091,9 @@ async function enrichAndPersistCampaignForCreate(
 async function processAppConfig(campaignDetails: any, RequestInfo: any) {
   try {
     if (!campaignDetails?.parentId) {
-      if (campaignDetails?.additionalDetails?.cloneFrom) {
-        await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo);
-      }
-      else {
-        await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
-      }
+      // A clone gets the app configuration of its campaign type, as a new campaign does: the source's FormConfig is not
+      // copied, since the console's editor works on its own copy of the pages, which a copied FormConfig would not match
+      await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
     }
   } catch (error) {
     logger.error("Error while processing app config", error);
@@ -2389,6 +2390,51 @@ async function copyResourcesFromParentToChildInDB(
 }
 
 /**
+ * A clone created with an Outside Household choice different from its source's does not keep the source's file the
+ * console copied into it: the file is removed from the request's resources before the clone is saved, so the user
+ * downloads the clone's own template (with or without the Outside Household sheet) and uploads that.
+ */
+export async function dropCloneSourceFileIfOutsideHouseholdChoiceDiffers(campaignDetails: any): Promise<void> {
+  const cloneFromNumber = campaignDetails?.additionalDetails?.cloneFrom;
+  if (!cloneFromNumber || campaignDetails?.parentId || !config.mapping?.detachStaleResourcesOnConfigChange
+    || !Array.isArray(campaignDetails?.resources) || campaignDetails.resources.length === 0) return;
+  try {
+    const resp = await searchProjectTypeCampaignService({ tenantId: campaignDetails.tenantId, campaignNumber: cloneFromNumber });
+    const source = resp?.CampaignDetails?.[0];
+    if (!isOutsideHouseholdChoiceDifferentFromSource(campaignDetails, source)) return;
+    const sourceFileIds = new Set((source?.resources || []).map((r: any) => r?.filestoreId).filter(Boolean));
+    const kept = campaignDetails.resources.filter((r: any) => !sourceFileIds.has(r?.filestoreId));
+    if (kept.length !== campaignDetails.resources.length) {
+      logger.info(`Clone ${campaignDetails?.campaignNumber}: Outside Household choice differs from ${cloneFromNumber}; ${campaignDetails.resources.length - kept.length} file(s) of the source not kept`);
+      campaignDetails.resources = kept;
+    }
+  } catch (err: any) {
+    logger.warn(`Could not compare clone ${campaignDetails?.campaignNumber} with ${cloneFromNumber}; keeping its files: ${err?.message ?? err}`);
+  }
+}
+
+/**
+ * A clone whose save changes its Outside Household choice back to its source's gets the source's file again (the file a
+ * clone keeps while it agrees with its source), unless the save brings a file of its own. Returns true when attached.
+ */
+export async function reattachCloneSourceFileIfChoiceAgrees(request: any): Promise<boolean> {
+  const campaignDetails = request?.body?.CampaignDetails;
+  const cloneFromNumber = campaignDetails?.additionalDetails?.cloneFrom;
+  if (!cloneFromNumber || campaignDetails?.parentId || !isOutsideHouseholdDeliveryChanged(request)) return false;
+  try {
+    const resp = await searchProjectTypeCampaignService({ tenantId: campaignDetails.tenantId, campaignNumber: cloneFromNumber });
+    const file = cloneSourceFileToReattach(campaignDetails, resp?.CampaignDetails?.[0], true);
+    if (!file) return false;
+    campaignDetails.resources = [...(Array.isArray(campaignDetails.resources) ? campaignDetails.resources : []), file];
+    logger.info(`Clone ${campaignDetails?.campaignNumber}: Outside Household choice agrees with ${cloneFromNumber} again; its file ${file.filestoreId} is attached again`);
+    return true;
+  } catch (err: any) {
+    logger.warn(`Could not attach the source file of clone ${campaignDetails?.campaignNumber} again: ${err?.message ?? err}`);
+    return false;
+  }
+}
+
+/**
  * Fetches the unified-console-resources filestoreId from the cloneFrom campaign and injects it
  * into campaignDetails.resources so the clone can be processed as a unified template campaign.
  * Returns true if a filestoreId was successfully borrowed, false otherwise.
@@ -2399,6 +2445,10 @@ async function borrowUnifiedSheetFromCloneCampaign(campaignDetails: any): Promis
 
   const resp = await searchProjectTypeCampaignService({ tenantId: campaignDetails.tenantId, campaignNumber: cloneFromNumber });
   const cloneFromCampaign = resp?.CampaignDetails?.[0];
+  if (isOutsideHouseholdChoiceDifferentFromSource(campaignDetails, cloneFromCampaign)) {
+    logger.info(`Clone ${campaignDetails?.campaignNumber} does not borrow the sheet of ${cloneFromNumber}: its Outside Household choice differs, so the source's file does not match its template`);
+    return false;
+  }
   const cloneFromUnified = cloneFromCampaign?.resources?.find((r: any) => r?.type === resourceTypes.unifiedConsoleResources);
 
   if (!cloneFromUnified?.filestoreId) {
@@ -2823,6 +2873,8 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
 
   const generationCheck = isGenerationTriggerNeeded(request);
   await enrichAndPersistProjectCampaignForFirst(request, actionInUrl, true);
+  // The campaign is saved: a failure after this point must not take back the files stored for this save
+  request.body.campaignPersisted = true;
 
   const shouldTriggerGeneration =
     request?.body?.CampaignDetails?.action === "draft" &&
@@ -2842,19 +2894,27 @@ async function tryTriggerGenerateIfBoundariesSynced(request: any, expectedBounda
   const campaignId = request?.body?.CampaignDetails?.id;
   const tenantId = request?.body?.CampaignDetails?.tenantId;
 
+  // Boundaries matched but the update's Outside Household choice was not stored yet: the template would miss
+  // (or keep) the Outside Household sheet, so wait for it like for the boundaries.
+  let boundariesMatched = false;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       logger.info(`Checking persisted campaign boundaries. Attempt ${attempt}`);
       const searchResponse = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
-      const persistedBoundaries = searchResponse?.CampaignDetails?.[0]?.boundaries ?? [];
+      const persistedCampaign = searchResponse?.CampaignDetails?.[0];
+      const persistedBoundaries = persistedCampaign?.boundaries ?? [];
 
       if (areBoundariesSame(persistedBoundaries, expectedBoundaries)) {
-        logger.info("Persisted boundaries match request. Triggering generation.");
-        callGenerateIfBoundariesOrCampaignTypeDiffer(request);
-        return;
+        boundariesMatched = true;
+        if (isOutsideHouseholdDeliveryPersisted(request?.body?.CampaignDetails, persistedCampaign)) {
+          logger.info("Persisted boundaries match request. Triggering generation.");
+          callGenerateIfBoundariesOrCampaignTypeDiffer(request);
+          return;
+        }
+        logger.warn(`Persisted campaign does not have the update's Outside Household delivery method yet on attempt ${attempt}. Retrying...`);
+      } else {
+        logger.warn(`Persisted boundaries differ on attempt ${attempt}. Retrying...`);
       }
-
-      logger.warn(`Persisted boundaries differ on attempt ${attempt}. Retrying...`);
     } catch (error: any) {
       logger.error(`Error checking persisted campaign boundaries on attempt ${attempt}: ${error.message}`);
     }
@@ -2862,6 +2922,12 @@ async function tryTriggerGenerateIfBoundariesSynced(request: any, expectedBounda
     if (attempt < maxRetries) {
       await new Promise(resolve => setTimeout(resolve, retryDelayMs));
     }
+  }
+
+  if (boundariesMatched) {
+    logger.warn("Outside Household delivery method not persisted after 4 retries. Triggering generation anyway.");
+    callGenerateIfBoundariesOrCampaignTypeDiffer(request);
+    return;
   }
 
   logger.error("Persisted boundaries did not match after 4 retries. Possible DB sync issue.");
@@ -3047,104 +3113,6 @@ export async function createAppConfig(
     logger.error(`Failed to create app config: ${err?.message}`);
     throw err;
   }
-}
-
-/**
- * Copy the app-config MDMS modules and localisations from an existing campaign into a new one.
- */
-export async function createAppConfigFromClone(
-  tenantId: string,
-  newCampaignNumber: string,
-  cloneFromCampaignNumber: string,
-  RequestInfo: any
-): Promise<void> {
-  try {
-    if (!newCampaignNumber) {
-      throw new Error(`createAppConfigFromClone: newCampaignNumber is required but got: ${newCampaignNumber}`);
-    }
-    if (!cloneFromCampaignNumber) {
-      throw new Error(`createAppConfigFromClone: cloneFromCampaignNumber is required but got: ${cloneFromCampaignNumber}`);
-    }
-    logger.info("Started creating app config from clone...");
-
-    const moduleName = config.values.moduleName;
-    const FormConfig = config.values.formConfigName;
-    const configSchema = `${moduleName}.${FormConfig}`;
-
-    logger.debug(`Config Schema: ${configSchema}`);
-    
-    const useruuid = RequestInfo?.userInfo?.uuid;
-    if (!useruuid) {
-      throw new Error("User uuid not found in request");
-    }
-
-    const [locales, localisation] = await Promise.all([
-      getLocalesFromStateInfo(tenantId),
-      Localisation.getInstance(),
-    ]);
-
-    const cloneResponse = await fetchCloneModules(
-      tenantId,
-      configSchema,
-      cloneFromCampaignNumber
-    );
-
-    const modulesToClone = (cloneResponse?.mdms || [])
-      .map((item: any) => item?.data)
-      .flat()
-      .filter(Boolean);
-
-    if (!modulesToClone.length) {
-      logger.warn("No modules found to clone.");
-      return;
-    }
-
-    for (const module of modulesToClone) {
-      const moduleName = module?.name;
-      if (!moduleName) continue;
-
-      const baseKey = `hcm-${moduleName.toLowerCase()}-${cloneFromCampaignNumber}`;
-      const newKey = `hcm-${moduleName.toLowerCase()}-${newCampaignNumber}`;
-
-      await upsertLocalisations(tenantId, baseKey, newKey, locales, localisation, RequestInfo);
-
-      const newModule = {
-        ...module,
-        project: newCampaignNumber,
-        isSelected: true,
-      };
-
-      await createMdmsData(tenantId, configSchema, newModule, RequestInfo);
-    }
-
-    logger.info("App configuration cloned successfully.");
-  } catch (err: any) {
-    logger.error(`Failed to clone app config: ${err?.message}`);
-    throw err;
-  }
-}
-
-async function fetchCloneModules(
-  tenantId: string,
-  configSchema: string,
-  cloneFromCampaignNumber: string
-): Promise<any> {
-  if (!cloneFromCampaignNumber) {
-    throw new Error(`fetchCloneModules: cloneFromCampaignNumber is required but got: ${cloneFromCampaignNumber}`);
-  }
-
-  const cloneCriteria = {
-    tenantId,
-    schemaCode: configSchema,
-    filters: { project: cloneFromCampaignNumber },
-    isActive: true,
-  };
-
-  logger.info(
-    `MDMS SEARCH [fetchCloneModules] schemaCode=${configSchema} | request body: ${JSON.stringify({ MdmsCriteria: cloneCriteria })}`
-  );
-
-  return await searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria });
 }
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {

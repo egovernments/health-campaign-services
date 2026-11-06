@@ -1,0 +1,137 @@
+@startuml
+title Resource Generator - Plan Estimates Creation (RESOURCE_ESTIMATION_IN_PROGRESS)
+!theme vibrant
+participant PlanService as ps
+queue Kafka as k
+participant ResourceGenerator as s
+participant ProjectFactory as pf
+participant FileStore as fs
+participant LocalizationService as loc
+participant MDMSService as mdms
+participant BoundaryService as bs
+participant CensusService as cs
+
+ps -> k: PlanConfigurationRequest (status RESOURCE_ESTIMATION_IN_PROGRESS, workflow set)\n/plan-config-update-topic
+activate k
+s -> k: Consume PlanConfigurationRequest
+activate s
+
+s -> pf: /project-factory/v1/project-type/search\n(CampaignDetails ids = [campaignId], tenantId)
+activate pf
+pf -> s: CampaignResponse
+deactivate pf
+alt campaign search fails
+    s -> s: CustomException ERROR_FETCHING_CAMPAIGN_DETAILS
+end
+
+group ExcelParser.parseFileData (active file "EstimationsInprogress")
+    s -> fs: GET /filestore/v1/files/id?tenantId={tenantId}&fileStoreId={fileStoreId}
+    activate fs
+    fs -> s: File bytes
+    deactivate fs
+    alt file missing
+        s -> s: CustomException FILE_NOT_FOUND
+    end
+
+    group processSheets
+        s -> loc: /localization/messages/v1/_search?module=rainmaker-microplanning,\nrainmaker-boundary-undefined,hcm-admin-schemas&locale=<msgId locale>&tenantId
+        activate loc
+        loc -> s: LocaleResponse
+        deactivate loc
+        s -> mdms: /egov-mdms-service/v1/_search (HCM-ADMIN-CONSOLE.adminSchema)
+        activate mdms
+        mdms -> s: MDMS data
+        deactivate mdms
+        alt MDMS response empty
+            s -> s: CustomException NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+        end
+        s -> s: Sort operations by executionOrder
+        s -> mdms: /mdms-v2/v2/_search (HCM-ADMIN-CONSOLE.adminSchema,\nuniqueIdentifier boundary.MP-<projectType>)
+        activate mdms
+        mdms -> s: Admin schema columns
+        deactivate mdms
+        s -> s: enrichResourceMapping
+        s -> bs: /boundary-service/boundary-relationships/_search\n?includeChildren=true&tenantId&hierarchyType
+        activate bs
+        bs -> s: Boundary tree
+        deactivate bs
+        alt boundary search fails
+            s -> s: CustomException BOUNDARY_SEARCH_EXCEPTION
+        else no tenantBoundary
+            s -> s: CustomException BOUNDARY_CODE_NOT_FOUND
+        end
+
+        group batchProcessCensusRecords (batch.size = 100)
+            loop until census search returns no records (offset += 100)
+                s -> cs: /census-service/_search\n(tenantId, source = planConfigId, limit 100, offset)
+                activate cs
+                cs -> s: CensusResponse
+                deactivate cs
+                note right
+                    Search errors are only logged; a null
+                    response then fails with an NPE
+                end note
+                s -> mdms: /mdms-v2/v2/_search\n(hcm-microplanning.MixedStrategyOperationLogic)
+                activate mdms
+                mdms -> s: Mixed strategy logic
+                deactivate mdms
+                alt MDMS v2 response empty
+                    s -> s: CustomException NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+                end
+                s -> ps: /plan-service/plan/facility/_search\n(tenantId, planConfigurationId)
+                activate ps
+                ps -> s: PlanFacilityResponse
+                deactivate ps
+                alt no plan facility found
+                    s -> s: CustomException NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS
+                end
+                s -> s: Map serviceBoundary -> fixedPost\n(additionalDetails.fixedPost == "yes")
+                loop each census record
+                    s -> s: Feature = boundaryCode + CONFIRMED_* additional fields\n(prefix removed)
+                    s -> s: Calculate each operation (input from feature,\nassumptions or previous outputs)
+                    s -> s: Null outputs of categoriesNotAllowed for\n(fixedPost, RegistrationProcess, DistributionProcess)
+                    note right
+                        Boundary not served by any facility gives a null
+                        Boolean, unboxed into a boolean parameter (NPE)
+                    end note
+                    s -> s: Build Plan (locality, resources, workflow INITIATE,\nisRequestFromResourceEstimationConsumer = true,\nfacilityId / accessibility / security codes from census)
+                    s -> k: PlanRequest /resource-microplan-create-topic
+                end
+            end
+        end
+
+        s -> mdms: /egov-mdms-service/v1/_search (hcm-microplanning.CommonConstants)
+        activate mdms
+        mdms -> s: Common constants (readMeSheetName)
+        deactivate mdms
+        s -> s: Sheets are not modified for this status
+    end
+
+    group uploadFileAndIntegrateCampaign
+        s -> s: Convert workbook to file
+        s -> fs: POST /filestore/v1/files (multipart, tenantId, module = microplan)
+        activate fs
+        fs -> s: files[0].fileStoreId
+        deactivate fs
+        s -> s: Set new fileStoreId on "EstimationsInprogress" file, workflow = null
+        s -> k: PlanConfigurationRequest /resource-plan-config-update-topic
+        s -> s: Delete temp file
+    end
+end
+
+alt any exception
+    s -> s: Log and rethrow CustomException 500
+end
+deactivate s
+
+group async downstream
+    ps -> k: Consume /resource-microplan-create-topic
+    activate ps
+    ps -> ps: PlanService.createPlan(...) per locality
+    ps -> k: Consume /resource-plan-config-update-topic
+    ps -> ps: PlanConfigurationService.update(...)
+    deactivate ps
+end
+deactivate k
+
+@enduml

@@ -21,7 +21,7 @@ export class TemplateClass {
         templateConfig: any
     ): Promise<SheetMap> {
         logger.info("Processing file...");
-        logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
+        logger.info(`ResourceDetails: id=${resourceDetails?.id}, type=${resourceDetails?.type}, campaignId=${resourceDetails?.campaignId}, fileStoreId=${resourceDetails?.fileStoreId}`);
         const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
         if (!userSheetData || !userSheetData?.length) {
             throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)}' is empty or not present`);
@@ -128,7 +128,6 @@ export class TemplateClass {
         const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => String(user?.uniqueIdentifier)));
         const allPhoneNumbersNotInCampaignData = allPhoneNumbersToSearch.filter((phoneNumber: any) => !setOfAllCurrentUsersInCampaignDataWithPhoneNumbers.has(String(phoneNumber)));
         logger.info(`Number of phone numbers not in campaign data: ${allPhoneNumbersNotInCampaignData?.length}`);
-        logger.info(`Phone numbers not in campaign data: ${JSON.stringify(allPhoneNumbersNotInCampaignData)}`);
         const searchBody: any = {
             RequestInfo: resourceDetails?.requestInfo,
             Individual: {
@@ -168,7 +167,7 @@ export class TemplateClass {
             }
             for (const user of response?.Individual) {
                 logger.warn(
-                    `User with mobileNumber ${user?.mobileNumber} already exists in campaign data`
+                    `User with individualId ${user?.id} already exists in campaign data`
                 );
                 errors.push({
                     row: phoneNumbersToRowMap[user?.mobileNumber],

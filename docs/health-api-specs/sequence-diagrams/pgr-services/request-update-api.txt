@@ -1,0 +1,154 @@
+@startuml
+title PGR Services - Request Update
+!theme vibrant
+participant Client as c
+participant PGRService as s
+participant MDMSService as mdms
+participant HRMSService as hrms
+participant UserService as us
+participant WorkflowService as wf
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /pgr-services/v2/request/_update
+activate s
+
+s -> s: Validate request body (@Valid)\n(same constraints as create)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group mDMSCall
+    s -> mdms: /egov-mdms-service/v1/_search\n(module RAINMAKER-PGR, master ServiceDefs, active only)
+    activate mdms
+    mdms -> s: MdmsRes
+    deactivate mdms
+end
+
+group validateUpdate
+    s -> s: validateSource
+    alt source not allowed
+        s -> c: HttpStatus: 400 INVALID_SOURCE
+    end
+    s -> s: validateHierarchyType
+    alt hierarchyType blank
+        s -> c: HttpStatus: 400 INVALID_HIERARCHY_TYPE
+    end
+    s -> s: validateMDMS (serviceCode in ServiceDefs)
+    alt MDMS response cannot be parsed
+        s -> c: HttpStatus: 400 JSONPATH_ERROR
+    else serviceCode not in MDMS
+        s -> c: HttpStatus: 400 INVALID_SERVICECODE
+    end
+    opt workflow.assignes not empty (validateDepartment)
+        s -> hrms: /egov-hrms/employees/_search\n?uuids=<workflow.hrmsAssignes>&tenantId
+        activate hrms
+        hrms -> s: Employees
+        deactivate hrms
+        alt HRMS parse error / no department
+            s -> c: HttpStatus: 400 PARSING_ERROR / DEPARTMENT_NOT_FOUND
+        else MDMS department missing
+            s -> c: HttpStatus: 400 JSONPATH_ERROR / PARSING_ERROR
+        else MDMS department not in employee departments
+            s -> c: HttpStatus: 400 INVALID_ASSIGNMENT
+        end
+    end
+    opt workflow.action == REOPEN (validateReOpen)
+        alt CITIZEN and userInfo.uuid != service.accountId
+            s -> c: HttpStatus: 400 INVALID_ACTION (Not authorized to re-open)
+        else now - service.auditDetails.lastModifiedTime > pgr.complain.idle.time (10 days)
+            s -> c: HttpStatus: 400 INVALID_ACTION (Complaint is closed)
+        end
+        note right
+            lastModifiedTime is taken from the request
+            body, not from the stored record
+        end note
+    end
+    s -> db: SELECT eg_pgr_service_v2 INNER JOIN eg_pgr_address_v2\nWHERE ser.tenantid = ? (LIKE 'tenant%' for state tenant)\nAND ser.id IN (service.id)\nORDER BY ser_createdtime DESC OFFSET null LIMIT null
+    activate db
+    db -> s: Existing complaint
+    deactivate db
+    alt invalid tenant (schema resolution)
+        s -> c: HttpStatus: 400 INVALID_TENANT_ID
+    else record not found
+        s -> c: HttpStatus: 400 INVALID_UPDATE
+    end
+end
+
+group enrichUpdateRequest
+    s -> s: auditDetails = createdBy/createdTime from request,\nlastModifiedBy = userInfo.uuid, lastModifiedTime = now
+    alt accountId present (enrichUser)
+        s -> us: /user/_search (uuid = accountId, state tenant,\nuserType = service.user.type, active = true)
+        activate us
+        us -> s: User
+        deactivate us
+        alt no user found
+            s -> c: HttpStatus: 400 INVALID_ACCOUNTID
+        end
+    else service.user present (upsertUser)
+        s -> us: /user/_search, then /user/users/_updatenovalidate\nor /user/users/_createnovalidate
+        activate us
+        us -> s: User
+        deactivate us
+    end
+end
+
+group updateWorkflowStatus
+    s -> wf: /egov-workflow-v2/egov-wf/businessservice/_search\n?tenantId&businessServices=PGR
+    activate wf
+    wf -> s: BusinessServices
+    deactivate wf
+    alt no business service
+        s -> c: HttpStatus: 400 BUSINESSSERVICE_NOT_FOUND
+    end
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(businessId = serviceRequestId, action, assignes,\ncomment, documents)
+    activate wf
+    alt workflow transition fails (4xx)
+        wf -> s: Error
+        s -> c: HttpStatus: 400 { workflow Errors }
+    else success
+        wf -> s: ProcessInstance
+        deactivate wf
+        s -> s: service.applicationStatus = state.applicationStatus
+    end
+end
+
+s -> k: ServiceRequest /update-pgr-request
+activate k
+s -> c: HttpStatus: 200 ServiceResponse (ServiceWrappers[service, workflow])
+deactivate s
+
+group async
+    prs -> k: Consume /update-pgr-request
+    activate prs
+    prs -> db: UPDATE eg_pgr_service_v2 SET servicecode, rating, servicerequestid,\ndescription, accountid, additionaldetails, applicationstatus,\nlastmodified*, selfComplaint WHERE id = ?
+    activate db
+    deactivate db
+    prs -> db: UPDATE eg_pgr_address_v2 SET address fields, locality,\nlatitude, longitude, additionaldetails, lastmodified* WHERE id = ?
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /update-pgr-request
+    activate idx
+    idx -> idx: Enrich via boundary-service, workflow process search, mdms-v2
+    idx -> el: Store /pgr-services (id = serviceRequestId)
+    activate el
+    deactivate el
+    deactivate idx
+    s -> k: Consume /update-pgr-request (NotificationConsumer)
+    note right
+        See kafka-consumers.txt
+    end note
+end
+deactivate k
+
+note over s
+    workflow is not @NotNull but is dereferenced (validateDepartment),
+    and service.auditDetails / service.user are dereferenced
+    without null checks; missing values end as HTTP 500
+end note
+
+@enduml

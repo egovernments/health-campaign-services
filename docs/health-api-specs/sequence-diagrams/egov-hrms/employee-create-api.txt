@@ -1,0 +1,203 @@
+@startuml
+title HRMS - Employee Create
+!theme vibrant
+participant Client as c
+participant HrmsService as s
+participant MDMSService as mdms
+participant IndividualService as ind
+participant EgovUserService as us
+participant BoundaryService as bs
+participant IdGenService as idg
+participant LocalizationService as loc
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /egov-hrms/employees/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, Employees not empty; per employee: employeeType, tenantId,\nuser, jurisdictions (1..50, hierarchy/boundary/boundaryType),\nuser.name, user.dob; assignment department/designation/fromDate/isCurrentAssignment)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateCreateEmployee
+    s -> s: validateDataUniqueness\n(duplicate employee code inside the request)
+    note right
+        Collected in errorMap as ERR_HRMS_BULK_CREATE_DUPLICATE_EMPCODE,
+        thrown after the username pre-check
+    end note
+
+    loop each employee without user.mobileNumber
+        s -> mdms: /egov-mdms-service/v1/_search\n(common-masters.UserValidation, fieldType == mobile)
+        activate mdms
+        mdms -> s: rules.pattern (e.g. ^[6-9][0-9]{9}$)
+        deactivate mdms
+        alt pattern missing or not of form ^[a-b][0-9]{n}$
+            s -> c: HttpStatus: 400 HRMS_EMPLOYEE_MOBILENUMBER_VALIDATION_ERROR
+        end
+        s -> s: Generate random mobile number from pattern
+    end
+
+    group filterExistingUsernames (per tenant, employees with code)
+        s -> ind: /individual/v1/_search?limit=1000&offset=0&tenantId\n(username IN codes, type = EMPLOYEE)
+        activate ind
+        ind -> s: Existing individuals
+        deactivate ind
+        opt usernames not found in individual
+            s -> us: /user/v1/_search\n(tenantId, userType = EMPLOYEE, userNames = remaining)
+            activate us
+            us -> s: Existing legacy users
+            deactivate us
+            note right
+                Failures of this cross-check are only logged
+            end note
+        end
+        s -> s: Remove employees whose code already exists from the batch\nand add row failure HRMS_EMPLOYEE_CREATE_USERNAME_ALREADY_EXISTS\n(source = individual / egov-user)
+    end
+
+    s -> s: validatePassword
+    note right
+        Only when egov.hrms.auto.generate.password = false
+        (default true): user.password must be present
+    end note
+    alt errorMap not empty
+        s -> c: HttpStatus: 400 ERR_HRMS_BULK_CREATE_DUPLICATE_EMPCODE /\nERR_HRMS_PASSWORD_REQUIRED
+    end
+
+    alt all employees removed by the username pre-check
+        s -> c: HttpStatus: 200 { Employees: [], TotalCount: 0, Errors: [row failures] }
+    end
+
+    s -> bs: /boundary-service/boundary/_search\n?limit&offset=0&tenantId&codes=<jurisdiction boundaries of FIRST employee>
+    activate bs
+    alt boundary-service call fails
+        bs -> s: Error
+        s -> c: HttpStatus: 400 BOUNDARY_SERVICE_SEARCH_ERROR
+    else success
+        bs -> s: Boundaries
+        deactivate bs
+    end
+    note right
+        Result is not used: validateJurisdicton is commented out
+    end note
+
+    s -> mdms: /egov-mdms-service/v1/_search\n(common-masters: Department, Designation, Year;\negov-hrms: EmployeeStatus, EmployeeType, Degree, ServiceStatus,\nSpecalization, DeactivationReason, EmploymentTest;\nACCESSCONTROL-ROLES: roles (code != CITIZEN))
+    activate mdms
+    mdms -> s: Master data (errors are logged, empty map returned)
+    deactivate mdms
+
+    opt master data not empty
+        loop each employee
+            s -> s: validateEmployee\n(mobile length 9..10, roles present and in MDMS,\nemployeeType in MDMS, dateOfAppointment / dob not in future,\nappointment not before dob)
+            s -> s: validateAssignments\n(exactly one current assignment, no overlap,\ndepartment in MDMS, toDate rules, dates vs dob / appointment)
+            s -> s: validateServiceHistory\n(max one current position, period, status in MDMS, dates vs dob)
+            s -> s: validateEducationalDetails\n(Degree, Specalization in MDMS, yearOfPassing)
+            s -> s: validateDepartmentalTest\n(EmploymentTest in MDMS, yearOfPassing)
+        end
+    end
+    alt errorMap not empty
+        s -> c: HttpStatus: 400 ERR_HRMS_INVALID_MOB_NO / HRMS_EMPLOYEE_CREATE_MISSING_ROLES:<code> /\nHRMS_EMPLOYEE_CREATE_INVALID_ROLE:<code>:<role> / HRMS_EMPLOYEE_CREATE_INVALID_EMPLOYEE_TYPE:<code> /\nHRMS_EMPLOYEE_CREATE_INVALID_DATE_OF_APPOINTMENT:<code> / HRMS_EMPLOYEE_CREATE_INVALID_DOB:<code> /\nHRMS_EMPLOYEE_CREATE_APPOINTMENT_BEFORE_DOB:<code> / ERR_HRMS_INVALID_CURRENT_ASSGN /\nERR_HRMS_OVERLAPPING_ASSGN / ERR_HRMS_OVERLAPPING_ASSGN_CURRENT /\nHRMS_EMPLOYEE_CREATE_INVALID_DEPARTMENT:<code>:<dept> / ERR_HRMS_INVALID_ASSIGNMENT_CURRENT_TO_DATE /\nERR_HRMS_INVALID_ASSIGNMENT_NOT_CURRENT_TO_DATE / ERR_HRMS_INVALID_ASSIGNMENT_PERIOD /\nERR_HRMS_INVALID_ASSIGNMENT_DATES / ERR_HRMS_INVALID_ASSIGNMENT_DATES_APPOINTMENT /\nERR_HRMS_INVALID_SERVICE_ASSGN / ERR_HRMS_OVERLAPPING_SERVICEHISTORY_CURRENT /\nERR_HRMS_INVALID_SERVICE_CURRENT_TO_DATE / ERR_HRMS_INVALID_SERVICE_NOT_CURRENT_TO_DATE /\nERR_HRMS_INVALID_SERVICE_STATUS / ERR_HRMS_INVALID_SERVICE_PERIOD / ERR_HRMS_INVALID_SERVICE_DATES /\nERR_HRMS_INVALID_QUALIFICATION / ERR_HRMS_INVALID_EDUCATIONAL_STREAM /\nERR_HRMS_INVALID_EDUCATIONAL_PASSING_YEAR / ERR_HRMS_INVALID_DEPARTMENTAL_TEST /\nERR_HRMS_INVALID_DEPARTMENTAL_TEST_PASSING_YEAR
+    end
+end
+
+group EmployeeService.create
+    opt some employees have no code
+        s -> idg: /egov-idgen/id/_generate\n(idName hrms.employeecode, format EMP-[city]-[SEQ_EG_HRMS_EMP_CODE],\ncount = employees without code)
+        activate idg
+        alt idgen call fails
+            idg -> s: Error
+            s -> c: HttpStatus: 400 ERR_HRMS_GENERATE_ID_ERROR
+        else success
+            idg -> s: Ids
+            deactivate idg
+            s -> s: Set employee code
+        end
+    end
+
+    loop each employee
+        s -> s: enrichCreateRequest\n(random UUID ids for jurisdictions, assignments, serviceHistory,\neducation, tests, documents; auditDetails.createdBy = userInfo.uuid;\nisActive = true)
+        loop each assignment
+            s -> db: SELECT NEXTVAL('<schema>.EG_HRMS_POSITION')
+            activate db
+            db -> s: position
+            deactivate db
+        end
+        alt invalid tenantId for schema
+            s -> c: HttpStatus: 400 TENANT_ID_EXCEPTION
+        end
+        s -> s: enrichUser\n(generate password from code, mobile, tenantId, name;\nuserName = code, active = true, type = EMPLOYEE)
+    end
+
+    group createUsers (single bulk call)
+        s -> ind: /individual/v1/bulk/_create?synchronous=true\n(Individuals: isSystemUser, userDetails(username, password, roles),\nskills = roles, address.locality = first jurisdiction boundary)
+        activate ind
+        alt individual-service unreachable / 4xx / mapping error
+            ind -> s: Error
+            s -> c: HttpStatus: 400 HRMS_EMPLOYEE_CREATE_USER_SERVICE_TRANSPORT_ERROR
+        else response
+            ind -> s: Individual[] + Errors[]
+            deactivate ind
+        end
+        s -> s: Map created users to employees by userName\n(id = individual id most significant bits, uuid = individual id,\nuser.userServiceUuid = egov-user uuid)
+        alt any employee without a created user
+            s -> c: HttpStatus: 400 HRMS_EMPLOYEE_CREATE_USER_NOT_CREATED\n(per employee: code, userName, mobile, downstreamCode, downstreamMessage)
+        end
+        note right
+            With egov.hrms.user.service.qualifier = defaultUserService
+            users are created via /user/users/v2/_create in batches of 100.
+            Users already created in the batch are not rolled back.
+        end note
+    end
+
+    s -> k: EmployeeRequest (with plain passwords) /hrms-send-email-notification
+    activate k
+    s -> s: Set user.password = null
+    s -> k: EmployeeRequest /save-hrms-employee\n(state specific topic name for the tenant)
+
+    group sendNotification (SMS)
+        s -> loc: /localization/messages/v1/_search\n?tenantId=<state>&module=egov-hrms&locale=en_IN
+        activate loc
+        loc -> s: Messages
+        deactivate loc
+        alt hrms.employee.create.notification not configured
+            s -> s: Log, no SMS
+        else template found
+            loop each employee
+                s -> s: Replace $username, $password, $employeename, $applink
+                s -> k: SMSRequest /egov.core.notification.sms
+            end
+        end
+    end
+
+    s -> c: HttpStatus: 202 { ResponseInfo, Employees, TotalCount: 0, Errors: [row failures] }
+end
+deactivate s
+
+group async
+    prs -> k: Consume /save-hrms-employee
+    activate prs
+    prs -> db: INSERT INTO eg_hrms_employee, eg_hrms_assignment,\neg_hrms_educationaldetails, eg_hrms_departmentaltests,\neg_hrms_empdocuments, eg_hrms_servicehistory, eg_hrms_jurisdiction
+    activate db
+    deactivate db
+    deactivate prs
+    note right of prs
+        hrms-employee-persister.yml. Deactivation and reactivation
+        details are not inserted on create.
+        No egov-indexer config exists for HRMS topics.
+    end note
+    s -> k: Consume /hrms-send-email-notification
+    note right
+        See kafka-consumers.txt (email via egov.core.notification.email)
+    end note
+end
+deactivate k
+
+note over loc, k
+    If localization fails, getMessage throws NullPointerException after the
+    save topic was published: the client gets 400 but the employee is persisted.
+    The SMS template is overwritten by the first employee's values, so every
+    following employee in the batch gets the first employee's credentials.
+end note
+
+@enduml

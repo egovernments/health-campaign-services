@@ -145,7 +145,6 @@ public class NotificationUtil {
                 // Iterate over each email and push them into emailNotifTopic to send emails.
                 for (EmailRequest emailRequest : emailRequestList) {
                     producer.push(propertiesManager.getEmailNotifTopic(), emailRequest);
-                    log.info("Email Request -> " + emailRequest.toString());
                     log.info("EMAIL notification sent!");
                 }
             }

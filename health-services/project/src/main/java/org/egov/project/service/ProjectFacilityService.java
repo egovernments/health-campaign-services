@@ -215,7 +215,7 @@ public class ProjectFacilityService {
                 applicableValidators, request,
                 SET_PROJECT_FACILITIES);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
-            log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
+            log.error("validation error occurred for {} entities", errorDetailsMap.size());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<ProjectFacility> validEntities = request.getProjectFacilities().stream()
@@ -235,10 +235,25 @@ public class ProjectFacilityService {
             String tenantId,
             Long lastChangedSince,
             Boolean includeDeleted) throws Exception {
+        return searchFacilities(request, limit, offset, tenantId, lastChangedSince, includeDeleted, false);
+    }
+
+    /**
+     * As above; with onlyOutsideHouseholdSites, a hierarchy search (boundaryTypes given) returns only links to an
+     * outside household site instead of leaving them out. A search without boundaryTypes ignores it.
+     */
+    public ProjectFacilityBulkResponse searchFacilities(
+            ProjectFacilitySearchRequest request,
+            Integer limit,
+            Integer offset,
+            String tenantId,
+            Long lastChangedSince,
+            Boolean includeDeleted,
+            boolean onlyOutsideHouseholdSites) throws Exception {
 
         List<String> boundaryTypes = request.getProjectFacility().getBoundaryTypes();
         if (boundaryTypes != null && !boundaryTypes.isEmpty()) {
-            return searchByHierarchy(request, tenantId);
+            return searchByHierarchy(request, tenantId, onlyOutsideHouseholdSites);
         }
         return search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
@@ -283,7 +298,8 @@ public class ProjectFacilityService {
      */
     private ProjectFacilityBulkResponse searchByHierarchy(
             ProjectFacilitySearchRequest request,
-            String tenantId) {
+            String tenantId,
+            boolean onlyOutsideHouseholdSites) {
         log.info("received request to search project facility by hierarchy");
         ProjectFacilitySearch searchCriteria = request.getProjectFacility();
         List<String> boundaryTypes = searchCriteria.getBoundaryTypes();
@@ -328,8 +344,9 @@ public class ProjectFacilityService {
 
         try {
             // Step 2: Query descendants — projects whose hierarchy starts with this projectId
-            Map<String, List<String>> descendantFacilities =
-                    projectFacilityRepository.findFacilitiesByDescendants(projectId, boundaryTypes, tenantId);
+            Map<String, List<String>> descendantFacilities = onlyOutsideHouseholdSites
+                    ? projectFacilityRepository.findFacilitiesByDescendants(projectId, boundaryTypes, tenantId, true)
+                    : projectFacilityRepository.findFacilitiesByDescendants(projectId, boundaryTypes, tenantId);
             descendantFacilities.forEach((bt, ids) ->
                     facilityMap.computeIfAbsent(bt, k -> new ArrayList<>()).addAll(ids));
 
@@ -345,8 +362,9 @@ public class ProjectFacilityService {
                 }
             }
 
-            Map<String, List<String>> ancestorFacilities =
-                    projectFacilityRepository.findFacilitiesByAncestors(ancestorIds, boundaryTypes, tenantId);
+            Map<String, List<String>> ancestorFacilities = onlyOutsideHouseholdSites
+                    ? projectFacilityRepository.findFacilitiesByAncestors(ancestorIds, boundaryTypes, tenantId, true)
+                    : projectFacilityRepository.findFacilitiesByAncestors(ancestorIds, boundaryTypes, tenantId);
             ancestorFacilities.forEach((bt, ids) ->
                     facilityMap.computeIfAbsent(bt, k -> new ArrayList<>()).addAll(ids));
 
@@ -355,8 +373,9 @@ public class ProjectFacilityService {
             projectIdList.add(projectId);
             ProjectFacilitySearch pfSearch = ProjectFacilitySearch.builder()
                     .projectId(projectIdList).build();
-            projectFacilities = projectFacilityRepository.findWithCount(
-                    pfSearch, 1, 0, tenantId, null, false).getResponse();
+            projectFacilities = (onlyOutsideHouseholdSites
+                    ? projectFacilityRepository.findWithCount(pfSearch, 1, 0, tenantId, null, false, true)
+                    : projectFacilityRepository.findWithCount(pfSearch, 1, 0, tenantId, null, false)).getResponse();
 
         } catch (Exception e) {
             log.error("error searching facilities by hierarchy: {}", e.getMessage());

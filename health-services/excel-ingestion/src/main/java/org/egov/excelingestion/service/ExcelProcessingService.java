@@ -5,6 +5,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
@@ -15,6 +16,8 @@ import org.egov.excelingestion.util.BoundaryCodeResolver;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.util.EnumValueNormalizer;
+import org.egov.excelingestion.util.WorkbookLocaleResolver;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -35,6 +38,8 @@ import java.util.*;
 @Slf4j
 public class ExcelProcessingService {
 
+    private static final String OUTSIDE_HOUSEHOLD_COLUMN_PREFIX = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_";
+
     private final ValidationService validationService;
     private final SchemaValidationService schemaValidationService;
     private final ConfigBasedProcessingService configBasedProcessingService;
@@ -49,6 +54,8 @@ public class ExcelProcessingService {
     private final ExcelUtil excelUtil;
     private final ImmutableJoinService immutableJoinService;
     private final BoundaryCodeResolver boundaryCodeResolver;
+    private final WorkbookLocaleResolver workbookLocaleResolver;
+    private final EnumValueNormalizer enumValueNormalizer;
 
     public ExcelProcessingService(ValidationService validationService,
                                   SchemaValidationService schemaValidationService,
@@ -63,7 +70,9 @@ public class ExcelProcessingService {
                                   MDMSConfigService mdmsConfigService,
                                   ExcelUtil excelUtil,
                                   ImmutableJoinService immutableJoinService,
-                                  BoundaryCodeResolver boundaryCodeResolver) {
+                                  BoundaryCodeResolver boundaryCodeResolver,
+                                  WorkbookLocaleResolver workbookLocaleResolver,
+                                  EnumValueNormalizer enumValueNormalizer) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -78,6 +87,8 @@ public class ExcelProcessingService {
         this.excelUtil = excelUtil;
         this.immutableJoinService = immutableJoinService;
         this.boundaryCodeResolver = boundaryCodeResolver;
+        this.workbookLocaleResolver = workbookLocaleResolver;
+        this.enumValueNormalizer = enumValueNormalizer;
     }
 
     /**
@@ -90,30 +101,50 @@ public class ExcelProcessingService {
 
 
         try {
-            // Extract locale and create localization maps
-            String locale = resource.getLocale() != null ? resource.getLocale()
+            String requestLocale = resource.getLocale() != null ? resource.getLocale()
                     : requestInfoConverter.extractLocale(request.getRequestInfo());
             String tenantId = resource.getTenantId();
             String hierarchyType = resource.getHierarchyType();
 
-            Map<String, String> mergedLocalizationMap = new HashMap<>();
-
-            // Get boundary hierarchy localization if hierarchyType is provided
-            if (hierarchyType != null && !hierarchyType.trim().isEmpty()) {
-                String boundaryModule = "hcm-boundary-" + hierarchyType.toLowerCase();
-                Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
-                        tenantId, boundaryModule, locale, request.getRequestInfo());
-                mergedLocalizationMap.putAll(boundaryLocalizationMap);
-            }
-
-            // Get schema localization for field names
-            String schemaModule = "hcm-admin-schemas";
-            Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
-                    tenantId, schemaModule, locale, request.getRequestInfo());
-            mergedLocalizationMap.putAll(schemaLocalizationMap);
-
             // Download and validate the Excel file
             try (Workbook workbook = fileStoreService.downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
+
+                // The file's sheet names and column headers were written in the locale it was GENERATED
+                // in, and are matched below by exact string equality. Resolve that locale from the file
+                // itself so a template generated in one locale still validates when the user's current
+                // locale differs. Legacy files carry no stamp and fall back to the request locale.
+                String locale = workbookLocaleResolver.resolveLocale(workbook, requestLocale);
+
+                // Publish the resolved locale, not the caller's. Rows are persisted to
+                // eg_cm_sheet_data_temp keyed by the sheet names as written in THIS locale, and
+                // downstream consumers (project-factory) rebuild those same names from the locale on
+                // this resource to look the rows back up by exact string equality. Leaving the request
+                // locale here makes the consumer derive names in a language the stored rows were never
+                // written in, so the lookup silently matches nothing.
+                resource.setLocale(locale);
+
+                Map<String, String> mergedLocalizationMap = new HashMap<>();
+
+                // Get boundary hierarchy localization if hierarchyType is provided
+                if (hierarchyType != null && !hierarchyType.trim().isEmpty()) {
+                    String boundaryModule = "hcm-boundary-" + hierarchyType.toLowerCase();
+                    Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
+                            tenantId, boundaryModule, locale, request.getRequestInfo());
+                    mergedLocalizationMap.putAll(boundaryLocalizationMap);
+                }
+
+                // Get schema localization for field names
+                String schemaModule = "hcm-admin-schemas";
+                Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
+                        tenantId, schemaModule, locale, request.getRequestInfo());
+                mergedLocalizationMap.putAll(schemaLocalizationMap);
+
+                // The workbook locale is required to read its sheet names. Upload errors are shown
+                // to the current user, so resolve those messages in the request locale instead.
+                Map<String, String> errorLocalizationMap = Objects.equals(requestLocale, locale)
+                        ? schemaLocalizationMap
+                        : localizationService.getLocalizedMessages(
+                                tenantId, schemaModule, requestLocale, request.getRequestInfo());
 
                 // Fail fast on oversized sheets BEFORE the expensive parse/validate/persist work,
                 // turning a potential OOM into a clean, localizable business error.
@@ -140,10 +171,19 @@ public class ExcelProcessingService {
                 List<ValidationError> immutableJoinWarnings = new ArrayList<>();
                 Map<String, Set<String>> immutableColumnsBySheet =
                         immutableJoinService.applyImmutableBaseline(workbook, resource, sheetNameToSchema,
-                                request.getRequestInfo(), immutableJoinWarnings, mergedLocalizationMap);
+                                request.getRequestInfo(), immutableJoinWarnings, mergedLocalizationMap,
+                                errorLocalizationMap);
                 if (immutableColumnsBySheet == null) {
                     immutableColumnsBySheet = Collections.emptyMap();
                 }
+
+                // Map localized enum dropdown values (e.g. Permanent/Active shown in the sheet's
+                // generation locale) back to their canonical MDMS values. Runs AFTER the immutable join,
+                // which compares uploaded cells against the generated baseline while both are still
+                // localized, and BEFORE validation/processors/persistence, all of which match these
+                // values by exact string equality - as does project-factory downstream.
+                List<EnumValueNormalizer.NormalizedCell> normalizedEnumCells =
+                        enumValueNormalizer.normalizeToCanonical(workbook, resource, sheetNameToSchema, mergedLocalizationMap);
 
                 // Resolve boundary codes for user-entered rows from the workbook's own lookup mapping.
                 // Scaffold-less templates carry no per-row VLOOKUP formulas, so blank code cells are
@@ -198,7 +238,9 @@ public class ExcelProcessingService {
                             resource.getFileStoreId(), sheetName, sheet);
 
                     // Enrich resource additionalDetails with error count and status for this sheet
-                    enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors);
+                    // On the Outside Household sheet, rows the schema rejects (blank required cell, value not in the
+                    // list, bad phone) make outsideHouseholdSheetStatus invalid too; its processor keeps it invalid
+                    enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors, sheetKindOf(sheet));
 
                     // Enrich resource additionalDetails with row count for this sheet
                     enrichmentUtil.enrichRowCountInAdditionalDetails(resource, sheetData.size());
@@ -225,6 +267,10 @@ public class ExcelProcessingService {
                             sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData, request.getRequestInfo());
                 }
 
+                // Validation, processors and persistence have used the canonical values; the processed file the
+                // user previews and downloads shows the localized labels they uploaded (issue #2381).
+                restoreLocalizedEnumLabels(workbook, normalizedEnumCells);
+
                 // Upload the processed Excel file
                 String processedFileStoreId = uploadProcessedExcel(workbook, resource);
 
@@ -242,6 +288,24 @@ public class ExcelProcessingService {
         return null; // This should never be reached due to exception above
     }
 
+
+    /**
+     * The per-sheet status kind of a sheet, known here only for the Outside Household sheet, found by its technical
+     * column names (row 0), which are the same in every locale; null for the other sheets.
+     */
+    static String sheetKindOf(Sheet sheet) {
+        Row header = sheet == null ? null : sheet.getRow(0);
+        if (header == null) {
+            return null;
+        }
+        for (Cell cell : header) {
+            if (cell != null && cell.getCellType() == CellType.STRING
+                    && cell.getStringCellValue().startsWith(OUTSIDE_HOUSEHOLD_COLUMN_PREFIX)) {
+                return ValidationConstants.SHEET_KIND_OUTSIDE_HOUSEHOLD;
+            }
+        }
+        return null;
+    }
 
     /**
      * Fail-fast guardrail: rejects the upload if any visible sheet has more data rows than
@@ -413,6 +477,18 @@ public class ExcelProcessingService {
      * Updates resource with processing results
      * Error counts and validation status are already enriched during processing
      */
+    /** Puts the user's localized dropdown labels back for the processed file; never fails the upload. */
+    private void restoreLocalizedEnumLabels(Workbook workbook, List<EnumValueNormalizer.NormalizedCell> normalizedEnumCells) {
+        if (!config.isKeepLocalizedEnumValuesInProcessedFile()) {
+            return;
+        }
+        try {
+            enumValueNormalizer.restoreLocalizedLabels(workbook, normalizedEnumCells);
+        } catch (Exception e) {
+            log.warn("Could not restore localized enum labels in the processed file; it keeps the codes: {}", e.getMessage());
+        }
+    }
+
     private ProcessResource updateResourceWithResults(ProcessResource resource, String processedFileStoreId) {
 
         // Processing is complete, so status is PROCESSED regardless of validation errors

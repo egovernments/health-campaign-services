@@ -24,7 +24,8 @@ export const CONSTANTS: any = {
             MISSING_BOUNDARY_CODE: "A boundary service code is missing. In manual flow every boundary must have a service code.",
             MISSING_PARENT_BOUNDARY_CODE: "One or more parent/intermediate boundaries are missing service codes. In manual flow all boundaries must have service codes.",
             DUPLICATE_BOUNDARY_CODE: "Duplicate boundary service codes were provided. Each boundary service code must be unique.",
-            FLOW_MISMATCH_ERROR: "This hierarchy was created with a different code flow (auto vs manual). Continue with the same flow that was used for the existing boundaries."
+            FLOW_MISMATCH_ERROR: "This hierarchy was created with a different code flow (auto vs manual). Continue with the same flow that was used for the existing boundaries.",
+            MISSING_CHILD_BOUNDARY: "One or more boundaries have no child at the next hierarchy level. Every boundary above the lowest level must have at least one child somewhere in the sheet."
         },
     }
 }
