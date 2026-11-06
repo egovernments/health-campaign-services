@@ -27,7 +27,7 @@ public class HmIsDeletedValidator implements Validator<HouseholdMemberBulkReques
         List<HouseholdMember> householdMembers = request.getHouseholdMembers();
         householdMembers.stream().filter(HouseholdMember::getIsDeleted).forEach(householdMember -> {
             Error error = getErrorForIsDelete();
-            log.info("validation failed for household member for is deleted: {} with error: {}", householdMember, error);
+            log.info("validation failed for household member for is deleted: {} with error: {}", householdMember.getClientReferenceId(), error);
             populateErrorDetails(householdMember, error, errorDetailsMap);
         });
         log.info("household member is deleted validation completed successfully, total errors: " + errorDetailsMap.size());

@@ -20,6 +20,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.project.staff.index.v1.topic}")
     private String transformerProducerBulkProjectStaffIndexV1Topic;
 
+    @Value("${transformer.producer.service.task.index.v1.topic}")
+    private String transformerProducerServiceTaskIndexV1Topic;
+
     @Value("${transformer.producer.bulk.project.index.v1.topic}")
     private String transformerProducerBulkProjectIndexV1Topic;
 
@@ -44,6 +47,12 @@ public class TransformerProperties {
     @Value("${egov.search.facility.url}")
     private String facilitySearchUrl;
 
+    @Value("${egov.search.servicedefinition.url}")
+    private String serviceDefinitionSearchUrl;
+
+    @Value("${egov.servicedefinition.host}")
+    private String serviceDefinitionHost;
+
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
 
@@ -65,5 +74,16 @@ public class TransformerProperties {
     @Value("${boundary.label.name.administrativeProvince}")
     private String administrativeProvince;
 
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
+
+    @Value("${egov.boundary.relationship.search.url}")
+    private String boundaryRelationshipSearchUrl;
+
+    @Value("${egov.boundary.hierarchy.name}")
+    private String boundaryHierarchyName;
 
 }

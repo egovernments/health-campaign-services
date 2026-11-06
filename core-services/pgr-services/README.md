@@ -1,6 +1,15 @@
 # PGR Service
 The objective of this service is to provide a functionality to raise a complaint/grievance by citizen in the system. The progress of complaint/grievance can be tracked by
 the citizen and will be updated by notifications whenever the status of the complaint progresses further.
+
+## Enhancements in HCM-v2.1
+
+The v2.0 → v2.1 changes touched only the build for this service (2 commits) — no API, business-logic, DB-schema or Kafka changes:
+
+- Tracer dependency bumped from `2.9.0-SNAPSHOT` to `2.9.1-SNAPSHOT` (`9df5d1c`).
+- The OpenTelemetry artifacts shipped by the 2.9.1 tracer line (`opentelemetry-instrumentation-bom-alpha`, `opentelemetry-spring-boot-starter`) are **excluded** from the tracer dependency (`6381637`), so pgr-services opts out of the tracer's OTel auto-instrumentation.
+- The per-service `DataAccessExceptionHandler` (HCMPRE-1870 DB-error masking) rolled out to other health services in v2.1 was **not** added to pgr-services in this window.
+
 ### DB UML Diagram
 
 - NA

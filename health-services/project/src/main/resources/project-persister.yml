@@ -1,0 +1,1174 @@
+serviceMaps:
+  serviceName: project
+  mappings:
+    - version: 1.0
+      description: Saves a project staff
+      fromTopic: save-project-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO public.project_staff (id, tenantId, projectId, staffId, startDate, endDate, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.userId
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update Project Staff
+      fromTopic: update-project-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.project_staff SET projectId=?, staffId=?, startDate=?, endDate=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.userId
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes Project Staff
+      fromTopic: delete-project-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.project_staff SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?, additionalDetails=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a project beneficiary
+      fromTopic: save-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO public.project_beneficiary (id, tenantId, projectId, beneficiaryId, clientReferenceId, beneficiaryClientReferenceId, dateOfRegistration, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted, clientCreatedTime, clientLastModifiedTime, clientCreatedBy, clientLastModifiedBy, tag) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.beneficiaryId
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.beneficiaryClientReferenceId
+            - jsonPath: $.*.dateOfRegistration
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.tag
+
+    - version: 1.0
+      description: Update Project Beneficiary
+      fromTopic: update-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.project_beneficiary SET projectId=?, beneficiaryId=?, clientReferenceId=?, beneficiaryClientReferenceId=?, dateOfRegistration=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?, clientLastModifiedTime = ?, clientLastModifiedBy = ?, tag=?  WHERE id = ? AND isDeleted=false
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.beneficiaryId
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.beneficiaryClientReferenceId
+            - jsonPath: $.*.dateOfRegistration
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.tag
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes Project Beneficiaries
+      fromTopic: delete-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.project_beneficiary SET lastModifiedBy=?, lastModifiedTime=?, clientLastModifiedTime = ?, clientLastModifiedBy = ?, rowVersion=?, isDeleted=?, additionalDetails=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      name: Projects
+      description: Persists project details in project table
+      fromTopic: save-project
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO public.project(id,tenantId,projectNumber,name,projectType,projectTypeId,projectSubType,department,description,referenceId,startDate,endDate,isTaskEnabled,parent,projectHierarchy,natureOfWork,additionalDetails,isDeleted,rowVersion,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.Projects.*
+          jsonMaps:
+            - jsonPath: $.Projects.*.id
+
+            - jsonPath: $.Projects.*.tenantId
+
+            - jsonPath: $.Projects.*.projectNumber
+
+            - jsonPath: $.Projects.*.name
+
+            - jsonPath: $.Projects.*.projectType
+
+            - jsonPath: $.Projects.*.projectTypeId
+
+            - jsonPath: $.Projects.*.projectSubType
+
+            - jsonPath: $.Projects.*.department
+
+            - jsonPath: $.Projects.*.description
+
+            - jsonPath: $.Projects.*.referenceID
+
+            - jsonPath: $.Projects.*.startDate
+
+            - jsonPath: $.Projects.*.endDate
+
+            - jsonPath: $.Projects.*.isTaskEnabled
+
+            - jsonPath: $.Projects.*.parent
+
+            - jsonPath: $.Projects.*.projectHierarchy
+
+            - jsonPath: $.Projects.*.natureOfWork
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.isDeleted
+
+            - jsonPath: $.Projects.*.rowVersion
+
+            - jsonPath: $.Projects.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.auditDetails.lastModifiedTime
+
+
+        - query: INSERT INTO public.project_address(id,tenantId,projectId,doorNo,latitude,longitude,locationAccuracy,type,addressLine1,addressLine2,landmark,city,pinCode,buildingName,street,boundaryType,boundary) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.Projects.*.address
+          jsonMaps:
+            - jsonPath: $.Projects.*.address.id
+
+            - jsonPath: $.Projects.*.address.tenantId
+
+            - jsonPath: $.Projects.*.id
+
+            - jsonPath: $.Projects.*.address.doorNo
+
+            - jsonPath: $.Projects.*.address.latitude
+
+            - jsonPath: $.Projects.*.address.longitude
+
+            - jsonPath: $.Projects.*.address.locationAccuracy
+
+            - jsonPath: $.Projects.*.address.type
+
+            - jsonPath: $.Projects.*.address.addressLine1
+
+            - jsonPath: $.Projects.*.address.addressLine2
+
+            - jsonPath: $.Projects.*.address.landmark
+
+            - jsonPath: $.Projects.*.address.city
+
+            - jsonPath: $.Projects.*.address.pincode
+
+            - jsonPath: $.Projects.*.address.buildingName
+
+            - jsonPath: $.Projects.*.address.street
+
+            - jsonPath: $.Projects.*.address.boundaryType
+
+            - jsonPath: $.Projects.*.address.boundary
+
+
+        - query: INSERT INTO public.project_target(id,projectId,beneficiaryType,totalNo,targetNo,isDeleted,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?);
+          basePath: $.Projects.*.targets.*
+          jsonMaps:
+            - jsonPath: $.Projects.*.targets.*.id
+
+            - jsonPath: $.Projects[*][?({id} in @.targets[*].id)].id
+
+            - jsonPath: $.Projects.*.targets.*.beneficiaryType
+
+            - jsonPath: $.Projects.*.targets.*.totalNo
+
+            - jsonPath: $.Projects.*.targets.*.targetNo
+
+            - jsonPath: $.Projects.*.targets.*.isDeleted
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedTime
+
+
+        - query: INSERT INTO public.project_document(id,projectId,documentType,filestoreId,documentUid,additionalDetails,status,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.Projects.*.documents.*
+          jsonMaps:
+            - jsonPath: $.Projects.*.documents.*.id
+
+            - jsonPath: $.Projects[*][?({id} in @.documents[*].id)].id
+
+            - jsonPath: $.Projects.*.documents.*.documentType
+
+            - jsonPath: $.Projects.*.documents.*.fileStoreId
+
+            - jsonPath: $.Projects.*.documents.*.documentUid
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.documents.*.status
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedTime
+
+
+    - version: 1.0
+      name: Projects
+      description: Updates project details in project table
+      fromTopic: update-project
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.project SET name = ?, projectType = ?, projectTypeId = ?, projectSubType = ?, department = ?, description = ?, referenceId = ?, startDate = ?, endDate = ?, isTaskEnabled = ?, natureOfWork = ?, additionalDetails = ?, isDeleted = ?, rowVersion = ?, lastModifiedBy = ?, lastModifiedTime = ? WHERE id = ?;
+          basePath: $.Projects.*
+          jsonMaps:
+
+            - jsonPath: $.Projects.*.name
+
+            - jsonPath: $.Projects.*.projectType
+
+            - jsonPath: $.Projects.*.projectTypeId
+
+            - jsonPath: $.Projects.*.projectSubType
+
+            - jsonPath: $.Projects.*.department
+
+            - jsonPath: $.Projects.*.description
+
+            - jsonPath: $.Projects.*.referenceID
+
+            - jsonPath: $.Projects.*.startDate
+
+            - jsonPath: $.Projects.*.endDate
+
+            - jsonPath: $.Projects.*.isTaskEnabled
+
+            - jsonPath: $.Projects.*.natureOfWork
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.isDeleted
+
+            - jsonPath: $.Projects.*.rowVersion
+
+            - jsonPath: $.Projects.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Projects.*.id
+
+
+        - query: UPDATE public.project_address SET doorNo = ?, latitude=?, longitude=?, locationAccuracy=?, type=?, addressLine1=?, addressLine2=?, landmark=?, city=?, pinCode=?, buildingName=?, street=?, boundaryType=?, boundary=? WHERE id=?;
+          basePath: $.Projects.*.address
+          jsonMaps:
+
+            - jsonPath: $.Projects.*.address.doorNo
+
+            - jsonPath: $.Projects.*.address.latitude
+
+            - jsonPath: $.Projects.*.address.longitude
+
+            - jsonPath: $.Projects.*.address.locationAccuracy
+
+            - jsonPath: $.Projects.*.address.type
+
+            - jsonPath: $.Projects.*.address.addressLine1
+
+            - jsonPath: $.Projects.*.address.addressLine2
+
+            - jsonPath: $.Projects.*.address.landmark
+
+            - jsonPath: $.Projects.*.address.city
+
+            - jsonPath: $.Projects.*.address.pincode
+
+            - jsonPath: $.Projects.*.address.buildingName
+
+            - jsonPath: $.Projects.*.address.street
+
+            - jsonPath: $.Projects.*.address.boundaryType
+
+            - jsonPath: $.Projects.*.address.boundary
+
+            - jsonPath: $.Projects.*.address.id
+
+
+        - query: INSERT INTO public.project_target(id,projectId,beneficiaryType,totalNo,targetNo,isDeleted,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET beneficiaryType = ?, totalNo =?, targetNo=?, isDeleted=?, lastModifiedBy=?, lastModifiedTime=?;
+          basePath: $.Projects.*.targets.*
+          jsonMaps:
+
+            - jsonPath: $.Projects.*.targets.*.id
+
+            - jsonPath: $.Projects[*][?({id} in @.targets[*].id)].id
+
+            - jsonPath: $.Projects.*.targets.*.beneficiaryType
+
+            - jsonPath: $.Projects.*.targets.*.totalNo
+
+            - jsonPath: $.Projects.*.targets.*.targetNo
+
+            - jsonPath: $.Projects.*.targets.*.isDeleted
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Projects.*.targets.*.beneficiaryType
+
+            - jsonPath: $.Projects.*.targets.*.totalNo
+
+            - jsonPath: $.Projects.*.targets.*.targetNo
+
+            - jsonPath: $.Projects.*.targets.*.isDeleted
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedTime
+
+
+        - query: INSERT INTO public.project_document(id,projectId,documentType,filestoreId,documentUid,additionalDetails,status,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET documentType=?, filestoreId=?, documentUid=?, additionalDetails=?, status=?, lastModifiedBy=?, lastModifiedTime=?;
+          basePath: $.Projects.*.documents.*
+          jsonMaps:
+
+            - jsonPath: $.Projects.*.documents.*.id
+
+            - jsonPath: $.Projects[*][?({id} in @.documents[*].id)].id
+
+            - jsonPath: $.Projects.*.documents.*.documentType
+
+            - jsonPath: $.Projects.*.documents.*.fileStoreId
+
+            - jsonPath: $.Projects.*.documents.*.documentUid
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.documents.*.status
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Projects.*.documents.*.documentType
+
+            - jsonPath: $.Projects.*.documents.*.fileStoreId
+
+            - jsonPath: $.Projects.*.documents.*.documentUid
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.documents.*.status
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedTime
+
+
+    - version: 1.0
+      description: Saves a project resourcce
+      fromTopic: save-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO public.project_resource (id, tenantId, projectId, productVariantId, isBaseUnitVariant, startDate, endDate, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.resource.productVariantId
+            - jsonPath: $.*.resource.isBaseUnitVariant
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.resource.type
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update a project resourcce
+      fromTopic: update-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.project_resource SET tenantId=?, projectId=?, productVariantId=?, isBaseUnitVariant=?, startDate=?, endDate=?, type=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.resource.productVariantId
+            - jsonPath: $.*.resource.isBaseUnitVariant
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.resource.type
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Delete a project resourcce
+      fromTopic: delete-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.project_resource SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?, additionalDetails=?  WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a project facility
+      fromTopic: save-project-facility-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: INSERT INTO public.project_facility (id, tenantId, projectId, facilityId, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+
+            - jsonPath: $.*.tenantId
+
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.facilityId
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.createdBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update Project Facility
+      fromTopic: update-project-facility-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: UPDATE public.project_facility SET projectId=?, facilityId=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.facilityId
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes Project Facility
+      fromTopic: delete-project-facility-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.project_facility SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?, additionalDetails=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a project staff
+      fromTopic: statea-save-project-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.project_staff (id, tenantId, projectId, staffId, startDate, endDate, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.userId
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update Project Staff
+      fromTopic: statea-update-project-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.project_staff SET projectId=?, staffId=?, startDate=?, endDate=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.userId
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes Project Staff
+      fromTopic: statea-delete-project-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.project_staff SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?, additionalDetails=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a project beneficiary
+      fromTopic: statea-save-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.project_beneficiary (id, tenantId, projectId, beneficiaryId, clientReferenceId, beneficiaryClientReferenceId, dateOfRegistration, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted, clientCreatedTime, clientLastModifiedTime, clientCreatedBy, clientLastModifiedBy, tag) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.beneficiaryId
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.beneficiaryClientReferenceId
+            - jsonPath: $.*.dateOfRegistration
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.tag
+
+    - version: 1.0
+      description: Update Project Beneficiary
+      fromTopic: statea-update-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.project_beneficiary SET projectId=?, beneficiaryId=?, clientReferenceId=?, beneficiaryClientReferenceId=?, dateOfRegistration=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?, clientLastModifiedTime = ?, clientLastModifiedBy = ?, tag=?  WHERE id = ? AND isDeleted=false
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.beneficiaryId
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.beneficiaryClientReferenceId
+            - jsonPath: $.*.dateOfRegistration
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.tag
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes Project Beneficiaries
+      fromTopic: statea-delete-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.project_beneficiary SET lastModifiedBy=?, lastModifiedTime=?, clientLastModifiedTime = ?, clientLastModifiedBy = ?, rowVersion=?, isDeleted=?, additionalDetails=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      name: Projects
+      description: Persists project details in project table
+      fromTopic: statea-save-project
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.project(id,tenantId,projectNumber,name,projectType,projectTypeId,projectSubType,department,description,referenceId,startDate,endDate,isTaskEnabled,parent,projectHierarchy,natureOfWork,additionalDetails,isDeleted,rowVersion,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.Projects.*
+          jsonMaps:
+            - jsonPath: $.Projects.*.id
+
+            - jsonPath: $.Projects.*.tenantId
+
+            - jsonPath: $.Projects.*.projectNumber
+
+            - jsonPath: $.Projects.*.name
+
+            - jsonPath: $.Projects.*.projectType
+
+            - jsonPath: $.Projects.*.projectTypeId
+
+            - jsonPath: $.Projects.*.projectSubType
+
+            - jsonPath: $.Projects.*.department
+
+            - jsonPath: $.Projects.*.description
+
+            - jsonPath: $.Projects.*.referenceID
+
+            - jsonPath: $.Projects.*.startDate
+
+            - jsonPath: $.Projects.*.endDate
+
+            - jsonPath: $.Projects.*.isTaskEnabled
+
+            - jsonPath: $.Projects.*.parent
+
+            - jsonPath: $.Projects.*.projectHierarchy
+
+            - jsonPath: $.Projects.*.natureOfWork
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.isDeleted
+
+            - jsonPath: $.Projects.*.rowVersion
+
+            - jsonPath: $.Projects.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.auditDetails.lastModifiedTime
+
+
+        - query: INSERT INTO statea.project_address(id,tenantId,projectId,doorNo,latitude,longitude,locationAccuracy,type,addressLine1,addressLine2,landmark,city,pinCode,buildingName,street,boundaryType,boundary) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.Projects.*.address
+          jsonMaps:
+            - jsonPath: $.Projects.*.address.id
+
+            - jsonPath: $.Projects.*.address.tenantId
+
+            - jsonPath: $.Projects.*.id
+
+            - jsonPath: $.Projects.*.address.doorNo
+
+            - jsonPath: $.Projects.*.address.latitude
+
+            - jsonPath: $.Projects.*.address.longitude
+
+            - jsonPath: $.Projects.*.address.locationAccuracy
+
+            - jsonPath: $.Projects.*.address.type
+
+            - jsonPath: $.Projects.*.address.addressLine1
+
+            - jsonPath: $.Projects.*.address.addressLine2
+
+            - jsonPath: $.Projects.*.address.landmark
+
+            - jsonPath: $.Projects.*.address.city
+
+            - jsonPath: $.Projects.*.address.pincode
+
+            - jsonPath: $.Projects.*.address.buildingName
+
+            - jsonPath: $.Projects.*.address.street
+
+            - jsonPath: $.Projects.*.address.boundaryType
+
+            - jsonPath: $.Projects.*.address.boundary
+
+
+        - query: INSERT INTO statea.project_target(id,projectId,beneficiaryType,totalNo,targetNo,isDeleted,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?);
+          basePath: $.Projects.*.targets.*
+          jsonMaps:
+            - jsonPath: $.Projects.*.targets.*.id
+
+            - jsonPath: $.Projects[*][?({id} in @.targets[*].id)].id
+
+            - jsonPath: $.Projects.*.targets.*.beneficiaryType
+
+            - jsonPath: $.Projects.*.targets.*.totalNo
+
+            - jsonPath: $.Projects.*.targets.*.targetNo
+
+            - jsonPath: $.Projects.*.targets.*.isDeleted
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedTime
+
+
+        - query: INSERT INTO statea.project_document(id,projectId,documentType,filestoreId,documentUid,additionalDetails,status,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.Projects.*.documents.*
+          jsonMaps:
+            - jsonPath: $.Projects.*.documents.*.id
+
+            - jsonPath: $.Projects[*][?({id} in @.documents[*].id)].id
+
+            - jsonPath: $.Projects.*.documents.*.documentType
+
+            - jsonPath: $.Projects.*.documents.*.fileStoreId
+
+            - jsonPath: $.Projects.*.documents.*.documentUid
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.documents.*.status
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedTime
+
+
+    - version: 1.0
+      name: Projects
+      description: Updates project details in project table
+      fromTopic: statea-update-project
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.project SET name = ?, projectType = ?, projectTypeId = ?, projectSubType = ?, department = ?, description = ?, referenceId = ?, startDate = ?, endDate = ?, isTaskEnabled = ?, natureOfWork = ?, additionalDetails = ?, isDeleted = ?, rowVersion = ?, lastModifiedBy = ?, lastModifiedTime = ? WHERE id = ?;
+          basePath: $.Projects.*
+          jsonMaps:
+
+            - jsonPath: $.Projects.*.name
+
+            - jsonPath: $.Projects.*.projectType
+
+            - jsonPath: $.Projects.*.projectTypeId
+
+            - jsonPath: $.Projects.*.projectSubType
+
+            - jsonPath: $.Projects.*.department
+
+            - jsonPath: $.Projects.*.description
+
+            - jsonPath: $.Projects.*.referenceID
+
+            - jsonPath: $.Projects.*.startDate
+
+            - jsonPath: $.Projects.*.endDate
+
+            - jsonPath: $.Projects.*.isTaskEnabled
+
+            - jsonPath: $.Projects.*.natureOfWork
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.isDeleted
+
+            - jsonPath: $.Projects.*.rowVersion
+
+            - jsonPath: $.Projects.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Projects.*.id
+
+
+        - query: UPDATE statea.project_address SET doorNo = ?, latitude=?, longitude=?, locationAccuracy=?, type=?, addressLine1=?, addressLine2=?, landmark=?, city=?, pinCode=?, buildingName=?, street=?, boundaryType=?, boundary=? WHERE id=?;
+          basePath: $.Projects.*.address
+          jsonMaps:
+
+            - jsonPath: $.Projects.*.address.doorNo
+
+            - jsonPath: $.Projects.*.address.latitude
+
+            - jsonPath: $.Projects.*.address.longitude
+
+            - jsonPath: $.Projects.*.address.locationAccuracy
+
+            - jsonPath: $.Projects.*.address.type
+
+            - jsonPath: $.Projects.*.address.addressLine1
+
+            - jsonPath: $.Projects.*.address.addressLine2
+
+            - jsonPath: $.Projects.*.address.landmark
+
+            - jsonPath: $.Projects.*.address.city
+
+            - jsonPath: $.Projects.*.address.pincode
+
+            - jsonPath: $.Projects.*.address.buildingName
+
+            - jsonPath: $.Projects.*.address.street
+
+            - jsonPath: $.Projects.*.address.boundaryType
+
+            - jsonPath: $.Projects.*.address.boundary
+
+            - jsonPath: $.Projects.*.address.id
+
+
+        - query: INSERT INTO statea.project_target(id,projectId,beneficiaryType,totalNo,targetNo,isDeleted,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET beneficiaryType = ?, totalNo =?, targetNo=?, isDeleted=?, lastModifiedBy=?, lastModifiedTime=?;
+          basePath: $.Projects.*.targets.*
+          jsonMaps:
+
+            - jsonPath: $.Projects.*.targets.*.id
+
+            - jsonPath: $.Projects[*][?({id} in @.targets[*].id)].id
+
+            - jsonPath: $.Projects.*.targets.*.beneficiaryType
+
+            - jsonPath: $.Projects.*.targets.*.totalNo
+
+            - jsonPath: $.Projects.*.targets.*.targetNo
+
+            - jsonPath: $.Projects.*.targets.*.isDeleted
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Projects.*.targets.*.beneficiaryType
+
+            - jsonPath: $.Projects.*.targets.*.totalNo
+
+            - jsonPath: $.Projects.*.targets.*.targetNo
+
+            - jsonPath: $.Projects.*.targets.*.isDeleted
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.targets.*.auditDetails.lastModifiedTime
+
+
+        - query: INSERT INTO statea.project_document(id,projectId,documentType,filestoreId,documentUid,additionalDetails,status,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET documentType=?, filestoreId=?, documentUid=?, additionalDetails=?, status=?, lastModifiedBy=?, lastModifiedTime=?;
+          basePath: $.Projects.*.documents.*
+          jsonMaps:
+
+            - jsonPath: $.Projects.*.documents.*.id
+
+            - jsonPath: $.Projects[*][?({id} in @.documents[*].id)].id
+
+            - jsonPath: $.Projects.*.documents.*.documentType
+
+            - jsonPath: $.Projects.*.documents.*.fileStoreId
+
+            - jsonPath: $.Projects.*.documents.*.documentUid
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.documents.*.status
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.createdBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.createdTime
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Projects.*.documents.*.documentType
+
+            - jsonPath: $.Projects.*.documents.*.fileStoreId
+
+            - jsonPath: $.Projects.*.documents.*.documentUid
+
+            - jsonPath: $.Projects.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Projects.*.documents.*.status
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedTime
+
+
+    - version: 1.0
+      description: Saves a project resourcce
+      fromTopic: statea-save-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.project_resource (id, tenantId, projectId, productVariantId, isBaseUnitVariant, startDate, endDate, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.resource.productVariantId
+            - jsonPath: $.*.resource.isBaseUnitVariant
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.resource.type
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update a project resourcce
+      fromTopic: statea-update-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.project_resource SET tenantId=?, projectId=?, productVariantId=?, isBaseUnitVariant=?, startDate=?, endDate=?, type=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.resource.productVariantId
+            - jsonPath: $.*.resource.isBaseUnitVariant
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.resource.type
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Delete a project resourcce
+      fromTopic: statea-delete-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.project_resource SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?, additionalDetails=?  WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a project facility
+      fromTopic: statea-save-project-facility-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: INSERT INTO statea.project_facility (id, tenantId, projectId, facilityId, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+
+            - jsonPath: $.*.tenantId
+
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.facilityId
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.createdBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update Project Facility
+      fromTopic: statea-update-project-facility-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: UPDATE statea.project_facility SET projectId=?, facilityId=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.facilityId
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes Project Facility
+      fromTopic: statea-delete-project-facility-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.project_facility SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?, additionalDetails=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id

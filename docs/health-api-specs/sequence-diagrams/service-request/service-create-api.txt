@@ -1,0 +1,120 @@
+@startuml
+title Service Request - Service Create
+!theme vibrant
+participant Client as c
+participant ServiceRequestService as s
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /service-request/service/v1/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo required; Service.tenantId 2-64, serviceDefId 2-64,\nattributes, accountId (max 64) required;\nattribute attributeCode required)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateServiceRequest
+    group validateServiceDefID
+        s -> db: SELECT sd.*, ad.* FROM eg_service_definition sd\nINNER JOIN eg_service_attribute_definition ad ON sd.id = ad.referenceid\nWHERE sd.tenantid = ? AND sd.id IN (serviceDefId)
+        activate db
+        db -> s: Service definition
+        deactivate db
+        alt definition not found
+            s -> c: HttpStatus: 400 SERVICE_REQUEST_INVALID_SERVICE_DEF_ID
+        end
+        note right
+            Search by id skips the isActive filter,
+            so an inactive definition is accepted
+        end note
+    end
+
+    group validateServiceRequestAlreadyExists
+        s -> db: SELECT id FROM eg_service service\nWHERE service.tenantid = ? AND service.clientid = ?\nORDER BY service.createdtime DESC OFFSET 0 LIMIT 10
+        activate db
+        db -> s: Service ids
+        deactivate db
+        opt ids found
+            s -> db: SELECT eg_service INNER JOIN eg_service_attribute_value\nWHERE service.id IN (...)
+            activate db
+            db -> s: Services
+            deactivate db
+        end
+        alt service with same tenantId + clientId exists
+            s -> c: HttpStatus: 400 SERVICE_ALREADY_EXISTS_ERR_CODE
+        end
+        note right
+            If clientId is null, the clientid filter is dropped:
+            any existing service in the tenant causes
+            SERVICE_ALREADY_EXISTS_ERR_CODE
+        end note
+    end
+
+    group validateAttributeValuesAgainstServiceDefinition
+        alt attributeCode not in definition
+            s -> c: HttpStatus: 400 SERVICE_REQUEST_UNRECOGNIZED_ATTRIBUTE_CODE
+        end
+        alt same attributeCode passed twice
+            s -> c: HttpStatus: 400 SERVICE_REQUEST_ATTRIBUTE_VALUES_UNIQUENESS_ERR_CODE
+        end
+        alt required attribute missing
+            s -> c: HttpStatus: 400 SERVICE_REQUEST_REQUIRED_ATTRIBUTE_NOT_PROVIDED_ERR_CODE
+        end
+        s -> s: Type check per dataType (null skipped for non required):\nNumber -> Number, String / Text -> String,\nDatetime -> Long, SingleValueList -> String,\nMultiValueList -> List, Boolean -> Boolean
+        alt value type does not match dataType
+            s -> c: HttpStatus: 400 SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE
+        end
+        alt String / Text longer than egov.max.string.input.size (8192)
+            s -> c: HttpStatus: 400 INVALID_SIZE_OF_INPUT_CODE
+        end
+        alt list value not in definition values
+            s -> c: HttpStatus: 400 SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE
+        end
+    end
+    s -> s: validateAccountId (empty, TODO)
+end
+
+group enrichServiceRequest
+    s -> s: id = random UUID (any client id is overwritten)
+    s -> s: auditDetails (createdBy / lastModifiedBy = userInfo.uuid,\ncreatedTime / lastModifiedTime = now)
+    s -> s: For each attribute: id = random UUID, referenceId = service id,\nserviceClientReferenceId = service clientId, same auditDetails
+    s -> s: Wrap each value as { "value": <value> }
+end
+
+alt tenantId invalid for central instance schema
+    s -> c: HttpStatus: 400 INVALID_TENANT_ID
+end
+
+s -> k: ServiceRequest /save-service
+activate k
+s -> s: Restore attribute values to native form
+s -> c: HttpStatus: 200 Services [Service]
+deactivate s
+
+group async
+    prs -> k: Consume /save-service
+    activate prs
+    prs -> db: INSERT INTO eg_service
+    activate db
+    deactivate db
+    prs -> db: INSERT INTO eg_service_attribute_value (value as JSONB)
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s, k
+    Producer resolves a state specific topic via MultiStateInstanceUtil
+    (e.g. demo-save-service). No egov-indexer config exists for this topic.
+end note
+
+note over prs, db
+    PRIMARY KEY (id) on eg_service / eg_service_attribute_value (V20260918120000)
+    only blocks NULL or repeated ids. Ids are always new server UUIDs, so a
+    retried request is not deduplicated by the DB; the only duplicate guard is the
+    clientId lookup above, which can race with the asynchronous persist.
+end note
+
+@enduml

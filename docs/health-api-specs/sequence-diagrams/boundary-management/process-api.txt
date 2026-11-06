@@ -1,0 +1,261 @@
+@startuml
+title Boundary Management - Process (Create / Validate)
+!theme vibrant
+participant Client as c
+participant BoundaryManagement as s
+participant LocalizationService as loc
+participant BoundaryService as bs
+participant FileStore as fs
+participant RedisCache as rc
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+participant HandleResourceDetailsError as he
+
+c -> s : POST /boundary-management/v1/_process
+activate s
+
+group requestMiddleware
+    s -> s: Validate Content-Type (application/json | application/gzip)
+    alt invalid Content-Type
+        s -> c: HttpStatus: 415 UNSUPPORTED_MEDIA_TYPE
+    end
+    s -> s: Validate RequestInfo (msgId, userInfo.tenantId)
+    alt RequestInfo invalid
+        s -> c: HttpStatus: 400 VALIDATION_ERROR
+    end
+end
+
+group fetch localisation
+    s -> loc: /localization/messages/v1/_search (module: hcm-boundary-<hierarchyType>)
+    activate loc
+    loc -> s: Localisation messages
+    deactivate loc
+    s -> loc: /localization/messages/v1/_search (module: hcm-admin-schemas)
+    activate loc
+    loc -> s: Localisation messages
+    deactivate loc
+    note right
+        Cached in-memory per module-locale.
+        3 attempts, 10s apart, before failing
+    end note
+end
+
+group validateProcessRequest
+    s -> s: Validate ResourceDetails against schema\n(tenantId, fileStoreId, action[create|validate], hierarchyType)
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search
+    activate bs
+    bs -> s: BoundaryHierarchy
+    deactivate bs
+    s -> s: ResourceDetails.tenantId == RequestInfo.userInfo.tenantId
+    s -> fs: GET /filestore/v1/files/url?fileStoreIds
+    activate fs
+    fs -> s: File URL
+    deactivate fs
+    s -> fs: Download Excel file
+    activate fs
+    fs -> s: Workbook
+    deactivate fs
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search (getHierarchy)
+    activate bs
+    bs -> s: Hierarchy levels
+    deactivate bs
+    s -> s: Validate sheet headers vs hierarchy,\nroot level present in every row,\nno duplicate rows, allowed name characters
+end
+
+alt request validation fails
+    s -> c: HttpStatus: 400 { Errors: [ code, message, description ] }
+    note left
+        Error Codes: VALIDATION_ERROR, INVALID_FILE,
+        BOUNDARY_SHEET_HEADER_ERROR
+        Nothing is persisted
+    end note
+else request validation successful
+    group enrichResourceDetails
+        s -> s: Set id (uuid), processedFileStoreId = null,\nauditDetails, additionalDetails = {}
+        s -> s: status = data-accepted (create)\nstatus = validation-started (validate)
+        s -> k: ResourceDetails /create-processed-boundary-management
+        activate k
+    end
+
+    alt action == validate
+        s -> c: HttpStatus: 200 ResourceDetails (status: validation-started)
+        note left
+            Validate flow ends here.
+            No further processing happens
+        end note
+    else action == create
+        s -> s: Trigger boundaryBulkUpload (detached, not awaited)
+        s -> c: HttpStatus: 200 ResourceDetails (status: data-accepted)
+    end
+end
+deactivate s
+
+group async boundaryBulkUpload (action == create)
+    activate s
+    s -> db: Start heartbeat: UPDATE eg_bm_processed_template\nSET lastModifiedTime every 30s (while data-accepted)
+    activate db
+    deactivate db
+
+    s -> bs: /boundary-hierarchy-definition/_search
+    activate bs
+    bs -> s: Hierarchy levels
+    deactivate bs
+    s -> db: SELECT currentFlow FROM eg_bm_generated_template\n(latest completed for tenantId + hierarchyType)
+    activate db
+    db -> s: currentFlow (auto | manual | null)
+    deactivate db
+    s -> fs: GET /filestore/v1/files/url + download file
+    activate fs
+    fs -> s: Workbook
+    deactivate fs
+    s -> s: Validate root column unique,\nno gaps in hierarchy columns
+    s -> bs: /boundary-relationships/_search (existing hierarchy codes)
+    activate bs
+    bs -> s: Existing boundary tree
+    deactivate bs
+    s -> s: Segregate rows: with existing code / auto-generate / manual code
+    s -> s: Validate no mixed flow (MIXED_BOUNDARY_FLOW),\nflow matches currentFlow (FLOW_MISMATCH_ERROR)
+
+    alt manual flow (codes provided in sheet)
+        s -> s: Build boundary map from user codes\n(MISSING_BOUNDARY_CODE / MISSING_PARENT_BOUNDARY_CODE)
+    else auto flow
+        s -> bs: /boundary-relationships/_search (seed existing tree)
+        activate bs
+        bs -> s: Existing boundary tree
+        deactivate bs
+        s -> loc: /localization/messages/v1/_search (existing names)
+        activate loc
+        loc -> s: Names
+        deactivate loc
+        s -> s: Auto-generate boundary codes\n(continue per-parent sequence)
+    end
+
+    group createBoundaryEntities
+        s -> bs: /boundary-relationships/_search (codes already in hierarchy)
+        activate bs
+        bs -> s: Existing codes
+        deactivate bs
+        s -> bs: /boundary-service/boundary/_search (delta codes, chunks of 50)
+        activate bs
+        bs -> s: Existing entities
+        deactivate bs
+        s -> bs: /boundary-service/boundary/_create (new entities, chunks of 200)
+        activate bs
+        bs -> s: Created entities
+        deactivate bs
+        s -> s: Wait 2s for entity persistence
+    end
+
+    group createBoundaryRelationship
+        s -> bs: /boundary-relationships/_search (full tree)
+        activate bs
+        bs -> s: Existing relationships
+        deactivate bs
+        alt all relationships already exist
+            s -> s: Idempotent no-op
+        else new relationships to create
+            loop for each dependency wave (parent before child)
+                s -> bs: /boundary-relationships/_search?codes=<parent>\n(confirm upper-level parent, 6 retries x 1s)
+                activate bs
+                bs -> s: Parent found
+                deactivate bs
+                s -> bs: /boundary-relationships/_create\n(upper levels, one-by-one, concurrency 10)
+                activate bs
+                bs -> s: TenantBoundary
+                deactivate bs
+                s -> bs: /boundary-relationships/bulk/_create\n(last 2 levels, chunks of 100 grouped by parent)
+                activate bs
+                bs -> s: successful / failed BoundaryRelationships
+                deactivate bs
+                note right
+                    PARENT_NOT_FOUND, BOUNDARY_ENTITY_DOES_NOT_EXIST:
+                    retried up to 30 x 2s.
+                    DUPLICATE_RECORD: treated as success
+                end note
+            end
+        end
+    end
+
+    group localisation (fr_<region>, pt_<region>, request locale)
+        s -> loc: /localization/messages/v1/_search (existing messages)
+        activate loc
+        loc -> s: Existing messages
+        deactivate loc
+        s -> loc: /localization/messages/v1/_upsert (new/changed only, chunks of 2000)
+        activate loc
+        loc -> s: Upserted
+        deactivate loc
+        loop until all names visible or 30s timeout
+            s -> loc: /localization/messages/v1/_search (verify)
+            activate loc
+            loc -> s: Messages
+            deactivate loc
+            s -> loc: /localization/messages/cache-bust
+        end
+    end
+
+    s -> s: Build processed Excel (codes, fr/pt names, lat/long)
+    s -> fs: POST /filestore/v1/files (3 retries)
+    activate fs
+    fs -> s: processedFileStoreId
+    deactivate fs
+
+    group generateProcessedFileAndPersist
+        s -> s: status = completed
+        loop until expected relationship count or 10 min timeout
+            s -> bs: /boundary-relationships/_search (persistence drain gate)
+            activate bs
+            bs -> s: Relationship tree
+            deactivate bs
+        end
+        s -> rc: Delete keys with prefix boundaryRelationShipSearch
+        activate rc
+        deactivate rc
+        s -> s: Schedule /v1/_generate (forceUpdate=true) after 5s
+        note right
+            See generate-api.txt
+        end note
+        s -> k: ResourceDetails (completed) /update-processed-boundary-management
+    end
+
+    alt any error during async processing
+        s -> he: call handleResouceDetailsError
+        activate he
+        he -> k: ResourceDetails (status: failed, additionalDetails.error)\n/update-processed-boundary-management
+        deactivate he
+    end
+    s -> s: Stop heartbeat
+    deactivate s
+end
+
+group async persister
+    prs -> k: Consume /create-processed-boundary-management
+    activate prs
+    prs -> db: INSERT INTO eg_bm_processed_template
+    activate db
+    deactivate db
+    prs -> k: Consume /update-processed-boundary-management
+    prs -> db: UPDATE eg_bm_processed_template (status, processedfilestoreid, additionaldetails)
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+group orphan reconciler (every 60s)
+    s -> db: UPDATE eg_bm_processed_template SET status = failed\nWHERE status = data-accepted AND lastModifiedTime < now - 10 min
+    activate db
+    deactivate db
+    note right
+        Marks creates abandoned by a pod restart
+        as failed so the UI stops polling
+    end note
+end
+
+note over k
+    On central instance (IS_ENVIRONMENT_CENTRAL_INSTANCE=true)
+    topics are prefixed with the state tenant, e.g. mz-<topic>
+end note
+
+@enduml

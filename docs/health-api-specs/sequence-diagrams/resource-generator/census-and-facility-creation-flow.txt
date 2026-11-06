@@ -1,0 +1,155 @@
+@startuml
+title Resource Generator - Census Records and Facility Mapping Creation (EXECUTION_TO_BE_DONE)
+!theme vibrant
+participant PlanService as ps
+queue Kafka as k
+participant ResourceGenerator as s
+participant FileStore as fs
+participant ProjectFactory as pf
+participant LocalizationService as loc
+participant MDMSService as mdms
+participant BoundaryService as bs
+participant CensusService as cs
+participant HandleErrorMethod as he
+
+ps -> k: PlanConfigurationRequest (status EXECUTION_TO_BE_DONE, workflow set)\n/plan-config-update-topic
+activate k
+s -> k: Consume PlanConfigurationRequest
+activate s
+
+group addEstimationsFile
+    s -> s: Find file with templateIdentifier "Population"
+    opt population file present
+        s -> fs: GET /filestore/v1/files/id?tenantId={tenantId}&fileStoreId={fileStoreId}
+        activate fs
+        fs -> s: File bytes
+        deactivate fs
+        alt download fails
+            s -> s: CustomException FILESTORE_EXCEPTION
+        end
+        s -> s: Open as XSSFWorkbook and write a copy
+        alt workbook cannot be opened
+            s -> s: CustomException EXCEL_FILE_NOT_FOUND /\nINVALID_FILE_FORMAT / 500
+        end
+        s -> fs: POST /filestore/v1/files (multipart, tenantId, module = microplan)
+        activate fs
+        fs -> s: files[0].fileStoreId
+        deactivate fs
+        s -> s: Add active file (templateIdentifier "EstimationsInprogress",\ninputFileType of population file), workflow = null
+    end
+end
+s -> k: PlanConfigurationRequest /resource-plan-config-update-topic
+
+s -> pf: /project-factory/v1/project-type/search\n(CampaignDetails ids = [campaignId], tenantId)
+activate pf
+pf -> s: CampaignResponse
+deactivate pf
+alt campaign search fails
+    s -> s: CustomException ERROR_FETCHING_CAMPAIGN_DETAILS
+end
+
+group processFacilityFile
+    s -> s: Find file with templateIdentifier "Facilities"
+    alt facility file missing
+        s -> s: CustomException FILE_NOT_FOUND
+    end
+    s -> pf: /project-factory/v1/data/_create\n(ResourceDetails type = facility, action = create,\nfileStoreId = facility file, hierarchyType, campaignId,\nadditionalDetails {source: microplan, microplanId})
+    activate pf
+    alt data create fails
+        pf -> s: Error
+        s -> s: CustomException "Failed to update campaign details in\nCampaignIntegration class within method updateCampaignDetails."
+    else success
+        pf -> s: Response
+        s -> s: Log "Facility Data creation successful."
+    end
+    deactivate pf
+end
+
+group ExcelParser.parseFileData (file "EstimationsInprogress")
+    s -> fs: GET /filestore/v1/files/id?tenantId={tenantId}&fileStoreId={fileStoreId}
+    activate fs
+    fs -> s: File bytes
+    deactivate fs
+    alt file missing
+        s -> s: CustomException FILE_NOT_FOUND
+    end
+
+    group processSheets
+        s -> loc: /localization/messages/v1/_search?module=rainmaker-microplanning,\nrainmaker-boundary-undefined,hcm-admin-schemas&locale=<msgId locale>&tenantId
+        activate loc
+        loc -> s: LocaleResponse
+        deactivate loc
+        s -> mdms: /egov-mdms-service/v1/_search (HCM-ADMIN-CONSOLE.adminSchema)
+        activate mdms
+        mdms -> s: MDMS data
+        deactivate mdms
+        alt MDMS response empty
+            s -> s: CustomException NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+        end
+        s -> s: Sort operations by executionOrder
+        s -> mdms: /mdms-v2/v2/_search (HCM-ADMIN-CONSOLE.adminSchema,\nuniqueIdentifier boundary.MP-<projectType>)
+        activate mdms
+        mdms -> s: Admin schema columns
+        deactivate mdms
+        s -> s: enrichResourceMapping (deactivate old,\nadd localised mappings for this file)
+        s -> bs: /boundary-service/boundary-relationships/_search\n?includeChildren=true&tenantId&hierarchyType
+        activate bs
+        bs -> s: Boundary tree (flattened to code list)
+        deactivate bs
+        alt boundary search fails
+            s -> s: CustomException BOUNDARY_SEARCH_EXCEPTION
+        else no tenantBoundary
+            s -> s: CustomException BOUNDARY_CODE_NOT_FOUND
+        end
+        s -> mdms: /egov-mdms-service/v1/_search (hcm-microplanning.CommonConstants)
+        activate mdms
+        mdms -> s: Common constants (readMeSheetName)
+        deactivate mdms
+        alt readMeSheetName missing
+            s -> s: CustomException README_SHEET_NAME_LOCALISATION_NOT_FOUND
+        end
+
+        loop each sheet except README / HCM_ADMIN_CONSOLE_BOUNDARY_DATA sheet
+            loop each non-empty data row
+                s -> s: validateRows (cells before boundary code,\nboundary code in boundary tree,\nisRequired / numeric / boolean checks from adminSchema)
+                alt row invalid
+                    s -> he: catch in validateRows
+                    activate he
+                    he -> he: PlanConfiguration.status = INVALID_DATA
+                    he -> k: PlanConfigurationRequest /resource-plan-config-update-topic
+                    he -> s: CustomException 500 "File does not contain valid input for row ..."
+                    deactivate he
+                end
+                s -> s: Build Census (type PEOPLE, source = planConfigId,\ntotalPopulation, lat/long in additionalDetails,\nUPLOADED_ / CONFIRMED_ additionalFields,\nworkflow INITIATE, partnerAssignmentValidationEnabled = true)
+                s -> k: CensusRequest /resource-census-create-topic
+            end
+        end
+    end
+
+    s -> s: Convert workbook to file, then delete temp file\n(no upload for this status)
+end
+s -> s: Log "Successfully estimated resources for plan."
+
+alt any exception
+    s -> s: Log and rethrow CustomException 500
+end
+deactivate s
+
+group async downstream
+    ps -> k: Consume /resource-plan-config-update-topic
+    activate ps
+    ps -> ps: PlanConfigurationService.update(...)\n(adds EstimationsInprogress file / sets INVALID_DATA)
+    deactivate ps
+    cs -> k: Consume /resource-census-create-topic
+    activate cs
+    cs -> cs: Census create flow\n(see census-service/kafka-consumers.txt)
+    deactivate cs
+end
+deactivate k
+
+note over pf
+    Facility upload (project-factory) happens before the Excel is
+    parsed; a later parsing failure does not roll it back
+end note
+
+@enduml

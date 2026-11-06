@@ -1,0 +1,631 @@
+openapi: 3.0.3
+info:
+  title: eGov HRMS API
+  description: |
+    Employee management (HRMS). Employees are stored in `eg_hrms_*` tables (persisted
+    asynchronously through egov-persister) and their login users are created in the
+    configured user backend: `individualService` (default, individual-service bulk create)
+    or `defaultUserService` (egov-user `/user/users/v2/_create`).
+    Source: core-services/egov-hrms (Java / Spring Boot 3.2).
+
+    All errors are returned by the DIGIT tracer as HTTP 400 with an `Errors` array
+    (the tracer maps unhandled exceptions, e.g. NullPointerException, to 400 as well).
+    Validation errors of one request are aggregated, so several codes can be returned together.
+  version: 1.0.0
+servers:
+  - url: https://{host}/egov-hrms
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Employee
+
+paths:
+  /employees/_create:
+    post:
+      tags: [Employee]
+      summary: Create employees (bulk, partial success)
+      description: |
+        Validation order: duplicate codes in the request, auto-generation of missing mobile
+        numbers (MDMS `common-masters.UserValidation` pattern), username pre-check against
+        individual + egov-user (rows whose `code` already exists are removed and returned in
+        `Errors`), password check (only when auto-generation is disabled), boundary-service
+        search (result unused), MDMS master validation.
+
+        Then: idgen for missing codes (`hrms.employeecode`), enrichment (UUIDs, position from
+        sequence `EG_HRMS_POSITION`, generated password, `userName = code`), one bulk user
+        creation, publish to `hrms-send-email-notification` (with plain passwords) and
+        `save-hrms-employee`, SMS to `egov.core.notification.sms`.
+
+        - 202: some or all employees accepted; rows skipped by the username pre-check are in `Errors`.
+        - 200: every row was skipped by the username pre-check (`Employees` empty, `Errors` filled).
+      operationId: employeeCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeRequest'
+            example:
+              RequestInfo:
+                apiId: Rainmaker
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+                  type: EMPLOYEE
+                  roles:
+                    - code: SUPERUSER
+                      tenantId: mz
+              Employees:
+                - tenantId: mz
+                  code: EMP-001
+                  employeeStatus: EMPLOYED
+                  employeeType: PERMANENT
+                  dateOfAppointment: 1672531200000
+                  jurisdictions:
+                    - hierarchy: ADMIN
+                      boundaryType: Province
+                      boundary: MZ_PROVINCE_01
+                      tenantId: mz
+                  assignments:
+                    - department: DEPT_1
+                      designation: DESIG_1
+                      fromDate: 1672531200000
+                      isCurrentAssignment: true
+                      tenantId: mz
+                  user:
+                    name: John Doe
+                    mobileNumber: "9876543210"
+                    gender: MALE
+                    dob: 631152000000
+                    emailId: john@example.org
+                    tenantId: mz
+                    roles:
+                      - code: SYSTEM_ADMINISTRATOR
+                        name: System Administrator
+                        tenantId: mz
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+        '200':
+          description: All rows rejected by the username pre-check
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+              example:
+                ResponseInfo: {}
+                Employees: []
+                TotalCount: 0
+                Errors:
+                  - code: EMP-001
+                    userName: null
+                    mobileNumber: "9876543210"
+                    errorCode: HRMS_EMPLOYEE_CREATE_USERNAME_ALREADY_EXISTS
+                    errorMessage: "Employee code 'EMP-001' already exists as a username in the individual data store (os.individual). This row was skipped. Fresh rows in the batch (if any) were created."
+                    source: individual
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /employees/_update:
+    post:
+      tags: [Employee]
+      summary: Update employees
+      description: |
+        Requires `id`, `uuid` and `code` (code cannot change). Every existing assignment,
+        jurisdiction, test, education, service history, document and deactivation record
+        must be sent again (records cannot be removed). Deactivate with `isActive: false` +
+        a new `deactivationDetails` entry (effectiveFrom = today, reason in MDMS
+        `DeactivationReason`); reactivate with `isActive: true`, `reActivateEmployee: true`
+        and `reactivationDetails`.
+
+        Updates the individual (search + `/individual/v1/_update`) and publishes to
+        `egov-hrms-update`; the service's own consumer forwards it to
+        `update-hrms-employee`, where the persister deletes the employee (cascade) and
+        re-inserts all rows.
+      operationId: employeeUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeRequest'
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /employees/_search:
+    post:
+      tags: [Employee]
+      summary: Search employees
+      description: |
+        Criteria are bound from **query parameters** (`@ModelAttribute`); the body only
+        carries `RequestInfo`. phone / roles / codes / names / userServiceUuids are first
+        resolved through the user backend (individual search) and narrow the uuids.
+        Pagination uses DENSE_RANK over employee uuid; default limit 200.
+        A search with no criteria (and no tenantId) is allowed only for roles in
+        `open.search.enabled.roles` (SUPERUSER).
+
+        Note: `TotalCount` is the DB row count of the joined query, but is replaced by the
+        individual-search totalCount when user details are fetched after the DB query.
+      operationId: employeeSearch
+      parameters:
+        - { name: tenantId, in: query, schema: { type: string, maxLength: 250 }, description: "Required with roles, phone or names" }
+        - { name: codes, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false, description: "Matched case-insensitively; only codes[0] is used for the user lookup" }
+        - { name: names, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false }
+        - { name: uuids, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false }
+        - { name: ids, in: query, schema: { type: array, items: { type: integer, format: int64 } }, style: form, explode: false, description: "Not allowed for CITIZEN users" }
+        - { name: userServiceUuids, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false }
+        - { name: phone, in: query, schema: { type: string } }
+        - { name: roles, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false }
+        - { name: departments, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false }
+        - { name: designations, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false }
+        - { name: positions, in: query, schema: { type: array, items: { type: integer, format: int64 } }, style: form, explode: false }
+        - { name: asOnDate, in: query, schema: { type: integer, format: int64 }, description: "Requires departments and designations" }
+        - { name: employeestatuses, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false }
+        - { name: employeetypes, in: query, schema: { type: array, items: { type: string } }, style: form, explode: false }
+        - { name: isActive, in: query, schema: { type: boolean } }
+        - { name: includeUnassigned, in: query, schema: { type: boolean, default: false }, description: "Replaces the uuid filter with employees that have no assignment" }
+        - { name: limit, in: query, schema: { type: integer, default: 200 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /employees/_count:
+    post:
+      tags: [Employee]
+      summary: Count active / inactive employees of a tenant
+      description: |
+        The body is a bare `RequestInfo` object (not wrapped). When `tenantId` equals
+        `state.level.tenant.id` the count uses `tenantid LIKE '<tenantId>%'`.
+        Returns 400 `NO_RECORDS` when no employee exists.
+      operationId: employeeCount
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfo'
+      responses:
+        '200':
+          description: Counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeCountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  responses:
+    BadRequest:
+      description: Validation or business error (all errors are mapped to 400 by the tracer)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: ERR_HRMS_INVALID_CURRENT_ASSGN
+                message: There should be exactly one current assignment for the employee.
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId:
+          type: string
+          description: Locale for the email notification is taken from the part after "|"
+        authToken: { type: string }
+        correlationId:
+          type: string
+          description: Required by the create username pre-check (suffix "-username-hrms" is appended)
+        userInfo:
+          $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      description: Required for create, update and search (uuid used as createdBy on create, userName on update)
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string, example: EMPLOYEE }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name: { type: string }
+              tenantId: { type: string }
+
+    RequestInfoWrapper:
+      type: object
+      required: [RequestInfo]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string }
+        msgId: { type: string }
+        status: { type: string, example: successful }
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy: { type: string }
+        createdDate: { type: integer, format: int64 }
+        lastModifiedBy: { type: string }
+        lastModifiedDate: { type: integer, format: int64 }
+
+    Role:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        code:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Must exist in MDMS ACCESSCONTROL-ROLES.roles (CITIZEN excluded)
+        description: { type: string, maxLength: 256 }
+        tenantId: { type: string, maxLength: 256 }
+
+    User:
+      type: object
+      required: [name, dob]
+      properties:
+        id: { type: integer, format: int64, description: egov-user id (set by the service) }
+        uuid: { type: string, maxLength: 64, description: Individual id / employee uuid (set by the service) }
+        userServiceUuid: { type: string, maxLength: 64, description: egov-user uuid (individual backend) }
+        userName: { type: string, maxLength: 180, description: Always overwritten with the employee code }
+        password:
+          type: string
+          maxLength: 64
+          description: Auto-generated when egov.hrms.auto.generate.password = true (default); null in responses
+        salutation: { type: string, maxLength: 5 }
+        name: { type: string, maxLength: 250 }
+        gender: { type: string, enum: [MALE, FEMALE, OTHERS] }
+        mobileNumber:
+          type: string
+          description: Length 9..10 (configurable). Generated from the MDMS UserValidation pattern when missing. Duplicates allowed.
+        emailId: { type: string, maxLength: 128 }
+        altContactNumber: { type: string, maxLength: 50 }
+        pan: { type: string, maxLength: 10 }
+        aadhaarNumber: { type: string, pattern: '^[0-9]{12}$' }
+        permanentAddress: { type: string, maxLength: 300 }
+        permanentCity: { type: string, maxLength: 300 }
+        permanentPinCode: { type: string, maxLength: 10 }
+        correspondenceCity: { type: string, maxLength: 300 }
+        correspondencePinCode: { type: string, maxLength: 10 }
+        correspondenceAddress: { type: string, maxLength: 300 }
+        active: { type: boolean }
+        dob: { type: integer, format: int64, description: Epoch millis; must be in the past }
+        pwdExpiryDate: { type: integer, format: int64 }
+        locale: { type: string, maxLength: 16 }
+        type: { type: string, maxLength: 50, description: Set to EMPLOYEE }
+        signature: { type: string, maxLength: 36 }
+        accountLocked: { type: boolean }
+        roles:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Role'
+        fatherOrHusbandName: { type: string, maxLength: 100 }
+        relationship: { type: string, enum: [FATHER, MOTHER, HUSBAND, OTHER] }
+        bloodGroup: { type: string, maxLength: 32 }
+        identificationMark: { type: string, maxLength: 300 }
+        photo: { type: string, maxLength: 36 }
+        createdBy: { type: string, maxLength: 64 }
+        createdDate: { type: integer, format: int64 }
+        lastModifiedBy: { type: string, maxLength: 64 }
+        lastModifiedDate: { type: integer, format: int64 }
+        otpReference: { type: string }
+        tenantId: { type: string, maxLength: 256 }
+        rowVersion: { type: integer }
+
+    Jurisdiction:
+      type: object
+      required: [hierarchy, boundary, boundaryType]
+      properties:
+        id: { type: string, description: Generated }
+        hierarchy: { type: string, minLength: 2, maxLength: 100 }
+        boundary:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: The first jurisdiction's boundary becomes the individual's address locality
+        boundaryType: { type: string, maxLength: 256 }
+        tenantId: { type: string }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+        isActive: { type: boolean, default: true }
+
+    Assignment:
+      type: object
+      required: [designation, department, fromDate, isCurrentAssignment]
+      properties:
+        id: { type: string, description: Generated }
+        position: { type: integer, format: int64, description: Generated on create from sequence EG_HRMS_POSITION }
+        designation: { type: string, description: Not validated against MDMS }
+        department: { type: string, description: Must exist in MDMS common-masters.Department }
+        fromDate: { type: integer, format: int64 }
+        toDate: { type: integer, format: int64, description: Must be null for the current assignment and set otherwise }
+        govtOrderNumber: { type: string }
+        tenantid: { type: string }
+        reportingTo: { type: string }
+        isHOD: { type: boolean, default: false }
+        isCurrentAssignment: { type: boolean, description: Exactly one assignment must be current }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+
+    ServiceHistory:
+      type: object
+      properties:
+        id: { type: string }
+        serviceStatus: { type: string, description: MDMS egov-hrms.EmployeeStatus }
+        serviceFrom: { type: integer, format: int64 }
+        serviceTo: { type: integer, format: int64 }
+        orderNo: { type: string }
+        location: { type: string }
+        tenantId: { type: string }
+        isCurrentPosition: { type: boolean, default: false }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+
+    EducationalQualification:
+      type: object
+      required: [qualification, stream, yearOfPassing]
+      properties:
+        id: { type: string }
+        qualification: { type: string, description: MDMS egov-hrms.Degree }
+        stream: { type: string, description: MDMS egov-hrms.Specalization }
+        yearOfPassing: { type: integer, format: int64 }
+        university: { type: string }
+        remarks: { type: string }
+        tenantId: { type: string }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+        isActive: { type: boolean, default: true }
+
+    DepartmentalTest:
+      type: object
+      required: [test, yearOfPassing]
+      properties:
+        id: { type: string }
+        test: { type: string, description: MDMS egov-hrms.EmploymentTest }
+        yearOfPassing: { type: integer, format: int64 }
+        remarks: { type: string }
+        tenantId: { type: string }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+        isActive: { type: boolean, default: true }
+
+    EmployeeDocument:
+      type: object
+      properties:
+        id: { type: string }
+        documentName: { type: string }
+        documentId: { type: string }
+        referenceType:
+          type: string
+          enum: [HEADER, ASSIGNMENT, JURISDICTION, SERVICE, EDUCATION, TEST, DEACTIVATION]
+        referenceId: { type: string }
+        tenantId: { type: string }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+
+    DeactivationDetails:
+      type: object
+      required: [reasonForDeactivation, effectiveFrom]
+      properties:
+        id: { type: string }
+        reasonForDeactivation: { type: string, description: MDMS egov-hrms.DeactivationReason }
+        orderNo: { type: string }
+        remarks: { type: string }
+        effectiveFrom: { type: integer, format: int64, description: Must be today (not future, not before start of day) }
+        tenantId: { type: string }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+
+    ReactivationDetails:
+      type: object
+      required: [reasonForReactivation, effectiveFrom]
+      properties:
+        id: { type: string }
+        reasonForReactivation: { type: string }
+        orderNo: { type: string }
+        remarks: { type: string }
+        effectiveFrom: { type: integer, format: int64, description: Between the first deactivation effectiveFrom and now }
+        tenantId: { type: string }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+
+    Employee:
+      type: object
+      required: [employeeType, jurisdictions, tenantId, user]
+      properties:
+        id: { type: integer, format: int64, description: Generated on create; required on update }
+        uuid: { type: string, maxLength: 1024, description: Generated (individual id); required on update }
+        code:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Generated by idgen (EMP-[city]-[SEQ_EG_HRMS_EMP_CODE]) when absent; used as username; required and immutable on update
+        employeeStatus: { type: string, maxLength: 250 }
+        employeeType: { type: string, maxLength: 250, description: MDMS egov-hrms.EmployeeType }
+        dateOfAppointment: { type: integer, format: int64 }
+        jurisdictions:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: '#/components/schemas/Jurisdiction' }
+        assignments:
+          type: array
+          items: { $ref: '#/components/schemas/Assignment' }
+        serviceHistory:
+          type: array
+          maxItems: 25
+          items: { $ref: '#/components/schemas/ServiceHistory' }
+        isActive: { type: boolean, description: Set to true on create }
+        education:
+          type: array
+          maxItems: 25
+          items: { $ref: '#/components/schemas/EducationalQualification' }
+        tests:
+          type: array
+          maxItems: 25
+          items: { $ref: '#/components/schemas/DepartmentalTest' }
+        tenantId: { type: string, maxLength: 250 }
+        documents:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/EmployeeDocument' }
+        deactivationDetails:
+          type: array
+          items: { $ref: '#/components/schemas/DeactivationDetails' }
+        reactivationDetails:
+          type: array
+          items: { $ref: '#/components/schemas/ReactivationDetails' }
+        auditDetails: { $ref: '#/components/schemas/AuditDetails' }
+        reActivateEmployee: { type: boolean }
+        user: { $ref: '#/components/schemas/User' }
+
+    EmployeeRequest:
+      type: object
+      required: [RequestInfo, Employees]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Employees:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Employee' }
+
+    RowFailure:
+      type: object
+      description: Per-row failure of a partial-success create
+      properties:
+        code: { type: string, description: Employee code }
+        userName: { type: string, nullable: true }
+        mobileNumber: { type: string }
+        errorCode: { type: string, enum: [HRMS_EMPLOYEE_CREATE_USERNAME_ALREADY_EXISTS] }
+        errorMessage: { type: string }
+        source: { type: string, enum: [individual, egov-user, unknown] }
+
+    EmployeeResponse:
+      type: object
+      properties:
+        ResponseInfo: { $ref: '#/components/schemas/ResponseInfo' }
+        Employees:
+          type: array
+          items: { $ref: '#/components/schemas/Employee' }
+        TotalCount:
+          type: integer
+          format: int64
+          default: 0
+          description: Search only (0 for create / update)
+        Errors:
+          type: array
+          description: Create only; empty otherwise
+          items: { $ref: '#/components/schemas/RowFailure' }
+
+    EmployeeCountResponse:
+      type: object
+      properties:
+        ResponseInfo: { $ref: '#/components/schemas/ResponseInfo' }
+        EmployeCount:
+          type: object
+          description: Key is spelled "EmployeCount" in the code; values are strings
+          properties:
+            activeEmployee: { type: string, example: "12" }
+            inactiveEmployee: { type: string, example: "1" }
+            totalEmployee: { type: string, example: "13" }
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: |
+            Create: ERR_HRMS_BULK_CREATE_DUPLICATE_EMPCODE, HRMS_EMPLOYEE_MOBILENUMBER_VALIDATION_ERROR,
+            ERR_HRMS_PASSWORD_REQUIRED, BOUNDARY_SERVICE_SEARCH_ERROR, ERR_HRMS_INVALID_MOB_NO,
+            HRMS_EMPLOYEE_CREATE_MISSING_ROLES:<code>, HRMS_EMPLOYEE_CREATE_INVALID_ROLE:<code>:<role>,
+            HRMS_EMPLOYEE_CREATE_INVALID_EMPLOYEE_TYPE:<code>, HRMS_EMPLOYEE_CREATE_INVALID_DATE_OF_APPOINTMENT:<code>,
+            HRMS_EMPLOYEE_CREATE_INVALID_DOB:<code>, HRMS_EMPLOYEE_CREATE_APPOINTMENT_BEFORE_DOB:<code>,
+            HRMS_EMPLOYEE_CREATE_INVALID_DEPARTMENT:<code>:<dept>, ERR_HRMS_INVALID_CURRENT_ASSGN,
+            ERR_HRMS_OVERLAPPING_ASSGN, ERR_HRMS_OVERLAPPING_ASSGN_CURRENT, ERR_HRMS_INVALID_ASSIGNMENT_CURRENT_TO_DATE,
+            ERR_HRMS_INVALID_ASSIGNMENT_NOT_CURRENT_TO_DATE, ERR_HRMS_INVALID_ASSIGNMENT_PERIOD,
+            ERR_HRMS_INVALID_ASSIGNMENT_DATES, ERR_HRMS_INVALID_ASSIGNMENT_DATES_APPOINTMENT,
+            ERR_HRMS_INVALID_SERVICE_ASSGN, ERR_HRMS_OVERLAPPING_SERVICEHISTORY_CURRENT,
+            ERR_HRMS_INVALID_SERVICE_CURRENT_TO_DATE, ERR_HRMS_INVALID_SERVICE_NOT_CURRENT_TO_DATE,
+            ERR_HRMS_INVALID_SERVICE_STATUS, ERR_HRMS_INVALID_SERVICE_PERIOD, ERR_HRMS_INVALID_SERVICE_DATES,
+            ERR_HRMS_INVALID_QUALIFICATION, ERR_HRMS_INVALID_EDUCATIONAL_STREAM, ERR_HRMS_INVALID_EDUCATIONAL_PASSING_YEAR,
+            ERR_HRMS_INVALID_DEPARTMENTAL_TEST, ERR_HRMS_INVALID_DEPARTMENTAL_TEST_PASSING_YEAR,
+            ERR_HRMS_GENERATE_ID_ERROR, TENANT_ID_EXCEPTION, HRMS_EMPLOYEE_CREATE_USER_NOT_CREATED,
+            HRMS_EMPLOYEE_CREATE_USER_SERVICE_TRANSPORT_ERROR.
+            Update: ERR_HRMS_UPDATE_NULL_ID, ERR_HRMS_UPDATE_NULL, ERR_HRMS_UPDATE_NULL_UUID,
+            ERR_HRMS_UPDATE_EMPLOYEE_NOT_EXIST_CODE, ERR_HRMS_UPDATE_EMPLOYEE_CODE_CHANGE,
+            ERR_HRMS_UPDATE_ASSIGNEMENT_INCOSISTENT, ERR_HRMS_UPDATE_JURISDICTION_INCOSISTENT,
+            ERR_HRMS_UPDATE_TESTS_INCOSISTENT, ERR_HRMS_UPDATE_EDUCATION_INCOSISTENT,
+            ERR_HRMS_UPDATE_SERVICE_HISTORY_INCOSISTENT, ERR_HRMS_UPDATE_DOCUMENT_INCOSISTENT,
+            ERR_HRMS_UPDATE_DEACT_DETAILS_INCOSISTENT, ERR_HRMS_INVALID_DEACT_REQUEST,
+            ERR_HRMS_UPDATE_DEACT_DETAILS_INCORRECT_EFFECTIVEFROM, ERR_HRMS_INVALID_DEACT_REASON,
+            ERR_HRMS_UPDATE_REACT_DETAILS_INCORRECT_EFFECTIVEFROM, EMPLOYEE_NOT_FOUND,
+            HRMS_EMPLOYEE_UPDATE_USER_SERVICE_ERROR, HTTP_CLIENT_ERROR.
+            Search: ERR_HRMS_INVALID_SEARCH_CITIZEN, ERR_HRMS_INVALID_SEARCH_REQ, ERR_HRMS_INVALID_SEARCH_AOD,
+            ERR_HRMS_INVALID_SEARCH_ROLES, ERR_HRMS_INVALID_SEARCH_USER, TENANT_ID_EXCEPTION.
+            Count: ERR_HRMS_COUNT_EMP, NO_RECORDS, TENANT_ID_EXCEPTION.
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'

@@ -1,0 +1,66 @@
+@startuml
+title Notification Push - Device Token Register
+!theme vibrant
+participant Client as c
+participant NotificationPushService as s
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /egov-notification-push/device-token/v1/_register
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, deviceTokens required;\neach token: userId, deviceToken, deviceType, tenantId @NotNull)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+s -> s: userUuid = RequestInfo.userInfo.uuid
+s -> s: userRoles = RequestInfo.userInfo.roles[*].code\njoined by "," (null if no roles)
+
+loop for each deviceToken
+    alt deviceToken is empty
+        s -> c: HttpStatus: 400 PUSH_MISSING_DEVICE_TOKEN
+    end
+    s -> s: userId = userUuid if userId is empty
+    s -> s: Set auditDetails (createdBy / lastModifiedBy = userUuid,\ncreatedTime / lastModifiedTime = now)
+    alt facilityIds present
+        s -> s: Expand into one row per facilityId\n(new UUID id, facilityId, userRoles, auditDetails)
+    else no facilityIds
+        s -> s: One row (new UUID id, facilityId = null, userRoles)
+    end
+end
+note right
+    deviceType is not validated against
+    ANDROID / IOS / WEB (isValidDeviceType is unused).
+    RequestInfo.userInfo missing -> NPE (500).
+    Empty deviceTokens list -> get(0) fails (500).
+end note
+
+s -> s: Resolve topic from deviceTokens[0].tenantId\n(central instance: <stateCode>-<topic>)
+s -> k: DeviceTokenRequest (expanded rows)\n/<stateCode>-save-push-device-token-health
+activate k
+s -> c: HttpStatus: 200 DeviceTokens (as received, with facilityIds)
+deactivate s
+
+group async
+    prs -> k: Consume save-push-device-token-health
+    activate prs
+    prs -> db: INSERT INTO eg_push_device_tokens\nON CONFLICT (devicetoken, facilityid) DO UPDATE\nSET userid, devicetype, tenantid, userroles,\nlastmodifiedby, lastmodifiedtime
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over prs, db
+    Persister topics: repo file egov-notification-push-persister.yml
+    listens on save-push-device-token-health (schema health), while
+    health-config egov-persister/demo listens on demo-save-push-device-token
+    (schema demo). In central-instance mode the service publishes to
+    <stateCode>-save-push-device-token-health, which matches neither.
+    Rows with facilityid NULL never hit ON CONFLICT (NULLs are distinct),
+    so re-registering without facilityIds inserts duplicate rows.
+end note
+
+@enduml

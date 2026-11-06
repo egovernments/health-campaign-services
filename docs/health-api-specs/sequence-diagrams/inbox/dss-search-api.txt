@@ -1,0 +1,62 @@
+@startuml
+title Inbox - V1 DSS Search (inbox header metrics)
+!theme vibrant
+participant Client as c
+participant InboxService as s
+participant MDMSService as mdms
+participant DashboardAnalytics as da
+
+c -> s : POST /inbox/v1/dss/_search
+activate s
+
+s -> s: Validate request body (@Valid InboxMetricCriteria)\n(tenantId, module - no constraints)
+alt request body cannot be parsed
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+s -> s: tenantId = state.level.tenant.id (config)
+note right
+    The request tenantId is ignored.
+    Defaults: requestDate.interval = month,
+    visualizationType = METRIC, moduleLevel = "",
+    filters = { tenantId: [] }, headers = { tenantId }
+end note
+
+s -> mdms: /egov-mdms-service/v1/_search\n(module inbox-dss, master AggregationData)
+activate mdms
+alt MDMS call fails
+    mdms -> s: Error
+    s -> c: HttpStatus: 400 INVALID_MODULE_DATA
+else
+    mdms -> s: $.MdmsRes.inbox-dss.AggregationData
+    deactivate mdms
+end
+
+loop each AggregationData where module == request.module
+    loop each visualizationCode { code, dateRange }
+        alt dateRange > 0
+            s -> s: endDate = now, startDate = now - dateRange months
+        else
+            s -> s: startDate = endDate = "0"
+        end
+        s -> da: /dashboard-analytics/dashboard/getChartV2\n(AggregationRequest, visualizationCode = code)
+        activate da
+        alt dashboard-analytics call fails
+            da -> s: Error
+            s -> c: HttpStatus: 400 INVALID_MODULE_DATA
+        else
+            da -> s: MetricResponse
+            deactivate da
+        end
+        s -> s: result[code] = responseData.data[0].headerValue
+        alt response has no data
+            s -> c: HttpStatus: 400 INVALID_MODULE_DATA
+        end
+    end
+end
+
+s -> c: HttpStatus: 200 { <visualizationCode>: <number> }
+note right: Empty map {} when module has no AggregationData
+deactivate s
+
+@enduml

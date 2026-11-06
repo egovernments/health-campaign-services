@@ -1,0 +1,532 @@
+openapi: 3.0.3
+info:
+  title: Boundary Management Service API
+  description: |
+    Upload, validate and generate boundary hierarchy templates (Excel) for HCM.
+    Source: health-services/boundary-management (Node.js / Express).
+
+    All endpoints are POST and require `RequestInfo` in the body with
+    `msgId` and `userInfo.tenantId`. The locale is read from `msgId`
+    (`<timestamp>|<locale>`, e.g. `1695889012604|en_MZ`); it falls back to the
+    `LOCALE` env (default `en_MZ`).
+
+    Content-Type must be `application/json` (or `application/gzip`), otherwise 415.
+  version: 1.0.0
+servers:
+  - url: https://{host}/boundary-management
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Boundary Process
+    description: Upload a boundary sheet to validate or create boundaries
+  - name: Boundary Generate
+    description: Generate and download the boundary template for a hierarchy
+
+paths:
+  /v1/_process:
+    post:
+      tags: [Boundary Process]
+      summary: Validate or create boundaries from an uploaded Excel sheet
+      description: |
+        Validates the uploaded sheet synchronously (schema, hierarchy, file, headers,
+        root column, duplicate rows, allowed characters), then persists a processed
+        record via Kafka (`create-processed-boundary-management`).
+
+        * `action = validate` – returns `status: validation-started`. No further processing.
+        * `action = create` – returns `status: data-accepted` and creates boundary entities,
+          relationships and localisations asynchronously. The final status
+          (`completed` / `failed`) and `processedFileStoreId` are available via `/v1/_process-search`.
+          On completion a template regeneration (`/v1/_generate`, forceUpdate=true) is triggered.
+      operationId: processBoundary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessRequest'
+            example:
+              RequestInfo:
+                apiId: hcm
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  userName: admin
+                  tenantId: mz
+              ResourceDetails:
+                tenantId: mz
+                hierarchyType: ADMIN
+                fileStoreId: 5c8b6b2e-1f1f-4a1a-9a9e-0a6b6d4c7a11
+                action: create
+                referenceId: ref-123
+                additionalDetails:
+                  fileName: boundary.xlsx
+      responses:
+        '200':
+          description: Request accepted (create) or validated (validate)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/_process-search:
+    post:
+      tags: [Boundary Process]
+      summary: Search processed boundary uploads
+      description: Reads `eg_bm_processed_template`. Use the `id` returned by `/v1/_process` to poll status.
+      operationId: processBoundarySearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessSearchRequest'
+            example:
+              RequestInfo:
+                apiId: hcm
+                msgId: "1695889012604|en_MZ"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              SearchCriteria:
+                tenantId: mz
+                id: [b2f1c6a4-8d2e-4c0f-9a31-6c1e2f3d4a5b]
+      responses:
+        '200':
+          description: Matching processed resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/_generate:
+    post:
+      tags: [Boundary Generate]
+      summary: Generate the boundary template for a hierarchy
+      description: |
+        Looks up existing generated templates for (tenantId, hierarchyType, locale[, referenceId]).
+
+        * Existing templates and `forceUpdate=false` – returns them, nothing is generated.
+        * None found, or `forceUpdate=true` – existing ones are marked `expired`, a new record with
+          `status: inprogress` is returned, and the Excel is generated asynchronously
+          (final `completed` / `failed` status via `/v1/_generate-search`).
+      operationId: generateBoundary
+      parameters:
+        - $ref: '#/components/parameters/tenantId'
+        - $ref: '#/components/parameters/hierarchyType'
+        - name: forceUpdate
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['true', 'false']
+            default: 'false'
+          description: Regenerate even if a template already exists
+        - $ref: '#/components/parameters/referenceId'
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Accepted by validation; not used by the service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+            example:
+              RequestInfo:
+                apiId: hcm
+                msgId: "1695889012604|en_MZ"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+      responses:
+        '200':
+          description: Existing templates, or the newly created in-progress record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/_generate-search:
+    post:
+      tags: [Boundary Generate]
+      summary: Get the latest generated template (download)
+      description: |
+        Returns the latest generated template (LIMIT 1, newest first) for the request locale.
+        If none exists (and no `id` was given) or the latest one has `status: failed`, a
+        generation is triggered automatically in the background (forceUpdate=true); poll again.
+      operationId: generateBoundarySearch
+      parameters:
+        - $ref: '#/components/parameters/tenantId'
+        - $ref: '#/components/parameters/hierarchyType'
+        - name: id
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 500 }
+          description: Comma-separated statuses, e.g. `completed,inprogress`
+        - $ref: '#/components/parameters/referenceId'
+        - name: forceUpdate
+          in: query
+          required: false
+          schema: { type: string }
+          description: Accepted by validation; not used by this endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+      responses:
+        '200':
+          description: Latest generated template (empty array if none yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    tenantId:
+      name: tenantId
+      in: query
+      required: true
+      description: Must equal RequestInfo.userInfo.tenantId
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    hierarchyType:
+      name: hierarchyType
+      in: query
+      required: true
+      description: Must exist in boundary-service hierarchy definitions
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    referenceId:
+      name: referenceId
+      in: query
+      required: false
+      schema: { type: string, minLength: 1, maxLength: 128 }
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: VALIDATION_ERROR
+                message: Validation error
+                description: hierarchyType ADMIN not found
+                params: null
+    UnsupportedMediaType:
+      description: Content-Type is not application/json or application/gzip
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    RequestInfo:
+      type: object
+      required: [msgId, userInfo]
+      properties:
+        apiId: { type: string, nullable: true }
+        ver: { type: string, nullable: true }
+        ts: { type: integer, format: int64, nullable: true }
+        action: { type: string, nullable: true }
+        did: { type: string, nullable: true }
+        key: { type: string, nullable: true }
+        msgId:
+          type: string
+          description: "`<timestamp>|<locale>`; the locale part drives localisation"
+          example: "1695889012604|en_MZ"
+        authToken: { type: string, nullable: true }
+        userInfo:
+          $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      required: [tenantId]
+      properties:
+        id: { type: integer }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name: { type: string }
+              tenantId: { type: string }
+
+    RequestInfoWrapper:
+      type: object
+      required: [RequestInfo]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string, example: egov-bff }
+        ver: { type: string, example: 0.0.1 }
+        ts: { type: integer, format: int64 }
+        status: { type: string, example: successful }
+        desc: { type: string, example: new-response }
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedBy: { type: string }
+        lastModifiedTime: { type: integer, format: int64, nullable: true }
+
+    ProcessResourceDetailsInput:
+      type: object
+      additionalProperties: false
+      required: [tenantId, fileStoreId, action, hierarchyType]
+      properties:
+        tenantId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Must equal RequestInfo.userInfo.tenantId
+        fileStoreId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Filestore id of the uploaded Excel sheet
+        action:
+          type: string
+          enum: [create, validate]
+        hierarchyType:
+          type: string
+          minLength: 1
+          maxLength: 128
+        referenceId: { type: string, minLength: 1, maxLength: 128 }
+        additionalDetails:
+          type: object
+          additionalProperties: true
+        isActive: { type: boolean }
+
+    ProcessRequest:
+      type: object
+      required: [RequestInfo, ResourceDetails]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ProcessResourceDetailsInput'
+
+    ProcessResourceDetails:
+      type: object
+      description: Enriched resource details returned by /v1/_process
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string }
+        fileStoreId: { type: string }
+        action: { type: string, enum: [create, validate] }
+        hierarchyType: { type: string }
+        referenceId: { type: string, nullable: true }
+        isActive: { type: boolean }
+        processedFileStoreId: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [data-accepted, validation-started]
+        additionalDetails:
+          type: object
+          additionalProperties: true
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    ProcessResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ProcessResourceDetails'
+
+    SearchCriteria:
+      type: object
+      additionalProperties: false
+      required: [tenantId]
+      properties:
+        id:
+          type: array
+          items: { type: string }
+        tenantId: { type: string, minLength: 1 }
+        status:
+          type: string
+          enum: [data-accepted, validation-started, completed, failed, invalid]
+        hierarchyType: { type: string }
+        referenceId: { type: string }
+
+    ProcessSearchRequest:
+      type: object
+      required: [RequestInfo, SearchCriteria]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SearchCriteria:
+          $ref: '#/components/schemas/SearchCriteria'
+
+    ProcessedResource:
+      type: object
+      description: Row of eg_bm_processed_template (hierarchyType is not returned)
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        status:
+          type: string
+          enum: [data-accepted, validation-started, completed, failed, invalid]
+        action: { type: string, enum: [create, validate] }
+        fileStoreId: { type: string }
+        processedFilestoreId:
+          type: string
+          nullable: true
+          description: Filestore id of the processed sheet with generated boundary codes
+        referenceId: { type: string, nullable: true }
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalDetails:
+          type: object
+          additionalProperties: true
+          description: Contains `error` when status is failed, `fileName` on success
+
+    ProcessSearchResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessedResource'
+
+    GeneratedResource:
+      type: object
+      description: |
+        Row of eg_bm_generated_template. A newly created record (from /v1/_generate)
+        has `hierarchyType` and `count`; records read from the DB return
+        `hierarchytype` (lower case) and no `count`.
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        hierarchyType: { type: string }
+        hierarchytype: { type: string }
+        status:
+          type: string
+          enum: [inprogress, completed, failed, expired]
+        fileStoreid:
+          type: string
+          nullable: true
+          description: Filestore id of the generated Excel (set when completed)
+        locale: { type: string, example: en_MZ }
+        referenceId: { type: string, nullable: true }
+        count: { type: integer, nullable: true }
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalDetails:
+          type: object
+          additionalProperties: true
+          properties:
+            currentFlow:
+              type: string
+              enum: [auto, manual]
+            error:
+              type: object
+              properties:
+                status: { type: integer }
+                code: { type: string }
+                description: { type: string }
+                message: { type: string }
+
+    GenerateResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ResourceDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedResource'
+
+    GenerateSearchResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        GeneratedResource:
+          type: array
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/GeneratedResource'
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+          description: |
+            VALIDATION_ERROR, UNSUPPORTED_MEDIA_TYPE, INVALID_FILE, SCHEMA_ERROR,
+            FETCHING_COLUMN_ERROR, KAFKA_ERROR, INTERNAL_SERVER_ERROR,
+            BOUNDARY_SHEET_HEADER_ERROR, INVALID_PATH
+        message: { type: string }
+        description: { type: string, nullable: true }
+        params: { nullable: true }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          nullable: true
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'

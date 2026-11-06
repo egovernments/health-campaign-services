@@ -1,0 +1,132 @@
+@startuml
+title Census - Create
+!theme vibrant
+participant Client as c
+participant CensusService as s
+participant BoundaryService as bs
+participant PlanService as ps
+participant WorkflowService as wf
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /census-service/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(tenantId, hierarchyType, boundaryCode, type,\ntotalPopulation, source required; additionalFields key/value required)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateCreate
+    s -> bs: /boundary-service/boundary-relationships/_search\n?codes=<boundaryCode>&includeParents=true&includeChildren=false
+    activate bs
+    bs -> s: TenantBoundary
+    deactivate bs
+
+    s -> db: SELECT census WHERE source = ? AND boundary_code = ?
+    activate db
+    db -> s: Existing census
+    deactivate db
+    alt census already exists for boundary + source
+        s -> c: HttpStatus: 400 CENSUS_ALREADY_EXISTS
+    end
+
+    alt boundary not found
+        s -> c: HttpStatus: 400 NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE
+    end
+    s -> s: Enrich boundaryAncestralPath (root|..|boundaryCode)\nand jurisdictionMapping
+
+    alt userInfo missing
+        s -> c: HttpStatus: 400 USERINFO_MISSING
+    end
+    opt partnerAssignmentValidationEnabled (true for API calls)
+        s -> s: Validate workflow access\n(FACILITY_CATCHMENT_MAPPER roles without census\napprover role cannot send a workflow)
+        alt unauthorized workflow access
+            s -> c: HttpStatus: 400 UNAUTHORIZED_WORKFLOW_ACCESS
+        end
+        s -> ps: /plan-service/employee/_search\n(employeeId = user uuid, planConfigurationId = source,\njurisdiction = ancestral path, roles)
+        activate ps
+        ps -> s: PlanEmployeeAssignment
+        deactivate ps
+        alt no assignment found
+            s -> c: HttpStatus: 400 INVALID_PARTNER
+        end
+        s -> s: Set assigneeJurisdiction
+    end
+
+    s -> s: Validate unique keys in additionalFields
+    alt duplicate key
+        s -> c: HttpStatus: 400 DUPLICATE_KEY_IN_ADDITIONAL_FIELD
+    end
+end
+
+group enrichCreate
+    s -> s: Generate ids for census,\npopulationByDemographics, additionalFields
+    s -> s: Set auditDetails and effectiveFrom = createdTime
+end
+
+group enrichPreviousTimeframe
+    s -> db: SELECT census WHERE tenant_id = ? AND boundary_code = ?\nAND effective_to IS NULL
+    activate db
+    db -> s: Active census for the boundary
+    deactivate db
+    loop for each active census
+        s -> s: effectiveTo = new census createdTime
+        s -> k: Census /census-update-topic
+        activate k
+    end
+end
+
+opt workflow present in request
+    s -> ps: /plan-service/employee/_search\n(ancestral boundaries, census roles)
+    activate ps
+    ps -> s: PlanEmployeeAssignments
+    deactivate ps
+    s -> s: Auto-assign assignee\n(INITIATE: lowest boundary with an employee;\nEDIT_AND_SEND_FOR_APPROVAL / APPROVE: higher level;\nSEND_BACK_FOR_CORRECTION: last modified user)
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(businessService CENSUS)
+    activate wf
+    alt workflow transition fails
+        wf -> s: Error
+        s -> c: HttpStatus: 400 WORKFLOW_INTEGRATION_ERROR
+    else success
+        wf -> s: ProcessInstance
+        deactivate wf
+        s -> s: Set status from workflow state, update auditDetails
+    end
+end
+
+s -> k: Census /census-create-topic
+activate k
+s -> c: HttpStatus: 202 Census
+deactivate s
+
+group async
+    prs -> k: Consume /census-create-topic
+    activate prs
+    prs -> db: INSERT INTO census,\npopulation_by_demographics, additional_field
+    activate db
+    deactivate db
+    prs -> k: Consume /census-update-topic
+    prs -> db: UPDATE census (effective_to of previous census)
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /census-create-topic, /census-update-topic
+    activate idx
+    idx -> el: Store Census /census-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+note over bs, ps
+    Failures calling boundary-service or plan-service are logged
+    and an empty response is used, so they surface as
+    NO_BOUNDARY_DATA_FOUND / INVALID_PARTNER (or an unhandled error)
+end note
+
+@enduml

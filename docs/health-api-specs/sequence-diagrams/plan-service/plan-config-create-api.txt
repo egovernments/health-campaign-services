@@ -1,0 +1,163 @@
+@startuml
+title Plan Service - Plan Configuration Create
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant MdmsService as mdms
+participant ProjectFactory as pf
+queue Kafka as k
+participant PersisterService as prs
+participant ResourceGenerator as rg
+database Database as db
+
+c -> s : POST /plan-service/config/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(tenantId 2-64, name 3-128, campaignId 2-64 required;\nfiles: filestoreId, inputFileType, templateIdentifier, active;\nassumptions: key, value 0.01-1000.00, source, category, active;\noperations: input, operator, assumptionValue, output,\nshowOnEstimationDashboard, source, category, active;\nresourceMapping: filestoreId, mappedFrom, mappedTo, active)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group enrichPlanConfigurationBeforeValidation
+    s -> s: active = true for files, operations, assumptions\nand resourceMapping entries without id
+end
+
+group validateCreate
+    s -> mdms: /mdms-v2/v1/_search (root tenant)\nhcm-microplanning: HypothesisAssumptions, UploadConfiguration,\nRuleConfigureInputs, Metric, Uom, MicroplanNamingRegex\nHCM-ADMIN-CONSOLE: HierarchySchema
+    activate mdms
+    mdms -> s: MdmsRes
+    deactivate mdms
+    alt MdmsRes empty (or call failed)
+        s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+    end
+
+    s -> mdms: /mdms-v2/v2/_search\n(schemaCode hcm-microplanning.VehicleDetails, limit 10, offset 0)
+    activate mdms
+    mdms -> s: Mdms[]
+    deactivate mdms
+    alt no VehicleDetails records
+        s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+    end
+
+    s -> pf: /project-factory/v1/project-type/search\n(CampaignDetails.ids = [campaignId], tenantId = root tenant)
+    activate pf
+    pf -> s: CampaignDetails
+    deactivate pf
+    alt no campaign details
+        s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+    end
+
+    s -> db: SELECT id FROM plan_configuration\nWHERE tenant_id = ? AND campaign_id = ? AND name ILIKE '%name%'\nORDER BY last_modified_time DESC OFFSET 0 LIMIT 10
+    activate db
+    db -> s: Matching plan configuration ids
+    deactivate db
+    alt plan configuration already exists
+        s -> c: HttpStatus: 400 PLAN_CONFIGURATION_ALREADY_EXISTS
+    end
+
+    opt assumptions present
+        alt additionalDetails missing
+            s -> c: HttpStatus: 400 ADDITIONAL_DETAILS_MISSING
+        end
+        s -> s: Build JSONPath on HypothesisAssumptions from additionalDetails\n(campaignType, DistributionProcess, RegistrationProcess,\nresourceDistributionStrategyCode,\nisRegistrationAndDistributionHappeningTogetherOrSeparately)
+        alt JSONPath evaluation fails
+            s -> c: HttpStatus: 400 JSONPATH_ERROR
+        else active MDMS-sourced assumption key not in MDMS
+            s -> c: HttpStatus: 400 ASSUMPTION_KEY_NOT_FOUND_IN_MDMS
+        end
+    end
+
+    s -> s: Validate active assumption keys are unique
+    alt duplicate key
+        s -> c: HttpStatus: 400 DUPLICATE_ASSUMPTION_KEY
+    end
+
+    opt files present
+        s -> s: Validate templateIdentifier against UploadConfiguration ids
+        alt templateIdentifier not in MDMS
+            s -> c: HttpStatus: 400 TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS
+        else more than one active file for a required template
+            s -> c: HttpStatus: 400 ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER
+        else workflow.action == INITIATE and a required template has no active file
+            s -> c: HttpStatus: 400 REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND
+        end
+    end
+
+    opt workflow.action == INITIATE (setup completed)
+        alt files empty
+            s -> c: HttpStatus: 400 FILES_NOT_FOUND
+        else operations empty
+            s -> c: HttpStatus: 400 OPERATIONS_NOT_FOUND
+        else assumptions empty
+            s -> c: HttpStatus: 400 ASSUMPTIONS_NOT_FOUND
+        end
+        s -> mdms: /mdms-v2/v2/_search\n(schemaCode HCM-ADMIN-CONSOLE.adminSchema,\nuniqueIdentifiers = [boundary.MP-<campaign projectType>])
+        activate mdms
+        mdms -> s: adminSchema (numberProperties, stringProperties)
+        deactivate mdms
+        s -> s: Allowed inputs = admin schema columns +\nactive assumption keys + previous active outputs
+        alt MDMS-sourced operation input not allowed
+            s -> c: HttpStatus: 400 INPUT_KEY_NOT_FOUND
+        else MDMS-sourced operation assumptionValue not allowed
+            s -> c: HttpStatus: 400 ASSUMPTION_VALUE_NOT_FOUND
+        end
+    end
+
+    s -> s: Validate name against MicroplanNamingRegex
+    alt JSONPath evaluation fails
+        s -> c: HttpStatus: 400 JSONPATH_ERROR
+    else regex list empty
+        s -> c: HttpStatus: 400 NAME_VALIDATION_LIST_EMPTY
+    else name does not match regex
+        s -> c: HttpStatus: 400 NAME_VALIDATION_FAILED
+    end
+
+    alt RequestInfo.userInfo missing
+        s -> c: HttpStatus: 400 USERINFO_MISSING
+    end
+
+    s -> s: Validate additionalDetails.vehicleIds against VehicleDetails ids
+    alt vehicle id not in MDMS
+        s -> c: HttpStatus: 400 VEHICLE_ID_NOT_FOUND_IN_MDMS
+    end
+end
+
+group enrichCreate
+    s -> s: status = DRAFT
+    s -> s: Generate ids for plan configuration, files,\nassumptions, operations, resourceMapping
+    s -> s: Inactive file => its resourceMapping entries set inactive
+    s -> s: Set auditDetails (createdBy / lastModifiedBy = user uuid)
+end
+
+s -> k: PlanConfigurationRequest /plan-config-create-topic
+activate k
+s -> c: HttpStatus: 202 PlanConfiguration
+deactivate s
+
+group async
+    prs -> k: Consume /plan-config-create-topic
+    activate prs
+    prs -> db: INSERT INTO plan_configuration, plan_configuration_files,\nplan_configuration_assumptions, plan_configuration_operations,\nplan_configuration_mapping
+    activate db
+    deactivate db
+    deactivate prs
+    rg -> k: Consume /plan-config-create-topic
+    activate rg
+    deactivate rg
+end
+deactivate k
+
+note over s
+    The workflow is NOT invoked on create: status is always DRAFT
+    even when a workflow object is sent (it only switches on the
+    INITIATE setup-completed validations).
+end note
+
+note over pf
+    If the project-factory call fails, the response is null and
+    a NullPointerException is returned as HTTP 400
+    ("An unhandled exception occurred on the server").
+    No indexer config exists for plan-config topics.
+end note
+
+@enduml

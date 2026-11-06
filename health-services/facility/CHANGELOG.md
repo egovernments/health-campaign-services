@@ -1,5 +1,35 @@
 All notable changes to this module will be documented in this file.
 
+## Unreleased - 2026-10-29
+
+- `_search`: new URL parameter `includeDescendants` (default `false`). With a `boundaryCode` it also returns facilities in the boundaries below it. New config: `egov.boundary.relationship.search.url`.
+- Outside Household sites (HCMPRE-2371): `_search` leaves out facilities whose `usage` is a site type from MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`, unless the request has `usage`, `id` or `clientReferenceId`.
+- Site types are read with the MDMS v2 search: `egov.mdms.host` (env `EGOV_MDMS_HOST`) + `egov.mdms.search.v2.endpoint` (env `EGOV_MDMS_SEARCH_V2_ENDPOINT`), the same setting plan-service and resource-generator use. Set it per environment (e.g. `/mdms-v2/v2/_search` on demo).
+- `_create` / `bulk/_create`: a facility whose `clientReferenceId` is already saved (same tenant) is not created again; the saved record, with its id, is returned. Before, the caller got a new id that the persister then failed to store. Switch: `facility.create.return.existing.on.duplicate.client.reference.id` (default `true`).
+
+## 1.2.1 - 2026-03-10
+
+- Upgraded `health-services-common` to 1.1.3 with tracer 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.
+- Added OpenTelemetry BOM and Instrumentation BOM dependency management and OTEL exporter configuration.
+
+# 1.2.0 - 2025-05-07
+* Added tenant-aware schema resolution using MultiStateInstanceUtil and schema placeholders in queries.
+* Updated repository methods to require tenant ID and handle InvalidTenantIdException.
+* Enhanced validators for multi-tenant support.
+* Added clientReferenceId to ADDRESS table; updated SQL and persister configurations.
+* Removed tracer dependency.
+* Updated migrate.sh and added SQL for clientReferenceId.
+
+## 1.1.2 - 2024-05-29
+- Integrated Core 2.9LTS
+- Upgraded to health models 1.0.20 and health common 1.0.16
+- Integrated Boundary v2 functionality
+- Upgraded PostgresSQL Driver version to 42.7.1
+- Upgraded Flyway base image version to 10.7.1 for DB Migration
+- Upgraded Flyway-Core to 9.22.3
+
 ## 1.0.0
 
 - Base version
+
+## 1.1.0

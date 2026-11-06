@@ -2,7 +2,6 @@ package com.tarento.analytics.helper;
 import org.springframework.stereotype.Component;
 import com.tarento.analytics.dto.Data;
 import com.tarento.analytics.dto.Plot;
-import java.util.*;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -19,6 +18,11 @@ public class SortingHelper {
             plotList.sort(plotSortComparator);
             dataList.get(i).setPlots(plotList);
         }
+        return dataList;
+    }
+    public List<Data> tableSort(List<Data> dataList, String sortingKey) {
+        Comparator<Data> tableSortComparator = tableSortComparator(sortingKey);
+        dataList.sort(tableSortComparator);
         return dataList;
     }
 
@@ -45,6 +49,20 @@ public class SortingHelper {
                 }
                 return 0;
             }
+        };
+    }
+
+    private static Comparator<Data> tableSortComparator(String sortingKey) {
+        return (p1, p2) -> {
+            String plotName1 = p1.getHeaderName().toUpperCase();
+            String plotName2 = p2.getHeaderName().toUpperCase();
+
+            if (sortingKey.equals(SORT_KEY_ASC)) {
+                return plotName1.compareTo(plotName2);
+            } else if (sortingKey.equals(SORT_KEY_DESC)) {
+                return plotName2.compareTo(plotName1);
+            }
+            return 0;
         };
     }
 

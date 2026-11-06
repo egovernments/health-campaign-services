@@ -1,0 +1,96 @@
+@startuml
+title Health Notification - Test Stock Notify
+!theme vibrant
+participant Client as c
+participant HealthNotificationService as s
+participant InMemoryCache as mc
+participant MdmsService as mdms
+participant FacilityService as fs
+participant LocalizationService as ls
+queue Kafka as k
+participant NotificationPushService as nps
+
+c -> s : POST /health-notification-service/test/v1/stock/_notify\n(body: raw stock Kafka JSON array)
+activate s
+note right
+    Javadoc says "active only with the hns-local profile",
+    but the controller has no @Profile annotation,
+    so it is exposed in every environment
+end note
+
+s -> s: Parse body as JsonNode[]
+alt body is not a JSON array
+    s -> c: HttpStatus: 400 { status: "error", error }
+end
+
+loop for each record
+    s -> s: Read id, additionalFields.schema,\nadditionalFields.fields[stockEntryType]
+    alt schema != "Stock"
+        s -> s: result status = SKIPPED ("Not a Stock schema")
+    else schema == "Stock"
+        s -> s: Map to Stock model
+        group StockNotificationAdapter.buildNotificationEvents (topic = "test-topic")
+            s -> s: stockEntryType + additionalFields.status -> eventType\nISSUED+IN_TRANSIT -> STOCK_ISSUE_PUSH_NOTIFICATION\nISSUED+ACCEPTED -> STOCK_RECEIVE_PUSH_NOTIFICATION\nISSUED+REJECTED -> STOCK_ISSUE_REJECT_PUSH_NOTIFICATION\nRETURNED+IN_TRANSIT/ACCEPTED/REJECTED -> STOCK_REVERSE_ISSUE/ACCEPT/REJECT_PUSH_NOTIFICATION\nlegacy RECEIPT, RETURN_ACCEPTED, RETURN_REJECTED; DAMAGED -> none
+            s -> mc: get "<tenantId>_PUSH-NOTIFICATION"
+            activate mc
+            mc -> s: MdmsV2Data (if cached)
+            deactivate mc
+            opt cache miss
+                s -> mdms: POST /mdms-v2/v2/_search\n(HCM-NOTIFICATION-CONFIG.NotificationConfig,\nfilters campaignType = PUSH-NOTIFICATION)
+                activate mdms
+                mdms -> s: MdmsV2Response
+                deactivate mdms
+                s -> mc: put config
+            end
+            s -> s: Find enabled eventNotifications[eventType],\ntemplateCode = scheduledNotifications[0] (if enabled),\nlocale = data.locale[0] (default en_NG), recipientRoles
+            s -> fs: POST /facility/v1/_search?tenantId&limit=1&offset=0\n(Facility.id = senderId / receiverId, only for WAREHOUSE)
+            activate fs
+            fs -> s: Facilities[0].name (fallback: id)
+            deactivate fs
+            s -> s: Placeholders Sending_Facility_Name, Receiving_Facility_Name,\nTransaction_ID (mrnNumber), quantity_of_sku;\nnavigation data (screen, transactionRef);\nrecipient facility = receiverId or senderId by entry type + status
+        end
+        alt no events (unmapped type, no MDMS config, disabled event, no template)
+            s -> s: result status = NO_EVENTS
+        else events built
+            group NotificationProcessorService.processAndSendBatch
+                loop for each event
+                    s -> mc: get "<tenantId>_<locale>_<templateCode>"
+                    opt cache miss
+                        s -> ls: POST /localization/messages/v1/_search\n?locale&tenantId&module=health-notification&codes=<templateCode>
+                        activate ls
+                        ls -> s: message (or LOCALIZATION_MESSAGE_NOT_FOUND)
+                        deactivate ls
+                    end
+                    s -> s: Replace {placeholders};\nif template missing, body = placeholders.toString()
+                    opt notification.push.enabled and recipient facility present
+                        s -> k: {title, body, facilityId, tenantId, recipientRoles, data}\n/egov.core.notification.push
+                        activate k
+                    end
+                end
+            end
+            s -> s: result status = SENT
+        end
+        alt exception for this record
+            s -> s: result status = ERROR (exception class + message)
+        end
+    end
+end
+
+s -> c: HttpStatus: 200 { status: "completed", totalRecords, results[] }
+deactivate s
+
+group async
+    nps -> k: Consume /egov.core.notification.push
+    activate nps
+    nps -> nps: Resolve device tokens by facilityId (+ roles), send FCM
+    deactivate nps
+end
+deactivate k
+
+note over s, k
+    SENT only means the batch was handed to the processor: per-event failures
+    (including PUSH_NOTIFICATION_FAILED) are logged and swallowed inside
+    processAndSendBatch, so they are not reported in the response.
+end note
+
+@enduml
