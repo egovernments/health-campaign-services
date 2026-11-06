@@ -647,11 +647,48 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
         expect(lastErrorSql()[0][1]).toContain('Could not read the site links: search down');
     });
 
-    it('marks the row mapped when its link is gone (removing links is the demap rows\' job)', async () => {
+    it('marks the row failed without its link id when its link is gone, so the reconciler creates the link again', async () => {
         wire(() => ({ ProjectFacilities: [] }));
         await handleMappingBatch(message([{ ...row }]));
         expect(updates).toHaveLength(0);
-        expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.mapped })]);
+        expect(persisted()).toEqual([expect.objectContaining({ uniqueIdentifierForData: 'site-1', mappingId: null, status: mappingStatuses.failed })]);
+        expect(lastErrorSql()[0][1]).toContain('Site link PF-1 no longer exists; it will be created again with the frontline worker');
+    });
+
+    it('marks the row failed without its link id when health-project says the link no longer exists', async () => {
+        wire(() => ({ ProjectFacilities: [link([])] }), () => ({ Errors: [{ code: 'NON_EXISTENT_ENTITY', message: '[long dump]' }] }));
+        await handleMappingBatch(message([{ ...row }]));
+        expect(updates).toHaveLength(1);
+        expect(persisted()).toEqual([expect.objectContaining({ mappingId: null, status: mappingStatuses.failed })]);
+    });
+
+    it('marks a failure another try cannot change terminal, sends it once, and keeps updating the other links', async () => {
+        const rows = ['PF-1', 'PF-2'].map((id, i) => ({ ...row, uniqueIdentifierForData: `site-${i + 1}`, mappingId: id }));
+        getRelatedDataWithCampaignMock.mockImplementation(async (type: any) => (type === 'facility'
+            ? rows.map((r, i) => ({ uniqueIdentifier: r.uniqueIdentifierForData, uniqueIdAfterProcess: `F-${i + 1}`, data: { ...siteData[0].data, HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID: r.uniqueIdentifierForData } }))
+            : type === 'boundary' ? [{ uniqueIdentifier: 'B1', uniqueIdAfterProcess: 'PRJ-1' }] : []) as any);
+        const sent: string[] = [];
+        httpMock.mockImplementation(async (url: string, body: any) => {
+            if (url.endsWith(config.paths.projectFacilitySearch)) return { ProjectFacilities: rows.map((r, i) => ({ ...link([]), id: r.mappingId, facilityId: `F-${i + 1}` })) } as any;
+            sent.push(body.ProjectFacility.id);
+            return (body.ProjectFacility.id === 'PF-1' ? { Errors: [{ code: 'DUPLICATE_ENTITY', message: '[long dump]' }] } : {}) as any;
+        });
+        await handleMappingBatch(message(rows.map(r => ({ ...r }))));
+        expect(sent.sort()).toEqual(['PF-1', 'PF-2']);
+        expect(persisted().map((d: any) => [d.mappingId, d.status]).sort()).toEqual([['PF-1', 'updateFailed'], ['PF-2', 'mapped']]);
+        const params = lastErrorSql()[0][1];
+        expect(params).toEqual(expect.arrayContaining([
+            'Frontline worker update failed: DUPLICATE_ENTITY: another link has the same project and site; remove the extra link, then upload the file again',
+            true, config.mapping.maxRetries]));
+    });
+
+    it('writes the reasons before the statuses, so the reconciler never resets a row before it is terminal', async () => {
+        wire(() => ({ ProjectFacilities: [link([])] }), () => ({ Errors: [{ code: 'DUPLICATE_ENTITY' }] }));
+        const order: string[] = [];
+        executeQueryMock.mockImplementation((async (sql: any) => { if (String(sql).includes('lastError')) order.push('reason'); return { rows: [], rowCount: 0 }; }) as any);
+        produceModifiedMessagesMock.mockImplementationOnce((async (_msg: any, topic: any) => { if (topic === 'update-mapping') order.push('status'); }) as any);
+        await handleMappingBatch(message([{ ...row }]));
+        expect(order).toEqual(['reason', 'status']);
     });
 
     it('updates at most the configured number of links at a time and keeps going after a failure', async () => {

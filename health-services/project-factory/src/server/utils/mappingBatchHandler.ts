@@ -148,9 +148,10 @@ async function runBoundedCreates(items: any[], worker: (item: any) => Promise<vo
 
 /**
  * Persists per-row failure reasons via direct SQL — the mapping persister contract
- * (Kafka message fields) stays unchanged; lastError lives only in the DB.
+ * (Kafka message fields) stays unchanged; lastError lives only in the DB. A terminal failure (one another try cannot
+ * change) also gets retryCount at the retry limit, so the reconciler does not retry it.
  */
-async function persistMappingErrors(failures: { mapping: any; errorMessage: string }[], tenantId: string): Promise<void> {
+async function persistMappingErrors(failures: { mapping: any; errorMessage: string; terminal?: boolean }[], tenantId: string): Promise<void> {
     if (failures.length === 0) return;
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
     const CHUNK_SIZE = config.mapping.persistBatchSize;
@@ -158,15 +159,17 @@ async function persistMappingErrors(failures: { mapping: any; errorMessage: stri
         const chunk = failures.slice(i, i + CHUNK_SIZE);
         const values: string[] = [];
         const params: any[] = [];
-        chunk.forEach(({ mapping, errorMessage }, idx) => {
-            const base = idx * 5;
-            values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
-            params.push(errorMessage, mapping.campaignNumber, mapping.uniqueIdentifierForData, mapping.boundaryCode, mapping.type);
+        chunk.forEach(({ mapping, errorMessage, terminal }, idx) => {
+            const base = idx * 6;
+            values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}::boolean)`);
+            params.push(errorMessage, mapping.campaignNumber, mapping.uniqueIdentifierForData, mapping.boundaryCode, mapping.type, Boolean(terminal));
         });
+        params.push(config.mapping.maxRetries);
         try {
             await executeQuery(
-                `UPDATE ${tableName} t SET lastError = v.err
-                 FROM (VALUES ${values.join(', ')}) AS v(err, campaignNumber, uniqueIdentifierForData, boundaryCode, type)
+                `UPDATE ${tableName} t SET lastError = v.err,
+                        retryCount = CASE WHEN v.terminal THEN GREATEST(t.retryCount, $${params.length}) ELSE t.retryCount END
+                 FROM (VALUES ${values.join(', ')}) AS v(err, campaignNumber, uniqueIdentifierForData, boundaryCode, type, terminal)
                  WHERE t.campaignNumber = v.campaignNumber
                    AND t.uniqueIdentifierForData = v.uniqueIdentifierForData
                    AND t.boundaryCode = v.boundaryCode
@@ -609,9 +612,11 @@ async function processResourceDemappings(
 
 /**
  * Site links whose frontline worker still has to be written (toBeUpdated): each link is read by its stored id and gets this
- * campaign's worker when it differs. Written, already right, or gone (its removal is the map/demap rows' job) -> mapped;
- * a failed call, or a link not attempted after it -> updateFailed with the reason. The reconciler owns the retries, so
- * these calls do not use httpRequest's own retry.
+ * campaign's worker when it differs. Written or already right -> mapped. A link that no longer exists -> failed without its
+ * link id, so the reconciler resets the row to toBeMapped and creates the link again with the worker. A failed call, or a
+ * link not attempted after it -> updateFailed with the reason; a failure another try cannot change (e.g. a second link with
+ * the same project and site) is terminal, so it is not retried. The reconciler owns the retries, so these calls do not use
+ * httpRequest's own retry.
  */
 async function processFacilityWorkerUpdates(
     mappings: any[],
@@ -621,9 +626,13 @@ async function processFacilityWorkerUpdates(
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} site link worker updates`);
     const updateBatch: any[] = [];
-    const failures: { mapping: any; errorMessage: string }[] = [];
-    const fail = (rows: any[], errorMessage: string) => rows.forEach((mapping: any) => {
-        mapping.status = mappingStatuses.updateFailed; updateBatch.push(mapping); failures.push({ mapping, errorMessage });
+    const failures: { mapping: any; errorMessage: string; terminal?: boolean }[] = [];
+    const fail = (rows: any[], errorMessage: string, terminal = false) => rows.forEach((mapping: any) => {
+        mapping.status = mappingStatuses.updateFailed; updateBatch.push(mapping); failures.push({ mapping, errorMessage, terminal });
+    });
+    const createAgain = (rows: any[], linkId: string) => rows.forEach((mapping: any) => {
+        mapping.status = mappingStatuses.failed; mapping.mappingId = null; updateBatch.push(mapping);
+        failures.push({ mapping, errorMessage: `Site link ${linkId} no longer exists; it will be created again with the frontline worker` });
     });
     const rowsByLinkId = new Map<string, any[]>();
     for (const mapping of mappings) {
@@ -656,19 +665,25 @@ async function processFacilityWorkerUpdates(
     }
     const { failures: updateFailures, notAttempted } = await updateLinkWorkers(
         linksNeedingWorkerUpdate(links, wantedByFacilityId), wantedByFacilityId, requestInfo, false);
-    const failedById = new Map<string, string>(updateFailures.map(f => [f.link.id, `Frontline worker update failed: ${f.error}`]));
-    notAttempted.forEach((link: any) => failedById.set(link.id, 'Frontline worker update not attempted after an earlier failure'));
+    const failedById = new Map(updateFailures.map(f => [f.link.id, f]));
+    const notAttemptedIds = new Set(notAttempted.map((link: any) => link.id));
+    const foundIds = new Set(links.map((link: any) => link.id));
     for (const [id, rows] of rowsByLinkId) {
-        const error = failedById.get(id);
-        if (error) {
-            fail(rows, error);
+        const failure = failedById.get(id);
+        if (!foundIds.has(id) || failure?.kind === 'missing') {
+            createAgain(rows, id);
+        } else if (failure) {
+            fail(rows, `Frontline worker update failed: ${failure.error}`, failure.kind === 'permanent');
+        } else if (notAttemptedIds.has(id)) {
+            fail(rows, 'Frontline worker update not attempted after an earlier failure');
         } else {
             rows.forEach((mapping: any) => { mapping.status = mappingStatuses.mapped; updateBatch.push(mapping); });
         }
     }
-    logger.info(`Site link worker updates: ${updateBatch.length - failures.length} done, ${failures.length} failed`);
-    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+    logger.info(`Site link worker updates: ${updateBatch.length - failures.length} done, ${failures.length} failed or to create again`);
+    // Reasons (and the retry limit of a terminal failure) first, so the reconciler never resets a row before it is terminal
     await persistMappingErrors(failures, tenantId);
+    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 async function processFacilityDemappings(

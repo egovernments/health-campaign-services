@@ -122,6 +122,11 @@ const config = {
     createConcurrency: process.env.MAPPING_CREATE_CONCURRENCY ? parseInt(process.env.MAPPING_CREATE_CONCURRENCY, 10) : 10,
     // Site links whose frontline worker changed in an edit are updated this many at a time; 1 updates them one by one
     outsideHouseholdLinkUpdateConcurrency: process.env.OUTSIDE_HOUSEHOLD_LINK_UPDATE_CONCURRENCY ? parseInt(process.env.OUTSIDE_HOUSEHOLD_LINK_UPDATE_CONCURRENCY, 10) : 10,
+    // A site link update refused for a stale row version reads the link again and resends it, at most this many times, after this wait
+    outsideHouseholdLinkRereadAttempts: process.env.OUTSIDE_HOUSEHOLD_LINK_REREAD_ATTEMPTS ? parseInt(process.env.OUTSIDE_HOUSEHOLD_LINK_REREAD_ATTEMPTS, 10) : 2,
+    outsideHouseholdLinkRereadWaitMs: process.env.OUTSIDE_HOUSEHOLD_LINK_REREAD_WAIT_MS ? parseInt(process.env.OUTSIDE_HOUSEHOLD_LINK_REREAD_WAIT_MS, 10) : 2000,
+    // A campaign that fails on its mappings lists at most this many failed rows, with their reasons, in its failure message
+    failureMessageMaxRows: process.env.MAPPING_FAILURE_MESSAGE_MAX_ROWS ? parseInt(process.env.MAPPING_FAILURE_MESSAGE_MAX_ROWS, 10) : 20,
     bulkCreateChunkSize: process.env.MAPPING_BULK_CREATE_CHUNK_SIZE ? parseInt(process.env.MAPPING_BULK_CREATE_CHUNK_SIZE, 10) : 100,
     staffBulkEnabled: process.env.STAFF_MAPPING_BULK === "1" || process.env.STAFF_MAPPING_BULK === "true",
     bulkConfirmPollIntervalMs: process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS ? parseInt(process.env.MAPPING_BULK_CONFIRM_POLL_INTERVAL_MS, 10) : 2000,

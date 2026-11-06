@@ -1,7 +1,7 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCountFn } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCountFn, getFailedMappingRows } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { mappingStatuses, campaignStatuses, allProcesses, processStatuses } from '../config/constants';
 import { v4 as uuidv4 } from 'uuid';
@@ -151,6 +151,24 @@ async function isCampaignMarkedFailed(campaignId: string, tenantId: string): Pro
 }
 
 /**
+ * The failed facility and resource rows with their reasons, for the campaign's failure message: at most
+ * MAPPING_FAILURE_MESSAGE_MAX_ROWS rows, then how many more. User rows are left out (their identifiers can be phone
+ * numbers). Empty when there are none or they cannot be read, so the message never fails because of this list.
+ */
+async function describeFailedMappings(campaignNumber: string, tenantId: string): Promise<string> {
+    try {
+        const { rows, total } = await getFailedMappingRows(campaignNumber, tenantId, ['facility', 'resource'], config.mapping.failureMessageMaxRows);
+        if (total === 0) return '';
+        const listed = rows.map((row) => `${row.type} ${row.uniqueIdentifierForData} at ${row.boundaryCode}: ${row.lastError || row.status}`);
+        const more = total > rows.length ? `; and ${total - rows.length} more` : '';
+        return `. Failed: ${listed.join('; ')}${more}`;
+    } catch (error) {
+        logger.warn(`Campaign ${campaignNumber}: could not read the failed mapping rows for the failure message: ${error}`);
+        return '';
+    }
+}
+
+/**
  * Applies the per-type blocking policy exactly once, from terminal states only:
  * facility/resource terminal failures block the campaign; user failures are
  * non-blocking (parallel to user data failures in monitorCampaignDataCompletion).
@@ -176,7 +194,8 @@ async function concludeMappingReconciliation(
     logger.info(`Campaign ${campaignNumber} mapping reconciliation concluded: ${overall.completedMappings}/${overall.totalMappings} completed, ${overall.failedMappings} terminally failed`);
 
     if (facilityStatus.terminallyFailedMappings > 0 || resourceStatus.terminallyFailedMappings > 0) {
-        const failureError = new Error(`Mapping failed after retries: facility ${facilityStatus.terminallyFailedMappings} failed, resource ${resourceStatus.terminallyFailedMappings} failed`);
+        const failureError = new Error(`Mapping failed after retries: facility ${facilityStatus.terminallyFailedMappings} failed, resource ${resourceStatus.terminallyFailedMappings} failed`
+            + await describeFailedMappings(campaignNumber, tenantId));
         logger.error(`Campaign ${campaignNumber} has hard-blocking terminal mapping failures. Marking campaign as failed.`);
         await sendCampaignFailureMessage(campaignId, tenantId, failureError);
         throw failureError;
@@ -333,7 +352,8 @@ export async function runMappingReconciler(
     }
 
     const finalStatus = await checkCampaignMappingCompletionStatus(campaignNumber, tenantId);
-    const exhaustedError = new Error(`Mapping reconciliation exhausted ${maxCycles} cycles: ${finalStatus.pendingMappings} pending, ${finalStatus.failedMappings} failed of ${finalStatus.totalMappings}`);
+    const exhaustedError = new Error(`Mapping reconciliation exhausted ${maxCycles} cycles: ${finalStatus.pendingMappings} pending, ${finalStatus.failedMappings} failed of ${finalStatus.totalMappings}`
+        + await describeFailedMappings(campaignNumber, tenantId));
     logger.error(`Campaign ${campaignNumber} mapping reconciliation exhausted its cycle budget`);
     await sendCampaignFailureMessage(campaignId, tenantId, exhaustedError);
     throw exhaustedError;
