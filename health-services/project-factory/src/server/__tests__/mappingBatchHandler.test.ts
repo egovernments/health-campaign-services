@@ -8,6 +8,8 @@ jest.mock('../utils/logger', () => ({
 
 jest.mock('../utils/genericUtils', () => ({
     getRelatedDataWithCampaign: jest.fn(),
+    markSiteLinksToCreateAgain: jest.fn().mockResolvedValue(0),
+    safeMappingError: jest.fn((text: any) => (text == null ? null : String(text))),
 }));
 
 jest.mock('../api/genericApis', () => ({
@@ -56,6 +58,8 @@ jest.mock('../config', () => ({
             createConcurrency: 2,
             maxRetries: 3,
             outsideHouseholdLinkUpdateConcurrency: 2,
+            outsideHouseholdLinkRereadAttempts: 2,
+            outsideHouseholdLinkRereadWaitMs: 0,
         },
         host: jest.requireActual('../config').default.host,
         paths: jest.requireActual('../config').default.paths,
@@ -63,7 +67,7 @@ jest.mock('../config', () => ({
     },
 }));
 
-import { getRelatedDataWithCampaign } from '../utils/genericUtils';
+import { getRelatedDataWithCampaign, markSiteLinksToCreateAgain, safeMappingError } from '../utils/genericUtils';
 import { createProjectFacility, createProjectResource, createStaff, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects, deleteProjectFacilitiesById } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { sendCampaignFailureMessage } from '../utils/campaignFailureHandler';
@@ -598,12 +602,18 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
         updates = [];
         httpMock.mockImplementation(async (url: string, body: any) => {
             if (url.endsWith(config.paths.projectFacilitySearch)) return search();
-            if (url.endsWith(config.paths.projectFacilityUpdate)) { updates.push(body.ProjectFacility); return update ? update() : {}; }
+            if (url.endsWith(config.paths.projectFacilityUpdate)) { updates.push(body.ProjectFacility); return update ? update() : { ProjectFacility: body.ProjectFacility }; }
             return {};
         });
     }
     const persisted = () => produceModifiedMessagesMock.mock.calls.filter(([, topic]) => topic === 'update-mapping').flatMap(([msg]: any[]) => msg.datas);
     const lastErrorSql = () => executeQueryMock.mock.calls.filter(([sql]) => String(sql).includes('lastError'));
+    // health-project's single update answers every refusal with VALIDATION_ERROR; the validator code and a request dump
+    // (with the RequestInfo token) are only in the message
+    const refusal = (code: string) => ({ Errors: [{ code: 'VALIDATION_ERROR', message: `[ErrorDetails(apiDetails=ApiDetails(id=null, url=Rainmaker, `
+        + `requestBody={"RequestInfo":{"apiId":"Rainmaker","authToken":"test-token-123"}}), errors=[Error(exception=null, type=NON_RECOVERABLE, `
+        + `errorCode=${code}, errorMessage=refused, additionalDetails=null)])]` }] });
+    const goneReason = 'Site link no longer exists; it will be created again with the frontline worker';
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -635,7 +645,7 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
         await handleMappingBatch(message([{ ...row }]));
         expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.updateFailed })]);
         expect(lastErrorSql()).toHaveLength(1);
-        expect(lastErrorSql()[0][1]).toContain('Frontline worker update failed: project service down');
+        expect(lastErrorSql()[0][1]).toContain('Frontline worker update failed: health-project could not be reached or gave no usable answer');
         expect(sendCampaignFailureMessageMock).not.toHaveBeenCalled();
     });
 
@@ -647,19 +657,37 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
         expect(lastErrorSql()[0][1]).toContain('Could not read the site links: search down');
     });
 
-    it('marks the row failed without its link id when its link is gone, so the reconciler creates the link again', async () => {
+    it('sends the row of a gone link to be created again by status-guarded SQL, not by the persister update', async () => {
         wire(() => ({ ProjectFacilities: [] }));
         await handleMappingBatch(message([{ ...row }]));
         expect(updates).toHaveLength(0);
-        expect(persisted()).toEqual([expect.objectContaining({ uniqueIdentifierForData: 'site-1', mappingId: null, status: mappingStatuses.failed })]);
-        expect(lastErrorSql()[0][1]).toContain('Site link PF-1 no longer exists; it will be created again with the frontline worker');
+        expect(markSiteLinksToCreateAgain).toHaveBeenCalledWith('CMP-1', 'tn', { linkIds: ['PF-1'] }, goneReason);
+        expect(persisted()).toEqual([]);
     });
 
-    it('marks the row failed without its link id when health-project says the link no longer exists', async () => {
-        wire(() => ({ ProjectFacilities: [link([])] }), () => ({ Errors: [{ code: 'NON_EXISTENT_ENTITY', message: '[long dump]' }] }));
+    it('sends the row to be created again when health-project says inside VALIDATION_ERROR that the link no longer exists', async () => {
+        wire(() => ({ ProjectFacilities: [link([])] }), () => refusal('NON_EXISTENT_ENTITY'));
         await handleMappingBatch(message([{ ...row }]));
         expect(updates).toHaveLength(1);
-        expect(persisted()).toEqual([expect.objectContaining({ mappingId: null, status: mappingStatuses.failed })]);
+        expect(markSiteLinksToCreateAgain).toHaveBeenCalledWith('CMP-1', 'tn', { linkIds: ['PF-1'] }, goneReason);
+        expect(persisted()).toEqual([]);
+    });
+
+    it.each([
+        ['an HTML error page', '<html><body>502 Bad Gateway</body></html>'],
+        ['a default error body', { timestamp: 1, status: 500, error: 'Internal Server Error', path: '/x' }],
+        ['an empty body', {}],
+    ])('counts %s as a failed update, never as written', async (_name: string, body: any) => {
+        wire(() => ({ ProjectFacilities: [link([])] }), () => body);
+        await handleMappingBatch(message([{ ...row }]));
+        expect(persisted()).toEqual([expect.objectContaining({ mappingId: 'PF-1', status: mappingStatuses.updateFailed })]);
+        expect(lastErrorSql()[0][1]).toContain('Frontline worker update failed: health-project could not be reached or gave no usable answer');
+    });
+
+    it('passes every stored reason through safeMappingError', async () => {
+        wire(() => { throw new Error('search down'); });
+        await handleMappingBatch(message([{ ...row }]));
+        expect(safeMappingError).toHaveBeenCalledWith('Could not read the site links: search down');
     });
 
     it('marks a failure another try cannot change terminal, sends it once, and keeps updating the other links', async () => {
@@ -671,7 +699,7 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
         httpMock.mockImplementation(async (url: string, body: any) => {
             if (url.endsWith(config.paths.projectFacilitySearch)) return { ProjectFacilities: rows.map((r, i) => ({ ...link([]), id: r.mappingId, facilityId: `F-${i + 1}` })) } as any;
             sent.push(body.ProjectFacility.id);
-            return (body.ProjectFacility.id === 'PF-1' ? { Errors: [{ code: 'DUPLICATE_ENTITY', message: '[long dump]' }] } : {}) as any;
+            return (body.ProjectFacility.id === 'PF-1' ? refusal('DUPLICATE_ENTITY') : { ProjectFacility: body.ProjectFacility }) as any;
         });
         await handleMappingBatch(message(rows.map(r => ({ ...r }))));
         expect(sent.sort()).toEqual(['PF-1', 'PF-2']);
@@ -680,10 +708,11 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
         expect(params).toEqual(expect.arrayContaining([
             'Frontline worker update failed: DUPLICATE_ENTITY: another link has the same project and site; remove the extra link, then upload the file again',
             true, config.mapping.maxRetries]));
+        expect(JSON.stringify(lastErrorSql())).not.toContain('test-token-123');
     });
 
     it('writes the reasons before the statuses, so the reconciler never resets a row before it is terminal', async () => {
-        wire(() => ({ ProjectFacilities: [link([])] }), () => ({ Errors: [{ code: 'DUPLICATE_ENTITY' }] }));
+        wire(() => ({ ProjectFacilities: [link([])] }), () => refusal('DUPLICATE_ENTITY'));
         const order: string[] = [];
         executeQueryMock.mockImplementation((async (sql: any) => { if (String(sql).includes('lastError')) order.push('reason'); return { rows: [], rowCount: 0 }; }) as any);
         produceModifiedMessagesMock.mockImplementationOnce((async (_msg: any, topic: any) => { if (topic === 'update-mapping') order.push('status'); }) as any);
@@ -704,7 +733,7 @@ describe('mappingBatchHandler — site link worker update (toBeUpdated)', () => 
             await Promise.resolve(); await Promise.resolve();
             inFlight--;
             if (body.ProjectFacility.id === 'PF-1') throw new Error('one link failed');
-            updated.push(body.ProjectFacility.id); return {} as any;
+            updated.push(body.ProjectFacility.id); return { ProjectFacility: body.ProjectFacility } as any;
         });
         await handleMappingBatch(message(rows.map(r => ({ ...r }))));
         expect(updated.sort()).toEqual(['PF-2']);

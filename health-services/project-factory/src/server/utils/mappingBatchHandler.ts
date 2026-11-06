@@ -1,7 +1,7 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { TenantId } from "../config/models/brandedTypes";
 import { logger } from './logger';
-import { getRelatedDataWithCampaign } from './genericUtils';
+import { getRelatedDataWithCampaign, markSiteLinksToCreateAgain, safeMappingError } from './genericUtils';
 import { mappingStatuses, outsideHouseholdFacilityFields } from '../config/constants';
 import { outsideHouseholdLinkAdditionalFields } from './outsideHouseholdLinkFields';
 import { linksNeedingWorkerUpdate, updateLinkWorkers } from './outsideHouseholdLinkWorkerUpdate';
@@ -162,7 +162,7 @@ async function persistMappingErrors(failures: { mapping: any; errorMessage: stri
         chunk.forEach(({ mapping, errorMessage, terminal }, idx) => {
             const base = idx * 6;
             values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}::boolean)`);
-            params.push(errorMessage, mapping.campaignNumber, mapping.uniqueIdentifierForData, mapping.boundaryCode, mapping.type, Boolean(terminal));
+            params.push(safeMappingError(errorMessage), mapping.campaignNumber, mapping.uniqueIdentifierForData, mapping.boundaryCode, mapping.type, Boolean(terminal));
         });
         params.push(config.mapping.maxRetries);
         try {
@@ -630,10 +630,9 @@ async function processFacilityWorkerUpdates(
     const fail = (rows: any[], errorMessage: string, terminal = false) => rows.forEach((mapping: any) => {
         mapping.status = mappingStatuses.updateFailed; updateBatch.push(mapping); failures.push({ mapping, errorMessage, terminal });
     });
-    const createAgain = (rows: any[], linkId: string) => rows.forEach((mapping: any) => {
-        mapping.status = mappingStatuses.failed; mapping.mappingId = null; updateBatch.push(mapping);
-        failures.push({ mapping, errorMessage: `Site link ${linkId} no longer exists; it will be created again with the frontline worker` });
-    });
+    // Links that no longer exist: their rows are written by status-guarded SQL (not the unconditional persister update),
+    // so a newer upload's status for the same row is never overwritten
+    const goneLinkIds: string[] = [];
     const rowsByLinkId = new Map<string, any[]>();
     for (const mapping of mappings) {
         if (mapping.mappingId) {
@@ -671,7 +670,7 @@ async function processFacilityWorkerUpdates(
     for (const [id, rows] of rowsByLinkId) {
         const failure = failedById.get(id);
         if (!foundIds.has(id) || failure?.kind === 'missing') {
-            createAgain(rows, id);
+            goneLinkIds.push(id);
         } else if (failure) {
             fail(rows, `Frontline worker update failed: ${failure.error}`, failure.kind === 'permanent');
         } else if (notAttemptedIds.has(id)) {
@@ -680,7 +679,9 @@ async function processFacilityWorkerUpdates(
             rows.forEach((mapping: any) => { mapping.status = mappingStatuses.mapped; updateBatch.push(mapping); });
         }
     }
-    logger.info(`Site link worker updates: ${updateBatch.length - failures.length} done, ${failures.length} failed or to create again`);
+    const createdAgain = await markSiteLinksToCreateAgain(mappings[0]?.campaignNumber, tenantId, { linkIds: goneLinkIds },
+        'Site link no longer exists; it will be created again with the frontline worker');
+    logger.info(`Site link worker updates: ${updateBatch.length - failures.length} done, ${failures.length} failed, ${createdAgain} to create again`);
     // Reasons (and the retry limit of a terminal failure) first, so the reconciler never resets a row before it is terminal
     await persistMappingErrors(failures, tenantId);
     await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);

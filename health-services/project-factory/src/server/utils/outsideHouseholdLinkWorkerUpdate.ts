@@ -13,7 +13,9 @@ export type LinkWorkerUpdateFailure = { link: any; error: string; kind: LinkWork
 export type LinkWorkerUpdateResult = { updated: any[]; failures: LinkWorkerUpdateFailure[]; notAttempted: any[] };
 type SendOutcome = { ok: true } | { ok: false; kind: LinkWorkerFailureKind; error: string };
 
-// Error codes of health-project's project-facility update (its validators, health-services-common ValidatorUtils)
+// Error codes of health-project's project-facility update (its validators, health-services-common ValidatorUtils). The
+// single update answers every refusal with code VALIDATION_ERROR; the validator's own code is only inside the message
+// ("...errorCode=DUPLICATE_ENTITY..."), next to a dump of the request (which carries the RequestInfo and its token).
 const ROW_VERSION_MISMATCH = 'MISMATCHED_ROW_VERSION';
 const LINK_MISSING_CODES = ['NON_EXISTENT_ENTITY', 'IS_DELETED_TRUE'];
 const PERMANENT_CODES = ['DUPLICATE_ENTITY', 'NON_EXISTENT_RELATED_ENTITY', 'NULL_ID', 'TENANT_ID_INVALID'];
@@ -45,15 +47,37 @@ export function duplicateLinkGroups(links: any[]): any[][] {
     return Array.from(byProjectAndSite.values()).filter((group) => group.length > 1);
 }
 
-/** The failure recorded for each link of a duplicate group: it is not sent, as only the data can be fixed. */
-export function duplicateLinkFailures(group: any[]): LinkWorkerUpdateFailure[] {
-    const ids = group.map((link: any) => link?.id).join(', ');
-    return group.map((link: any) => ({ link, kind: 'permanent' as const,
-        error: `DUPLICATE_ENTITY: links ${ids} have the same project and site; remove the extra link, then upload the file again` }));
+/** The links without repeats (a paged search can return a link twice when links change while it pages). */
+export function distinctLinks(links: any[]): any[] {
+    const seen = new Set<string>();
+    return links.filter((link: any) => (link?.id && seen.has(link.id) ? false : (seen.add(link?.id), true)));
 }
 
+/**
+ * The failure recorded for each link of a duplicate group: it is not sent, as only the data can be fixed. Each link's
+ * reason names it as the one to keep, so the reason on the row that tracks a link says which other link to remove.
+ */
+export function duplicateLinkFailures(group: any[]): LinkWorkerUpdateFailure[] {
+    return group.map((link: any) => {
+        const others = group.filter((other: any) => other !== link).map((other: any) => other?.id).join(', ');
+        return { link, kind: 'permanent' as const,
+            error: `DUPLICATE_ENTITY: links ${link?.id} and ${others} have the same project and site; keep ${link?.id} (this row's link), remove ${others}, then upload the file again` };
+    });
+}
+
+/** Every validator code inside a health-project message ("...errorCode=DUPLICATE_ENTITY..."). */
+export function innerErrorCodes(text: string): string[] {
+    const codes: string[] = [];
+    const pattern = /errorCode=([A-Z_]+)/g;
+    for (let match = pattern.exec(text); match; match = pattern.exec(text)) codes.push(match[1]);
+    return codes;
+}
+
+/** health-project's error codes: the response code(s) and every validator code inside the message ("errorCode=..."). */
 function errorCodes(error: any): string[] {
-    return String(error?.code ?? '').split(':').map((code) => code.trim()).filter(Boolean);
+    const codes = String(error?.code ?? '').split(':').map((code) => code.trim()).filter(Boolean);
+    codes.push(...innerErrorCodes(`${error?.message ?? ''} ${error?.description ?? ''}`));
+    return Array.from(new Set(codes));
 }
 
 function failureKind(codes: string[]): LinkWorkerFailureKind {
@@ -62,11 +86,24 @@ function failureKind(codes: string[]): LinkWorkerFailureKind {
     return 'temporary';
 }
 
-/** A short reason: the code with its meaning when known (health-project's own message is a long object dump). */
-function describeError(error: any, codes: string[]): string {
-    const known = codes.find((code) => REASONS[code]);
-    const text = known ? `${codes.join(':')}: ${REASONS[known]}` : [error?.code, error?.description || error?.message].filter(Boolean).join(': ');
-    return (text || 'unknown error').slice(0, MAX_REASON_LENGTH);
+/**
+ * A short reason made only of codes and fixed texts: health-project's message is never kept, as it is a dump of the
+ * request with its RequestInfo (and token). A code that is not a plain error code (e.g. a socket error text) is left out.
+ */
+function describeError(codes: string[]): string {
+    const plainCodes = codes.filter((code) => /^[A-Z_]+$/.test(code));
+    // VALIDATION_ERROR only wraps the validator's own code, so it is shown only when there is no other code
+    const inner = plainCodes.filter((code) => code !== 'VALIDATION_ERROR');
+    const shown = inner.length > 0 ? inner : plainCodes;
+    const known = shown.find((code) => REASONS[code]);
+    const reason = known ? REASONS[known]
+        : shown.length > 0 ? 'health-project refused the link update' : 'health-project could not be reached or gave no usable answer';
+    return `${shown.length > 0 ? `${shown.join(':')}: ` : ''}${reason}`.slice(0, MAX_REASON_LENGTH);
+}
+
+/** True for the answer of a successful update (it carries the updated link); any other answer is a failure. */
+function isUpdated(response: any): boolean {
+    return Boolean(response && typeof response === 'object' && !response.Errors && response.ProjectFacility);
 }
 
 /** The link as stored now (read by its id), or null when it no longer exists. */
@@ -102,22 +139,23 @@ async function sendLinkWorkerUpdate(
             response = await httpRequest(updateUrl, { RequestInfo: requestInfo, ProjectFacility: { ...current, additionalFields: wanted } },
                 undefined, 'post', undefined, undefined, undefined, retried, true);
         } catch (error) {
-            return { ok: false, kind: 'temporary', error: (error instanceof Error ? error.message : String(error)).slice(0, MAX_REASON_LENGTH) };
+            return { ok: false, kind: 'temporary', error: describeError(errorCodes({ message: error instanceof Error ? error.message : String(error) })) };
         }
-        const error = response?.Errors?.[0];
-        if (!error) return { ok: true };
+        if (isUpdated(response)) return { ok: true };
+        // A failure answer without Errors (e.g. a proxy's 502 page) is a temporary failure, never a success
+        const error = response?.Errors?.[0] ?? {};
         const codes = errorCodes(error);
         if (codes.includes(ROW_VERSION_MISMATCH)) {
-            if (rereads >= maxRereads) return { ok: false, kind: 'temporary', error: describeError(error, codes) };
+            if (rereads >= maxRereads) return { ok: false, kind: 'temporary', error: describeError(codes) };
             rereads++;
             await new Promise((resolve) => setTimeout(resolve, rereadWaitMs));
             let fresh: any;
             try {
                 fresh = await readLink(current, requestInfo);
             } catch (readError) {
-                return { ok: false, kind: 'temporary', error: `Could not read the link again: ${readError instanceof Error ? readError.message : String(readError)}`.slice(0, MAX_REASON_LENGTH) };
+                return { ok: false, kind: 'temporary', error: `Could not read the link again: ${describeError(errorCodes({ message: readError instanceof Error ? readError.message : String(readError) }))}` };
             }
-            if (!fresh) return { ok: false, kind: 'missing', error: describeError({ code: 'NON_EXISTENT_ENTITY' }, ['NON_EXISTENT_ENTITY']) };
+            if (!fresh) return { ok: false, kind: 'missing', error: describeError(['NON_EXISTENT_ENTITY']) };
             if (sameOutsideHouseholdLinkFields(fresh.additionalFields, wanted)) return { ok: true };
             current = fresh;
             continue;
@@ -127,7 +165,7 @@ async function sendLinkWorkerUpdate(
             retried = true;
             continue;
         }
-        return { ok: false, kind, error: describeError(error, codes) };
+        return { ok: false, kind, error: describeError(codes) };
     }
 }
 

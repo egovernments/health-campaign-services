@@ -1513,6 +1513,23 @@ export async function getMappingDataRelatedToCampaign(type: string, campaignNumb
   return rows;
 }
 
+/**
+ * A mapping failure reason that is safe to store and show. A health-project refusal message dumps the request, with its
+ * RequestInfo and token, so a text that looks like one is cut down to what comes before the dump and the error codes in
+ * it ("errorCode=..."); every reason is capped at 300 characters.
+ */
+export function safeMappingError(text: unknown): string | null {
+  if (text === null || text === undefined) return null;
+  const value = String(text);
+  const dumpMarker = /\[ErrorDetails\(|requestBody|RequestInfo|authToken/i;
+  if (!dumpMarker.test(value)) return value.slice(0, 300);
+  const codes: string[] = [];
+  const pattern = /errorCode=([A-Z_]+)/g;
+  for (let match = pattern.exec(value); match; match = pattern.exec(value)) if (!codes.includes(match[1])) codes.push(match[1]);
+  const before = value.split(dumpMarker)[0].replace(/[\s{\[("',=]+$/, '').trim();
+  return `${before ? `${before} ` : ''}${codes.length > 0 ? codes.join(', ') : 'error'} (details removed)`.slice(0, 300);
+}
+
 // A site link row the worker update may record a failure on: mapped, or already waiting for a worker update
 const SITE_LINK_WORKER_ROW_STATUSES = [mappingStatuses.mapped, mappingStatuses.toBeUpdated, mappingStatuses.updateFailed];
 
@@ -1531,7 +1548,7 @@ export async function markSiteLinkWorkerUpdatesFailed(campaignNumber: CampaignNu
      FROM unnest($3::text[], $4::text[], $7::boolean[]) AS v(mid, err, terminal)
      WHERE t.campaignNumber = $1 AND t.type = 'facility' AND t.status = ANY($5::text[]) AND t.mappingId = v.mid
      RETURNING t.mappingId`,
-    [campaignNumber, mappingStatuses.updateFailed, failures.map(f => f.mappingId), failures.map(f => f.error), SITE_LINK_WORKER_ROW_STATUSES,
+    [campaignNumber, mappingStatuses.updateFailed, failures.map(f => f.mappingId), failures.map(f => safeMappingError(f.error)), SITE_LINK_WORKER_ROW_STATUSES,
      config.mapping.maxRetries, failures.map(f => Boolean(f.terminal))]);
   return new Set((result?.rows || []).map((row: any) => row.mappingid));
 }
@@ -1549,7 +1566,7 @@ export async function markSiteLinksToCreateAgain(
   reason: string
 ): Promise<number> {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
-  const params: any[] = [campaignNumber, mappingStatuses.failed, reason, SITE_LINK_WORKER_ROW_STATUSES];
+  const params: any[] = [campaignNumber, mappingStatuses.failed, safeMappingError(reason), SITE_LINK_WORKER_ROW_STATUSES];
   let rowFilter: string;
   if ('linkIds' in target) {
     if (target.linkIds.length === 0) return 0;
@@ -1577,7 +1594,7 @@ export async function markSiteLinkWorkerUpdatesFailedBySite(campaignNumber: Camp
     `UPDATE ${tableName} SET status = $2, retryCount = 0, lastError = $4
      WHERE campaignNumber = $1 AND type = 'facility' AND status = ANY($5::text[]) AND uniqueIdentifierForData = ANY($3::text[])
        AND mappingId IS NOT NULL`,
-    [campaignNumber, mappingStatuses.updateFailed, uniqueIdentifiers, error, SITE_LINK_WORKER_ROW_STATUSES]);
+    [campaignNumber, mappingStatuses.updateFailed, uniqueIdentifiers, safeMappingError(error), SITE_LINK_WORKER_ROW_STATUSES]);
   return result?.rowCount ?? 0;
 }
 
@@ -1993,7 +2010,7 @@ export async function searchMappingData(searchParams: {
     uniqueIdentifierForData: row?.uniqueidentifierfordata,
     status: row?.status,
     mappingId: row?.mappingid,
-    lastError: row?.lasterror ?? null,
+    lastError: safeMappingError(row?.lasterror),
     retryCount: row?.retrycount ?? 0,
     createdBy: row?.createdby,
     createdTime: row?.createdtime,
@@ -2169,7 +2186,7 @@ export async function getFailedMappingRows(campaignNumber: string, tenantId: str
     uniqueIdentifierForData: row?.uniqueidentifierfordata,
     boundaryCode: row?.boundarycode,
     status: row?.status,
-    lastError: row?.lasterror ?? null
+    lastError: safeMappingError(row?.lasterror)
   }));
   return { rows, total: parseInt(countResult?.rows?.[0]?.count || '0') };
 }

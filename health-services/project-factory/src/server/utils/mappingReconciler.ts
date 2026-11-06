@@ -159,7 +159,7 @@ async function describeFailedMappings(campaignNumber: string, tenantId: string):
     try {
         const { rows, total } = await getFailedMappingRows(campaignNumber, tenantId, ['facility', 'resource'], config.mapping.failureMessageMaxRows);
         if (total === 0) return '';
-        const listed = rows.map((row) => `${row.type} ${row.uniqueIdentifierForData} at ${row.boundaryCode}: ${row.lastError || row.status}`);
+        const listed = rows.map((row) => `${row.type} ${row.uniqueIdentifierForData} at ${row.boundaryCode}: ${(row.lastError || row.status).slice(0, 200)}`);
         const more = total > rows.length ? `; and ${total - rows.length} more` : '';
         return `. Failed: ${listed.join('; ')}${more}`;
     } catch (error) {
