@@ -30,25 +30,17 @@ class OutsideHouseholdTypeServiceTest {
     @Mock private ServiceRequestClient serviceRequestClient;
     @Mock private FacilityConfiguration configuration;
 
-    // Test inputs: the MDMS host and the v1 search endpoint each environment configures (egov.mdms.host, egov.mdms.search.endpoint)
+    // Test inputs: the MDMS host and the v2 search endpoint each environment configures (egov.mdms.host, egov.mdms.search.v2.endpoint)
     private static final String MDMS_HOST = "http://mdms.test:8080/";
-    private static final String MDMS_SEARCH_ENDPOINT = "/mdms-service.test/v1/_search";
+    private static final String MDMS_V2_SEARCH_ENDPOINT = "/mdms-service.test/v2/_search";
 
     private OutsideHouseholdTypeService service;
 
     @BeforeEach
     void setUp() {
         lenient().when(configuration.getMdmsHost()).thenReturn(MDMS_HOST);
-        lenient().when(configuration.getMdmsEndPoint()).thenReturn(MDMS_SEARCH_ENDPOINT);
+        lenient().when(configuration.getMdmsV2EndPoint()).thenReturn(MDMS_V2_SEARCH_ENDPOINT);
         service = new OutsideHouseholdTypeService(serviceRequestClient, configuration);
-    }
-
-    @Test
-    void v2SearchFollowsTheConfiguredMdmsEndpointOfEachEnvironment() {
-        // the same service path as the configured v1 endpoint, whatever the environment calls the MDMS service
-        for (String servicePath : List.of("/egov-mdms-service", "/mdms-v2", "/" + "any-name")) {
-            assertEquals(servicePath + "/v2/_search", OutsideHouseholdTypeService.mdmsV2SearchPath(servicePath + "/v1/_search"));
-        }
     }
 
     @Test
@@ -62,7 +54,7 @@ class OutsideHouseholdTypeServiceTest {
         ArgumentCaptor<StringBuilder> url = ArgumentCaptor.forClass(StringBuilder.class);
         ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
         verify(serviceRequestClient).fetchResult(url.capture(), body.capture(), eq(Map.class));
-        assertEquals(MDMS_HOST + MDMS_SEARCH_ENDPOINT.substring(1).replace("/v1/", "/v2/"), url.getValue().toString());
+        assertEquals(MDMS_HOST + MDMS_V2_SEARCH_ENDPOINT.substring(1), url.getValue().toString());
         Map<String, Object> criteria = (Map<String, Object>) ((Map<String, Object>) body.getValue()).get("MdmsCriteria");
         assertEquals("mz", criteria.get("tenantId"));
         assertEquals("HCM.OUTSIDE_HOUSEHOLD_TYPES", criteria.get("schemaCode"));

@@ -48,7 +48,7 @@ the app.
 | `POST /<project>/facility/v1/_search` | health-project | Site links of a campaign (`projectId` + `facilityId`) |
 | `POST /<mdms>/v2/_search` (`HCM.OUTSIDE_HOUSEHOLD_TYPES`) | MDMS | Site types, default Site Status, categories per type |
 
-`<project>` and `<mdms>` are the service paths each environment configures: `health-project` and `egov-mdms-service` on dev / QA, `project` and `mdms-v2` on a central instance such as demo. No path is fixed in code: project-factory reads them from its existing `EGOV_HEALTH_PROJECT_*` / `EGOV_PROJECT_*` path settings, and facility / health-project from `EGOV_MDMS_HOST` and `EGOV_MDMS_SEARCH_ENDPOINT`.
+`<project>` and `<mdms>` are the service paths each environment configures: `health-project` and `egov-mdms-service` on dev / QA, `project` and `mdms-v2` on a central instance such as demo. No path is fixed in code: project-factory reads them from its existing `EGOV_HEALTH_PROJECT_*` / `EGOV_PROJECT_*` path settings, and facility / health-project from `EGOV_MDMS_HOST` and `EGOV_MDMS_SEARCH_V2_ENDPOINT`.
 
 ---
 
@@ -231,8 +231,8 @@ update's own delivery methods, so it does not depend on the stored copy being sa
 | Service | Key (default) | Purpose |
 |---|---|---|
 | excel-ingestion | `excel.ingestion.outside.household.campaign.types` (`POLIO`) | Campaign types that can get the OH sheet |
-| facility | existing `egov.mdms.host` (env `EGOV_MDMS_HOST`) and `egov.mdms.search.endpoint` (env `EGOV_MDMS_SEARCH_ENDPOINT`); the v2 search is the same service path with v2 | Reading site types to hide sites. The facility chart must set both per environment, as the project chart does (e.g. `/mdms-v2/v1/_search` on demo) |
-| health-project | existing `egov.mdms.host` / `egov.mdms.search.endpoint` (env `EGOV_MDMS_HOST` / `EGOV_MDMS_SEARCH_ENDPOINT`), v2 next to the configured endpoint | Reading site types to hide site links |
+| facility | `egov.mdms.host` (env `EGOV_MDMS_HOST`) and `egov.mdms.search.v2.endpoint` (env `EGOV_MDMS_SEARCH_V2_ENDPOINT`, as in plan-service) | Reading site types to hide sites. The facility chart must set both per environment (e.g. `/mdms-v2/v2/_search` on demo) |
+| health-project | `egov.mdms.host` / `egov.mdms.search.v2.endpoint` (env `EGOV_MDMS_HOST` / `EGOV_MDMS_SEARCH_V2_ENDPOINT`) | Reading site types to hide site links. The chart must set `EGOV_MDMS_SEARCH_V2_ENDPOINT` per environment (e.g. `/mdms-v2/v2/_search` on demo) |
 | project-factory | `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL` (`true`) | Edit that removes OH unlinks the sites |
 | project-factory | `CAMPAIGN_DETACH_STALE_RESOURCES_ON_CONFIG_CHANGE` (`true`) | After an OH choice change the old file is not attached again; a clone with a different OH choice does not keep its source's file |
 | project-factory | `OUTSIDE_HOUSEHOLD_IGNORE_SHEET_WHEN_NOT_SELECTED` (`true`) | A campaign without OH does not read the Outside Household sheet of an uploaded file |

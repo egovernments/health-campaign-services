@@ -70,18 +70,13 @@ public class OutsideHouseholdTypeService {
                 .map(code -> code.trim().toUpperCase(Locale.ROOT)).distinct().toList();
     }
 
-    /** MDMS v2 search next to the configured MDMS search endpoint (egov.mdms.search.endpoint): same service path, v2 (.../v1/_search -> .../v2/_search). */
-    static String mdmsV2SearchPath(String mdmsSearchEndpoint) {
-        return mdmsSearchEndpoint.replaceFirst("/v1/(?=[^/]*$)", "/v2/");
-    }
-
     @SuppressWarnings("unchecked")
     private List<String> fetch(String stateTenantId) {
         Map<String, Object> request = Map.of(
                 "RequestInfo", RequestInfo.builder().build(),
                 "MdmsCriteria", Map.of("tenantId", stateTenantId, "schemaCode", SCHEMA_CODE, "limit", 100));
         String host = configuration.getMdmsHost();
-        String path = mdmsV2SearchPath(configuration.getMdmsEndPoint());
+        String path = configuration.getMdmsV2EndPoint();
         String url = (host.endsWith("/") ? host : host + "/") + (path.startsWith("/") ? path.substring(1) : path);
         Map<String, Object> response = serviceRequestClient.fetchResult(new StringBuilder(url), request, Map.class);
         List<String> codes = new ArrayList<>();
