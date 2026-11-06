@@ -3,7 +3,7 @@ import { CampaignNumber, TenantId } from "../config/models/brandedTypes";
 import { logger } from './logger';
 import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid, markSiteLinkWorkerUpdatesFailed, markSiteLinkWorkerUpdatesFailedBySite, markSiteLinkWorkerUpdatesDone, resetFailedSiteLinkWorkerUpdates } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid, markSiteLinkWorkerUpdatesFailed, markSiteLinkWorkerUpdatesFailedBySite, markSiteLinkWorkerUpdatesDone, resetFailedSiteLinkWorkerUpdates, markSiteLinksToCreateAgain } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses, outsideHouseholdFacilityFields } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
@@ -21,7 +21,7 @@ import { triggerUserCredentialEmailFlow } from './mailUtils';
 import { runMappingReconciler } from './mappingReconciler';
 import { fetchExistingUsersByPhone, selectReconcilableUserRows } from './userBatchHandler';
 import { outsideHouseholdLinkAdditionalFields, sameOutsideHouseholdLinkFields } from './outsideHouseholdLinkFields';
-import { linksNeedingWorkerUpdate, updateLinkWorkers } from './outsideHouseholdLinkWorkerUpdate';
+import { linksNeedingWorkerUpdate, updateLinkWorkers, duplicateLinkGroups, duplicateLinkFailures, LinkWorkerUpdateFailure } from './outsideHouseholdLinkWorkerUpdate';
 import { OUTSIDE_HOUSEHOLD_DELIVERY_METHOD, normalizeDeliveryMethodCode } from './deliveryMethodUtils';
 
 /**
@@ -1568,8 +1568,12 @@ async function processFacilityBoundaryMappings(
  * after httpRequest's retries, the failed link and the ones not attempted after it are marked updateFailed on their
  * mapping rows with the reason, and the mapping reconciler retries them like a link it has to create (the campaign fails
  * only if they still fail after those retries); before that, the new workers must be in campaign data, which the
- * reconciler reads. A failed link with no mapping row to mark fails the campaign here, as before. rowsWaitingForRetry:
- * this upload queued earlier failures again, so the rows of links written now are marked done.
+ * reconciler reads. A failure another try cannot change is marked terminal, so the campaign reports it without retries:
+ * two links with the same project and site (not sent; one of them has to be removed), or health-project refusing the
+ * link for good. A link that no longer exists, whether not found here or refused as gone, has its row marked to be
+ * created again, with the worker. A failed link with no mapping row to mark fails the campaign here, as before, unless
+ * it is the extra link of a duplicate pair whose other link was marked. rowsWaitingForRetry: this upload queued earlier
+ * failures again, so the rows of links written now are marked done.
  */
 async function updateOutsideHouseholdLinkWorkers(
     campaignNumber: CampaignNumber,
@@ -1615,25 +1619,48 @@ async function updateOutsideHouseholdLinkWorkers(
         return;
     }
 
-    const toUpdate = linksNeedingWorkerUpdate(links, wantedByFacilityId);
-    const { updated, failures, notAttempted } = await updateLinkWorkers(toUpdate, wantedByFacilityId, requestInfo, true);
+    // Rows of the changed sites whose link was not found (it no longer exists): created again, with the worker
+    const boundaryCodesWithProject = boundaryData.filter((b: any) => b?.uniqueIdAfterProcess).map((b: any) => b.uniqueIdentifier).filter(Boolean);
+    const relinked = await markSiteLinksToCreateAgain(campaignNumber, tenantId, {
+        uniqueIdentifiers: changedSites.map((entry: any) => entry?.uniqueIdentifier).filter(Boolean),
+        boundaryCodes: boundaryCodesWithProject,
+        foundLinkIds: links.map((link: any) => link.id)
+    }, 'Site link no longer exists; it will be created again with the frontline worker');
+
+    // Two links with the same project and site: health-project refuses the update of all but one, so none is sent
+    const duplicateGroups = duplicateLinkGroups(links);
+    const duplicateIds = new Set(duplicateGroups.flat().map((link: any) => link.id));
+    const toUpdate = linksNeedingWorkerUpdate(links.filter((link: any) => !duplicateIds.has(link.id)), wantedByFacilityId);
+    const result = await updateLinkWorkers(toUpdate, wantedByFacilityId, requestInfo, true);
+    const failures: LinkWorkerUpdateFailure[] = [...duplicateGroups.flatMap(duplicateLinkFailures), ...result.failures];
+    const { updated, notAttempted } = result;
     const unfinished = new Set([...failures.map((failure) => failure.link.id), ...notAttempted.map((link: any) => link.id)]);
     if (rowsWaitingForRetry) {
         await markSiteLinkWorkerUpdatesDone(campaignNumber, tenantId,
             links.filter((link: any) => wantedByFacilityId.has(link?.facilityId) && !unfinished.has(link.id)).map((link: any) => link.id));
     }
-    if (unfinished.size > 0) {
-        const toRecord = [
-            ...failures.map((failure) => ({ mappingId: failure.link.id, error: `Frontline worker update failed: ${failure.error}` })),
-            ...notAttempted.map((link: any) => ({ mappingId: link.id, error: 'Frontline worker update not attempted after an earlier failure' })),
-        ];
+    const missing = failures.filter((failure) => failure.kind === 'missing');
+    const gone = await markSiteLinksToCreateAgain(campaignNumber, tenantId, { linkIds: missing.map((failure) => failure.link.id) },
+        'Site link no longer exists; it will be created again with the frontline worker');
+    const toRecord = [
+        ...failures.filter((failure) => failure.kind !== 'missing').map((failure) => ({ mappingId: failure.link.id,
+            error: `Frontline worker update failed: ${failure.error}`, terminal: failure.kind === 'permanent' })),
+        ...notAttempted.map((link: any) => ({ mappingId: link.id, error: 'Frontline worker update not attempted after an earlier failure' })),
+    ];
+    if (toRecord.length > 0) {
         const marked = await markSiteLinkWorkerUpdatesFailed(campaignNumber, tenantId, toRecord);
-        const unrecorded = toRecord.filter((record) => !marked.has(record.mappingId));
+        // The extra link of a duplicate pair has no mapping row of its own; the pair is reported on the row that has one
+        const reportedPairs = duplicateGroups.filter((group) => group.some((link: any) => marked.has(link.id)));
+        const coveredIds = new Set(reportedPairs.flat().map((link: any) => link.id));
+        const unrecorded = toRecord.filter((record) => !marked.has(record.mappingId) && !coveredIds.has(record.mappingId));
         if (unrecorded.length > 0) {
             throw new Error(`Frontline worker update failed on site link(s) ${unrecorded.map((record) => record.mappingId).join(', ')}: ${unrecorded[0].error}`);
         }
+    }
+    if (unfinished.size > 0 || relinked > 0) {
         await waitForStoredWorkers(campaignNumber, tenantId, changedSites);
-        logger.warn(`Campaign ${campaignNumber}: frontline worker update failed on ${failures.length} site link(s), ${notAttempted.length} not attempted; left to the mapping retry`);
+        logger.warn(`Campaign ${campaignNumber}: frontline worker update failed on ${failures.length - missing.length} site link(s), `
+            + `${notAttempted.length} not attempted, ${relinked + gone} link(s) to create again; left to the mapping flow`);
     }
     logger.info(`Frontline worker updated on ${updated.length} site link(s) of campaign ${campaignNumber}`);
 }

@@ -1,4 +1,5 @@
-import { checkCampaignMappingCompletionStatus, markSiteLinkWorkerUpdatesFailed, markSiteLinkWorkerUpdatesFailedBySite, markSiteLinkWorkerUpdatesDone, resetFailedSiteLinkWorkerUpdates } from '../utils/genericUtils';
+import { checkCampaignMappingCompletionStatus, markSiteLinkWorkerUpdatesFailed, markSiteLinkWorkerUpdatesFailedBySite, markSiteLinkWorkerUpdatesDone, resetFailedSiteLinkWorkerUpdates, markSiteLinksToCreateAgain, getFailedMappingRows } from '../utils/genericUtils';
+import config from '../config';
 import { CampaignNumber, TenantId } from '../config/models/brandedTypes';
 import { mappingStatuses } from '../config/constants';
 
@@ -168,9 +169,39 @@ describe('site link worker update rows (updateFailed / toBeUpdated)', () => {
         executeQueryMock.mockResolvedValueOnce({ rows: [{ mappingid: 'PF-1' }] } as any);
         const marked = await markSiteLinkWorkerUpdatesFailed(cmp, tn, [{ mappingId: 'PF-1', error: 'e1' }, { mappingId: 'PF-2', error: 'e2' }]);
         const [sql, params] = executeQueryMock.mock.calls[0];
-        expect(String(sql)).toContain('retryCount = 0');
-        expect(params).toEqual(['CMP-1', mappingStatuses.updateFailed, ['PF-1', 'PF-2'], ['e1', 'e2'], waitingOrMapped]);
+        expect(String(sql)).toContain('retryCount = CASE WHEN v.terminal THEN $6 ELSE 0 END');
+        expect(params).toEqual(['CMP-1', mappingStatuses.updateFailed, ['PF-1', 'PF-2'], ['e1', 'e2'], waitingOrMapped, config.mapping.maxRetries, [false, false]]);
         expect(Array.from(marked)).toEqual(['PF-1']);
+    });
+
+    it('starts a terminal failure at the retry limit, so the reconciler does not retry it', async () => {
+        executeQueryMock.mockResolvedValueOnce({ rows: [] } as any);
+        await markSiteLinkWorkerUpdatesFailed(cmp, tn, [{ mappingId: 'PF-1', error: 'e1', terminal: true }, { mappingId: 'PF-2', error: 'e2' }]);
+        expect(executeQueryMock.mock.calls[0][1]).toEqual(['CMP-1', mappingStatuses.updateFailed, ['PF-1', 'PF-2'], ['e1', 'e2'], waitingOrMapped, config.mapping.maxRetries, [true, false]]);
+    });
+
+    it('marks the rows of gone links failed without their link id, so the reconciler creates the links again', async () => {
+        executeQueryMock.mockResolvedValueOnce({ rowCount: 1 } as any);
+        expect(await markSiteLinksToCreateAgain(cmp, tn, { linkIds: ['PF-1'] }, 'gone')).toBe(1);
+        const [sql, params] = executeQueryMock.mock.calls[0];
+        expect(String(sql)).toContain('mappingId = NULL');
+        expect(String(sql)).toContain('mappingId = ANY($5::text[])');
+        expect(params).toEqual(['CMP-1', mappingStatuses.failed, 'gone', waitingOrMapped, ['PF-1']]);
+    });
+
+    it('marks the rows of the given sites and boundaries whose link was not among the links found', async () => {
+        executeQueryMock.mockResolvedValueOnce({ rowCount: 2 } as any);
+        expect(await markSiteLinksToCreateAgain(cmp, tn, { uniqueIdentifiers: ['site-1'], boundaryCodes: ['B1', 'B2'], foundLinkIds: ['PF-9'] }, 'gone')).toBe(2);
+        const [sql, params] = executeQueryMock.mock.calls[0];
+        expect(String(sql)).toContain('mappingId IS NOT NULL AND NOT (mappingId = ANY($7::text[]))');
+        expect(params).toEqual(['CMP-1', mappingStatuses.failed, 'gone', waitingOrMapped, ['site-1'], ['B1', 'B2'], ['PF-9']]);
+    });
+
+    it('marks no row to create again when there are no links, sites or boundaries to look at', async () => {
+        expect(await markSiteLinksToCreateAgain(cmp, tn, { linkIds: [] }, 'gone')).toBe(0);
+        expect(await markSiteLinksToCreateAgain(cmp, tn, { uniqueIdentifiers: [], boundaryCodes: ['B1'], foundLinkIds: [] }, 'gone')).toBe(0);
+        expect(await markSiteLinksToCreateAgain(cmp, tn, { uniqueIdentifiers: ['site-1'], boundaryCodes: [], foundLinkIds: [] }, 'gone')).toBe(0);
+        expect(executeQueryMock).not.toHaveBeenCalled();
     });
 
     it('marks nothing and runs no query for nothing to mark', async () => {
@@ -200,5 +231,20 @@ describe('site link worker update rows (updateFailed / toBeUpdated)', () => {
         const [sql, params] = executeQueryMock.mock.calls[0];
         expect(String(sql)).toContain('retryCount = 0');
         expect(params).toEqual(['CMP-1', mappingStatuses.toBeUpdated, [mappingStatuses.updateFailed, mappingStatuses.toBeUpdated], ['site-1'], ['B1']]);
+    });
+});
+
+describe('getFailedMappingRows (reasons for the campaign failure message)', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('reads at most the limit of failed rows of the given types, with their reasons, and the total', async () => {
+        executeQueryMock
+            .mockResolvedValueOnce({ rows: [{ type: 'facility', uniqueidentifierfordata: 'site-1', boundarycode: 'B1', status: mappingStatuses.updateFailed, lasterror: 'why' }] } as any)
+            .mockResolvedValueOnce({ rows: [{ count: '3' }] } as any);
+        const result = await getFailedMappingRows('CMP-1', 'tn', ['facility', 'resource'], 1);
+        expect(result).toEqual({ total: 3, rows: [{ type: 'facility', uniqueIdentifierForData: 'site-1', boundaryCode: 'B1', status: mappingStatuses.updateFailed, lastError: 'why' }] });
+        const [sql, params] = executeQueryMock.mock.calls[0];
+        expect(String(sql)).toContain('LIMIT $4');
+        expect(params).toEqual(['CMP-1', ['facility', 'resource'], [mappingStatuses.failed, mappingStatuses.deMapFailed, mappingStatuses.updateFailed], 1]);
     });
 });
