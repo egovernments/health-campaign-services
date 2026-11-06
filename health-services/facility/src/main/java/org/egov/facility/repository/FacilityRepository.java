@@ -175,7 +175,7 @@ public class FacilityRepository extends GenericRepository<Facility> {
         if (!callerAskedForSpecificFacility) {
             List<String> siteTypes = outsideHouseholdTypeService.getTypes(tenantId);
             if (!siteTypes.isEmpty()) {
-                query = query + "and (f.usage IS NULL OR f.usage NOT IN (:outsideHouseholdTypes)) ";
+                query = query + "and (f.usage IS NULL OR UPPER(f.usage) NOT IN (:outsideHouseholdTypes)) ";
                 paramsMap.put("outsideHouseholdTypes", siteTypes);
             }
         }

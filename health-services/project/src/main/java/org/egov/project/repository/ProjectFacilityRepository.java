@@ -47,12 +47,12 @@ public class ProjectFacilityRepository extends GenericRepository<ProjectFacility
     // (MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES); %s is the facilityId column reference (aliased vs unaliased).
     private static final String OUTSIDE_HOUSEHOLD_HIDING_NOT_EXISTS_CLAUSE =
             "AND NOT EXISTS (SELECT 1 FROM " + SCHEMA_REPLACE_STRING + ".facility fac " +
-                    "WHERE fac.id = %s AND fac.usage IN (:outsideHouseholdTypes)) ";
+                    "WHERE fac.id = %s AND UPPER(fac.usage) IN (:outsideHouseholdTypes)) ";
 
     // EXISTS fragment that keeps only links to a site; same shape as the hiding fragment above.
     private static final String OUTSIDE_HOUSEHOLD_ONLY_EXISTS_CLAUSE =
             "AND EXISTS (SELECT 1 FROM " + SCHEMA_REPLACE_STRING + ".facility fac " +
-                    "WHERE fac.id = %s AND fac.usage IN (:outsideHouseholdTypes)) ";
+                    "WHERE fac.id = %s AND UPPER(fac.usage) IN (:outsideHouseholdTypes)) ";
 
     /**
      * The site fragment for a search: by default the site-hiding fragment; with onlyOutsideHouseholdSites, the fragment

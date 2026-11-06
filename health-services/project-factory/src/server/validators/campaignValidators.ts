@@ -18,7 +18,7 @@ import { CampaignResource } from "../config/models/resourceTypes";
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { campaignStatuses, resourceDataStatuses, resourceStatuses, resourceTypes, usageColumnStatus } from "../config/constants";
 import { getAllAllowedTypes } from "../config/resourceTypeRegistry";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
@@ -872,6 +872,93 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
 
 
 
+/**
+ * An edit (child campaign) can only be processed with a file made from its own template: excel-ingestion rejects any
+ * other file (IMMUTABLE_IDENTITY_MISMATCH), but only in the parse after the edit has started, so the edit fails with no
+ * error on the screen. The console keeps the parent's file on the edit until a new one is uploaded and does not check
+ * it, and it lets an edit be submitted after its upload check failed. So the Submit of an edit is refused here when
+ * - its file is one of the parent's files, or it sends no file on a create and the parent's file would be copied to it;
+ * - on an update, its file has no passed upload check for this edit.
+ * Called by the create and update services right after validateProjectCampaignRequest, which loads the parent.
+ */
+async function validateEditFile(request: any, actionInUrl: any): Promise<void> {
+    const CampaignDetails = request?.body?.CampaignDetails;
+    const parentId = CampaignDetails?.parentId;
+    const tenantId = CampaignDetails?.tenantId;
+    if (CampaignDetails?.action !== "create" || !parentId || !tenantId) {
+        return;
+    }
+    const isUnified = (type: any) => type === resourceTypes.unifiedConsoleResources || type === "unified-console";
+    const parentRows = await searchResourceDetailsFromDB({ tenantId, campaignId: parentId, type: [resourceTypes.unifiedConsoleResources] });
+    const parentFiles = new Set<string>([
+        ...parentRows.map((row: any) => row?.filestoreid),
+        ...(request?.body?.parentCampaign?.resources || []).filter((r: any) => isUnified(r?.type)).map((r: any) => r?.filestoreId)
+    ].filter(Boolean));
+    if (parentFiles.size === 0) {
+        return;
+    }
+    // The file the edit is processed with (processUnifiedTemplateCampaign takes the first unified-console-resources)
+    const editFile = (CampaignDetails?.resources || []).find((r: any) => r?.type === resourceTypes.unifiedConsoleResources)?.filestoreId;
+    // Without a file, a create copies the parent's completed file to the edit (copyResourcesFromParentToChildInDB)
+    const getsParentFile = editFile
+        ? parentFiles.has(editFile)
+        : actionInUrl === "create" && parentRows.some((row: any) => row?.status === resourceStatuses.completed);
+    if (getsParentFile) {
+        logger.info(`Edit of campaign ${parentId}: refused, its file ${editFile ?? "(none)"} is the file of the campaign being edited`);
+        throwError("COMMON", 400, "VALIDATION_ERROR",
+            "The file attached to this edit is the file of the campaign being edited. Download the template from this edit screen, make your changes in it and upload it before you submit.");
+    }
+    // On an update the edit exists, so the upload checks of its file can be read
+    const uploadCheck = editFile && CampaignDetails?.id && actionInUrl === "update"
+        ? await editFileUploadCheck(request, CampaignDetails.id, tenantId, editFile) : "passed";
+    if (uploadCheck === "running") {
+        logger.info(`Edit ${CampaignDetails.id} of campaign ${parentId}: refused, the upload check of its file ${editFile} is still running`);
+        throwError("COMMON", 400, "VALIDATION_ERROR",
+            "The upload check of the file attached to this edit is still running. Wait until it finishes, then submit.");
+    }
+    if (uploadCheck === "notPassed") {
+        logger.info(`Edit ${CampaignDetails.id} of campaign ${parentId}: refused, its file ${editFile} has no passed upload check for this edit`);
+        throwError("COMMON", 400, "VALIDATION_ERROR",
+            "The file attached to this edit has not passed the upload check for this edit. Download the template from this edit screen, make your changes in it and upload it again before you submit.");
+    }
+}
+
+/**
+ * The upload check of this file for this edit in excel-ingestion: "passed" when a unified-console-validation of it is
+ * completed, valid and has no errors; "running" when none passed and one is still pending or in progress; else
+ * "notPassed". When excel-ingestion cannot be read, or holds more checks than are read, the Submit goes ahead as before
+ * ("passed"): its parse needs excel-ingestion too.
+ */
+async function editFileUploadCheck(request: any, editId: string, tenantId: string, fileStoreId: string): Promise<"passed" | "running" | "notPassed"> {
+    const url = `${config.host.excelIngestionHost}${config.paths.excelIngestionProcessSearch}`;
+    const pageSize = Math.max(1, config.excelIngestion.uploadCheckPageSize || 100);
+    const maxPages = Math.max(1, config.excelIngestion.uploadCheckMaxPages || 10);
+    let running = false;
+    try {
+        for (let page = 0; page < maxPages; page++) {
+            const response = await httpRequest(url, {
+                RequestInfo: request?.body?.RequestInfo,
+                ProcessingSearchCriteria: { tenantId, referenceIds: [editId], types: ["unified-console-validation"],
+                    limit: pageSize, offset: page * pageSize }
+            });
+            const checks: any[] = (response?.ProcessingDetails || []).filter((check: any) => check?.fileStoreId === fileStoreId);
+            if (checks.some((check: any) => check?.status === "completed"
+                && check?.additionalDetails?.validationStatus === "valid" && !(Number(check?.additionalDetails?.totalErrors) > 0))) {
+                return "passed";
+            }
+            running = running || checks.some((check: any) => check?.status === "pending" || check?.status === "inprogress");
+            if ((response?.ProcessingDetails || []).length < pageSize) {
+                return running ? "running" : "notPassed";
+            }
+        }
+        logger.warn(`Edit ${editId}: more than ${maxPages * pageSize} upload checks, the Submit goes ahead as before`);
+        return "passed";
+    } catch (error: any) {
+        logger.warn(`Edit ${editId}: could not read its upload checks from excel-ingestion, the Submit goes ahead as before: ${error?.message ?? error}`);
+        return "passed";
+    }
+}
+
 function validateProjectCampaignMissingFields(CampaignDetails: any) {
     validateCampaignBodyViaSchema(campaignDetailsSchema, CampaignDetails)
 }
@@ -1590,6 +1677,7 @@ function validateAddResourcesRequest(request: any): void {
 }
 
 export {
+    validateEditFile,
     validateSheetData,
     validateCreateRequest,
     validateProjectCampaignRequest,

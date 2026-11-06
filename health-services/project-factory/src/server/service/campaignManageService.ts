@@ -2,9 +2,9 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import express from "express";
 import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, reattachCloneSourceFileIfChoiceAgrees, prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
-import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
+import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest, validateEditFile } from "../validators/campaignValidators";
 import { campaignStatuses, processStatuses, resourceTypes } from "../config/constants";
-import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB, deactivateAllResourcesForCampaign } from "./resourceDetailsService";
+import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB, deactivateAllResourcesForCampaign, undoSavedResources, SavedResourceChange } from "./resourceDetailsService";
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from "../utils/resourceDetailsUtils";
 import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/genericUtils";
 import config from "../config";
@@ -17,6 +17,7 @@ import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from ".
 async function createProjectTypeCampaignService(request: express.Request) {
     logger.info("VALIDATING:: for project type");
     await validateProjectCampaignRequest(request, "create");
+    await validateEditFile(request, "create");
     logger.info("VALIDATED:: THE PROJECT TYPE CREATE REQUEST");
 
     // A clone whose Outside Household choice differs from its source's does not keep the source's file
@@ -81,23 +82,26 @@ async function earlierUnifiedFiles(tenantId: string, campaignId: string, exclude
 }
 
 /** Backward compat: stores the files of a save in eg_cm_resource_details (an existing row of the type is replaced). */
-async function saveRequestResources(requestResources: CampaignResource[], tenantId: string, campaignId: string, useruuid: string) {
+/** Stores the files sent with a save (upsert by type and parent); returns the rows it created and the rows they replaced. */
+async function saveRequestResources(requestResources: CampaignResource[], tenantId: string, campaignId: string, useruuid: string): Promise<SavedResourceChange[]> {
+    const changes: SavedResourceChange[] = [];
     for (const res of requestResources) {
         const fileStoreId = res.filestoreId;
         if (!res.type || !fileStoreId) continue;
         try {
             const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
             if (existing) {
-                await updateResourceDetail({
+                const created = await updateResourceDetail({
                     id: existing.id,
                     tenantId,
                     campaignId,
                     fileStoreId,
                     filename: res.filename !== undefined ? res.filename : undefined
                 }, useruuid);
+                if (created?.id) changes.push({ createdId: created.id, replacedId: existing.id });
                 logger.info(`Updated existing resource id=${existing.id} type=${res.type} for campaign ${campaignId} via update`);
             } else {
-                await createResourceDetail({
+                const created = await createResourceDetail({
                     tenantId,
                     campaignId,
                     type: res.type,
@@ -106,6 +110,7 @@ async function saveRequestResources(requestResources: CampaignResource[], tenant
                     filename: res.filename || null,
                     additionalDetails: res.additionalDetails || {}
                 }, useruuid);
+                if (created?.id) changes.push({ createdId: created.id });
                 logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
             }
         } catch (err: any) {
@@ -118,12 +123,14 @@ async function saveRequestResources(requestResources: CampaignResource[], tenant
             logger.error(`:: UPSERT ERROR STACK :: ${err?.stack ?? err}`);
         }
     }
+    return changes;
 }
 
 /** Validates and updates a campaign, deactivating stale resources when hierarchy/boundaries change and re-fetching so the response carries table-backed resources. */
 async function updateProjectTypeCampaignService(request: express.Request) {
 
     await validateProjectCampaignRequest(request, "update");
+    await validateEditFile(request, "update");
     logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
 
     // The console's final create sends a fresh additionalDetails without cloneFrom / clonedCampaignId; keep them
@@ -157,11 +164,14 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     // other configuration changes keep attaching the files the save sends, as before.
     const detachStaleFiles = Boolean(config.mapping?.detachStaleResourcesOnConfigChange) && isOutsideHouseholdDeliveryChanged(request);
     const staleFileStoreIds = new Set<string>();
+    // The files were deactivated for a configuration change: a failed save then keeps what it stored, as before
+    let filesDeactivatedForConfigChange = false;
     if (campaignId && tenantId && (hierarchyChanged || boundariesOrTypeChanged)) {
         logger.info(`Campaign config changed (hierarchyChanged=${hierarchyChanged}, boundariesOrTypeChanged=${boundariesOrTypeChanged}) for campaign ${campaignId}. Deactivating stale resources.`);
         try {
             const activeBefore = detachStaleFiles ? await searchResourceDetailsFromDB({ tenantId, campaignId, isActive: true }) : [];
             await deactivateAllResourcesForCampaign(campaignId, tenantId, useruuid);
+            filesDeactivatedForConfigChange = true;
             if (detachStaleFiles) {
                 activeBefore.forEach((row: any) => row?.filestoreid && staleFileStoreIds.add(row.filestoreid));
                 (existingCampaign?.resources || []).forEach((r: any) => r?.filestoreId && staleFileStoreIds.add(r.filestoreId));
@@ -188,11 +198,21 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     // The files of the save are stored first: a Create starts the campaign (status started), after which a file can no
     // longer be stored, so a clone whose file came only with its Create kept its source's file
     const requestResources = request?.body?.CampaignDetails?.resources || [];
-    if (requestResources.length > 0 && tenantId && campaignId) {
-        await saveRequestResources(requestResources as CampaignResource[], tenantId, campaignId, useruuid);
-    }
+    const savedResources = (requestResources.length > 0 && tenantId && campaignId)
+        ? await saveRequestResources(requestResources as CampaignResource[], tenantId, campaignId, useruuid)
+        : [];
 
-    await processBasedOnAction(request, "update");
+    try {
+        await processBasedOnAction(request, "update");
+    } catch (error) {
+        // The save failed before the campaign itself was saved: take back the files it stored, so the campaign keeps the
+        // files it had. A failure after the campaign was saved (e.g. starting the template) keeps them with the campaign.
+        if (!request?.body?.campaignPersisted && !filesDeactivatedForConfigChange && savedResources.length > 0) {
+            await undoSavedResources(savedResources, tenantId, useruuid).catch((undoError: any) =>
+                logger.error(`Campaign ${campaignId}: could not take back the files of the failed save: ${undoError?.message ?? undoError}`));
+        }
+        throw error;
+    }
 
     if (requestResources.length > 0 && tenantId && campaignId) {
         // Re-fetch campaign so response includes full resources from table

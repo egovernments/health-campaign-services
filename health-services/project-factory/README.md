@@ -197,7 +197,7 @@ sequenceDiagram
 - **Persister Config**: [Link](https://github.com/egovernments/configs/blob/UNIFIED-UAT/health/egov-persister/project-factory-persister.yml)
 - **Helm Chart Details**: [Link](https://github.com/egovernments/DIGIT-DevOps/blob/unified-env/deploy-as-code/helm/charts/health-services/project-factory/values.yaml)
 - **`OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`** (default `true`): an edit that removes the Outside Household delivery method deletes the campaign's site links; `false` keeps them.
-- **`EGOV_PROJECT_FACILITY_UPDATE_PATH`** (default `health-project/facility/v1/_update`): used to update a site link's frontline worker in an edit.
+- The site link worker update (in an edit) uses the path next to the existing `EGOV_HEALTH_PROJECT_FACILITY_SEARCH` (`.../facility/v1/_search` -> `.../facility/v1/_update`), so it follows each environment's project service path. No new setting.
 
 ## Redis Caching
 

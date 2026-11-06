@@ -13,12 +13,14 @@ jest.mock('../validators/campaignValidators', () => ({
     validateMicroplanRequest: jest.fn(),
     validateProjectCampaignRequest: jest.fn(),
     validateAddResourcesRequest: jest.fn(),
+    validateEditFile: jest.fn(),
 }));
 jest.mock('../service/resourceDetailsService', () => ({
     createResourceDetail: jest.fn(),
     updateResourceDetail: jest.fn(),
     getCampaignStatusFromDB: jest.fn(),
     deactivateAllResourcesForCampaign: jest.fn(),
+    undoSavedResources: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../utils/resourceDetailsUtils', () => ({ findActiveResourceByUpsertKey: jest.fn(), searchResourceDetailsFromDB: jest.fn() }));
 jest.mock('../utils/genericUtils', () => ({ prepareProcessesForResourceTypes: jest.fn(), getCurrentProcesses: jest.fn() }));
@@ -29,8 +31,8 @@ jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(
 import config from '../config';
 import { createProjectTypeCampaignService, updateProjectTypeCampaignService } from '../service/campaignManageService';
 import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, processBasedOnAction, reattachCloneSourceFileIfChoiceAgrees, searchProjectCampaignResourcData } from '../utils/campaignUtils';
-import { validateProjectCampaignRequest } from '../validators/campaignValidators';
-import { createResourceDetail, deactivateAllResourcesForCampaign, updateResourceDetail } from '../service/resourceDetailsService';
+import { validateEditFile, validateProjectCampaignRequest } from '../validators/campaignValidators';
+import { createResourceDetail, deactivateAllResourcesForCampaign, undoSavedResources, updateResourceDetail } from '../service/resourceDetailsService';
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
 import { dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from '../utils/generateUtils';
 
@@ -52,6 +54,7 @@ beforeEach(() => {
     savedResources = undefined;
     (validateProjectCampaignRequest as jest.Mock).mockImplementation(async (r: any) => { r.body.ExistingCampaignDetails = existing; });
     (processBasedOnAction as jest.Mock).mockImplementation(async (r: any) => { savedResources = r.body.CampaignDetails.resources; });
+    (validateEditFile as jest.Mock).mockResolvedValue(undefined);
     (searchResourceDetailsFromDB as jest.Mock).mockResolvedValue([{ filestoreid: 'OLD', type: UNIFIED }]);
     (findActiveResourceByUpsertKey as jest.Mock).mockResolvedValue(null);
     (searchProjectCampaignResourcData as jest.Mock).mockResolvedValue({ responseData: [{ id: 'c1' }], totalCount: 1 });
@@ -69,6 +72,57 @@ describe('updateProjectTypeCampaignService stores the files of a save before pro
 
         expect(order).toEqual(['store file', 'process']);
         expect(attachedFileIds()).toEqual(['OWN']);
+    });
+});
+
+describe('updateProjectTypeCampaignService takes back the files of a save that failed', () => {
+    beforeEach(() => {
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: false });
+        (isOutsideHouseholdDeliveryChanged as jest.Mock).mockReturnValue(false);
+    });
+
+    it('takes back a new file when the save fails before the campaign is saved', async () => {
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('persist failed');
+        expect(undoSavedResources).toHaveBeenCalledWith([{ createdId: 'NEW-ROW' }], 'tn', 'u1');
+    });
+
+    it('puts the replaced file back when the save fails before the campaign is saved', async () => {
+        (findActiveResourceByUpsertKey as jest.Mock).mockResolvedValue({ id: 'OLD-ROW' });
+        (updateResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('persist failed');
+        expect(undoSavedResources).toHaveBeenCalledWith([{ createdId: 'NEW-ROW', replacedId: 'OLD-ROW' }], 'tn', 'u1');
+    });
+
+    it('keeps the files when the save fails after the campaign was saved', async () => {
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockImplementation(async (r: any) => { r.body.campaignPersisted = true; throw new Error('template start failed'); });
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('template start failed');
+        expect(undoSavedResources).not.toHaveBeenCalled();
+    });
+
+    it('keeps the files of a save that works', async () => {
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        await updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]));
+        expect(undoSavedResources).not.toHaveBeenCalled();
+    });
+
+    it('keeps the files of a failed save that also changed the configuration (they were deactivated for it), as before', async () => {
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: true });
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('persist failed');
+        expect(deactivateAllResourcesForCampaign).toHaveBeenCalled();
+        expect(undoSavedResources).not.toHaveBeenCalled();
+    });
+
+    it('still reports the failure of the save when the files cannot be taken back', async () => {
+        (createResourceDetail as jest.Mock).mockResolvedValue({ id: 'NEW-ROW' });
+        (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+        (undoSavedResources as jest.Mock).mockRejectedValueOnce(new Error('db down'));
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'B' }]))).rejects.toThrow('persist failed');
     });
 });
 
@@ -156,6 +210,47 @@ describe('updateProjectTypeCampaignService for other saves (unchanged behaviour)
         expect(deactivateAllResourcesForCampaign).not.toHaveBeenCalled();
         expect(savedResources).toEqual([{ type: UNIFIED, filestoreId: 'OLD' }]);
         expect(attachedFileIds()).toEqual(['OLD']);
+    });
+});
+
+describe('the file of an edit is checked right after the request is validated, before anything is saved', () => {
+    it('update: runs the edit file check after the request check and before files are stored or the campaign processed', async () => {
+        const order: string[] = [];
+        (validateProjectCampaignRequest as jest.Mock).mockImplementation(async (r: any) => { order.push('validate request'); r.body.ExistingCampaignDetails = existing; });
+        (validateEditFile as jest.Mock).mockImplementation(async () => { order.push('check edit file'); });
+        (createResourceDetail as jest.Mock).mockImplementation(async () => { order.push('store file'); });
+        (processBasedOnAction as jest.Mock).mockImplementation(async () => { order.push('process'); });
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: false });
+        const update = request([{ type: UNIFIED, filestoreId: 'OWN' }]);
+
+        await updateProjectTypeCampaignService(update);
+
+        expect(validateEditFile).toHaveBeenCalledWith(update, 'update');
+        expect(order).toEqual(['validate request', 'check edit file', 'store file', 'process']);
+    });
+
+    it('update: a refused edit file stores, deactivates and processes nothing', async () => {
+        (validateEditFile as jest.Mock).mockRejectedValueOnce(Object.assign(new Error('VALIDATION_ERROR'), { status: 400 }));
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: true });
+
+        await expect(updateProjectTypeCampaignService(request([{ type: UNIFIED, filestoreId: 'PARENT-FILE' }]))).rejects.toThrow('VALIDATION_ERROR');
+
+        expect(createResourceDetail).not.toHaveBeenCalled();
+        expect(updateResourceDetail).not.toHaveBeenCalled();
+        expect(deactivateAllResourcesForCampaign).not.toHaveBeenCalled();
+        expect(processBasedOnAction).not.toHaveBeenCalled();
+    });
+
+    it('create: runs the edit file check after the request check and before the campaign is processed', async () => {
+        const create = request([{ type: UNIFIED, filestoreId: 'OWN' }]);
+
+        await createProjectTypeCampaignService(create);
+
+        expect(validateEditFile).toHaveBeenCalledWith(create, 'create');
+        expect((validateProjectCampaignRequest as jest.Mock).mock.invocationCallOrder[0])
+            .toBeLessThan((validateEditFile as jest.Mock).mock.invocationCallOrder[0]);
+        expect((validateEditFile as jest.Mock).mock.invocationCallOrder[0])
+            .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
     });
 });
 

@@ -7,6 +7,8 @@ jest.mock('../utils/logger', () => ({
 
 jest.mock('../utils/genericUtils', () => ({
     getRelatedDataWithCampaign: jest.fn(),
+    markSiteLinksToCreateAgain: jest.fn().mockResolvedValue(0),
+    safeMappingError: jest.fn((text: any) => (text == null ? null : String(text))),
 }));
 
 jest.mock('../api/genericApis', () => ({

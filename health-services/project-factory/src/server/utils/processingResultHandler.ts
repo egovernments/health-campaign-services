@@ -1,8 +1,9 @@
 import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
+import { CampaignNumber, TenantId } from "../config/models/brandedTypes";
 import { logger } from './logger';
 import { getSheetDataCount, forEachSheetDataPage, getSheetFetchPageSize } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, pollUntilCountFn, deleteCampaignDataFailedAndInvalid, markSiteLinkWorkerUpdatesFailed, markSiteLinkWorkerUpdatesFailedBySite, markSiteLinkWorkerUpdatesDone, resetFailedSiteLinkWorkerUpdates, markSiteLinksToCreateAgain } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses, outsideHouseholdFacilityFields } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
@@ -20,6 +21,8 @@ import { triggerUserCredentialEmailFlow } from './mailUtils';
 import { runMappingReconciler } from './mappingReconciler';
 import { fetchExistingUsersByPhone, selectReconcilableUserRows } from './userBatchHandler';
 import { outsideHouseholdLinkAdditionalFields, sameOutsideHouseholdLinkFields } from './outsideHouseholdLinkFields';
+import { linksNeedingWorkerUpdate, updateLinkWorkers, duplicateLinkGroups, duplicateLinkFailures, distinctLinks, LinkWorkerUpdateFailure } from './outsideHouseholdLinkWorkerUpdate';
+import { OUTSIDE_HOUSEHOLD_DELIVERY_METHOD, normalizeDeliveryMethodCode } from './deliveryMethodUtils';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -1050,7 +1053,7 @@ async function markCampaignCompletedConditionally(
             userInfo: { uuid: useruuid || campaignDetails?.auditDetails?.createdBy }
         };
 
-        // 'inprogress' is the site-create "done" status here — persister transitions it onward.
+        // 'inprogress' is the post-create "done" status here — persister transitions it onward.
         latestCampaign.status = campaignStatuses.inprogress;
         
         await enrichAndPersistCampaignForCreateViaFlow2(
@@ -1087,7 +1090,7 @@ async function persistDataInBatches(dataList: any[], topic: string, tenantId: st
  * Process campaign facilities from excel data (facilities sheet, then the Outside Household sheet as facility rows)
  */
 export async function processCampaignFacilitiesFromExcelData(
-    tenantId: string,
+    tenantId: TenantId,
     fileStoreId: string,
     localizationMap: Record<string, string>,
     campaignDetails: any,
@@ -1193,8 +1196,16 @@ export async function processCampaignFacilitiesFromExcelData(
             await processFacilityBoundaryMappings(campaignNumber, tenantId, facilityBoundaryMappings, isDemapEligible);
         }
 
+        // A new upload retries the site links whose worker update failed in an earlier run (the reconciler picks them up);
+        // only links this upload keeps Active, after the link diff, so a link it removes is never queued for a worker update
+        const workerRetries = await resetFailedSiteLinkWorkerUpdates(campaignNumber, tenantId,
+            facilityBoundaryMappings.filter((m: any) => m.active).map((m: any) => ({ uniqueIdentifierForData: m.facilityName, boundaryCode: m.boundaryCode })));
+        if (workerRetries > 0) {
+            logger.info(`Campaign ${campaignNumber}: ${workerRetries} site link worker update(s) from an earlier run will be retried`);
+        }
+
         if (outsideHouseholdWorkerChanges.length > 0) {
-            await updateOutsideHouseholdLinkWorkers(campaignNumber, tenantId, outsideHouseholdWorkerChanges, requestInfo);
+            await updateOutsideHouseholdLinkWorkers(campaignNumber, tenantId, outsideHouseholdWorkerChanges, workerRetries > 0, requestInfo);
         }
 
         logger.info('=== CAMPAIGN FACILITIES PROCESSING COMPLETED ===');
@@ -1216,34 +1227,32 @@ const OUTSIDE_HOUSEHOLD_BOUNDARY_CODE_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
 // Optional frontline worker columns: kept on this campaign's stored row and its project-facility
 // links only, never on the site facility, so they do not reach the next campaign.
 const OUTSIDE_HOUSEHOLD_WORKER_KEYS = [outsideHouseholdFacilityFields.workerName, outsideHouseholdFacilityFields.workerPhone];
-// Delivery-method code of a campaign with Outside Household sites (additionalDetails.cycleData.deliveryMethods)
-const OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = 'OUTSIDEHOUSEHOLD';
 
 /**
  * True only when this edit removed the Outside Household delivery method from a campaign that has stored sites.
  * Every guard must hold, else nothing changes: the switch is on, the campaign is an edit (has a parent), its
- * deliveryMethods list is non-empty and every entry is readable (a code or a {code} object) with none being
- * OUTSIDEHOUSEHOLD, and no delivery in its rules still names OUTSIDEHOUSEHOLD (the console's fallback source).
+ * delivery leaves Outside Household out (isOutsideHouseholdLeftOutOfDelivery), and it has stored sites.
  */
 export function isOutsideHouseholdDeliveryDropped(campaignDetails: any, existingFacilityMap: Map<any, any>): boolean {
     if (!config.mapping?.outsideHouseholdUnlinkOnDeliveryRemoval || !campaignDetails?.parentId) return false;
-    const methodCodes = readDeliveryMethodCodes(campaignDetails?.additionalDetails?.cycleData?.deliveryMethods);
-    if (!methodCodes || methodCodes.length === 0 || methodCodes.includes(OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)) return false;
-    const rules = Array.isArray(campaignDetails?.deliveryRules) ? campaignDetails.deliveryRules : [];
-    const ruleCodes = rules.flatMap((rule: any) => (Array.isArray(rule?.cycles) ? rule.cycles : []))
-        .flatMap((cycle: any) => (Array.isArray(cycle?.deliveries) ? cycle.deliveries : []))
-        .map((delivery: any) => normalizeDeliveryMethodCode(delivery?.deliveryMethod));
-    if (ruleCodes.includes(OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)) return false;
+    if (!isOutsideHouseholdLeftOutOfDelivery(campaignDetails)) return false;
     return Array.from(existingFacilityMap.values()).some((entry: any) => Boolean(entry?.data?.[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY]));
 }
 
 /**
- * True when the campaign does not use Outside Household: the switch is on, its deliveryMethods list is non-empty and
- * every entry is readable with none being OUTSIDEHOUSEHOLD, and no delivery in its rules names OUTSIDEHOUSEHOLD. A
- * campaign without a readable list keeps reading the sheet as before.
+ * True when the campaign does not use Outside Household: the switch is on and its delivery leaves Outside Household
+ * out (isOutsideHouseholdLeftOutOfDelivery). A campaign without a readable list keeps reading the sheet as before.
  */
 export function isOutsideHouseholdNotSelected(campaignDetails: any): boolean {
     if (!config.mapping?.outsideHouseholdIgnoreSheetWhenNotSelected) return false;
+    return isOutsideHouseholdLeftOutOfDelivery(campaignDetails);
+}
+
+/**
+ * True when the deliveryMethods list is non-empty and every entry is readable (a code or a {code} object) with none
+ * being OUTSIDEHOUSEHOLD, and no delivery in its rules names OUTSIDEHOUSEHOLD (the console's fallback source).
+ */
+function isOutsideHouseholdLeftOutOfDelivery(campaignDetails: any): boolean {
     const methodCodes = readDeliveryMethodCodes(campaignDetails?.additionalDetails?.cycleData?.deliveryMethods);
     if (!methodCodes || methodCodes.length === 0 || methodCodes.includes(OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)) return false;
     const rules = Array.isArray(campaignDetails?.deliveryRules) ? campaignDetails.deliveryRules : [];
@@ -1258,11 +1267,6 @@ function readDeliveryMethodCodes(methods: unknown): string[] | null {
     if (!Array.isArray(methods)) return null;
     const codes = methods.map((method: any) => normalizeDeliveryMethodCode(method && typeof method === 'object' ? method.code : method));
     return codes.every(Boolean) ? codes : null;
-}
-
-/** Upper-cased with non-alphanumerics removed, as excel-ingestion compares delivery methods; '' when not a usable code. */
-function normalizeDeliveryMethodCode(code: unknown): string {
-    return typeof code === 'string' ? code.toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
 }
 
 /** Outside Household sheet usage is Active / Inactive like the facility sheet; anything but Active is Inactive. */
@@ -1299,7 +1303,7 @@ export function buildStoredOutsideHouseholdNormalizedIndex(existingFacilityMap: 
  * Adds the clone source's saved, undeleted site rows to the index under keys the clone has not got itself. Only for a
  * clone (cloneFrom, no parent) with the switch on; a failed read of the source leaves the index unchanged.
  */
-export async function addCloneSourceSites(campaignDetails: any, tenantId: string, index: Map<string, string>): Promise<number> {
+export async function addCloneSourceSites(campaignDetails: any, tenantId: TenantId, index: Map<string, string>): Promise<number> {
     const sourceNumber = campaignDetails?.additionalDetails?.cloneFrom;
     if (!config.mapping?.outsideHouseholdReuseCloneSourceSites || !sourceNumber || campaignDetails?.parentId) return 0;
     try {
@@ -1560,12 +1564,22 @@ async function processFacilityBoundaryMappings(
 /**
  * Edit of a created campaign: an Active site keeps its existing project-facility link (its mapping does not
  * change), so a changed frontline worker would not reach the link. Write the new worker onto those links.
- * Links that already carry the same worker are left as they are, so a retry repeats nothing.
+ * Links that already carry the same worker are left as they are, so a retry repeats nothing. When a call still fails
+ * after httpRequest's retries, the failed link and the ones not attempted after it are marked updateFailed on their
+ * mapping rows with the reason, and the mapping reconciler retries them like a link it has to create (the campaign fails
+ * only if they still fail after those retries); before that, the new workers must be in campaign data, which the
+ * reconciler reads. A failure another try cannot change is marked terminal, so the campaign reports it without retries:
+ * two links with the same project and site (not sent; one of them has to be removed), or health-project refusing the
+ * link for good. A link that no longer exists, whether not found here or refused as gone, has its row marked to be
+ * created again, with the worker. A failed link with no mapping row to mark fails the campaign here, as before, unless
+ * it is the extra link of a duplicate pair whose other link was marked. rowsWaitingForRetry: this upload queued earlier
+ * failures again, so the rows of links written now are marked done.
  */
 async function updateOutsideHouseholdLinkWorkers(
-    campaignNumber: string,
-    tenantId: string,
+    campaignNumber: CampaignNumber,
+    tenantId: TenantId,
     changedSites: any[],
+    rowsWaitingForRetry: boolean,
     requestInfo?: RequestInfo
 ): Promise<void> {
     const wantedByFacilityId = new Map<string, Record<string, any>>();
@@ -1581,29 +1595,94 @@ async function updateOutsideHouseholdLinkWorkers(
     // Project facilities live under the root tenant
     const rootTenantId = tenantId.split('.')[0];
     const searchUrl = `${config.host.projectHost}${config.paths.projectFacilitySearch}`;
-    const updateUrl = `${config.host.projectHost}${config.paths.projectFacilityUpdate}`;
     const pageSize = config.mapping.searchPageSize;
-    const links: any[] = [];
-    for (let offset = 0; ; offset += pageSize) {
-        const response = await httpRequest(
-            searchUrl,
-            { RequestInfo: requestInfo, ProjectFacility: { projectId: projectIds, facilityId: Array.from(wantedByFacilityId.keys()) } },
-            { tenantId: rootTenantId, limit: pageSize, offset, includeDeleted: false }
-        );
-        const page: any[] = response?.ProjectFacilities || [];
-        links.push(...page);
-        if (page.length < pageSize) break;
+    let links: any[] = [];
+    try {
+        for (let offset = 0; ; offset += pageSize) {
+            const response = await httpRequest(
+                searchUrl,
+                { RequestInfo: requestInfo, ProjectFacility: { projectId: projectIds, facilityId: Array.from(wantedByFacilityId.keys()) } },
+                { tenantId: rootTenantId, limit: pageSize, offset, includeDeleted: false },
+                'post', undefined, undefined, undefined, true
+            );
+            const page: any[] = response?.ProjectFacilities || [];
+            links.push(...page);
+            if (page.length < pageSize) break;
+        }
+    } catch (error) {
+        const reason = `Could not read the site links: ${error instanceof Error ? error.message : String(error)}`;
+        const marked = await markSiteLinkWorkerUpdatesFailedBySite(campaignNumber, tenantId,
+            changedSites.map((entry: any) => entry?.uniqueIdentifier).filter(Boolean), reason);
+        if (marked === 0) throw error;
+        await waitForStoredWorkers(campaignNumber, tenantId, changedSites);
+        logger.warn(`Campaign ${campaignNumber}: ${reason}; ${marked} site link(s) left to the mapping retry`);
+        return;
     }
 
-    let updated = 0;
-    for (const link of links) {
-        const wanted = wantedByFacilityId.get(link?.facilityId);
-        if (!wanted || sameOutsideHouseholdLinkFields(link.additionalFields, wanted)) continue;
-        await httpRequest(updateUrl, { RequestInfo: requestInfo, ProjectFacility: { ...link, additionalFields: wanted } },
-            undefined, 'post', undefined, undefined, undefined, false);
-        updated++;
+    links = distinctLinks(links);
+    // Rows of the changed sites whose link was not found (it no longer exists): created again, with the worker
+    const boundaryCodesWithProject = boundaryData.filter((b: any) => b?.uniqueIdAfterProcess).map((b: any) => b.uniqueIdentifier).filter(Boolean);
+    const relinked = await markSiteLinksToCreateAgain(campaignNumber, tenantId, {
+        uniqueIdentifiers: changedSites.map((entry: any) => entry?.uniqueIdentifier).filter(Boolean),
+        boundaryCodes: boundaryCodesWithProject,
+        foundLinkIds: links.map((link: any) => link.id)
+    }, 'Site link no longer exists; it will be created again with the frontline worker');
+
+    // Two links with the same project and site: health-project refuses the update of all but one, so none is sent
+    const duplicateGroups = duplicateLinkGroups(links);
+    const duplicateIds = new Set(duplicateGroups.flat().map((link: any) => link.id));
+    const toUpdate = linksNeedingWorkerUpdate(links.filter((link: any) => !duplicateIds.has(link.id)), wantedByFacilityId);
+    const result = await updateLinkWorkers(toUpdate, wantedByFacilityId, requestInfo, true);
+    const failures: LinkWorkerUpdateFailure[] = [...duplicateGroups.flatMap(duplicateLinkFailures), ...result.failures];
+    const { updated, notAttempted } = result;
+    const unfinished = new Set([...failures.map((failure) => failure.link.id), ...notAttempted.map((link: any) => link.id)]);
+    if (rowsWaitingForRetry) {
+        await markSiteLinkWorkerUpdatesDone(campaignNumber, tenantId,
+            links.filter((link: any) => wantedByFacilityId.has(link?.facilityId) && !unfinished.has(link.id)).map((link: any) => link.id));
     }
-    logger.info(`Frontline worker updated on ${updated} site link(s) of campaign ${campaignNumber}`);
+    const missing = failures.filter((failure) => failure.kind === 'missing');
+    const gone = await markSiteLinksToCreateAgain(campaignNumber, tenantId, { linkIds: missing.map((failure) => failure.link.id) },
+        'Site link no longer exists; it will be created again with the frontline worker');
+    const toRecord = [
+        ...failures.filter((failure) => failure.kind !== 'missing').map((failure) => ({ mappingId: failure.link.id,
+            error: `Frontline worker update failed: ${failure.error}`, terminal: failure.kind === 'permanent' })),
+        ...notAttempted.map((link: any) => ({ mappingId: link.id, error: 'Frontline worker update not attempted after an earlier failure' })),
+    ];
+    if (toRecord.length > 0) {
+        const marked = await markSiteLinkWorkerUpdatesFailed(campaignNumber, tenantId, toRecord);
+        // The extra link of a duplicate pair has no mapping row of its own; the pair is reported on the row that has one
+        const reportedPairs = duplicateGroups.filter((group) => group.some((link: any) => marked.has(link.id)));
+        const coveredIds = new Set(reportedPairs.flat().map((link: any) => link.id));
+        const unrecorded = toRecord.filter((record) => !marked.has(record.mappingId) && !coveredIds.has(record.mappingId));
+        if (unrecorded.length > 0) {
+            throw new Error(`Frontline worker update failed on site link(s) ${unrecorded.map((record) => record.mappingId).join(', ')}: ${unrecorded[0].error}`);
+        }
+    }
+    if (unfinished.size > 0 || relinked > 0) {
+        await waitForStoredWorkers(campaignNumber, tenantId, changedSites);
+        logger.warn(`Campaign ${campaignNumber}: frontline worker update failed on ${failures.length - missing.length} site link(s), `
+            + `${notAttempted.length} not attempted, ${relinked + gone} link(s) to create again; left to the mapping flow`);
+    }
+    logger.info(`Frontline worker updated on ${updated.length} site link(s) of campaign ${campaignNumber}`);
+}
+
+/**
+ * Waits until campaign data holds the new frontline worker of every changed site (it is written through the persister),
+ * because the mapping reconciler retries a failed link update from campaign data. Fails the campaign if it never does.
+ */
+async function waitForStoredWorkers(campaignNumber: CampaignNumber, tenantId: TenantId, changedSites: any[]): Promise<void> {
+    const wanted = new Map<string, Record<string, any>>();
+    changedSites.forEach((entry: any) => entry?.uniqueIdentifier && wanted.set(entry.uniqueIdentifier, outsideHouseholdLinkAdditionalFields(entry.data)));
+    if (wanted.size === 0) return;
+    await pollUntilCountFn(async () => {
+        const rows = await getRelatedDataWithUniqueIdentifiers('facility', Array.from(wanted.keys()), tenantId);
+        return rows.filter((row: any) => row?.campaignNumber === campaignNumber && wanted.has(row.uniqueIdentifier)
+            && sameOutsideHouseholdLinkFields(outsideHouseholdLinkAdditionalFields(row.data), wanted.get(row.uniqueIdentifier) as Record<string, any>)).length;
+    }, wanted.size, {
+        label: `stored frontline workers of campaign ${campaignNumber}`,
+        stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs,
+        pollIntervalMs: config.excelIngestion.persistencePollIntervalMs
+    });
 }
 
 /**

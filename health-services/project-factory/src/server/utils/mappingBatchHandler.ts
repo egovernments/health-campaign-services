@@ -1,8 +1,10 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
+import { TenantId } from "../config/models/brandedTypes";
 import { logger } from './logger';
-import { getRelatedDataWithCampaign } from './genericUtils';
+import { getRelatedDataWithCampaign, markSiteLinksToCreateAgain, safeMappingError } from './genericUtils';
 import { mappingStatuses, outsideHouseholdFacilityFields } from '../config/constants';
 import { outsideHouseholdLinkAdditionalFields } from './outsideHouseholdLinkFields';
+import { linksNeedingWorkerUpdate, updateLinkWorkers } from './outsideHouseholdLinkWorkerUpdate';
 import { createProjectResource, createProjectFacility, createStaff, createStaffBulk, createProjectFacilityBulk, createProjectResourceBulk, searchProjectResourcesByProjects, searchProjectFacilitiesByProjects, searchProjectStaffByProjects, deleteProjectFacilitiesById } from '../api/genericApis';
 import { produceModifiedMessages } from '../kafka/Producer';
 import config from '../config';
@@ -63,6 +65,9 @@ export async function handleMappingBatch(messageObject: any) {
         if (mappingGroups.facilityToBeDeMapped.length > 0) {
             promises.push(processFacilityDemappings(mappingGroups.facilityToBeDeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo));
         }
+        if (mappingGroups.facilityToBeUpdated.length > 0) {
+            promises.push(processFacilityWorkerUpdates(mappingGroups.facilityToBeUpdated, outsideHouseholdLinkFieldsMap, tenantId, requestInfo));
+        }
         if (mappingGroups.userToBeDeMapped.length > 0) {
             promises.push(processUserDemappings(mappingGroups.userToBeDeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
         }
@@ -99,6 +104,7 @@ function groupMappings(mappings: any[]) {
         resourceToBeDeMapped: [] as any[],
         facilityToBeMapped: [] as any[],
         facilityToBeDeMapped: [] as any[],
+        facilityToBeUpdated: [] as any[],
         userToBeMapped: [] as any[],
         userToBeDeMapped: [] as any[]
     };
@@ -118,6 +124,8 @@ function groupMappings(mappings: any[]) {
                 groups.facilityToBeMapped.push(mapping);
             } else if (status === mappingStatuses.toBeDeMapped) {
                 groups.facilityToBeDeMapped.push(mapping);
+            } else if (status === mappingStatuses.toBeUpdated) {
+                groups.facilityToBeUpdated.push(mapping);
             }
         } else if (type === 'user') {
             if (status === mappingStatuses.toBeMapped) {
@@ -140,9 +148,10 @@ async function runBoundedCreates(items: any[], worker: (item: any) => Promise<vo
 
 /**
  * Persists per-row failure reasons via direct SQL — the mapping persister contract
- * (Kafka message fields) stays unchanged; lastError lives only in the DB.
+ * (Kafka message fields) stays unchanged; lastError lives only in the DB. A terminal failure (one another try cannot
+ * change) also gets retryCount at the retry limit, so the reconciler does not retry it.
  */
-async function persistMappingErrors(failures: { mapping: any; errorMessage: string }[], tenantId: string): Promise<void> {
+async function persistMappingErrors(failures: { mapping: any; errorMessage: string; terminal?: boolean }[], tenantId: string): Promise<void> {
     if (failures.length === 0) return;
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
     const CHUNK_SIZE = config.mapping.persistBatchSize;
@@ -150,15 +159,17 @@ async function persistMappingErrors(failures: { mapping: any; errorMessage: stri
         const chunk = failures.slice(i, i + CHUNK_SIZE);
         const values: string[] = [];
         const params: any[] = [];
-        chunk.forEach(({ mapping, errorMessage }, idx) => {
-            const base = idx * 5;
-            values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
-            params.push(errorMessage, mapping.campaignNumber, mapping.uniqueIdentifierForData, mapping.boundaryCode, mapping.type);
+        chunk.forEach(({ mapping, errorMessage, terminal }, idx) => {
+            const base = idx * 6;
+            values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}::boolean)`);
+            params.push(safeMappingError(errorMessage), mapping.campaignNumber, mapping.uniqueIdentifierForData, mapping.boundaryCode, mapping.type, Boolean(terminal));
         });
+        params.push(config.mapping.maxRetries);
         try {
             await executeQuery(
-                `UPDATE ${tableName} t SET lastError = v.err
-                 FROM (VALUES ${values.join(', ')}) AS v(err, campaignNumber, uniqueIdentifierForData, boundaryCode, type)
+                `UPDATE ${tableName} t SET lastError = v.err,
+                        retryCount = CASE WHEN v.terminal THEN GREATEST(t.retryCount, $${params.length}) ELSE t.retryCount END
+                 FROM (VALUES ${values.join(', ')}) AS v(err, campaignNumber, uniqueIdentifierForData, boundaryCode, type, terminal)
                  WHERE t.campaignNumber = v.campaignNumber
                    AND t.uniqueIdentifierForData = v.uniqueIdentifierForData
                    AND t.boundaryCode = v.boundaryCode
@@ -332,7 +343,7 @@ async function bulkCreateAndConfirm(
         chunks.push(creatable.slice(i, i + CHUNK));
     }
 
-    // A chunk whose bulk OUTSIDE_HOUSEHOLD throws (5xx / network) marks its own rows failed with the reason
+    // A chunk whose bulk POST throws (5xx / network) marks its own rows failed with the reason
     // instead of aborting the whole batch — so other chunks, the confirm pass, and already-adopted
     // rows still get processed and persisted, and the failure reason is captured in lastError.
     const failedKeys = new Set<string>();
@@ -352,7 +363,7 @@ async function bulkCreateAndConfirm(
         }
     });
 
-    // Confirm-by-search only the rows whose bulk OUTSIDE_HOUSEHOLD was accepted.
+    // Confirm-by-search only the rows whose bulk POST was accepted.
     const pending = new Map<string, { mapping: any; projectId: string; entityId: string }>();
     for (const c of creatable) {
         const key = `${c.entityId}|${c.projectId}`;
@@ -599,11 +610,88 @@ async function processResourceDemappings(
     await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
+/**
+ * Site links whose frontline worker still has to be written (toBeUpdated): each link is read by its stored id and gets this
+ * campaign's worker when it differs. Written or already right -> mapped. A link that no longer exists -> failed without its
+ * link id, so the reconciler resets the row to toBeMapped and creates the link again with the worker. A failed call, or a
+ * link not attempted after it -> updateFailed with the reason; a failure another try cannot change (e.g. a second link with
+ * the same project and site) is terminal, so it is not retried. The reconciler owns the retries, so these calls do not use
+ * httpRequest's own retry.
+ */
+async function processFacilityWorkerUpdates(
+    mappings: any[],
+    outsideHouseholdLinkFieldsMap: Record<string, any>,
+    tenantId: TenantId,
+    requestInfo: RequestInfo
+): Promise<void> {
+    logger.info(`Processing ${mappings.length} site link worker updates`);
+    const updateBatch: any[] = [];
+    const failures: { mapping: any; errorMessage: string; terminal?: boolean }[] = [];
+    const fail = (rows: any[], errorMessage: string, terminal = false) => rows.forEach((mapping: any) => {
+        mapping.status = mappingStatuses.updateFailed; updateBatch.push(mapping); failures.push({ mapping, errorMessage, terminal });
+    });
+    // Links that no longer exist: their rows are written by status-guarded SQL (not the unconditional persister update),
+    // so a newer upload's status for the same row is never overwritten
+    const goneLinkIds: string[] = [];
+    const rowsByLinkId = new Map<string, any[]>();
+    for (const mapping of mappings) {
+        if (mapping.mappingId) {
+            rowsByLinkId.set(mapping.mappingId, [...(rowsByLinkId.get(mapping.mappingId) || []), mapping]);
+        } else {
+            // no link id: there is no link to write the worker on
+            mapping.status = mappingStatuses.mapped; updateBatch.push(mapping);
+        }
+    }
+    const ids = Array.from(rowsByLinkId.keys());
+    const CHUNK = config.mapping.projectSearchChunkSize;
+    const links: any[] = [];
+    for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        try {
+            const response = await httpRequest(config.host.projectHost + config.paths.projectFacilitySearch,
+                { RequestInfo: requestInfo, ProjectFacility: { id: chunk } },
+                { tenantId: tenantId.split(".")[0], limit: chunk.length, offset: 0, includeDeleted: false });
+            links.push(...(response?.ProjectFacilities || []).filter((link: any) => link?.id && !link?.isDeleted));
+        } catch (error) {
+            const errorMessage = `Could not read the site links: ${error instanceof Error ? error.message : String(error)}`;
+            chunk.forEach((id: string) => { fail(rowsByLinkId.get(id) || [], errorMessage); rowsByLinkId.delete(id); });
+        }
+    }
+    const wantedByFacilityId = new Map<string, Record<string, any>>();
+    for (const link of links) {
+        const wanted = outsideHouseholdLinkFieldsMap[(rowsByLinkId.get(link.id) || [])[0]?.uniqueIdentifierForData];
+        if (wanted) wantedByFacilityId.set(link.facilityId, wanted);
+    }
+    const { failures: updateFailures, notAttempted } = await updateLinkWorkers(
+        linksNeedingWorkerUpdate(links, wantedByFacilityId), wantedByFacilityId, requestInfo, false);
+    const failedById = new Map(updateFailures.map(f => [f.link.id, f]));
+    const notAttemptedIds = new Set(notAttempted.map((link: any) => link.id));
+    const foundIds = new Set(links.map((link: any) => link.id));
+    for (const [id, rows] of rowsByLinkId) {
+        const failure = failedById.get(id);
+        if (!foundIds.has(id) || failure?.kind === 'missing') {
+            goneLinkIds.push(id);
+        } else if (failure) {
+            fail(rows, `Frontline worker update failed: ${failure.error}`, failure.kind === 'permanent');
+        } else if (notAttemptedIds.has(id)) {
+            fail(rows, 'Frontline worker update not attempted after an earlier failure');
+        } else {
+            rows.forEach((mapping: any) => { mapping.status = mappingStatuses.mapped; updateBatch.push(mapping); });
+        }
+    }
+    const createdAgain = await markSiteLinksToCreateAgain(mappings[0]?.campaignNumber, tenantId, { linkIds: goneLinkIds },
+        'Site link no longer exists; it will be created again with the frontline worker');
+    logger.info(`Site link worker updates: ${updateBatch.length - failures.length} done, ${failures.length} failed, ${createdAgain} to create again`);
+    // Reasons (and the retry limit of a terminal failure) first, so the reconciler never resets a row before it is terminal
+    await persistMappingErrors(failures, tenantId);
+    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+}
+
 async function processFacilityDemappings(
     mappings: any[],
     boundaryToProjectId: Record<string, string>,
     facilityMap: Record<string, string>,
-    tenantId: string,
+    tenantId: TenantId,
     useruuid: string,
     requestInfo: RequestInfo
 ): Promise<void> {

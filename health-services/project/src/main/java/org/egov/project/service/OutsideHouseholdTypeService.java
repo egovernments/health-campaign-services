@@ -8,14 +8,16 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Site types of the outside household feature, read from the MDMS master HCM.OUTSIDE_HOUSEHOLD_TYPES
  * (active rows, state tenant). A facility whose usage is one of these codes is a site, not a normal
- * facility. The list is cached per state tenant; if MDMS cannot be read, the last list read is used
- * (an empty list until one has been read, which leaves sites visible rather than failing the search).
+ * facility. Codes are kept in upper case (usage is compared in upper case). The list is cached per state tenant; if MDMS
+ * cannot be read, the last list read is used, and before one has been read the fallback list of the configuration
+ * (egov.outside.household.fallback.types), so sites stay hidden instead of showing as normal facilities.
  */
 @Component
 @Slf4j
@@ -54,11 +56,18 @@ public class OutsideHouseholdTypeService {
             cache.put(stateTenantId, new CachedTypes(codes, now + CACHE_MILLIS));
             return codes;
         } catch (Exception e) {
-            log.error("Could not read {} for tenant {}; using the last list read", SCHEMA_CODE, stateTenantId, e);
-            List<String> lastKnown = cached != null ? cached.codes() : List.of();
+            log.error("Could not read {} for tenant {}; using the last list read, else the fallback list", SCHEMA_CODE, stateTenantId, e);
+            List<String> lastKnown = cached != null ? cached.codes() : fallbackTypes();
             cache.put(stateTenantId, new CachedTypes(lastKnown, now + RETRY_AFTER_FAILURE_MILLIS));
             return lastKnown;
         }
+    }
+
+    /** The configured fallback site types, upper case; empty when none is configured. */
+    private List<String> fallbackTypes() {
+        List<String> configured = configuration.getOutsideHouseholdFallbackTypes();
+        return configured == null ? List.of() : configured.stream().filter(code -> code != null && !code.isBlank())
+                .map(code -> code.trim().toUpperCase(Locale.ROOT)).distinct().toList();
     }
 
     @SuppressWarnings("unchecked")
@@ -67,7 +76,7 @@ public class OutsideHouseholdTypeService {
                 "RequestInfo", RequestInfo.builder().build(),
                 "MdmsCriteria", Map.of("tenantId", stateTenantId, "schemaCode", SCHEMA_CODE, "limit", 100));
         String host = configuration.getMdmsHost();
-        String path = configuration.getMdmsV2SearchPath();
+        String path = configuration.getMdmsV2EndPoint();
         String url = (host.endsWith("/") ? host : host + "/") + (path.startsWith("/") ? path.substring(1) : path);
         Map<String, Object> response = serviceRequestClient.fetchResult(new StringBuilder(url), request, Map.class);
         List<String> codes = new ArrayList<>();
@@ -81,7 +90,7 @@ public class OutsideHouseholdTypeService {
                 Object code = ((Map<String, Object>) data).get("code");
                 if (Boolean.TRUE.equals(((Map<String, Object>) data).get("active")) && code instanceof String
                         && !((String) code).isBlank()) {
-                    codes.add(((String) code).trim());
+                    codes.add(((String) code).trim().toUpperCase(Locale.ROOT));
                 }
             }
         }

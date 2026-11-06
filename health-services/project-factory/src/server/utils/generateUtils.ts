@@ -9,6 +9,7 @@ import { getBoundarySheetData } from "../api/genericApis";
 import { checkIfSourceIsMicroplan } from "./campaignUtils";
 import { httpRequest } from "./request";
 import { RequestInfo } from "../config/models/requestInfoSchema";
+import { OUTSIDE_HOUSEHOLD_DELIVERY_METHOD, normalizeDeliveryMethodCode } from "./deliveryMethodUtils";
 
 function extractProperties(obj: any) {
     return {
@@ -35,17 +36,12 @@ function isCampaignTypeSame(request: any) {
     return _.isEqual(existingCampaignType, currentCampaignType);
 }
 
-// Delivery-method code that adds the Outside Household sheet to the unified template (excel-ingestion)
-const OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = "OUTSIDEHOUSEHOLD";
-
 /** Whether additionalDetails.cycleData.deliveryMethods (codes or {code} objects) holds OUTSIDEHOUSEHOLD, compared as excel-ingestion does; null when there is no list. */
 export function hasOutsideHouseholdDelivery(campaignDetails: any): boolean | null {
     const methods = campaignDetails?.additionalDetails?.cycleData?.deliveryMethods;
     if (!Array.isArray(methods)) return null;
-    return methods.some((method: any) => {
-        const code = method && typeof method === "object" ? method.code : method;
-        return typeof code === "string" && code.toUpperCase().replace(/[^A-Z0-9]/g, "") === OUTSIDE_HOUSEHOLD_DELIVERY_METHOD;
-    });
+    return methods.some((method: any) =>
+        normalizeDeliveryMethodCode(method && typeof method === "object" ? method.code : method) === OUTSIDE_HOUSEHOLD_DELIVERY_METHOD);
 }
 
 /** True when the update adds or removes OUTSIDEHOUSEHOLD (the template gains or loses its Outside Household sheet); an update without a deliveryMethods list changes nothing. */
