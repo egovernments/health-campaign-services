@@ -1,0 +1,156 @@
+@startuml
+title Worker Registry - Bulk Create
+!theme vibrant
+participant Client as c
+participant WorkerRegistry as s
+participant IndividualService as is
+participant IdGenService as idg
+participant EncryptionService as enc
+participant MDMSService as mdms
+participant RedisCache as rc
+queue Kafka as k
+database Database as db
+participant HandleErrorMethod as he
+
+c -> s : POST /worker/v1/bulk/_create
+activate s
+
+s -> s: Deserialize WorkerBulkRequest (@Valid)
+note right
+    WorkerBulkRequest has no constraint annotations and
+    "workers" is not @Valid, so EgovModel constraints
+    (@NotNull tenantId, @Size id) are NOT enforced here
+end note
+alt malformed JSON
+    s -> he: HttpMessageNotReadableException
+    he -> c: HttpStatus: 400 { Errors: JsonMappingException / JsonParseException }
+end
+
+group CommonUtils.validate (isApplicableForCreate, sorted by @Order)
+    s -> s: WNonEmptyWorkerListValidator (@Order 1)
+    alt workers null or empty
+        s -> s: Error EMPTY_WORKERS_LIST on a dummy worker
+    end
+
+    s -> s: WIndividualIdValidator (@Order 2)
+    opt individual.validation.enabled = true AND workers carry individualIds
+        s -> is: /individual/v1/_search?limit=100&offset=0&tenantId=<first worker tenantId>\n{ Individual: { id: [all distinct individualIds] } }
+        activate is
+        alt individual service call fails
+            is -> s: Error
+            s -> s: Error INDIVIDUAL_SERVICE_UNAVAILABLE\non every worker with individualIds
+        else success
+            is -> s: Individuals
+            deactivate is
+            s -> s: Error INDIVIDUAL_NOT_FOUND for every individualId not returned
+        end
+    end
+
+    s -> s: WTenantIdValidator (@Order 2)
+    alt worker tenantId blank
+        s -> s: Error MISSING_TENANT_ID
+    end
+
+    s -> s: WPaymentProviderValidator (@Order 3)
+    alt paymentProvider = BANK
+        s -> s: MISSING_PAYEE_NAME (payeeName blank)\nMISSING_BENEFICIARY_CODE (blank or not ^[A-Za-z0-9]{1,35}$)\nMISSING_BANK_ACCOUNT (blank) / INVALID_BANK_ACCOUNT (not 10 digits)\nINVALID_BANK_CODE (not blank / 3 digits / 9 digits)
+    else paymentProvider = MTN
+        s -> s: MISSING_PAYEE_PHONE_NUMBER, MISSING_PAYEE_NAME
+    else other / blank provider
+        s -> s: No payment validation
+    end
+
+    alt any validator returned errors (isBulk = false)
+        s -> he: CustomException VALIDATION_ERROR
+        he -> c: HttpStatus: 400 VALIDATION_ERROR (whole request rejected)
+    end
+end
+note right
+    Validators skip workers already flagged (hasErrors).
+    Validators with the same @Order run in bean
+    registration order (alphabetical class scan).
+end note
+
+group enrichCreate
+    s -> s: createdBy = userInfo.uuid or "system"
+    opt workers without id
+        s -> idg: /egov-idgen/id/_generate\n(idName = worker.id, tenantId = state part of first tenantId, count = n)
+        activate idg
+        alt idgen error / no ids returned
+            idg -> s: Error
+            s -> c: HttpStatus: 400 SERVICE_REQUEST_ERROR / IDGEN_ERROR
+        else
+            idg -> s: Ids
+            deactivate idg
+        end
+    end
+    s -> s: Set id (client ids kept), auditDetails, rowVersion = 1, isDeleted = false
+end
+s -> s: Build WorkerIndividualMap for each individualId\n(tenantId of first worker, isDeleted = false)
+
+group encrypt (WorkerEncrypt)
+    s -> enc: /egov-enc-service/crypto/v1/_encrypt\n(tenantId = state.level.tenant.id)
+    activate enc
+    alt encryption fails
+        enc -> s: Error
+        s -> c: HttpStatus: 400 ENCRYPTION_ERROR / UNKNOWN_ERROR
+    else
+        enc -> s: Encrypted workers
+        deactivate enc
+    end
+end
+
+s -> rc: HSET eg_hcm_worker_registry <workerId> -> encrypted Worker
+activate rc
+deactivate rc
+note right
+    Cache write only (never read by the service);
+    Redis failures are logged and ignored
+end note
+
+s -> db: Batch INSERT INTO <schema>.eg_hcm_worker_registry\n(id, tenantId, name, ..., beneficiaryCode, ..., rowVersion)
+activate db
+alt DB error (e.g. duplicate id, name / paymentProvider NULL)
+    db -> s: DataAccessException
+    s -> c: HttpStatus: 400 { Errors: unhandled exception }
+end
+deactivate db
+
+opt individual maps present
+    s -> s: enrichMapIndividual (random UUID id, auditDetails)
+    s -> rc: HSET eg_hcm_worker_individual_map <individualId> -> map
+    activate rc
+    deactivate rc
+    s -> db: Batch INSERT INTO <schema>.eg_hcm_worker_individual_map
+    activate db
+    deactivate db
+end
+note right
+    WIndividualIdUniqueValidator is NOT applied on create,
+    so an individual can be mapped to several workers here.
+    Worker and map inserts are not in one transaction.
+end note
+
+group decrypt (WorkerDecrypt, purpose = search)
+    opt worker name is cipher text
+        s -> enc: /egov-enc-service/crypto/v1/_decrypt
+        activate enc
+        enc -> s: Decrypted workers
+        deactivate enc
+        s -> k: Decrypt audit /audit-logs
+        activate k
+        deactivate k
+    end
+end
+
+s -> c: HttpStatus: 200 WorkerResponse { responseInfo, workers }
+deactivate s
+
+note over enc, mdms
+    enc-client resolves the WorkerEncrypt / WorkerDecrypt attributes
+    from MDMS DataSecurity.SecurityPolicy (egov.mdms.host + mdms-v2/v1/_search).
+    No persister / indexer config exists for any worker-registry topic;
+    the service writes to Postgres directly via JDBC.
+end note
+
+@enduml

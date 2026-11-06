@@ -1,0 +1,51 @@
+@startuml
+title Plan Service - Plan Employee Assignment Search
+!theme vibrant
+participant Client as c
+participant PlanService as s
+database Database as db
+
+c -> s : POST /plan-service/employee/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(tenantId required (2-100), planConfigurationId max 64)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+alt filterUniqueByPlanConfig == true
+    s -> db: WITH ranked_assignments AS (SELECT pa.*, ROW_NUMBER() OVER\n(PARTITION BY pa.plan_configuration_id ORDER BY pc.last_modified_time DESC)\nFROM plan_employee_assignment pa JOIN plan_configuration pc WHERE <criteria>)\nSELECT ... WHERE row_num = 1 ORDER BY pc_last_modified_time DESC OFFSET ? LIMIT ?
+    activate db
+    db -> s: One assignment per plan configuration
+    deactivate db
+else
+    s -> db: SELECT ... FROM plan_employee_assignment pa WHERE <criteria>\nORDER BY pa.last_modified_time DESC OFFSET ? LIMIT ?
+    activate db
+    db -> s: PlanEmployeeAssignments
+    deactivate db
+end
+note right
+    Criteria: id, planConfigurationId, tenantId,
+    planConfigurationName (ILIKE), employeeId (IN),
+    planConfigurationStatus (pc.status IN), role (IN),
+    hierarchyLevel, active (default true),
+    jurisdiction (overlaps comma-separated jurisdiction).
+    Default limit 10, max 100, offset 0
+end note
+
+s -> db: SELECT COUNT(id) FROM (<same query without pagination>)
+activate db
+db -> s: TotalCount
+deactivate db
+
+s -> c: HttpStatus: 200 PlanEmployeeAssignment, TotalCount
+deactivate s
+
+note over s
+    planConfigurationStatus filters on pc.status, which is only joined
+    when filterUniqueByPlanConfig = true; otherwise the SQL fails
+    (HTTP 400, unhandled exception). active defaults to true, so
+    inactive assignments are returned only when active = false is sent.
+end note
+
+@enduml

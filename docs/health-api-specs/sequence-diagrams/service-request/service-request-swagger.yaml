@@ -1,0 +1,591 @@
+openapi: 3.0.3
+info:
+  title: Service Request API
+  description: |
+    Manages checklist definitions (ServiceDefinition with AttributeDefinitions) and
+    checklist responses (Service with AttributeValues).
+    Source: core-services/service-request (Java / Spring Boot).
+
+    Writes are validated synchronously, then published to Kafka and persisted
+    asynchronously by egov-persister (topics save-service-definition,
+    update-service-definition, save-service, update-service; state specific topic
+    prefix applied for central instance tenants). A 200 response means the
+    record was published, not that it was stored. No indexer config exists.
+
+    Errors are returned by the DIGIT tracer as HTTP 400 with an `Errors` array
+    (including bean validation errors, unparsable JSON and unexpected exceptions).
+  version: 1.0.0
+servers:
+  - url: https://{host}/service-request
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Service Definition
+  - name: Service
+
+paths:
+  /service/definition/v1/_create:
+    post:
+      tags: [Service Definition]
+      summary: Create a service definition (checklist template)
+      description: |
+        Validations in order: no existing definition with the same tenantId + code
+        (inactive ones included), unique attribute codes, `values` only for
+        SingleValueList / MultiValueList, regex must compile.
+        Server generates `id` for the definition and each attribute (client ids are
+        overwritten), sets auditDetails from `RequestInfo.userInfo.uuid` and publishes
+        to `save-service-definition`.
+      operationId: serviceDefinitionCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceDefinitionRequest'
+            example:
+              RequestInfo:
+                apiId: service-request
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              ServiceDefinition:
+                tenantId: mz
+                code: CAMPAIGN.HOUSEHOLD.SUPERVISOR
+                isActive: true
+                attributes:
+                  - code: SN1
+                    dataType: SingleValueList
+                    values: ["YES", "NO"]
+                    isActive: true
+                    required: true
+                    order: "1"
+                  - code: SN2
+                    dataType: Number
+                    isActive: true
+                    required: false
+      responses:
+        '200':
+          description: Published for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceDefinitionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /service/definition/v1/_search:
+    post:
+      tags: [Service Definition]
+      summary: Search service definitions
+      description: |
+        Without `ids`: filters by tenantId, code, clientId and `isActive = true`
+        (unless `includeDeleted`), ordered by createdtime DESC with pagination
+        (default offset 0, limit 10; max limit is not enforced).
+        With `ids`: only tenantId + ids are applied (no isActive filter, no pagination).
+        Result order is not guaranteed (grouped in a HashMap). Response has no
+        ResponseInfo and no Pagination.
+      operationId: serviceDefinitionSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceDefinitionSearchRequest'
+            example:
+              RequestInfo:
+                apiId: service-request
+                authToken: "<auth-token>"
+              ServiceDefinitionCriteria:
+                tenantId: mz
+                code: [CAMPAIGN.HOUSEHOLD.SUPERVISOR]
+              Pagination:
+                limit: 10
+                offset: 0
+              includeDeleted: false
+      responses:
+        '200':
+          description: Matching service definitions (empty list if none)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceDefinitionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /service/definition/v1/_update:
+    post:
+      tags: [Service Definition]
+      summary: Update a service definition
+      description: |
+        Looks up the definition by tenantId + code (the `id` in the request is ignored).
+        Then runs the same attribute validations as create. Existing attributes (matched by
+        code) keep their id; new codes get a new id. Attributes not sent are left unchanged.
+        Persister updates only lastModified*, additionalFields and isActive of the definition
+        (`isActive: false` soft deletes it) and upserts attribute definitions.
+      operationId: serviceDefinitionUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceDefinitionRequest'
+      responses:
+        '200':
+          description: Published for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceDefinitionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /service/v1/_create:
+    post:
+      tags: [Service]
+      summary: Submit a service (checklist response)
+      description: |
+        Validations in order: serviceDefId exists for tenantId (inactive definitions are
+        accepted), no existing service with the same tenantId + clientId (if clientId is
+        null, any existing service in the tenant triggers SERVICE_ALREADY_EXISTS_ERR_CODE),
+        attribute values against the definition (known code, unique code, required present,
+        type per dataType, list membership, max string length 8192).
+        Server generates `id` for the service and each attribute value and publishes
+        to `save-service`.
+      operationId: serviceCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequest'
+            example:
+              RequestInfo:
+                apiId: service-request
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+              Service:
+                tenantId: mz
+                serviceDefId: 8b9ad2b8-9e6f-4b45-a5a6-0e7a3b2f7c11
+                referenceId: HH-0001
+                accountId: 2a1f1a7c-4cc3-4a4c-9c1b-6e7f2c0d1a22
+                clientId: 6c2f3a90-0d3e-4b44-a5b7-9a1b2c3d4e5f
+                attributes:
+                  - attributeCode: SN1
+                    value: "YES"
+                    clientReferenceId: 0f7a1c2b-attr-1
+                  - attributeCode: SN2
+                    value: 4
+      responses:
+        '200':
+          description: Published for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /service/v1/_search:
+    post:
+      tags: [Service]
+      summary: Search services
+      description: |
+        Without `ids`: filters by tenantId, serviceDefIds, referenceIds, accountId and
+        clientId, ordered by createdtime DESC with pagination (default offset 0, limit 10;
+        max limit is not enforced).
+        With `ids`: only tenantId + ids are applied (no other filters, no pagination).
+        Result order is not guaranteed. Response has no ResponseInfo and no Pagination.
+      operationId: serviceSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceSearchRequest'
+            example:
+              RequestInfo:
+                apiId: service-request
+                authToken: "<auth-token>"
+              ServiceCriteria:
+                tenantId: mz
+                serviceDefIds: [8b9ad2b8-9e6f-4b45-a5a6-0e7a3b2f7c11]
+              Pagination:
+                limit: 10
+                offset: 0
+      responses:
+        '200':
+          description: Matching services (empty list if none)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /service/v1/_update:
+    post:
+      tags: [Service]
+      summary: Update a service (checklist response)
+      description: |
+        Requires an existing `id` for the tenantId and a valid serviceDefId.
+        Attribute values with an `id` replace the stored value with that id; values
+        without `id` are added (rejected if the attributeCode already exists). The merged
+        list is validated against the definition and returned in the response.
+        Persister updates lastModified*, additionalFields and accountId of the service and
+        upserts attribute values (ON CONFLICT (id)). serviceDefId, referenceId and
+        clientId are not updated.
+      operationId: serviceUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequest'
+      responses:
+        '200':
+          description: Published for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  responses:
+    BadRequest:
+      description: Validation or business error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: SERVICE_DEFINITION_ALREADY_EXISTS_ERR_CODE
+                message: Service definition with the given tenantId and code combination already exists
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId: { type: string }
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      description: uuid is required for create and update (used for auditDetails)
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name: { type: string }
+              tenantId: { type: string }
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string, example: uief87324, description: Hard-coded value }
+        msgId: { type: string }
+        status: { type: string, example: successful }
+
+    AuditDetails:
+      type: object
+      description: Set by the server; client values are overwritten
+      properties:
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedTime: { type: integer, format: int64 }
+
+    Pagination:
+      type: object
+      properties:
+        limit: { type: integer, default: 10 }
+        offset: { type: integer, default: 0 }
+        totalCount: { type: integer, format: int64, description: Not populated }
+        sortBy: { type: string, description: Not used }
+        order:
+          type: string
+          enum: [asc, desc]
+          description: Not used; results are ordered by createdtime DESC
+
+    AttributeDefinition:
+      type: object
+      required: [code, dataType, isActive]
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Generated by the server (reused for existing codes on update)
+        referenceId:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Set to the service definition id by the server
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        code: { type: string, minLength: 2, maxLength: 256 }
+        dataType:
+          type: string
+          enum: [String, Boolean, Number, Text, Datetime, SingleValueList, MultiValueList, Numeric, File]
+        values:
+          type: array
+          items: { type: string }
+          description: |
+            Only allowed for SingleValueList / MultiValueList (else INVALID_ATTRIBUTE_DEFINITION_ERR_CODE).
+            Stored as a comma separated string and split on "," when read, so values
+            must not contain commas. Returned as null for other data types.
+        isActive: { type: boolean, default: true }
+        required: { type: boolean }
+        regex:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Must compile as a Java regex (INVALID_REGEX_ERR_CODE). Not applied to values.
+        order: { type: string }
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalFields:
+          type: object
+          additionalProperties: true
+
+    ServiceDefinition:
+      type: object
+      required: [code, attributes]
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Generated by the server on create; ignored on update (lookup by tenantId + code)
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        code:
+          type: string
+          minLength: 2
+          maxLength: 256
+          description: Unique per tenantId (PRIMARY KEY (tenantId, code))
+        isActive: { type: boolean, default: true }
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeDefinition'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalFields:
+          type: object
+          additionalProperties: true
+        clientId: { type: string, maxLength: 64 }
+
+    ServiceDefinitionRequest:
+      type: object
+      required: [RequestInfo, ServiceDefinition]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ServiceDefinition:
+          $ref: '#/components/schemas/ServiceDefinition'
+
+    ServiceDefinitionCriteria:
+      type: object
+      required: [tenantId]
+      properties:
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        ids:
+          type: array
+          items: { type: string }
+        code:
+          type: array
+          items: { type: string }
+        clientId: { type: string }
+
+    ServiceDefinitionSearchRequest:
+      type: object
+      required: [RequestInfo]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ServiceDefinitionCriteria:
+          $ref: '#/components/schemas/ServiceDefinitionCriteria'
+        Pagination:
+          $ref: '#/components/schemas/Pagination'
+        includeDeleted:
+          type: boolean
+          default: false
+          description: true also returns inactive (soft deleted) definitions
+
+    ServiceDefinitionResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ServiceDefinitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceDefinition'
+        Pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    AttributeValue:
+      type: object
+      required: [attributeCode]
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Generated on create; on update identifies the value to replace
+        clientReferenceId: { type: string, minLength: 2, maxLength: 64 }
+        referenceId:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Set to the service id by the server
+        serviceClientReferenceId:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Set to Service.clientId by the server
+        attributeCode: { type: string }
+        value:
+          description: |
+            Type must match the definition dataType: Number -> number, String / Text -> string
+            (max 8192 chars), Datetime -> epoch long, SingleValueList -> string in values,
+            MultiValueList -> array of strings in values, Boolean -> boolean.
+            Numeric and File are not type checked. null is allowed for non required attributes.
+          nullable: true
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalFields:
+          type: object
+          additionalProperties: true
+
+    Service:
+      type: object
+      required: [tenantId, serviceDefId, attributes, accountId]
+      properties:
+        id:
+          type: string
+          description: Generated by the server on create; required on update
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        serviceDefId: { type: string, minLength: 2, maxLength: 64 }
+        referenceId: { type: string, minLength: 2, maxLength: 64 }
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeValue'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalFields:
+          type: object
+          additionalProperties: true
+        accountId: { type: string, maxLength: 64 }
+        clientId:
+          type: string
+          maxLength: 64
+          description: Used for duplicate detection on create (tenantId + clientId)
+
+    ServiceRequest:
+      type: object
+      required: [RequestInfo]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Service:
+          $ref: '#/components/schemas/Service'
+
+    ServiceCriteria:
+      type: object
+      required: [tenantId]
+      properties:
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        ids:
+          type: array
+          items: { type: string }
+        serviceDefIds:
+          type: array
+          items: { type: string }
+        referenceIds:
+          type: array
+          items: { type: string }
+        accountId: { type: string }
+        clientId: { type: string }
+
+    ServiceSearchRequest:
+      type: object
+      required: [RequestInfo, ServiceCriteria]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ServiceCriteria:
+          $ref: '#/components/schemas/ServiceCriteria'
+        Pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    ServiceResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Services:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+        Pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: |
+            SERVICE_DEFINITION_ALREADY_EXISTS_ERR_CODE, ATTRIBUTE_CODE_UNIQUENESS_ERR_CODE,
+            INVALID_ATTRIBUTE_DEFINITION_ERR_CODE, INVALID_REGEX_ERR_CODE,
+            SERVICE_DEFINITION_NOT_EXIST_ERR_CODE, SERVICE_REQUEST_INVALID_SERVICE_DEF_ID,
+            SERVICE_ALREADY_EXISTS_ERR_CODE, SERVICE_REQUEST_UNRECOGNIZED_ATTRIBUTE_CODE,
+            SERVICE_REQUEST_ATTRIBUTE_VALUES_UNIQUENESS_ERR_CODE,
+            SERVICE_REQUEST_REQUIRED_ATTRIBUTE_NOT_PROVIDED_ERR_CODE,
+            SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, INVALID_SIZE_OF_INPUT_CODE,
+            SERVICE_NOT_EXIST_ERR_CODE, SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE,
+            INVALID_TENANT_ID, PARSING_ERROR
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'

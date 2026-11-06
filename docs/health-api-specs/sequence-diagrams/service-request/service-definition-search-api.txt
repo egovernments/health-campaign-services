@@ -1,0 +1,56 @@
+@startuml
+title Service Request - Service Definition Search
+!theme vibrant
+participant Client as c
+participant ServiceRequestService as s
+database Database as db
+
+c -> s : POST /service-request/service/definition/v1/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo required; ServiceDefinitionCriteria.tenantId\nrequired if criteria present, 2-64 chars)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+alt ServiceDefinitionCriteria missing
+    s -> c: HttpStatus: 400 (NullPointerException mapped by tracer)
+end
+
+alt ids, tenantId and code all empty
+    s -> s: Return empty list
+else ids not provided
+    alt tenantId invalid for central instance schema
+        s -> c: HttpStatus: 400 INVALID_TENANT_ID
+    end
+    s -> db: SELECT id FROM (SELECT DISTINCT(sd.id), sd.createdtime\nFROM eg_service_definition sd\nWHERE sd.tenantid = ? AND sd.code IN (...) AND sd.clientid = ?\nAND sd.isActive = true (unless includeDeleted)\nORDER BY sd.createdtime DESC OFFSET ? LIMIT ?) temp
+    activate db
+    db -> s: Service definition ids
+    deactivate db
+    note right
+        Default offset 0, limit 10.
+        egov.service.request.max.limit (100) is never enforced
+    end note
+    alt no ids
+        s -> s: Return empty list
+    end
+end
+
+opt ids available (provided or found)
+    s -> db: SELECT sd.*, ad.* FROM eg_service_definition sd\nINNER JOIN eg_service_attribute_definition ad ON sd.id = ad.referenceid\nWHERE sd.tenantid = ? AND sd.id IN (...)
+    activate db
+    db -> s: Rows
+    deactivate db
+    s -> s: Group rows by definition id (HashMap, order not kept);\nsplit attribute values on ","
+    s -> s: Set values = null for non list dataTypes
+end
+
+s -> c: HttpStatus: 200 ServiceDefinitions (ResponseInfo null, no Pagination)
+deactivate s
+
+note over s, db
+    When ids are passed directly, the id query is skipped: the isActive filter,
+    code, clientId and pagination are not applied.
+end note
+
+@enduml

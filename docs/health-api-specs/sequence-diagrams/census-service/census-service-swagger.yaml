@@ -1,0 +1,477 @@
+openapi: 3.0.3
+info:
+  title: Census Service API
+  description: |
+    Manages census (population) records per boundary for microplanning, with
+    workflow (business service `CENSUS`) and plan-employee based auto-assignment.
+    Source: health-services/census-service (Java / Spring Boot).
+
+    Errors are returned by the DIGIT tracer as HTTP 400 with an `Errors` array.
+  version: 1.0.0
+servers:
+  - url: https://{host}/census-service
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Census
+
+paths:
+  /_create:
+    post:
+      tags: [Census]
+      summary: Create a census record
+      description: |
+        Validates the boundary (boundary-service), duplicates (same boundaryCode + source),
+        partner assignment (plan-service employee search) and additional field keys.
+        Closes the previous active census of the boundary (sets `effectiveTo`),
+        runs the workflow transition if `workflow` is passed, and publishes to
+        `census-create-topic` (persisted asynchronously).
+      operationId: censusCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CensusRequest'
+            example:
+              RequestInfo:
+                apiId: census
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+                  roles:
+                    - code: POPULATION_DATA_APPROVER
+                      tenantId: mz
+              Census:
+                tenantId: mz
+                hierarchyType: ADMIN
+                boundaryCode: MZ_LOCALITY_01
+                type: people
+                totalPopulation: 1200
+                source: 0f4c7c0e-plan-config-id
+                populationByDemographics:
+                  - demographicVariable: age
+                    populationDistribution:
+                      "0-5": 200
+                additionalFields:
+                  - key: UPLOADED_POPULATION
+                    value: 1200
+                    showOnUi: true
+                    editable: false
+                    order: 1
+                workflow:
+                  action: INITIATE
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CensusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /_update:
+    post:
+      tags: [Census]
+      summary: Update a census record
+      description: |
+        Requires an existing `id`. Validates partner assignment and additional field keys,
+        runs the workflow transition if `workflow` is passed and publishes to
+        `census-update-topic`.
+
+        Note: the persister updates only status, assignee, additionalDetails,
+        facilityAssigned, effectiveTo and audit fields of the census row
+        (plus upserts populationByDemographics / additionalFields).
+        `totalPopulation` is not updated.
+      operationId: censusUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CensusRequest'
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CensusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /bulk/_update:
+    post:
+      tags: [Census]
+      summary: Bulk workflow transition of census records
+      description: |
+        All records must have unique ids, the same tenantId and source, a workflow,
+        and the same status and workflow action. Updates the DB synchronously
+        (status, assignee, additionalDetails, facilityAssigned, audit) and publishes
+        to `census-bulk-update-topic` for indexing.
+      operationId: censusBulkUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkCensusRequest'
+      responses:
+        '201':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CensusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /_search:
+    post:
+      tags: [Census]
+      summary: Search census records
+      description: |
+        Returns paginated census records ordered by lastModifiedTime DESC, the total
+        count and a count per workflow status (every `CENSUS` business service state
+        is present, 0 if no records). StatusCount uses only tenantId, source and
+        jurisdiction from the criteria.
+      operationId: censusSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CensusSearchRequest'
+            example:
+              RequestInfo:
+                apiId: census
+                msgId: "1695889012604|en_MZ"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              CensusSearchCriteria:
+                tenantId: mz
+                source: 0f4c7c0e-plan-config-id
+                jurisdiction: [MZ_PROVINCE_01]
+                limit: 10
+                offset: 0
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CensusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  responses:
+    BadRequest:
+      description: Validation or business error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: CENSUS_ALREADY_EXISTS
+                message: Census with the given boundary and source already exists.
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId: { type: string }
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      description: Required for create, update and bulk update (USERINFO_MISSING)
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        code:
+          type: string
+          description: |
+            Census approver roles: POPULATION_DATA_APPROVER, ROOT_POPULATION_DATA_APPROVER.
+            Workflow-restricted roles: FACILITY_CATCHMENT_MAPPER, ROOT_FACILITY_CATCHMENT_MAPPER.
+        name: { type: string }
+        tenantId: { type: string }
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string }
+        msgId: { type: string }
+        status: { type: string, example: successful }
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedTime: { type: integer, format: int64 }
+
+    Workflow:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          example: INITIATE
+          description: |
+            INITIATE – assigned to the employee at the lowest ancestral boundary.
+            EDIT_AND_SEND_FOR_APPROVAL, APPROVE – assigned to an employee at a higher level.
+            SEND_BACK_FOR_CORRECTION – assigned to the last modifier.
+            Other actions – no assignee.
+        comments: { type: string }
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              documentType: { type: string }
+              fileStoreId: { type: string }
+              documentUid: { type: string }
+              additionalDetails: { type: object }
+        assignes:
+          type: array
+          items: { type: string }
+          description: Overwritten by auto-assignment when an assignee is found
+
+    PopulationByDemographic:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Generated by the service when absent
+        demographicVariable:
+          type: string
+          enum: [age, gender, ethnicity]
+        populationDistribution:
+          type: object
+          additionalProperties: true
+
+    AdditionalField:
+      type: object
+      required: [key, value]
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Generated by the service when absent
+        key:
+          type: string
+          description: Must be unique within a census (DUPLICATE_KEY_IN_ADDITIONAL_FIELD)
+        value: { type: number }
+        showOnUi: { type: boolean, default: true }
+        editable: { type: boolean, default: true }
+        order: { type: integer }
+
+    Census:
+      type: object
+      required: [tenantId, hierarchyType, boundaryCode, type, totalPopulation, source]
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Generated on create; required on update
+        tenantId: { type: string }
+        hierarchyType: { type: string }
+        boundaryCode: { type: string }
+        assignee:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+          description: Set by workflow auto-assignment
+        status:
+          type: string
+          maxLength: 64
+          description: Workflow state, set from the workflow transition response
+        type:
+          type: string
+          enum: [people, animals, plants, other]
+        totalPopulation: { type: integer, format: int64 }
+        populationByDemographics:
+          type: array
+          items:
+            $ref: '#/components/schemas/PopulationByDemographic'
+        additionalFields:
+          type: array
+          description: Must be sent (may be empty) on create and update
+          items:
+            $ref: '#/components/schemas/AdditionalField'
+        effectiveFrom:
+          type: integer
+          format: int64
+          description: Set to createdTime on create
+        effectiveTo:
+          type: integer
+          format: int64
+          nullable: true
+          description: Set when a newer census is created for the same boundary
+        source:
+          type: string
+          description: Plan configuration id
+        facilityAssigned: { type: boolean }
+        workflow:
+          $ref: '#/components/schemas/Workflow'
+        jurisdictionMapping:
+          type: object
+          additionalProperties: { type: string }
+          description: boundaryType -> boundaryCode for the ancestral path (enriched)
+          example:
+            COUNTRY: MZ
+            PROVINCE: MZ_PROVINCE_01
+            LOCALITY: MZ_LOCALITY_01
+        additionalDetails:
+          type: object
+          additionalProperties: true
+          description: Holds facilityId / facilityName when a facility is assigned
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    CensusRequest:
+      type: object
+      required: [RequestInfo, Census]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Census:
+          $ref: '#/components/schemas/Census'
+
+    BulkCensusRequest:
+      type: object
+      required: [RequestInfo, Census]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Census:
+          type: array
+          minItems: 1
+          description: Each record must contain id, workflow and auditDetails
+          items:
+            $ref: '#/components/schemas/Census'
+
+    CensusSearchCriteria:
+      type: object
+      properties:
+        id: { type: string }
+        ids:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        tenantId: { type: string, minLength: 1, maxLength: 100 }
+        areaCodes:
+          type: array
+          items: { type: string }
+          description: Boundary codes. An empty array returns no results
+        status: { type: string }
+        assignee: { type: string }
+        source: { type: string }
+        facilityAssigned: { type: boolean }
+        jurisdiction:
+          type: array
+          items: { type: string }
+          description: Matches census whose ancestral path contains any of these codes
+        effectiveTo:
+          type: integer
+          format: int64
+          description: 0 returns only active census (effectiveTo IS NULL)
+        limit:
+          type: integer
+          default: 10
+          maximum: 100
+        offset:
+          type: integer
+          default: 0
+
+    CensusSearchRequest:
+      type: object
+      required: [CensusSearchCriteria]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        CensusSearchCriteria:
+          $ref: '#/components/schemas/CensusSearchCriteria'
+
+    CensusResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Census:
+          type: array
+          items:
+            $ref: '#/components/schemas/Census'
+        TotalCount:
+          type: integer
+          description: Search only
+        StatusCount:
+          type: object
+          additionalProperties: { type: integer }
+          description: Search only; workflow state -> count
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: |
+            CENSUS_ALREADY_EXISTS, NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE,
+            USERINFO_MISSING, UNAUTHORIZED_WORKFLOW_ACCESS, INVALID_PARTNER,
+            DUPLICATE_KEY_IN_ADDITIONAL_FIELD, INVALID_CENSUS,
+            DUPLICATE_CENSUS_ID_IN_BULK_UPDATE, INVALID_SOURCE_OR_TENANT_ID_FOR_BULK_UPDATE,
+            WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE, DIFFERENT_WORKFLOW_FOR_BULK_UPDATE,
+            WORKFLOW_INTEGRATION_ERROR, NO_BUSINESS_SERVICE_DATA_FOUND
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'

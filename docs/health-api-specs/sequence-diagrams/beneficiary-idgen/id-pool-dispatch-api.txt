@@ -1,0 +1,140 @@
+@startuml
+title Beneficiary IdGen - ID Pool Dispatch
+!theme vibrant
+participant Client as c
+participant BeneficiaryIdGen as s
+participant RedisCache as rc
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+participant GlobalExceptionHandler as he
+
+c -> s : POST /beneficiary-idgen/id/id_pool/_dispatch?limit=10&offset=0
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo required; IdDispatchRequest required:\ntenantId, deviceUuid, deviceInfo not null, count >= 0)
+alt request body validation fails
+    s -> he: MethodArgumentNotValidException
+    activate he
+    he -> c: HttpStatus: 400 ErrorRes\n{ Errors: [code: "400 BAD_REQUEST", message: "Invalid input", params: {field: msg}] }
+    deactivate he
+end
+
+alt RequestInfo.userInfo.uuid empty
+    s -> he: CustomException VALIDATION EXCEPTION ("Missing User Uuid")
+    activate he
+    he -> c: HttpStatus: 200 ErrorRes { Errors: [code: "400 BAD_REQUEST",\nmessage: "Missing User Uuid"] }
+    deactivate he
+end
+
+s -> s: totalLimit = limit.id.user.device.total (10000);\nif limit.id.user.device.per.day.enabled -> totalLimit = limit.id.user.device.per.day (100)
+
+alt fetchAllocatedIds == true (re-sync previously dispatched ids)
+    s -> rc: GET tenant:<t>:user:<u>:device:<d>:total:count\n(+ tenant:<t>:user:<u>:device:<d>:count:<today> when\nid.dispatch.retrieval.restrict-to-today.enabled)
+    activate rc
+    rc -> s: Counters
+    deactivate rc
+    s -> s: remainingCount = min(total limit - total count,\nper-day limit - today count) (no limit check)
+
+    s -> db: SELECT * FROM id_transaction_log WHERE device_uuid = ? AND user_uuid = ?\nAND tenantId = ? AND status = 'DISPATCHED'\n[AND createdTime within today (Asia/Kolkata) if restrict-to-today]\nORDER BY createdTime DESC LIMIT :limit OFFSET :offset
+    activate db
+    db -> s: IdTransactionLogs
+    s -> db: SELECT count(*) FROM id_transaction_log WHERE <same filters>
+    db -> s: totalCount
+    deactivate db
+
+    alt no dispatched ids found
+        s -> he: CustomException NO IDS Dispatched
+        activate he
+        he -> c: HttpStatus: 200 ErrorRes { Errors: [code: "400 BAD_REQUEST",\nmessage: "NO IDS Dispatched: No IDs found for the given user and device."] }
+        deactivate he
+    end
+
+    s -> db: SELECT * FROM id_pool WHERE tenantId = ? AND id IN (:ids)\nORDER BY createdTime ASC
+    activate db
+    db -> s: IdRecords (any status)
+    deactivate db
+
+    opt remainingCount != totalLimit - totalCount
+        s -> rc: Overwrite counters (compareAndSet):\ntoday count = totalCount, total count = totalCount - previous today count;\nEXPIRE limit.id.user.device.per.day.expire.days / total.expire.days (30)
+        activate rc
+        deactivate rc
+    end
+    s -> s: FetchLimit = max(0, totalCount - (offset + returned)),\nTotalLimit = totalLimit, TotalCount = totalCount
+    s -> c: HttpStatus: 200 IdDispatchResponse\n{ ResponseInfo, UniqueBeneficiaryIds, TotalCount, FetchLimit, TotalLimit }
+else dispatch new ids
+    group getUserDeviceDispatchedIDRemaining
+        s -> rc: GET tenant:<t>:user:<u>:device:<d>:total:count
+        activate rc
+        rc -> s: total count
+        alt limit.id.user.device.total - total count <= 0
+            s -> he: CustomException USER_DEVICE_LIMIT_EXCEEDED (Total limit)
+            activate he
+            he -> c: HttpStatus: 200 ErrorRes { Errors: [code: "400 BAD_REQUEST",\nmessage: "ID generation limit exceeded: Total limit ..."] }
+            deactivate he
+        end
+        opt limit.id.user.device.per.day.enabled
+            s -> rc: GET tenant:<t>:user:<u>:device:<d>:count:<today>
+            rc -> s: today count
+            alt min(total remaining, per.day - today count) <= 0
+                s -> he: CustomException USER_DEVICE_LIMIT_EXCEEDED (Daily limit)
+                activate he
+                he -> c: HttpStatus: 200 ErrorRes { Errors: [code: "400 BAD_REQUEST",\nmessage: "ID generation limit exceeded: Daily limit ..."] }
+                deactivate he
+            end
+        end
+        deactivate rc
+    end
+    s -> s: fetchCount = min(remainingCount, count)
+
+    s -> db: UPDATE id_pool p SET status = 'DISPATCHED', rowVersion = rowVersion + 1,\nlastModifiedBy = userUuid, lastModifiedTime = now\nWHERE p.id IN (SELECT id FROM id_pool WHERE status = 'UNASSIGNED'\nAND tenantId = ? ORDER BY id ASC LIMIT :fetchCount FOR UPDATE SKIP LOCKED)\nAND p.status = 'UNASSIGNED' RETURNING p.*
+    activate db
+    db -> s: Dispatched IdRecords
+    deactivate db
+
+    alt no rows returned (pool empty or count = 0)
+        s -> he: CustomException NO IDS AVAILABLE
+        activate he
+        he -> c: HttpStatus: 200 ErrorRes { Errors: [code: "400 BAD_REQUEST",\nmessage: "Unable to fetch <n> IDs from the database for tenant: <t>"] }
+        deactivate he
+    end
+
+    group updateStatusesAndLogs
+        s -> s: Set status DISPATCHED, rowVersion + 1,\nauditDetails.lastModifiedBy/Time (in memory)
+        s -> k: { idTransactionLog: [IdTransactionLog {id, tenantId, userUuid,\ndeviceUuid, deviceInfo, status DISPATCHED, rowVersion 1, auditDetails}] }\n/save-dispatch-id-log
+        activate k
+    end
+
+    s -> rc: INCRBY tenant:<t>:user:<u>:device:<d>:count:<today> (n), EXPIRE 30 days\nINCRBY tenant:<t>:user:<u>:device:<d>:total:count (n), EXPIRE 30 days
+    activate rc
+    deactivate rc
+    s -> s: Clear empty additionalFields
+    s -> c: HttpStatus: 200 IdDispatchResponse { ResponseInfo, UniqueBeneficiaryIds,\nFetchLimit = remainingCount - n, TotalLimit, TotalCount = n }
+end
+deactivate s
+
+group async persister
+    prs -> k: Consume /save-dispatch-id-log
+    activate prs
+    prs -> db: INSERT INTO id_transaction_log (id_reference, user_uuid, device_uuid,\ndevice_info, status, tenantId, additionalFields, audit, rowVersion)
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s, db
+    The id_pool status change is done synchronously by the UPDATE ... RETURNING
+    (no Kafka message to update-id-pool-status). Redis limit check and counter
+    increment are not atomic with the DB update, so concurrent calls for the same
+    user/device can exceed the limits. limit / offset are used only when
+    fetchAllocatedIds is true. No IndexerService config exists for these topics.
+end note
+
+note over he
+    CustomExceptions are returned by the service GlobalExceptionHandler
+    as HTTP 200 with code "400 BAD_REQUEST" (original code lost),
+    assuming it takes precedence over the tracer ExceptionAdvise.
+end note
+
+@enduml

@@ -1,0 +1,434 @@
+openapi: 3.0.3
+info:
+  title: eGov Notification Push API
+  description: |
+    Device-token registry and push-notification sender (Firebase Cloud Messaging).
+    Source: health-services/egov-notification-push (Java / Spring Boot).
+
+    Device-token writes (_register, _unregister, _delete) are asynchronous: the service
+    publishes to Kafka and egov-persister writes `eg_push_device_tokens`. In central-instance
+    mode the topic is prefixed with the state code taken from `deviceTokens[0].tenantId`.
+
+    Push notifications are also consumed from Kafka topic `egov.core.notification.push`
+    (not an HTTP endpoint; see kafka-consumers.txt).
+
+    Errors are returned by the DIGIT tracer as HTTP 400 with an `Errors` array.
+    Unhandled exceptions (e.g. missing RequestInfo.userInfo, empty deviceTokens list) surface as 500.
+  version: 1.0.0
+servers:
+  - url: https://{host}/egov-notification-push
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: DeviceToken
+  - name: Push
+
+paths:
+  /device-token/v1/_register:
+    post:
+      tags: [DeviceToken]
+      summary: Register (upsert) device tokens
+      description: |
+        Rejects tokens with an empty `deviceToken` (PUSH_MISSING_DEVICE_TOKEN). Defaults
+        `userId` to RequestInfo.userInfo.uuid when empty, sets auditDetails and stores the
+        user's role codes (comma-separated) as `userRoles`. Each token is expanded into one
+        row per `facilityIds` entry and published to `save-push-device-token-health`;
+        the persister upserts on (devicetoken, facilityid).
+        `deviceType` is not validated against ANDROID / IOS / WEB.
+        Returns the tokens as received (with facilityIds; no generated ids).
+      operationId: deviceTokenRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceTokenRequest'
+            example:
+              RequestInfo:
+                apiId: hcm
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+                  roles:
+                    - code: WAREHOUSE_MANAGER
+                      tenantId: mz
+              deviceTokens:
+                - userId: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  deviceToken: "fcm-token-abc"
+                  deviceType: ANDROID
+                  tenantId: mz
+                  facilityIds: [F-001, F-002]
+      responses:
+        '200':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /device-token/v1/_unregister:
+    post:
+      tags: [DeviceToken]
+      summary: Unregister device tokens (all facilities)
+      description: |
+        Rejects empty `deviceToken`, defaults `userId` to the caller's uuid and publishes to
+        `unregister-push-device-token-health`. The persister deletes all rows with the
+        given userid + devicetoken, regardless of facility.
+      operationId: deviceTokenUnregister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceTokenRequest'
+      responses:
+        '200':
+          description: Accepted for persistence (ResponseInfo only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /device-token/v1/_delete:
+    post:
+      tags: [DeviceToken]
+      summary: Delete device tokens for given facilities
+      description: |
+        Rejects empty `deviceToken`, defaults `userId` to the caller's uuid, expands each
+        token into one row per `facilityIds` entry and publishes to
+        `delete-push-device-token-health`. The persister deletes
+        WHERE userid, devicetoken, tenantid and facilityid match.
+        If `facilityIds` is omitted, facilityId is null and no row matches
+        (nothing is deleted); use `_unregister` to remove a token everywhere.
+      operationId: deviceTokenDelete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceTokenRequest'
+      responses:
+        '200':
+          description: Accepted for persistence (ResponseInfo only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /device-token/v1/_search:
+    post:
+      tags: [DeviceToken]
+      summary: Latest device token per user
+      description: |
+        Returns the most recently modified token row per user id
+        (SELECT DISTINCT ON (userid) ... ORDER BY userid, lastmodifiedtime DESC).
+        `tenantId` only selects the DB schema in central-instance mode (no tenant filter).
+        DB errors are logged and an empty list is returned.
+      operationId: deviceTokenSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceTokenSearchRequest'
+            example:
+              RequestInfo:
+                apiId: hcm
+                msgId: "1695889012604|en_MZ"
+              userIds: [11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43]
+              tenantId: mz
+      responses:
+        '200':
+          description: Device tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /push/v1/_send:
+    post:
+      tags: [Push]
+      summary: Send a push notification on demand
+      description: |
+        Validates title (PUSH_MISSING_TITLE), body (PUSH_MISSING_BODY) and that at least
+        one of userUuids / deviceTokens is present (PUSH_MISSING_RECIPIENTS). Resolves all
+        tokens of `userUuids` from the DB, merges them with `deviceTokens` (de-duplicated)
+        and sends via FCM (single message, or multicast in batches of `fcm.batch.size`)
+        or logs to console when `fcm.enabled=false`. Tokens rejected by FCM as UNREGISTERED
+        are deleted directly from the DB. FCM failures do not change the response; the
+        count is the number of targeted tokens.
+      operationId: pushSend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushNotificationApiRequest'
+            example:
+              RequestInfo:
+                apiId: hcm
+                msgId: "1695889012604|en_MZ"
+              title: New stock arrived
+              body: 200 bednets received at F-001
+              data:
+                facilityId: F-001
+              userUuids: [11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43]
+              tenantId: mz
+      responses:
+        '200':
+          description: Notification dispatched (or no tokens resolved)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushNotificationApiResponse'
+              example:
+                ResponseInfo:
+                  apiId: hcm
+                  msgId: "1695889012604|en_MZ"
+                  resMsgId: ""
+                  status: successful
+                message: Push notification sent to 2 devices
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  responses:
+    BadRequest:
+      description: Validation or business error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: PUSH_MISSING_DEVICE_TOKEN
+                message: Device token is mandatory in the request.
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId: { type: string }
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      description: Required for _register, _unregister and _delete (uuid used as default userId and audit user)
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Role codes are stored comma-separated in `userRoles` on register
+        name: { type: string }
+        tenantId: { type: string }
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64, nullable: true, description: Always null }
+        resMsgId: { type: string, description: Always empty }
+        msgId: { type: string }
+        status: { type: string, example: successful }
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedBy: { type: string }
+        lastModifiedTime: { type: integer, format: int64 }
+
+    DeviceToken:
+      type: object
+      required: [userId, deviceToken, deviceType, tenantId]
+      properties:
+        id:
+          type: string
+          description: Generated server side (UUID), returned by search
+        userId:
+          type: string
+          description: Must be present (@NotNull); an empty string is replaced by RequestInfo.userInfo.uuid
+        deviceToken:
+          type: string
+          maxLength: 512
+          description: FCM registration token; empty value -> PUSH_MISSING_DEVICE_TOKEN
+        deviceType:
+          type: string
+          example: ANDROID
+          description: Free text in practice (ANDROID / IOS / WEB expected but not validated)
+        tenantId:
+          type: string
+        facilityId:
+          type: string
+          description: Internal per-row field used by the persister; not returned by search
+        facilityIds:
+          type: array
+          items: { type: string }
+          description: Facilities this token is registered against (one DB row per facility)
+        userRoles:
+          type: string
+          description: Comma-separated role codes, set server side from RequestInfo.userInfo.roles
+          example: WAREHOUSE_MANAGER,DISTRIBUTOR
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    DeviceTokenRequest:
+      type: object
+      required: [RequestInfo, deviceTokens]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        deviceTokens:
+          type: array
+          description: Must not be empty (an empty list causes a 500)
+          items:
+            $ref: '#/components/schemas/DeviceToken'
+
+    DeviceTokenSearchRequest:
+      type: object
+      required: [RequestInfo, userIds, tenantId]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        userIds:
+          type: array
+          minItems: 1
+          items: { type: string }
+        tenantId:
+          type: string
+
+    DeviceTokenResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        deviceTokens:
+          type: array
+          description: Omitted for _unregister and _delete
+          items:
+            $ref: '#/components/schemas/DeviceToken'
+
+    PushNotificationApiRequest:
+      type: object
+      required: [RequestInfo, tenantId]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        title:
+          type: string
+          description: Mandatory (service validation, PUSH_MISSING_TITLE)
+        body:
+          type: string
+          description: Mandatory (service validation, PUSH_MISSING_BODY)
+        data:
+          type: object
+          additionalProperties: { type: string }
+          description: FCM data payload
+        userUuids:
+          type: array
+          items: { type: string }
+          description: Users whose registered tokens (all facilities) receive the push
+        deviceTokens:
+          type: array
+          items: { type: string }
+          description: Explicit FCM tokens; at least one of userUuids / deviceTokens is required
+        tenantId:
+          type: string
+          description: Used to resolve the DB schema in central-instance mode
+
+    PushNotificationApiResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        message:
+          type: string
+          example: Push notification sent to 2 devices
+
+    PushNotificationRequest:
+      type: object
+      description: |
+        Kafka message on `egov.core.notification.push` (consumed, not an HTTP body).
+        If deviceTokens is empty and facilityId is set, tokens are resolved by facility
+        (and recipientRoles, matched with LIKE on userRoles).
+      properties:
+        title: { type: string }
+        body: { type: string }
+        data:
+          type: object
+          additionalProperties: { type: string }
+        deviceTokens:
+          type: array
+          items: { type: string }
+        facilityId: { type: string }
+        recipientRoles:
+          type: array
+          items: { type: string }
+        tenantId: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Service codes below, or bean-validation codes (e.g. NotNull) for @Valid failures
+          example: PUSH_MISSING_DEVICE_TOKEN
+          x-service-codes:
+            - PUSH_MISSING_DEVICE_TOKEN
+            - PUSH_MISSING_TITLE
+            - PUSH_MISSING_BODY
+            - PUSH_MISSING_RECIPIENTS
+            - MISSING_TENANT_ID
+            - INVALID_TENANT_ID
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }

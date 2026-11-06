@@ -1,0 +1,82 @@
+@startuml
+title HRMS - Kafka Consumers (Update Data, Email Notification)
+!theme vibrant
+participant HrmsService as hs
+queue Kafka as k
+participant HrmsConsumer as s
+participant LocalizationService as loc
+participant OtpService as otp
+participant PersisterService as prs
+participant NotificationSms as sms
+participant NotificationMail as mail
+database Database as db
+
+group Update data (/egov-hrms-update)
+    hs -> k: EmployeeRequest /egov-hrms-update
+    activate k
+    s -> k: Consume EmployeeRequest
+    activate s
+    s -> k: EmployeeRequest /update-hrms-employee
+    group sendReactivationNotification
+        s -> loc: /localization/messages/v1/_search\n?tenantId=<state>&module=egov-hrms&locale=en_IN
+        activate loc
+        loc -> s: Messages
+        deactivate loc
+        alt hrms.employee.reactivation.notification not configured
+            s -> s: Log, no SMS
+        else template found
+            loop each employee with reactivationDetails and reActivateEmployee = true
+                s -> otp: /otp/v1/_create\n(mobileNumber, type passwordreset, userType EMPLOYEE)
+                activate otp
+                otp -> s: otp.otp (null on error)
+                deactivate otp
+                s -> s: Replace {Employee Name}, {Username}, {date},\n{password} = OTP, {link} = <domain>employee/user/otp
+                s -> k: SMSRequest /egov.core.notification.sms
+            end
+        end
+    end
+    alt any exception
+        s -> s: Log "Error while listening to value", message dropped
+    end
+    deactivate s
+end
+
+group Email notification (/hrms-send-email-notification)
+    hs -> k: EmployeeRequest (plain passwords) /hrms-send-email-notification
+    s -> k: Consume EmployeeRequest
+    activate s
+    s -> loc: /localization/messages/v1/_search\n?locale=<from RequestInfo.msgId or en_IN>&tenantId=<state>&module=rainmaker-hr
+    activate loc
+    loc -> s: Messages
+    deactivate loc
+    s -> s: Template HEALTH_HRMS_EMAIL_CODE; replace {User's name}, {Username},\n{Password}, {website URL}, {Implementation partner};\nsubject = text inside <h2>, body = rest
+    opt notification.email.enabled = true
+        loop each employee
+            s -> k: EmailRequest (emailTo = user.emailId, isHTML) /egov.core.notification.email
+        end
+    end
+    alt any exception
+        s -> s: Log "Error processing email notification", no retry
+    end
+    deactivate s
+end
+
+group async
+    prs -> k: Consume /update-hrms-employee
+    activate prs
+    prs -> db: DELETE eg_hrms_employee WHERE uuid = ? (cascade)\nthen INSERT employee and all child tables
+    activate db
+    deactivate db
+    deactivate prs
+    sms -> k: Consume /egov.core.notification.sms
+    mail -> k: Consume /egov.core.notification.email
+end
+deactivate k
+
+note over hs, s
+    The service publishes with state specific topic names (push(tenantId, topic)),
+    but the listener subscribes only to the plain topic names; in central-instance
+    mode (is.environment.central.instance = true) updates would not be consumed.
+end note
+
+@enduml

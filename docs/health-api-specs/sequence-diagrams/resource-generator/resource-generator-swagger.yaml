@@ -1,0 +1,183 @@
+openapi: 3.0.3
+info:
+  title: Resource Generator API
+  description: |
+    Microplanning resource generator. Most of the work is Kafka driven: it consumes
+    `plan-config-create-topic` / `plan-config-update-topic`, parses Excel / GeoJSON /
+    Shapefile inputs, calculates estimates and publishes to
+    `resource-microplan-create-topic`, `resource-census-create-topic` and
+    `resource-plan-config-update-topic` (see the *-flow.txt diagrams).
+    Source: health-services/resource-generator (Java / Spring Boot 3.2).
+
+    Only two REST endpoints exist. Validation errors are returned by the DIGIT
+    tracer as HTTP 400 with an `Errors` array.
+  version: 1.0.3
+servers:
+  - url: https://{host}/resource-generator
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Draft
+  - name: Test
+
+paths:
+  /drafts:
+    post:
+      tags: [Draft]
+      summary: Generate a draft estimation file for a plan configuration
+      description: |
+        Validates the body and starts `DraftService.createDraftPlans` asynchronously (`@Async`),
+        then returns 202 immediately. In the background it searches the plan configuration
+        (plan-service), downloads the active `Population` file (filestore), fetches campaign
+        (project-factory), localisation, MDMS and boundary data, validates rows, calculates the
+        operations, localises the workbook, uploads it and adds a `DraftComplete` file to the
+        plan configuration via `resource-plan-config-update-topic`.
+        Failures in the background step are only logged.
+      operationId: createDraftMicroplan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DraftRequest'
+            example:
+              RequestInfo:
+                apiId: resource-generator
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              DraftDetails:
+                planConfigurationId: 0f4c7c0e-6a1d-4b7e-9d1a-2f2c8a1b9e11
+                tenantId: mz
+      responses:
+        '202':
+          description: Draft processing started (asynchronous)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Draft processing started successfully.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /config/_test:
+    post:
+      tags: [Test]
+      summary: Debug endpoint (hard-coded plan configuration search)
+      description: |
+        Takes no body. Searches plan-service for a hard-coded plan configuration
+        (tenantId `mz`, id `b1a23c4e-a402-4047-9388-e8ae2bf7c1a3`) with an empty RequestInfo,
+        discards the result and always returns `Okay`.
+      operationId: configTest
+      responses:
+        '200':
+          description: Always returned
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Okay
+
+components:
+  responses:
+    BadRequest:
+      description: Request body validation error (missing / invalid RequestInfo or DraftDetails fields, unreadable JSON), mapped by the DIGIT tracer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    DraftRequest:
+      type: object
+      required: [RequestInfo, DraftDetails]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        DraftDetails:
+          $ref: '#/components/schemas/DraftDetails'
+
+    DraftDetails:
+      type: object
+      required: [planConfigurationId, tenantId]
+      properties:
+        planConfigurationId:
+          type: string
+          minLength: 2
+          maxLength: 64
+        tenantId:
+          type: string
+          minLength: 2
+          maxLength: 64
+
+    RequestInfo:
+      type: object
+      description: |
+        `msgId` must be `<id>|<locale>` (the locale after `|` is used for the localisation
+        search) and `userInfo.tenantId` is required by the background processing.
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId: { type: string }
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        tenantId: { type: string }
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string }
+        msgId: { type: string }
+        status: { type: string }
+
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'

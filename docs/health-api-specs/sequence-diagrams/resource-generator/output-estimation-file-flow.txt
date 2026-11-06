@@ -1,0 +1,159 @@
+@startuml
+title Resource Generator - Approved Estimations Output File (RESOURCE_ESTIMATIONS_APPROVED)
+!theme vibrant
+participant PlanService as ps
+queue Kafka as k
+participant ResourceGenerator as s
+participant ProjectFactory as pf
+participant FileStore as fs
+participant LocalizationService as loc
+participant MDMSService as mdms
+participant BoundaryService as bs
+participant CensusService as cs
+
+ps -> k: PlanConfigurationRequest (status RESOURCE_ESTIMATIONS_APPROVED, workflow set)\n/plan-config-update-topic
+activate k
+s -> k: Consume PlanConfigurationRequest
+activate s
+
+s -> pf: /project-factory/v1/project-type/search\n(CampaignDetails ids = [campaignId], tenantId)
+activate pf
+pf -> s: CampaignResponse
+deactivate pf
+alt campaign search fails
+    s -> s: CustomException ERROR_FETCHING_CAMPAIGN_DETAILS
+end
+
+group ExcelParser.parseFileData (active file "EstimationsInprogress")
+    s -> fs: GET /filestore/v1/files/id?tenantId={tenantId}&fileStoreId={fileStoreId}
+    activate fs
+    fs -> s: File bytes
+    deactivate fs
+    alt file missing
+        s -> s: CustomException FILE_NOT_FOUND
+    end
+
+    group processSheets
+        s -> loc: /localization/messages/v1/_search?module=rainmaker-microplanning,\nrainmaker-boundary-undefined,hcm-admin-schemas&locale=<msgId locale>&tenantId
+        activate loc
+        loc -> s: LocaleResponse
+        deactivate loc
+        s -> mdms: /egov-mdms-service/v1/_search (HCM-ADMIN-CONSOLE.adminSchema)
+        activate mdms
+        mdms -> s: MDMS data
+        deactivate mdms
+        s -> s: Sort operations by executionOrder
+        s -> mdms: /mdms-v2/v2/_search (HCM-ADMIN-CONSOLE.adminSchema,\nuniqueIdentifier boundary.MP-<projectType>)
+        activate mdms
+        mdms -> s: Admin schema columns
+        deactivate mdms
+        s -> s: enrichResourceMapping
+        s -> bs: /boundary-service/boundary-relationships/_search\n?includeChildren=true&tenantId&hierarchyType
+        activate bs
+        bs -> s: Boundary tree
+        deactivate bs
+        alt boundary search fails
+            s -> s: CustomException BOUNDARY_SEARCH_EXCEPTION
+        else no tenantBoundary
+            s -> s: CustomException BOUNDARY_CODE_NOT_FOUND
+        end
+        s -> mdms: /egov-mdms-service/v1/_search (hcm-microplanning.CommonConstants)
+        activate mdms
+        mdms -> s: Common constants (readMeSheetName)
+        deactivate mdms
+
+        loop each sheet except README / HCM_ADMIN_CONSOLE_BOUNDARY_DATA sheet
+            group enrichsheetWithApprovedCensusRecords
+                s -> cs: /census-service/_search\n(tenantId, source = planConfigId,\nareaCodes = sheet boundary codes, limit = count)
+                activate cs
+                cs -> s: CensusResponse
+                deactivate cs
+                alt no census found
+                    s -> s: CustomException NO_CENSUS_FOUND_FOR_GIVEN_DETAILS
+                end
+                s -> s: Overwrite mapped cells with editable census values\n(CONFIRMED_<key> for prefixed keys)
+            end
+            group enrichsheetWithApprovedPlanEstimates
+                s -> ps: /plan-service/plan/_search\n(tenantId, planConfigurationId,\nlocality = sheet boundary codes, limit = count)
+                activate ps
+                ps -> s: PlanResponse
+                deactivate ps
+                alt no plan found
+                    s -> s: CustomException NO_PLAN_FOUND_FOR_GIVEN_DETAILS
+                end
+                s -> s: Append resourceType header columns,\nwrite estimatedNumber or "N/A" per row
+            end
+        end
+    end
+
+    group uploadFileAndIntegrateCampaign
+        s -> s: Convert workbook to file
+        alt integrate.with.admin.console == true
+            s -> fs: POST /filestore/v1/files (multipart, tenantId, module = microplan)
+            activate fs
+            fs -> s: files[0].fileStoreId
+            deactivate fs
+            s -> pf: /project-factory/v1/project-type/fetch-from-microplan\n(MicroplanDetails tenantId, planConfigurationId,\ncampaignId, resourceFilestoreId)
+            activate pf
+            alt project-factory call fails
+                pf -> s: Error
+                s -> s: CustomException "Unexpected error while calling fetch\nfrom Microplan API for plan config Id: "
+            else success
+                pf -> s: Response
+            end
+            deactivate pf
+
+            group processOutputFile
+                s -> loc: /localization/messages/v1/_search
+                activate loc
+                loc -> s: LocaleResponse
+                deactivate loc
+                s -> mdms: /egov-mdms-service/v1/_search (CommonConstants)
+                activate mdms
+                mdms -> s: Common constants
+                deactivate mdms
+                s -> s: Remove README / boundary data sheets, localise headers
+                alt header row empty
+                    s -> s: CustomException EMPTY_HEADER_ROW
+                end
+                loop each remaining sheet
+                    s -> loc: /localization/messages/v1/_search
+                    activate loc
+                    loc -> s: LocaleResponse
+                    deactivate loc
+                    s -> cs: /census-service/_search (areaCodes = sheet boundary codes)
+                    activate cs
+                    cs -> s: CensusResponse
+                    deactivate cs
+                    s -> s: Add HCM_MICROPLAN_SERVING_FACILITY column\n(census additionalDetails.facilityName)
+                end
+                s -> s: Append additionalDetails.newColumns to each sheet
+            end
+
+            s -> fs: POST /filestore/v1/files
+            activate fs
+            fs -> s: files[0].fileStoreId
+            deactivate fs
+            s -> s: Add active "Estimations" EXCEL file, workflow = null
+            s -> k: PlanConfigurationRequest /resource-plan-config-update-topic
+        else integrate.with.admin.console == false (default)
+            s -> s: Nothing uploaded, plan configuration not updated
+        end
+        s -> s: Delete temp file
+    end
+end
+
+alt any exception
+    s -> s: Log and rethrow CustomException 500
+end
+deactivate s
+
+group async downstream
+    ps -> k: Consume /resource-plan-config-update-topic
+    activate ps
+    ps -> ps: PlanConfigurationService.update(...)\n(stores "Estimations" file)
+    deactivate ps
+end
+deactivate k
+
+@enduml
