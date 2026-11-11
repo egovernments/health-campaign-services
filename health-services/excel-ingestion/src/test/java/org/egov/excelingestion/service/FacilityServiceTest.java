@@ -10,6 +10,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,15 +52,15 @@ class FacilityServiceTest {
     }
 
     private List<String> calledUrls() {
-        ArgumentCaptor<StringBuilder> uri = ArgumentCaptor.forClass(StringBuilder.class);
-        verify(serviceRequestRepository, atLeastOnce()).fetchResult(uri.capture(), any());
-        return uri.getAllValues().stream().map(StringBuilder::toString).collect(Collectors.toList());
+        ArgumentCaptor<URI> uri = ArgumentCaptor.forClass(URI.class);
+        verify(serviceRequestRepository, atLeastOnce()).fetchResultFromUri(uri.capture(), any());
+        return uri.getAllValues().stream().map(URI::toString).collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> sentFilters() {
         ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
-        verify(serviceRequestRepository, atLeastOnce()).fetchResult(any(), body.capture());
+        verify(serviceRequestRepository, atLeastOnce()).fetchResultFromUri(any(), body.capture());
         List<Map<String, Object>> filters = new ArrayList<>();
         for (Object b : body.getAllValues()) {
             filters.add((Map<String, Object>) ((Map<String, Object>) b).get("Facility"));
@@ -67,7 +70,7 @@ class FacilityServiceTest {
 
     @Test
     void searchesByRootBoundaryWithDescendantsAndHierarchy() {
-        when(serviceRequestRepository.fetchResult(any(), any())).thenReturn(page(1));
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(page(1));
 
         List<Map<String, Object>> facilities = facilityService.fetchPermanentFacilitiesAtAndBelow("mz.a", "CLF", "ROOT", "ADMIN", REQUEST_INFO);
 
@@ -78,7 +81,7 @@ class FacilityServiceTest {
 
     @Test
     void readsEveryPageOfTheRootSearch() {
-        when(serviceRequestRepository.fetchResult(any(), any())).thenReturn(page(2), page(2), page(1));
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(page(2), page(2), page(1));
 
         List<Map<String, Object>> facilities = facilityService.fetchPermanentFacilitiesAtAndBelow("mz", null, "ROOT", "ADMIN", REQUEST_INFO);
 
@@ -91,7 +94,7 @@ class FacilityServiceTest {
 
     @Test
     void leavesOutHierarchyTypeWhenBlank() {
-        when(serviceRequestRepository.fetchResult(any(), any())).thenReturn(page(0));
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(page(0));
 
         facilityService.fetchPermanentFacilitiesAtAndBelow("mz", null, "ROOT", " ", REQUEST_INFO);
 
@@ -99,8 +102,26 @@ class FacilityServiceTest {
     }
 
     @Test
+    void sendsHierarchyTypeWholeEvenWithReservedCharacters() {
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(page(0));
+
+        facilityService.fetchPermanentFacilitiesAtAndBelow("mz", null, "ROOT", "A&B#C+D E", REQUEST_INFO);
+
+        URI uri = URI.create(calledUrls().get(0));
+        assertNull(uri.getRawFragment(), "a # in the value must not start a fragment");
+        Map<String, String> query = new java.util.HashMap<>();
+        for (String pair : uri.getRawQuery().split("&")) {
+            String[] kv = pair.split("=", 2);
+            query.put(kv[0], URLDecoder.decode(kv[1], StandardCharsets.UTF_8));
+        }
+        assertEquals("A&B#C+D E", query.get("hierarchyType"));
+        assertEquals("true", query.get("includeDescendants"));
+        assertEquals("mz", query.get("tenantId"));
+    }
+
+    @Test
     void readsEveryPermanentFacilityWhenThereIsNoRootBoundary() {
-        when(serviceRequestRepository.fetchResult(any(), any())).thenReturn(page(3));
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(page(3));
 
         List<Map<String, Object>> facilities = facilityService.fetchPermanentFacilitiesAtAndBelow("mz", null, null, "ADMIN", REQUEST_INFO);
 
@@ -111,7 +132,7 @@ class FacilityServiceTest {
 
     @Test
     void fallsBackToEveryPermanentFacilityWhenTheRootSearchFails() {
-        when(serviceRequestRepository.fetchResult(any(), any()))
+        when(serviceRequestRepository.fetchResultFromUri(any(), any()))
                 .thenThrow(new RuntimeException("facility search failed"))
                 .thenReturn(page(3));
 
@@ -125,7 +146,7 @@ class FacilityServiceTest {
 
     @Test
     void wholeTenantReadStillReturnsAnEmptyListOnError() {
-        when(serviceRequestRepository.fetchResult(any(), any())).thenThrow(new RuntimeException("down"));
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenThrow(new RuntimeException("down"));
 
         assertTrue(facilityService.fetchAllPermanentFacilities("mz", null, REQUEST_INFO).isEmpty());
     }

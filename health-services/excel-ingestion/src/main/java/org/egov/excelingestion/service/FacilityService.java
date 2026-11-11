@@ -6,6 +6,9 @@ import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -97,17 +100,18 @@ public class FacilityService {
             StringBuilder facilitySearchUri = new StringBuilder(facilitySearchUrl);
 
             // Add query parameters to URL
+            // Values are encoded here and the URI is sent as it is, so a hierarchy type with &, # or + reaches the search whole
             facilitySearchUri.append("?limit=").append(limit)
                     .append("&offset=").append(offset)
-                    .append("&tenantId=").append(tenantId.split("\\.")[0]);
+                    .append("&tenantId=").append(URLEncoder.encode(tenantId.split("\\.")[0], StandardCharsets.UTF_8));
             if (rootBoundaryCode != null) {
                 facilitySearchUri.append("&includeDescendants=true");
                 if (hierarchyType != null && !hierarchyType.isBlank()) {
-                    facilitySearchUri.append("&hierarchyType=").append(hierarchyType);
+                    facilitySearchUri.append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
                 }
             }
 
-            Object response = serviceRequestRepository.fetchResult(facilitySearchUri, facilitySearchBody);
+            Object response = serviceRequestRepository.fetchResultFromUri(URI.create(facilitySearchUri.toString()), facilitySearchBody);
 
             if (response != null) {
                 @SuppressWarnings("unchecked")
