@@ -197924,3 +197924,47 @@ WHERE NOT EXISTS (
 );
 INSERT INTO public.eg_hrms_employee (id,uuid,code,dateofappointment,employeestatus,employeetype,active,tenantid,createdby,createddate,lastmodifiedby,lastmodifieddate,reactivateemployee) VALUES (4090180990662297531,'38c33df0-b77b-47bb-8594-5e4e9248cb10','EMP-DIST-002',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1779273533646,NULL,NULL,NULL) ON CONFLICT (uuid) DO NOTHING;
 INSERT INTO public.eg_hrms_jurisdiction (uuid,employeeid,hierarchy,boundarytype,boundary,tenantid,createdby,createddate,lastmodifiedby,lastmodifieddate,isactive) VALUES ('22cc6a6f-2f50-4a4f-991e-f5276ec20beb','38c33df0-b77b-47bb-8594-5e4e9248cb10','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1779273533646,NULL,NULL,'t') ON CONFLICT (uuid) DO NOTHING;
+
+-- ===========================================================
+-- One login per role, for flows the gateway only allows to that role.
+-- All: tenant=mz type=EMPLOYEE password=eGov@123 (same hash as SYSTEM)
+--   EMP-SYSADMIN-001  SYSTEM_ADMINISTRATOR  (product flows)
+--   EMP-WHM-001       WAREHOUSE_MANAGER     (facility flows)
+--   EMP-REG-001       REGISTRAR             (household flows)
+-- username / name / mobilenumber are encrypted with the enc-service key
+-- in this dump (195894), like EMP-DIST-002. Safe to run again.
+-- ===========================================================
+-- REGISTRAR has permissions in MDMS but no role row in this dump.
+INSERT INTO public.eg_role (name,code,description,createddate,version,tenantid,id)
+VALUES ('Registrar','REGISTRAR','Registrar','2026-11-11 12:00:00',1,'mz',1018) ON CONFLICT DO NOTHING;
+
+INSERT INTO public.eg_user (username,password,pwdexpirydate,mobilenumber,createddate,lastmodifieddate,createdby,lastmodifiedby,active,name,gender,type,version,guardianrelation,accountlocked,bloodgroup,tenantid,id,uuid) VALUES
+ ('195894|8nn1v4XOLv5t7+6Ay947l88Yi7vg+6OdJ1yxYMr/79M=','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8Zk7M+0zsxsgTNJrWdPDmHyfw=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|5E3W5rP6Xf5Nz86gj51/1Aix/kpsHMHtSfjHuUq7hSdBM4Hy',0,'EMPLOYEE',0,'','f','','mz',1245,'7af13361-2abb-4887-a2c3-44601d6063f1'),
+ ('195894|8nn1v4HfMJIZkpbBcnp3VAnuvQCGreoZilvq','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8ZkM+oC/Sz9XboTE+vSbN4tbQ=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|4FXX9774CMxMguqviI9swxv1yhISeLqy15TXBJVrXQRP',0,'EMPLOYEE',0,'','f','','mz',1246,'a48b0113-1eea-4554-8770-7517fd5d9281'),
+ ('195894|8nn1v4TSOpIZkpYnNp+SCJ+0im5rUycKfk7J','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8ZkeQlvE4yN6cLahm+msrSYYw=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|5VHC+6XjD95b/JW65ebbgcB9JMFFQgUFNQ==',0,'EMPLOYEE',0,'','f','','mz',1247,'5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.eg_userrole_v1 (role_code,role_tenantid,user_id,user_tenantid,lastmodifieddate)
+SELECT v.role_code,'mz',u.id,'mz','2026-11-11T12:00:00'
+FROM (VALUES ('7af13361-2abb-4887-a2c3-44601d6063f1','SYSTEM_ADMINISTRATOR'),
+             ('a48b0113-1eea-4554-8770-7517fd5d9281','WAREHOUSE_MANAGER'),
+             ('5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','REGISTRAR')) AS v(uuid,role_code)
+JOIN public.eg_user u ON u.uuid=v.uuid AND u.tenantid='mz'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.eg_userrole_v1 r
+  WHERE r.role_code=v.role_code AND r.role_tenantid='mz' AND r.user_id=u.id AND r.user_tenantid='mz'
+);
+
+INSERT INTO public.eg_hrms_employee (id,uuid,code,dateofappointment,employeestatus,employeetype,active,tenantid,createdby,createddate) VALUES
+ (4090180990662297541,'7af13361-2abb-4887-a2c3-44601d6063f1','EMP-SYSADMIN-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000),
+ (4090180990662297542,'a48b0113-1eea-4554-8770-7517fd5d9281','EMP-WHM-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000),
+ (4090180990662297543,'5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','EMP-REG-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000)
+ON CONFLICT DO NOTHING;
+INSERT INTO public.eg_hrms_jurisdiction (uuid,employeeid,hierarchy,boundarytype,boundary,tenantid,createdby,createddate,isactive) VALUES
+ ('b1e0a6c2-3d4f-4a51-9c01-000000000001','7af13361-2abb-4887-a2c3-44601d6063f1','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t'),
+ ('b1e0a6c2-3d4f-4a51-9c01-000000000002','a48b0113-1eea-4554-8770-7517fd5d9281','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t'),
+ ('b1e0a6c2-3d4f-4a51-9c01-000000000003','5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t')
+ON CONFLICT DO NOTHING;
+
+-- Keep new user ids clear of the fixed ids above and EMP-DIST-002 (1244).
+SELECT setval('public.seq_eg_user', GREATEST((SELECT last_value FROM public.seq_eg_user), (SELECT MAX(id) FROM public.eg_user)));

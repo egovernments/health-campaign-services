@@ -446,7 +446,7 @@ local-setup/
 
 ### Where data comes from
 
-`db/full-dump.sql` + `db/02-hcm-ui-seed.sql` are mounted into Postgres' init dir and applied **in order** on first DB init. Self-contained — no remote fetch, no manual restore. Contains: schema, MDMS, ~607 TCHAD boundary rows, MICROPLAN boundary, 17 HCM roles, 1 SYSTEM admin, ~1000 sample users, 501 HRMS employees, 124 products, demo `EMP-DIST-002` DISTRIBUTOR user, NULL-relaxation patch on `health.project`.
+`db/full-dump.sql` + `db/02-hcm-ui-seed.sql` are mounted into Postgres' init dir and applied **in order** on first DB init. Self-contained — no remote fetch, no manual restore. Contains: schema, MDMS, ~607 TCHAD boundary rows, MICROPLAN boundary, 19 HCM roles, 1 SYSTEM admin, ~1000 sample users (only the five under "Test users" can log in), 501 HRMS employees, 124 products, NULL-relaxation patch on `health.project`.
 
 ### Adding a service
 
@@ -468,16 +468,20 @@ Differences from a deployed gateway:
 - **MDMS is reachable as `/egov-mdms-service` only for permission purposes.** The seed has no role mappings for `/mdms-v2/...` search, so those calls are refused for every user. The UIs use `/egov-mdms-service`.
 - **Calls between services do not pass through the gateway.** Each service is given the direct address of the services it calls.
 
-What the two seeded users may call, as examples:
+No single user may call everything, so pick the login whose role fits the flow (see "Test users"). Examples:
 
-| Endpoint | `SYSTEM` | `EMP-DIST-002` |
-|---|---|---|
-| Product search, facility search, project search | yes | yes |
-| Product create, facility create, campaign (project-factory) APIs, HRMS, user search, boundary | yes | no |
-| Household and individual APIs, checklist responses | no | yes |
-| Product update, facility update / delete / bulk create | no | no |
+| Endpoint | Logins that may call it |
+|---|---|
+| Product search, facility search, project search | all five |
+| Campaign (project-factory) APIs, HRMS, user search, boundary | `SYSTEM` |
+| Product and product variant create | `SYSTEM`, `EMP-SYSADMIN-001` |
+| Product and product variant update | `EMP-SYSADMIN-001` |
+| Facility create | `SYSTEM`, `EMP-WHM-001`, `EMP-SYSADMIN-001` |
+| Facility update / delete / bulk create | `EMP-WHM-001`, `EMP-SYSADMIN-001` |
+| Household APIs | `EMP-REG-001`, `EMP-DIST-002`, `EMP-SYSADMIN-001` |
+| Checklist responses | `EMP-DIST-002` |
 
-The last row needs the `SYSTEM_ADMINISTRATOR` or `WAREHOUSE_MANAGER` role, which neither seeded user has.
+The gateway checks the role against the tenant in the request, so a call with no `tenantId` in the body or query is refused whatever the role.
 
 ### Known issues (not fixed in this stack)
 
@@ -491,14 +495,19 @@ Found during a full manual CRUD sweep — documented so demo flows steer around 
 | D | `JSONPath null` retried 10x | `/pgr/v2/request/_create` (when `address.geoLocation` is missing) | Always pass `address.geoLocation.latitude/longitude` |
 | E | NPE (no message) | `/health-project/task/v1/_create` (when `address` is missing) | Always include `address` in Task payload |
 | F | `BOUNDARY_SERVICE_SEARCH_ERROR` | Anything passing `address.locality.code` not in `public.boundary` | Omit `address` or use `ADMIN_TC` |
-| G | OAuth fails for legacy DISTRIBUTORs (rows with `317304\|...`) | All seeded DISTRIBUTORs except `EMP-DIST-002` | Use `EMP-DIST-002` (encrypted with local key) |
+| G | OAuth fails for users copied from another environment (usernames starting `317304\|` or `688203\|`; the dump does not have those encryption keys) | All ~790 sample users in `mz` | Use the logins under "Test users" (encrypted with the key in the dump) |
 
 ### Test users
 
 | Username | Password | Role | Notes |
 |---|---|---|---|
 | `SYSTEM` | `eGov@123` | SUPERUSER + 8 admin roles | Workbench admin |
-| `EMP-DIST-002` | `eGov@123` | DISTRIBUTOR | Field worker; survives `down -v && up -d` |
+| `EMP-DIST-002` | `eGov@123` | DISTRIBUTOR | Field worker; checklist flows |
+| `EMP-SYSADMIN-001` | `eGov@123` | SYSTEM_ADMINISTRATOR | Product flows |
+| `EMP-WHM-001` | `eGov@123` | WAREHOUSE_MANAGER | Facility flows |
+| `EMP-REG-001` | `eGov@123` | REGISTRAR | Household flows |
+
+All are tenant `mz`, type `EMPLOYEE`, and are inserted at the end of `db/full-dump.sql`, so they survive `down -v && up -d`.
 
 ### OAuth login (for API testing)
 
