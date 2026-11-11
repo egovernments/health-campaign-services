@@ -670,7 +670,7 @@ public class HierarchicalBoundaryUtil {
 
         int rowsPopulated = 0;
 
-        for (int i = 0; i < existingData.size() && i < (config.getExcelRowLimit() - 2); i++) {
+        for (int i = 0; i < existingData.size(); i++) {
             Map<String, Object> dataRow = existingData.get(i);
             int excelRowIndex = 2 + i;
 
