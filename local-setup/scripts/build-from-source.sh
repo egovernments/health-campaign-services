@@ -20,7 +20,7 @@ export JAVA_HOME=${JAVA17_HOME:-$HOME/.asdf/installs/java/corretto-17.0.21.0.11}
 export PATH=$JAVA_HOME/bin:$HOME/.asdf/installs/maven/3.9.6/bin:$PATH
 LOG=$LOCAL_SETUP/build-logs; mkdir -p "$LOG"
 
-# compose service name | source directory
+# compose service name | source directory | (optional) service whose published image supplies the runtime
 TABLE="
 health-individual|$HCM/health-services/individual
 household|$HCM/health-services/household
@@ -30,6 +30,7 @@ health-project|$HCM/health-services/project
 health-hrms|$HCM/core-services/egov-hrms
 beneficiary-idgen|$HCM/core-services/beneficiary-idgen
 excel-ingestion|$HCM/health-services/excel-ingestion
+health-service-request|$HCM/core-services/service-request|product
 egov-user|$CORE/egov-user
 mdms-backend|$CORE/mdms-v2
 egov-idgen|$CORE/egov-idgen
@@ -39,6 +40,7 @@ egov-persister|$CORE/egov-persister
 boundary-service|$CORE/boundary-service
 egov-filestore|$CORE/egov-filestore
 egov-localization|$CORE/egov-localization
+gateway|$CORE/gateway|egov-accesscontrol
 "
 
 base_image() {  # image named in docker-compose.yml for a service
@@ -53,14 +55,14 @@ for lib in health-services-models health-services-common; do
 done
 
 want=" $* "
-echo "$TABLE" | while IFS='|' read -r svc dir; do
+echo "$TABLE" | while IFS='|' read -r svc dir runtime; do
   [ -z "$svc" ] && continue
   [ $# -gt 0 ] && [[ "$want" != *" $svc "* ]] && continue
   if ! (cd "$dir" && mvn -q -DskipTests clean package > "$LOG/$svc.log" 2>&1); then
     echo "  FAIL $svc  maven (see build-logs/$svc.log)"; continue
   fi
   jar=$(ls "$dir"/target/*.jar | grep -v original | head -1)
-  base=$(base_image "$svc")
+  base=$(base_image "${runtime:-$svc}")
   ctx=$(mktemp -d); cp "$jar" "$ctx/application.jar"
   printf 'FROM %s\nRUN rm -f /opt/egov/*.jar\nCOPY application.jar /opt/egov/application.jar\n' "$base" > "$ctx/Dockerfile"
   if docker build -q -t "hcm-local/$svc:source" "$ctx" >> "$LOG/$svc.log" 2>&1; then

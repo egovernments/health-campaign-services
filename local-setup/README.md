@@ -7,15 +7,17 @@ The services are **built from the `master` of three repositories**, not pulled a
 | Repository | Supplies |
 |---|---|
 | `health-campaign-services` (this one) | HCM services, and this `local-setup` folder |
-| `Digit-Core` | DIGIT platform services (user, MDMS, idgen, encryption, access control, persister, boundary, filestore, localization) |
+| `Digit-Core` | DIGIT platform services (gateway, user, MDMS, idgen, encryption, access control, persister, boundary, filestore, localization) |
 | `DIGIT-Frontend` | The two web UIs (Workbench and Payments) |
 
 This folder started as a copy of `local-setup` from the `hcm-docker-compose-uat-env` branch. That branch is not needed any more. What changed here:
 
-- 21 services run images built from local source (`scripts/build-from-source.sh`, `docker-compose.source.yml`).
-- Only the 29 containers needed for the Workbench flows start by default. 12 more HCM services are in an `optional` profile. The default stack uses about **5 GB of RAM**.
+- 23 services run images built from local source (`scripts/build-from-source.sh`, `docker-compose.source.yml`).
+- The API entry point is the **real DIGIT gateway** from `Digit-Core`, not Kong. It checks the login token and the user's roles on every call, as a deployed 2.9 does. Kong and its rules that returned made-up responses are gone.
+- `health-service-request` (checklists) is added, built from `core-services/service-request` in this repository.
+- Only the 30 containers needed for the Workbench flows start by default. 12 more HCM services are in an `optional` profile. The default stack uses about **5 GB of RAM**.
 - MinIO is replaced by SeaweedFS (same S3 API, port and keys), because the MinIO images are no longer published.
-- `egov-localization` runs on a 512 MB heap instead of 4 GB. A rule in `kong/kong.yml` answers the one request that needed the large heap.
+- `egov-localization` runs on a 512 MB heap instead of 4 GB. A rule in `nginx/frontend-proxy.conf` answers the one request that needed the large heap. This is the only place the stack returns a made-up response.
 - The monitoring tools (Gatus, Grafana, Tempo, OpenTelemetry collector, Portainer) are removed.
 - The guide and scripts cover macOS only.
 
@@ -52,14 +54,14 @@ The scripts find `Digit-Core` and `DIGIT-Frontend` by relative path, so all thre
 
 ```bash
 mkdir egov && cd egov
-git clone -b hcm-migration-local-setup https://github.com/egovernments/health-campaign-services.git
+git clone -b HCMPRE-2431-migration-local-setup https://github.com/egovernments/health-campaign-services.git
 git clone https://github.com/egovernments/Digit-Core.git
 git clone https://github.com/egovernments/DIGIT-Frontend.git
 ```
 
 ```
 egov/
-├── health-campaign-services/    branch hcm-migration-local-setup (master + this folder)
+├── health-campaign-services/    branch HCMPRE-2431-migration-local-setup (master + this folder)
 ├── Digit-Core/                  master
 └── DIGIT-Frontend/              master
 ```
@@ -88,14 +90,14 @@ From here onwards, **every command assumes you are inside this folder.**
 scripts/build-from-source.sh
 ```
 
-This builds 21 images tagged `hcm-local/<service>:source`:
+This builds 23 images tagged `hcm-local/<service>:source`:
 
-- **17 Java services** (8 from this repository, 9 from `Digit-Core`): Maven builds the jar on your Mac, and the jar replaces the one in the published image for that service. The runtime stays the same; only the application code changes.
+- **19 Java services** (9 from this repository, 10 from `Digit-Core`): Maven builds the jar on your Mac, and the jar replaces the one in the published image for that service. The runtime stays the same; only the application code changes.
 - **2 Node services** (`project-factory`, `boundary-management`) and the **2 web UIs** from `DIGIT-Frontend`: built with their own Dockerfiles.
 
 It prints `ok` or `FAIL` for each service. Logs are in `build-logs/`. To rebuild only some services, name them: `scripts/build-from-source.sh product household`.
 
-This step must come before step 4. `.env` makes Compose read `docker-compose.source.yml`, which points those 21 services at the `hcm-local/*` images, so the stack cannot start until they exist.
+This step must come before step 4. `.env` makes Compose read `docker-compose.source.yml`, which points 21 services at the `hcm-local/*` images (the gateway and `health-service-request` name theirs directly in `docker-compose.yml`), so the stack cannot start until they exist.
 
 ### Step 4 — Start the stack
 
@@ -103,7 +105,7 @@ This step must come before step 4. `.env` makes Compose read `docker-compose.sou
 ./scripts/bootstrap.sh
 ```
 
-The script starts the stack, waits for every container to be healthy, encrypts the seeded `SYSTEM` user so login works, creates Kafka topics, and runs an API smoke test. It is safe to run again.
+The script starts the stack, waits for every container to be healthy, encrypts the seeded `SYSTEM` user so login works, creates Kafka topics, and runs an API smoke test through the gateway. It is safe to run again.
 
 ```
 [1/6] Checking prerequisites
@@ -125,9 +127,12 @@ The seed dump (`db/full-dump.sql`) is older than the source code. This adds the 
 ```bash
 scripts/apply-source-migrations.sh
 docker compose restart project-factory egov-user
+scripts/seed-missing-masters.sh
 ```
 
-Run this after the first start, and again after every `docker compose down -v`. It is safe to run more than once.
+The last script adds master data the web UI needs and the seed dump lacks (the product types offered when adding a resource). It prints `400` for anything that already exists.
+
+Run these after the first start, and again after every `docker compose down -v`. They are safe to run more than once.
 
 ### Step 6 — Check that everything is healthy
 
@@ -135,7 +140,7 @@ Run this after the first start, and again after every `docker compose down -v`. 
 docker compose ps
 ```
 
-All 29 containers should show `healthy`.
+All 30 containers should show `healthy`.
 
 ### Step 7 — Log in to the Admin (Workbench) UI
 
@@ -287,6 +292,7 @@ docker compose down -v
 ./scripts/bootstrap.sh
 scripts/apply-source-migrations.sh
 docker compose restart project-factory egov-user
+scripts/seed-missing-masters.sh
 ```
 
 ### Other symptoms
@@ -299,7 +305,7 @@ docker compose restart project-factory egov-user
 | `/access/v1/actions/mdms/_get` returns 400 `Missing property MdmsRes.ACCESSCONTROL-ACTIONS` | The 3 env vars on `egov-accesscontrol` (`MDMS_ACTIONSMODULE_NAME`, `MDMS_ACTIONMASTER_NAMES`, `MDMS_ACTIONS_PATH`) were stripped. Re-add per `docker-compose.yml`. |
 | First boot stuck > 10 min | Check `docker compose logs egov-user` — usually slow JVM startup, not a real error |
 | `BOUNDARY_SERVICE_SEARCH_ERROR — argument "content" is null` on HCM create payloads | Caller passed `address.locality.code` that doesn't exist in `public.boundary`. Local DB has `ADMIN_TC*` (TCHAD tree) and `MICROPLAN_MZ` — **not** `mz`. Either omit `address` or use a valid code (`ADMIN_TC`). |
-| HRMS create fails with `ERR_HRMS_USER_CREATION_FAILED` | egov-user wasn't fully started when HRMS called it (slow JVM warm-up). Wait ~2 min after compose up and retry. If persistent, `docker compose restart kong` to clear DNS cache. |
+| HRMS create fails with `ERR_HRMS_USER_CREATION_FAILED` | egov-user wasn't fully started when HRMS called it (slow JVM warm-up). Wait ~2 min after compose up and retry. If persistent, `docker compose restart health-hrms`. |
 | HRMS create fails with `ERR_HRMS_INVALID_ROLE` | The role you passed isn't in `eg_role` for tenant `mz`. The dump seeds 18 (SUPERUSER + 17 HCM roles). For new custom roles, add to `eg_role` first. |
 | Project create returns 200 but search returns nothing | Project field is missing one of `projectsubtype`/`department`/`description`/`referenceid`. Pre-fix, the dump had `NOT NULL` on those four. Current dump has them nullable. If you imported an older dump, run `ALTER TABLE health.project ALTER COLUMN description DROP NOT NULL;` (and the other three). |
 | `/health-attendance/log/v1/_create` or muster-roll create returns `ResourceAccessError` | Docker-compose `*_SEARCH_ENDPOINT` env vars on attendance / muster-roll services are missing leading `/`. See "Known issues" below. |
@@ -316,7 +322,6 @@ All links below open in your browser. Click them.
 | **Payments UI** (grievances, HR) | 🔗 [http://localhost:28080/payments-ui/employee](http://localhost:28080/payments-ui/employee) | `SYSTEM` / `eGov@123` / city `mz` |
 | **Redpanda HTTP proxy** (Kafka topics as JSON) | 🔗 [http://localhost:28082/topics](http://localhost:28082/topics) | no login |
 | **SeaweedFS** (file storage) | 🔗 [http://localhost:29333](http://localhost:29333) | no login |
-| **Kong Manager** (API gateway) | 🔗 [http://localhost:28002](http://localhost:28002) | no login |
 | PostgreSQL (DBeaver / psql) | `localhost:25432`, db `egov` | user `egov` / pass `egov123` |
 
 ---
@@ -343,11 +348,11 @@ After running `docker compose up -d`, give it about 2 minutes, then run `docker 
 
 ## 6. Resource usage — measured
 
-Measured with `docker stats --no-stream` on 2026-11-11, on the default stack (29 containers, no optional services) after it had been running for 15 hours:
+Measured with `docker stats --no-stream` on 2026-11-11, on the default stack (30 containers, no optional services):
 
 | Metric | Value |
 |---|---|
-| RAM in use | **about 5.0 GB** total |
+| RAM in use | **about 5.1 GB** total |
 | Memory given to Docker Desktop | 8 GB |
 
 To see live numbers on your own machine:
@@ -369,14 +374,13 @@ Reference material for people building on top of the stack.
 |---|---|---|
 | 25432 | PostgreSQL | Direct DB access (psql, DBeaver) |
 | 26379 | Redis | Cache inspection |
-| 28000 | **Kong (proxy)** | All API calls — used by Postman, pytest, server-side clients |
-| 28001 | Kong (admin) | Kong Admin API |
+| 28000 | **DIGIT gateway** | All API calls. Checks login token and roles |
 | 28080 | **Frontend proxy** | Single-origin entrypoint for browser — UIs + API. Lands on Workbench |
 | 28082 | Redpanda HTTP proxy | Kafka topics as JSON |
 | 29000 | SeaweedFS (S3 API) | Object storage (filestore) |
 | 29333 | SeaweedFS master UI | Object storage status |
 
-#### HCM service ports (direct — bypass Kong)
+#### HCM service ports (direct — bypass the gateway)
 
 Ports of services in the optional profile only answer after `docker compose --profile optional up -d`.
 
@@ -405,13 +409,13 @@ Ports of services in the optional profile only answer after `docker compose --pr
 | 28119 | project-factory | `/project-factory` |
 | 28190 | **pgr-services** | `/pgr` |
 
-> All API calls from clients / Postman / pytest go through **Kong on port 28000**. The per-service ports above are for direct service-to-service inspection if you need it.
+> API calls from clients and tests go through the **gateway on port 28000**. The per-service ports above skip the gateway, so they skip the login and role checks too.
 
 ### Directory structure
 
 ```
 local-setup/
-├── docker-compose.yml          # Main compose file — 44 services, 12 of them in the "optional" profile
+├── docker-compose.yml          # Main compose file — 45 services, 12 of them in the "optional" profile
 ├── docker-compose.source.yml   # Override: points 21 services at the hcm-local/*:source images
 ├── .env                        # Makes Compose read both files above
 │
@@ -426,13 +430,14 @@ local-setup/
 │                               # and 19,551 localization rows.
 │
 ├── nginx/                      # Frontend proxy + MDMS rewrite + UI globalConfigs
-├── kong/                       # Kong declarative config (routes, Lua plugins)
+├── gateway/                    # DIGIT gateway: routes.properties (path -> service), gateway.env (open endpoints)
 ├── configs/persister/          # Persister YAML mappings per domain
 │
 ├── scripts/
 │   ├── build-from-source.sh        # Step 3: builds the hcm-local/*:source images
 │   ├── bootstrap.sh                # Step 4: starts the stack and prepares it
-│   └── apply-source-migrations.sh  # Step 5: migrations the seed dump lacks
+│   ├── apply-source-migrations.sh  # Step 5: migrations the seed dump lacks
+│   └── seed-missing-masters.sh     # Step 5: master data the seed dump lacks
 │
 ├── build-logs/                 # Output of build-from-source.sh (not committed)
 │
@@ -445,11 +450,34 @@ local-setup/
 
 ### Adding a service
 
-Copy an existing block in `docker-compose.yml` and add a route in `kong/kong.yml`.
+Copy an existing block in `docker-compose.yml` and add a route in `gateway/routes.properties`.
 
-### Kong Lua plugins (test-contract fixes)
+### The gateway: login and permissions
 
-`kong/kong.yml` includes small Lua plugins for: the empty-module localization search (answered with an empty list so `egov-localization` can run on a small heap), invalid-tenant → 401 routing, MDMS create response casing, PGR workflow transition stubs, household-member head-of-household toggle. See file comments for full list.
+Port 28000 is `Digit-Core/core-services/gateway`, built from source. For each call it does what a deployed DIGIT 2.9 does:
+
+1. **Open endpoints** (login, localization search, `/egov-mdms-service/v1/_search`, and the rest of the list in `gateway/gateway.env`) pass without a login.
+2. **Every other call needs `RequestInfo.authToken`.** Without one the answer is `401`. The gateway looks the token up in `egov-user` and writes the user into `RequestInfo.userInfo`. A `userInfo` sent by the caller is replaced.
+3. **The user's roles must be allowed to call the endpoint.** The gateway asks `egov-accesscontrol`, which reads the role-to-endpoint mappings in the seed data (MDMS `ACCESSCONTROL-ROLEACTIONS.roleactions` and `ACCESSCONTROL-ACTIONS-TEST.actions-test`, tenant `mz`). If no role of the user is mapped to the endpoint, the answer is `401 You are not authorized to access this resource`.
+
+The open and mixed-mode endpoint lists are copied from the HCM deployment configuration (`egovernments/health-campaign-devops`, `environments/health-demo.yaml`). Those deployments run the older `zuul` gateway with the same lists; `Digit-Core` master has replaced `zuul` with this gateway.
+
+Differences from a deployed gateway:
+
+- **No rate limiting.** Every local request comes from one address, so a per-address limit would only get in the way of tests.
+- **MDMS is reachable as `/egov-mdms-service` only for permission purposes.** The seed has no role mappings for `/mdms-v2/...` search, so those calls are refused for every user. The UIs use `/egov-mdms-service`.
+- **Calls between services do not pass through the gateway.** Each service is given the direct address of the services it calls.
+
+What the two seeded users may call, as examples:
+
+| Endpoint | `SYSTEM` | `EMP-DIST-002` |
+|---|---|---|
+| Product search, facility search, project search | yes | yes |
+| Product create, facility create, campaign (project-factory) APIs, HRMS, user search, boundary | yes | no |
+| Household and individual APIs, checklist responses | no | yes |
+| Product update, facility update / delete / bulk create | no | no |
+
+The last row needs the `SYSTEM_ADMINISTRATOR` or `WAREHOUSE_MANAGER` role, which neither seeded user has.
 
 ### Known issues (not fixed in this stack)
 
@@ -479,6 +507,8 @@ curl -s -X POST http://localhost:28000/user/oauth/token \
   -H 'Authorization: Basic ZWdvdi11c2VyLWNsaWVudDo=' \
   -d 'username=SYSTEM&password=eGov@123&grant_type=password&scope=read&tenantId=mz&userType=EMPLOYEE'
 ```
+
+Put the `access_token` from the answer into `RequestInfo.authToken` of every later call.
 
 ### Default credentials reference
 

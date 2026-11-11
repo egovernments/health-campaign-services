@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # HCM local-setup bootstrap.
 # One-shot: checks prerequisites, brings the stack up,
-# encrypts SYSTEM user PII so OAuth works, ensures Kafka topics, restarts Kong,
-# then runs an 11-API smoke test and a DISTRIBUTOR login probe.
+# encrypts SYSTEM user PII so OAuth works, ensures Kafka topics,
+# then runs an API smoke test through the gateway and a DISTRIBUTOR login probe.
 # Idempotent — safe to re-run.
 #
 # Seed data lives in db/full-dump.sql (~34 MB) + db/02-hcm-ui-seed.sql (~6 MB),
@@ -133,35 +133,36 @@ for t in "${PF_TOPICS[@]}"; do
   $DK exec hcm-redpanda rpk topic create "$t" 2>&1 | tail -1 || true
 done
 
-# Reload Kong to refresh upstream pool (no-op if everything was already routed)
-$DK compose restart kong >/dev/null 2>&1 || true
-sleep 25
-
-# ── 6. Smoke-test 11 major APIs (stock and plan-service are in the optional profile) ────────────────────────────────────────────
-c_g "[6/6] Running API smoke test (all should be 200)"
+# ── 6. Smoke test through the gateway, logged in as SYSTEM ─────────────────
+c_g "[6/6] Running API smoke test through the gateway (all should show ✓)"
 
 python3 - <<'PYS'
 import json, subprocess
-RI = {"RequestInfo":{"apiId":"hcm","ver":".01","ts":1,"msgId":"smoke","userInfo":{
-    "id":1,"uuid":"dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3","userName":"SYSTEM",
-    "name":"System Admin","mobileNumber":"9999999999","active":True,
-    "tenantId":"mz","type":"EMPLOYEE",
-    "roles":[{"code":"SUPERUSER","tenantId":"mz"},
-             {"code":"NATIONAL_ADMIN","tenantId":"mz"}]}}}
+GW = "http://localhost:28000"
 
-def post(path, extra=None):
-    body = dict(RI)
+def curl(*args):
+    return subprocess.run(["curl","-s","-m","15",*args], capture_output=True, text=True).stdout
+
+try:
+    token = json.loads(curl("-X","POST",GW+"/user/oauth/token",
+        "-H","Authorization: Basic ZWdvdi11c2VyLWNsaWVudDo=",
+        "-d","username=SYSTEM&password=eGov@123&grant_type=password&scope=read&tenantId=mz&userType=EMPLOYEE"))["access_token"]
+    print("  \u2713 200  /user/oauth/token  (SYSTEM login)")
+except Exception:
+    print("  \u2717 SYSTEM login failed, so the calls below will be refused"); token = None
+
+def post(path, extra=None, token=token, expect="200"):
+    ri = {"apiId":"hcm","ver":".01","ts":1,"msgId":"smoke"}
+    if token: ri["authToken"] = token
+    body = {"RequestInfo": ri}
     if extra: body.update(extra)
-    data = json.dumps(body)
-    r = subprocess.run(["curl","-s","-o","/dev/null","-m","15","-X","POST",
-                        f"http://localhost:28000{path}",
-                        "-H","Content-Type: application/json","--data",data,
-                        "-w","%{http_code}"], capture_output=True, text=True)
-    code = r.stdout.strip() or "err"
-    icon = "\u2713" if code == "200" else "\u2717"
-    print(f"  {icon} {code:>3}  {path}")
+    code = curl("-o","/dev/null","-X","POST",GW+path,"-H","Content-Type: application/json",
+                "--data",json.dumps(body),"-w","%{http_code}").strip() or "err"
+    icon = "\u2713" if code == expect else "\u2717"
+    print(f"  {icon} {code:>3}  {path}" + ("" if expect == "200" else f"  (expected {expect})"))
 
-post("/mdms-v2/v1/_search",
+# The gateway only lets a role call the endpoints the seed data grants it. These are ones SYSTEM may call.
+post("/egov-mdms-service/v1/_search",
      {"MdmsCriteria":{"tenantId":"mz","moduleDetails":[
          {"moduleName":"common-masters","masterDetails":[{"name":"IdFormat"}]}]}})
 post("/boundary-service/boundary-hierarchy-definition/_search",
@@ -171,17 +172,19 @@ post("/egov-idgen/id/_generate",
                      "format":"IND-[SEQ_INDIVIDUAL_ID]","count":1}]})
 post("/user/_search",
      {"tenantId":"mz","userType":"EMPLOYEE","userName":"SYSTEM"})
-post("/health-individual/v1/_search?tenantId=mz&limit=5&offset=0",  {"Individual":{}})
-post("/household/v1/_search?tenantId=mz&limit=5&offset=0",          {"Household":{}})
 post("/facility/v1/_search?tenantId=mz&limit=5&offset=0",           {"Facility":{}})
 post("/product/v1/_search?tenantId=mz&limit=5&offset=0",            {"Product":{}})
 post("/health-project/v1/_search?tenantId=mz&limit=5&offset=0",
      {"Projects":[{"tenantId":"mz","name":"%"}]})
 post("/health-hrms/employees/_search?tenantId=mz&limit=5&offset=0", None)
+post("/health-service-request/service/definition/v1/_search",
+     {"ServiceDefinitionCriteria":{"tenantId":"mz"}})
 post("/project-factory/v1/project-type/search",
      {"CampaignDetails":{"tenantId":"mz",
         "status":["drafted","created","started","completed"],
         "pagination":{"limit":5}}})
+# Without a login the gateway must refuse.
+post("/product/v1/_search?tenantId=mz&limit=5&offset=0", {"Product":{}}, token=None, expect="401")
 PYS
 
 # ── 6b. Verify the demo DISTRIBUTOR login works ───────────────────────────

@@ -501,8 +501,10 @@ services:
       # that needs ~3 GB of heap during serialization. UAT runs at -Xmx4000m
       # for the same image (egov-localization:redis-localization-key-5c0a4c4),
       # so we mirror it. The call is harmless in UAT because heap is sized for it.
-      # Local setup: kong.yml now answers that empty-module call itself, so the full load never
-      # happens here and a small heap is enough. Go back to -Xms1024m -Xmx4000m if you remove that rule.
+      # Local setup: nginx/frontend-proxy.conf answers that empty-module call itself for the UI, so the
+      # full load never happens here and a small heap is enough. Go back to -Xms1024m -Xmx4000m if you
+      # remove that rule. The rule covers the UI address (28080) only: the same call made straight to the
+      # gateway (28000) reaches this service and will run it out of memory.
       JAVA_OPTS: -Xms128m -Xmx512m
     ports:
       - "28096:8096"
@@ -1169,6 +1171,56 @@ services:
     networks:
       - hcm-network
 
+  # Checklists (service definitions and responses). No published image is used for this one: it exists
+  # only as hcm-local/health-service-request:source, built by scripts/build-from-source.sh from
+  # core-services/service-request on top of the same runtime image as product.
+  health-service-request:
+    image: hcm-local/health-service-request:source
+    container_name: hcm-health-service-request
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      egov-persister:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      SERVER_SERVLET_CONTEXT_PATH: /health-service-request
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "2"
+      # Schema is pre-loaded from db/full-dump.sql
+      SPRING_FLYWAY_ENABLED: 'false'
+      KAFKA_CONFIG_BOOTSTRAP_SERVER_CONFIG: redpanda:9092
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: health-service-request
+      # Topic names the persister config (configs/persister/service-request-persister.yml) listens on
+      EGOV_SERVICE_DEFINITION_CREATE_TOPIC: save-service-definition-health
+      EGOV_SERVICE_DEFINITION_UPDATE_TOPIC: update-service-definition-health
+      EGOV_SERVICE_CREATE_TOPIC: save-service-health
+      EGOV_SERVICE_UPDATE_TOPIC: update-service-health
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx192m
+    ports:
+      - "28140:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health-service-request/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '0.25'
+    networks:
+      - hcm-network
+
   health-project:
     image: egovio/health-project:featurefacilitysearch-f20c740
     container_name: hcm-health-project
@@ -1555,7 +1607,7 @@ services:
       MANAGEMENT_SECURITY_ENABLED: 'false'
       EGOV_MDMS_HOST: http://egov-mdms-service:8094
       EGOV_MDMS_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
-      EGOV_WORKFLOW_HOST: http://kong:8000
+      EGOV_WORKFLOW_HOST: http://egov-workflow-v2:8109
       EGOV_WORKFLOW_TRANSITION_PATH: /egov-workflow-v2/egov-wf/process/_transition
       EGOV_WORKFLOW_BUSINESSSERVICE_SEARCH_PATH: /egov-workflow-v2/egov-wf/businessservice/_search
       EGOV_USER_HOST: http://egov-user:8107
@@ -2048,8 +2100,10 @@ services:
       EGOV_PLAN_SERVICE_HOST: http://plan-service:8080/
       EXCEL_INGESTION_HOST: http://excel-ingestion:8080/
       EGOV_CENSUS_HOST: http://census-service:8080/
+      EGOV_SERVICE_REQUEST_HOST: http://health-service-request:8080/
+      EGOV_ATTENDANCE_HOST: http://health-attendance:8080/
       EGOV_AUDIT_HOST: http://egov-persister:8091/
-      EGOV_HOST: http://kong:8000/
+      EGOV_HOST: http://gateway:8080/
       REDIS_HOST: redis
       REDIS_PORT: 6379
       CONTEXT_PATH: /project-factory
@@ -2209,7 +2263,7 @@ services:
       EGOV_FILESTORE_SERVICE_HOST: http://egov-filestore:8083
       EGOV_BOUNDARY_HOST: http://boundary-service:8081
       EGOV_LOCALIZATION_HOST: http://egov-localization:8096
-      EGOV_HOST: http://kong:8000/
+      EGOV_HOST: http://gateway:8080/
       REDIS_HOST: redis
       REDIS_PORT: 6379
       CONTEXT_PATH: /boundary-management
@@ -2431,7 +2485,7 @@ services:
         condition: service_started
       workbench-ui:
         condition: service_started
-      kong:
+      gateway:
         condition: service_healthy
     deploy:
       resources:
@@ -2443,45 +2497,55 @@ services:
 
   # ==================== GATEWAY ====================
 
-  kong:
-    image: kong:3.6
-    container_name: hcm-kong
+  # The DIGIT gateway from Digit-Core (core-services/gateway), built from source. It is the single
+  # entry point for API calls on port 28000. For every call that is not on the open-endpoint list it
+  # checks the auth token with egov-user, fills RequestInfo.userInfo from it, and asks
+  # egov-accesscontrol whether the user's roles may call that endpoint.
+  # Routes are in gateway/routes.properties, the open and mixed-mode endpoint lists in gateway/gateway.env.
+  gateway:
+    image: hcm-local/gateway:source
+    container_name: hcm-gateway
+    env_file:
+      - ./gateway/gateway.env
     environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
-      KONG_PROXY_ACCESS_LOG: /dev/stdout
-      KONG_ADMIN_ACCESS_LOG: /dev/stdout
-      KONG_PROXY_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_LISTEN: 0.0.0.0:8001
-      KONG_ADMIN_GUI_URL: http://localhost:28002
-      KONG_STATUS_LISTEN: 0.0.0.0:8100
-      KONG_MEM_CACHE_SIZE: 64m
-      KONG_NGINX_WORKER_PROCESSES: 1
+      SERVER_PORT: 8080
+      SPRING_ROUTES_FILEPATH: file:/gateway/routes.properties
+      EGOV_AUTH_SERVICE_HOST: http://egov-user:8107/
+      EGOV_AUTHORIZE_ACCESS_CONTROL_HOST: http://egov-accesscontrol:8090/
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      KAFKA_CONFIG_BOOTSTRAP_SERVER_CONFIG: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      IS_ENVIRONMENT_CENTRAL_INSTANCE: 'false'
+      STATE_LEVEL_TENANT_ID: mz
+      OTEL_TRACES_EXPORTER: none
+      JAVA_OPTS: -Xms128m -Xmx256m
     volumes:
-      - ./kong/kong.yml:/kong/kong.yml:ro
+      - ./gateway/routes.properties:/gateway/routes.properties:ro
     ports:
-      - "28000:8000"
-      - "28443:8443"
-      - "28001:8001"
-      - "28002:8002"
-      - "28100:8100"
+      - "28000:8080"
     healthcheck:
-      test: ["CMD", "kong", "health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 60s
     depends_on:
-      egov-mdms-service:
+      redis:
+        condition: service_healthy
+      redpanda:
         condition: service_healthy
       egov-user:
+        condition: service_healthy
+      egov-accesscontrol:
         condition: service_healthy
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.25'
+          memory: 512M
+          cpus: '0.5'
     networks:
       - hcm-network
 

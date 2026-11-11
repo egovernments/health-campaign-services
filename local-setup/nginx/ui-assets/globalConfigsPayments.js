@@ -1,6 +1,6 @@
 // Local docker-compose variant of UAT globalConfigsPaymentsUAT.js
 // Backend API calls are made relatively to the page origin, which is served
-// by frontend-proxy and forwarded to Kong (http://kong:8000) inside the network.
+// by frontend-proxy and forwarded to the DIGIT gateway (http://gateway:8080) inside the network.
 var globalConfigs = (function () {
   var contextPath = "payments-ui";
   var projectContext = "health-project";
