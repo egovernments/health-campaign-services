@@ -446,7 +446,7 @@ local-setup/
 
 ### Where data comes from
 
-`db/full-dump.sql` + `db/02-hcm-ui-seed.sql` are mounted into Postgres' init dir and applied **in order** on first DB init. Self-contained — no remote fetch, no manual restore. Contains: schema, MDMS, ~607 TCHAD boundary rows, MICROPLAN boundary, 19 HCM roles, 1 SYSTEM admin, ~1000 sample users (only the five under "Test users" can log in), 501 HRMS employees, 124 products, NULL-relaxation patch on `health.project`.
+`db/full-dump.sql` + `db/02-hcm-ui-seed.sql` are mounted into Postgres' init dir and applied **in order** on first DB init. Self-contained — no remote fetch, no manual restore. Contains: schema, MDMS, ~607 TCHAD boundary rows, MICROPLAN boundary, 19 HCM roles, 1 SYSTEM admin, ~1000 sample users (only the ones under "Test users" can log in), 501 HRMS employees, 124 products, NULL-relaxation patch on `health.project`.
 
 ### Adding a service
 
@@ -472,7 +472,7 @@ No single user may call everything, so pick the login whose role fits the flow (
 
 | Endpoint | Logins that may call it |
 |---|---|
-| Product search, facility search, project search | all five |
+| Product search, facility search | `SYSTEM`, `EMP-DIST-002`, `EMP-SYSADMIN-001`, `EMP-WHM-001` (not `EMP-REG-001`) |
 | Campaign (project-factory) APIs, HRMS, user search, boundary | `SYSTEM` |
 | Product and product variant create | `SYSTEM`, `EMP-SYSADMIN-001` |
 | Product and product variant update | `EMP-SYSADMIN-001` |
@@ -506,6 +506,9 @@ Found during a full manual CRUD sweep — documented so demo flows steer around 
 | `EMP-SYSADMIN-001` | `eGov@123` | SYSTEM_ADMINISTRATOR | Product flows |
 | `EMP-WHM-001` | `eGov@123` | WAREHOUSE_MANAGER | Facility flows |
 | `EMP-REG-001` | `eGov@123` | REGISTRAR | Household flows |
+| `EMP-HFW-001` | `eGov@123` | HEALTH_FACILITY_WORKER | Referral flows |
+| `EMP-DSUP-001` | `eGov@123` | DISTRICT_SUPERVISOR | Checklist answers by a supervisor; creating and searching users (HRMS) |
+| `EMP-COMM-001` | `eGov@123` | COMMUNITY_CREATOR + REGISTRAR | Community household (the gateway needs REGISTRAR, the household service needs COMMUNITY_CREATOR) |
 
 All are tenant `mz`, type `EMPLOYEE`, and are inserted at the end of `db/full-dump.sql`, so they survive `down -v && up -d`.
 

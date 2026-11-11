@@ -197931,6 +197931,10 @@ INSERT INTO public.eg_hrms_jurisdiction (uuid,employeeid,hierarchy,boundarytype,
 --   EMP-SYSADMIN-001  SYSTEM_ADMINISTRATOR  (product flows)
 --   EMP-WHM-001       WAREHOUSE_MANAGER     (facility flows)
 --   EMP-REG-001       REGISTRAR             (household flows)
+--   EMP-HFW-001       HEALTH_FACILITY_WORKER (referral flows)
+--   EMP-DSUP-001      DISTRICT_SUPERVISOR   (supervisor checklist answers, HRMS user create/search)
+--   EMP-COMM-001      COMMUNITY_CREATOR + REGISTRAR (community household: the gateway
+--                     needs REGISTRAR, the household service needs COMMUNITY_CREATOR)
 -- username / name / mobilenumber are encrypted with the enc-service key
 -- in this dump (195894), like EMP-DIST-002. Safe to run again.
 -- ===========================================================
@@ -197941,14 +197945,21 @@ VALUES ('Registrar','REGISTRAR','Registrar','2026-11-11 12:00:00',1,'mz',1018) O
 INSERT INTO public.eg_user (username,password,pwdexpirydate,mobilenumber,createddate,lastmodifieddate,createdby,lastmodifiedby,active,name,gender,type,version,guardianrelation,accountlocked,bloodgroup,tenantid,id,uuid) VALUES
  ('195894|8nn1v4XOLv5t7+6Ay947l88Yi7vg+6OdJ1yxYMr/79M=','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8Zk7M+0zsxsgTNJrWdPDmHyfw=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|5E3W5rP6Xf5Nz86gj51/1Aix/kpsHMHtSfjHuUq7hSdBM4Hy',0,'EMPLOYEE',0,'','f','','mz',1245,'7af13361-2abb-4887-a2c3-44601d6063f1'),
  ('195894|8nn1v4HfMJIZkpbBcnp3VAnuvQCGreoZilvq','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8ZkM+oC/Sz9XboTE+vSbN4tbQ=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|4FXX9774CMxMguqviI9swxv1yhISeLqy15TXBJVrXQRP',0,'EMPLOYEE',0,'','f','','mz',1246,'a48b0113-1eea-4554-8770-7517fd5d9281'),
- ('195894|8nn1v4TSOpIZkpYnNp+SCJ+0im5rUycKfk7J','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8ZkeQlvE4yN6cLahm+msrSYYw=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|5VHC+6XjD95b/JW65ebbgcB9JMFFQgUFNQ==',0,'EMPLOYEE',0,'','f','','mz',1247,'5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41')
+ ('195894|8nn1v4TSOpIZkpYnNp+SCJ+0im5rUycKfk7J','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8ZkeQlvE4yN6cLahm+msrSYYw=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|5VHC+6XjD95b/JW65ebbgcB9JMFFQgUFNQ==',0,'EMPLOYEE',0,'','f','','mz',1247,'5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41'),
+ ('195894|8nn1v57RKpIZkpaPXy2yLbDtRn1EsAXmAb8X','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8ZljaFumu3e5KimbvLoqaGTSQ=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|/1HE/qL/XflIwc6ij5pyhj6q41OLRHu+0WBQIhjxV1lmk6U5jJc=',0,'EMPLOYEE',0,'','f','','mz',1248,'8c2f4b1e-6a7d-4e39-b5c0-91d3e7f2a604'),
+ ('195894|8nn1v5LEKO8Ekpf/umfBpi7Xmts9XX9faHnwqw==','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8Zlx0IDdE2uUNBv+3acd8smRw=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|813W5qT+HssJ8dK+g5x9zxqq44xVTgTb7+tLgigbFX+S630=',0,'EMPLOYEE',0,'','f','','mz',1249,'e3a91d57-2c4b-4f86-a7d1-5b0c8e6f3a25'),
+ ('195894|8nn1v5XYMPIEkpf/wlwRkW44TxqxRFZKDL2FMg==','$2a$10$sCAU70UOb5cO0Jqe.6VCOONNrwZrvzE4qPW91OBDqLZU4zdLsERfm','2099-12-31T00:00:00','195894|jg2cq++nTY8ZlGGe1R60/jFk1RfoBFXT5VQ=','2026-11-11T12:00:00','2026-11-11T12:00:00',1,1,'t','195894|9FvI/6P5FMtQguS8g49/yRs3TKjt97ESZEkkuPtx/ihY',0,'EMPLOYEE',0,'','f','','mz',1250,'4f7b2c90-d1e8-4a63-9b35-c6a0e8d17f46')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.eg_userrole_v1 (role_code,role_tenantid,user_id,user_tenantid,lastmodifieddate)
 SELECT v.role_code,'mz',u.id,'mz','2026-11-11T12:00:00'
 FROM (VALUES ('7af13361-2abb-4887-a2c3-44601d6063f1','SYSTEM_ADMINISTRATOR'),
              ('a48b0113-1eea-4554-8770-7517fd5d9281','WAREHOUSE_MANAGER'),
-             ('5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','REGISTRAR')) AS v(uuid,role_code)
+             ('5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','REGISTRAR'),
+             ('8c2f4b1e-6a7d-4e39-b5c0-91d3e7f2a604','HEALTH_FACILITY_WORKER'),
+             ('e3a91d57-2c4b-4f86-a7d1-5b0c8e6f3a25','DISTRICT_SUPERVISOR'),
+             ('4f7b2c90-d1e8-4a63-9b35-c6a0e8d17f46','COMMUNITY_CREATOR'),
+             ('4f7b2c90-d1e8-4a63-9b35-c6a0e8d17f46','REGISTRAR')) AS v(uuid,role_code)
 JOIN public.eg_user u ON u.uuid=v.uuid AND u.tenantid='mz'
 WHERE NOT EXISTS (
   SELECT 1 FROM public.eg_userrole_v1 r
@@ -197958,12 +197969,18 @@ WHERE NOT EXISTS (
 INSERT INTO public.eg_hrms_employee (id,uuid,code,dateofappointment,employeestatus,employeetype,active,tenantid,createdby,createddate) VALUES
  (4090180990662297541,'7af13361-2abb-4887-a2c3-44601d6063f1','EMP-SYSADMIN-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000),
  (4090180990662297542,'a48b0113-1eea-4554-8770-7517fd5d9281','EMP-WHM-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000),
- (4090180990662297543,'5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','EMP-REG-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000)
+ (4090180990662297543,'5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','EMP-REG-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000),
+ (4090180990662297544,'8c2f4b1e-6a7d-4e39-b5c0-91d3e7f2a604','EMP-HFW-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000),
+ (4090180990662297545,'e3a91d57-2c4b-4f86-a7d1-5b0c8e6f3a25','EMP-DSUP-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000),
+ (4090180990662297546,'4f7b2c90-d1e8-4a63-9b35-c6a0e8d17f46','EMP-COMM-001',1776681532000,'EMPLOYED','PERMANENT','t','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000)
 ON CONFLICT DO NOTHING;
 INSERT INTO public.eg_hrms_jurisdiction (uuid,employeeid,hierarchy,boundarytype,boundary,tenantid,createdby,createddate,isactive) VALUES
  ('b1e0a6c2-3d4f-4a51-9c01-000000000001','7af13361-2abb-4887-a2c3-44601d6063f1','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t'),
  ('b1e0a6c2-3d4f-4a51-9c01-000000000002','a48b0113-1eea-4554-8770-7517fd5d9281','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t'),
- ('b1e0a6c2-3d4f-4a51-9c01-000000000003','5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t')
+ ('b1e0a6c2-3d4f-4a51-9c01-000000000003','5d0c7e52-9b1f-4c3a-8e64-2f7a1b9d3c41','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t'),
+ ('b1e0a6c2-3d4f-4a51-9c01-000000000004','8c2f4b1e-6a7d-4e39-b5c0-91d3e7f2a604','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t'),
+ ('b1e0a6c2-3d4f-4a51-9c01-000000000005','e3a91d57-2c4b-4f86-a7d1-5b0c8e6f3a25','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t'),
+ ('b1e0a6c2-3d4f-4a51-9c01-000000000006','4f7b2c90-d1e8-4a63-9b35-c6a0e8d17f46','TCHAD','Country','ADMIN_TC','mz','dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3',1794398400000,'t')
 ON CONFLICT DO NOTHING;
 
 -- Keep new user ids clear of the fixed ids above and EMP-DIST-002 (1244).
