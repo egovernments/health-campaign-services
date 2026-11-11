@@ -163,8 +163,10 @@ public class FacilityRepository extends GenericRepository<Facility> {
         }
 
         if (byLocalityCodes) {
-            query = query + "and a.localityCode IN (:localityCodes) ";
-            paramsMap.put("localityCodes", localityCodes);
+            // One array parameter, not one per boundary: a large area (e.g. a whole country) can have more boundaries
+            // than the 65,535 parameters Postgres allows in one query
+            query = query + "and a.localityCode = ANY(:localityCodes) ";
+            paramsMap.put("localityCodes", localityCodes.toArray(new String[0]));
         }
 
         // A site (a facility whose usage is an outside household type, MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES) is left

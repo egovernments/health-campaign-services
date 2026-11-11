@@ -20,7 +20,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -82,8 +84,18 @@ class FacilityRepositoryTest {
         facilityRepository.find(search, 1000, 0, "mz", null, false, List.of("ROOT", "CHILD"));
 
         String query = pagedQuery();
-        assertTrue(query.contains("a.localityCode IN (:localityCodes)"), query);
+        assertTrue(query.contains("a.localityCode = ANY(:localityCodes)"), query);
         assertTrue(query.endsWith(" ORDER BY f.id ASC LIMIT :limit OFFSET :offset"), query);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sendsTheBoundariesBelowAsOneArrayParameter() throws Exception {
+        facilityRepository.find(FacilitySearch.builder().isPermanent(true).build(), 1000, 0, "mz", null, false, List.of("ROOT", "CHILD"));
+
+        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        verify(namedParameterJdbcTemplate).query(anyString(), params.capture(), any(RowMapper.class));
+        assertArrayEquals(new String[]{"ROOT", "CHILD"}, (String[]) params.getValue().get("localityCodes"));
     }
 
     @Test
