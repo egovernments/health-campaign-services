@@ -1,0 +1,181 @@
+serviceMaps:
+  serviceName: muster-service
+  mappings:
+    - version: 1.0
+      name: Muster roll
+      description: Persists muster roll details in DB
+      fromTopic: save-musterroll-health
+      isTransaction: true
+      isAuditEnabled: true
+      module: MST
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      transactionCodeJsonPath: $.musterRollNumber
+      auditAttributeBasePath: $.musterRoll
+      queryMaps:
+         - query: INSERT INTO health.eg_wms_muster_roll(id,tenant_id,musterroll_number,attendance_register_id,start_date,end_date,musterroll_status,status,billing_period_id,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime,reference_id,service_code) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+           basePath: $.musterRoll
+           jsonMaps:
+             - jsonPath: $.musterRoll.id
+
+             - jsonPath: $.musterRoll.tenantId
+
+             - jsonPath: $.musterRoll.musterRollNumber
+
+             - jsonPath: $.musterRoll.registerId
+
+             - jsonPath: $.musterRoll.startDate
+
+             - jsonPath: $.musterRoll.endDate
+
+             - jsonPath: $.musterRoll.musterRollStatus
+
+             - jsonPath: $.musterRoll.status
+
+             - jsonPath: $.musterRoll.billingPeriodId
+
+             - jsonPath: $.musterRoll.additionalDetails
+               type: JSON
+               dbType: JSONB
+
+             - jsonPath: $.musterRoll.auditDetails.createdBy
+
+             - jsonPath: $.musterRoll.auditDetails.lastModifiedBy
+
+             - jsonPath: $.musterRoll.auditDetails.createdTime
+
+             - jsonPath: $.musterRoll.auditDetails.lastModifiedTime
+
+             - jsonPath: $.musterRoll.referenceId
+
+             - jsonPath: $.musterRoll.serviceCode
+
+         - query: INSERT INTO health.eg_wms_attendance_summary(id,individual_id,muster_roll_id,musterroll_number,actual_total_attendance,billing_period_id,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime,modified_total_attendance) VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
+           basePath: $.musterRoll.individualEntries.*
+           jsonMaps:
+
+             - jsonPath: $.musterRoll.individualEntries.*.id
+
+             - jsonPath: $.musterRoll.individualEntries.*.individualId
+
+             - jsonPath: $.musterRoll.id
+
+             - jsonPath: $.musterRoll.musterRollNumber
+
+             - jsonPath: $.musterRoll.individualEntries.*.actualTotalAttendance
+
+             - jsonPath: $.musterRoll.billingPeriodId
+
+             - jsonPath: $.musterRoll.individualEntries.*.additionalDetails
+               type: JSON
+               dbType: JSONB
+
+             - jsonPath: $.musterRoll.individualEntries.*.auditDetails.createdBy
+
+             - jsonPath: $.musterRoll.individualEntries.*.auditDetails.lastModifiedBy
+
+             - jsonPath: $.musterRoll.individualEntries.*.auditDetails.createdTime
+
+             - jsonPath: $.musterRoll.individualEntries.*.auditDetails.lastModifiedTime
+
+             - jsonPath: $.musterRoll.individualEntries.*.modifiedTotalAttendance
+
+         - query: INSERT INTO health.eg_wms_attendance_entries(id,attendance_summary_id,individual_id,musterroll_number,date_of_attendance,attendance_value,billing_period_id,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime) VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
+           basePath: $.musterRoll.individualEntries.*.attendanceEntries.*
+           jsonMaps:
+
+             - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.id
+
+             - jsonPath: $.musterRoll.individualEntries[*][?({id} in @.attendanceEntries[*].id)].id
+
+             - jsonPath: $.musterRoll.individualEntries[*][?({id} in @.attendanceEntries[*].id)].individualId
+
+             - jsonPath: $.musterRoll.musterRollNumber
+
+             - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.time
+
+             - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.attendance
+
+             - jsonPath: $.musterRoll.billingPeriodId
+
+             - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.additionalDetails
+               type: JSON
+               dbType: JSONB
+
+             - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.auditDetails.createdBy
+
+             - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.auditDetails.lastModifiedBy
+
+             - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.auditDetails.createdTime
+
+             - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      description: Update Muster Roll details
+      fromTopic: update-musterroll-health
+      isTransaction: true
+      isAuditEnabled: true
+      module: MST
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.musterRoll
+      queryMaps:
+         - query: UPDATE health.eg_wms_muster_roll SET musterroll_status=?, status=?, billing_period_id=?, additionaldetails=?, lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
+           basePath: $.musterRoll
+           jsonMaps:
+
+             - jsonPath: $.musterRoll.musterRollStatus
+
+             - jsonPath: $.musterRoll.status
+
+             - jsonPath: $.musterRoll.billingPeriodId
+
+             - jsonPath: $.musterRoll.additionalDetails
+               type: JSON
+               dbType: JSONB
+
+             - jsonPath: $.musterRoll.auditDetails.lastModifiedBy
+
+             - jsonPath: $.musterRoll.auditDetails.lastModifiedTime
+
+             - jsonPath: $.musterRoll.id
+
+         - query: UPDATE health.eg_wms_attendance_summary SET actual_total_attendance=?, modified_total_attendance=?, billing_period_id=?, additionaldetails=?, lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
+           basePath: $.musterRoll.individualEntries.*
+           jsonMaps:
+
+             - jsonPath: $.musterRoll.individualEntries.*.actualTotalAttendance
+
+             - jsonPath: $.musterRoll.individualEntries.*.modifiedTotalAttendance
+
+             - jsonPath: $.musterRoll.billingPeriodId
+
+             - jsonPath: $.musterRoll.individualEntries.*.additionalDetails
+               type: JSON
+               dbType: JSONB
+
+             - jsonPath: $.musterRoll.auditDetails.lastModifiedBy
+
+             - jsonPath: $.musterRoll.auditDetails.lastModifiedTime
+
+             - jsonPath: $.musterRoll.individualEntries.*.id
+
+
+         - query: UPDATE health.eg_wms_attendance_entries SET attendance_value=?, billing_period_id=?, additionaldetails=?, lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
+           basePath: $.musterRoll.individualEntries.*.attendanceEntries.*
+           jsonMaps:
+
+              - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.attendance
+
+              - jsonPath: $.musterRoll.billingPeriodId
+
+              - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.additionalDetails
+                type: JSON
+                dbType: JSONB
+
+              - jsonPath: $.musterRoll.auditDetails.lastModifiedBy
+
+              - jsonPath: $.musterRoll.auditDetails.lastModifiedTime
+
+              - jsonPath: $.musterRoll.individualEntries.*.attendanceEntries.*.id

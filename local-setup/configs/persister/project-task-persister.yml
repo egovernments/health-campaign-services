@@ -1,0 +1,289 @@
+serviceMaps:
+  serviceName: project
+  mappings:
+    - version: 1.0
+      description: Saves a project task
+      fromTopic: save-project-task-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: INSERT INTO health.PROJECT_TASK(id, clientReferenceId, tenantId, projectId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, plannedStartDate, plannedEndDate, actualStartDate, actualEndDate, addressId, status, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted, clientCreatedTime, clientLastModifiedTime, clientCreatedBy, clientLastModifiedBy) VALUES (?, ?, ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectBeneficiaryClientReferenceId
+            - jsonPath: $.*.plannedStartDate
+            - jsonPath: $.*.plannedEndDate
+            - jsonPath: $.*.actualStartDate
+            - jsonPath: $.*.actualEndDate
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.status
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+
+        - query: INSERT INTO health.ADDRESS(id, clientReferenceId, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*.address
+          jsonMaps:
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.address.clientReferenceId
+            - jsonPath: $.*.address.tenantId
+            - jsonPath: $.*.address.doorNo
+            - jsonPath: $.*.address.latitude
+            - jsonPath: $.*.address.longitude
+            - jsonPath: $.*.address.locationAccuracy
+            - jsonPath: $.*.address.type
+            - jsonPath: $.*.address.addressLine1
+            - jsonPath: $.*.address.addressLine2
+            - jsonPath: $.*.address.landmark
+            - jsonPath: $.*.address.city
+            - jsonPath: $.*.address.pincode
+            - jsonPath: $.*.address.buildingName
+            - jsonPath: $.*.address.street
+            - jsonPath: $.*.address.locality.code
+
+        - query: INSERT INTO health.TASK_RESOURCE(id, clientReferenceId, tenantid, productvariantid, taskid, quantity, isDelivered, reasonIfNotDelivered, createdBy, createdTime, lastModifiedBy, lastModifiedTime, isDeleted, additionalDetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*.resources.*
+          jsonMaps:
+            - jsonPath: $.*.resources.*.id
+            - jsonPath: $.*.resources.*.clientReferenceId
+            - jsonPath: $.*.resources.*.tenantId
+            - jsonPath: $.*.resources.*.productVariantId
+            - jsonPath: $.*.resources.*.taskId
+            - jsonPath: $.*.resources.*.quantity
+            - jsonPath: $.*.resources.*.isDelivered
+            - jsonPath: $.*.resources.*.deliveryComment
+            - jsonPath: $.*.resources.*.auditDetails.createdBy
+            - jsonPath: $.*.resources.*.auditDetails.createdTime
+            - jsonPath: $.*.resources.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.resources.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.resources.*.isDeleted
+            - jsonPath: $.*.resources.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+    - version: 1.0
+      description: Updates a project task
+      fromTopic: update-project-task-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE health.PROJECT_TASK SET tenantId = ?, projectId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, addressId = ?, plannedStartDate = ?, plannedEndDate = ?, actualStartDate = ?, actualEndDate = ?, status = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ?, clientLastModifiedTime = ?, clientLastModifiedBy = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectBeneficiaryClientReferenceId
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.plannedStartDate
+            - jsonPath: $.*.plannedEndDate
+            - jsonPath: $.*.actualStartDate
+            - jsonPath: $.*.actualEndDate
+            - jsonPath: $.*.status
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.id
+
+        - query: UPDATE health.ADDRESS SET tenantId = ?, doorno = ?, latitude = ?, longitude = ?, locationAccuracy = ?, type = ?, addressline1 = ?, addressline2 = ?, landmark = ?, city = ?, pincode = ?, buildingName = ?, street = ?, localityCode = ? WHERE ID = ?;
+          basePath: $.*.address
+          jsonMaps:
+            - jsonPath: $.*.address.tenantId
+            - jsonPath: $.*.address.doorNo
+            - jsonPath: $.*.address.latitude
+            - jsonPath: $.*.address.longitude
+            - jsonPath: $.*.address.locationAccuracy
+            - jsonPath: $.*.address.type
+            - jsonPath: $.*.address.addressLine1
+            - jsonPath: $.*.address.addressLine2
+            - jsonPath: $.*.address.landmark
+            - jsonPath: $.*.address.city
+            - jsonPath: $.*.address.pincode
+            - jsonPath: $.*.address.buildingName
+            - jsonPath: $.*.address.street
+            - jsonPath: $.*.address.locality.code
+            - jsonPath: $.*.address.id
+
+        - query: INSERT INTO health.TASK_RESOURCE(id, clientReferenceId, tenantid, productvariantid, taskid, quantity, isDelivered, reasonIfNotDelivered, createdBy, createdTime, lastModifiedBy, lastModifiedTime, isDeleted, additionalDetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET tenantid = ?, taskid = ?, productvariantid = ?, quantity = ?, isDelivered = ?, reasonIfNotDelivered = ?, lastModifiedBy = ?, lastModifiedTime = ?, additionalDetails = ?;
+          basePath: $.*.resources.*
+          jsonMaps:
+            - jsonPath: $.*.resources.*.id
+            - jsonPath: $.*.resources.*.clientReferenceId
+            - jsonPath: $.*.resources.*.tenantId
+            - jsonPath: $.*.resources.*.productVariantId
+            - jsonPath: $.*.resources.*.taskId
+            - jsonPath: $.*.resources.*.quantity
+            - jsonPath: $.*.resources.*.isDelivered
+            - jsonPath: $.*.resources.*.deliveryComment
+            - jsonPath: $.*.resources.*.auditDetails.createdBy
+            - jsonPath: $.*.resources.*.auditDetails.createdTime
+            - jsonPath: $.*.resources.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.resources.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.resources.*.isDeleted
+            - jsonPath: $.*.resources.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.resources.*.tenantId
+            - jsonPath: $.*.resources.*.taskId
+            - jsonPath: $.*.resources.*.productVariantId
+            - jsonPath: $.*.resources.*.quantity
+            - jsonPath: $.*.resources.*.isDelivered
+            - jsonPath: $.*.resources.*.deliveryComment
+            - jsonPath: $.*.resources.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.resources.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.resources.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+    - version: 1.0
+      description: Deletes a project task
+      fromTopic: delete-project-task-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE health.PROJECT_TASK SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedTime = ?, clientLastModifiedBy = ?, rowVersion = ?, isDeleted = ?, additionalDetails=? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+        - query: UPDATE health.TASK_RESOURCE SET lastModifiedBy = ?, lastModifiedTime = ?, isDeleted = ?, additionalDetails = ? WHERE ID = ?;
+          basePath: $.*.resources.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a adverse event
+      fromTopic: save-adverse-event-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: INSERT INTO health.ADVERSE_EVENT(id, clientReferenceId, tenantId, taskId, taskClientReferenceId, symptoms, reAttempts, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedTime, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.taskId
+            - jsonPath: $.*.taskClientReferenceId
+            - jsonPath: $.*.symptoms
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.reAttempts
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates a adverse event
+      fromTopic: update-adverse-event-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE health.ADVERSE_EVENT SET tenantId = ?, taskId = ?, taskClientReferenceId = ?, symptoms = ?, reAttempts = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.taskId
+            - jsonPath: $.*.taskClientReferenceId
+            - jsonPath: $.*.symptoms
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.reAttempts
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes a adverse event
+      fromTopic: delete-adverse-event-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE health.ADVERSE_EVENT SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id

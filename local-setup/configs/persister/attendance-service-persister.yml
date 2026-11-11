@@ -1,0 +1,418 @@
+serviceMaps:
+ serviceName: attendance-service
+ mappings:
+ - version: 1.0
+   name: attendance
+   description: Persists attendance details in eg_wms_attendance_register table
+   fromTopic: save-attendance-health
+   isTransaction: true
+   isAuditEnabled: true
+   module: ATND
+   objecIdJsonPath: $.id
+   tenantIdJsonPath: $.tenantId
+   transactionCodeJsonPath: $.registerNumber
+   auditAttributeBasePath: $.attendanceRegister.*
+   queryMaps:
+    - query: INSERT INTO health.eg_wms_attendance_register(id,tenantid,registernumber,name,startdate,enddate,status,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime,referenceid,servicecode,localitycode,reviewstatus) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+      basePath: $.attendanceRegister.*
+      jsonMaps:
+       - jsonPath: $.attendanceRegister.*.id
+
+       - jsonPath: $.attendanceRegister.*.tenantId
+
+       - jsonPath: $.attendanceRegister.*.registerNumber
+
+       - jsonPath: $.attendanceRegister.*.name
+
+       - jsonPath: $.attendanceRegister.*.startDate
+
+       - jsonPath: $.attendanceRegister.*.endDate
+
+       - jsonPath: $.attendanceRegister.*.status
+
+       - jsonPath: $.attendanceRegister.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.attendanceRegister.*.auditDetails.createdBy
+
+       - jsonPath: $.attendanceRegister.*.auditDetails.lastModifiedBy
+
+       - jsonPath: $.attendanceRegister.*.auditDetails.createdTime
+
+       - jsonPath: $.attendanceRegister.*.auditDetails.lastModifiedTime
+
+       - jsonPath: $.attendanceRegister.*.referenceId
+
+       - jsonPath: $.attendanceRegister.*.serviceCode
+
+       - jsonPath: $.attendanceRegister.*.localityCode
+
+       - jsonPath: $.attendanceRegister.*.reviewStatus
+
+    - query: INSERT INTO health.eg_wms_attendance_staff(id,tenantid,individual_id,register_id,enrollment_date,deenrollment_date,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime,stafftype) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
+      basePath: $.attendanceRegister.*.staff.*
+      jsonMaps:
+       - jsonPath: $.staff.*.id
+
+       - jsonPath: $.staff.*.tenantId
+
+       - jsonPath: $.staff.*.userId
+
+       - jsonPath: $.staff.*.registerId
+
+       - jsonPath: $.staff.*.enrollmentDate
+
+       - jsonPath: $.staff.*.denrollmentDate
+
+       - jsonPath: $.staff.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.staff.*.auditDetails.createdBy
+
+       - jsonPath: $.staff.*.auditDetails.lastModifiedBy
+
+       - jsonPath: $.staff.*.auditDetails.createdTime
+
+       - jsonPath: $.staff.*.auditDetails.lastModifiedTime
+
+       - jsonPath: $.staff.*.staffType
+
+ - version: 1.0
+   name: attendee
+   description: Persists attendee details in eg_wms_attendance_attendee table
+   fromTopic: save-attendee-health
+   isTransaction: true
+   isAuditEnabled: true
+   module: ATND
+   objecIdJsonPath: $.id
+   tenantIdJsonPath: $.tenantId
+   transactionCodeJsonPath: $.registerId
+   auditAttributeBasePath: $.attendees.*
+   queryMaps:
+    - query: INSERT INTO health.eg_wms_attendance_attendee(id,tenantid,individual_id,register_id,enrollment_date,deenrollment_date,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime, tag) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
+      basePath: $.attendees.*
+      jsonMaps:
+
+       - jsonPath: $.attendees.*.id
+
+       - jsonPath: $.attendees.*.tenantId
+
+       - jsonPath: $.attendees.*.individualId
+
+       - jsonPath: $.attendees.*.registerId
+
+       - jsonPath: $.attendees.*.enrollmentDate
+
+       - jsonPath: $.attendees.*.denrollmentDate
+
+       - jsonPath: $.attendees.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.attendees.*.auditDetails.createdBy
+
+       - jsonPath: $.attendees.*.auditDetails.lastModifiedBy
+
+       - jsonPath: $.attendees.*.auditDetails.createdTime
+
+       - jsonPath: $.attendees.*.auditDetails.lastModifiedTime
+
+       - jsonPath: $.attendees.*.tag
+   
+ - version: 1.0
+   name: staff registration
+   description: Persists staff registration details in eg_wms_attendance_staff table
+   fromTopic: save-staff-health
+   isTransaction: true
+   isAuditEnabled: true
+   module: ATND
+   objecIdJsonPath: $.id
+   tenantIdJsonPath: $.tenantId
+   transactionCodeJsonPath: $.registerId
+   auditAttributeBasePath: $.staff.*
+   queryMaps:
+    - query: INSERT INTO health.eg_wms_attendance_staff(id,tenantid,individual_id,register_id,enrollment_date,deenrollment_date,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime,stafftype) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
+      basePath: $.staff.*
+      jsonMaps:
+       - jsonPath: $.staff.*.id
+
+       - jsonPath: $.staff.*.tenantId
+
+       - jsonPath: $.staff.*.userId
+
+       - jsonPath: $.staff.*.registerId
+
+       - jsonPath: $.staff.*.enrollmentDate
+
+       - jsonPath: $.staff.*.denrollmentDate
+
+       - jsonPath: $.staff.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.staff.*.auditDetails.createdBy
+
+       - jsonPath: $.staff.*.auditDetails.lastModifiedBy
+
+       - jsonPath: $.staff.*.auditDetails.createdTime
+
+       - jsonPath: $.staff.*.auditDetails.lastModifiedTime
+
+       - jsonPath: $.staff.*.staffType
+
+ - version: 1.0
+   name: Attendance Log
+   description: Persists attendance logs and corresponding documents
+   fromTopic: save-attendance-log-health
+   isTransaction: true
+   isAuditEnabled: true
+   module: ATND
+   objecIdJsonPath: $.id
+   tenantIdJsonPath: $.tenantId
+   transactionCodeJsonPath: $.registerId
+   auditAttributeBasePath:  $.attendance.*
+   queryMaps:
+    - query: INSERT INTO health.eg_wms_attendance_log(id,clientreferenceid,tenantid,individual_id,register_id,status,time,event_type,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime, clientcreatedby, clientlastmodifiedby, clientcreatedtime, clientlastmodifiedtime) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+      basePath: $.attendance.*
+      jsonMaps:
+       - jsonPath: $.attendance.*.id
+       - jsonPath: $.*.clientReferenceId
+       - jsonPath: $.attendance.*.tenantId
+
+       - jsonPath: $.attendance.*.individualId
+
+       - jsonPath: $.attendance.*.registerId
+
+       - jsonPath: $.attendance.*.status
+
+       - jsonPath: $.attendance.*.time
+       
+       - jsonPath: $.attendance.*.type
+
+       - jsonPath: $.attendance.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.attendance.*.auditDetails.createdBy
+
+       - jsonPath: $.attendance.*.auditDetails.lastModifiedBy
+
+       - jsonPath: $.attendance.*.auditDetails.createdTime
+
+       - jsonPath: $.attendance.*.auditDetails.lastModifiedTime
+       - jsonPath: $.attendance.*.clientAuditDetails.createdBy
+       - jsonPath: $.attendance.*.clientAuditDetails.lastModifiedBy
+       - jsonPath: $.attendance.*.clientAuditDetails.createdTime
+       - jsonPath: $.attendance.*.clientAuditDetails.lastModifiedTime
+
+    - query: INSERT INTO health.eg_wms_attendance_document(id,filestore_id,document_type,attendance_log_id,additionaldetails,createdby,lastmodifiedby,createdtime,lastmodifiedtime,tenantid,status) VALUES (?,?,?,?,?,?,?,?,?,?,?);
+      basePath: $.attendance.*.documentIds.*
+      jsonMaps:
+       - jsonPath: $.attendance.*.documentIds.*.id
+
+       - jsonPath: $.attendance.*.documentIds.*.fileStore
+
+       - jsonPath: $.attendance.*.documentIds.*.documentType
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].id
+
+       - jsonPath: $.attendance.*.documentIds.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.createdBy
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.lastModifiedBy
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.createdTime
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.lastModifiedTime
+       
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].tenantId
+
+       - jsonPath: $.attendance.*.documentIds.*.status
+
+ 
+ - version: 1.0
+   name: Attendance Log
+   description: Update attendance logs and corresponding documents
+   fromTopic: update-attendance-log-health
+   isTransaction: true
+   isAuditEnabled: true
+   module: ATND
+   objecIdJsonPath: $.id
+   tenantIdJsonPath: $.tenantId
+   transactionCodeJsonPath: $.registerId
+   auditAttributeBasePath:  $.attendance.*
+   queryMaps:
+    - query: UPDATE health.eg_wms_attendance_log set status = ?, time = ? ,event_type =? ,additionaldetails = ?  ,lastmodifiedby = ?  ,lastmodifiedtime = ?, clientlastmodifiedby = ?, clientlastmodifiedtime = ? where id = ? ;
+      basePath: $.attendance.*
+      jsonMaps:
+    
+       - jsonPath: $.attendance.*.status
+
+       - jsonPath: $.attendance.*.time
+       
+       - jsonPath: $.attendance.*.type
+
+       - jsonPath: $.attendance.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.attendance.*.auditDetails.lastModifiedBy
+
+       - jsonPath: $.attendance.*.auditDetails.lastModifiedTime
+       - jsonPath: $.attendance.*.clientAuditDetails.lastModifiedBy
+       - jsonPath: $.attendance.*.clientAuditDetails.lastModifiedTime
+       - jsonPath: $.attendance.*.id
+
+
+    - query: INSERT INTO health.eg_wms_attendance_document(id, filestore_id, document_type, attendance_log_id, additionaldetails, createdby, lastmodifiedby, createdtime, lastmodifiedtime, tenantid, status) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET filestore_id = ?, document_type = ? , additionaldetails = ? ,lastmodifiedby = ? ,lastmodifiedtime = ?, status = ?;
+      basePath: $.attendance.*.documentIds.*
+      jsonMaps:
+       - jsonPath: $.attendance.*.documentIds.*.id
+
+       - jsonPath: $.attendance.*.documentIds.*.fileStore
+
+       - jsonPath: $.attendance.*.documentIds.*.documentType
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].id
+
+       - jsonPath: $.attendance.*.documentIds.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.createdBy
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.lastModifiedBy
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.createdTime
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.lastModifiedTime
+       
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].tenantId
+
+       - jsonPath: $.attendance.*.documentIds.*.status
+
+       - jsonPath: $.attendance.*.documentIds.*.fileStore
+
+       - jsonPath: $.attendance.*.documentIds.*.documentType
+
+       - jsonPath: $.attendance.*.documentIds.*.additionalDetails
+         type: JSON
+         dbType: JSONB
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.lastModifiedBy
+
+       - jsonPath: $.attendance[*][?({id} in @.documentIds[*].id)].auditDetails.lastModifiedTime
+
+       - jsonPath: $.attendance.*.documentIds.*.status
+
+
+ - version: 1.0
+   description: update Attendance
+   fromTopic: update-attendance-health
+   isTransaction: true
+   isAuditEnabled: true
+   module: ATND
+   objecIdJsonPath: $.id
+   tenantIdJsonPath: $.tenantId
+   transactionCodeJsonPath: $.registerNumber
+   auditAttributeBasePath:  $.attendanceRegister.*
+   queryMaps:
+      - query: UPDATE health.eg_wms_attendance_register set name=?, startdate=?, enddate=?, status=?,additionaldetails=?,lastmodifiedby=?, lastmodifiedtime=?, localitycode=?, reviewstatus=?, period_statuses=? where id=?;
+        basePath: $.attendanceRegister.*
+        jsonMaps:           
+          - jsonPath: $.attendanceRegister.*.name
+
+          - jsonPath: $.attendanceRegister.*.startDate
+
+          - jsonPath: $.attendanceRegister.*.endDate
+
+          - jsonPath: $.attendanceRegister.*.status
+
+          - jsonPath: $.attendanceRegister.*.additionalDetails
+            type: JSON
+            dbType: JSONB
+
+          - jsonPath: $.attendanceRegister.*.auditDetails.lastModifiedBy
+
+          - jsonPath: $.attendanceRegister.*.auditDetails.lastModifiedTime
+
+          - jsonPath: $.attendanceRegister.*.localityCode
+
+          - jsonPath: $.attendanceRegister.*.reviewStatus
+          
+          - jsonPath: $.attendanceRegister.*.periodStatuses
+            type: JSON
+            dbType: JSONB
+              
+          - jsonPath: $.attendanceRegister.*.id
+
+ - version: 1.0
+   description: update Attendee
+   fromTopic: update-attendee-health
+   isTransaction: true
+   isAuditEnabled: true
+   module: ATND
+   objecIdJsonPath: $.id
+   tenantIdJsonPath: $.tenantId
+   transactionCodeJsonPath: $.registerId
+   auditAttributeBasePath:  $.attendees.*
+   queryMaps:  
+      - query: UPDATE health.eg_wms_attendance_attendee set individual_id=?, register_id=?, enrollment_date=?, deenrollment_date=?, tag=?,additionaldetails=?,lastmodifiedby=?, lastmodifiedtime=? where id=?;
+        basePath: $.attendees.*
+        jsonMaps:   
+         - jsonPath: $.attendees.*.individualId
+
+         - jsonPath: $.attendees.*.registerId
+
+         - jsonPath: $.attendees.*.enrollmentDate
+
+         - jsonPath: $.attendees.*.denrollmentDate
+
+         - jsonPath: $.attendees.*.tag
+
+         - jsonPath: $.attendees.*.additionalDetails
+           type: JSON
+           dbType: JSONB
+
+         - jsonPath: $.attendees.*.auditDetails.lastModifiedBy
+ 
+         - jsonPath: $.attendees.*.auditDetails.lastModifiedTime
+
+         - jsonPath: $.attendees.*.id
+
+ - version: 1.0
+   description: update staff
+   fromTopic: update-staff-health
+   isTransaction: true
+   isAuditEnabled: true
+   module: ATND
+   objecIdJsonPath: $.id
+   tenantIdJsonPath: $.tenantId
+   transactionCodeJsonPath: $.registerId
+   auditAttributeBasePath:  $.staff.*
+   queryMaps:  
+      - query: UPDATE health.eg_wms_attendance_staff set individual_id=?, register_id=?, enrollment_date=?, deenrollment_date=?,additionaldetails=?,lastmodifiedby=?, lastmodifiedtime=? where id=?;
+        basePath: $.staff.*
+        jsonMaps:   
+         - jsonPath: $.staff.*.userId
+
+         - jsonPath: $.staff.*.registerId
+
+         - jsonPath: $.staff.*.enrollmentDate
+
+         - jsonPath: $.staff.*.denrollmentDate
+
+         - jsonPath: $.staff.*.additionalDetails
+           type: JSON
+           dbType: JSONB
+
+         - jsonPath: $.staff.*.auditDetails.lastModifiedBy
+ 
+         - jsonPath: $.staff.*.auditDetails.lastModifiedTime
+
+         - jsonPath: $.staff.*.id

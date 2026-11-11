@@ -1,0 +1,127 @@
+serviceMaps:
+  serviceName: Excel Ingestion Service
+  mappings:
+    - version: 1.0
+      name: SaveGeneratedFile
+      description: Create generated file record in the eg_ex_in_generated_files table
+      fromTopic: save-generated-file
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO health.eg_ex_in_generated_files(id, referenceId,referenceType, tenantId, type, hierarchyType, fileStoreId, status, additionalDetails, locale, createdBy, lastModifiedBy, createdTime, lastModifiedTime) VALUES (?,?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.id
+            - jsonPath: $.referenceId
+            - jsonPath: $.referenceType
+            - jsonPath: $.tenantId
+            - jsonPath: $.type
+            - jsonPath: $.hierarchyType
+            - jsonPath: $.fileStoreId
+            - jsonPath: $.status
+            - jsonPath: $.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.locale
+            - jsonPath: $.auditDetails.createdBy
+            - jsonPath: $.auditDetails.lastModifiedBy
+            - jsonPath: $.auditDetails.createdTime
+            - jsonPath: $.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      name: UpdateGeneratedFile
+      description: Update generated file record in the eg_ex_in_generated_files table
+      fromTopic: update-generated-file
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE health.eg_ex_in_generated_files SET status = ?, fileStoreId = ?, additionalDetails = ?, locale = ?, lastModifiedBy = ?, lastModifiedTime = ? WHERE id = ?;
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.status
+            - jsonPath: $.fileStoreId
+            - jsonPath: $.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.locale
+            - jsonPath: $.auditDetails.lastModifiedBy
+            - jsonPath: $.auditDetails.lastModifiedTime
+            - jsonPath: $.id
+
+    - version: 1.0
+      name: SaveProcessingFile
+      description: Create processing file record in the eg_ex_in_excel_processing table
+      fromTopic: save-processing-file
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO health.eg_ex_in_excel_processing(id, referenceId,referenceType, tenantId, type, hierarchyType, fileStoreId, processedFileStoreId, status,processedStatus, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime) VALUES (?, ?,?,?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.id
+            - jsonPath: $.referenceId
+            - jsonPath: $.referenceType
+            - jsonPath: $.tenantId
+            - jsonPath: $.type
+            - jsonPath: $.hierarchyType
+            - jsonPath: $.fileStoreId
+            - jsonPath: $.processedFileStoreId
+            - jsonPath: $.status
+            - jsonPath: $.processedStatus
+            - jsonPath: $.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.auditDetails.createdBy
+            - jsonPath: $.auditDetails.lastModifiedBy
+            - jsonPath: $.auditDetails.createdTime
+            - jsonPath: $.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      name: UpdateProcessingFile
+      description: Update processing file record in the eg_ex_in_excel_processing table
+      fromTopic: update-processing-file
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE health.eg_ex_in_excel_processing SET status = ?, processedFileStoreId = ?,processedStatus = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ? WHERE id = ?;
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.status
+            - jsonPath: $.processedFileStoreId
+            - jsonPath: $.processedStatus
+            - jsonPath: $.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.auditDetails.lastModifiedBy
+            - jsonPath: $.auditDetails.lastModifiedTime
+            - jsonPath: $.id
+
+    - version: 1.0
+      name: SaveSheetDataTemp
+      description: Bulk insert parsed sheet data into eg_ex_in_sheet_data_temp table
+      fromTopic: save-sheet-data-temp
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO health.eg_ex_in_sheet_data_temp(referenceId, tenantId, fileStoreId, sheetName, rowNumber, rowJson, createdBy, createdTime, deleteTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: sheetData.*
+          jsonMaps:
+            - jsonPath: $.sheetData.*.referenceId
+            - jsonPath: $.sheetData.*.tenantId
+            - jsonPath: $.sheetData.*.fileStoreId
+            - jsonPath: $.sheetData.*.sheetName
+            - jsonPath: $.sheetData.*.rowNumber
+            - jsonPath: $.sheetData.*.rowJson
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.sheetData.*.createdBy
+            - jsonPath: $.sheetData.*.createdTime
+            - jsonPath: $.sheetData.*.deleteTime
+
+    - version: 1.0
+      name: DeleteSheetDataTemp
+      description: Delete sheet data from eg_ex_in_sheet_data_temp table by tenantId, referenceId and fileStoreId
+      fromTopic: delete-sheet-data-temp
+      isTransaction: true
+      queryMaps:
+        - query: DELETE FROM health.eg_ex_in_sheet_data_temp WHERE tenantId = ? AND referenceId = ? AND fileStoreId = ?;
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.tenantId
+            - jsonPath: $.referenceId
+            - jsonPath: $.fileStoreId

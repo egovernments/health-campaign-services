@@ -1,0 +1,118 @@
+serviceMaps:
+  serviceName: product
+  mappings:
+    - version: 1.0
+      description: Persists Product
+      fromTopic: save-product-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PRODUCT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: INSERT INTO health.product(id, tenantId, type, name, manufacturer, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.type
+            - jsonPath: $.*.name
+            - jsonPath: $.*.manufacturer
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates Product
+      fromTopic: update-product-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PRODUCT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE health.product SET tenantId = ?, type = ?, name = ?, manufacturer = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.type
+            - jsonPath: $.*.name
+            - jsonPath: $.*.manufacturer
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a product variant
+      fromTopic: save-product-variant-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PRODUCT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: INSERT INTO health.product_variant(id, tenantId, productId, sku, variation, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.productId
+            - jsonPath: $.*.sku
+            - jsonPath: $.*.variation
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates a product variant
+      fromTopic: update-product-variant-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PRODUCT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE health.product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.productId
+            - jsonPath: $.*.sku
+            - jsonPath: $.*.variation
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id

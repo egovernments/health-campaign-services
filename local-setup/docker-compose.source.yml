@@ -1,0 +1,48 @@
+# Points services at the images built from local source by scripts/build-from-source.sh.
+# Loaded automatically through COMPOSE_FILE in .env. Delete a block to go back to the published image.
+services:
+  health-individual:
+    image: hcm-local/health-individual:source
+  household:
+    image: hcm-local/household:source
+  facility:
+    image: hcm-local/facility:source
+  product:
+    image: hcm-local/product:source
+  health-project:
+    image: hcm-local/health-project:source
+  health-hrms:
+    image: hcm-local/health-hrms:source
+  beneficiary-idgen:
+    image: hcm-local/beneficiary-idgen:source
+  excel-ingestion:
+    image: hcm-local/excel-ingestion:source
+  egov-user:
+    image: hcm-local/egov-user:source
+  mdms-backend:
+    image: hcm-local/mdms-backend:source
+  egov-idgen:
+    image: hcm-local/egov-idgen:source
+  egov-enc-service:
+    image: hcm-local/egov-enc-service:source
+  egov-accesscontrol:
+    image: hcm-local/egov-accesscontrol:source
+  egov-persister:
+    image: hcm-local/egov-persister:source
+  boundary-service:
+    image: hcm-local/boundary-service:source
+  egov-filestore:
+    image: hcm-local/egov-filestore:source
+  egov-localization:
+    image: hcm-local/egov-localization:source
+    environment:
+      # Digit-Core master defaults to the OpenTelemetry JDBC driver, which rejects a plain jdbc:postgresql URL.
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+  project-factory:
+    image: hcm-local/project-factory:source
+  boundary-management:
+    image: hcm-local/boundary-management:source
+  workbench-ui:
+    image: hcm-local/workbench-ui:source
+  payments-ui:
+    image: hcm-local/payments-ui:source

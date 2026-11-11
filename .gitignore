@@ -88,3 +88,6 @@ utilities/project-factory/node_modules/*
 frontend/micro-ui/web/micro-ui-internals/node_modules/*
 **/node_modules/**
 **/dist/**
+
+# HCM local-setup: output of scripts/build-from-source.sh
+local-setup/build-logs/

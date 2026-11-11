@@ -1,0 +1,126 @@
+serviceMaps:
+  serviceName: census-service
+  mappings:
+    - version: 1.0
+      name: census
+      description: Persists census details
+      fromTopic: census-create-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: CENSUS
+      objectIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.Census
+      queryMaps:
+        - query: INSERT INTO health.census(id, tenant_id, hierarchy_type, boundary_code, type, total_population, effective_from, effective_to, source, status, assignee, boundary_ancestral_path, facility_assigned, additional_details, created_by, created_time, last_modified_by, last_modified_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.Census
+          jsonMaps:
+            - jsonPath: $.Census.id
+            - jsonPath: $.Census.tenantId
+            - jsonPath: $.Census.hierarchyType
+            - jsonPath: $.Census.boundaryCode
+            - jsonPath: $.Census.type
+            - jsonPath: $.Census.totalPopulation
+            - jsonPath: $.Census.effectiveFrom
+            - jsonPath: $.Census.effectiveTo
+            - jsonPath: $.Census.source
+            - jsonPath: $.Census.status
+            - jsonPath: $.Census.assignee
+            - jsonPath: $.Census.boundaryAncestralPath
+            - jsonPath: $.Census.facilityAssigned
+            - jsonPath: $.Census.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.Census.auditDetails.createdBy
+            - jsonPath: $.Census.auditDetails.createdTime
+            - jsonPath: $.Census.auditDetails.lastModifiedBy
+            - jsonPath: $.Census.auditDetails.lastModifiedTime
+
+        - query: INSERT INTO health.population_by_demographics(id, census_id, demographic_variable, population_distribution, created_by, created_time, last_modified_by, last_modified_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.Census.populationByDemographics.*
+          jsonMaps:
+            - jsonPath: $.Census.populationByDemographics.*.id
+            - jsonPath: $.Census.id
+            - jsonPath: $.Census.populationByDemographics.*.demographicVariable
+            - jsonPath: $.Census.populationByDemographics.*.populationDistribution
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.Census.auditDetails.createdBy
+            - jsonPath: $.Census.auditDetails.createdTime
+            - jsonPath: $.Census.auditDetails.lastModifiedBy
+            - jsonPath: $.Census.auditDetails.lastModifiedTime
+
+        - query: INSERT INTO health.additional_field(id, census_id, key, value, show_on_ui, editable, "order") VALUES (?, ?, ?, ?, ?, ?, ?);
+          basePath: $.Census.additionalFields.*
+          jsonMaps:
+            - jsonPath: $.Census.additionalFields.*.id
+            - jsonPath: $.Census.id
+            - jsonPath: $.Census.additionalFields.*.key
+            - jsonPath: $.Census.additionalFields.*.value
+            - jsonPath: $.Census.additionalFields.*.showOnUi
+            - jsonPath: $.Census.additionalFields.*.editable
+            - jsonPath: $.Census.additionalFields.*.order
+
+    - version: 1.0
+      name: census
+      description: Updates census details
+      fromTopic: census-update-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: CENSUS
+      objectIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.Census
+      queryMaps:
+        - query: UPDATE health.census SET status = ?, assignee = ?, additional_details = ?, facility_assigned = ?, effective_to = ?, last_modified_by = ?, last_modified_time = ? WHERE id = ?;
+          basePath: $.Census
+          jsonMaps:
+            - jsonPath: $.Census.status
+            - jsonPath: $.Census.assignee
+            - jsonPath: $.Census.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.Census.facilityAssigned
+            - jsonPath: $.Census.effectiveTo
+            - jsonPath: $.Census.auditDetails.lastModifiedBy
+            - jsonPath: $.Census.auditDetails.lastModifiedTime
+            - jsonPath: $.Census.id
+
+        - query: INSERT INTO health.population_by_demographics(id, census_id, demographic_variable, population_distribution, created_by, created_time, last_modified_by, last_modified_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET demographic_variable = ?, population_distribution = ?, last_modified_by = ?, last_modified_time = ?;
+          basePath: $.Census.populationByDemographics.*
+          jsonMaps:
+            - jsonPath: $.Census.populationByDemographics.*.id
+            - jsonPath: $.Census.id
+            - jsonPath: $.Census.populationByDemographics.*.demographicVariable
+            - jsonPath: $.Census.populationByDemographics.*.populationDistribution
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.Census.auditDetails.createdBy
+            - jsonPath: $.Census.auditDetails.createdTime
+            - jsonPath: $.Census.auditDetails.lastModifiedBy
+            - jsonPath: $.Census.auditDetails.lastModifiedTime
+            - jsonPath: $.Census.populationByDemographics.*.demographicVariable
+            - jsonPath: $.Census.populationByDemographics.*.populationDistribution
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.Census.auditDetails.lastModifiedBy
+            - jsonPath: $.Census.auditDetails.lastModifiedTime
+
+        - query: INSERT INTO health.additional_field(id, census_id, key, value, show_on_ui, editable, "order") VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET value = ?, show_on_ui = ?, editable = ?, "order" = ?;
+          basePath: $.Census.additionalFields.*
+          jsonMaps:
+            - jsonPath: $.Census.additionalFields.*.id
+            - jsonPath: $.Census.id
+            - jsonPath: $.Census.additionalFields.*.key
+            - jsonPath: $.Census.additionalFields.*.value
+            - jsonPath: $.Census.additionalFields.*.showOnUi
+            - jsonPath: $.Census.additionalFields.*.editable
+            - jsonPath: $.Census.additionalFields.*.order
+            - jsonPath: $.Census.additionalFields.*.value
+            - jsonPath: $.Census.additionalFields.*.showOnUi
+            - jsonPath: $.Census.additionalFields.*.editable
+            - jsonPath: $.Census.additionalFields.*.order

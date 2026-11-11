@@ -1,0 +1,92 @@
+serviceMaps:
+  serviceName: boundary-management
+  mappings:
+    - version: 1.0
+      name: CreateProcessedBoundaryManagement
+      description: Create processed boundary management entry in the eg_bm_processed_template table
+      fromTopic: create-processed-boundary-management
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO health.eg_bm_processed_template(id, "status", tenantid, hierarchytype, filestoreid, processedfilestoreid, "action", createdby, createdtime, lastmodifiedby, lastmodifiedtime, additionaldetails, referenceid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.ResourceDetails
+          jsonMaps:
+            - jsonPath: $.ResourceDetails.id
+            - jsonPath: $.ResourceDetails.status
+            - jsonPath: $.ResourceDetails.tenantId
+            - jsonPath: $.ResourceDetails.hierarchyType
+            - jsonPath: $.ResourceDetails.fileStoreId
+            - jsonPath: $.ResourceDetails.processedFileStoreId
+            - jsonPath: $.ResourceDetails.action
+            - jsonPath: $.ResourceDetails.auditDetails.createdBy
+            - jsonPath: $.ResourceDetails.auditDetails.createdTime
+            - jsonPath: $.ResourceDetails.auditDetails.lastModifiedBy
+            - jsonPath: $.ResourceDetails.auditDetails.lastModifiedTime
+            - jsonPath: $.ResourceDetails.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.ResourceDetails.referenceId
+
+
+    - version: 1.0
+      name: UpdateProcessedBoundaryManagement
+      description: Update processed boundary management entry in the eg_bm_processed_template table
+      fromTopic: update-processed-boundary-management
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE health.eg_bm_processed_template SET "status" = ?, processedfilestoreid = ?, lastmodifiedby = ?, lastmodifiedtime = ?, additionaldetails = ?, referenceid = ? WHERE id = ?;
+          basePath: $.ResourceDetails
+          jsonMaps:
+            - jsonPath: $.ResourceDetails.status
+            - jsonPath: $.ResourceDetails.processedFileStoreId
+            - jsonPath: $.ResourceDetails.auditDetails.lastModifiedBy
+            - jsonPath: $.ResourceDetails.auditDetails.lastModifiedTime
+            - jsonPath: $.ResourceDetails.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.ResourceDetails.referenceId
+            - jsonPath: $.ResourceDetails.id
+
+
+    - version: 1.0
+      name: CreateGeneratedBoundaryManagement
+      description: Create generated boundary management entry in the eg_bm_generated_template table
+      fromTopic: create-generated-boundary-management
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO health.eg_bm_generated_template(id, filestoreid, "status", tenantid, hierarchytype, locale, createdby, createdtime, lastmodifiedby, lastmodifiedtime, additionaldetails, referenceid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: generatedResource.*
+          jsonMaps:
+            - jsonPath: $.generatedResource.*.id
+            - jsonPath: $.generatedResource.*.fileStoreid
+            - jsonPath: $.generatedResource.*.status
+            - jsonPath: $.generatedResource.*.tenantId
+            - jsonPath: $.generatedResource.*.hierarchyType
+            - jsonPath: $.generatedResource.*.locale
+            - jsonPath: $.generatedResource.*.auditDetails.createdBy
+            - jsonPath: $.generatedResource.*.auditDetails.createdTime
+            - jsonPath: $.generatedResource.*.auditDetails.lastModifiedBy
+            - jsonPath: $.generatedResource.*.auditDetails.lastModifiedTime
+            - jsonPath: $.generatedResource.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.generatedResource.*.referenceId
+
+
+    - version: 1.0
+      name: UpdateGeneratedBoundaryManagement
+      description: Update generated boundary management entry in the eg_bm_generated_template table
+      fromTopic: update-generated-boundary-management
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE health.eg_bm_generated_template SET "status" = ?, lastmodifiedby = ?, lastmodifiedtime = ?, filestoreid = ?, additionaldetails = ?, referenceid = ? WHERE id = ?;
+          basePath: generatedResource.*
+          jsonMaps:
+            - jsonPath: $.generatedResource.*.status
+            - jsonPath: $.generatedResource.*.auditDetails.lastModifiedBy
+            - jsonPath: $.generatedResource.*.auditDetails.lastModifiedTime
+            - jsonPath: $.generatedResource.*.fileStoreid
+            - jsonPath: $.generatedResource.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.generatedResource.*.referenceId
+            - jsonPath: $.generatedResource.*.id
