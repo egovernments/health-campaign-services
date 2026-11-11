@@ -72,7 +72,7 @@ public class HouseholdMemberTransformationService {
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
         Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
-        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(householdMember.getAuditDetails().getCreatedBy(),householdMember.getTenantId());
+        ProjectInfo projectInfo = projectService.projectDetailsFromUserId(householdMember.getClientAuditDetails().getLastModifiedBy(), householdMember.getTenantId());
         String hierarchyType = projectInfo.getHierarchyType();
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());

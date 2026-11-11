@@ -261,4 +261,17 @@ public class TransformerProperties {
 
     @Value("${project.staff.index.name}")
     private String projectStaffIndexName;
+
+    // Bednet distribution
+    @Value("#{'${hcm.bednets.projecttypes:llin,bednet,bednets,itn}'.trim().toLowerCase().split('\\s*,\\s*')}")
+    private List<String> bednetProjectTypes;
+
+    @Value("${hcm.bednets.required.calculate:false}")
+    private Boolean calculateRequiredBednets;
+
+    @Value("${hcm.bednets.members.per.bednet:2}")
+    private Integer membersPerBednet;
+
+    @Value("${hcm.bednets.limit.per.household:3}")
+    private Integer bednetsLimitPerHousehold;
 }

@@ -76,7 +76,7 @@ public class HouseholdTransformationService {
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
 
-        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
+        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getClientAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getLastModifiedTime());
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
@@ -109,8 +109,27 @@ public class HouseholdTransformationService {
 
         String cycleIndex = projectService.fetchCycleIndexFromProjectAdditionalDetails(household.getTenantId(), householdIndexV1.getProjectId(), householdIndexV1.getProjectTypeId(), household.getClientAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        addRequiredBednets(additionalDetails, household, projectInfo);
         householdIndexV1.setAdditionalDetails(additionalDetails);
         return householdIndexV1;
+    }
+
+    private void addRequiredBednets(ObjectNode additionalDetails, Household household, ProjectInfo projectInfo) {
+        if (!Boolean.TRUE.equals(transformerProperties.getCalculateRequiredBednets())
+                || projectInfo == null
+                || StringUtils.isBlank(projectInfo.getProjectType())
+                || CollectionUtils.isEmpty(transformerProperties.getBednetProjectTypes())
+                || !transformerProperties.getBednetProjectTypes().contains(projectInfo.getProjectType().trim().toLowerCase())) {
+            return;
+        }
+        Integer membersPerBednet = transformerProperties.getMembersPerBednet();
+        if (membersPerBednet == null || membersPerBednet <= 0) {
+            log.warn("Invalid hcm.bednets.members.per.bednet value {}, skipping requiredBednets", membersPerBednet);
+            return;
+        }
+        int memberCount = household.getMemberCount() != null ? household.getMemberCount() : 0;
+        int requiredBednets = (int) Math.ceil((double) memberCount / membersPerBednet);
+        additionalDetails.put(REQUIRED_BEDNETS, Math.min(requiredBednets, transformerProperties.getBednetsLimitPerHousehold()));
     }
 
 }

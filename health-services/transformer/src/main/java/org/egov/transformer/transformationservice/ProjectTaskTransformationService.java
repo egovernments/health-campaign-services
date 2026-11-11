@@ -37,7 +37,6 @@ public class ProjectTaskTransformationService {
     private final HouseholdService householdService;
     private final UserService userService;
     private final BoundaryService boundaryService;
-    private final ProjectFactoryService projectFactoryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY));
     private static final Set<String> BENEFICIARY_INFO_STRING_KEYS = new HashSet<>(Arrays.asList(
@@ -46,14 +45,9 @@ public class ProjectTaskTransformationService {
     private static final Set<String> BENEFICIARY_INFO_INTEGER_KEYS = new HashSet<>(Arrays.asList(
             AGE, MEMBER_COUNT, HEIGHT, AGE_IN_MONTHS
     ));
-    private static final Map<String, Class<?>> campaignSpecificFieldsTypeMap = new HashMap<>();
-    static {
-        campaignSpecificFieldsTypeMap.put(AGE, Integer.class);
-        campaignSpecificFieldsTypeMap.put(GENDER, String.class);
-    }
 
 
-    public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
+    public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -64,7 +58,6 @@ public class ProjectTaskTransformationService {
         this.householdService = householdService;
         this.userService = userService;
         this.boundaryService = boundaryService;
-        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Task> taskList) {
@@ -138,7 +131,7 @@ public class ProjectTaskTransformationService {
         }
 
         Task constructedTask = constructTaskResourceIfNull(task);
-        Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
+        Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getLastModifiedBy());
         return constructedTask.getResources().stream().map(r ->
                 transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, userInfoMap, localityCode, projectInfo)
         ).collect(Collectors.toList());
@@ -147,7 +140,7 @@ public class ProjectTaskTransformationService {
     private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, Map<String, String> boundaryHierarchyCode, String tenantId,
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType,
                                                                Map<String, String> userInfoMap, String localityCode, ProjectInfo projectInfo) {
-        String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
+        String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getLastModifiedTime());
         String productVariantId = taskResource.getProductVariantId();
         String productName = productVariantId == null ? null
                 : String.join(COMMA, productService.getProductVariantNames(Collections.singletonList(productVariantId), tenantId));
@@ -201,8 +194,8 @@ public class ProjectTaskTransformationService {
         if (task.getAdditionalFields() != null) {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
             addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectInfo.getProjectId(), projectTypeId);
+            addScanCounts(additionalDetails);
         }
-//        enrichWithCampaignSpecificFields(additionalDetails, beneficiaryInfo);
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
 //        if (taskResource.getAdditionalFields() != null) {
 //            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
@@ -226,7 +219,7 @@ public class ProjectTaskTransformationService {
         if (pregnantWomenCount > 0 || childrenCount > 0) {
             additionalDetails.put(ISVULNERABLE, true);
         }
-        if (task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
+        if (CLOSED_HOUSEHOLD.equalsIgnoreCase(task.getStatus()) && !additionalDetails.has(REASON_OF_REFUSAL)) {
             additionalDetails.put(REASON_OF_REFUSAL, task.getStatus());
         }
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
@@ -257,6 +250,30 @@ public class ProjectTaskTransformationService {
                 additionalDetails.put(key, value);
             }
         });
+    }
+
+    // scanResource is a ';' separated list of scans, entries containing MANUAL are manual entries, the rest are QR scans
+    private void addScanCounts(ObjectNode additionalDetails) {
+        if (!additionalDetails.hasNonNull(SCAN_RESOURCE)) {
+            return;
+        }
+        String scanResource = additionalDetails.get(SCAN_RESOURCE).asText();
+        int qrScans = 0;
+        int manualScans = 0;
+        if (StringUtils.isNotBlank(scanResource)) {
+            for (String scan : scanResource.split(SCAN_RESOURCE_DELIMITER)) {
+                if (StringUtils.isBlank(scan)) {
+                    continue;
+                }
+                if (StringUtils.containsIgnoreCase(scan, MANUAL)) {
+                    manualScans++;
+                } else {
+                    qrScans++;
+                }
+            }
+        }
+        additionalDetails.put(QR_SCANS, qrScans);
+        additionalDetails.put(MANUAL_SCANS, manualScans);
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
@@ -291,7 +308,7 @@ public class ProjectTaskTransformationService {
 
             AdditionalFields taskAdditionalFields = task.getAdditionalFields();
 
-            if (taskAdditionalFields != null && !taskAdditionalFields.getFields().isEmpty()) {
+            if (taskAdditionalFields != null && !CollectionUtils.isEmpty(taskAdditionalFields.getFields())) {
                 List<Field> fields = taskAdditionalFields.getFields();
 
                 String productVariantId = getFieldStringValue(fields, PRODUCT_VARIANT_ID);
@@ -334,12 +351,6 @@ public class ProjectTaskTransformationService {
         if (HOUSEHOLD.equalsIgnoreCase(projectBeneficiaryType)) {
             log.info("fetching household details for HOUSEHOLD projectBeneficiaryType");
             List<Household> households = householdService.searchHousehold(beneficiaryClientRefId, tenantId);
-//Commenting below code as it is not needed
-
-//            int deliveryCount = (int) Math.round((Double) (memberCount / transformerProperties.getProgramMandateDividingFactor()));
-//            final boolean isMandateComment = deliveryCount > transformerProperties.getProgramMandateLimit();
-//            projectTaskIndexV1.setDeliveryComments(taskResource.getDeliveryComment() != null ? taskResource.getDeliveryComment() : isMandateComment ? transformerProperties.getProgramMandateComment() : null);
-
             if (!CollectionUtils.isEmpty(households)) {
                 Integer memberCount = households.get(0).getMemberCount();
                 projectBenfInfoMap.put(MEMBER_COUNT, memberCount);
@@ -355,34 +366,4 @@ public class ProjectTaskTransformationService {
         return projectBenfInfoMap;
     }
 
-//    private void enrichWithCampaignSpecificFields(ObjectNode additionalDetails, Map<String, Object> beneficiaryInfo){
-//        for (Map.Entry<String, Object> entry : beneficiaryInfo.entrySet()) {
-//            String key = entry.getKey();
-//            Object value = entry.getValue();
-//
-//            if (campaignSpecificFieldsTypeMap.containsKey(key)) {
-//                putValueBasedOnType(additionalDetails, key, value, campaignSpecificFieldsTypeMap.get(key));
-//            }
-//        }
-//    }
-
-    private void putValueBasedOnType(ObjectNode additionalDetails, String key, Object value, Class<?> type) {
-        if (value == null) {
-            additionalDetails.putNull(key);
-            return;
-        }
-        if (type == Integer.class) {
-            additionalDetails.put(key, Integer.parseInt(value.toString()));
-        } else if (type == Long.class) {
-            additionalDetails.put(key, Long.parseLong(value.toString()));
-        } else if (type == Double.class) {
-            additionalDetails.put(key, Double.parseDouble(value.toString()));
-        } else if (type == Boolean.class) {
-            additionalDetails.put(key, Boolean.parseBoolean(value.toString()));
-        } else if (type == String.class) {
-            additionalDetails.put(key, value.toString());
-        } else {
-            additionalDetails.putPOJO(key, value);
-        }
-    }
 }
