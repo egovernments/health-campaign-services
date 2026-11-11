@@ -346,7 +346,7 @@ export async function handleProcessingResult(messageObject: any) {
                 // RequestInfo for the creation flow: keep the message's userInfo when present, else stamp the
                 // campaign creator so user-creation batches and site link updates have a valid user.
                 const creationRequestInfo = resolveCreationRequestInfo(messageObject?.requestInfo, campaignCreatedBy, messageObject.tenantId);
-                const [expectedBoundaryCount, , expectedUserCount] = await Promise.all([
+                const [expectedBoundaryCount, expectedFacilityCount, expectedUserCount] = await Promise.all([
                     processCampaignBoundariesFromExcelData(
                         messageObject.tenantId,
                         messageObject.fileStoreId,
@@ -370,7 +370,7 @@ export async function handleProcessingResult(messageObject: any) {
                 logger.info('=== ALL CAMPAIGN DATA PROCESSING COMPLETED ===');
 
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount);
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, creationRequestInfo, expectedUserCount, expectedBoundaryCount, expectedFacilityCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }
@@ -1087,7 +1087,8 @@ async function persistDataInBatches(dataList: any[], topic: string, tenantId: st
 }
 
 /**
- * Process campaign facilities from excel data (facilities sheet, then the Outside Household sheet as facility rows)
+ * Process campaign facilities from excel data (facilities sheet, then the Outside Household sheet as facility rows).
+ * Returns how many facility rows the campaign will have in campaign data once every row sent here is saved.
  */
 export async function processCampaignFacilitiesFromExcelData(
     tenantId: TenantId,
@@ -1095,7 +1096,7 @@ export async function processCampaignFacilitiesFromExcelData(
     localizationMap: Record<string, string>,
     campaignDetails: any,
     requestInfo?: RequestInfo
-): Promise<void> {
+): Promise<number> {
     try {
         logger.info('=== PROCESSING CAMPAIGN FACILITIES FROM EXCEL DATA ===');
         
@@ -1129,6 +1130,8 @@ export async function processCampaignFacilitiesFromExcelData(
         // Accumulate only the lightweight {facilityName, boundaryCode, active}
         // mappings across pages; the demap diff needs the complete set.
         const facilityBoundaryMappings: any[] = [];
+        // Keys of the new rows sent for saving, so facility creation can wait until all of them are saved.
+        const newFacilityKeys = new Set<string>();
 
         const facilityRowTotal = await forEachSheetDataPage(
             tenantId,
@@ -1136,7 +1139,7 @@ export async function processCampaignFacilitiesFromExcelData(
             fileStoreId,
             facilitySheetName,
             getSheetFetchPageSize(),
-            (rows) => processFacilityDataAndMappings(campaignNumber, tenantId, rows, existingFacilityMap, facilityBoundaryMappings)
+            (rows) => processFacilityDataAndMappings(campaignNumber, tenantId, rows, existingFacilityMap, facilityBoundaryMappings, newFacilityKeys)
         );
         const facilityMappingCount = facilityBoundaryMappings.length;
 
@@ -1164,13 +1167,14 @@ export async function processCampaignFacilitiesFromExcelData(
                 const facilityRows = convertOutsideHouseholdRowsToFacilityRows(rows, storedOutsideHouseholdNormalizedIndex);
                 facilityRows.forEach((r) => outsideHouseholdKeysThisUpload.add(r.rowjson[OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_KEY] as string));
                 return processFacilityDataAndMappings(campaignNumber, tenantId, facilityRows, existingFacilityMap, facilityBoundaryMappings,
-                    outsideHouseholdWorkerChanges);
+                    newFacilityKeys, outsideHouseholdWorkerChanges);
             }
         );
+        const expectedFacilityCount = existingFacilityMap.size + newFacilityKeys.size;
 
         if (facilityRowTotal === 0 && outsideHouseholdRowTotal === 0 && !outsideHouseholdDropped) {
             logger.info('No facilities or Outside Household sheet data found');
-            return;
+            return expectedFacilityCount;
         }
 
         logger.info(`Found ${facilityRowTotal} records in facilities sheet and ${outsideHouseholdRowTotal} records in Outside Household sheet`);
@@ -1209,6 +1213,7 @@ export async function processCampaignFacilitiesFromExcelData(
         }
 
         logger.info('=== CAMPAIGN FACILITIES PROCESSING COMPLETED ===');
+        return expectedFacilityCount;
 
     } catch (error) {
         logger.error('Error processing campaign facilities from excel data:', error);
@@ -1393,6 +1398,7 @@ async function processFacilityDataAndMappings(
     sheetData: any[],
     existingFacilityMap: Map<any, any>,
     facilityBoundaryMappings: any[],
+    newFacilityKeys: Set<string>,
     outsideHouseholdWorkerChanges?: any[]
 ): Promise<void> {
     const FACILITY_NAME_KEY = 'HCM_ADMIN_CONSOLE_FACILITY_NAME';
@@ -1429,6 +1435,7 @@ async function processFacilityDataAndMappings(
                 uniqueIdAfterProcess: facilityCode || null,
                 status: facilityCode ? dataRowStatuses.completed : dataRowStatuses.pending
             });
+            newFacilityKeys.add(uniqueIdentifier);
             logger.info(`New facility entry: ${facilityName}`);
         } else {
             let hasChanges = false;
@@ -2088,6 +2095,7 @@ async function triggerBackgroundResourceCreationFlow(
     requestInfo?: RequestInfo,
     expectedUserCount?: number,
     expectedBoundaryCount?: number,
+    expectedFacilityCount?: number,
 ): Promise<void> {
     try {
         const useruuid = campaignDetails?.auditDetails?.createdBy;
@@ -2116,7 +2124,7 @@ async function triggerBackgroundResourceCreationFlow(
                 logger.info('Creating projects, facilities, and users in parallel with data completion monitoring...');
                 await Promise.all([
                     createProjectsFromBoundaryData(campaignDetails, tenantId, requestInfo, expectedBoundaryCount),
-                    createFacilitiesFromFacilityData(campaignDetails, tenantId, requestInfo),
+                    createFacilitiesFromFacilityData(campaignDetails, tenantId, requestInfo, expectedFacilityCount),
                     createUsersFromUserData(campaignDetails, tenantId, requestInfo, expectedUserCount),
                     monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid, requestInfo)
                 ]);
@@ -2947,7 +2955,7 @@ async function processProjectUpdateInOrder(
 /**
  * Create facilities via Kafka batch processing
  */
-async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo): Promise<void> {
+export async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedFacilityCount?: number): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
         const campaignId = campaignDetails.id;
@@ -2956,7 +2964,16 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
         
         logger.info(`Creating facilities for campaign: ${campaignNumber} via Kafka batches`);
 
-        const allCurrentFacilities = await getRelatedDataWithCampaign("facility", campaignNumber, tenantId);
+        // Poll until all facility rows are persisted before sending Kafka batches; a row saved after a single read
+        // would stay pending and the campaign would time out waiting for it.
+        const allCurrentFacilities = expectedFacilityCount && expectedFacilityCount > 0
+            ? await pollUntilCount(
+                () => getRelatedDataWithCampaign("facility", campaignNumber, tenantId),
+                expectedFacilityCount,
+                // Stall-based: wait as long as rows keep landing; fail only on no progress.
+                { label: 'facility data', stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs, pollIntervalMs: config.excelIngestion.persistencePollIntervalMs }
+              )
+            : await getRelatedDataWithCampaign("facility", campaignNumber, tenantId);
 
         if (allCurrentFacilities.length === 0) {
             logger.info('No facility data found for facility creation');
