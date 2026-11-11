@@ -117,6 +117,11 @@ public class ExcelIngestionConfig {
     @Value("${egov.facility.search.path}")
     private String facilitySearchPath;
 
+    // Page size of the facility search by campaign root boundary (includeDescendants): every call carries the whole
+    // boundary list below the root, so few large pages are much faster than many small ones
+    @Value("${egov.facility.search.descendants.page.size:1000}")
+    private Integer facilitySearchDescendantsPageSize;
+
     @Value("${egov.attendance.host}")
     private String attendanceHost;
 

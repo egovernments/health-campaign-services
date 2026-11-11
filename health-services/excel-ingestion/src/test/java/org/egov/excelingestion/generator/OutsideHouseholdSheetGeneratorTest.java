@@ -174,7 +174,7 @@ class OutsideHouseholdSheetGeneratorTest {
         Sheet sheet = generate(false).getSheet(SHEET);
 
         // Row 3: earlier campaign's permanent site on a lowest-level boundary, listed as Inactive. Found
-        // via fetchAllPermanentFacilities(tenant, "TRANSIT_POST", ...) - one paged search per active type.
+        // via fetchPermanentFacilitiesAtAndBelow(tenant, "TRANSIT_POST", ...) - one paged search per active type.
         assertEquals("fac-tp-9", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY));
         assertEquals("TRANSIT_POST", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY));
         assertEquals("BUS_STATION", cell(sheet, 3, ProcessingConstants.OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY));
@@ -209,7 +209,7 @@ class OutsideHouseholdSheetGeneratorTest {
 
     @Test
     void skipsEarlierCampaignFacilitiesWithoutAClientReferenceId() {
-        lenient().when(facilityService.fetchAllPermanentFacilities(eq(TENANT), eq("TRANSIT_POST"), any()))
+        lenient().when(facilityService.fetchPermanentFacilitiesAtAndBelow(eq(TENANT), eq("TRANSIT_POST"), any(), any(), any()))
                 .thenReturn(List.of(noClientReferenceIdFacility("Unlinked site", "V2")));
 
         Sheet sheet = generate(false).getSheet(SHEET);
@@ -234,8 +234,19 @@ class OutsideHouseholdSheetGeneratorTest {
     void oneSearchCallPerActiveOutsideHouseholdType_notOnePerRowOrOneCombinedCall() {
         generate(false);
 
-        verify(facilityService).fetchAllPermanentFacilities(eq(TENANT), eq("OUTSIDE_HOUSEHOLD_PLACES"), any());
-        verify(facilityService).fetchAllPermanentFacilities(eq(TENANT), eq("TRANSIT_POST"), any());
+        verify(facilityService).fetchPermanentFacilitiesAtAndBelow(eq(TENANT), eq("OUTSIDE_HOUSEHOLD_PLACES"), any(), any(), any());
+        verify(facilityService).fetchPermanentFacilitiesAtAndBelow(eq(TENANT), eq("TRANSIT_POST"), any(), any(), any());
+    }
+
+    @Test
+    void searchesEarlierSitesUnderTheCampaignRootBoundaryInItsHierarchy() {
+        lenient().when(campaignService.getBoundariesFromCampaign(eq(CAMPAIGN_ID), eq(TENANT), any()))
+                .thenReturn(Collections.singletonList(CampaignSearchResponse.BoundaryDetail.builder()
+                        .code("P1").type("Province").isRoot(true).includeAllChildren(true).build()));
+
+        generate(false);
+
+        verify(facilityService).fetchPermanentFacilitiesAtAndBelow(eq(TENANT), eq("TRANSIT_POST"), eq("P1"), eq(HIERARCHY), any());
     }
 
     @Test
@@ -420,7 +431,7 @@ class OutsideHouseholdSheetGeneratorTest {
                 .thenReturn(Arrays.asList(Map.of("data", site), Map.of("data", warehouse)));
 
         // Earlier campaigns' permanent sites, one paged search per active site type
-        lenient().when(facilityService.fetchAllPermanentFacilities(eq(TENANT), eq("OUTSIDE_HOUSEHOLD_PLACES"), any()))
+        lenient().when(facilityService.fetchPermanentFacilitiesAtAndBelow(eq(TENANT), eq("OUTSIDE_HOUSEHOLD_PLACES"), any(), any(), any()))
                 .thenReturn(Arrays.asList(
                         // already listed from the stored site row (same clientReferenceId) -> skipped
                         permanentFacility("fac-ohp-1", "OUTSIDE_HOUSEHOLD_PLACES", "Central School OUTSIDE_HOUSEHOLD_PLACES", "V1", "SCHOOL"),
@@ -428,7 +439,7 @@ class OutsideHouseholdSheetGeneratorTest {
                         permanentFacility("fac-ohp-2", "OUTSIDE_HOUSEHOLD_PLACES", "District OUTSIDE_HOUSEHOLD_PLACES", "D1", "MARKET"),
                         // on the root boundary - never carried over regardless of level count
                         permanentFacility("fac-ohp-3", "OUTSIDE_HOUSEHOLD_PLACES", "Root OUTSIDE_HOUSEHOLD_PLACES", "P1", "OTHER")));
-        lenient().when(facilityService.fetchAllPermanentFacilities(eq(TENANT), eq("TRANSIT_POST"), any()))
+        lenient().when(facilityService.fetchPermanentFacilitiesAtAndBelow(eq(TENANT), eq("TRANSIT_POST"), any(), any(), any()))
                 .thenReturn(List.of(permanentFacility("fac-tp-9", "TRANSIT_POST", "Old Bus Stand", "V2", "BUS_STATION")));
         lenient().when(boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(any(), eq(CAMPAIGN_ID), eq(TENANT),
                 eq(HIERARCHY), eq(2), any())).thenReturn(Set.of("V1", "V2"));

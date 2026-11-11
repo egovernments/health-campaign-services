@@ -15,6 +15,8 @@ import java.util.*;
 @Slf4j
 public class FacilityService {
 
+    private static final int ALL_FACILITIES_PAGE_SIZE = 50;
+
     private final ServiceRequestRepository serviceRequestRepository;
     private final ExcelIngestionConfig config;
 
@@ -22,16 +24,6 @@ public class FacilityService {
                           ExcelIngestionConfig config) {
         this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
-    }
-
-    /**
-     * Fetch all permanent facilities from facility API 
-     * @param tenantId Tenant ID
-     * @param requestInfo Request context
-     * @return List of raw permanent facilities from API
-     */
-    public List<Map<String, Object>> fetchAllPermanentFacilities(String tenantId, RequestInfo requestInfo) {
-        return fetchAllPermanentFacilities(tenantId, null, requestInfo);
     }
 
     /**
@@ -43,64 +35,101 @@ public class FacilityService {
      */
     public List<Map<String, Object>> fetchAllPermanentFacilities(String tenantId, String usage, RequestInfo requestInfo) {
         log.info("Fetching all permanent facilities for tenant: {}", tenantId);
-        
+
         try {
-            List<Map<String, Object>> allFacilities = new ArrayList<>();
-            int offset = 0;
-            int limit = 50;
-            boolean searchAgain = true;
-            
-            while (searchAgain) {
-                // Create request body following project-factory pattern
-                Map<String, Object> facilitySearchBody = new HashMap<>();
-                facilitySearchBody.put("RequestInfo", requestInfo);
-                
-                Map<String, Object> facilityFilter = new HashMap<>();
-                facilityFilter.put("isPermanent", true);  // Only permanent facilities
-                if (usage != null) {
-                    facilityFilter.put("usage", usage);
-                }
-                facilitySearchBody.put("Facility", facilityFilter);
-                
-                // Make API call
-                String facilitySearchUrl = config.getFacilitySearchUrl();
-                StringBuilder facilitySearchUri = new StringBuilder(facilitySearchUrl);
-                
-                // Add query parameters to URL
-                facilitySearchUri.append("?limit=").append(limit)
-                        .append("&offset=").append(offset)
-                        .append("&tenantId=").append(tenantId.split("\\.")[0]);
-                
-                Object response = serviceRequestRepository.fetchResult(facilitySearchUri, facilitySearchBody);
-                
-                if (response != null) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> responseMap = (Map<String, Object>) response;
-                    
-                    @SuppressWarnings("unchecked")
-                    List<Map<String, Object>> facilities = (List<Map<String, Object>>) responseMap.get("Facilities");
-                    
-                    if (facilities != null && !facilities.isEmpty()) {
-                        allFacilities.addAll(facilities);
-                        
-                        searchAgain = facilities.size() >= limit;
-                        offset += limit;
-                        
-                        log.debug("Fetched {} facilities in batch", facilities.size());
-                    } else {
-                        searchAgain = false;
-                    }
-                } else {
-                    searchAgain = false;
-                }
-            }
-            
+            List<Map<String, Object>> allFacilities = searchPermanentFacilities(tenantId, usage, null, null,
+                    ALL_FACILITIES_PAGE_SIZE, requestInfo);
             log.info("Successfully fetched {} permanent facilities for tenant: {}", allFacilities.size(), tenantId);
             return allFacilities;
-            
+
         } catch (Exception e) {
             log.error("Error fetching permanent facilities for tenant {}: {}", tenantId, e.getMessage(), e);
             return new ArrayList<>(); // Return empty list on error
         }
+    }
+
+    /**
+     * Permanent facilities (of one usage, or every usage when null) on the root boundary and every boundary below it,
+     * read with the facility search's includeDescendants instead of every permanent facility of the tenant. Without a
+     * root boundary, or when that search fails, falls back to {@link #fetchAllPermanentFacilities(String, String, RequestInfo)};
+     * callers still keep only the facilities on their own boundaries.
+     */
+    public List<Map<String, Object>> fetchPermanentFacilitiesAtAndBelow(String tenantId, String usage, String rootBoundaryCode,
+                                                                        String hierarchyType, RequestInfo requestInfo) {
+        if (rootBoundaryCode == null || rootBoundaryCode.isBlank()) {
+            return fetchAllPermanentFacilities(tenantId, usage, requestInfo);
+        }
+        try {
+            List<Map<String, Object>> facilities = searchPermanentFacilities(tenantId, usage, rootBoundaryCode, hierarchyType,
+                    config.getFacilitySearchDescendantsPageSize(), requestInfo);
+            log.info("Fetched {} permanent facilities at and below boundary {} for tenant: {}", facilities.size(), rootBoundaryCode, tenantId);
+            return facilities;
+        } catch (Exception e) {
+            log.warn("Could not search facilities at and below boundary {} for tenant {}; reading every permanent facility instead: {}",
+                    rootBoundaryCode, tenantId, e.getMessage());
+            return fetchAllPermanentFacilities(tenantId, usage, requestInfo);
+        }
+    }
+
+    private List<Map<String, Object>> searchPermanentFacilities(String tenantId, String usage, String rootBoundaryCode,
+                                                                String hierarchyType, int limit, RequestInfo requestInfo) {
+        List<Map<String, Object>> allFacilities = new ArrayList<>();
+        int offset = 0;
+        boolean searchAgain = true;
+
+        while (searchAgain) {
+            // Create request body following project-factory pattern
+            Map<String, Object> facilitySearchBody = new HashMap<>();
+            facilitySearchBody.put("RequestInfo", requestInfo);
+
+            Map<String, Object> facilityFilter = new HashMap<>();
+            facilityFilter.put("isPermanent", true);  // Only permanent facilities
+            if (usage != null) {
+                facilityFilter.put("usage", usage);
+            }
+            if (rootBoundaryCode != null) {
+                facilityFilter.put("boundaryCode", rootBoundaryCode);
+            }
+            facilitySearchBody.put("Facility", facilityFilter);
+
+            // Make API call
+            String facilitySearchUrl = config.getFacilitySearchUrl();
+            StringBuilder facilitySearchUri = new StringBuilder(facilitySearchUrl);
+
+            // Add query parameters to URL
+            facilitySearchUri.append("?limit=").append(limit)
+                    .append("&offset=").append(offset)
+                    .append("&tenantId=").append(tenantId.split("\\.")[0]);
+            if (rootBoundaryCode != null) {
+                facilitySearchUri.append("&includeDescendants=true");
+                if (hierarchyType != null && !hierarchyType.isBlank()) {
+                    facilitySearchUri.append("&hierarchyType=").append(hierarchyType);
+                }
+            }
+
+            Object response = serviceRequestRepository.fetchResult(facilitySearchUri, facilitySearchBody);
+
+            if (response != null) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> responseMap = (Map<String, Object>) response;
+
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> facilities = (List<Map<String, Object>>) responseMap.get("Facilities");
+
+                if (facilities != null && !facilities.isEmpty()) {
+                    allFacilities.addAll(facilities);
+
+                    searchAgain = facilities.size() >= limit;
+                    offset += limit;
+
+                    log.debug("Fetched {} facilities in batch", facilities.size());
+                } else {
+                    searchAgain = false;
+                }
+            } else {
+                searchAgain = false;
+            }
+        }
+        return allFacilities;
     }
 }

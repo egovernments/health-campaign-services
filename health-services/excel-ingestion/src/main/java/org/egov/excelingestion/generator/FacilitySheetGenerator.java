@@ -189,10 +189,12 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                 return null; // Headers-only sheet
             }
             
-            // Step 1: Fetch all permanent facilities from facility API
+            // Step 1: Fetch permanent facilities under the campaign's root boundary from facility API
             log.info("Fetching permanent facilities for tenant: {}", generateResource.getTenantId());
-            List<Map<String, Object>> allPermanentFacilities = facilityService.fetchAllPermanentFacilities(
-                    generateResource.getTenantId(), requestInfo);
+            String rootBoundaryCode = campaignRootBoundaryCode(campaignService.getBoundariesFromCampaign(
+                    referenceId, generateResource.getTenantId(), requestInfo));
+            List<Map<String, Object>> allPermanentFacilities = facilityService.fetchPermanentFacilitiesAtAndBelow(
+                    generateResource.getTenantId(), null, rootBoundaryCode, generateResource.getHierarchyType(), requestInfo);
             
             // Step 2: Get enriched boundary codes including children using existing boundary util
                         // Use the method that includes all boundary codes for facility filtering
@@ -251,6 +253,20 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         return transformedFacilities;
     }
     
+    /** The campaign's root boundary code when exactly one boundary is marked root, else null (search every facility). */
+    static String campaignRootBoundaryCode(List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries) {
+        if (campaignBoundaries == null) {
+            return null;
+        }
+        List<String> roots = campaignBoundaries.stream()
+                .filter(boundary -> Boolean.TRUE.equals(boundary.getIsRoot()))
+                .map(CampaignSearchResponse.BoundaryDetail::getCode)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
+        return roots.size() == 1 ? roots.get(0) : null;
+    }
+
     static String getFacilityBoundaryCode(Map<String, Object> facility) {
         // Extract boundary code from facility address following project-factory pattern
         try {
