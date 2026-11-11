@@ -189,7 +189,8 @@ public class FacilityRepository extends GenericRepository<Facility> {
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        query = query + " LIMIT :limit OFFSET :offset";
+        // A fixed order, so that paging with LIMIT/OFFSET neither repeats nor skips facilities between pages
+        query = query + " ORDER BY f.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
         List<Facility> facilities =  this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
