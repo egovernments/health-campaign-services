@@ -529,3 +529,7 @@ Put the `access_token` from the answer into `RequestInfo.authToken` of every lat
 | PostgreSQL | `egov` | `egov123` |
 | SeaweedFS S3 keys | `minioadmin` | `minioadmin` |
 
+
+### Not in this stack
+
+- **`worker-registry`** (`health-services/worker-registry`) is not run. `project-factory` calls it only in the campaign user upload flow (validating and creating users from the Excel sheet), so that flow fails at the worker step. `EGOV_WORKER_REGISTRY_HOST` on `project-factory` is set to `http://worker-registry:8080/`, an address with nothing behind it, so the call fails locally instead of going to the service's built-in default (`https://unified-dev.digit.org/`). To make user upload work, add the service to `docker-compose.yml` under that name, add it to `scripts/build-from-source.sh` and `gateway/routes.properties`, and apply its migrations.

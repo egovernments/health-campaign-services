@@ -2102,6 +2102,9 @@ services:
       EGOV_CENSUS_HOST: http://census-service:8080/
       EGOV_SERVICE_REQUEST_HOST: http://health-service-request:8080/
       EGOV_ATTENDANCE_HOST: http://health-attendance:8080/
+      # worker-registry is not part of this stack. This name resolves to nothing, so the call fails
+      # locally instead of going to the service's default, an external eGov server. See README, "Not in this stack".
+      EGOV_WORKER_REGISTRY_HOST: http://worker-registry:8080/
       EGOV_AUDIT_HOST: http://egov-persister:8091/
       EGOV_HOST: http://gateway:8080/
       REDIS_HOST: redis
