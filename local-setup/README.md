@@ -13,10 +13,11 @@ The services are **built from the `master` of three repositories**, not pulled a
 This folder started as a copy of `local-setup` from the `hcm-docker-compose-uat-env` branch. That branch is not needed any more. What changed here:
 
 - 21 services run images built from local source (`scripts/build-from-source.sh`, `docker-compose.source.yml`).
-- Only the 29 containers needed for the Workbench flows start by default. The other 17 are in an `optional` profile. The default stack uses about **5 GB of RAM**.
+- Only the 29 containers needed for the Workbench flows start by default. 12 more HCM services are in an `optional` profile. The default stack uses about **5 GB of RAM**.
 - MinIO is replaced by SeaweedFS (same S3 API, port and keys), because the MinIO images are no longer published.
 - `egov-localization` runs on a 512 MB heap instead of 4 GB. A rule in `kong/kong.yml` answers the one request that needed the large heap.
-- The guide covers macOS only.
+- The monitoring tools (Gatus, Grafana, Tempo, OpenTelemetry collector, Portainer) are removed.
+- The guide and scripts cover macOS only.
 
 ---
 
@@ -28,7 +29,6 @@ This folder started as a copy of `local-setup` from the `hcm-docker-compose-uat-
 | **Free disk space** | About 20 GB |
 | **Git** | [git-scm.com/downloads](https://git-scm.com/downloads) or `brew install git` |
 | **Java 17 and Maven 3.9** | To build the Java services. See below |
-| **Homebrew** | Only if `curl` or `python3` is missing; the bootstrap script installs them with it |
 
 ### Java and Maven
 
@@ -106,14 +106,13 @@ This step must come before step 4. `.env` makes Compose read `docker-compose.sou
 The script starts the stack, waits for every container to be healthy, encrypts the seeded `SYSTEM` user so login works, creates Kafka topics, and runs an API smoke test. It is safe to run again.
 
 ```
-[1/7] OS detected: mac
-[2/7] Checking / installing prerequisites
-[3/7] Verifying DB seed dump is present
-[4/7] Starting the stack
-[5/7] Waiting for services to become healthy
-[5b/7] Encrypting SYSTEM user PII so OAuth login works
-[6/7] Ensuring project-factory consumer topics exist
-[7/7] Running API smoke test
+[1/6] Checking prerequisites
+[2/6] Verifying DB seed dump is present
+[3/6] Starting the stack
+[4/6] Waiting for services to become healthy
+[4b/6] Encrypting SYSTEM user PII so OAuth login works
+[5/6] Ensuring project-factory consumer topics exist
+[6/6] Running API smoke test
 ✅ Bootstrap complete.
 ```
 
@@ -168,7 +167,7 @@ This account has only the `DISTRIBUTOR` role (not admin) — useful for seeing h
 
 ### Optional services
 
-These 17 do not start by default: `census-service`, `egov-url-shortening`, `egov-workflow-v2`, `gatus`, `grafana`, `health-attendance`, `health-expense`, `health-expense-calculator`, `health-muster-roll`, `otel-collector`, `pgr-services`, `plan-service`, `portainer`, `referralmanagement`, `resource-generator`, `stock`, `tempo`.
+These 12 do not start by default: `census-service`, `egov-url-shortening`, `egov-workflow-v2`, `health-attendance`, `health-expense`, `health-expense-calculator`, `health-muster-roll`, `pgr-services`, `plan-service`, `referralmanagement`, `resource-generator`, `stock`.
 
 To start them as well (give Docker more than 8 GB of memory first):
 
@@ -290,6 +289,21 @@ scripts/apply-source-migrations.sh
 docker compose restart project-factory egov-user
 ```
 
+### Other symptoms
+
+| Symptom | Fix |
+|---|---|
+| Containers say `healthy` but API hangs | `docker compose restart pgbouncer egov-user` — pgbouncer caches DNS failures, JVM caches negative DNS for enc-service |
+| `eg_user` / `oauth_client_details` missing | DB dump did not load — re-fetch `db/full-dump.sql`, then `docker compose down -v && docker compose up -d` |
+| UI labels show as raw codes (`TENANT_TENANTS_MZ`) | Localization cache miss. Flush redis as above and hard-reload after clearing site data. |
+| `/access/v1/actions/mdms/_get` returns 400 `Missing property MdmsRes.ACCESSCONTROL-ACTIONS` | The 3 env vars on `egov-accesscontrol` (`MDMS_ACTIONSMODULE_NAME`, `MDMS_ACTIONMASTER_NAMES`, `MDMS_ACTIONS_PATH`) were stripped. Re-add per `docker-compose.yml`. |
+| First boot stuck > 10 min | Check `docker compose logs egov-user` — usually slow JVM startup, not a real error |
+| `BOUNDARY_SERVICE_SEARCH_ERROR — argument "content" is null` on HCM create payloads | Caller passed `address.locality.code` that doesn't exist in `public.boundary`. Local DB has `ADMIN_TC*` (TCHAD tree) and `MICROPLAN_MZ` — **not** `mz`. Either omit `address` or use a valid code (`ADMIN_TC`). |
+| HRMS create fails with `ERR_HRMS_USER_CREATION_FAILED` | egov-user wasn't fully started when HRMS called it (slow JVM warm-up). Wait ~2 min after compose up and retry. If persistent, `docker compose restart kong` to clear DNS cache. |
+| HRMS create fails with `ERR_HRMS_INVALID_ROLE` | The role you passed isn't in `eg_role` for tenant `mz`. The dump seeds 18 (SUPERUSER + 17 HCM roles). For new custom roles, add to `eg_role` first. |
+| Project create returns 200 but search returns nothing | Project field is missing one of `projectsubtype`/`department`/`description`/`referenceid`. Pre-fix, the dump had `NOT NULL` on those four. Current dump has them nullable. If you imported an older dump, run `ALTER TABLE health.project ALTER COLUMN description DROP NOT NULL;` (and the other three). |
+| `/health-attendance/log/v1/_create` or muster-roll create returns `ResourceAccessError` | Docker-compose `*_SEARCH_ENDPOINT` env vars on attendance / muster-roll services are missing leading `/`. See "Known issues" below. |
+
 ---
 
 ## 4. URLs to bookmark
@@ -300,11 +314,8 @@ All links below open in your browser. Click them.
 |---|---|---|
 | **Admin (Workbench) UI** | 🔗 [http://localhost:28080/workbench-ui/employee](http://localhost:28080/workbench-ui/employee) | `SYSTEM` / `eGov@123` / city `mz` |
 | **Payments UI** (grievances, HR) | 🔗 [http://localhost:28080/payments-ui/employee](http://localhost:28080/payments-ui/employee) | `SYSTEM` / `eGov@123` / city `mz` |
-| **Gatus** (health dashboard, optional profile) | 🔗 [http://localhost:28889](http://localhost:28889) | no login |
-| **Redpanda Console** (Kafka topics) | 🔗 [http://localhost:28082](http://localhost:28082) | no login |
+| **Redpanda HTTP proxy** (Kafka topics as JSON) | 🔗 [http://localhost:28082/topics](http://localhost:28082/topics) | no login |
 | **SeaweedFS** (file storage) | 🔗 [http://localhost:29333](http://localhost:29333) | no login |
-| **Portainer** (container manager, optional profile) | 🔗 [http://localhost:29009](http://localhost:29009) | set on first visit |
-| **Grafana** (traces, optional profile) | 🔗 [http://localhost:13000](http://localhost:13000) | anonymous admin |
 | **Kong Manager** (API gateway) | 🔗 [http://localhost:28002](http://localhost:28002) | no login |
 | PostgreSQL (DBeaver / psql) | `localhost:25432`, db `egov` | user `egov` / pass `egov123` |
 
@@ -349,9 +360,7 @@ docker stats --no-stream
 
 ## 7. For developers — deeper reference
 
-If you only wanted to *run* the stack, you are done. Everything below is reference material for people building on top of it.
-
-- **[STARTUP.md](./STARTUP.md)** — manual step-by-step (no bootstrap script) and a longer troubleshooting table
+Reference material for people building on top of the stack.
 
 ### Ports
 
@@ -363,12 +372,9 @@ If you only wanted to *run* the stack, you are done. Everything below is referen
 | 28000 | **Kong (proxy)** | All API calls — used by Postman, pytest, server-side clients |
 | 28001 | Kong (admin) | Kong Admin API |
 | 28080 | **Frontend proxy** | Single-origin entrypoint for browser — UIs + API. Lands on Workbench |
-| 28082 | Redpanda Console | Kafka topic browser |
-| 28889 | Gatus (optional profile) | Service health dashboard |
+| 28082 | Redpanda HTTP proxy | Kafka topics as JSON |
 | 29000 | SeaweedFS (S3 API) | Object storage (filestore) |
 | 29333 | SeaweedFS master UI | Object storage status |
-| 29009 | Portainer (optional profile) | Container management UI |
-| 13000 | Grafana (optional profile) | Distributed traces (Tempo) |
 
 #### HCM service ports (direct — bypass Kong)
 
@@ -405,7 +411,7 @@ Ports of services in the optional profile only answer after `docker compose --pr
 
 ```
 local-setup/
-├── docker-compose.yml          # Main compose file — 49 services, 17 of them in the "optional" profile
+├── docker-compose.yml          # Main compose file — 44 services, 12 of them in the "optional" profile
 ├── docker-compose.source.yml   # Override: points 21 services at the hcm-local/*:source images
 ├── .env                        # Makes Compose read both files above
 │
@@ -422,8 +428,6 @@ local-setup/
 ├── nginx/                      # Frontend proxy + MDMS rewrite + UI globalConfigs
 ├── kong/                       # Kong declarative config (routes, Lua plugins)
 ├── configs/persister/          # Persister YAML mappings per domain
-├── otel/                       # OpenTelemetry → Tempo → Grafana (optional profile)
-├── gatus/                      # Health monitor config (optional profile)
 │
 ├── scripts/
 │   ├── build-from-source.sh        # Step 3: builds the hcm-local/*:source images
@@ -438,6 +442,10 @@ local-setup/
 ### Where data comes from
 
 `db/full-dump.sql` + `db/02-hcm-ui-seed.sql` are mounted into Postgres' init dir and applied **in order** on first DB init. Self-contained — no remote fetch, no manual restore. Contains: schema, MDMS, ~607 TCHAD boundary rows, MICROPLAN boundary, 17 HCM roles, 1 SYSTEM admin, ~1000 sample users, 501 HRMS employees, 124 products, demo `EMP-DIST-002` DISTRIBUTOR user, NULL-relaxation patch on `health.project`.
+
+### Adding a service
+
+Copy an existing block in `docker-compose.yml` and add a route in `kong/kong.yml`.
 
 ### Kong Lua plugins (test-contract fixes)
 
@@ -478,6 +486,4 @@ curl -s -X POST http://localhost:28000/user/oauth/token \
 |---|---|---|
 | PostgreSQL | `egov` | `egov123` |
 | SeaweedFS S3 keys | `minioadmin` | `minioadmin` |
-| Portainer | (set on first visit) | — |
-| Grafana | (anonymous admin) | — |
 

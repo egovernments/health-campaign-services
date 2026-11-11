@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # HCM local-setup bootstrap.
-# One-shot: installs prerequisites, brings the stack up,
+# One-shot: checks prerequisites, brings the stack up,
 # encrypts SYSTEM user PII so OAuth works, ensures Kafka topics, restarts Kong,
 # then runs an 11-API smoke test and a DISTRIBUTOR login probe.
 # Idempotent — safe to re-run.
@@ -25,72 +25,18 @@ c_g() { printf '\033[1;32m%s\033[0m\n' "$1"; }
 c_y() { printf '\033[1;33m%s\033[0m\n' "$1"; }
 c_r() { printf '\033[1;31m%s\033[0m\n' "$1"; }
 
-need_sudo() {
-  if [ "$EUID" -ne 0 ] && ! sudo -n true 2>/dev/null; then
-    c_y "Some install steps need sudo -A — you'll be prompted for your password."
-  fi
-}
-
-# ── 1. OS detection ────────────────────────────────────────────────────────
-OS=unknown
-if [ -f /etc/os-release ]; then . /etc/os-release; OS=${ID:-unknown}; fi
-[ "$(uname)" = "Darwin" ] && OS=mac
-c_g "[1/7] OS detected: $OS"
-
-# ── 2. Install prerequisites ───────────────────────────────────────────────
-install_pkg() {
-  local check_cmd="$1" pkg="$2"
-  command -v "$check_cmd" >/dev/null 2>&1 && { echo "  ✓ $check_cmd already installed"; return 0; }
-  echo "  ↳ installing $pkg ..."
-  case "$OS" in
-    ubuntu|debian|pop|linuxmint)
-      need_sudo
-      sudo -A apt-get update -qq
-      sudo -A apt-get install -y -qq "$pkg" ;;
-    fedora|rhel|centos|rocky|almalinux)
-      need_sudo
-      sudo -A dnf install -y -q "$pkg" ;;
-    mac)
-      command -v brew >/dev/null 2>&1 || {
-        c_r "Homebrew not installed. Install it from https://brew.sh and re-run."; exit 1; }
-      brew install "$pkg" ;;
-    *)
-      c_r "Unsupported OS: $OS — install '$pkg' manually."; exit 1 ;;
-  esac
-}
-
-c_g "[2/7] Checking / installing prerequisites"
-install_pkg curl     curl
-install_pkg python3  python3
-
-# Docker
-if ! command -v docker >/dev/null 2>&1; then
-  c_y "Docker not found — installing via convenience script"
-  curl -fsSL https://get.docker.com | sudo -A sh
-  sudo -A usermod -aG docker "$USER" || true
-  c_y "  You may need to log out / log back in for docker group membership to take effect."
-fi
-docker --version 2>/dev/null || docker version --format "{{.Client.Version}}" 2>/dev/null || true
-
-# Docker compose (v2 plugin)
-if ! docker compose version >/dev/null 2>&1; then
-  c_y "Docker Compose plugin missing — installing"
-  case "$OS" in
-    ubuntu|debian|pop|linuxmint) sudo -A apt-get install -y -qq docker-compose-plugin ;;
-    *)                            c_r "Install docker-compose-plugin manually for $OS" ;;
-  esac
-fi
-docker compose version 2>/dev/null || true
-
-# Docker socket — assume `docker` works for the invoking user.
-# If it doesn't (permission denied), the first `docker compose up` will surface it
-# clearly. Fix once with:
-#   sudo -A usermod -aG docker $USER && newgrp docker
+# ── 1. Check prerequisites ─────────────────────────────────────────────────
+c_g "[1/6] Checking prerequisites"
+for cmd in curl python3 docker; do
+  command -v "$cmd" >/dev/null 2>&1 || { c_r "  ✗ $cmd not found. Install it and re-run (see README, section 1)."; exit 1; }
+  echo "  ✓ $cmd"
+done
+docker compose version >/dev/null 2>&1 || { c_r "  ✗ 'docker compose' not available. Update Docker Desktop."; exit 1; }
+docker info >/dev/null 2>&1 || { c_r "  ✗ Docker is not running. Open Docker Desktop and re-run."; exit 1; }
 DK="docker"
-docker compose ps >/dev/null 2>&1 || DK="sudo -A docker"
 
-# ── 3. Verify the DB seed dump is present (shipped in git) ────────────────
-c_g "[3/7] Verifying DB seed dump is present"
+# ── 2. Verify the DB seed dump is present (shipped in git) ────────────────
+c_g "[2/6] Verifying DB seed dump is present"
 DUMP=db/full-dump.sql
 if [ ! -s "$DUMP" ]; then
   c_r "  ✗ $DUMP is missing. It is committed to the repo; did the clone succeed?"
@@ -98,12 +44,12 @@ if [ ! -s "$DUMP" ]; then
 fi
 ls -lh "$DUMP"
 
-# ── 4. Start the stack ─────────────────────────────────────────────────────
+# ── 3. Start the stack ─────────────────────────────────────────────────────
 # docker-compose uses strict depends_on: service_healthy. A single transient
 # health-probe failure on one container causes compose to abort and leave many
 # downstream containers in "Created" state. We retry up to 5 times: each pass
 # kicks the still-pending containers + restarts anything Exited/unhealthy.
-c_g "[4/7] Starting the stack (docker compose up -d, with healing)"
+c_g "[3/6] Starting the stack (docker compose up -d, with healing)"
 for attempt in 1 2 3 4 5; do
   if $DK compose up -d 2>&1 | tee /tmp/_compose_up.$$.log; then
     # If compose exited cleanly, we're done with this phase.
@@ -142,10 +88,9 @@ if [ -n "$still_created" ]; then
   for c in $still_created; do $DK start "$c" >/dev/null 2>&1 || true; done
 fi
 
-# ── 5. Wait for every started container to report healthy ─────────────────
-# Uses the containers' own health checks. Gatus is in the optional profile, so it
-# is not running by default and cannot be the source for this.
-c_g "[5/7] Waiting for services to become healthy (up to 8 min)"
+# ── 4. Wait for every started container to report healthy ─────────────────
+# Uses the containers' own health checks.
+c_g "[4/6] Waiting for services to become healthy (up to 8 min)"
 for i in {1..96}; do
   pending=$($DK compose ps --format '{{.Name}} {{.Health}}' 2>/dev/null \
               | awk '$2=="starting" || $2=="unhealthy" {print $1}')
@@ -158,12 +103,12 @@ for i in {1..96}; do
 done
 echo
 
-# ── 5b. Encrypt SYSTEM user PII for OAuth login (idempotent) ──────────────
+# ── 4b. Encrypt SYSTEM user PII for OAuth login (idempotent) ──────────────
 # eg_user.username/name/mobilenumber must be stored as deterministically-
 # encrypted ciphertext for egov-user's OAuth lookup to find the seeded
 # SYSTEM admin. We call enc-service at runtime so the ciphertext is bound
 # to the tenant key the local enc-service generated on first call.
-c_g "[5b/7] Encrypting SYSTEM user PII so OAuth login works"
+c_g "[4b/6] Encrypting SYSTEM user PII so OAuth login works"
 ENC_JSON=$(curl -s -m 15 -X POST 'http://localhost:21234/egov-enc-service/crypto/v1/_encrypt' \
   -H 'Content-Type: application/json' \
   -d '{"RequestInfo":{"apiId":"hcm","ver":".01","ts":1,"msgId":"x","userInfo":{"id":1,"uuid":"dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3","userName":"SYSTEM","tenantId":"mz","type":"EMPLOYEE","roles":[{"code":"SUPERUSER","tenantId":"mz"}]}},"encryptionRequests":[{"tenantId":"mz","type":"Normal","value":"SYSTEM"},{"tenantId":"mz","type":"Normal","value":"System Admin"},{"tenantId":"mz","type":"Normal","value":"9999999999"}]}' || true)
@@ -178,8 +123,8 @@ else
   c_y "  ⚠ enc-service returned unexpected payload; OAuth login may fail. Response: $ENC_JSON"
 fi
 
-# ── 6. Kafka topic init (project-factory consumer topics) ──────────────────
-c_g "[6/7] Ensuring project-factory consumer topics exist in Redpanda"
+# ── 5. Kafka topic init (project-factory consumer topics) ──────────────────
+c_g "[5/6] Ensuring project-factory consumer topics exist in Redpanda"
 PF_TOPICS=(start-admin-console-task start-admin-console-mapping-task
            test-topic-project-factory hcm-processing-result
            hcm-facility-create-batch hcm-user-create-batch
@@ -192,8 +137,8 @@ done
 $DK compose restart kong >/dev/null 2>&1 || true
 sleep 25
 
-# ── 7. Smoke-test 11 major APIs (stock and plan-service are in the optional profile) ────────────────────────────────────────────
-c_g "[7/7] Running API smoke test (all should be 200)"
+# ── 6. Smoke-test 11 major APIs (stock and plan-service are in the optional profile) ────────────────────────────────────────────
+c_g "[6/6] Running API smoke test (all should be 200)"
 
 python3 - <<'PYS'
 import json, subprocess
@@ -239,10 +184,10 @@ post("/project-factory/v1/project-type/search",
         "pagination":{"limit":5}}})
 PYS
 
-# ── 7b. Verify the demo DISTRIBUTOR login works ───────────────────────────
+# ── 6b. Verify the demo DISTRIBUTOR login works ───────────────────────────
 # This user is shipped in db/full-dump.sql so it survives `down -v && up -d`.
 # A 200 here proves OAuth + role-binding + jurisdiction seed are all wired.
-c_g "[7b/7] Probing demo DISTRIBUTOR login (EMP-DIST-002 / eGov@123)"
+c_g "[6b/6] Probing demo DISTRIBUTOR login (EMP-DIST-002 / eGov@123)"
 DIST_CODE=$(curl -s -o /dev/null -m 15 -X POST 'http://localhost:28000/user/oauth/token' \
   -H 'Authorization: Basic ZWdvdi11c2VyLWNsaWVudDo=' \
   -d 'username=EMP-DIST-002&password=eGov@123&grant_type=password&scope=read&tenantId=mz&userType=EMPLOYEE' \
@@ -253,7 +198,7 @@ else
   c_y "  ⚠ $DIST_CODE  DISTRIBUTOR login failed — was the dump fully loaded?"
 fi
 
-# ── 8. Final summary: list anything still not happy ───────────────────────
+# ── 7. Final summary: list anything still not happy ───────────────────────
 not_happy=$($DK ps --filter "health=unhealthy" --format '{{.Names}}' 2>/dev/null | grep '^hcm-' || true)
 still_created=$($DK compose ps --status=created --format '{{.Name}}' 2>/dev/null || true)
 exited_bad=$($DK ps -a --filter "status=exited" --format '{{.Names}} {{.Status}}' 2>/dev/null \
