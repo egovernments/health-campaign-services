@@ -32,18 +32,18 @@ describe('user credential sheet', () => {
     });
 
     it('hides the User ID column and still writes its value', async () => {
-        const sheetMap: any = await TemplateClass.generate({}, { tenantId: 'mz', type: 'userCredential', campaignId: 'c-1' }, {});
+        const sheetMap = await TemplateClass.generate({}, { tenantId: 'mz', type: 'userCredential', campaignId: 'c-1' }, {});
         const userSheet = sheetMap['HCM_ADMIN_CONSOLE_USER_LIST'];
 
-        expect(userSheet.dynamicColumns[userDataFields.workerId]).toEqual({ hideColumn: true });
+        expect(userSheet.dynamicColumns?.[userDataFields.workerId]).toEqual({ hideColumn: true });
         expect(userSheet.data[0][userDataFields.workerId]).toBe(WORKER_ID);
     });
 
     it('keeps the password and boundary name columns shown', async () => {
-        const sheetMap: any = await TemplateClass.generate({}, { tenantId: 'mz', type: 'userCredential', campaignId: 'c-1' }, {});
+        const sheetMap = await TemplateClass.generate({}, { tenantId: 'mz', type: 'userCredential', campaignId: 'c-1' }, {});
         const columns = sheetMap['HCM_ADMIN_CONSOLE_USER_LIST'].dynamicColumns;
 
-        expect(columns[userCredentialFields.password]).toEqual({ hideColumn: false });
-        expect(columns[userDataFields.boundaryName]).toEqual({ hideColumn: false });
+        expect(columns?.[userCredentialFields.password]).toEqual({ hideColumn: false });
+        expect(columns?.[userDataFields.boundaryName]).toEqual({ hideColumn: false });
     });
 });
