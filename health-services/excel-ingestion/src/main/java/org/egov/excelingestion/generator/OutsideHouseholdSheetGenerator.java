@@ -181,8 +181,9 @@ public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
                 Set<String> carryOverCodes = boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
                         generateResource.getId(), referenceId, generateResource.getTenantId(),
                         generateResource.getHierarchyType(), CARRY_OVER_LEVEL_COUNT, requestInfo);
+                String rootBoundaryCode = FacilitySheetGenerator.campaignRootBoundaryCode(campaign.getBoundaries());
                 carryOverOutsideHouseholdSites = fetchCarryOverOutsideHouseholdSites(generateResource.getTenantId(), carryOverCodes,
-                        campaignOutsideHouseholdSites, outsideHouseholdTypes, requestInfo);
+                        campaignOutsideHouseholdSites, outsideHouseholdTypes, rootBoundaryCode, generateResource.getHierarchyType(), requestInfo);
                 carryOverOutsideHouseholdSites = withoutRowsTheUploadWouldReject(carryOverOutsideHouseholdSites, columns,
                         outsideHouseholdTypeMasterService.getCategoriesByOutsideHouseholdType(requestInfo, generateResource.getTenantId()));
             }
@@ -200,10 +201,14 @@ public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
         }
     }
 
-    /** Permanent sites of earlier campaigns on carryOverCodes, not already listed (by clientReferenceId), as Inactive. */
+    /**
+     * Permanent sites of earlier campaigns on carryOverCodes, not already listed (by clientReferenceId), as Inactive.
+     * Sites are searched under the campaign's root boundary, not across the whole tenant.
+     */
     private List<Map<String, Object>> fetchCarryOverOutsideHouseholdSites(String tenantId, Set<String> carryOverCodes,
                                                           List<Map<String, Object>> campaignOutsideHouseholdSites,
-                                                          Map<String, Boolean> outsideHouseholdTypes, RequestInfo requestInfo) {
+                                                          Map<String, Boolean> outsideHouseholdTypes, String rootBoundaryCode,
+                                                          String hierarchyType, RequestInfo requestInfo) {
         List<Map<String, Object>> sites = new ArrayList<>();
         if (carryOverCodes == null || carryOverCodes.isEmpty()) {
             return sites;
@@ -214,7 +219,8 @@ public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
                 .filter(Objects::nonNull).collect(Collectors.toCollection(HashSet::new));
 
         for (String outsideHouseholdType : outsideHouseholdTypes.keySet()) {
-            for (Map<String, Object> facility : facilityService.fetchAllPermanentFacilities(tenantId, outsideHouseholdType, requestInfo)) {
+            for (Map<String, Object> facility : facilityService.fetchPermanentFacilitiesAtAndBelow(tenantId, outsideHouseholdType,
+                    rootBoundaryCode, hierarchyType, requestInfo)) {
                 String id = asTrimmedString(facility.get("clientReferenceId"));
                 String locality = FacilitySheetGenerator.getFacilityBoundaryCode(facility);
                 if (id == null || locality == null || !carryOverCodes.contains(locality) || listedIds.contains(id)) {
