@@ -181,8 +181,8 @@ public class OutsideHouseholdSheetGenerator implements ISheetGenerator {
                 Set<String> carryOverCodes = boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
                         generateResource.getId(), referenceId, generateResource.getTenantId(),
                         generateResource.getHierarchyType(), CARRY_OVER_LEVEL_COUNT, requestInfo);
-                String rootBoundaryCode = FacilitySheetGenerator.campaignRootBoundaryCode(campaignService.getBoundariesFromCampaign(
-                        referenceId, generateResource.getTenantId(), requestInfo));
+                String rootBoundaryCode = FacilitySheetGenerator.rootBoundaryCodeOrNull(campaignService, referenceId,
+                        generateResource.getTenantId(), requestInfo);
                 carryOverOutsideHouseholdSites = fetchCarryOverOutsideHouseholdSites(generateResource.getTenantId(), carryOverCodes,
                         campaignOutsideHouseholdSites, outsideHouseholdTypes, rootBoundaryCode, generateResource.getHierarchyType(), requestInfo);
                 carryOverOutsideHouseholdSites = withoutRowsTheUploadWouldReject(carryOverOutsideHouseholdSites, columns,

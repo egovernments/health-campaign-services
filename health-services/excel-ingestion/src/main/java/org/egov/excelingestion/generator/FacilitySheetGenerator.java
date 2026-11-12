@@ -191,8 +191,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             
             // Step 1: Fetch permanent facilities under the campaign's root boundary from facility API
             log.info("Fetching permanent facilities for tenant: {}", generateResource.getTenantId());
-            String rootBoundaryCode = campaignRootBoundaryCode(campaignService.getBoundariesFromCampaign(
-                    referenceId, generateResource.getTenantId(), requestInfo));
+            String rootBoundaryCode = rootBoundaryCodeOrNull(campaignService, referenceId, generateResource.getTenantId(), requestInfo);
             List<Map<String, Object>> allPermanentFacilities = facilityService.fetchPermanentFacilitiesAtAndBelow(
                     generateResource.getTenantId(), null, rootBoundaryCode, generateResource.getHierarchyType(), requestInfo);
             
@@ -253,6 +252,19 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         return transformedFacilities;
     }
     
+    /**
+     * The campaign's root boundary code, or null (search every facility) when the campaign's boundaries cannot be read,
+     * so the facility search does not empty the sheet when only this lookup fails.
+     */
+    static String rootBoundaryCodeOrNull(CampaignService campaignService, String referenceId, String tenantId, RequestInfo requestInfo) {
+        try {
+            return campaignRootBoundaryCode(campaignService.getBoundariesFromCampaign(referenceId, tenantId, requestInfo));
+        } catch (Exception e) {
+            log.warn("Could not read campaign {} for its root boundary; searching every permanent facility: {}", referenceId, e.getMessage());
+            return null;
+        }
+    }
+
     /** The campaign's root boundary code when exactly one boundary is marked root, else null (search every facility). */
     static String campaignRootBoundaryCode(List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries) {
         if (campaignBoundaries == null) {

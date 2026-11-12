@@ -1,11 +1,16 @@
 package org.egov.excelingestion.generator;
 
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.web.models.CampaignSearchResponse.BoundaryDetail;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /** The root boundary the template's facility search starts from; anything unclear means "search every facility". */
 class FacilitySheetGeneratorRootBoundaryTest {
@@ -39,5 +44,22 @@ class FacilitySheetGeneratorRootBoundaryTest {
     void returnsNullForNoBoundariesOrABlankRootCode() {
         assertNull(FacilitySheetGenerator.campaignRootBoundaryCode(null));
         assertNull(FacilitySheetGenerator.campaignRootBoundaryCode(List.of(boundary(" ", true))));
+    }
+
+    @Test
+    void readsTheRootBoundaryFromTheCampaign() {
+        CampaignService campaignService = mock(CampaignService.class);
+        when(campaignService.getBoundariesFromCampaign(any(), any(), any()))
+                .thenReturn(List.of(boundary("ROOT", true), boundary("CHILD", false)));
+
+        assertEquals("ROOT", FacilitySheetGenerator.rootBoundaryCodeOrNull(campaignService, "c-1", "mz", RequestInfo.builder().build()));
+    }
+
+    @Test
+    void searchesEveryFacilityWhenTheCampaignCannotBeRead() {
+        CampaignService campaignService = mock(CampaignService.class);
+        when(campaignService.getBoundariesFromCampaign(any(), any(), any())).thenThrow(new RuntimeException("project-factory down"));
+
+        assertNull(FacilitySheetGenerator.rootBoundaryCodeOrNull(campaignService, "c-1", "mz", RequestInfo.builder().build()));
     }
 }

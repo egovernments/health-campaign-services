@@ -24,8 +24,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * The template's facility read: by the campaign's root boundary with includeDescendants (large pages), and the
- * whole-tenant read (pages of 50) when there is no root boundary or the root search fails.
+ * The template's facility read: by the campaign's root boundary with includeDescendants (large pages); the whole-tenant
+ * read in pages of 50 when there is no root boundary; and in large pages when the root search fails or finds nothing
+ * below the root.
  */
 @ExtendWith(MockitoExtension.class)
 class FacilityServiceTest {
@@ -45,9 +46,14 @@ class FacilityServiceTest {
         facilityService = new FacilityService(serviceRequestRepository, config);
     }
 
+    private static Map<String, Object> facility(String id, String boundaryCode) {
+        return Map.of("id", id, "address", Map.of("locality", Map.of("code", boundaryCode)));
+    }
+
+    /** A page of facilities on a boundary below the root, as a search that read the boundaries below the root returns. */
     private static Map<String, Object> page(int size) {
         List<Map<String, Object>> facilities = IntStream.range(0, size)
-                .mapToObj(i -> Map.<String, Object>of("id", "F-" + i)).collect(Collectors.toList());
+                .mapToObj(i -> facility("F-" + i, "CHILD")).collect(Collectors.toList());
         return Map.of("Facilities", facilities);
     }
 
@@ -98,7 +104,7 @@ class FacilityServiceTest {
 
         facilityService.fetchPermanentFacilitiesAtAndBelow("mz", null, "ROOT", " ", REQUEST_INFO);
 
-        assertEquals(List.of(SEARCH_URL + "?limit=2&offset=0&tenantId=mz&includeDescendants=true"), calledUrls());
+        assertEquals(SEARCH_URL + "?limit=2&offset=0&tenantId=mz&includeDescendants=true", calledUrls().get(0));
     }
 
     @Test
@@ -134,14 +140,51 @@ class FacilityServiceTest {
     void fallsBackToEveryPermanentFacilityWhenTheRootSearchFails() {
         when(serviceRequestRepository.fetchResultFromUri(any(), any()))
                 .thenThrow(new RuntimeException("facility search failed"))
-                .thenReturn(page(3));
+                .thenReturn(page(1));
 
         List<Map<String, Object>> facilities = facilityService.fetchPermanentFacilitiesAtAndBelow("mz", "CLF", "ROOT", "ADMIN", REQUEST_INFO);
 
-        assertEquals(3, facilities.size());
+        assertEquals(1, facilities.size());
         List<String> urls = calledUrls();
-        assertEquals(SEARCH_URL + "?limit=50&offset=0&tenantId=mz", urls.get(1));
+        assertEquals(SEARCH_URL + "?limit=2&offset=0&tenantId=mz", urls.get(1));
         assertEquals(Map.of("isPermanent", true, "usage", "CLF"), sentFilters().get(1));
+    }
+
+    @Test
+    void fallsBackToEveryPermanentFacilityWhenTheRootSearchFindsNothing() {
+        // The facility search answers this way when it could not read the boundaries below the root
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(page(0), page(1));
+
+        List<Map<String, Object>> facilities = facilityService.fetchPermanentFacilitiesAtAndBelow("mz", "CLF", "ROOT", "ADMIN", REQUEST_INFO);
+
+        assertEquals(1, facilities.size());
+        List<String> urls = calledUrls();
+        assertEquals(2, urls.size());
+        assertEquals(SEARCH_URL + "?limit=2&offset=0&tenantId=mz", urls.get(1));
+        assertEquals(Map.of("isPermanent", true, "usage", "CLF"), sentFilters().get(1));
+    }
+
+    @Test
+    void fallsBackToEveryPermanentFacilityWhenTheRootSearchFindsOnlyFacilitiesOnTheRoot() {
+        Map<String, Object> onRoot = Map.of("Facilities", List.of(facility("F-ROOT", "ROOT")));
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(onRoot, page(1));
+
+        List<Map<String, Object>> facilities = facilityService.fetchPermanentFacilitiesAtAndBelow("mz", null, "ROOT", "ADMIN", REQUEST_INFO);
+
+        assertEquals(List.of("F-0"), facilities.stream().map(f -> f.get("id")).collect(Collectors.toList()));
+        assertEquals(2, calledUrls().size());
+        assertFalse(sentFilters().get(1).containsKey("boundaryCode"));
+    }
+
+    @Test
+    void keepsTheRootSearchWhenAFacilityIsBelowTheRoot() {
+        Map<String, Object> rootAndBelow = Map.of("Facilities", List.of(facility("F-ROOT", "ROOT"), facility("F-CHILD", "CHILD")));
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(rootAndBelow, page(0));
+
+        List<Map<String, Object>> facilities = facilityService.fetchPermanentFacilitiesAtAndBelow("mz", null, "ROOT", "ADMIN", REQUEST_INFO);
+
+        assertEquals(2, facilities.size());
+        assertTrue(calledUrls().stream().allMatch(url -> url.contains("includeDescendants=true")));
     }
 
     @Test
