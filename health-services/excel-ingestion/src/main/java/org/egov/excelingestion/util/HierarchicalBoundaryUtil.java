@@ -658,6 +658,21 @@ public class HierarchicalBoundaryUtil {
     }
 
     /**
+     * Boundary path by its last-level code. The first boundary with a code is kept, even when its path is null, as a
+     * scan in list order finds it.
+     */
+    static Map<String, List<String>> pathByLastLevelCode(List<BoundaryUtil.BoundaryRowData> boundaries) {
+        Map<String, List<String>> pathByCode = new HashMap<>();
+        for (BoundaryUtil.BoundaryRowData boundaryRowData : boundaries) {
+            String lastLevelCode = boundaryRowData.getLastLevelCode();
+            if (lastLevelCode != null && !pathByCode.containsKey(lastLevelCode)) {
+                pathByCode.put(lastLevelCode, boundaryRowData.getBoundaryPath());
+            }
+        }
+        return pathByCode;
+    }
+
+    /**
      * Populates existing data rows with boundary information
      */
     private int populateExistingDataWithBoundaries(Sheet sheet, List<Map<String, Object>> existingData,
@@ -669,6 +684,9 @@ public class HierarchicalBoundaryUtil {
                                                    Map<String, String> codeToUniqueName) {
 
         int rowsPopulated = 0;
+
+        // Built once, so each row is one lookup instead of a scan of every boundary
+        Map<String, List<String>> pathByLastLevelCode = pathByLastLevelCode(filteredBoundaries);
 
         for (int i = 0; i < existingData.size(); i++) {
             Map<String, Object> dataRow = existingData.get(i);
@@ -683,12 +701,7 @@ public class HierarchicalBoundaryUtil {
             List<String> boundaryPath = null;
 
             if (boundaryCode != null && !boundaryCode.isEmpty()) {
-                for (BoundaryUtil.BoundaryRowData boundaryRowData : filteredBoundaries) {
-                    if (boundaryCode.equals(boundaryRowData.getLastLevelCode())) {
-                        boundaryPath = boundaryRowData.getBoundaryPath();
-                        break;
-                    }
-                }
+                boundaryPath = pathByLastLevelCode.get(boundaryCode);
             }
 
             // Populate visible boundary columns

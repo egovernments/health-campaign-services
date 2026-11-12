@@ -27,6 +27,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 
@@ -97,6 +99,52 @@ class HierarchicalBoundaryPrefillAllRowsTest {
                 }
                 assertEquals("B2", row.getCell(BOUNDARY_CODE_COL).getStringCellValue());
             }
+        }
+    }
+
+    /** One pre-filled row with boundary code B2, generated against the given boundaries; returns its sheet row. */
+    private Row prefillOneRow(XSSFWorkbook workbook, List<BoundaryUtil.BoundaryRowData> boundaries) {
+        lenient().when(boundaryUtil.processBoundariesWithEnrichment(any(), any(), any())).thenReturn(boundaries);
+        workbook.createSheet("Outside Household");
+        hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(workbook, "Outside Household", new HashMap<>(),
+                Collections.singletonList(Boundary.builder().code("ROOT").name("Root").type("Level1").build()),
+                "HIERARCHY1", "mz", new RequestInfo(), List.of(Map.of("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "B2")));
+        return workbook.getSheet("Outside Household").getRow(2);
+    }
+
+    @Test
+    void usesTheFirstBoundaryWithTheRowsCode() throws Exception {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Row row = prefillOneRow(workbook, Arrays.asList(
+                    new BoundaryUtil.BoundaryRowData(Arrays.asList("ROOT", "OTHER", "B9"), "B9"),
+                    new BoundaryUtil.BoundaryRowData(Arrays.asList("ROOT", "FIRST", "B2"), "B2"),
+                    new BoundaryUtil.BoundaryRowData(Arrays.asList("ROOT", "SECOND", "B2"), "B2")));
+
+            assertEquals("FIRST", row.getCell(1).getStringCellValue());
+            assertEquals("B2", row.getCell(BOUNDARY_CODE_COL).getStringCellValue());
+        }
+    }
+
+    @Test
+    void keepsTheFirstMatchEvenWhenItsPathIsNull() {
+        Map<String, List<String>> pathByCode = HierarchicalBoundaryUtil.pathByLastLevelCode(Arrays.asList(
+                new BoundaryUtil.BoundaryRowData(null, "B2"),
+                new BoundaryUtil.BoundaryRowData(Arrays.asList("ROOT", "SECOND", "B2"), "B2"),
+                new BoundaryUtil.BoundaryRowData(Arrays.asList("ROOT", "B9"), null)));
+
+        assertTrue(pathByCode.containsKey("B2"));
+        assertNull(pathByCode.get("B2"));
+        assertEquals(1, pathByCode.size(), "a boundary without a last-level code is left out");
+    }
+
+    @Test
+    void leavesARowWithAnUnknownCodeBlank() throws Exception {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Row row = prefillOneRow(workbook, Collections.singletonList(
+                    new BoundaryUtil.BoundaryRowData(Arrays.asList("ROOT", "B1", "B9"), "B9")));
+
+            assertEquals("", row.getCell(1).getStringCellValue());
+            assertEquals("", row.getCell(BOUNDARY_CODE_COL).getStringCellValue());
         }
     }
 }
