@@ -240,9 +240,11 @@ class OutsideHouseholdSheetGeneratorTest {
 
     @Test
     void searchesEarlierSitesUnderTheCampaignRootBoundaryInItsHierarchy() {
-        lenient().when(campaignService.getBoundariesFromCampaign(eq(CAMPAIGN_ID), eq(TENANT), any()))
-                .thenReturn(Collections.singletonList(CampaignSearchResponse.BoundaryDetail.builder()
-                        .code("P1").type("Province").isRoot(true).includeAllChildren(true).build()));
+        lenient().when(campaignService.searchCampaignById(eq(CAMPAIGN_ID), eq(TENANT), any()))
+                .thenReturn(CampaignSearchResponse.CampaignDetail.builder().id(CAMPAIGN_ID).campaignNumber(CAMPAIGN_NUMBER)
+                        .boundaries(Collections.singletonList(CampaignSearchResponse.BoundaryDetail.builder()
+                                .code("P1").type("Province").isRoot(true).includeAllChildren(true).build()))
+                        .build());
 
         generate(false);
 

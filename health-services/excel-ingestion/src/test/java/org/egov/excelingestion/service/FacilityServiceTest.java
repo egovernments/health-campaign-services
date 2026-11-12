@@ -24,9 +24,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * The template's facility read: by the campaign's root boundary with includeDescendants (large pages); the whole-tenant
- * read in pages of 50 when there is no root boundary; and in large pages when the root search fails or finds nothing
- * below the root.
+ * The template's facility read: by the campaign's root boundary with includeDescendants, and the whole-tenant read
+ * when there is no root boundary, the root search fails, or it finds nothing below the root. Both read large pages.
  */
 @ExtendWith(MockitoExtension.class)
 class FacilityServiceTest {
@@ -127,12 +126,12 @@ class FacilityServiceTest {
 
     @Test
     void readsEveryPermanentFacilityWhenThereIsNoRootBoundary() {
-        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(page(3));
+        when(serviceRequestRepository.fetchResultFromUri(any(), any())).thenReturn(page(2), page(1));
 
         List<Map<String, Object>> facilities = facilityService.fetchPermanentFacilitiesAtAndBelow("mz", null, null, "ADMIN", REQUEST_INFO);
 
         assertEquals(3, facilities.size());
-        assertEquals(List.of(SEARCH_URL + "?limit=50&offset=0&tenantId=mz"), calledUrls());
+        assertEquals(List.of(SEARCH_URL + "?limit=2&offset=0&tenantId=mz", SEARCH_URL + "?limit=2&offset=2&tenantId=mz"), calledUrls());
         assertFalse(sentFilters().get(0).containsKey("boundaryCode"));
     }
 

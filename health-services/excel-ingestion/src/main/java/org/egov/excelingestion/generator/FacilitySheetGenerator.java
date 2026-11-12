@@ -253,12 +253,14 @@ public class FacilitySheetGenerator implements ISheetGenerator {
     }
     
     /**
-     * The campaign's root boundary code, or null (search every facility) when the campaign's boundaries cannot be read,
-     * so the facility search does not empty the sheet when only this lookup fails.
+     * The campaign's root boundary code, or null (search every facility) when the campaign cannot be read, so the facility
+     * search does not empty the sheet when only this lookup fails. The campaign search is cached, so this reuses the
+     * lookup made just before instead of calling project-factory again.
      */
     static String rootBoundaryCodeOrNull(CampaignService campaignService, String referenceId, String tenantId, RequestInfo requestInfo) {
         try {
-            return campaignRootBoundaryCode(campaignService.getBoundariesFromCampaign(referenceId, tenantId, requestInfo));
+            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
+            return campaignRootBoundaryCode(campaign == null ? null : campaign.getBoundaries());
         } catch (Exception e) {
             log.warn("Could not read campaign {} for its root boundary; searching every permanent facility: {}", referenceId, e.getMessage());
             return null;

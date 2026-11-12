@@ -3,6 +3,7 @@ package org.egov.excelingestion.generator;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.web.models.CampaignSearchResponse.BoundaryDetail;
+import org.egov.excelingestion.web.models.CampaignSearchResponse.CampaignDetail;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -49,8 +50,8 @@ class FacilitySheetGeneratorRootBoundaryTest {
     @Test
     void readsTheRootBoundaryFromTheCampaign() {
         CampaignService campaignService = mock(CampaignService.class);
-        when(campaignService.getBoundariesFromCampaign(any(), any(), any()))
-                .thenReturn(List.of(boundary("ROOT", true), boundary("CHILD", false)));
+        when(campaignService.searchCampaignById(any(), any(), any()))
+                .thenReturn(CampaignDetail.builder().boundaries(List.of(boundary("ROOT", true), boundary("CHILD", false))).build());
 
         assertEquals("ROOT", FacilitySheetGenerator.rootBoundaryCodeOrNull(campaignService, "c-1", "mz", RequestInfo.builder().build()));
     }
@@ -58,7 +59,7 @@ class FacilitySheetGeneratorRootBoundaryTest {
     @Test
     void searchesEveryFacilityWhenTheCampaignCannotBeRead() {
         CampaignService campaignService = mock(CampaignService.class);
-        when(campaignService.getBoundariesFromCampaign(any(), any(), any())).thenThrow(new RuntimeException("project-factory down"));
+        when(campaignService.searchCampaignById(any(), any(), any())).thenThrow(new RuntimeException("project-factory down"));
 
         assertNull(FacilitySheetGenerator.rootBoundaryCodeOrNull(campaignService, "c-1", "mz", RequestInfo.builder().build()));
     }
