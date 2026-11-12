@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -65,8 +66,13 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
             for (Task task : entities) {
                 if(CollectionUtils.isEmpty(task.getResources()))
                     continue;
-                Set<String> productVariantIds = new HashSet<>(getIdList(task.getResources(),
-                        getIdMethod(task.getResources(), "productVariantId")));
+                Set<String> productVariantIds = getIdList(task.getResources(),
+                        getIdMethod(task.getResources(), "productVariantId")).stream()
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toCollection(HashSet::new));
+                // Resources without a productVariantId (e.g. REDOSE) are allowed; nothing to verify
+                if (productVariantIds.isEmpty())
+                    continue;
                 try {
                     List<ProductVariant> validProductVariants = checkIfProductVariantExist(productVariantIds,
                             getTenantId(task.getResources()), request.getRequestInfo());
