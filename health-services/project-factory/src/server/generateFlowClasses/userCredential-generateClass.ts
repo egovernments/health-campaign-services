@@ -135,7 +135,9 @@ export class TemplateClass {
                 data: userData,
                 dynamicColumns: {
                     [userCredentialFields.password]: { hideColumn: false },
-                    [userDataFields.boundaryName]: { hideColumn: false }
+                    [userDataFields.boundaryName]: { hideColumn: false },
+                    // The worker registry id ("User ID") stays in the file but is hidden on the credential sheet
+                    [userDataFields.workerId]: { hideColumn: true }
                 }
             },
             [errorWorksheetName]: {
