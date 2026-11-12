@@ -1,9 +1,13 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
-import { SheetMap } from "../models/SheetMap";
+import { SheetMap, SheetRow } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { sheetDataRowStatuses, dataRowStatuses } from "../config/constants";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
+import { attendeeIdentity, attendeeSheetTypes, AttendeeSheetType } from "../utils/attendanceIdentityUtils";
+import { AttendanceRegisterId, CampaignNumber, IndividualId, TenantId } from "../config/models/brandedTypes";
+import { CampaignDataRow } from "../config/models/campaignDataRow";
+import { attendanceSyncDataKeys } from "../config/constants";
 import { httpRequest } from "../utils/request";
 import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
@@ -27,10 +31,10 @@ const EXCEL_SERIAL_THRESHOLD = 100_000_000; // Below = Excel serial, above = epo
 const ISO_DATE_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}/; // Matches YYYY-MM-DD start
 
 /** Maps sheet name constant to a short slug used in uniqueIdentifier and _sheetName */
-function sheetTypeOf(sheetName: string): string {
-    if (sheetName === WORKER_SHEET) return "worker";
-    if (sheetName === MARKER_SHEET) return "marker";
-    return "approver";
+function sheetTypeOf(sheetName: string): AttendeeSheetType {
+    if (sheetName === WORKER_SHEET) return attendeeSheetTypes.worker;
+    if (sheetName === MARKER_SHEET) return attendeeSheetTypes.marker;
+    return attendeeSheetTypes.approver;
 }
 
 /**
@@ -41,6 +45,21 @@ function sheetTypeOf(sheetName: string): string {
  * `${registerServiceCode}_${username}_${sheetType}` and re-fetches to build SheetMap.
  */
 export class TemplateClass {
+    /** The register search and HRMS return unvalidated shapes, so an id is branded only once checked. */
+    private static asRegisterId(value: unknown): AttendanceRegisterId | null {
+        return typeof value === "string" && value.trim() !== "" ? (value as AttendanceRegisterId) : null;
+    }
+
+    private static asIndividualId(value: unknown): IndividualId | null {
+        return typeof value === "string" && value.trim() !== "" ? (value as IndividualId) : null;
+    }
+
+    /** Both the register and the individual can move under a stable row key, so the stamp is matched in full. */
+    static storedDateBelongsToIdentity(storedStamp: string, expectedIdentity: string | null): boolean {
+        if (!expectedIdentity || storedStamp === "") return true;
+        return storedStamp === expectedIdentity;
+    }
+
     static async process(
         resourceDetails: any,
         wholeSheetData: any,
@@ -234,7 +253,9 @@ export class TemplateClass {
             sheetRows,
             existingAttendeeDataMap,
             campaignNumber,
-            tenantId
+            tenantId,
+            usernameToIndividualId,
+            registerDataMap
         );
 
         // Wait for Kafka persistence (same pattern as user-processClass)
@@ -255,12 +276,8 @@ export class TemplateClass {
         const sheetMap: SheetMap = {};
         for (const name of SHEET_NAMES) {
             const rowsForSheet = filteredRows
-                .filter((r: any) => r.data._sheetName === name)
-                .map((r: any) => {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { _registerServiceCode, _sheetName, ...outputRow } = r.data;
-                    return outputRow;
-                });
+                .filter((row) => row.data?._sheetName === name)
+                .map((row) => this.toOutputRow(row));
             // Fall back to in-memory sheetRows if nothing stored yet (should not happen after persistence+wait)
             sheetMap[name] = {
                 data: rowsForSheet.length > 0 ? rowsForSheet : (sheetRows.get(name) || []),
@@ -268,6 +285,20 @@ export class TemplateClass {
             };
         }
         return sheetMap;
+    }
+
+    /**
+     * One processed-file row from a stored attendee row: internal fields stripped, and the synced
+     * de-enrolment date surfaced so a removal done outside the console is visible here too.
+     */
+    private static toOutputRow(storedRow: CampaignDataRow): SheetRow {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _registerServiceCode, _sheetName, _denrollmentDate, ...outputRow } = storedRow.data;
+        if (storedRow.denrollmentDate != null) {
+            outputRow["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] =
+                this.formatEpochAsDate(storedRow.denrollmentDate);
+        }
+        return outputRow;
     }
 
     /**
@@ -287,9 +318,9 @@ export class TemplateClass {
      * Returns a Map<uniqueIdentifier, existingRow> for all stored attendanceRegisterAttendee
      * rows for this campaign — used to decide SAVE vs UPDATE Kafka topic.
      */
-    private static async buildExistingAttendeeDataMap(campaignNumber: string, tenantId: string): Promise<Map<string, any>> {
+    private static async buildExistingAttendeeDataMap(campaignNumber: string, tenantId: string): Promise<Map<string, CampaignDataRow>> {
         const rows = await getRelatedDataWithCampaign("attendanceRegisterAttendee", campaignNumber, tenantId);
-        const map = new Map<string, any>();
+        const map = new Map<string, CampaignDataRow>();
         for (const row of rows) {
             map.set(row.uniqueIdentifier, row);
         }
@@ -304,10 +335,12 @@ export class TemplateClass {
      * - EXISTING rows → KAFKA_UPDATE_SHEET_DATA_TOPIC
      */
     private static async persistAttendeesToCampaignData(
-        sheetRows: Map<string, any[]>,
-        existingDataMap: Map<string, any>,
-        campaignNumber: string,
-        tenantId: string
+        sheetRows: Map<string, Record<string, unknown>[]>,
+        existingDataMap: Map<string, CampaignDataRow>,
+        campaignNumber: CampaignNumber,
+        tenantId: TenantId,
+        usernameToIndividualId: Map<string, string>,
+        registerDataMap: Map<string, { register?: { id?: unknown } }>
     ): Promise<void> {
         const toSave: any[] = [];
         const toUpdate: any[] = [];
@@ -334,13 +367,45 @@ export class TemplateClass {
                     _sheetName: sheetName
                 };
 
+                // Stamp the attendance-side identity so de-enrolment events, which carry only UUIDs,
+                // can resolve back to this row. Null when the register or individual is unresolved.
+                const registerUuid = this.asRegisterId(registerDataMap.get(registerServiceCode)?.register?.id);
+                const individualId = this.asIndividualId(usernameToIndividualId.get(username));
+                // Fall back to whatever is already stored: HRMS or the register search can fail
+                // transiently, and the persister overwrites this column unconditionally, so a blip
+                // would otherwise erase a good identity and break every later de-enrolment event.
+                const expectedIdentity = registerUuid && individualId
+                    ? attendeeIdentity(registerUuid, individualId, sheetType)
+                    : null;
+                const uniqueIdAfterProcess = expectedIdentity
+                    ?? (existingDataMap.get(uniqueIdentifier)?.uniqueIdAfterProcess ?? null);
+
+                // The echo event can arrive before this row exists, so the sheet value is stamped directly
+                const deEnrolmentRaw = row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
+                const storedRow = existingDataMap.get(uniqueIdentifier);
+                const storedDenrollmentDate = TemplateClass.storedDateBelongsToIdentity(
+                    String(storedRow?.uniqueIdAfterProcess ?? ""), expectedIdentity
+                ) ? (storedRow?.denrollmentDate ?? null) : null;
+                // Only a row that actually reached the attendance service may set this. A failed or
+                // skipped row keeps whatever is stored, so a date whose API call errored is not made
+                // permanent and can still be corrected by re-uploading.
+                // A blank cell never clears a stored date: an event may have set it between the
+                // register fetch and this write, and de-enrolment is one-way per the truth table.
+                const parsedDenrollmentDate = this.getCellAsString(deEnrolmentRaw)
+                    ? this.parseDateEndOfDay(deEnrolmentRaw)
+                    : null;
+                const denrollmentDate = dbStatus === dataRowStatuses.completed
+                    ? (parsedDenrollmentDate ?? storedDenrollmentDate)
+                    : storedDenrollmentDate;
+
                 const payload = {
                     campaignNumber,
                     type: "attendanceRegisterAttendee",
                     uniqueIdentifier,
-                    data: dataToStore,
+                    // Every write carries the merged date, so a re-upload cannot drop one recorded elsewhere
+                    data: { ...dataToStore, [attendanceSyncDataKeys.denrollmentDate]: denrollmentDate },
                     status: dbStatus,
-                    uniqueIdAfterProcess: null
+                    uniqueIdAfterProcess
                 };
 
                 if (existingDataMap.has(uniqueIdentifier)) {

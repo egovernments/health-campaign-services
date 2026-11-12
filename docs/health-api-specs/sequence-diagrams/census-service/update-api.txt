@@ -1,0 +1,113 @@
+@startuml
+title Census - Update
+!theme vibrant
+participant Client as c
+participant CensusService as s
+participant BoundaryService as bs
+participant PlanService as ps
+participant WorkflowService as wf
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /census-service/_update
+activate s
+
+s -> s: Validate request body (@Valid)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateUpdate
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search
+    activate bs
+    bs -> s: BoundaryHierarchy
+    deactivate bs
+
+    s -> db: SELECT census WHERE id = ?
+    activate db
+    db -> s: Existing census
+    deactivate db
+    alt census not found
+        s -> c: HttpStatus: 400 INVALID_CENSUS
+    end
+    s -> s: Copy boundaryAncestralPath from existing census
+
+    alt userInfo missing
+        s -> c: HttpStatus: 400 USERINFO_MISSING
+    end
+    s -> s: Validate workflow access
+    alt unauthorized workflow access
+        s -> c: HttpStatus: 400 UNAUTHORIZED_WORKFLOW_ACCESS
+    end
+    s -> ps: /plan-service/employee/_search\n(employeeId = user uuid, planConfigurationId = source,\njurisdiction = ancestral path, roles)
+    activate ps
+    ps -> s: PlanEmployeeAssignment
+    deactivate ps
+    alt no assignment found
+        s -> c: HttpStatus: 400 INVALID_PARTNER
+    end
+    s -> s: Set assigneeJurisdiction
+
+    s -> s: Validate unique keys in additionalFields
+    alt duplicate key
+        s -> c: HttpStatus: 400 DUPLICATE_KEY_IN_ADDITIONAL_FIELD
+    end
+    s -> s: Enrich jurisdictionMapping from hierarchy
+end
+
+group enrichUpdate
+    s -> s: Generate ids for new populationByDemographics\nand additionalFields
+    s -> s: Set lastModifiedTime
+end
+
+opt workflow present in request
+    s -> ps: /plan-service/employee/_search\n(ancestral boundaries, census roles)
+    activate ps
+    ps -> s: PlanEmployeeAssignments
+    deactivate ps
+    s -> s: Auto-assign assignee\n(INITIATE / intermediate / SEND_BACK_FOR_CORRECTION)
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(businessService CENSUS)
+    activate wf
+    alt workflow transition fails
+        wf -> s: Error
+        s -> c: HttpStatus: 400 WORKFLOW_INTEGRATION_ERROR
+    else success
+        wf -> s: ProcessInstance
+        deactivate wf
+        s -> s: Set status from workflow state, update auditDetails
+    end
+end
+
+s -> k: Census /census-update-topic
+activate k
+s -> c: HttpStatus: 202 Census
+deactivate s
+
+group async
+    prs -> k: Consume /census-update-topic
+    activate prs
+    prs -> db: UPDATE census (status, assignee, additional_details,\nfacility_assigned, effective_to, audit)
+    activate db
+    deactivate db
+    prs -> db: UPSERT population_by_demographics, additional_field
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /census-update-topic
+    activate idx
+    idx -> el: Store Census /census-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+note over prs
+    The persister UPDATE does not change total_population,
+    boundary_code, type or source
+end note
+
+@enduml

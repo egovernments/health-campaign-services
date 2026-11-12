@@ -1,7 +1,9 @@
 package org.egov.project.repository.querybuilder;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +19,7 @@ import org.springframework.util.CollectionUtils;
 
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 import static org.egov.project.util.ProjectConstants.DOT;
+import static org.egov.project.util.ProjectConstants.PROJECT_PARENT_HIERARCHY_SEPERATOR;
 
 @Component
 @Slf4j
@@ -52,6 +55,11 @@ public class ProjectAddressQueryBuilder {
      * @param isAncestorProjectId if set to true, project id in the projects would be considered as ancestor project id.
      */
     public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStmtList, boolean isCountQuery) {
+        return getProjectSearchQuery(projects, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, isCountQuery, Collections.emptyMap());
+    }
+
+    /** @param idToHierarchyPrefix project id -> safe anchor prefix, consulted only when isAncestorProjectId is true */
+    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStmtList, boolean isCountQuery, Map<String, String> idToHierarchyPrefix) {
         //This uses a ternary operator to choose between PROJECTS_COUNT_QUERY or FETCH_PROJECT_ADDRESS_QUERY based on the value of isCountQuery.
         String query = isCountQuery ? PROJECTS_COUNT_QUERY : FETCH_PROJECT_ADDRESS_QUERY;
         StringBuilder queryBuilder = new StringBuilder(query);
@@ -80,7 +88,13 @@ public class ProjectAddressQueryBuilder {
             if (isAncestorProjectId && StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" ( prj.projectHierarchy LIKE ? OR prj.id =? ) ");
-                preparedStmtList.add('%' + project.getId() + '%');
+                // Every descendant's path starts with the ancestor's path + '.', so anchoring the
+                // pattern keeps idx_project_projecthierarchy usable; '%id%' forced a full scan.
+                // The map only holds prefixes we could prove safe; anything else stays unanchored.
+                String hierarchyPrefix = idToHierarchyPrefix.get(project.getId());
+                preparedStmtList.add(StringUtils.isNotBlank(hierarchyPrefix)
+                        ? hierarchyPrefix + PROJECT_PARENT_HIERARCHY_SEPERATOR + '%'
+                        : '%' + project.getId() + '%');
                 preparedStmtList.add(project.getId());
             } else if (StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
@@ -379,6 +393,48 @@ public class ProjectAddressQueryBuilder {
         preparedStmtList.addAll(ids);
     }
 
+    /* Narrow projection for the date cascade: no address join, only the columns the date-only persister writes */
+    private static final String FETCH_PROJECT_DATE_CASCADE_QUERY = "SELECT prj.id as projectId, prj.tenantId as project_tenantId, "
+            + "prj.startDate as project_startDate, prj.endDate as project_endDate, prj.parent as project_parent, "
+            + "prj.projectHierarchy as project_projectHierarchy, prj.additionalDetails as project_additionalDetails, "
+            + "prj.createdBy as project_createdBy, prj.lastModifiedBy as project_lastModifiedBy, "
+            + "prj.createdTime as project_createdTime, prj.lastModifiedTime as project_lastModifiedTime "
+            + "from " + SCHEMA_REPLACE_STRING + ".project prj ";
+
+    /* Returns the date-cascade projection for the given project ids */
+    public String getDateCascadeQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtList) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_DATE_CASCADE_QUERY);
+        queryBuilder.append(" WHERE prj.id IN (").append(createQuery(projectIds)).append(")");
+        addToPreparedStatement(preparedStmtList, projectIds);
+        return queryBuilder.toString();
+    }
+
+    /* Returns the date-cascade projection for descendants under the given hierarchy paths.
+     * Anchored like getProjectDescendantsSearchQueryBasedOnHierarchies, so idx_project_projecthierarchy
+     * can serve it. The trailing separator also excludes the project itself, whose own path has no
+     * trailing dot. */
+    public String getDateCascadeDescendantsQueryBasedOnHierarchies(List<String> projectHierarchyPrefixes, List<Object> preparedStmtList) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_DATE_CASCADE_QUERY);
+        for (String prefix : projectHierarchyPrefixes) {
+            addConditionalClause(preparedStmtList, queryBuilder);
+            queryBuilder.append(" ( prj.projectHierarchy LIKE ? )");
+            preparedStmtList.add(prefix + PROJECT_PARENT_HIERARCHY_SEPERATOR + '%');
+        }
+        return queryBuilder.toString();
+    }
+
+    /* Unanchored fallback for when no safe hierarchy prefix can be derived. Mirrors the predicate of
+     * getProjectDescendantsSearchQueryBasedOnIds so the matched rows stay identical. */
+    public String getDateCascadeDescendantsQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtList) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_DATE_CASCADE_QUERY);
+        for (String projectId : projectIds) {
+            addConditionalClause(preparedStmtList, queryBuilder);
+            queryBuilder.append(" ( prj.projectHierarchy LIKE ? )");
+            preparedStmtList.add('%' + projectId + '%');
+        }
+        return queryBuilder.toString();
+    }
+
     /* Returns query to search for projects where project_hierarchy contains project Ids */
     public String getProjectDescendantsSearchQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtListDescendants) {
         StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_ADDRESS_QUERY);
@@ -388,6 +444,47 @@ public class ProjectAddressQueryBuilder {
             preparedStmtListDescendants.add('%' + projectId + '%');
         }
         
+        return queryBuilder.toString();
+    }
+
+    /**
+     * Returns query for projects under the given hierarchy paths. Matches the same rows as
+     * {@link #getProjectDescendantsSearchQueryBasedOnIds} — a path contains an ancestor's id exactly
+     * when it starts with that ancestor's full path — but anchored, so the index can be used.
+     */
+    public String getProjectDescendantsSearchQueryBasedOnHierarchies(List<String> projectHierarchyPrefixes, List<Object> preparedStmtListDescendants) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_ADDRESS_QUERY);
+        for (String prefix : projectHierarchyPrefixes) {
+            addConditionalClause(preparedStmtListDescendants, queryBuilder);
+            queryBuilder.append(" ( prj.projectHierarchy LIKE ? )");
+            preparedStmtListDescendants.add(prefix + PROJECT_PARENT_HIERARCHY_SEPERATOR + '%');
+        }
+        return queryBuilder.toString();
+    }
+
+    /**
+     * Prefix every descendant's path starts with, or null when it cannot be derived safely.
+     * A root project has no path of its own, so its children's paths begin with its id
+     * (see ProjectEnrichment#enrichProjectHierarchy). A non-root row with no path is a data gap:
+     * its descendants' paths start at the root, not at this id, so anchoring there would drop them.
+     */
+    public static String hierarchyPrefix(String projectHierarchy, String projectId, String parent) {
+        if (StringUtils.isNotBlank(projectHierarchy)) {
+            return projectHierarchy;
+        }
+        return StringUtils.isBlank(parent) ? projectId : null;
+    }
+
+    /* Returns id -> projectHierarchy + parent for the given ids (primary key lookup) */
+    public String getProjectHierarchyQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtList) {
+        StringBuilder queryBuilder = new StringBuilder("SELECT prj.id as projectId, prj.projectHierarchy as project_projectHierarchy, prj.parent as project_parent from "
+                + SCHEMA_REPLACE_STRING + ".project prj WHERE prj.id IN (");
+        for (int i = 0; i < projectIds.size(); i++) {
+            if (i > 0) queryBuilder.append(", ");
+            queryBuilder.append("?");
+            preparedStmtList.add(projectIds.get(i));
+        }
+        queryBuilder.append(")");
         return queryBuilder.toString();
     }
 
@@ -405,7 +502,12 @@ public class ProjectAddressQueryBuilder {
     
     /* Returns query to get total projects count based on project search params */
     public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStatement) {
-        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, true);
+        return getSearchCountQueryString(projects, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, Collections.emptyMap());
+    }
+
+    /* Returns query to get total projects count based on project search params */
+    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStatement, Map<String, String> idToHierarchyPrefix) {
+        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, true, idToHierarchyPrefix);
         return query;
     }
 

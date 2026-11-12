@@ -51,15 +51,96 @@ MIGRATIONS = [
                 ON REPORTS_METADATA (tenantId, reportName);
         """,
     },
-    # Example: next migration
-    # {
-    #     "version": 2,
-    #     "description": "Add index on tenantId and reportName",
-    #     "up": """
-    #         CREATE INDEX IF NOT EXISTS idx_reports_metadata_tenant_report
-    #         ON REPORTS_METADATA (tenantId, reportName);
-    #     s""",
-    # },
+    {
+        "version": "2026_07_10_00_01_migration",
+        "description": "Add fileSizeBytes, reportGenerationTimeSeconds and rowCount columns to REPORTS_METADATA",
+        "up": """
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS fileSizeBytes BIGINT;
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS reportGenerationTimeSeconds NUMERIC;
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS rowCount INT;
+        """,
+    },
+    {
+        "version": "2026_07_10_00_04_migration",
+        "description": (
+            "Switch createdTime on REPORTS_METADATA from native TIMESTAMP to BIGINT epoch millis, "
+            "matching the epoch-millis convention used for audit timestamps elsewhere in DIGIT."
+        ),
+        "up": """
+            ALTER TABLE REPORTS_METADATA ALTER COLUMN createdTime DROP DEFAULT;
+            ALTER TABLE REPORTS_METADATA ALTER COLUMN createdTime TYPE BIGINT
+                USING (EXTRACT(EPOCH FROM createdTime) * 1000)::BIGINT;
+            ALTER TABLE REPORTS_METADATA ALTER COLUMN createdTime SET DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT;
+        """,
+    },
+    {
+        "version": "2026_07_10_00_05_migration",
+        "description": (
+            "Add reportTriggeredTimeMs (BIGINT, authoritative) and reportTriggeredTime (VARCHAR, "
+            "human-readable) to REPORTS_METADATA - the actual wall-clock moment a run was triggered, "
+            "distinct from triggerTime (the MDMS-configured time-of-day, or whatever the requester "
+            "sent for a CUSTOM report)."
+        ),
+        "up": """
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS reportTriggeredTimeMs BIGINT;
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS reportTriggeredTime VARCHAR(50);
+        """,
+    },
+    {
+        "version": "2026_07_10_00_06_migration",
+        "description": (
+            "Add every lifecycle/status column to REPORTS_METADATA so it becomes append-only "
+            "(one row per status event, not just terminal outcomes) - eventId, identifierType, "
+            "status, statusOrder, errorMessage, errorType, eventTimestamp, eventTimestampMs."
+        ),
+        "up": """
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS eventId VARCHAR(64);
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS identifierType VARCHAR(50);
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS statusOrder INT;
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS errorMessage TEXT;
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS errorType VARCHAR(255);
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS eventTimestamp VARCHAR(50);
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS eventTimestampMs BIGINT;
+
+            -- Plain (non-partial) unique index - lets the persister use
+            -- ON CONFLICT (eventId) DO NOTHING for idempotent inserts under Kafka's
+            -- at-least-once redelivery. Multiple NULLs (existing rows, which predate
+            -- eventId) never conflict with each other under standard SQL unique-constraint
+            -- semantics - verified against a real Postgres 15 instance, not assumed.
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_metadata_event_id
+                ON REPORTS_METADATA (eventId);
+
+            CREATE INDEX IF NOT EXISTS idx_reports_metadata_timestamp_ms
+                ON REPORTS_METADATA (eventTimestampMs);
+        """,
+    },
+    {
+        "version": "2026_07_15_00_01_migration",
+        "description": (
+            "Add expectedRows and expectedGenerationTimeSeconds to REPORTS_METADATA - "
+            "computed once at trigger time and threaded through Airflow's conf/env vars so "
+            "every lifecycle event for a run carries the same value (not just the "
+            "TRIGGERED_ON_UI bootstrap row), letting the UI show an estimate throughout."
+        ),
+        "up": """
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS expectedRows INT;
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS expectedGenerationTimeSeconds NUMERIC;
+        """,
+    },
+    {
+        "version": "2026_07_15_00_02_migration",
+        "description": (
+            "Add secondsSinceTriggered to REPORTS_METADATA - how many seconds after "
+            "reportTriggeredTimeMs this specific event happened (eventTimestampMs - "
+            "reportTriggeredTimeMs)/1000, computed by whichever producer pushes the event. "
+            "Gives a per-stage timeline (e.g. TRIGGERED at +5s, POD_STARTED at +52s) for "
+            "every row, not just completed runs."
+        ),
+        "up": """
+            ALTER TABLE REPORTS_METADATA ADD COLUMN IF NOT EXISTS secondsSinceTriggered NUMERIC;
+        """,
+    },
 ]
 
 # --------------- Migration Engine ---------------
@@ -70,6 +151,12 @@ MIGRATIONS_TABLE_SQL = """
         description     VARCHAR(500),
         applied_at      TIMESTAMP DEFAULT NOW()
     );
+    -- Records exactly what SQL ran for each migration, so "what did this version actually
+    -- do to the DB" is always answerable from the DB itself - never dependent on git
+    -- history or the current state of this file, which can (and did) move on. ADD COLUMN
+    -- IF NOT EXISTS so this also backfills the column on a REPORTS_SCHEMA that already
+    -- existed before this line was added.
+    ALTER TABLE REPORTS_SCHEMA ADD COLUMN IF NOT EXISTS sql_executed TEXT;
 """
 
 
@@ -121,8 +208,8 @@ def run_migration():
             print(f"  Applying v{m['version']}: {m['description']}...")
             cur.execute(m["up"])
             cur.execute(
-                "INSERT INTO REPORTS_SCHEMA (version, description) VALUES (%s, %s)",
-                (m["version"], m["description"]),
+                "INSERT INTO REPORTS_SCHEMA (version, description, sql_executed) VALUES (%s, %s, %s)",
+                (m["version"], m["description"], m["up"]),
             )
             print(f"  Applied v{m['version']}")
 

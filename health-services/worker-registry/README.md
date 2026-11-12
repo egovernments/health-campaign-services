@@ -36,7 +36,9 @@ In short: *"who are the workers on this campaign, how do we pay them, and what's
 
 ## 3. Key APIs / Entry Points
 
-All REST endpoints are under the `/worker` context path with a `/v1` base.
+All REST endpoints are under the `/worker` context path with a `/v1` base. The full contract lives in
+[`docs/health-api-specs/contracts/registries/worker.yml`](../../docs/health-api-specs/contracts/registries/worker.yml)
+— view it at [editor.swagger.io](https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/health-campaign-services/master/docs/health-api-specs/contracts/registries/worker.yml).
 
 **REST entry points:**
 

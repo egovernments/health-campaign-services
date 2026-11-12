@@ -1,0 +1,36 @@
+@startuml
+title PGR Services - Request Count
+!theme vibrant
+participant Client as c
+participant PGRService as s
+database Database as db
+
+c -> s : POST /pgr-services/v2/request/_count?tenantId&...
+activate s
+
+s -> s: Validate body (RequestInfo) and query params\n(RequestSearchCriteria via @ModelAttribute)
+alt validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+note right of s
+    No validateSearch, no enrichSearchRequest:
+    no user-type / allowed-param checks, mobileNumber
+    is not resolved to userIds (ignored), and limit /
+    offset are not defaulted (bound as NULL unless passed)
+end note
+
+s -> db: select count(*) from (SELECT ser.*, ads.* FROM eg_pgr_service_v2 ser\nINNER JOIN eg_pgr_address_v2 ads ON ads.parentId = ser.id\nWHERE <criteria> ORDER BY ... OFFSET ? LIMIT ?) as count
+activate db
+alt toDate without fromDate
+    s -> c: HttpStatus: 400 INVALID_SEARCH
+else invalid tenant
+    s -> c: HttpStatus: 400 INVALID_TENANT_ID
+end
+db -> s: count
+deactivate db
+
+s -> c: HttpStatus: 200 CountResponse (ResponseInfo, count)
+deactivate s
+
+@enduml

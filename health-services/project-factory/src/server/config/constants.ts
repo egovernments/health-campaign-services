@@ -4,6 +4,7 @@ export const CONSTANTS: any = {
     ERROR_CODES: {
         COMMON: {
             UNKNOWN_ERROR: "Unknown error. Check logs",
+            PROCESSING_FAILED: "The uploaded file could not be processed",
             IDGEN_ERROR: "Error during generating campaign number",
             VALIDATION_ERROR: "Validation error",
             INTERNAL_SERVER_ERROR: "Internal server error",
@@ -153,6 +154,10 @@ export const mappingStatuses = {
     // reconciler can reset each toward its original intent without heuristics.
     failed : "failed",
     deMapFailed : "deMapFailed",
+    // A mapped site link whose frontline worker still has to be written (an edit changed the worker and the update
+    // failed); the reconciler retries it like the other directions and resets updateFailed to toBeUpdated.
+    toBeUpdated : "toBeUpdated",
+    updateFailed : "updateFailed",
     // Mapping was not attempted because its dependency (e.g. the user
     // referenced by a project-staff mapping) was never created. Treated
     // as resolved by the mapping monitor — does not block campaign success.
@@ -292,6 +297,7 @@ export const additionalDetailKeys = {
     userSheetStatus: "userSheetStatus",
     boundarySheetStatus: "boundarySheetStatus",
     facilitySheetStatus: "facilitySheetStatus",
+    outsideHouseholdSheetStatus: "outsideHouseholdSheetStatus",
 } as const;
 
 // Sheet validation status values
@@ -326,6 +332,28 @@ export const userDataFields = {
     boundaryCode: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
     boundaryName: "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
+} as const;
+
+// Site sheet header keys read by the facility transform to stamp a site facility
+export const outsideHouseholdFacilityFields = {
+    clientReferenceId: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID",
+    category: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY",
+    workerName: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_NAME",
+    workerPhone: "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_WORKER_PHONE",
+} as const;
+
+// ProjectFacility.additionalFields of a site's link: the frontline worker for this campaign only
+export const outsideHouseholdLinkAdditionalFieldsSchema = {
+    schema: "OutsideHouseholdAssignment",
+    version: 1,
+    workerNameKey: "frontlineWorkerName",
+    workerPhoneKey: "frontlineWorkerPhone",
+} as const;
+
+// Facility.additionalFields entry of a site: its category. A site is told apart from a facility by its
+// usage (the site type code, MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES), not by additionalFields.
+export const outsideHouseholdFacilityAdditionalFields = {
+    categoryKey: "outsideHouseholdCategory",
 } as const;
 
 // MDMS schema code for template validation
@@ -377,3 +405,23 @@ export const getErrorCodes = (module: string, key: string): Error => {
         message: message
     }
 }
+
+/**
+ * Attendance sheet refresh state. Shared because the read path in resourceDetailsService decides
+ * whether a refresh runs at all, and attendanceSheetUtils writes it — the two must not drift.
+ */
+/**
+ * The de-enrolment date lives inside the row's own data rather than in a column: only attendees
+ * carry one, unlike isDeleted, which is the table's general soft-delete flag. It is an internal
+ * key, so every path that emits a sheet strips it like the other _-prefixed fields.
+ */
+export const attendanceSyncDataKeys = {
+  denrollmentDate: "_denrollmentDate",
+} as const;
+
+export const attendanceSheetRefresh = {
+    additionalDetailsKey: "attendanceRefresh",
+    statePending: "pending",
+    stateInProgress: "inProgress",
+    resourceTypes: ["attendanceRegister", "attendanceRegisterAttendee"],
+};

@@ -1,6 +1,6 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
-import { SheetMap } from "../models/SheetMap";
+import { SheetMap, SheetRow } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { sheetDataRowStatuses, dataRowStatuses } from "../config/constants";
@@ -10,6 +10,7 @@ import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
+import { CampaignDataRow } from "../config/models/campaignDataRow";
 
 /**
  * Process class for Attendance Register creation — idempotently creates/updates registers
@@ -71,7 +72,7 @@ export class TemplateClass {
         logger.info(`Found ${existingDataMap.size} existing campaign_data rows for attendanceRegister`);
 
         // Idempotent batch creation - check for existing, create new only; classifies by campaign ownership
-        const { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap } =
+        const { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap, deletedInAttendance } =
             await this.idempotentBatchCreate(validPayloads, campaignNumber, tenantId, requestInfo);
 
         // Build processed data with per-row status and error details, used for persistence
@@ -109,6 +110,7 @@ export class TemplateClass {
             conflictingServiceCodes,
             boundaryChangedServiceCodes,
             serviceCodeToUuidMap,
+            deletedInAttendance,
             campaignNumber,
             tenantId
         );
@@ -129,7 +131,7 @@ export class TemplateClass {
             .filter(({ result }: any) => !result.serviceCode)
             .map(({ processed }: any) => processed);
 
-        const outputData = [...allRows.map((r: any) => r.data), ...unpersistableRows];
+        const outputData = TemplateClass.buildOutputData(allRows, unpersistableRows);
         if (unpersistableRows.length > 0) {
             logger.info(`Appended ${unpersistableRows.length} unpersistable INVALID rows to output`);
         }
@@ -146,6 +148,26 @@ export class TemplateClass {
 
         logger.info(`SheetMap generated for attendance register processing`);
         return sheetMap;
+    }
+
+    /**
+     * Rows of the processed file: every register the campaign still has, plus the rows that could not
+     * be persisted. Registers deleted in the attendance service are dropped — the console serves this
+     * file as the current register list after an upload, so a deleted one would come straight back.
+     */
+    /** Attendance marks a deleted register INACTIVE and flags it; either signal means gone. */
+    private static isDeletedInAttendance(register: { status?: string; isDeleted?: boolean }): boolean {
+        return register?.isDeleted === true || String(register?.status ?? "").toUpperCase() === "INACTIVE";
+    }
+
+    private static buildOutputData(
+        allRows: Partial<CampaignDataRow>[],
+        unpersistableRows: SheetRow[]
+    ): SheetRow[] {
+        return [
+            ...allRows.filter((row) => !row.isDeleted).map((row) => (row.data ?? {}) as SheetRow),
+            ...unpersistableRows
+        ];
     }
 
     /**
@@ -174,6 +196,7 @@ export class TemplateClass {
         conflictingServiceCodes: Set<string>,
         boundaryChangedServiceCodes: Map<string, string>,
         serviceCodeToUuidMap: Map<string, string>,
+        deletedInAttendance: Set<string>,
         campaignNumber: string,
         tenantId: string
     ): Promise<void> {
@@ -192,8 +215,24 @@ export class TemplateClass {
 
             const isInvalid = conflictingServiceCodes.has(serviceCode) || boundaryChangedServiceCodes.has(serviceCode);
             const dbStatus = isInvalid ? dataRowStatuses.failed : dataRowStatuses.completed;
-            // Only store the UUID for registers that are valid (not cross-campaign conflicts or boundary-changed)
-            const uniqueIdAfterProcess = isInvalid ? null : (serviceCodeToUuidMap.get(serviceCode) || null);
+            // Resolved in this run: attendance either returned the register or created it here.
+            const resolvedUuid = isInvalid ? null : (serviceCodeToUuidMap.get(serviceCode) || null);
+            // Keep whatever is already stored when this run resolved nothing. The persister overwrites
+            // this column unconditionally, so nulling it would unmatch the register from every future
+            // delete event, and nothing would ever match it again.
+            const uniqueIdAfterProcess = resolvedUuid
+                ?? (existingDataMap.get(serviceCode)?.uniqueIdAfterProcess ?? null);
+
+            // This flag only ever mirrors the attendance service. Attendance returning the register as
+            // deleted is positive evidence it is gone — the register search carries no status filter,
+            // so without this a re-upload would silently undo every deletion. A resolved UUID counts
+            // as evidence it is live only when attendance did not report it deleted. Failing both,
+            // keep what is stored: a stamp carried over from an earlier upload is evidence of neither.
+            const isDeleted = deletedInAttendance.has(serviceCode)
+                ? true
+                : resolvedUuid
+                    ? false
+                    : (existingDataMap.get(serviceCode)?.isDeleted ?? false);
 
             const payload = {
                 campaignNumber,
@@ -201,7 +240,8 @@ export class TemplateClass {
                 uniqueIdentifier: serviceCode,
                 data: processedRow,
                 status: dbStatus,
-                uniqueIdAfterProcess
+                uniqueIdAfterProcess,
+                isDeleted
             };
 
             if (existingDataMap.has(serviceCode)) {
@@ -418,8 +458,11 @@ export class TemplateClass {
         conflictingServiceCodes: Set<string>;
         boundaryChangedServiceCodes: Map<string, string>;
         serviceCodeToUuidMap: Map<string, string>;
+        deletedInAttendance: Set<string>;
     }> {
         const serviceCodeToUuidMap = new Map<string, string>();
+        // serviceCodes the attendance service reports as deleted — its search returns those too
+        const deletedInAttendance = new Set<string>();
 
         if (payloads.length === 0) {
             logger.info("No registers to create");
@@ -427,7 +470,8 @@ export class TemplateClass {
                 existingServiceCodes: new Set<string>(),
                 conflictingServiceCodes: new Set<string>(),
                 boundaryChangedServiceCodes: new Map<string, string>(),
-                serviceCodeToUuidMap
+                serviceCodeToUuidMap,
+                deletedInAttendance
             };
         }
 
@@ -442,6 +486,10 @@ export class TemplateClass {
                 existingByServiceCode.set(r.serviceCode, r);
                 if (r.serviceCode && r.id) {
                     serviceCodeToUuidMap.set(r.serviceCode, r.id);
+                    // The search has no status filter, so it returns registers the attendance service
+                    // has deleted. Their UUID is still wanted for the stamp, but a hit like this is
+                    // evidence the register is gone, not that it is live.
+                    if (this.isDeletedInAttendance(r)) deletedInAttendance.add(r.serviceCode);
                 }
             }
 
@@ -507,7 +555,7 @@ export class TemplateClass {
                 logger.info(`Successfully updated ${registersToUpdate.length} existing attendance registers`);
             }
 
-            return { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap };
+            return { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap, deletedInAttendance };
         } catch (error: any) {
             logger.error(`Error during idempotent batch create/update: ${error?.message}`);
             throw error;

@@ -403,6 +403,40 @@ class FacilitySheetGeneratorMergeTest {
     }
 
     @Test
+    void testMerge_CampaignFacilityWithId_WinsOverSameNamedFacilityListedFirst() throws Exception {
+        // Two permanent facilities share a name and boundary; the campaign uses the second one
+        Map<String, Object> other = createFacilityWithBoundaryKey("F_OTHER", "HF Zabi", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "zabi");
+        other.put("HCM_ADMIN_CONSOLE_FACILITY_USAGE", "Inactive");
+        Map<String, Object> used = createFacilityWithBoundaryKey("F_USED", "HF Zabi", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "zabi");
+        used.put("HCM_ADMIN_CONSOLE_FACILITY_USAGE", "Inactive");
+        Map<String, Object> campaignRow = createFacilityWithBoundaryKey("F_USED", "HF Zabi", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "zabi");
+        campaignRow.put("HCM_ADMIN_CONSOLE_FACILITY_USAGE", "Active");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = (List<Map<String, Object>>)
+            mergeAndDeduplicateMethod.invoke(facilitySheetGenerator, Arrays.asList(other, used), Arrays.asList(campaignRow));
+
+        assertEquals(1, result.size());
+        assertEquals("F_USED", result.get(0).get("HCM_ADMIN_CONSOLE_FACILITY_CODE"));
+        assertEquals("Active", result.get(0).get("HCM_ADMIN_CONSOLE_FACILITY_USAGE"));
+    }
+
+    @Test
+    void testMerge_CampaignFacilityWithId_WinsWhenMissingFromPermanentList() throws Exception {
+        // The permanent list holds only the same-named other facility (the campaign's one was not returned)
+        Map<String, Object> other = createFacilityWithBoundaryKey("F_OTHER", "HF Zabi", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "zabi");
+        Map<String, Object> campaignRow = createFacilityWithBoundaryKey("F_USED", "HF Zabi", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "zabi");
+        campaignRow.put("HCM_ADMIN_CONSOLE_FACILITY_USAGE", "Active");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = (List<Map<String, Object>>)
+            mergeAndDeduplicateMethod.invoke(facilitySheetGenerator, Arrays.asList(other), Arrays.asList(campaignRow));
+
+        assertEquals(1, result.size());
+        assertEquals("F_USED", result.get(0).get("HCM_ADMIN_CONSOLE_FACILITY_CODE"));
+    }
+
+    @Test
     void testMerge_SameNameDifferentBoundary_BothKept() throws Exception {
         List<Map<String, Object>> permanentFacilities = Arrays.asList(
             createFacilityWithBoundaryKey("FACILITY_001", "Clinic A", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "b1"),

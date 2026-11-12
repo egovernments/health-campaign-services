@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.util.Map;
 
 /**
@@ -55,6 +56,27 @@ public class ServiceRequestRepository {
                     e.getMessage(), e);
         }
 
+        return response;
+    }
+
+    /**
+     * As {@link #fetchResult(StringBuilder, Object)}, for a URI whose query values are already encoded: it is sent as it
+     * is, so a value with &, # or + is neither cut off nor encoded twice.
+     */
+    public Object fetchResultFromUri(URI uri, Object request) {
+        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        Object response = null;
+        try {
+            response = restTemplate.postForObject(uri, request, Map.class);
+        } catch (HttpClientErrorException e) {
+            log.error("HTTP client error calling external service at {}: {}", uri, e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.EXTERNAL_SERVICE_ERROR,
+                    e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            log.error("Error calling external service at {}: {}", uri, e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.EXTERNAL_SERVICE_ERROR,
+                    e.getMessage(), e);
+        }
         return response;
     }
 

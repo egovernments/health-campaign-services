@@ -44,7 +44,9 @@ Base paths `/device-token/v1` (managing the phone↔user registry) and `/push/v1
 
 **Kafka entry point (async, the main path).** A notification event lands on the configured push topic (default `egov.core.notification.push`, tenant-prefixed in central-instance mode) and is consumed by `PushNotificationListener`, which resolves the audience and sends to FCM. Device-token writes are published to `save-push-device-token-health` / `delete-…` / `unregister-…` for **egov-persister** to write to Postgres.
 
-_No published Swagger contract exists for this service yet._
+The full contract lives in
+[`docs/health-api-specs/contracts/notification-push.yml`](../../docs/health-api-specs/contracts/notification-push.yml)
+— view it at [editor.swagger.io](https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/health-campaign-services/master/docs/health-api-specs/contracts/notification-push.yml).
 
 ### Kafka topics
 
@@ -119,7 +121,6 @@ sequenceDiagram
 - **Hard dependency on the FCM service-account credentials.** With FCM enabled, a missing or malformed credential value crashes the service at startup.
 - **Registry writes depend on external persister config.** If the device-token persister mappings aren't deployed in an environment, registrations silently never persist.
 - **Role filtering is substring-based.** Roles are stored as a comma-separated string and matched with `LIKE`, so role codes that are substrings of one another could over-match — worth a QA check if role names overlap.
-- **No Swagger / formal API contract** is published yet; integrators work from this README and the controllers.
 
 ## 8. Release Version
 

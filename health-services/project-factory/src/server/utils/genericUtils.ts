@@ -10,9 +10,12 @@ import { logger } from "./logger";
 import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery, getTableName } from "./db";
+import { CampaignNumber, TenantId } from "../config/models/brandedTypes";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
 import { getProcessNamesForResourceTypes } from "../config/resourceTypeRegistry";
+import { CampaignDataApiRow, CampaignDataRow } from "../config/models/campaignDataRow";
+import { attendanceSyncDataKeys } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -1384,8 +1387,11 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
 
 
 /** Reads campaign-data rows for a type/campaign (optionally filtered by status and uniqueIdentifier), mapped to camelCase. */
-export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string) {
+export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string): Promise<CampaignDataRow[]> {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+  // Removed rows are returned here on purpose: callers use this to decide insert-vs-update, and the
+  // persister has no upsert, so hiding a row that physically exists routes it to a duplicate insert.
+  // Download paths filter on the isDeleted / denrollmentDate fields returned below.
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
   if(status) queryString += ` AND status = $3`;
   const arrayStatements = [type, campaignNumber];
@@ -1394,7 +1400,7 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
   if(uniqueIdentifier) arrayStatements.push(uniqueIdentifier);
   let relatedData = await executeQuery(queryString, arrayStatements);
   if(!relatedData?.rows) return [];
-  let rows = [];
+  const rows: CampaignDataRow[] = [];
   for(let i = 0; i < relatedData?.rows?.length; i++) {
     rows.push({
       campaignNumber : relatedData?.rows[i]?.campaignnumber,
@@ -1402,10 +1408,21 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
       data : relatedData?.rows[i]?.data,
       uniqueIdentifier : relatedData?.rows[i]?.uniqueidentifier,
       status : relatedData?.rows[i]?.status,
-      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess
+      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess,
+      isDeleted : relatedData?.rows[i]?.isdeleted === true,
+      denrollmentDate : attendanceSyncedDate(relatedData?.rows[i]?.data)
     })
   }
   return rows;
+}
+
+/** The synced de-enrolment date as a number: JSONB may carry it as either a number or a string. */
+function attendanceSyncedDate(data: unknown): number | null {
+  if (typeof data !== "object" || data === null) return null;
+  const stored = (data as Record<string, unknown>)[attendanceSyncDataKeys.denrollmentDate];
+  if (stored == null || stored === "") return null;
+  const asNumber = Number(stored);
+  return Number.isFinite(asNumber) ? asNumber : null;
 }
 
 /** Hard-deletes failed/invalid campaign-data rows before re-validation so a retry starts from a clean slate. */
@@ -1494,6 +1511,120 @@ export async function getMappingDataRelatedToCampaign(type: string, campaignNumb
     })
   }
   return rows;
+}
+
+/**
+ * A mapping failure reason that is safe to store and show. A health-project refusal message dumps the request, with its
+ * RequestInfo and token, so a text that looks like one is cut down to what comes before the dump and the error codes in
+ * it ("errorCode=..."); every reason is capped at 300 characters.
+ */
+export function safeMappingError(text: unknown): string | null {
+  if (text === null || text === undefined) return null;
+  const value = String(text);
+  const dumpMarker = /\[ErrorDetails\(|requestBody|RequestInfo|authToken/i;
+  if (!dumpMarker.test(value)) return value.slice(0, 300);
+  const codes: string[] = [];
+  const pattern = /errorCode=([A-Z_]+)/g;
+  for (let match = pattern.exec(value); match; match = pattern.exec(value)) if (!codes.includes(match[1])) codes.push(match[1]);
+  const before = value.split(dumpMarker)[0].replace(/[\s{\[("',=]+$/, '').trim();
+  return `${before ? `${before} ` : ''}${codes.length > 0 ? codes.join(', ') : 'error'} (details removed)`.slice(0, 300);
+}
+
+// A site link row the worker update may record a failure on: mapped, or already waiting for a worker update
+const SITE_LINK_WORKER_ROW_STATUSES = [mappingStatuses.mapped, mappingStatuses.toBeUpdated, mappingStatuses.updateFailed];
+
+/**
+ * Marks the site link rows (by link id = mappingId) whose frontline worker update failed as updateFailed with the reason,
+ * so the mapping reconciler retries them; retryCount starts at 0 for this new attempt. A terminal failure (one another
+ * try cannot change) starts at the retry limit instead, so it is not retried and the campaign reports it at once.
+ * Returns the link ids marked.
+ */
+export async function markSiteLinkWorkerUpdatesFailed(campaignNumber: CampaignNumber, tenantId: TenantId,
+                                                      failures: { mappingId: string; error: string; terminal?: boolean }[]): Promise<Set<string>> {
+  if (failures.length === 0) return new Set();
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `UPDATE ${tableName} t SET status = $2, retryCount = CASE WHEN v.terminal THEN $6 ELSE 0 END, lastError = v.err
+     FROM unnest($3::text[], $4::text[], $7::boolean[]) AS v(mid, err, terminal)
+     WHERE t.campaignNumber = $1 AND t.type = 'facility' AND t.status = ANY($5::text[]) AND t.mappingId = v.mid
+     RETURNING t.mappingId`,
+    [campaignNumber, mappingStatuses.updateFailed, failures.map(f => f.mappingId), failures.map(f => safeMappingError(f.error)), SITE_LINK_WORKER_ROW_STATUSES,
+     config.mapping.maxRetries, failures.map(f => Boolean(f.terminal))]);
+  return new Set((result?.rows || []).map((row: any) => row.mappingid));
+}
+
+/**
+ * Site link rows (mapped, or waiting for a worker update) whose link no longer exists: marked failed, without a link id
+ * and with the reason, so the mapping reconciler resets them to toBeMapped and creates the link again with the worker,
+ * as for a link whose create failed. Either the rows of these link ids, or the rows of these sites at these boundaries
+ * whose link id is not among the links found for them. Returns the number of rows marked.
+ */
+export async function markSiteLinksToCreateAgain(
+  campaignNumber: CampaignNumber,
+  tenantId: TenantId,
+  target: { linkIds: string[] } | { uniqueIdentifiers: string[]; boundaryCodes: string[]; foundLinkIds: string[] },
+  reason: string
+): Promise<number> {
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const params: any[] = [campaignNumber, mappingStatuses.failed, safeMappingError(reason), SITE_LINK_WORKER_ROW_STATUSES];
+  let rowFilter: string;
+  if ('linkIds' in target) {
+    if (target.linkIds.length === 0) return 0;
+    rowFilter = `mappingId = ANY($5::text[])`;
+    params.push(target.linkIds);
+  } else {
+    if (target.uniqueIdentifiers.length === 0 || target.boundaryCodes.length === 0) return 0;
+    rowFilter = `uniqueIdentifierForData = ANY($5::text[]) AND boundaryCode = ANY($6::text[])
+       AND mappingId IS NOT NULL AND NOT (mappingId = ANY($7::text[]))`;
+    params.push(target.uniqueIdentifiers, target.boundaryCodes, target.foundLinkIds);
+  }
+  const result = await executeQuery(
+    `UPDATE ${tableName} SET status = $2, mappingId = NULL, retryCount = 0, lastError = $3
+     WHERE campaignNumber = $1 AND type = 'facility' AND status = ANY($4::text[]) AND ${rowFilter}`,
+    params);
+  return result?.rowCount ?? 0;
+}
+
+/** As markSiteLinkWorkerUpdatesFailed, for every link row of the given sites (when their links could not even be read). */
+export async function markSiteLinkWorkerUpdatesFailedBySite(campaignNumber: CampaignNumber, tenantId: TenantId,
+                                                            uniqueIdentifiers: string[], error: string): Promise<number> {
+  if (uniqueIdentifiers.length === 0) return 0;
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `UPDATE ${tableName} SET status = $2, retryCount = 0, lastError = $4
+     WHERE campaignNumber = $1 AND type = 'facility' AND status = ANY($5::text[]) AND uniqueIdentifierForData = ANY($3::text[])
+       AND mappingId IS NOT NULL`,
+    [campaignNumber, mappingStatuses.updateFailed, uniqueIdentifiers, safeMappingError(error), SITE_LINK_WORKER_ROW_STATUSES]);
+  return result?.rowCount ?? 0;
+}
+
+/** Site link rows waiting for a worker update whose link this upload has just written: back to mapped, nothing left to retry. */
+export async function markSiteLinkWorkerUpdatesDone(campaignNumber: CampaignNumber, tenantId: TenantId, linkIds: string[]): Promise<number> {
+  if (linkIds.length === 0) return 0;
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `UPDATE ${tableName} SET status = $2
+     WHERE campaignNumber = $1 AND type = 'facility' AND status = ANY($4::text[]) AND mappingId = ANY($3::text[])`,
+    [campaignNumber, mappingStatuses.mapped, linkIds, [mappingStatuses.toBeUpdated, mappingStatuses.updateFailed]]);
+  return result?.rowCount ?? 0;
+}
+
+/**
+ * A new upload retries the site links whose worker update failed (or is still queued) from an earlier run, also after its retries ran out - only
+ * the links this upload keeps Active (a link it removes is the demap's, never queued for a worker update).
+ */
+export async function resetFailedSiteLinkWorkerUpdates(campaignNumber: CampaignNumber, tenantId: TenantId,
+                                                       activeLinks: { uniqueIdentifierForData: string; boundaryCode: string }[]): Promise<number> {
+  if (activeLinks.length === 0) return 0;
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `UPDATE ${tableName} t SET status = $2, retryCount = 0
+     FROM unnest($4::text[], $5::text[]) AS v(uid, bc)
+     WHERE t.campaignNumber = $1 AND t.type = 'facility' AND t.status = ANY($3::text[])
+       AND t.uniqueIdentifierForData = v.uid AND t.boundaryCode = v.bc`,
+    [campaignNumber, mappingStatuses.toBeUpdated, [mappingStatuses.updateFailed, mappingStatuses.toBeUpdated],
+     activeLinks.map(l => l.uniqueIdentifierForData), activeLinks.map(l => l.boundaryCode)]);
+  return result?.rowCount ?? 0;
 }
 
 /** Reads process-tracking rows for a campaign (optionally filtered by process name and status). */
@@ -1795,7 +1926,7 @@ export async function searchCampaignData(searchParams: {
   const totalCount = parseInt(countResult?.rows?.[0]?.count || '0');
 
   // Transform results
-  const rows = dataResult?.rows?.map((row: any) => ({
+  const rows: CampaignDataApiRow[] = dataResult?.rows?.map((row: any) => ({
     id: row?.id,
     campaignNumber: row?.campaignnumber,
     type: row?.type,
@@ -1803,6 +1934,10 @@ export async function searchCampaignData(searchParams: {
     uniqueIdentifier: row?.uniqueidentifier,
     status: row?.status,
     uniqueIdAfterProcess: row?.uniqueidafterprocess,
+    // isDeleted is the table's own soft-delete column; the de-enrolment date lives inside data,
+    // since only attendees have one — surfaced here as a field either way.
+    isDeleted: row?.isdeleted === true,
+    denrollmentDate: attendanceSyncedDate(row?.data),
     createdBy: row?.createdby,
     createdTime: row?.createdtime,
     lastModifiedBy: row?.lastmodifiedby,
@@ -1875,6 +2010,8 @@ export async function searchMappingData(searchParams: {
     uniqueIdentifierForData: row?.uniqueidentifierfordata,
     status: row?.status,
     mappingId: row?.mappingid,
+    lastError: safeMappingError(row?.lasterror),
+    retryCount: row?.retrycount ?? 0,
     createdBy: row?.createdby,
     createdTime: row?.createdtime,
     lastModifiedBy: row?.lastmodifiedby,
@@ -2004,7 +2141,7 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
         row.status === mappingStatuses.skipped
       ) {
         completedMappings += count;
-      } else if (row.status === mappingStatuses.failed || row.status === mappingStatuses.deMapFailed) {
+      } else if (row.status === mappingStatuses.failed || row.status === mappingStatuses.deMapFailed || row.status === mappingStatuses.updateFailed) {
         failedMappings += count;
         terminallyFailedMappings += parseInt(row.terminalcount ?? '0');
       }
@@ -2028,6 +2165,30 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
     logger.error('Error checking campaign mapping completion status:', error);
     throw error;
   }
+}
+
+/**
+ * The failed mapping rows of these types (map, demap or worker update), with their reasons, for a failure message:
+ * at most `limit` rows, and how many there are in all.
+ */
+export async function getFailedMappingRows(campaignNumber: string, tenantId: string, types: string[], limit: number)
+  : Promise<{ rows: { type: string; uniqueIdentifierForData: string; boundaryCode: string; status: string; lastError: string | null }[]; total: number }> {
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  const failedStatuses = [mappingStatuses.failed, mappingStatuses.deMapFailed, mappingStatuses.updateFailed];
+  const where = `WHERE campaignNumber = $1 AND type = ANY($2::text[]) AND status = ANY($3::text[])`;
+  const [dataResult, countResult] = await Promise.all([
+    executeQuery(`SELECT type, uniqueIdentifierForData, boundaryCode, status, lastError FROM ${tableName} ${where}
+                  ORDER BY type, uniqueIdentifierForData, boundaryCode LIMIT $4`, [campaignNumber, types, failedStatuses, Math.max(0, limit)]),
+    executeQuery(`SELECT COUNT(*) FROM ${tableName} ${where}`, [campaignNumber, types, failedStatuses])
+  ]);
+  const rows = (dataResult?.rows || []).map((row: any) => ({
+    type: row?.type,
+    uniqueIdentifierForData: row?.uniqueidentifierfordata,
+    boundaryCode: row?.boundarycode,
+    status: row?.status,
+    lastError: safeMappingError(row?.lasterror)
+  }));
+  return { rows, total: parseInt(countResult?.rows?.[0]?.count || '0') };
 }
 
 /**

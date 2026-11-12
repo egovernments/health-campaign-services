@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,6 +64,7 @@ public class ServiceRequestValidator {
         Map<String,String> errorMap = new HashMap<>();
         validateUserData(request,errorMap);
         validateSource(request.getService().getSource());
+        validateHierarchyType(request.getService().getHierarchyType());
         validateMDMS(request, mdmsData);
         validateDepartment(request, mdmsData);
         if(!errorMap.isEmpty())
@@ -80,6 +82,7 @@ public class ServiceRequestValidator {
         String id = request.getService().getId();
         String tenantId = request.getService().getTenantId();
         validateSource(request.getService().getSource());
+        validateHierarchyType(request.getService().getHierarchyType());
         validateMDMS(request, mdmsData);
         validateDepartment(request, mdmsData);
         validateReOpen(request);
@@ -303,6 +306,18 @@ public class ServiceRequestValidator {
 
         if(!allowedSourceStr.contains(source))
             throw new CustomException("INVALID_SOURCE","The source: "+source+" is not valid");
+
+    }
+
+    /**
+     * Validates that hierarchyType is provided in the create/update request. The boundary code sent in the
+     * address is resolved against this hierarchy, hence it is mandatory while raising or updating a complaint.
+     * @param hierarchyType
+     */
+    private void validateHierarchyType(String hierarchyType){
+
+        if(!StringUtils.hasText(hierarchyType))
+            throw new CustomException("INVALID_HIERARCHY_TYPE","HierarchyType is mandatory and cannot be null or empty");
 
     }
 

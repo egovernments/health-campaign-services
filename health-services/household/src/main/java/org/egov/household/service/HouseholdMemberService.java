@@ -225,7 +225,7 @@ public class HouseholdMemberService {
     public List<HouseholdMember> delete(HouseholdMemberRequest householdMemberRequest) {
         HouseholdMemberBulkRequest bulkRequest = HouseholdMemberBulkRequest.builder().requestInfo(householdMemberRequest.getRequestInfo())
                 .householdMembers(Collections.singletonList(householdMemberRequest.getHouseholdMember())).build();
-        log.info("delete household member bulk request: {}", bulkRequest);
+        log.info("delete household member request for household member id: {}", householdMemberRequest.getHouseholdMember().getId());
         return delete(bulkRequest, false);
     }
 
@@ -235,14 +235,14 @@ public class HouseholdMemberService {
         Map<HouseholdMember, ErrorDetails> errorDetailsMap = tuple.getY();
         List<HouseholdMember> validHouseholdMembers = tuple.getX();
 
-        log.info("valid Household Members for delete operation: {}", validHouseholdMembers);
+        log.info("valid Household Members for delete operation: {}", validHouseholdMembers.size());
 
         try {
             if (!validHouseholdMembers.isEmpty()) {
                 householdMemberEnrichmentService.delete(validHouseholdMembers, householdMemberBulkRequest);
                 householdMemberRepository.save(validHouseholdMembers,
                         householdMemberConfiguration.getDeleteTopic());
-                log.info("deleted Household Members: {}", validHouseholdMembers);
+                log.info("deleted Household Members: {}", validHouseholdMembers.size());
             }
         } catch (Exception exception) {
             log.error("error occurred while deleting household members: {}", ExceptionUtils.getStackTrace(exception));

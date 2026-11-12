@@ -34,6 +34,7 @@ on:
           - health-attendance
           - error-handler
           - dashboard-analytics
+          - inbox
           - stock
           - stock-java-17
           - egov-survey-services
@@ -75,6 +76,11 @@ on:
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+  # Branches on which the Trivy code/image scans run and gate the build. JSON
+  # list - add a branch to enable scanning there. master is intentionally absent
+  # (scans disabled) until the gh-pages publish ruleset is sorted; "test" is a
+  # dummy branch for verifying the gates end-to-end.
+  SCAN_ENABLED_BRANCHES: '["test"]'
 
 jobs:
   resolve-config:
@@ -89,9 +95,19 @@ jobs:
       db_image_name:      ${{ steps.setenv.outputs.DB_IMAGE_NAME }}
       db_dockerfile:      ${{ steps.setenv.outputs.DB_DOCKERFILE }}
       tag:                ${{ steps.tag.outputs.tag }}
+      scan_enabled:       ${{ steps.scanflag.outputs.scan_enabled }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Determine if scans are enabled for this branch
+        id: scanflag
+        run: |
+          if echo "$SCAN_ENABLED_BRANCHES" | jq -e --arg b "$GITHUB_REF_NAME" 'any(.[]; . == $b)' >/dev/null; then
+            echo "scan_enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "scan_enabled=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install yq
         run: |
@@ -239,9 +255,151 @@ jobs:
           echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
           echo "tag - $NEXT_TAG" >> $GITHUB_STEP_SUMMARY
 
+  # ---------------------------------------------------------------------------
+  # Security gate 1 — scan the service SOURCE (deps + secrets) before building.
+  # A CRITICAL finding aborts the build; the report is published either way and
+  # its URL is printed. See .trivy/dashboard/.
+  # ---------------------------------------------------------------------------
+  code-scan:
+    name: Code scan · ${{ needs.resolve-config.outputs.service_image_name }}
+    needs: resolve-config
+    # Scan/gate only on branches listed in SCAN_ENABLED_BRANCHES (see env at top).
+    # Branches not in the list skip scanning entirely and are never blocked.
+    if: ${{ needs.resolve-config.outputs.scan_enabled == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # publish.sh pushes the dashboard to gh-pages
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Trivy filesystem scan (code)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        env:
+          # Do not reach out to private Maven/Nexus repos to resolve parent
+          # POMs - the hosted runner can't reach nexus-repo.egovernments.org and
+          # the Java analyzer would time out (FATAL). Scan what's in the tree.
+          TRIVY_OFFLINE_SCAN: 'true'
+          TRIVY_TIMEOUT: 15m
+        with:
+          scan-type: fs
+          scan-ref: ${{ needs.resolve-config.outputs.service_work_dir }}
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH,MEDIUM
+          format: json
+          output: code-scan.json
+          exit-code: '0'
+          hide-progress: true
+
+      - name: Evaluate gate & publish dashboard
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          SERVICE="${{ needs.resolve-config.outputs.service_image_name }}"
+          CRIT=$(jq '[.Results[]? | (.Vulnerabilities[]?, .Secrets[]?) | select(.Severity=="CRITICAL")] | length' code-scan.json)
+          GATE=pass; [ "$CRIT" -gt 0 ] && GATE=fail
+          URL=$(bash .trivy/dashboard/publish.sh code "$SERVICE" "${{ github.run_id }}" code-scan.json "$GATE")
+          {
+            echo "### Trivy code scan · $SERVICE"
+            echo ""
+            echo "- Critical findings: **$CRIT**"
+            echo "- Report: [$URL]($URL)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$CRIT" -gt 0 ]; then
+            echo "::error title=Code scan blocked::$CRIT critical finding(s) in the source of $SERVICE. Build aborted. Report: $URL"
+            exit 1
+          fi
+          echo "Code scan passed for $SERVICE ($CRIT critical). Report: $URL"
+
+  # ---------------------------------------------------------------------------
+  # Security gate 2 — build the image and scan it (OS + app packages) BEFORE it
+  # is pushed. A CRITICAL finding aborts the build so the image is never pushed.
+  # The real multi-arch build-and-push below only runs once this passes.
+  # ---------------------------------------------------------------------------
+  image-scan:
+    name: Image scan · ${{ needs.resolve-config.outputs.service_image_name }}
+    needs: [resolve-config, code-scan]
+    # Same gate as code-scan: only on branches in SCAN_ENABLED_BRANCHES.
+    if: ${{ needs.resolve-config.outputs.scan_enabled == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Build image locally (amd64) for scanning
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg WORK_DIR=${{ needs.resolve-config.outputs.service_work_dir }} \
+            --file ${{ needs.resolve-config.outputs.service_dockerfile }} \
+            --tag local-scan/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }} \
+            --load \
+            .
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        env:
+          # Same reasoning as the code scan: never resolve dependencies over the
+          # network while scanning the built image.
+          TRIVY_OFFLINE_SCAN: 'true'
+          TRIVY_TIMEOUT: 15m
+        with:
+          scan-type: image
+          image-ref: local-scan/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH,MEDIUM
+          format: json
+          output: image-scan.json
+          exit-code: '0'
+          hide-progress: true
+
+      - name: Evaluate gate & publish dashboard
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          SERVICE="${{ needs.resolve-config.outputs.service_image_name }}"
+          CRIT=$(jq '[.Results[]? | (.Vulnerabilities[]?, .Secrets[]?) | select(.Severity=="CRITICAL")] | length' image-scan.json)
+          GATE=pass; [ "$CRIT" -gt 0 ] && GATE=fail
+          URL=$(bash .trivy/dashboard/publish.sh image "$SERVICE" "${{ github.run_id }}" image-scan.json "$GATE")
+          {
+            echo "### Trivy image scan · $SERVICE"
+            echo ""
+            echo "- Critical findings: **$CRIT**"
+            echo "- Report: [$URL]($URL)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$CRIT" -gt 0 ]; then
+            echo "::error title=Image scan blocked::$CRIT critical finding(s) in the image for $SERVICE. Image not pushed. Report: $URL"
+            exit 1
+          fi
+          echo "Image scan passed for $SERVICE ($CRIT critical). Report: $URL"
+
   build-matrix:
     name: Build image for ${{ matrix.arch }}
-    needs: resolve-config
+    needs: [resolve-config, code-scan, image-scan]
+    # Build when the scan gates passed, OR when scanning is disabled for this
+    # branch (not in SCAN_ENABLED_BRANCHES). On a scan-enabled branch, a failed or
+    # skipped scan (a skipped image-scan means the code gate failed) blocks the
+    # build. Branches with scanning disabled are never blocked.
+    if: >-
+      ${{ !cancelled()
+          && needs.resolve-config.result == 'success'
+          && (needs.resolve-config.outputs.scan_enabled != 'true'
+              || (needs.code-scan.result == 'success' && needs.image-scan.result == 'success')) }}
     strategy:
       matrix:
         include:
@@ -348,6 +506,7 @@ jobs:
   create-manifest:
     name: Create and Push Manifest
     needs: [resolve-config, build-matrix]
+    if: ${{ !cancelled() && needs.build-matrix.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Docker Login

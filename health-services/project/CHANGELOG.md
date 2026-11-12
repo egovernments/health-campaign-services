@@ -2,6 +2,20 @@
 
 All notable changes to this module will be documented in this file.
 
+## Unreleased - 2026-11-04
+
+- Outside Household sites (HCMPRE-2371): new URL parameter `onlyOutsideHouseholdSites` (default `false`) on `facility/v1/_search`. With `boundaryTypes`, `true` returns only the links to sites. Requests without it are unchanged.
+
+## Unreleased - 2026-10-29
+
+- Outside Household sites (HCMPRE-2371): `facility/v1/_search` leaves out links to facilities whose `usage` is a site type from MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`, unless the request has `facilityId` or `id`. The `boundaryTypes` hierarchy search always leaves them out (it does not use `facilityId`).
+- Site types are read with the MDMS v2 search: `egov.mdms.host` (env `EGOV_MDMS_HOST`) + `egov.mdms.search.v2.endpoint` (env `EGOV_MDMS_SEARCH_V2_ENDPOINT`), the same setting plan-service and resource-generator use. Set it per environment (e.g. `/mdms-v2/v2/_search` on demo).
+
+## 1.2.5 - 2026-10-13
+
+- Added `VACCINATED_ELSEWHERE` to the no-resource task statuses (`project.task.no.resource.validation.status`), so a task with this status is accepted without resources.
+- Upgraded `health-services-models` to 1.0.36-SNAPSHOT and `health-services-common` to 1.1.7-SNAPSHOT.
+
 ## 1.2.4 - 2026-07-20
 
 - Cross-entity existence validation is now gated behind a new config flag `project.relationship.validation` (default `false` = disabled) for the task and beneficiary create/update chains, so records referencing a not-yet-persisted parent are accepted (offline-first / persister-queue-tolerant). Set `true` to enforce (`PtProjectIdValidator`, `PtProductVariantIdValidator`, `PtProjectBeneficiaryIdValidator` DB lookup, `PbProjectIdValidator`, `BeneficiaryValidator`).

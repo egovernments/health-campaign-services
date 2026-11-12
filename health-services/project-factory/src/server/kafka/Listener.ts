@@ -1,6 +1,6 @@
 import { Kafka, logLevel, EachMessagePayload, ConfigResourceTypes } from 'kafkajs';
 import config from '../config';
-import { getFormattedStringForDebug, logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
 import { requestContextStore } from '../utils/requestContext';
 import { handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
@@ -10,6 +10,7 @@ import { handleFacilityBatch } from '../utils/facilityBatchHandler';
 import { handleUserBatch } from '../utils/userBatchHandler';
 import { handleMappingBatch } from '../utils/mappingBatchHandler';
 import { handleCampaignFailure } from '../utils/campaignFailureHandler';
+import { handleAttendanceRegisterDelete, handleAttendanceAttendeeDeEnrolment, handleAttendanceStaffDeEnrolment } from '../utils/attendanceSyncUtils';
 import { getConsumerTopicPattern, stripTopicPrefix, validateConsumerTopicPrefix, getStartupTopicsToCreate } from '../utils/kafkaTopicUtils';
 
 
@@ -125,6 +126,9 @@ function buildTopicHandlerMap(): Map<string, (msg: any) => Promise<void>> {
         [config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC, handleUserBatch],
         [config.kafka.KAFKA_MAPPING_BATCH_TOPIC, handleMappingBatch],
         [config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC, handleCampaignFailure],
+        [config.kafka.KAFKA_ATTENDANCE_REGISTER_DELETE_TOPIC, handleAttendanceRegisterDelete],
+        [config.kafka.KAFKA_ATTENDANCE_ATTENDEE_UPDATE_TOPIC, handleAttendanceAttendeeDeEnrolment],
+        [config.kafka.KAFKA_ATTENDANCE_STAFF_UPDATE_TOPIC, handleAttendanceStaffDeEnrolment],
     ];
     return new Map(entries);
 }
@@ -208,7 +212,7 @@ async function processMessageKJS(
 
         await requestContextStore.run({ correlationId, tenantId }, async () => {
             logger.info(`KAFKA :: LISTENER :: Received a message from topic ${topic}`);
-            logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
+            logger.debug(`KAFKA :: LISTENER :: Message keys: ${JSON.stringify(Object.keys(messageObject || {}))}`);
 
             // Strip prefix from incoming topic to resolve the base topic for routing
             const baseTopic = stripTopicPrefix(topic);

@@ -1,0 +1,51 @@
+@startuml
+title Notification Push - Device Token Unregister
+!theme vibrant
+participant Client as c
+participant NotificationPushService as s
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /egov-notification-push/device-token/v1/_unregister
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, deviceTokens required;\neach token: userId, deviceToken, deviceType, tenantId @NotNull)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+loop for each deviceToken
+    alt deviceToken is empty
+        s -> c: HttpStatus: 400 PUSH_MISSING_DEVICE_TOKEN
+    end
+    s -> s: userId = RequestInfo.userInfo.uuid if userId is empty
+end
+
+s -> s: Resolve topic from deviceTokens[0].tenantId\n(central instance: <stateCode>-<topic>)
+s -> k: DeviceTokenRequest\n/<stateCode>-unregister-push-device-token-health
+activate k
+s -> c: HttpStatus: 200 ResponseInfo (no deviceTokens)
+deactivate s
+
+group async
+    prs -> k: Consume unregister-push-device-token-health
+    activate prs
+    prs -> db: DELETE FROM eg_push_device_tokens\nWHERE userid = ? AND devicetoken = ?
+    activate db
+    deactivate db
+    note right
+        Removes the token for every facility
+        (facilityIds in the request are ignored)
+    end note
+    deactivate prs
+end
+deactivate k
+
+note over prs, db
+    Same topic mismatch as register: health-config (demo) listens on
+    demo-unregister-push-device-token, repo file on
+    unregister-push-device-token-health.
+end note
+
+@enduml

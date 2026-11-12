@@ -1,4 +1,5 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
+import { TenantId } from "../config/models/brandedTypes";
 import config from "../config";
 import FormData from "form-data";
 import { defaultheader, httpRequest } from "../utils/request";
@@ -753,6 +754,64 @@ export async function searchProjectStaffByProjects(
     requestInfo,
     { field: "staffId", ids: staffIds }
   );
+}
+
+export type ProjectFacilityRemoval = { result: "deleted" | "absent" | "mismatch" | "failed"; error?: string };
+
+/**
+ * Removes project-facility links by the ids recorded when they were made. Each chunk is read back by id only (health-project
+ * answers that from its id lookup; a search by project and facility can return the rows of another search running at the
+ * same moment), and a link is deleted only while it still joins the expected project and facility. Per id: "deleted",
+ * "absent" (already gone), "mismatch" (the id names another link; left alone) or "failed" (the call failed).
+ */
+export async function deleteProjectFacilitiesById(
+  links: { id: string; projectId: string; facilityId: string }[],
+  tenantId: TenantId,
+  requestInfo: RequestInfo
+): Promise<Map<string, ProjectFacilityRemoval>> {
+  const outcomes = new Map<string, ProjectFacilityRemoval>();
+  const expected = new Map<string, { projectId: string; facilityId: string }>();
+  for (const link of links) {
+    if (link?.id && !expected.has(link.id)) expected.set(link.id, { projectId: link.projectId, facilityId: link.facilityId });
+  }
+  const ids = Array.from(expected.keys());
+  const CHUNK_SIZE = config.mapping.projectSearchChunkSize;
+
+  for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + CHUNK_SIZE);
+    try {
+      const response = await httpRequest(
+        config.host.projectHost + config.paths.projectFacilitySearch,
+        { RequestInfo: requestInfo, ProjectFacility: { id: chunk } },
+        { tenantId, limit: chunk.length, offset: 0, includeDeleted: false }
+      );
+      const found = new Map<string, any>();
+      for (const item of response?.ProjectFacilities || []) {
+        if (item?.id && !item?.isDeleted) found.set(item.id, item);
+      }
+      const toDelete: any[] = [];
+      for (const id of chunk) {
+        const link = found.get(id);
+        const want = expected.get(id)!;
+        if (!link) {
+          outcomes.set(id, { result: "absent" });
+        } else if (link.projectId !== want.projectId || link.facilityId !== want.facilityId) {
+          outcomes.set(id, { result: "mismatch", error: `Link ${id} joins project ${link.projectId} and facility ${link.facilityId}, not ${want.projectId} and ${want.facilityId}` });
+        } else {
+          toDelete.push(link);
+        }
+      }
+      if (toDelete.length > 0) {
+        await httpRequest(config.host.projectHost + config.paths.projectFacilityDelete, { RequestInfo: requestInfo, ProjectFacilities: toDelete });
+        toDelete.forEach(link => outcomes.set(link.id, { result: "deleted" }));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Project facility removal failed for a chunk of ${chunk.length}: ${message}`);
+      chunk.filter(id => !outcomes.has(id)).forEach(id => outcomes.set(id, { result: "failed", error: message }));
+    }
+  }
+  return outcomes;
 }
 
 const createProjectStaffHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {

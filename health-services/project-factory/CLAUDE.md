@@ -91,8 +91,9 @@ All tenants share one DB schema (`config.DB_CONFIG.DB_SCHEMA`) and unprefixed Ka
 - Always use `kafkaTopicUtils.ts` for produce/subscribe — never build topic names inline.
 - Always use `getTableName(config.DB_CONFIG.DB_*_TABLE_NAME, tenantId)` — never inline schema strings.
 - `tenantId` must be typed as `TenantId` (branded) and passed explicitly — never read from module-level state.
-- **`CENTRAL_INSTANCE_TENANT_IDS`** (comma-separated, e.g. `ba,oy,ko`) is the single source of truth for central-instance Kafka: it drives both startup topic creation (`getStartupTopicsToCreate`) and the consumer subscription regex (`getEffectiveConsumerPrefix`), so the two can never drift. Parsing trims whitespace and ignores empty/extra commas.
+- **`CENTRAL_INSTANCE_TENANT_IDS`** (comma-separated, e.g. `ba,oy,ko`) drives the consumer subscription regex (`getEffectiveConsumerPrefix`). Parsing trims whitespace and ignores empty/extra commas.
 - `KAFKA_CONSUMER_TOPIC_PREFIX` is an explicit override of the derived regex (back-compat); when set it wins over `CENTRAL_INSTANCE_TENANT_IDS`. Startup fails fast if central instance is on and neither is set.
+- **Topic creation follows whichever of the two the consumer actually subscribes with** (`getStartupTenantIds`): an explicit prefix is read back into its tenant ids (`(ba|ke)-` → `ba,ke`) and used for creation, so the created topics can never be ones the regex will not match — a KafkaJS regex subscription only matches topics that exist at subscribe time, and a mismatch leaves every handler idle with no error anywhere. Startup also fails fast when the prefix cannot be expanded into tenant ids and no tenant list is set.
 
 ---
 
@@ -271,7 +272,7 @@ Never `res.json()` or `res.status().send()` directly.
 |---|---|---|
 | Campaign | `campaignStatuses` | `drafted`, `started`, `inprogress`, `failed`, `cancelled` |
 | Process | `processStatuses` | `pending`, `completed`, `failed` |
-| Mapping | `mappingStatuses` | `toBeMapped`, `mapped`, `deMapped`, `failed` (map direction), `deMapFailed` (demap direction), `skipped` |
+| Mapping | `mappingStatuses` | `toBeMapped`, `mapped`, `deMapped`, `failed` (map direction), `deMapFailed` (demap direction), `toBeUpdated` / `updateFailed` (site link worker update), `skipped` |
 | Data row | `dataRowStatuses` | `pending`, `completed`, `failed` |
 | Sheet row | `sheetDataRowStatuses` | `INVALID`, `CREATED`, `SKIPPED`, `EXISTING`, `UPDATED`, `FAILED` |
 
@@ -288,9 +289,56 @@ All five steps required atomically in one PR:
 
 Never change existing phase numbers or `dependsOn` chains.
 
+### Attendance sync state is a cross-service contract
+
+Attendance sync state is split by how general it is: **`campaign_data.isDeleted` is a column** — the table's soft-delete flag, meaningful to any resource type — while **the de-enrolment date lives inside `campaign_data.data`** under `attendanceSyncDataKeys.denrollmentDate` (`_denrollmentDate`), because only attendees ever have one. `getRelatedDataWithCampaign` and `searchCampaignData` surface both as row-level `isDeleted` / `denrollmentDate`, so no reader knows where either is stored; the sheet paths strip `_denrollmentDate` like the other `_`-prefixed fields. Because the persister replaces `data` wholesale on every upload, **each attendee persist must carry the merged date** (sheet value, else stored value) — `attendanceRegisterAttendee-processClass` does, and that is what stops a re-upload from dropping a date recorded outside the console. Both are written by the attendance consumers in `attendanceSyncUtils.ts` and read back on every path that emits an attendance sheet: the generate classes, the process classes' output file (`buildOutputData` drops deleted registers, `toOutputRow` surfaces the synced de-enrolment date) and the on-read refresh in `attendanceSheetUtils.ts`. They are also part of `data/campaign/_search`'s response shape (`searchCampaignData`) — `denrollmentDate` is BIGINT, which node-postgres returns as a string, so both readers coerce it to a number. Sheet dates use `formatEpochAsSheetDate` (`attendanceIdentityUtils.ts`) in `config.appTimezone`, not the pod's zone.
+
+**Attendance templates deliberately carry no enrolment state.** The generated template is for adding people; pre-filling dates locks those cells under the immutable-baseline join, so state belongs in the "current …" files only. Nothing invalidates a template when enrolments change, and that is intentional.
+
+Every campaign_data reader returns one shape — `CampaignDataRow` (`config/models/campaignDataRow.ts`), plus `CampaignDataApiRow` for `data/campaign/_search`. Add a field there rather than re-mapping columns per caller.
+
+**A register re-created under a deleted register's serviceCode must not inherit its attendees.** `attendanceRegisterAttendee-generateClass.storedRowsForRegister` keeps rows stamped with the current register UUID, and trusts unstamped rows only while nothing for that serviceCode is stamped (campaigns older than the stamp still generate). The stamp itself is `attendeeIdentity` (`attendanceIdentityUtils.ts`), which also owns the `worker`/`marker`/`approver` slugs — the upload path writes them and the de-enrolment consumer rebuilds them, so they live in one place.
+
+The Kafka handlers retry each group `config.attendanceRegister.syncGroupAttempts` times: `processMessageKJS` swallows a handler error and `eachMessage` then returns normally, so the offset commits and the event is never redelivered — a transient DB error would otherwise lose that deletion outright. Both updates are idempotent, so a repeat is safe.
+
+### Deploy order for the attendance sync
+
+`campaign_data.isDeleted` is referenced by the **shared** sheet-data persister maps
+(`configs/health/egov-persister/project-factory-persister.yml`, `save-sheet-data` / `update-sheet-data`,
+both `isTransaction: true`), which every resource type writes through. Order is therefore mandatory:
+
+1. **DB migration** (`V20260820140000` — adds `isDeleted`, creates the partial index)
+2. **persister config reload**
+3. **service pods**
+
+Get it wrong and the failure is not attendance-scoped: a persister that references `isdeleted` before
+the column exists raises `42703` and rolls back the whole batch, so boundary, user, facility and target
+uploads fail alongside attendance. In the other direction — new pods against an old config — the field
+is silently dropped and the feature is simply inert, with no error anywhere.
+
+The persister config is branch-specific per environment, so confirm which branch each cluster renders
+from before rolling; an environment fed from a branch without the change runs the new service against
+the old mapping.
+
+### Current-register file is refreshed on read, never on the Kafka path
+
+The console downloads the current register list from `resource_details.processedFileStoreId` — a snapshot of `campaign_data` written when the file was last uploaded, so a register deleted afterwards would keep appearing. `attendanceSheetUtils.ts` fixes that on demand:
+
+- the delete handler only **marks** it (`additionalDetails.attendanceRefresh = {state: pending}`); no filestore or workbook work runs on a Kafka listener thread
+- `searchResourceDetails` completes the work when a marked row is read, and returns the new `processedFileStoreId` in that same response, so a download is never handed a sheet listing a deleted register
+- one worker per file: the claim moves `pending → inProgress{at}` in a single conditional UPDATE, and an `inProgress` older than `sheetRefreshLeaseMs` may be taken over, so a crash cannot strand the marker
+- a reader that loses the claim waits for the winner, then **withholds** the file rather than serving a stale one. `sheetRefreshWaitMs` is one budget for the whole response, shared by every owed row, so several stale files cannot add up to a very slow search
+- the marker lives in `additionalDetails`, never in `status`: `hasAnyCreatingResource` treats `creating` as "campaign busy" and would block unrelated add/update operations
+- rows are rewritten in place (values moved up, leftovers blanked) rather than spliced, because this path does not reload the schema to re-apply per-row validations
+- each owed row logs `refresh outcome resource=… outcome=… durationMs=…` (`refreshed`, `refreshedElsewhere`, `alreadyCorrect`, `nothingToRefresh`, `stillRunning`, `waitedOut`, `failed`) — this work sits inside a search, so the withheld rate and the latency it adds have to be visible without a metrics stack
+
 ### Shared-across-family resource resolution
 
 Child (and nested-child) campaigns inherit the parent's `campaignNumber` (`campaignUtils.ts:1065`) but get a distinct `campaignId`. `eg_cm_resource_details` is keyed by `campaignid`, so a search by a descendant's id misses rows held under an ancestor. Resource types whose underlying entity is `campaignNumber`-scoped (currently `attendanceRegister`, `attendanceRegisterAttendee`) set `sharedAcrossCampaignFamily: true` in `resourceTypeRegistry.ts`. When **every** searched type is shared, `searchResourceDetails` resolves `campaignNumber` (`getCampaignStatusFromDB`) → all family `campaignId`s (`getCampaignIdsByCampaignNumber`) → queries `campaignid = ANY(...)` newest-first, dedupe by `(type, parentResourceId)`. Read-side only — the API contract is unchanged (internal `campaignIds` field, not on the zod schema). Write-path parent validation (`createResourceDetail`) stays `campaignId`-scoped.
+
+### Outside Household sites (HCMPRE-2371)
+
+Sites are facilities whose `usage` is a site type (MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES`); their campaign use is a project-facility link with `additionalFields.schema = OutsideHouseholdAssignment` carrying the frontline worker. Site rows go through the facility path keyed by `clientReferenceId` (`processCampaignFacilitiesFromExcelData`). Active/Inactive exists only as link / no link. Removing `OUTSIDEHOUSEHOLD` in an edit unlinks every site only when all guards hold (`isOutsideHouseholdDeliveryDropped`; switch `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`), and adding or removing it in a draft regenerates the template (`isGenerationTriggerNeeded`). Full flow: `OUTSIDE_HOUSEHOLD_SITES.md`.
 
 ---
 
@@ -312,7 +360,8 @@ Child (and nested-child) campaigns inherit the parent's `campaignNumber` (`campa
 
 The mapping table (`eg_cm_campaign_mapping_data`) is **desired state**; `health-project` is **actual state**. `runMappingReconciler` (`utils/mappingReconciler.ts`) drives convergence — never judge failure from transient failure rows.
 
-- **Failure statuses carry direction.** `failed` = a map attempt failed; `deMapFailed` = a demap attempt failed. Every demap failure writer (batch handler + legacy `userMappingUtils.startUserDemapping`) MUST write `deMapFailed` — never infer direction from `mappingId` in runtime code. (The `V20260612130000` migration is the sole exception: it uses `mappingId IS NOT NULL` as a safe one-time heuristic because in pre-reconciler code `mappingId` was only ever set after a confirmed successful creation.) Terminal requires `retryCount >= config.mapping.maxRetries`; each cycle resets retryable rows via two direction-preserving SQL UPDATEs.
+- **Failure statuses carry direction.** `failed` = a map attempt failed; `deMapFailed` = a demap attempt failed. Every demap failure writer (batch handler + legacy `userMappingUtils.startUserDemapping`) MUST write `deMapFailed` — never infer direction from `mappingId` in runtime code. (The `V20260612130000` migration is the sole exception: it uses `mappingId IS NOT NULL` as a safe one-time heuristic because in pre-reconciler code `mappingId` was only ever set after a confirmed successful creation.) Terminal requires `retryCount >= config.mapping.maxRetries`; each cycle resets retryable rows via three direction-preserving SQL UPDATEs (`failed`→`toBeMapped`, `deMapFailed`→`toBeDeMapped`, `updateFailed`→`toBeUpdated`).
+- **Site link worker update** (edit changes the frontline worker of an Active site): written straight away from the in-memory row; a link that still fails (or is not attempted after a failure) is marked `updateFailed` with `lastError` by direct SQL, only after campaign data holds the new worker (the batch handler reads it from there); the reconciler retries it (`processFacilityWorkerUpdates`, no httpRequest retry) and a terminal one blocks like a facility link. Each upload resets `updateFailed` rows of the links it keeps Active to `toBeUpdated`. health-project's validator code decides the next step (`outsideHouseholdLinkWorkerUpdate.ts`; the single update answers every refusal with `VALIDATION_ERROR`, the validator code is read from `errorCode=...` in its message, and only codes plus fixed texts are stored, never the message, which dumps the request with its token; an answer without the updated `ProjectFacility` is a failure): `MISMATCHED_ROW_VERSION` re-reads the link and resends it (done if it already has the worker); `DUPLICATE_ENTITY` / `NON_EXISTENT_RELATED_ENTITY` are terminal at once (`retryCount` = max, not retried, listed in the failure message); a link that no longer exists (not found, or `NON_EXISTENT_ENTITY`) has its row marked `failed` with `mappingId` NULL, so the reconciler creates it again with the worker; two links with the same project and site are not sent and are recorded as terminal. Only a temporary failure stops the rest of the group. A campaign failing on mappings lists up to `MAPPING_FAILURE_MESSAGE_MAX_ROWS` failed facility/resource rows with `lastError` (users left out); `mapping/_search` returns `lastError` and `retryCount`. Rollback to an image without these statuses: first `UPDATE eg_cm_campaign_mapping_data SET status = 'mapped' WHERE type = 'facility' AND status IN ('toBeUpdated','updateFailed')`.
 - **Adopt-existing pre-pass** (`mappingBatchHandler.ts` shared driver `processToBeMappedGroup` + per-type adapters): before any create, bulk-search `health-project` (`searchProject{Resources,Facilities,Staff}ByProjects` in `api/genericApis.ts`, ≤`config.mapping.projectSearchChunkSize` projects per call, offset-paginated, **narrowed by the batch's `facilityId`/`staffId` lists** — resource search has no entity filter server-side). Existing combinations are adopted as `mapped` — never infer "already exists" from `DUPLICATE_ENTITY` error responses.
 - **Generation fencing** (`utils/mappingGenerationUtils.ts`, Redis `mapping-gen:{tenantId}:{campaignNumber}`): batches carry the cycle's generation; consumers drop stale ones. Fail-open by design — correctness comes from the pre-pass + health-project unique validators, fencing only avoids wasted work.
 - **Horizontal scale**: random partition keys stay; uniqueness comes from dispatch disjointness (each mapping row in exactly one batch per cycle), NOT partition affinity. Never pin a campaign to one partition.

@@ -39,7 +39,9 @@ public class ErrorConstants {
     public static final String LOCALIZATION_SERVICE_ERROR = "LOCALIZATION_SERVICE_ERROR";
     public static final String LOCALIZATION_SERVICE_ERROR_MESSAGE = "Error while fetching localization data";
 
-    // Immutable-baseline (unprotected join mode) Errors
+    // Immutable-baseline (unprotected join mode) Errors.
+    // The *_MESSAGE texts are the English fallback used only when the localization service carries no
+    // entry for the code in the upload request's locale. {0}/{1}/{2} are substituted by the thrower.
     public static final String IMMUTABLE_BASELINE_NOT_FOUND = "IMMUTABLE_BASELINE_NOT_FOUND";
     public static final String IMMUTABLE_BASELINE_NOT_FOUND_MESSAGE = "Could not find the original generated template for this upload (generationId: {0}). The uploaded file may not be a recognized template.";
 
@@ -63,6 +65,11 @@ public class ErrorConstants {
 
     public static final String IMMUTABLE_CELL_TAMPERED = "IMMUTABLE_CELL_TAMPERED";
     public static final String IMMUTABLE_CELL_TAMPERED_MESSAGE = "A pre-filled (read-only) value was changed on sheet '{0}', row {1}, column '{2}'. Pre-filled values must not be edited. Please re-download the template and re-enter your changes in the editable columns.";
+    // More than one changed pre-filled cell: {0} = how many, {1} = the cells, each written with the ITEM message
+    public static final String IMMUTABLE_CELLS_TAMPERED = "IMMUTABLE_CELLS_TAMPERED";
+    public static final String IMMUTABLE_CELLS_TAMPERED_MESSAGE = "{0} pre-filled (read-only) values were changed: {1}. Pre-filled values must not be edited. Please re-download the template and re-enter your changes in the editable columns.";
+    public static final String IMMUTABLE_CELLS_TAMPERED_ITEM = "IMMUTABLE_CELLS_TAMPERED_ITEM";
+    public static final String IMMUTABLE_CELLS_TAMPERED_ITEM_MESSAGE = "sheet '{0}', row {1}, column '{2}'";
 
     // File Store Service Errors
     public static final String FILE_STORE_SERVICE_ERROR = "FILE_STORE_SERVICE_ERROR";
@@ -219,6 +226,9 @@ public class ErrorConstants {
     
     public static final String FACILITY_VALIDATION_FAILED = "FACILITY_VALIDATION_FAILED";
     public static final String FACILITY_VALIDATION_FAILED_MESSAGE = "Failed to process facility validation sheet";
+
+    public static final String OUTSIDE_HOUSEHOLD_VALIDATION_FAILED = "OUTSIDE_HOUSEHOLD_VALIDATION_FAILED";
+    public static final String OUTSIDE_HOUSEHOLD_VALIDATION_FAILED_MESSAGE = "Failed to process site validation sheet";
 
     public static final String TARGET_PROCESSING_FAILED = "TARGET_PROCESSING_FAILED";
     public static final String TARGET_PROCESSING_FAILED_MESSAGE = "Error processing target sheet";

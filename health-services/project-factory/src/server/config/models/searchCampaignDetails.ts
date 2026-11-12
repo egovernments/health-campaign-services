@@ -33,6 +33,9 @@ export const searchCampaignDetailsSchema = {
         "isOverrideDatesFromProject": {
             "type": "boolean"
         },
+        "includeBoundaries": {
+            "type": "boolean"
+        },
         "projectType": {
             "type": "string"
         },

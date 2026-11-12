@@ -67,7 +67,7 @@ public class FirebasePushService implements PushNotificationService {
             String response = firebaseMessaging.send(builder.build());
             log.info("Successfully sent single push notification: {}", response);
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send push notification to token {}: {}", token, e.getMessage());
+            log.error("Failed to send single push notification: {}", e.getMessage());
             handleMessagingError(e, token, request.getTenantId());
         }
     }
@@ -109,7 +109,7 @@ public class FirebasePushService implements PushNotificationService {
                         && ErrorConstants.FCM_ERROR_UNREGISTERED.equals(ex.getMessagingErrorCode().name())) {
                     unregisteredTokens.add(tokens.get(i));
                 }
-                log.warn("Failed to send to token {}: {}", tokens.get(i),
+                log.warn("Failed to send to token at batch index {}: {}", i,
                         ex != null ? ex.getMessage() : "unknown error");
             }
         }
@@ -122,7 +122,7 @@ public class FirebasePushService implements PushNotificationService {
     private void handleMessagingError(FirebaseMessagingException e, String token, String tenantId) {
         if (e.getMessagingErrorCode() != null
                 && ErrorConstants.FCM_ERROR_UNREGISTERED.equals(e.getMessagingErrorCode().name())) {
-            log.info("Cleaning up unregistered token: {}", token);
+            log.info("Cleaning up 1 unregistered token");
             deviceTokenService.deleteStaleTokens(List.of(token), tenantId);
         }
     }

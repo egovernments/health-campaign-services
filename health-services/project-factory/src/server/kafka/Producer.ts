@@ -1,5 +1,5 @@
 import { Kafka, logLevel, LogEntry, CompressionTypes } from 'kafkajs';
-import { getFormattedStringForDebug, logger } from "../utils/logger";
+import { logger } from "../utils/logger";
 import { shutdownGracefully, throwError } from '../utils/genericUtils';
 import config from '../config';
 import { getTopicName } from '../utils/kafkaTopicUtils';
@@ -96,7 +96,6 @@ const sendWithReconnect = async (payloads: any[]): Promise<void> => {
         logger.info('Message sent successfully');
     } catch (err) {
         logger.error('Error sending message:', err);
-        logger.debug(`Was trying to send: ${getFormattedStringForDebug(payloads)}`);
         logger.error('Reconnecting producer and retrying...');
         try {
             await producer.disconnect();
@@ -127,7 +126,7 @@ async function produceModifiedMessages(modifiedMessages: any, topic: any, tenant
     try {
         topic = getTopicName(topic, tenantId);
         logger.info(`KAFKA :: PRODUCER :: A message sent to topic ${topic}`);
-        logger.debug(`KAFKA :: PRODUCER :: Message ${JSON.stringify(modifiedMessages)}`);
+        logger.debug(`KAFKA :: PRODUCER :: Message keys ${JSON.stringify(Object.keys(modifiedMessages || {}))}`);
         const payloads = [
             {
                 topic: topic,

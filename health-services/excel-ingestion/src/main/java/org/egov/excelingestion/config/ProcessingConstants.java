@@ -15,8 +15,46 @@ public class ProcessingConstants {
     // User active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String USER_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_USAGE";
 
+    // User List columns tying a row to its existing user, with UserName and the worker id (service uuid, password)
+    public static final String USER_SERVICE_UUIDS_COLUMN_KEY = "UserService Uuids";
+    public static final String USER_PASSWORD_COLUMN_KEY = "Password";
+
     // Facility active/inactive column - user-editable, excluded from the immutable-baseline join
     public static final String FACILITY_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_USAGE";
+    public static final String FACILITY_NAME_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_NAME";
+    // Facility id of a pre-filled (existing) facility row
+    public static final String FACILITY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_CODE";
+
+    // Outside Household sheet (Outside Household Places / Transit Posts) column keys; headers come from localization
+    public static final String OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID";
+    public static final String OUTSIDE_HOUSEHOLD_TYPE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_TYPE";
+    public static final String OUTSIDE_HOUSEHOLD_CATEGORY_COLUMN_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_CATEGORY";
+    public static final String OUTSIDE_HOUSEHOLD_NAME_COLUMN_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_NAME";
+    public static final String OUTSIDE_HOUSEHOLD_STATUS_COLUMN_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_STATUS";
+    // Site Active/Inactive column - user-editable, excluded from the immutable-baseline join
+    public static final String OUTSIDE_HOUSEHOLD_USAGE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_USAGE";
+    public static final String OUTSIDE_HOUSEHOLD_USAGE_INACTIVE = "Inactive";
+    // Facility additionalFields entry holding a site's category
+    public static final String OUTSIDE_HOUSEHOLD_CATEGORY_ADDITIONAL_FIELD_KEY = "outsideHouseholdCategory";
+
+    // MDMS master of site types: rows {"code","active","isPermanentByDefault","categories"}; no active row = no Outside Household sheet
+    public static final String OUTSIDE_HOUSEHOLD_TYPES_SCHEMA_CODE = "HCM.OUTSIDE_HOUSEHOLD_TYPES";
+    public static final String OUTSIDE_HOUSEHOLD_TYPE_CODE_FIELD = "code";
+    public static final String OUTSIDE_HOUSEHOLD_TYPE_ACTIVE_FIELD = "active";
+    public static final String OUTSIDE_HOUSEHOLD_TYPE_IS_PERMANENT_BY_DEFAULT_FIELD = "isPermanentByDefault";
+    // Category codes allowed for a site type (list); drives the Category dropdown and its validation
+    public static final String OUTSIDE_HOUSEHOLD_TYPE_CATEGORIES_FIELD = "categories";
+
+    // Permanent/Temporary enum columns. Localized for display at generation and mapped back to their
+    // canonical MDMS values on upload (see EnumLocalizationUtil).
+    public static final String FACILITY_STATUS_COLUMN_KEY = "HCM_ADMIN_CONSOLE_FACILITY_STATUS";
+    public static final String USER_EMPLOYMENT_TYPE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_EMPLOYMENT_TYPE";
+
+    // Canonical (MDMS) values of the facility-status / employment-type enums. project-factory maps these
+    // by exact string equality (createAndSearch.ts: Permanent -> isPermanent=true / employeeType=PERMANENT),
+    // so they must reach persistence in this exact form regardless of the sheet's locale.
+    public static final String STATUS_PERMANENT = "Permanent";
+    public static final String STATUS_TEMPORARY = "Temporary";
 
     // Template type families the unprotected join-mode immutability feature applies to.
     // Generation types are e.g. "unified-console" / "attendanceRegister" / "attendanceRegisterAttendee";
@@ -50,25 +88,38 @@ public class ProcessingConstants {
     }
 
     // Simple class names of the generators that produce free-entry (user-typed) console sheets:
-    // the User List and Facilities List. These sheets must stay fully UNPROTECTED in join mode so
-    // operators can freely edit/paste; the server-side immutable-join reverts any tampering with
+    // the User List, Facilities List and Outside Household sheet. These sheets must stay fully UNPROTECTED in join
+    // mode so operators can freely edit/paste; the server-side immutable-join reverts any tampering with
     // boundary/code/row-id on upload, so leaving them unprotected is safe. All other join-mode sheets
     // (e.g. the pre-filled Boundary List) stay protected. Matched on class-name suffix so a fully
     // qualified generationClass (e.g. "org.egov.excelingestion.generator.UserSheetGenerator") still hits.
     public static final String USER_SHEET_GENERATOR_CLASS = "UserSheetGenerator";
     public static final String FACILITY_SHEET_GENERATOR_CLASS = "FacilitySheetGenerator";
+    public static final String OUTSIDE_HOUSEHOLD_SHEET_GENERATOR_CLASS = "OutsideHouseholdSheetGenerator";
+
+    // Outside Household sheet: generated and required only for campaigns using the outside-household delivery method
+    public static final String OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY = "HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST";
+    public static final String OUTSIDE_HOUSEHOLD_DELIVERY_METHOD = "OUTSIDEHOUSEHOLD";
+    // Generate-request additionalDetails keys: the campaign values of the update that triggered the generation
+    public static final String GENERATE_DETAIL_DELIVERY_METHODS_KEY = "deliveryMethods";
+    // The campaign's file from before a save that added or dropped Outside Household (sent by project-factory)
+    public static final String GENERATE_DETAIL_PREVIOUS_FILE_KEY = "previousFileStoreId";
+    // The campaign's earlier files (newest first), for the Outside Household rows when the sheet comes back
+    public static final String GENERATE_DETAIL_EARLIER_FILES_KEY = "earlierFileStoreIds";
+    public static final String GENERATE_DETAIL_PROJECT_TYPE_KEY = "projectType";
 
     /**
      * Whether the given generation class produces a free-entry (user-typed) console sheet — currently
-     * the User List and Facilities List. Matched by simple-name suffix so it works whether the config
-     * carries a fully qualified name or a bare class name. Null-safe (returns false).
+     * the User List, Facilities List and Outside Household sheet. Matched by simple-name suffix so it works whether
+     * the config carries a fully qualified name or a bare class name. Null-safe (returns false).
      */
     public static boolean isUserEntrySheet(String generationClass) {
         if (generationClass == null) {
             return false;
         }
         return generationClass.endsWith(USER_SHEET_GENERATOR_CLASS)
-                || generationClass.endsWith(FACILITY_SHEET_GENERATOR_CLASS);
+                || generationClass.endsWith(FACILITY_SHEET_GENERATOR_CLASS)
+                || generationClass.endsWith(OUTSIDE_HOUSEHOLD_SHEET_GENERATOR_CLASS);
     }
 
     // Hidden, server-stamped per-row identifier used to join an uploaded row to its generated
@@ -90,6 +141,8 @@ public class ProcessingConstants {
     public static final String PAYMENT_PROVIDER_BANK = "BANK";
     public static final String PAYMENT_PROVIDER_MTN = "MTN";
     public static final String REGISTER_ID_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_ID";
+    public static final String REGISTER_EVENT_TYPE_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_EVENT_TYPE";
+    public static final String REGISTER_SESSIONS_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_SESSIONS";
     public static final String ENROLLMENT_DATE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE";
     public static final String DEENROLLMENT_DATE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
     public static final String USERNAME_COLUMN_KEY = "UserName";

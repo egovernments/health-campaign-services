@@ -1,0 +1,153 @@
+@startuml
+title Worker Registry - Bulk Update
+!theme vibrant
+participant Client as c
+participant WorkerRegistry as s
+participant IndividualService as is
+participant EncryptionService as enc
+participant MDMSService as mdms
+participant RedisCache as rc
+queue Kafka as k
+database Database as db
+participant HandleErrorMethod as he
+
+c -> s : POST /worker/v1/bulk/_update
+activate s
+
+s -> s: Deserialize WorkerBulkRequest (@Valid, no effective constraints)
+alt malformed JSON
+    s -> he: HttpMessageNotReadableException
+    he -> c: HttpStatus: 400 { Errors: JsonMappingException / JsonParseException }
+end
+
+group CommonUtils.validate (isApplicableForUpdate, sorted by @Order)
+    s -> s: WNullIdValidator (@Order 1)
+    alt worker id null
+        s -> s: Error NULL_ID
+    end
+
+    s -> s: WIndividualIdValidator (@Order 2)
+    opt individual.validation.enabled = true AND workers carry individualIds
+        s -> is: /individual/v1/_search?limit=100&offset=0&tenantId=<first worker tenantId>
+        activate is
+        alt individual service call fails
+            is -> s: Error
+            s -> s: Error INDIVIDUAL_SERVICE_UNAVAILABLE
+        else success
+            is -> s: Individuals
+            deactivate is
+            s -> s: Error INDIVIDUAL_NOT_FOUND for missing ids
+        end
+    end
+
+    s -> s: WNonExistentEntityValidator (@Order 2)
+    s -> db: SELECT * FROM <schema>.eg_hcm_worker_registry\nWHERE tenantId = ? AND isDeleted = false AND id IN (...)\nORDER BY createdTime DESC
+    activate db
+    db -> s: Existing workers
+    deactivate db
+    alt id not found
+        s -> s: Error NON_EXISTENT_ENTITY
+    else invalid tenant (central instance)
+        s -> s: Error INVALID_TENANT_ID
+    end
+
+    s -> s: WTenantIdValidator (@Order 2)
+    alt worker tenantId blank
+        s -> s: Error MISSING_TENANT_ID
+    end
+
+    s -> s: WPaymentProviderValidator (@Order 3)
+    alt paymentProvider = BANK
+        s -> s: MISSING_PAYEE_NAME, MISSING_BENEFICIARY_CODE,\nMISSING_BANK_ACCOUNT / INVALID_BANK_ACCOUNT, INVALID_BANK_CODE
+    else paymentProvider = MTN
+        s -> s: MISSING_PAYEE_PHONE_NUMBER, MISSING_PAYEE_NAME
+    end
+    note right
+        Runs on the request payload before the merge,
+        so partial updates of BANK/MTN workers must
+        resend all mandatory payment fields
+    end note
+
+    s -> s: WRowVersionValidator (@Order 3)
+    s -> db: SELECT * FROM <schema>.eg_hcm_worker_registry WHERE id IN (...)
+    activate db
+    db -> s: Existing workers
+    deactivate db
+    alt request rowVersion != DB rowVersion
+        s -> s: Error MISMATCHED_ROW_VERSION
+    end
+
+    alt any validator returned errors (isBulk = false)
+        s -> he: CustomException VALIDATION_ERROR
+        he -> c: HttpStatus: 400 VALIDATION_ERROR (whole request rejected)
+    end
+end
+note right
+    Empty "workers" list is not rejected by a validator:
+    WNonExistentEntityValidator fails on getTenantId(empty list)
+    -> 400 NoSuchElementException (unhandled)
+end note
+
+group merge with existing record
+    s -> db: SELECT * FROM <schema>.eg_hcm_worker_registry\nWHERE tenantId = ? AND isDeleted = false AND id IN (...)
+    activate db
+    db -> s: Existing (encrypted) workers
+    deactivate db
+    alt InvalidTenantIdException
+        s -> c: HttpStatus: 400 INVALID_TENANT_EXCEPTION
+    end
+    s -> enc: /egov-enc-service/crypto/v1/_decrypt (WorkerDecrypt)
+    activate enc
+    enc -> s: Decrypted existing workers
+    deactivate enc
+    s -> k: Decrypt audit /audit-logs
+    activate k
+    deactivate k
+    s -> s: mergeWorker: null fields taken from DB\n(name, payee*, bank*, beneficiaryCode, photoId, signatureId,\nadditionalDetails); auditDetails and rowVersion always from DB
+end
+
+group enrichUpdate
+    s -> s: lastModifiedBy = userInfo.uuid or "system",\nlastModifiedTime = now, rowVersion = rowVersion + 1
+end
+
+s -> enc: /egov-enc-service/crypto/v1/_encrypt (WorkerEncrypt)
+activate enc
+alt encryption fails
+    enc -> s: Error
+    s -> c: HttpStatus: 400 ENCRYPTION_ERROR / UNKNOWN_ERROR
+else
+    enc -> s: Encrypted workers
+    deactivate enc
+end
+
+s -> rc: HSET eg_hcm_worker_registry <workerId> -> encrypted Worker
+activate rc
+deactivate rc
+
+s -> db: Batch UPDATE <schema>.eg_hcm_worker_registry SET name, payeePhoneNumber,\npaymentProvider, payeeName, bankAccount, bankCode, beneficiaryCode,\nphotoId, signatureId, additionalDetails, isDeleted, lastModifiedBy,\nlastModifiedTime, rowVersion WHERE id = ? AND isDeleted = false
+activate db
+deactivate db
+note right
+    individualIds in the request are validated but
+    eg_hcm_worker_individual_map is NOT changed.
+    Sending isDeleted = true soft-deletes the worker.
+end note
+
+s -> enc: /egov-enc-service/crypto/v1/_decrypt (WorkerDecrypt)
+activate enc
+enc -> s: Decrypted workers
+deactivate enc
+s -> k: Decrypt audit /audit-logs
+activate k
+deactivate k
+
+s -> c: HttpStatus: 200 WorkerResponse { responseInfo, workers }
+deactivate s
+
+note over enc, mdms
+    Encryption policy (WorkerEncrypt / WorkerDecrypt) comes from
+    MDMS DataSecurity.SecurityPolicy via enc-client.
+    No persister / indexer config exists; writes are direct JDBC.
+end note
+
+@enduml

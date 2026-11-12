@@ -23,4 +23,13 @@ export type ResourceDetailsCriteria = z.infer<typeof resourceDetailsCriteriaSche
   excludeTypes?: string[];
   campaignIds?: string[];
 };
+
+// Family-scoped internal search: campaignIds carries the whole scope, so no single campaignId exists.
+export type FamilyScopedResourceDetailsCriteria = Omit<ResourceDetailsCriteria, "campaignId"> & {
+  campaignIds: string[];
+  campaignId?: never;
+};
+
+// What the DB search accepts — one of the two scopes, never neither.
+export type ResourceDetailsSearchCriteria = ResourceDetailsCriteria | FamilyScopedResourceDetailsCriteria;
 export type Pagination = z.infer<typeof paginationSchema>;

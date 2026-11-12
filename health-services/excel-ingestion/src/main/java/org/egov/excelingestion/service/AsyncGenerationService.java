@@ -29,15 +29,21 @@ public class AsyncGenerationService {
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
     private final EnrichmentUtil enrichmentUtil;
+    private final CampaignCacheEvictor campaignCacheEvictor;
+    private final CloneSourceTemplateService cloneSourceTemplateService;
 
     public AsyncGenerationService(ExcelWorkflowService excelWorkflowService,
                                   Producer producer,
                                   KafkaTopicConfig kafkaTopicConfig,
-                                  EnrichmentUtil enrichmentUtil) {
+                                  EnrichmentUtil enrichmentUtil,
+                                  CampaignCacheEvictor campaignCacheEvictor,
+                                  CloneSourceTemplateService cloneSourceTemplateService) {
         this.excelWorkflowService = excelWorkflowService;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
         this.enrichmentUtil = enrichmentUtil;
+        this.campaignCacheEvictor = campaignCacheEvictor;
+        this.cloneSourceTemplateService = cloneSourceTemplateService;
     }
 
     public void processGeneration(GenerateResource generateResource, RequestInfo requestInfo) {
@@ -46,15 +52,22 @@ public class AsyncGenerationService {
         markInProgress(generateResource, requestInfo);
 
         try {
-            GenerateResourceRequest request = GenerateResourceRequest.builder()
-                    .generateResource(generateResource)
-                    .requestInfo(requestInfo)
-                    .build();
+            // Drop stale campaign cache entries so this run reads the latest campaign data.
+            campaignCacheEvictor.evictCampaign(generateResource.getReferenceId(),
+                    generateResource.getTenantId());
 
-            GenerateResource processedResource = excelWorkflowService.generateAndUploadExcel(request);
+            // An unchanged clone (same Outside Household choice and area as its source) keeps the source's filled file
+            String fileStoreId = cloneSourceTemplateService.sourceFileForUnchangedClone(generateResource, requestInfo);
+            if (fileStoreId == null) {
+                GenerateResourceRequest request = GenerateResourceRequest.builder()
+                        .generateResource(generateResource)
+                        .requestInfo(requestInfo)
+                        .build();
+                fileStoreId = excelWorkflowService.generateAndUploadExcel(request).getFileStoreId();
+            }
 
             generateResource.setStatus(GenerationConstants.STATUS_COMPLETED);
-            generateResource.setFileStoreId(processedResource.getFileStoreId());
+            generateResource.setFileStoreId(fileStoreId);
 
             if (generateResource.getAdditionalDetails() != null) {
                 generateResource.getAdditionalDetails().remove("errorCode");

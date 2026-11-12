@@ -1,0 +1,601 @@
+openapi: 3.0.3
+info:
+  title: Inbox Service API
+  description: |
+    Aggregates workflow process instances with module business objects to build
+    employee / citizen inboxes.
+
+    * **v1** (`/v1/_search`) combines egov-workflow-v2 (process count, status count,
+      nearing-SLA count, process search, business service) with the module search API
+      configured in `service.search.mapping` and, per module, egov-searcher, user,
+      vehicle, fsm and W&S ElasticSearch indices.
+    * **v2** (`/v2/_search`, `/v2/_getFields`) is driven by the MDMS master
+      `INBOX.InboxQueryConfiguration` (per `moduleName`) and queries ElasticSearch only;
+      the current process instance is read from `Data.currentProcessInstance` in the index.
+
+    Source: core-services/inbox (Java 17 / Spring Boot 3.2.2). No database or Kafka is used.
+
+    **Errors**: every exception (validation, `CustomException`, `ServiceCallException`
+    and unhandled runtime exceptions such as `NullPointerException`) is returned by the
+    DIGIT tracer as HTTP 400 with an `Errors` array. For `ServiceCallException` the
+    downstream error body is returned as-is.
+  version: 1.0.0
+servers:
+  - url: https://{host}/inbox
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Inbox V1
+  - name: Inbox V2
+  - name: DSS
+
+paths:
+  /v1/_search:
+    post:
+      tags: [Inbox V1]
+      summary: Inbox search (workflow + module search)
+      description: |
+        1. Sums `process/_count` (skipped for `ws-services` / `sw-services`) and
+           `process/_nearingslacount` per business service, and fetches `process/_statuscount`
+           ignoring the status / assignee filter.
+        2. Resolves the module search config from `service.search.mapping`
+           (`EG_INBOX_SEARCH_ERROR` if not configured or for cross-module search, except FSM).
+        3. If `moduleSearchCriteria` is non-empty: fetches business services, derives the
+           statuses actionable by the user's roles, pre-filters ids through egov-searcher
+           (PT, TL/BPAREG, BPA, NOC, bill amendment) or ElasticSearch (W&S), calls the
+           module search API, then `process/_search` for the found business ids.
+           Otherwise: `process/_search` with offset/limit, then the module search API by
+           application numbers.
+        4. FSM: enriches vehicle trip status counts and `vehicleLog`.
+
+        `processSearchCriteria.moduleName` is effectively mandatory (null causes a 400
+        NullPointerException). Module names `bsWs-service` / `bsSw-service` are mapped to `WS` / `SW`.
+      operationId: inboxV1Search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InboxRequest'
+            example:
+              RequestInfo:
+                apiId: Rainmaker
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: pb.amritsar
+                  roles:
+                    - code: EMPLOYEE
+                      tenantId: pb.amritsar
+              inbox:
+                tenantId: pb.amritsar
+                processSearchCriteria:
+                  moduleName: FSM
+                  businessService: [FSM]
+                moduleSearchCriteria:
+                  sortOrder: DESC
+                offset: 0
+                limit: 10
+      responses:
+        '200':
+          description: Inbox items with counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboxResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/dss/_search:
+    post:
+      tags: [DSS]
+      summary: Inbox header metrics from dashboard-analytics
+      description: |
+        Reads MDMS `inbox-dss.AggregationData` for the configured `state.level.tenant.id`
+        (the request `tenantId` is ignored). For every entry whose `module` equals the
+        request `module`, calls `dashboard-analytics/dashboard/getChartV2` (METRIC, monthly
+        interval, date range = `dateRange` months back or 0) for each visualization code and
+        returns `code -> responseData.data[0].headerValue`. Any failure is returned as
+        `INVALID_MODULE_DATA`. Unknown module returns an empty object.
+      operationId: inboxDssSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InboxMetricCriteria'
+            example:
+              tenantId: pb
+              module: FSM
+      responses:
+        '200':
+          description: Map of visualization code to metric value
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: number
+              example:
+                fsmTotalRequest: 120
+                fsmCompletedRequest: 87
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/elastic/_search:
+    post:
+      tags: [Inbox V1]
+      summary: Elastic search (not implemented)
+      description: |
+        Stub. Only request validation runs (`indexKey`, `tenantId` not null, `limit` <= 300,
+        when `InboxElasticSearchCriteria` is present). The controller never calls
+        `ElasticSearchService` and always returns HTTP 200 with an empty body.
+      operationId: inboxElasticSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InboxElasticSearchRequest'
+      responses:
+        '200':
+          description: Empty body (null)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v2/_search:
+    post:
+      tags: [Inbox V2]
+      summary: Inbox search backed by ElasticSearch
+      description: |
+        1. Loads `INBOX.InboxQueryConfiguration` for `processSearchCriteria.moduleName` from
+           MDMS (state-level tenant, cached 10 min); `CONFIG_ERROR` if missing.
+        2. Validates `moduleSearchCriteria` against `allowedSearchCriteria`: missing mandatory
+           keys or empty mandatory values give `INVALID_SEARCH_CRITERIA`; keys not in
+           `allowedSearchCriteria` (other than `sortBy` / `sortOrder`) fail with a 400
+           NullPointerException.
+        3. Hashes (SHA-256) params flagged `isHashingRequired`.
+        4. Fetches the workflow business services and narrows `processSearchCriteria.status`
+           to the state UUIDs actionable by the user's roles. If none remain, returns empty
+           items and zero counts.
+        5. Queries `<index>/_search` (items, sorted by `sortBy.path`), `<index>/_count`
+           (totalCount), `<index>/_search` with a terms aggregation on
+           `Data.currentProcessInstance.state.uuid.keyword` (statusMap) and `<index>/_count`
+           per business service with a `lastModifiedTime` range (nearingSlaCount).
+
+        `responseInfo` is not populated by v2.
+      operationId: inboxV2Search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InboxRequest'
+            example:
+              RequestInfo:
+                apiId: Rainmaker
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+                  roles:
+                    - code: PLAN_ESTIMATION_APPROVER
+                      tenantId: mz
+              inbox:
+                tenantId: mz
+                processSearchCriteria:
+                  moduleName: plan-service
+                  businessService: [PLAN_ESTIMATION]
+                  status: []
+                moduleSearchCriteria:
+                  planConfigId: 0f4c7c0e-plan-config-id
+                  sortOrder: DESC
+                offset: 0
+                limit: 10
+      responses:
+        '200':
+          description: Inbox items with counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InboxResponse'
+              example:
+                responseInfo: null
+                totalCount: 1
+                nearingSlaCount: 0
+                statusMap:
+                  - count: 1
+                    applicationstatus: PENDING_FOR_VALIDATION
+                    businessservice: PLAN_ESTIMATION
+                    statusid: 7b1f6e2a-state-uuid
+                    state: PENDING_FOR_VALIDATION
+                items:
+                  - ProcessInstance:
+                      businessId: PLAN-0001
+                      businessService: PLAN_ESTIMATION
+                      moduleName: plan-service
+                      state:
+                        uuid: 7b1f6e2a-state-uuid
+                        state: PENDING_FOR_VALIDATION
+                    businessObject:
+                      id: PLAN-0001
+                      serviceSla: 3
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v2/_getFields:
+    post:
+      tags: [Inbox V2]
+      summary: Search an inbox index and return flattened fields
+      description: |
+        Uses the same MDMS `InboxQueryConfiguration` (by `SearchCriteria.moduleName`) to
+        query `<index>/_search` with only `moduleSearchCriteria` clauses (no tenant, status
+        or role filter, no workflow call). Each hit's `_source.Data` is flattened
+        (JsonFlattener) into `{ key, value }` pairs. Bean validation on `SearchCriteria`
+        is not triggered (field lacks `@Valid`); mandatory-key presence is not checked.
+      operationId: inboxV2GetFields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+            example:
+              RequestInfo:
+                apiId: Rainmaker
+              SearchCriteria:
+                tenantId: mz
+                moduleName: plan-service
+                moduleSearchCriteria:
+                  planConfigId: 0f4c7c0e-plan-config-id
+                offset: 0
+                limit: 10
+      responses:
+        '200':
+          description: Flattened documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+              example:
+                data:
+                  - fields:
+                      - key: id
+                        value: PLAN-0001
+                      - key: auditDetails.createdTime
+                        value: 1695889012604
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  responses:
+    BadRequest:
+      description: |
+        Validation, business or downstream error. Codes raised by this service:
+        CONFIG_ERROR, INVALID_SEARCH_CRITERIA, INBOX_COUNT_ERR, EG_INBOX_GET_FIELDS_ERR,
+        INVALID_OPERATOR_DATA, EG_INBOX_SEARCH_ERROR, MODULE_SEARCH_INVLAID, INVALID_MODULE,
+        INVALID_MODULE_SEARCH_PATH, INVALID_MODULE_DATA, PARSING_ERROR, WNS_ES_SEARCH_ERROR,
+        JSONNODE_ERROR, ELASTICSEARCH_ERROR; plus tracer codes (e.g. NotNull, Max,
+        JsonParseException, NullPointerException).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: CONFIG_ERROR
+                message: "Inbox Query Configuration not found in MDMS response for: plan-service"
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId: { type: string }
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      description: |
+        Required for /v1/_search and /v2/_search: roles drive the actionable statuses
+        (matched per role tenantId). In v1, a first role of FSM_DSO adds the user as assignee.
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        mobileNumber: { type: string }
+        type: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        tenantId: { type: string }
+
+    ResponseInfo:
+      type: object
+      nullable: true
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string }
+        msgId: { type: string }
+        status: { type: string, enum: [successful, failed] }
+
+    InboxRequest:
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        inbox:
+          $ref: '#/components/schemas/InboxSearchCriteria'
+
+    InboxSearchCriteria:
+      type: object
+      required: [tenantId]
+      properties:
+        tenantId: { type: string }
+        processSearchCriteria:
+          $ref: '#/components/schemas/ProcessInstanceSearchCriteria'
+        moduleSearchCriteria:
+          type: object
+          additionalProperties: true
+          description: |
+            Free-form module filters. v2: keys must be listed in MDMS
+            `allowedSearchCriteria` (besides `sortBy`, `sortOrder`); `sortOrder` must be
+            ASC or DESC. v1 W&S: `sortBy` and `sortOrder` are required.
+        offset: { type: integer }
+        limit: { type: integer, maximum: 300 }
+
+    ProcessInstanceSearchCriteria:
+      type: object
+      required: [businessService]
+      properties:
+        tenantId:
+          type: string
+          description: Overwritten with inbox.tenantId
+        status:
+          type: array
+          items: { type: string }
+          description: Workflow state UUIDs
+        businessIds:
+          type: array
+          items: { type: string }
+        assignee: { type: string }
+        ids:
+          type: array
+          items: { type: string }
+        history: { type: boolean, default: false }
+        fromDate: { type: integer, format: int64 }
+        toDate: { type: integer, format: int64 }
+        offset: { type: integer }
+        limit: { type: integer }
+        businessService:
+          type: array
+          items: { type: string }
+        moduleName:
+          type: string
+          description: Effectively mandatory (v1 dereferences it; v2 uses it to select the MDMS config)
+
+    InboxResponse:
+      type: object
+      properties:
+        responseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        totalCount: { type: integer }
+        nearingSlaCount: { type: integer }
+        statusMap:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              count: { type: integer }
+              applicationstatus: { type: string }
+              businessservice: { type: string }
+              statusid: { type: string }
+              state:
+                type: string
+                description: v2 only
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Inbox'
+
+    Inbox:
+      type: object
+      properties:
+        ProcessInstance:
+          $ref: '#/components/schemas/ProcessInstance'
+        businessObject:
+          type: object
+          additionalProperties: true
+          description: |
+            v1: module search object (W&S: { Data, serviceSLA }; FSM adds vehicleLog).
+            v2: ES `_source.Data` without currentProcessInstance, plus serviceSla (days).
+        serviceObject:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: v1 bill amendment only (W&S connection)
+
+    ProcessInstance:
+      type: object
+      properties:
+        id: { type: string, maxLength: 64 }
+        tenantId: { type: string, maxLength: 128 }
+        businessService: { type: string, maxLength: 128 }
+        businessId: { type: string, maxLength: 128 }
+        action: { type: string, maxLength: 128 }
+        moduleName: { type: string, maxLength: 64 }
+        state:
+          $ref: '#/components/schemas/State'
+        comment: { type: string }
+        documents:
+          type: array
+          items: { type: object, additionalProperties: true }
+        assigner: { type: object, additionalProperties: true }
+        assignes:
+          type: array
+          items: { type: object, additionalProperties: true }
+        nextActions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Action'
+        stateSla: { type: integer, format: int64 }
+        businesssServiceSla: { type: integer, format: int64 }
+        previousStatus: { type: string, maxLength: 128 }
+        entity: { type: object, additionalProperties: true }
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        rating: { type: integer }
+        assignee: { type: object, additionalProperties: true }
+        escalated: { type: boolean }
+        notificationAction: { type: string }
+
+    State:
+      type: object
+      properties:
+        uuid: { type: string }
+        tenantId: { type: string }
+        businessServiceId: { type: string }
+        sla: { type: integer, format: int64 }
+        state: { type: string }
+        applicationStatus: { type: string }
+        docUploadRequired: { type: boolean }
+        isStartState: { type: boolean }
+        isTerminateState: { type: boolean }
+        isStateUpdatable: { type: boolean }
+        triggerParallelWorkflows:
+          type: array
+          items: { type: string }
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Action'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    Action:
+      type: object
+      properties:
+        uuid: { type: string }
+        tenantId: { type: string }
+        currentState: { type: string }
+        action: { type: string }
+        nextState: { type: string }
+        roles:
+          type: array
+          items: { type: string }
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedTime: { type: integer, format: int64 }
+
+    SearchRequest:
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SearchCriteria:
+          $ref: '#/components/schemas/IndexSearchCriteria'
+
+    IndexSearchCriteria:
+      type: object
+      description: "@NotNull / @Max are declared but not enforced (no @Valid on the wrapper field)"
+      properties:
+        tenantId: { type: string }
+        moduleName: { type: string }
+        moduleSearchCriteria:
+          type: object
+          additionalProperties: true
+        offset: { type: integer }
+        limit: { type: integer, maximum: 300 }
+
+    SearchResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              fields:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key: { type: string, description: Flattened JSON path }
+                    value: {}
+
+    InboxMetricCriteria:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          description: Ignored; state.level.tenant.id is used
+        module:
+          type: string
+          description: Matched against inbox-dss.AggregationData[].module
+
+    InboxElasticSearchRequest:
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        InboxElasticSearchCriteria:
+          type: object
+          required: [indexKey, tenantId]
+          properties:
+            indexKey: { type: string }
+            tenantId: { type: string }
+            fromDate: { type: integer, format: int64 }
+            toDate: { type: integer, format: int64 }
+            offset: { type: integer }
+            limit: { type: integer, maximum: 300 }
+            sortOrder: { type: string }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'

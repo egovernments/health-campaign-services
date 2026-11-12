@@ -24,7 +24,7 @@ public class BandwidthController {
 
     @RequestMapping(value = "/check/bandwidth", method = RequestMethod.POST)
     public ResponseEntity<BandwidthCheckResponse> checkBandwidth(@ApiParam(value = "Captures dummy json data", required = true) @Valid @RequestBody BandwidthCheckRequest request) {
-        log.info("Request received: {}", request);
+        log.info("Bandwidth check request received");
         return ResponseEntity.status(HttpStatus.OK).body(BandwidthCheckResponse.builder()
                 .responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true))

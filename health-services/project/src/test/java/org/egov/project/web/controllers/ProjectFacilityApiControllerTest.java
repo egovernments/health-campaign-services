@@ -41,6 +41,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -203,7 +206,8 @@ class ProjectFacilityApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(mockResponse);
+                any(Boolean.class),
+                anyBoolean())).thenReturn(mockResponse);
 
         final MvcResult result = mockMvc.perform(post(
                         "/facility/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
@@ -246,7 +250,8 @@ class ProjectFacilityApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(mockResponse);
+                any(Boolean.class),
+                anyBoolean())).thenReturn(mockResponse);
 
         final MvcResult result = mockMvc.perform(post(
                         "/facility/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
@@ -353,5 +358,45 @@ class ProjectFacilityApiControllerTest {
         verify(producer, times(1)).push(eq("project-facility-bulk-delete-topic"),
                 any(ProjectFacilityBulkRequest.class));
         verify(projectConfiguration, times(1)).getBulkDeleteProjectFacilityTopic();
+    }
+
+    @Test
+    @DisplayName("Without onlyOutsideHouseholdSites the search is called as before (sites left out)")
+    void shouldPassOnlyOutsideHouseholdSitesFalseByDefault() throws Exception {
+        ProjectFacilitySearchRequest request = ProjectFacilitySearchRequest.builder().projectFacility(
+                ProjectFacilitySearch.builder().projectId(Collections.singletonList("P1"))
+                        .boundaryTypes(Arrays.asList("LOCALITY", "VILLAGE")).build())
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(projectFacilityService.searchFacilities(any(ProjectFacilitySearchRequest.class), any(Integer.class),
+                any(Integer.class), any(String.class), any(), any(Boolean.class), anyBoolean()))
+                .thenReturn(ProjectFacilityBulkResponse.builder().projectFacilities(new ArrayList<>())
+                        .responseInfo(ResponseInfo.builder().status("successful").build()).build());
+
+        mockMvc.perform(post("/facility/v1/_search?limit=10&offset=0&tenantId=default")
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(projectFacilityService).searchFacilities(any(ProjectFacilitySearchRequest.class), eq(10), eq(0),
+                eq("default"), any(), any(Boolean.class), eq(false));
+    }
+
+    @Test
+    @DisplayName("onlyOutsideHouseholdSites=true in the URL is passed to the search")
+    void shouldPassOnlyOutsideHouseholdSitesFromTheUrl() throws Exception {
+        ProjectFacilitySearchRequest request = ProjectFacilitySearchRequest.builder().projectFacility(
+                ProjectFacilitySearch.builder().projectId(Collections.singletonList("P1"))
+                        .boundaryTypes(Arrays.asList("LOCALITY", "VILLAGE")).build())
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(projectFacilityService.searchFacilities(any(ProjectFacilitySearchRequest.class), any(Integer.class),
+                any(Integer.class), any(String.class), any(), any(Boolean.class), anyBoolean()))
+                .thenReturn(ProjectFacilityBulkResponse.builder().projectFacilities(new ArrayList<>())
+                        .responseInfo(ResponseInfo.builder().status("successful").build()).build());
+
+        mockMvc.perform(post("/facility/v1/_search?limit=10&offset=0&tenantId=default&onlyOutsideHouseholdSites=true")
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(projectFacilityService).searchFacilities(any(ProjectFacilitySearchRequest.class), eq(10), eq(0),
+                eq("default"), any(), any(Boolean.class), eq(true));
     }
 }

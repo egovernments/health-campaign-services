@@ -154,6 +154,11 @@ config:
       - work-dir: "core-services/dashboard-analytics"
         image-name: "dashboard-analytics"
         dockerfile: "build/maven/Dockerfile"
+  - name: "builds/health-campaign-services/core-services/inbox"
+    build:
+      - work-dir: "core-services/inbox"
+        image-name: "inbox"
+        dockerfile: "build/maven-java17/Dockerfile"
   - name: "builds/health-campaign-services/health-services/stock"
     build:
       - work-dir: "health-services/stock"

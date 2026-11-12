@@ -12,11 +12,16 @@ interface ColumnProperties {
     wrapText?: boolean;
 }
 
+/** One row of a generated sheet: column key -> cell value. */
+interface SheetRow {
+    [columnName: string]: string | number;
+}
+
 interface SheetMap {
     [sheetName: string]: {
         dynamicColumns: { [columnName: string]: ColumnProperties } | null;
-        data: { [columnName: string]: string | number }[];
+        data: SheetRow[];
     };
 }
 
-export { ColumnProperties, SheetMap };
+export { ColumnProperties, SheetMap, SheetRow };

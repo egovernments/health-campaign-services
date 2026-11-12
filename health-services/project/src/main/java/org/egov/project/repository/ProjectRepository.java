@@ -19,6 +19,7 @@ import org.egov.project.repository.querybuilder.ProjectAddressQueryBuilder;
 import org.egov.project.repository.querybuilder.TargetQueryBuilder;
 import org.egov.project.repository.rowmapper.DocumentRowMapper;
 import org.egov.project.repository.rowmapper.ProjectAddressRowMapper;
+import org.egov.project.repository.rowmapper.ProjectDateCascadeRowMapper;
 import org.egov.project.repository.rowmapper.ProjectRowMapper;
 import org.egov.project.repository.rowmapper.TargetRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     private final DocumentQueryBuilder documentQueryBuilder;
 
     private final ProjectAddressRowMapper addressRowMapper;
+    private final ProjectDateCascadeRowMapper dateCascadeRowMapper;
     private final TargetRowMapper targetRowMapper;
     private final DocumentRowMapper documentRowMapper;
 
@@ -53,7 +55,8 @@ public class ProjectRepository extends GenericRepository<Project> {
                              TargetQueryBuilder targetQueryBuilder,
                              DocumentQueryBuilder documentQueryBuilder,
                              ProjectAddressRowMapper addressRowMapper, TargetRowMapper targetRowMapper,
-                             DocumentRowMapper documentRowMapper, JdbcTemplate jdbcTemplate) {
+                             DocumentRowMapper documentRowMapper, ProjectDateCascadeRowMapper dateCascadeRowMapper,
+                             JdbcTemplate jdbcTemplate) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
                 projectRowMapper, Optional.of("project"));
         this.queryBuilder = queryBuilder;
@@ -62,6 +65,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         this.addressRowMapper = addressRowMapper;
         this.targetRowMapper = targetRowMapper;
         this.documentRowMapper = documentRowMapper;
+        this.dateCascadeRowMapper = dateCascadeRowMapper;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -155,6 +159,73 @@ public class ProjectRepository extends GenericRepository<Project> {
         return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
     }
 
+    /**
+     * Fetches the project with its ancestors and descendants for the date cascade. The cascade
+     * rewrites only dates and the cycles inside additionalDetails, so this deliberately skips the
+     * address join, targets and documents that a full search pulls for every descendant.
+     */
+    public Project getProjectForDateCascade(String tenantId, String projectId) throws InvalidTenantIdException {
+        List<Project> roots = getDateCascadeProjectsByIds(tenantId, Collections.singletonList(projectId));
+        if (roots.isEmpty()) {
+            return null;
+        }
+        Project root = roots.get(0);
+
+        // Mirrors buildProjectSearchResult, which only attaches ancestors when the project has a parent
+        if (StringUtils.isNotBlank(root.getParent()) && StringUtils.isNotBlank(root.getProjectHierarchy())) {
+            List<String> ancestorIds = new ArrayList<>(Arrays.asList(root.getProjectHierarchy().split("\\.")));
+            ancestorIds.remove(root.getId());
+            if (!ancestorIds.isEmpty()) {
+                root.setAncestors(getDateCascadeProjectsByIds(tenantId, ancestorIds));
+            }
+        }
+
+        List<Project> descendants = getDateCascadeDescendants(tenantId, root);
+        if (!descendants.isEmpty()) {
+            root.setDescendants(descendants);
+        }
+        log.info("Date cascade fetched {} ancestors and {} descendants for project {}",
+                root.getAncestors() == null ? 0 : root.getAncestors().size(), descendants.size(), projectId);
+        return root;
+    }
+
+    private List<Project> getDateCascadeProjectsByIds(String tenantId, List<String> projectIds) throws InvalidTenantIdException {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getDateCascadeQueryBasedOnIds(projectIds, preparedStmtList);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        return jdbcTemplate.query(query, dateCascadeRowMapper, preparedStmtList.toArray());
+    }
+
+    /* Keeps the same rows addDescendantsToProjectSearchResult would have kept, without the wide fetch.
+     * Anchored on the hierarchy path where one can be derived, so the index can serve it; the
+     * unanchored fallback is kept for rows whose path cannot be resolved safely. */
+    private List<Project> getDateCascadeDescendants(String tenantId, Project root) throws InvalidTenantIdException {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String prefix = ProjectAddressQueryBuilder.hierarchyPrefix(
+                root.getProjectHierarchy(), root.getId(), root.getParent());
+
+        String query;
+        if (StringUtils.isNotBlank(prefix)) {
+            query = queryBuilder.getDateCascadeDescendantsQueryBasedOnHierarchies(
+                    Collections.singletonList(prefix), preparedStmtList);
+        } else {
+            log.warn("No safe hierarchy prefix for project {}; falling back to the unanchored descendant search", root.getId());
+            query = queryBuilder.getDateCascadeDescendantsQueryBasedOnIds(
+                    Collections.singletonList(root.getId()), preparedStmtList);
+        }
+
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        List<Project> rows = jdbcTemplate.query(query, dateCascadeRowMapper, preparedStmtList.toArray());
+        // The anchored pattern already excludes self; this still guards the unanchored fallback,
+        // where a non-root project's own path contains its own id.
+        return rows.stream()
+                .filter(d -> StringUtils.isNotBlank(d.getParent())
+                        && !root.getId().equals(d.getId())
+                        && d.getProjectHierarchy() != null
+                        && d.getProjectHierarchy().contains(root.getId()))
+                .collect(Collectors.toList());
+    }
+
     private List<Project> getProjectsBasedOnV2SearchCriteria(@NotNull @Valid ProjectSearch projectSearch, ProjectSearchURLParams urlParams) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getProjectSearchQuery(projectSearch, urlParams, preparedStmtList, Boolean.FALSE);
@@ -169,7 +240,8 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Fetch Projects based on search criteria */
     private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false);
+        Map<String, String> idToHierarchyPrefix = resolveHierarchyPrefixes(tenantId, projectsRequest, isAncestorProjectId);
+        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false, idToHierarchyPrefix);
         // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
@@ -185,6 +257,47 @@ public class ProjectRepository extends GenericRepository<Project> {
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
         log.info("Fetched project list based on given Project Ids");
+        return projects;
+    }
+
+    /* Resolve each requested id to a safe anchor prefix, so the ancestor match can be anchored */
+    private Map<String, String> resolveHierarchyPrefixes(String tenantId, List<Project> projectsRequest, boolean isAncestorProjectId) throws InvalidTenantIdException {
+        if (!isAncestorProjectId || projectsRequest == null) {
+            return Collections.emptyMap();
+        }
+        List<String> projectIds = projectsRequest.stream()
+                .map(Project::getId)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        if (projectIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getProjectHierarchyQueryBasedOnIds(projectIds, preparedStmtList);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+
+        Map<String, String> idToHierarchyPrefix = new HashMap<>();
+        jdbcTemplate.query(query, rs -> {
+            String id = rs.getString("projectId");
+            String prefix = ProjectAddressQueryBuilder.hierarchyPrefix(
+                    rs.getString("project_projectHierarchy"), id, rs.getString("project_parent"));
+            if (StringUtils.isNotBlank(prefix)) {
+                idToHierarchyPrefix.put(id, prefix);
+            }
+        }, preparedStmtList.toArray());
+        log.info("Anchored {} of {} requested project ids; the rest fall back to an unanchored match",
+                idToHierarchyPrefix.size(), projectIds.size());
+        return idToHierarchyPrefix;
+    }
+
+    /* Fetch Project descendants based on ancestor hierarchy paths (anchored, index-usable) */
+    private List<Project> getProjectsDescendantsBasedOnProjectHierarchies(String tenantId, List<String> projectHierarchies, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
+        String query = queryBuilder.getProjectDescendantsSearchQueryBasedOnHierarchies(projectHierarchies, preparedStmtListDescendants);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
+        log.info("Fetched project descendants list based on given hierarchy paths");
         return projects;
     }
 
@@ -257,6 +370,17 @@ public class ProjectRepository extends GenericRepository<Project> {
 
         List<Object> preparedStmtListDescendants = new ArrayList<>();
         log.info("Fetching descendant projects");
+
+        // The parent rows are already in hand, so the anchored prefix needs no extra lookup. A root
+        // project has no path of its own and contributes its id instead.
+        List<String> prefixes = projects.stream()
+                .map(p -> ProjectAddressQueryBuilder.hierarchyPrefix(p.getProjectHierarchy(), p.getId(), p.getParent()))
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.toList());
+        if (prefixes.size() == projects.size()) {
+            return getProjectsDescendantsBasedOnProjectHierarchies(tenantId, prefixes, preparedStmtListDescendants);
+        }
+        log.warn("Not every project yields a safe hierarchy prefix; falling back to the id-based descendant search");
 
         return getProjectsDescendantsBasedOnProjectIds(tenantId, projectIds, preparedStmtListDescendants);
     }
@@ -386,7 +510,8 @@ public class ProjectRepository extends GenericRepository<Project> {
      */
     public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStatement = new ArrayList<>();
-        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement);
+        Map<String, String> idToHierarchyPrefix = resolveHierarchyPrefixes(tenantId, project.getProjects(), isAncestorProjectId);
+        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, idToHierarchyPrefix);
 
         if (query == null)
             return 0;

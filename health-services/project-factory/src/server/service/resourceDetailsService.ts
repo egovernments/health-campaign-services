@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { throwError, getCampaignIdsByCampaignNumber } from "../utils/genericUtils";
+import { throwError, getCampaignIdsByCampaignNumber, pollUntilCountFn } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import {
   searchResourceDetailsFromDB,
@@ -15,7 +15,8 @@ import {
 } from "../utils/resourceDetailsUtils";
 import { executeQuery, getTableName } from "../utils/db";
 import { getResourceConfigOrDefault, isRegisteredType, isSharedAcrossCampaignFamily } from "../config/resourceTypeRegistry";
-import { campaignStatuses, resourceStatuses } from "../config/constants";
+import { attendanceSheetRefresh, campaignStatuses, resourceStatuses } from "../config/constants";
+import { TenantId } from "../config/models/brandedTypes";
 import { ResourceDetailsCreateInput } from "../config/models/resourceDetailsCreateSchema";
 import { ResourceDetailsUpdateInput } from "../config/models/resourceDetailsUpdateSchema";
 import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
@@ -201,9 +202,34 @@ export async function searchResourceDetails(
   ]);
 
   return {
-    ResourceDetails: rows.map(toResourceDetailsResponse),
+    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId as TenantId, rows),
     TotalCount: total
   };
+}
+
+/**
+ * A register file owing a refresh is finished here, so the id handed back never points at a sheet
+ * still listing a deleted register. Rows already claimed elsewhere keep their in-progress marker for
+ * the caller to poll, exactly like an upload in flight.
+ *
+ * The refresh module is imported only when a row actually owes one: it pulls in filestore and Excel
+ * plumbing that every other caller of this service has no use for.
+ */
+async function respondWithRefreshedRegisterFile(tenantId: TenantId, rows: ResourceDetailRow[]): Promise<any[]> {
+  const owed = rows.some((row) => attendanceSheetRefresh.resourceTypes.includes(row?.type)
+    && (row?.additionaldetails || {})[attendanceSheetRefresh.additionalDetailsKey]);
+
+  if (!owed) return rows.map(toResourceDetailsResponse);
+
+  const { completeOwedRegisterSheetRefresh } = await import("../utils/attendanceSheetUtils");
+  const refreshed = await completeOwedRegisterSheetRefresh(tenantId, rows);
+  return rows.map((row) => {
+    const response = toResourceDetailsResponse(row);
+    if (!refreshed.has(row.id)) return response;
+    // null means the file is known to be out of date: withhold it rather than serve a sheet that
+    // still lists a deleted register. The marker stays set, so the next download retries.
+    return { ...response, processedFileStoreId: refreshed.get(row.id) ?? null };
+  });
 }
 
 /**
@@ -241,12 +267,46 @@ async function searchResourceDetailsAcrossCampaignFamily(
   const paged = pagination?.limit ? deduped.slice(offset, offset + pagination.limit) : deduped.slice(offset);
 
   return {
-    ResourceDetails: paged.map(toResourceDetailsResponse),
+    ResourceDetails: await respondWithRefreshedRegisterFile(criteria.tenantId as TenantId, paged),
     TotalCount: deduped.length
   };
 }
 
 /** Soft-deactivates every active resource of a campaign — used when hierarchy/boundary changes invalidate prior uploads. */
+/** A file row a save stored: the row it created, and the row that new row replaced (if any). */
+export type SavedResourceChange = { createdId: string; replacedId?: string };
+
+/**
+ * Takes back the file rows a save stored when the rest of that save failed: the rows it created are made inactive and the
+ * rows they replaced active again, so the campaign keeps the files it had. Both were written through the persister, so it
+ * first waits (bounded) until they are stored, then switches them with one direct SQL statement.
+ */
+export async function undoSavedResources(changes: SavedResourceChange[], tenantId: TenantId, userUuid: string): Promise<void> {
+  if (changes.length === 0) return;
+  const tableName = getTableName(config.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+  const createdIds = Array.from(new Set(changes.map(change => change.createdId)));
+  const replacedIds = Array.from(new Set(changes.map(change => change.replacedId).filter((id): id is string => Boolean(id))));
+  await pollUntilCountFn(async () => {
+    const result = await executeQuery(
+      `SELECT COUNT(*) FILTER (WHERE id = ANY($1::text[])) AS created,
+              COUNT(*) FILTER (WHERE id = ANY($2::text[]) AND isactive = false) AS replaced
+       FROM ${tableName} WHERE id = ANY($1::text[]) OR id = ANY($2::text[])`,
+      [createdIds, replacedIds]);
+    const row = result?.rows?.[0] || {};
+    return Number(row.created || 0) + Number(row.replaced || 0);
+  }, createdIds.length + replacedIds.length, {
+    label: `stored files of the failed save`,
+    stallTimeoutMs: config.excelIngestion.persistenceStallTimeoutMs,
+    pollIntervalMs: config.excelIngestion.persistencePollIntervalMs
+  });
+  // One statement: the new rows off and the replaced rows on together
+  await executeQuery(
+    `UPDATE ${tableName} SET isactive = (id = ANY($2::text[])), lastmodifiedby = $3, lastmodifiedtime = $4
+     WHERE id = ANY($1::text[]) OR id = ANY($2::text[])`,
+    [createdIds, replacedIds, userUuid, Date.now()]);
+  logger.info(`Took back ${createdIds.length} file row(s) of a failed save; ${replacedIds.length} earlier row(s) active again`);
+}
+
 export async function deactivateAllResourcesForCampaign(campaignId: string, tenantId: string, userUuid: string): Promise<void> {
   const rows = await searchResourceDetailsFromDB({ tenantId, campaignId, isActive: true });
   await Promise.all(rows.map(row => deactivateResource(row, userUuid, tenantId)));

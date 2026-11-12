@@ -7,6 +7,7 @@ import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { logger } from "../utils/logger";
 import { processStatuses, allProcesses, dataRowStatuses } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
+import { formatEpochAsSheetDate } from "../utils/attendanceIdentityUtils";
 import { httpRequest } from "../utils/request";
 import config from "../config";
 
@@ -19,11 +20,33 @@ const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
 const MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
 const APPROVER_SHEET = "HCM_REGISTER_APPROVER_SHEET";
 
+const DEENROLLMENT_DATE_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
+
 /**
  * Generate class for Attendance Register Attendee Mapping.
  * Generates 3-sheet Excel prefilled with users filtered by role and boundary.
  */
 export class TemplateClass {
+    /**
+     * Rows belonging to the register being generated. A deleted register can be re-created under the
+     * same serviceCode, so the register UUID stamped at processing time is what decides ownership.
+     * Unstamped rows predate that stamp, so they are trusted only while nothing here carries one —
+     * otherwise they could be the dead register's attendees.
+     */
+    static storedRowsForRegister<T extends { data?: Record<string, unknown>; uniqueIdAfterProcess?: string | null }>(
+        rows: T[],
+        registerServiceCode: string,
+        currentRegisterUuid: string
+    ): T[] {
+        const rowsForServiceCode = rows.filter((row) => row.data?._registerServiceCode === registerServiceCode);
+        if (!currentRegisterUuid) return rowsForServiceCode;
+
+        const anyStamped = rowsForServiceCode.some((row) => Boolean(row.uniqueIdAfterProcess));
+        return rowsForServiceCode.filter((row) => row.uniqueIdAfterProcess
+            ? String(row.uniqueIdAfterProcess).startsWith(`${currentRegisterUuid}_`)
+            : !anyStamped);
+    }
+
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating attendance register attendee template...");
 
@@ -73,9 +96,8 @@ export class TemplateClass {
         const storedAttendeeRows = await getRelatedDataWithCampaign(
             "attendanceRegisterAttendee", campaign?.campaignNumber, tenantId, dataRowStatuses.completed
         );
-        const filteredStoredRows = storedAttendeeRows.filter(
-            (r: any) => r.data?._registerServiceCode === registerServiceCode
-        );
+        const currentRegisterUuid: string = register?.id || "";
+        const filteredStoredRows = this.storedRowsForRegister(storedAttendeeRows, registerServiceCode, currentRegisterUuid);
 
         if (filteredStoredRows.length > 0) {
             logger.info(`Found ${filteredStoredRows.length} stored attendee rows for register ${registerServiceCode} — using DB data`);
@@ -86,7 +108,12 @@ export class TemplateClass {
                     .map((r: any) => {
                         // Strip internal persistence fields before returning in output
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { _registerServiceCode, _sheetName: _sn, ...outputRow } = r.data;
+                        const { _registerServiceCode, _sheetName: _sn, _denrollmentDate, ...outputRow } = r.data;
+                        // De-enrolled people stay listed — the date is shown rather than hidden. Surfaces
+                        // de-enrolments done outside the console, which never touched the sheet cell.
+                        if (r.denrollmentDate != null) {
+                            outputRow[DEENROLLMENT_DATE_COLUMN] = formatEpochAsSheetDate(r.denrollmentDate);
+                        }
                         return outputRow;
                     });
                 sheetMap[sheetName] = { data: rowsForSheet, dynamicColumns: null };

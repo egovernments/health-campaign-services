@@ -12,6 +12,10 @@
 const mockExecuteQuery = jest.fn();
 const mockGetTableName = jest.fn().mockReturnValue('ba.eg_cm_resource_details');
 
+jest.mock('../utils/attendanceSheetUtils', () => ({
+    completeOwedRegisterSheetRefresh: jest.fn(),
+}));
+
 jest.mock('../utils/db', () => ({
     executeQuery: (...args: any[]) => mockExecuteQuery(...args),
     getTableName: (...args: any[]) => mockGetTableName(...args)
@@ -403,5 +407,55 @@ describe('searchResourceDetails — campaign-family resolution for shared types'
 
         expect(mockGetCampaignIdsByCampaignNumber).not.toHaveBeenCalled();
         expect(mockCountTotal).toHaveBeenCalled();
+    });
+});
+
+describe('searchResourceDetails — register file owing a refresh', () => {
+    const { completeOwedRegisterSheetRefresh } = require('../utils/attendanceSheetUtils');
+
+    beforeEach(() => jest.clearAllMocks());
+
+    const registerRow = (additionaldetails: Record<string, unknown>) => ({
+        id: 'res-1', tenantid: 'dev', campaignid: 'campaign-1', type: 'attendanceRegister',
+        parentresourceid: null, filestoreid: 'uploaded-1', processedfilestoreid: 'processed-1',
+        filename: 'register.xlsx', status: 'completed', action: 'create', isactive: true,
+        hierarchytype: null, additionaldetails,
+        createdby: 'u1', lastmodifiedby: 'u1', createdtime: 1, lastmodifiedtime: 2,
+    });
+
+    const search = () =>
+        searchResourceDetails({ tenantId: 'dev', campaignId: 'campaign-1', type: ['user'] } as any);
+
+    it('answers with the refreshed file id, never the stale one', async () => {
+        (completeOwedRegisterSheetRefresh as jest.Mock).mockResolvedValue(new Map([['res-1', 'processed-2']]));
+        mockSearchFromDB.mockResolvedValue([registerRow({ attendanceRefresh: { state: 'pending', at: 1 } })]);
+        (countTotalResourceDetails as jest.Mock).mockResolvedValue(1);
+
+        const result = await search();
+
+        expect(completeOwedRegisterSheetRefresh).toHaveBeenCalled();
+        expect(result.ResourceDetails[0].processedFileStoreId).toBe('processed-2');
+    });
+
+    it('withholds the file when the refresh could not vouch for one', async () => {
+        (completeOwedRegisterSheetRefresh as jest.Mock).mockResolvedValue(new Map([['res-1', null]]));
+        mockSearchFromDB.mockResolvedValue([registerRow({ attendanceRefresh: { state: 'pending', at: 1 } })]);
+        (countTotalResourceDetails as jest.Mock).mockResolvedValue(1);
+
+        const result = await search();
+
+        expect(result.ResourceDetails[0].processedFileStoreId).toBeNull();
+    });
+
+    it('does not load the refresh module when nothing is owed', async () => {
+        mockSearchFromDB.mockResolvedValue([registerRow({})]);
+        (countTotalResourceDetails as jest.Mock).mockResolvedValue(1);
+
+        const result = await search();
+
+        // toResourceDetailsResponse is mocked in this suite, so the row shape is not asserted here —
+        // what matters is that a search with nothing owed never reaches the refresh path.
+        expect(completeOwedRegisterSheetRefresh).not.toHaveBeenCalled();
+        expect(result.ResourceDetails).toHaveLength(1);
     });
 });

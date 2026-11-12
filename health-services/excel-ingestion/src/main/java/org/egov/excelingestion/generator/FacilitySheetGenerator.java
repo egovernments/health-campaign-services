@@ -78,7 +78,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
                     requestInfo, generateResource.getTenantId(), ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
             
-            String schemaJson = extractSchemaFromMDMSResponse(mdmsList, config.getSchemaName());
+            String schemaJson = extractSchemaFromMDMSResponse(mdmsList, config.getSchemaName(), exceptionHandler);
             
             if (schemaJson != null && !schemaJson.isEmpty()) {
                 List<ColumnDef> columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schemaJson);
@@ -139,12 +139,13 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         return workbook;
     }
     
-    private boolean shouldAddBoundaryDropdowns(GenerateResource generateResource) {
+    static boolean shouldAddBoundaryDropdowns(GenerateResource generateResource) {
         return generateResource.getReferenceId() != null && !generateResource.getReferenceId().isEmpty()
                && generateResource.getHierarchyType() != null && !generateResource.getHierarchyType().isEmpty();
     }
     
-    private String extractSchemaFromMDMSResponse(List<Map<String, Object>> mdmsList, String title) {
+    static String extractSchemaFromMDMSResponse(List<Map<String, Object>> mdmsList, String title,
+                                                CustomExceptionHandler exceptionHandler) {
         try {
             if (!mdmsList.isEmpty()) {
                 Map<String, Object> mdmsData = mdmsList.get(0);
@@ -188,10 +189,11 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                 return null; // Headers-only sheet
             }
             
-            // Step 1: Fetch all permanent facilities from facility API
+            // Step 1: Fetch permanent facilities under the campaign's root boundary from facility API
             log.info("Fetching permanent facilities for tenant: {}", generateResource.getTenantId());
-            List<Map<String, Object>> allPermanentFacilities = facilityService.fetchAllPermanentFacilities(
-                    generateResource.getTenantId(), requestInfo);
+            String rootBoundaryCode = rootBoundaryCodeOrNull(campaignService, referenceId, generateResource.getTenantId(), requestInfo);
+            List<Map<String, Object>> allPermanentFacilities = facilityService.fetchPermanentFacilitiesAtAndBelow(
+                    generateResource.getTenantId(), null, rootBoundaryCode, generateResource.getHierarchyType(), requestInfo);
             
             // Step 2: Get enriched boundary codes including children using existing boundary util
                         // Use the method that includes all boundary codes for facility filtering
@@ -204,7 +206,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             
             // Step 4: Fetch existing campaign data for this campaign
             List<Map<String, Object>> existingCampaignData = fetchExistingCampaignData(
-                    campaignNumber, generateResource.getTenantId(), requestInfo);
+                    campaignService, campaignNumber, generateResource.getTenantId(), requestInfo, false);
             
             // Step 5: Merge permanent facilities with existing campaign data (remove duplicates by name, keep first)
             List<Map<String, Object>> mergedData = mergeAndDeduplicateFacilities(
@@ -250,7 +252,36 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         return transformedFacilities;
     }
     
-    private String getFacilityBoundaryCode(Map<String, Object> facility) {
+    /**
+     * The campaign's root boundary code, or null (search every facility) when the campaign cannot be read, so the facility
+     * search does not empty the sheet when only this lookup fails. The campaign search is cached, so this reuses the
+     * lookup made just before instead of calling project-factory again.
+     */
+    static String rootBoundaryCodeOrNull(CampaignService campaignService, String referenceId, String tenantId, RequestInfo requestInfo) {
+        try {
+            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
+            return campaignRootBoundaryCode(campaign == null ? null : campaign.getBoundaries());
+        } catch (Exception e) {
+            log.warn("Could not read campaign {} for its root boundary; searching every permanent facility: {}", referenceId, e.getMessage());
+            return null;
+        }
+    }
+
+    /** The campaign's root boundary code when exactly one boundary is marked root, else null (search every facility). */
+    static String campaignRootBoundaryCode(List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries) {
+        if (campaignBoundaries == null) {
+            return null;
+        }
+        List<String> roots = campaignBoundaries.stream()
+                .filter(boundary -> Boolean.TRUE.equals(boundary.getIsRoot()))
+                .map(CampaignSearchResponse.BoundaryDetail::getCode)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
+        return roots.size() == 1 ? roots.get(0) : null;
+    }
+
+    static String getFacilityBoundaryCode(Map<String, Object> facility) {
         // Extract boundary code from facility address following project-factory pattern
         try {
             @SuppressWarnings("unchecked")
@@ -398,8 +429,14 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         }
     }
     
-    private List<Map<String, Object>> fetchExistingCampaignData(String campaignNumber, 
-                                                               String tenantId, RequestInfo requestInfo) {
+    /**
+     * Stored campaign-data facility rows: sites and facilities share the same campaign-data (both are
+     * facility rows), told apart by the hidden OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID column that only a site row
+     * carries. {@code sites=false} keeps rows without it (facility rows - matches the pre-sites result
+     * exactly); {@code sites=true} keeps rows with it.
+     */
+    static List<Map<String, Object>> fetchExistingCampaignData(CampaignService campaignService,
+            String campaignNumber, String tenantId, RequestInfo requestInfo, boolean sites) {
         try {
             // Search for all facility data for this campaign
             List<Map<String, Object>> campaignDataResponse = campaignService.searchCampaignDataByUniqueIdentifiers(
@@ -412,7 +449,9 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     if (record.get("data") != null) {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> dataObject = (Map<String, Object>) record.get("data");
-                        if (dataObject != null) {
+                        boolean isOutsideHouseholdRow = dataObject.containsKey(
+                                ProcessingConstants.OUTSIDE_HOUSEHOLD_CLIENT_REFERENCE_ID_COLUMN_KEY);
+                        if (isOutsideHouseholdRow == sites) {
                             existingData.add(dataObject);
                         }
                     }
@@ -448,6 +487,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         }
         
         // Step 2: Add campaign facilities - CAMPAIGN TAKES PRIORITY in ID collisions
+        Set<String> campaignKeys = new HashSet<>(); // keys of this campaign's own rows (with or without an ID)
         for (Map<String, Object> facility : campaignFacilities) {
             String facilityId = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE");
             
@@ -463,6 +503,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     log.debug("Added existing campaign facility with ID: {}", facilityId);
                 }
                 facilityMap.put(facilityId, facility); // Campaign facility replaces or adds
+                campaignKeys.add(facilityId);
             } else {
                 // New facility without ID - use name as key for deduplication
                 String facilityName = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_NAME");
@@ -470,6 +511,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     String nameKey = "NEW_" + facilityName; // Prefix to avoid collision with IDs
                     if (!facilityMap.containsKey(nameKey)) {
                         facilityMap.put(nameKey, facility);
+                        campaignKeys.add(nameKey);
                         log.debug("Added new facility without ID: {}", facilityName);
                     }
                 }
@@ -493,8 +535,10 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     finalMap.put(key, facility);
                     nameToKeyMap.put(dedupKey, key);
                 } else {
-                    boolean isCurrentFromCampaign = key.startsWith("NEW_"); // Campaign data (new facilities)
-                    boolean isExistingFromCampaign = existingKey.startsWith("NEW_"); // Existing campaign data
+                    // A campaign row wins over another facility of the same name and boundary, also when it has an ID:
+                    // the edit sheet must show the facility the campaign uses, not a same-named one in its place
+                    boolean isCurrentFromCampaign = campaignKeys.contains(key);
+                    boolean isExistingFromCampaign = campaignKeys.contains(existingKey);
 
                     if (isCurrentFromCampaign && !isExistingFromCampaign) {
                         finalMap.remove(existingKey);

@@ -8,6 +8,7 @@ public enum UserActionEnum {
     LOCATION_CAPTURE("LOCATION_CAPTURE"),
     STOCK_BALANCE("STOCK_BALANCE"),
     MULTI_LOGIN("MULTI_LOGIN"),
+    NEW_SETTLEMENT("NEW_SETTLEMENT"),
     OTHER("OTHER");
 
     private String value;

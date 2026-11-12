@@ -1,6 +1,11 @@
 # Change Logs
 
 All notable changes to this module will be documented in this file.
+## 1.1.8 - 2026-10-28
+- Upgraded `health-services-models` to 1.0.37-SNAPSHOT (adds `NEW_SETTLEMENT` user action enum).
+
+## 1.1.7 - 2026-10-13
+- Upgraded `health-services-models` to 1.0.36-SNAPSHOT (adds `VACCINATED_ELSEWHERE` task status).
 
 ## 1.1.3 - 2026-03-10
 - Removed `DataAccessExceptionHandler` `@ControllerAdvice` as tracer 2.9.2 already handles `DataAccessException` in its `ExceptionAdvise`.

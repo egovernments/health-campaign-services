@@ -14,9 +14,9 @@ jest.mock('../config', () => ({
     default: {
         host: {},
         paths: {},
-        kafka: {},
+        kafka: { KAFKA_SAVE_SHEET_DATA_TOPIC: 'save-sheet-data', KAFKA_UPDATE_SHEET_DATA_TOPIC: 'update-sheet-data' },
         hrms: { hrmsParallelSearchLimit: 5 },
-        attendanceRegister: { serviceCodeParallelSearchLimit: 5, batchSize: 50 },
+        attendanceRegister: { serviceCodeParallelSearchLimit: 5, batchSize: 50, attendeePersistBatchSize: 100 },
         get appTimezone() { return mockServerTimezone.value; },
     },
     __esModule: true,
@@ -58,6 +58,9 @@ jest.mock('../service/campaignManageService', () => ({
 
 import { sheetDataRowStatuses } from "../config/constants";
 import { TemplateClass } from "../processFlowClasses/attendanceRegisterAttendee-processClass";
+import { CampaignDataRow } from "../config/models/campaignDataRow";
+import { CampaignNumber, TenantId } from "../config/models/brandedTypes";
+import { produceModifiedMessages } from "../kafka/Producer";
 
 const ENROLLMENT_EPOCH = 1700000000000;   // 2023-11-14
 const DEENROLLMENT_EPOCH = 1700100000000; // ~2023-11-15
@@ -673,5 +676,151 @@ describe("parseDateEndOfDay", () => {
 
     test("E5: invalid string → null", () => {
         expect(parseDateEndOfDay("not-a-date")).toBeNull();
+    });
+});
+
+// ─── Processed-file output ───────────────────────────────────────────────────
+
+describe("persisting the de-enrolment date for a recreated register", () => {
+    const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
+    const CURRENT_UUID = "reg-new";
+    const OLD_DATE = 1786579200000;
+
+    const persistInternals = TemplateClass as unknown as {
+        persistAttendeesToCampaignData: (
+            sheetRows: Map<string, Record<string, unknown>[]>,
+            existingDataMap: Map<string, CampaignDataRow>,
+            campaignNumber: CampaignNumber,
+            tenantId: TenantId,
+            usernameToIndividualId: Map<string, string>,
+            registerDataMap: Map<string, { register?: { id?: unknown } }>
+        ) => Promise<void>;
+    };
+
+    const storedRow = (uniqueIdAfterProcess: string): CampaignDataRow => ({
+        campaignNumber: "CMP-1",
+        type: "attendanceRegisterAttendee",
+        data: { UserName: "USR-1", _sheetName: WORKER_SHEET },
+        uniqueIdentifier: "REG-001_USR-1_worker",
+        status: "completed",
+        uniqueIdAfterProcess,
+        isDeleted: false,
+        denrollmentDate: OLD_DATE,
+    });
+
+    const persistWithStoredStamp = async (storedStamp: string) => {
+        const uniqueIdentifier = "REG-001_USR-1_worker";
+        await persistInternals.persistAttendeesToCampaignData(
+            new Map([[WORKER_SHEET, [{
+                UserName: "USR-1",
+                HCM_ATTENDANCE_REGISTER_ID: "REG-001",
+                "#status#": sheetDataRowStatuses.CREATED,
+            }]]]),
+            new Map([[uniqueIdentifier, storedRow(storedStamp)]]),
+            "CMP-1" as CampaignNumber,
+            "dev" as TenantId,
+            new Map([["USR-1", "ind-1"]]),
+            new Map([["REG-001", { register: { id: CURRENT_UUID } }]])
+        );
+        const pushed = jest.mocked(produceModifiedMessages).mock.calls.at(-1)?.[0] as {
+            datas?: Array<{ data?: Record<string, unknown> }>;
+        };
+        return pushed?.datas?.[0]?.data ?? {};
+    };
+
+    afterEach(() => jest.clearAllMocks());
+
+    it("clears a date stamped by the register that used this serviceCode before", async () => {
+        const data = await persistWithStoredStamp("reg-old_ind-1_worker");
+
+        expect(data._denrollmentDate).toBeNull();
+    });
+
+    it("keeps the date when the stored row belongs to this register and individual", async () => {
+        const data = await persistWithStoredStamp(`${CURRENT_UUID}_ind-1_worker`);
+
+        expect(data._denrollmentDate).toBe(OLD_DATE);
+    });
+
+    it("clears a date stamped for a different individual under the same register", async () => {
+        const data = await persistWithStoredStamp(`${CURRENT_UUID}_ind-other_worker`);
+
+        expect(data._denrollmentDate).toBeNull();
+    });
+
+    it("keeps the date when the row was never stamped, so a blank cell cannot clear it", async () => {
+        const data = await persistWithStoredStamp("");
+
+        expect(data._denrollmentDate).toBe(OLD_DATE);
+    });
+});
+
+describe("toOutputRow", () => {
+    const DEENROLLMENT_COLUMN = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
+    // 12-08-2026 20:00 UTC, which is already 13-08 in Asia/Kolkata: the same epoch has to read as a
+    // different calendar day per zone, or the zone assertion below would prove nothing.
+    const SYNCED_DEENROL_EPOCH = Date.UTC(2026, 7, 12, 20, 0);
+
+    const toOutputRow = (storedRow: unknown) => (TemplateClass as any).toOutputRow(storedRow);
+
+    beforeEach(() => {
+        // The formatter is memoised on the class, so the zone under test applies only once it is cleared
+        (TemplateClass as any).tzFormatter = null;
+        mockServerTimezone.value = "UTC";
+    });
+
+    it("strips the internal persistence fields", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", _registerServiceCode: "REG-001", _sheetName: "HCM_REGISTER_WORKER_SHEET" },
+        });
+
+        expect(row).toEqual({ UserName: "USR-1" });
+    });
+
+    it("keeps the synced date out of the sheet as a raw field, showing it in its own column", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", _sheetName: "HCM_REGISTER_WORKER_SHEET", _denrollmentDate: SYNCED_DEENROL_EPOCH },
+            denrollmentDate: SYNCED_DEENROL_EPOCH,
+        });
+
+        expect(row._denrollmentDate).toBeUndefined();
+        expect(row[DEENROLLMENT_COLUMN]).toBe("12/08/2026");
+    });
+
+    it("shows the synced de-enrolment date", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", _registerServiceCode: "REG-001", _sheetName: "HCM_REGISTER_WORKER_SHEET" },
+            denrollmentDate: SYNCED_DEENROL_EPOCH,
+        });
+
+        expect(row[DEENROLLMENT_COLUMN]).toBe("12/08/2026");
+    });
+
+    it("overwrites a stale sheet value with the synced date", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", [DEENROLLMENT_COLUMN]: "01/01/2026" },
+            denrollmentDate: SYNCED_DEENROL_EPOCH,
+        });
+
+        expect(row[DEENROLLMENT_COLUMN]).toBe("12/08/2026");
+    });
+
+    it("leaves the stored value alone when nothing has been synced", () => {
+        const row = toOutputRow({
+            data: { UserName: "USR-1", [DEENROLLMENT_COLUMN]: "20/08/2026" },
+            denrollmentDate: null,
+        });
+
+        expect(row[DEENROLLMENT_COLUMN]).toBe("20/08/2026");
+    });
+
+    it("formats the synced date in the configured app timezone, not the pod's", () => {
+        mockServerTimezone.value = "Asia/Kolkata";
+        (TemplateClass as any).tzFormatter = null;
+
+        const row = toOutputRow({ data: { UserName: "USR-1" }, denrollmentDate: SYNCED_DEENROL_EPOCH });
+
+        // 20:00 UTC on the 12th is 01:30 on the 13th in Kolkata
+        expect(row[DEENROLLMENT_COLUMN]).toBe("13/08/2026");
     });
 });

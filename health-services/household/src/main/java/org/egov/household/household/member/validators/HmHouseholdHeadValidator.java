@@ -155,7 +155,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                 }
             }
         } catch (InvalidTenantIdException exception) {
-            log.error("Invalid tenantId found for household members {}", householdMembersRequest, exception);
+            log.error("Invalid tenantId found for {} household members", householdMembersRequest.size(), exception);
             householdMembersRequest.forEach(householdMember -> {
                 Error error = getErrorForInvalidTenantId(tenantId, exception);
                 populateErrorDetails(householdMember, error, errorDetailsMap);

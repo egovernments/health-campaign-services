@@ -369,23 +369,36 @@ public class BoundaryUtil {
         }
         
         Set<String> processedCodes = new HashSet<>();
-        
+        List<String> droppedCodes = new ArrayList<>();
+
         // For each campaign boundary, find all its children based on includeAllChildren flag
         for (CampaignSearchResponse.BoundaryDetail campaignBoundary : campaignBoundaries) {
             String campaignBoundaryCode = campaignBoundary.getCode();
             if (campaignBoundaryCode != null && codeToNode.containsKey(campaignBoundaryCode)) {
                 EnrichedBoundary boundaryNode = codeToNode.get(campaignBoundaryCode);
-                
+
                 // Set includeAllChildren flag from campaign boundary
-                boolean includeChildren = campaignBoundary.getIncludeAllChildren() != null ? 
+                boolean includeChildren = campaignBoundary.getIncludeAllChildren() != null ?
                     campaignBoundary.getIncludeAllChildren() : false;
-                
-                collectAllBoundariesFromEnriched(boundaryNode, enrichedBoundaries, processedCodes, includeChildren, 
+
+                collectAllBoundariesFromEnriched(boundaryNode, enrichedBoundaries, processedCodes, includeChildren,
                         campaignBoundary.getParent());
+            } else {
+                // null code = malformed campaign boundary, a different defect from a hierarchy miss
+                droppedCodes.add(campaignBoundaryCode != null ? campaignBoundaryCode : "<null code>");
             }
         }
-        
-        log.info("Enriched {} campaign boundaries to {} total boundary objects including children", 
+
+        if (!droppedCodes.isEmpty()) {
+            // Campaign boundaries missing from the hierarchy tree are dropped from the sheet; warn so
+            // this is diagnosable (likely a stale 1h boundaryRelationship cache). Sample capped at 20.
+            int sample = Math.min(droppedCodes.size(), 20);
+            log.warn("Dropped {} campaign boundary code(s) not present in hierarchy {} (first {}): {}. "
+                            + "These will be MISSING from the generated sheet.",
+                    droppedCodes.size(), hierarchyType, sample, droppedCodes.subList(0, sample));
+        }
+
+        log.info("Enriched {} campaign boundaries to {} total boundary objects including children",
                 campaignBoundaries.size(), enrichedBoundaries.size());
         
         return enrichedBoundaries;
@@ -434,7 +447,19 @@ public class BoundaryUtil {
     @Cacheable(value = "enrichedBoundaryObjects", key = "#processId + '_' + #referenceId + '_lowest'")
     public Set<String> getLowestLevelBoundaryCodesFromCampaign(String processId, String referenceId,
                                                               String tenantId, String hierarchyType, RequestInfo requestInfo) {
-        // Get boundary hierarchy to find lowest level type
+        return getLowestLevelBoundaryCodesFromCampaign(processId, referenceId, tenantId, hierarchyType, 1, requestInfo);
+    }
+
+    /**
+     * Boundary codes of the campaign's enriched boundaries whose type is one of the LAST {@code levelCount}
+     * levels of the hierarchy (every level when the hierarchy is shorter than {@code levelCount}). Sites
+     * use levelCount 2 (lowest OR second-lowest level); the single-level overload above delegates here.
+     */
+    @Cacheable(value = "enrichedBoundaryObjects", key = "#processId + '_' + #referenceId + '_lowest' + #levelCount")
+    public Set<String> getLowestLevelBoundaryCodesFromCampaign(String processId, String referenceId,
+                                                              String tenantId, String hierarchyType,
+                                                              int levelCount, RequestInfo requestInfo) {
+        // Get boundary hierarchy to find the lowest levelCount level types
         BoundaryHierarchyResponse hierarchyResponse = boundaryService.fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
         
         if (hierarchyResponse == null || hierarchyResponse.getBoundaryHierarchy() == null) {
@@ -442,30 +467,34 @@ public class BoundaryUtil {
             return new HashSet<>();
         }
         
-        // Find the lowest level boundary type from hierarchy
+        // Find the lowest levelCount boundary types from hierarchy (every level if the hierarchy is shorter)
         List<BoundaryHierarchyChild> hierarchy = hierarchyResponse.getBoundaryHierarchy().get(0).getBoundaryHierarchy();
 
-        final String lowestLevelType = hierarchy.get(hierarchy.size() - 1).getBoundaryType();
+        int fromIndex = Math.max(0, hierarchy.size() - levelCount);
+        Set<String> lowestLevelTypes = hierarchy.subList(fromIndex, hierarchy.size()).stream()
+                .map(BoundaryHierarchyChild::getBoundaryType)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
         
-        if (lowestLevelType == null) {
-            log.warn("Could not determine lowest level boundary type from hierarchy");
+        if (lowestLevelTypes.isEmpty()) {
+            log.warn("Could not determine lowest level boundary type(s) from hierarchy");
             return new HashSet<>();
         }
         
-        log.info("Lowest level boundary type: {}", lowestLevelType);
+        log.info("Lowest {} level boundary type(s): {}", levelCount, lowestLevelTypes);
         
         // Get all enriched boundaries
         List<Boundary> enrichedBoundaries = getEnrichedBoundariesFromCampaign(processId, referenceId, tenantId, hierarchyType, requestInfo);
         
-        // Filter only lowest level boundaries by type
+        // Filter only lowest levelCount boundaries by type
         Set<String> lowestLevelCodes = enrichedBoundaries.stream()
-                .filter(boundary -> lowestLevelType.equals(boundary.getType()))
+                .filter(boundary -> lowestLevelTypes.contains(boundary.getType()))
                 .map(Boundary::getCode)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         
-        log.info("Found {} lowest level boundary codes of type '{}' out of {} total boundaries", 
-                lowestLevelCodes.size(), lowestLevelType, enrichedBoundaries.size());
+        log.info("Found {} lowest level boundary codes of type(s) '{}' out of {} total boundaries",
+                lowestLevelCodes.size(), lowestLevelTypes, enrichedBoundaries.size());
         
         return lowestLevelCodes;
     }
