@@ -73,7 +73,7 @@ public class SurveyService {
             surveyEntity.setTenantId(listOfTenantIds.get(i));
             // Enrich survey entity
             enrichmentService.enrichSurveyEntity(surveyRequest);
-            log.info(surveyRequest.getSurveyEntity().toString());
+            log.info("Pushing survey uuid: {} for tenantId: {}", surveyRequest.getSurveyEntity().getUuid(), surveyRequest.getSurveyEntity().getTenantId());
             producer.push("save-ss-survey", Collections.singletonList(surveyRequest.getSurveyEntity()));
         }
 

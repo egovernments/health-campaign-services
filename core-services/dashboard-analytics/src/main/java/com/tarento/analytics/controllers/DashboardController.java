@@ -124,7 +124,7 @@ public class DashboardController {
 		UserDto user = gson.fromJson(xUserInfo, UserDto.class);*/
 
 		UserDto user = new UserDto();
-		logger.info("user"+xUserInfo);
+		logger.info("x-user-info header present: " + (xUserInfo != null));
 
 		//Getting the request information only from the Full Request
 		AggregateRequestDto requestInfo = requestDto.getAggregationRequestDto();

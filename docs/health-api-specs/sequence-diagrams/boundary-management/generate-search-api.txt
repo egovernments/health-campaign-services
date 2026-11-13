@@ -1,0 +1,52 @@
+@startuml
+title Boundary Management - Generate Search (Download Template)
+!theme vibrant
+participant Client as c
+participant BoundaryManagement as s
+participant BoundaryService as bs
+database Database as db
+
+c -> s : POST /boundary-management/v1/_generate-search?tenantId&hierarchyType&id&status&referenceId
+activate s
+
+group requestMiddleware
+    s -> s: Validate Content-Type and RequestInfo (msgId, userInfo.tenantId)
+    alt validation fails
+        s -> c: HttpStatus: 415 / 400 VALIDATION_ERROR
+    end
+end
+
+group validateDownloadRequest
+    s -> s: Validate query params against schema\n(tenantId, hierarchyType required)
+    s -> s: query.tenantId == RequestInfo.userInfo.tenantId
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search
+    activate bs
+    bs -> s: BoundaryHierarchy
+    deactivate bs
+end
+
+alt request validation fails
+    s -> c: HttpStatus: 400 { Errors: [ code: VALIDATION_ERROR ] }
+else request validation successful
+    s -> db: SELECT * FROM eg_bm_generated_template\nWHERE hierarchyType, tenantId, locale [, id, referenceId, status]\nORDER BY createdTime DESC LIMIT 1
+    activate db
+    db -> s: Latest generated resource
+    deactivate db
+
+    alt no resource found (and no id given) OR latest status == failed
+        s -> s: Build generate request (forceUpdate=true)
+        s -> s: Trigger generate flow (not awaited)
+        note right
+            Same flow as /v1/_generate
+            (see generate-api.txt)
+        end note
+    end
+    s -> c: HttpStatus: 200 GeneratedResource (latest record, may be empty)
+    note left
+        Client polls until status == completed
+        and downloads the file using fileStoreid
+    end note
+end
+deactivate s
+
+@enduml

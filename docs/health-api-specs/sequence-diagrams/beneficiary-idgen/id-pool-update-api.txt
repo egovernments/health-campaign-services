@@ -1,0 +1,93 @@
+@startuml
+title Beneficiary IdGen - ID Pool Update
+!theme vibrant
+participant Client as c
+participant BeneficiaryIdGen as s
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+participant GlobalExceptionHandler as he
+participant TracerErrorHandler as te
+
+c -> s : POST /beneficiary-idgen/id/id_pool/_update?echoResource=true
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo required; IdRecords required, size >= 1;\neach IdRecord: tenantId required (2..1000), id 2..64, status <= 200 chars)
+alt request body validation fails
+    s -> he: MethodArgumentNotValidException
+    activate he
+    he -> c: HttpStatus: 400 ErrorRes\n{ Errors: [code: "400 BAD_REQUEST", message: "Invalid input", params: {field: msg}] }
+    deactivate he
+end
+
+s -> s: RequestInfo.apiId = request URI
+s -> k: IdRecordBulkRequest /id-gen-consumer-bulk-update-topic
+activate k
+s -> c: HttpStatus: 202 ResponseInfo (status successful)
+deactivate s
+note right
+    echoResource is accepted but ignored.
+    The response body is only ResponseInfo.
+end note
+
+group async (consumer of /id-gen-consumer-bulk-update-topic, isBulk = true)
+    s -> k: Consume IdRecordBulkRequest
+    activate s
+    group IdPoolValidatorForUpdate (only when id.validation.enabled = true)
+        s -> db: SELECT * FROM id_pool WHERE tenantId = <tenantId of first record>\nAND id IN (:ids) ORDER BY createdTime ASC
+        activate db
+        db -> s: Existing IdRecords
+        deactivate db
+        loop for each IdRecord
+            alt status not a valid IdStatus (UNASSIGNED | ASSIGNED | DISPATCHED, case-insensitive)
+                s -> s: Mark record with error INVALID_ID
+            end
+            alt id blank or not found in id_pool
+                s -> s: Mark record with error INVALID_ID\n("ID is blank or does not exist in the repository")
+            end
+        end
+    end
+
+    opt valid records exist
+        s -> s: Enrich: rowVersion + 1, auditDetails.lastModifiedBy = userInfo.uuid,\nlastModifiedTime = now
+        s -> k: { idPool: [valid IdRecords] } /update-id-pool-status
+        s -> k: { idTransactionLog: [IdTransactionLog {id, tenantId, status = record status,\nuserUuid, deviceUuid = "SYSTEM_UPDATED", deviceInfo = ""}] }\n/save-dispatch-id-log
+        alt exception while enriching / publishing
+            s -> s: Add error details for the valid records
+        end
+    end
+
+    alt any record had errors
+        s -> te: handleErrors (VALIDATION_ERROR, isBulk)
+        activate te
+        te -> te: ExceptionAdvise.exceptionHandler(errorDetails):\nlog and send ErrorDetails to the tracer error queue
+        deactivate te
+    end
+    alt any other exception in the consumer
+        s -> s: Log "error in individual consumer bulk update" (message dropped)
+    end
+    deactivate s
+end
+
+group async persister
+    prs -> k: Consume /update-id-pool-status
+    activate prs
+    prs -> db: UPDATE id_pool SET status = ?, lastModifiedBy = ?,\nlastModifiedTime = ?, additionalFields = ? WHERE id = ?
+    activate db
+    deactivate db
+    prs -> k: Consume /save-dispatch-id-log
+    prs -> db: INSERT INTO id_transaction_log (id_reference, user_uuid, device_uuid,\ndevice_info, status, tenantId, additionalFields, audit, rowVersion)
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s, db
+    The status is validated case-insensitively but persisted exactly as sent
+    (e.g. "assigned"). The persister UPDATE does not change rowVersion and is not
+    tenant scoped. Valid records are processed even when others fail.
+    No IndexerService config exists for these topics.
+end note
+
+@enduml

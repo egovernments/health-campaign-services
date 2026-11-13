@@ -11,6 +11,8 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+
 @Component
 public class ServiceQueryBuilder {
 
@@ -29,7 +31,9 @@ public class ServiceQueryBuilder {
         ServiceCriteria criteria = serviceSearchRequest.getServiceCriteria();
 
         StringBuilder query = new StringBuilder(SELECT + " DISTINCT(service.id), service.createdtime ");
-        query.append(" FROM eg_service service ");
+        query.append(" FROM ")
+                .append(SCHEMA_REPLACE_STRING)
+                .append(".eg_service service ");
 
         if(!ObjectUtils.isEmpty(criteria.getTenantId())){
             addClauseIfRequired(query, preparedStmtList);
@@ -125,9 +129,9 @@ public class ServiceQueryBuilder {
 
     public String getServiceSearchQuery(ServiceCriteria criteria, List<Object> preparedStmtList) {
         StringBuilder query = new StringBuilder("SELECT service.id, service.tenantid,  service.servicedefid, service.referenceid, service.createdby, service.lastmodifiedby, service.createdtime, service.lastmodifiedtime, service.additionaldetails, service.accountid, service.clientid, "
-                + "attribute_value.id as attribute_value_id, attribute_value.referenceid as attribute_value_referenceid, attribute_value.attributecode as attribute_value_attributecode, attribute_value.value as attribute_value_value, attribute_value.createdby as attribute_value_createdby, attribute_value.lastmodifiedby as attribute_value_lastmodifiedby, attribute_value.createdtime as attribute_value_createdtime, attribute_value.lastmodifiedtime as attribute_value_lastmodifiedtime, attribute_value.additionaldetails as attribute_value_additionaldetails "
-                + "FROM eg_service as service "
-                + "INNER JOIN eg_service_attribute_value as attribute_value ON "
+                + "attribute_value.id as attribute_value_id, attribute_value.clientReferenceId as attribute_value_clientReferenceId, attribute_value.serviceClientReferenceId as attribute_value_serviceClientReferenceId, attribute_value.referenceid as attribute_value_referenceid, attribute_value.attributecode as attribute_value_attributecode, attribute_value.value as attribute_value_value, attribute_value.createdby as attribute_value_createdby, attribute_value.lastmodifiedby as attribute_value_lastmodifiedby, attribute_value.createdtime as attribute_value_createdtime, attribute_value.lastmodifiedtime as attribute_value_lastmodifiedtime, attribute_value.additionaldetails as attribute_value_additionaldetails "
+                + "FROM " + SCHEMA_REPLACE_STRING + ".eg_service as service "
+                + "INNER JOIN " + SCHEMA_REPLACE_STRING + ".eg_service_attribute_value as attribute_value ON "
                 + "service.id=attribute_value.referenceid ");
 
         if(!ObjectUtils.isEmpty(criteria.getTenantId())){

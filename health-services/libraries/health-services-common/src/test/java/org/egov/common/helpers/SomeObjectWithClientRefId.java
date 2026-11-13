@@ -1,6 +1,6 @@
 package org.egov.common.helpers;
 
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

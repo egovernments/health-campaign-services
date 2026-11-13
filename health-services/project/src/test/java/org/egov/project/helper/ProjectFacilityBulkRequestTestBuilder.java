@@ -45,6 +45,16 @@ public class ProjectFacilityBulkRequestTestBuilder {
         return this;
     }
 
+    public ProjectFacilityBulkRequestTestBuilder withOneProjectFacilityHavingIdAndTenantId(String id, String tenantId) {
+        List<ProjectFacility> projectFacilities = new ArrayList<>();
+        projectFacilities.add(ProjectFacilityTestBuilder.builder()
+                        .withId(id)
+                .withTenantId(tenantId).withAuditDetails().build());
+        builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .projectFacilities(projectFacilities);
+        return this;
+    }
+
     public ProjectFacilityBulkRequestTestBuilder withBadTenantIdInOneProjectFacility() {
         List<ProjectFacility> projectFacilities = new ArrayList<>();
         projectFacilities.add(ProjectFacilityTestBuilder.builder().withIdNull().withBadTenantId().build());

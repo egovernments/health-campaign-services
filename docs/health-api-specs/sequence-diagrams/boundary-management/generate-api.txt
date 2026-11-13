@@ -1,0 +1,135 @@
+@startuml
+title Boundary Management - Generate Template
+!theme vibrant
+participant Client as c
+participant BoundaryManagement as s
+participant BoundaryService as bs
+participant LocalizationService as loc
+participant MDMSService as mdms
+participant FileStore as fs
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+participant HandleGenerateError as he
+
+c -> s : POST /boundary-management/v1/_generate?tenantId&hierarchyType&forceUpdate&referenceId
+activate s
+
+group requestMiddleware
+    s -> s: Validate Content-Type and RequestInfo (msgId, userInfo.tenantId)
+    alt validation fails
+        s -> c: HttpStatus: 415 / 400 VALIDATION_ERROR
+    end
+end
+
+group validateGenerateRequest
+    s -> s: Validate query params against schema\n(tenantId, hierarchyType required; forceUpdate true|false)
+    s -> s: query.tenantId == RequestInfo.userInfo.tenantId
+    s -> s: Default forceUpdate = false
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search
+    activate bs
+    bs -> s: BoundaryHierarchy
+    deactivate bs
+end
+
+alt request validation fails
+    s -> c: HttpStatus: 400 { Errors: [ code: VALIDATION_ERROR ] }
+else request validation successful
+    s -> db: SELECT * FROM eg_bm_generated_template\nWHERE hierarchyType, tenantId, locale [, referenceId]\nORDER BY createdTime DESC
+    activate db
+    db -> s: Existing generated resources
+    deactivate db
+    s -> s: Preserve additionalDetails.currentFlow from latest row
+
+    alt existing resources found AND forceUpdate == false
+        s -> c: HttpStatus: 200 ResourceDetails (existing generated resources)
+    else no existing resources OR forceUpdate == true
+        opt forceUpdate == true AND existing resources found
+            s -> s: Mark all existing resources status = expired
+            s -> k: generatedResource (expired) /update-generated-boundary-management
+            activate k
+        end
+        s -> s: Create new entry (id uuid, status inprogress,\nfileStoreid null, locale from msgId)
+        s -> k: generatedResource (inprogress) /create-generated-boundary-management
+        activate k
+        s -> c: HttpStatus: 200 ResourceDetails (new entry, status: inprogress)
+    end
+end
+deactivate s
+
+group async generation
+    activate s
+    s -> loc: /localization/messages/v1/_search\n(hcm-boundary-<hierarchyType>, hcm-admin-schemas)
+    activate loc
+    loc -> s: Localisation messages
+    deactivate loc
+    s -> bs: /boundary-relationships/_search\n(includeChildren=true, includeParents=false)
+    activate bs
+    bs -> s: Boundary tree
+    deactivate bs
+
+    alt no boundaries in hierarchy
+        s -> bs: /boundary-hierarchy-definition/_search
+        activate bs
+        bs -> s: Hierarchy levels
+        deactivate bs
+        s -> mdms: /egov-mdms-service/v2/_search\n(HCM-ADMIN-CONSOLE.adminSchema, boundaryManagement.all)
+        activate mdms
+        mdms -> s: Column schema
+        deactivate mdms
+        s -> s: Build empty template (headers only)
+    else boundaries present
+        s -> loc: /localization/messages/v1/_search (fr_<region>, pt_<region>)
+        activate loc
+        loc -> s: French / Portuguese names
+        deactivate loc
+        s -> bs: /boundary-hierarchy-definition/_search
+        activate bs
+        bs -> s: Hierarchy levels
+        deactivate bs
+        s -> mdms: /egov-mdms-service/v2/_search (adminSchema columns)
+        activate mdms
+        mdms -> s: Column schema
+        deactivate mdms
+        s -> bs: /boundary-service/boundary/_search (chunks of 20, lat/long)
+        activate bs
+        bs -> s: Boundary entities (geometry)
+        deactivate bs
+        s -> s: Build one row per boundary\n(localised names, code, fr/pt names, lat/long)
+    end
+
+    s -> s: Create workbook (boundary data sheet)
+    s -> fs: POST /filestore/v1/files (3 retries)
+    activate fs
+    fs -> s: fileStoreId
+    deactivate fs
+    s -> k: generatedResource (completed, fileStoreid, count)\n/update-generated-boundary-management
+
+    alt any error during generation
+        s -> he: call handleGenerateError
+        activate he
+        he -> k: generatedResource (status: failed, additionalDetails.error)\n/update-generated-boundary-management
+        deactivate he
+        note left
+            Error Codes: SCHEMA_ERROR, FETCHING_COLUMN_ERROR,
+            INTERNAL_SERVER_ERROR
+        end note
+    end
+    deactivate s
+end
+
+group async persister
+    prs -> k: Consume /create-generated-boundary-management
+    activate prs
+    prs -> db: INSERT INTO eg_bm_generated_template
+    activate db
+    deactivate db
+    prs -> k: Consume /update-generated-boundary-management
+    prs -> db: UPDATE eg_bm_generated_template (status, filestoreid, additionaldetails)
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+@enduml

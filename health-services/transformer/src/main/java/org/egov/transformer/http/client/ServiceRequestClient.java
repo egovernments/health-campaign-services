@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-@Repository
+//@Repository
 @Slf4j
 public class ServiceRequestClient {
 

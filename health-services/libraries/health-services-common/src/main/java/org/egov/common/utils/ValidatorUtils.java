@@ -1,6 +1,7 @@
 package org.egov.common.utils;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.tracer.model.CustomException;
 
@@ -41,6 +42,14 @@ public class ValidatorUtils {
                 .errorCode("NON_EXISTENT_RELATED_ENTITY")
                 .type(Error.ErrorType.NON_RECOVERABLE)
                 .exception(new CustomException("NON_EXISTENT_RELATED_ENTITY", "Related entity does not exist in db")).build();
+    }
+
+    public static Error getErrorForInvalidEntity(String entityName, List<String> ids) {
+        String errorMessage = String.format("%s not valid %s", entityName, ids);
+        return Error.builder().errorMessage(errorMessage)
+                .errorCode("INVALID_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("INVALID_ENTITY", errorMessage)).build();
     }
 
     public static Error getErrorForNonExistentRelatedEntity(String id) {
@@ -109,6 +118,22 @@ public class ValidatorUtils {
                 .errorCode("IS_DELETED_TRUE_SUB_ENTITY")
                 .type(Error.ErrorType.RECOVERABLE)
                 .exception(new CustomException("IS_DELETED_TRUE_SUB_ENTITY", "isDeleted cannot be true for sub entity"))
+                .build();
+    }
+
+    /**
+     * Builds the Error object for tenant and given exception
+     *
+     * @param tenantId              The id of the tenant
+     * @param exception             The invalid tenant id exception object
+     * @return the error object for the tenant id with invalid tenant id exception
+     */
+    public static Error getErrorForInvalidTenantId(String tenantId, InvalidTenantIdException exception) {
+        return Error.builder()
+                .errorMessage(String.format("tenantId : %s is not valid", tenantId))
+                .errorCode("TENANT_ID_INVALID")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(exception)
                 .build();
     }
 

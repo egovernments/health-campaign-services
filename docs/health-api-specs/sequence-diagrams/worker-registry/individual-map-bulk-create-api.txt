@@ -1,0 +1,62 @@
+@startuml
+title Worker Registry - Worker Individual Map Bulk Create
+!theme vibrant
+participant Client as c
+participant WorkerRegistry as s
+database Database as db
+participant HandleErrorMethod as he
+
+c -> s : POST /worker/v1/individual/bulk/_create
+activate s
+
+s -> s: Deserialize WorkerIndividualMapBulkRequest (@Valid, no effective constraints)
+alt malformed JSON
+    s -> he: HttpMessageNotReadableException
+    he -> c: HttpStatus: 400 { Errors: JsonMappingException / JsonParseException }
+end
+
+group CommonUtils.validate (isApplicableForIndividualMap)
+    s -> s: WIndividualIdUniqueValidator (@Order 1)
+    s -> s: individualId repeated within the request
+    alt duplicate in request
+        s -> s: Error DUPLICATE_ENTITY\n(IndividualId is duplicated in the request)
+    end
+    s -> db: SELECT individualId FROM <schema>.eg_hcm_worker_individual_map\nWHERE individualId IN (...) AND tenantId = <first map tenantId>\nAND isDeleted = false
+    activate db
+    db -> s: Already mapped individualIds
+    deactivate db
+    alt individual already mapped
+        s -> s: Error DUPLICATE_ENTITY\n(IndividualId already mapped to another worker)
+    else InvalidTenantIdException
+        s -> s: Error INVALID_TENANT_ID
+    end
+    alt any error (isBulk = false)
+        s -> he: CustomException VALIDATION_ERROR
+        he -> c: HttpStatus: 400 VALIDATION_ERROR
+    end
+end
+note right
+    No check that workerId exists or that tenantId is present.
+    A null / empty workerIndividualMaps list fails with an
+    unhandled exception (400).
+end note
+
+group enrichMapIndividual
+    s -> s: id = random UUID when absent, isDeleted = false,\nauditDetails (createdBy = userInfo.uuid or "system")
+end
+
+s -> db: Batch INSERT INTO <schema>.eg_hcm_worker_individual_map\n(id, workerId, individualId, tenantId, isDeleted, audit fields)
+activate db
+alt FK violation (unknown workerId) / other DB error
+    db -> s: DataAccessException
+    s -> c: HttpStatus: 400 { Errors: unhandled exception }
+end
+deactivate db
+note right
+    Unlike bulk create, the maps are NOT written to Redis
+end note
+
+s -> c: HttpStatus: 202 ResponseInfo
+deactivate s
+
+@enduml

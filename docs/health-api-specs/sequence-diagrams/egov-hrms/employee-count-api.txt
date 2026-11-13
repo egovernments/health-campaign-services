@@ -1,0 +1,44 @@
+@startuml
+title HRMS - Employee Count
+!theme vibrant
+participant Client as c
+participant HrmsService as s
+database Database as db
+
+c -> s : POST /egov-hrms/employees/_count?tenantId
+activate s
+
+alt tenantId query param missing
+    s -> c: HttpStatus: 400 { Errors }
+end
+note right
+    Body is a bare RequestInfo object
+    (not wrapped in { "RequestInfo": ... }) and is not validated
+end note
+
+group validateEmployeeCountRequest
+    alt tenantId empty
+        s -> c: HttpStatus: 400 ERR_HRMS_COUNT_EMP
+    end
+end
+
+alt invalid tenantId for schema
+    s -> c: HttpStatus: 400 TENANT_ID_EXCEPTION
+end
+alt tenantId == state.level.tenant.id (default)
+    s -> db: SELECT active, count(*) FROM <schema>.eg_hrms_employee\nWHERE tenantid LIKE '<tenantId>%' GROUP BY active
+else
+    s -> db: SELECT active, count(*) FROM <schema>.eg_hrms_employee\nWHERE tenantid = ? GROUP BY active
+end
+activate db
+db -> s: Counts per active flag
+deactivate db
+
+alt totalEmployee == 0 (or DB error)
+    s -> c: HttpStatus: 400 NO_RECORDS
+else
+    s -> c: HttpStatus: 200 { ResponseInfo, EmployeCount: { activeEmployee, inactiveEmployee, totalEmployee } }
+end
+deactivate s
+
+@enduml

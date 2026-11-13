@@ -1,0 +1,71 @@
+@startuml
+title Worker Registry - Kafka Consumer (Attendance Document Event)
+!theme vibrant
+participant AttendanceService as att
+queue Kafka as k
+participant WorkerRegistry as s
+participant RedisCache as rc
+database Database as db
+
+group First attendance signature (/first-attendance-log)
+    att -> k: AttendanceDocumentEventRequest /[tenant-prefix-]first-attendance-log
+    activate k
+    note right
+        Pushed by attendance (AttendanceDocumentEventService) when an
+        attendance log has additionalDetails.signatureFileStoreId and
+        isFirstSignature = true; type = SIGNATURE.
+        Listener topicPattern:
+        (${attendance.kafka.tenant.id.pattern}){0,1}first-attendance-log
+    end note
+    s -> k: Consume { RequestInfo, attendanceDocumentEvent }
+    activate s
+    alt individualId, tenantId, fileStore or type missing
+        s -> s: Log "Skipping invalid AttendanceDocumentEvent"
+    else
+        s -> db: SELECT workerId FROM <schema>.eg_hcm_worker_individual_map\nWHERE individualId IN (?) AND tenantId = ? AND isDeleted = false
+        activate db
+        db -> s: Worker ids
+        deactivate db
+        alt no worker mapped
+            s -> s: Log "No workers found for individualId"
+        else
+            s -> db: SELECT * FROM <schema>.eg_hcm_worker_registry\nWHERE tenantId = ? AND isDeleted = false AND id IN (<first workerId>)
+            activate db
+            db -> s: Worker (encrypted, not decrypted)
+            deactivate db
+            alt worker not found
+                s -> s: Log "Worker not found"
+            else type = SIGNATURE and signatureId empty
+                s -> s: signatureId = fileStore
+            else type = PHOTO and photoId empty
+                s -> s: photoId = fileStore
+            else already set
+                s -> s: Log "already has <type> set, skipping update"
+            end
+            opt field changed
+                s -> s: enrichUpdate (lastModified*, rowVersion + 1)
+                s -> rc: HSET eg_hcm_worker_registry <workerId> -> Worker
+                activate rc
+                deactivate rc
+                s -> db: UPDATE <schema>.eg_hcm_worker_registry SET ... ,\nsignatureId / photoId, rowVersion WHERE id = ? AND isDeleted = false
+                activate db
+                deactivate db
+            end
+        end
+    end
+    alt any exception (incl. INVALID_TENANT_ID_EXCEPTION, null RequestInfo NPE)
+        s -> s: Log "Error processing attendance document event"
+        note right
+            Message is dropped, no retry / DLQ
+        end note
+    end
+    deactivate s
+    deactivate k
+end
+
+note over att, db
+    Only the first mapped worker of the individual is updated.
+    No persister / indexer config exists; the update is direct JDBC.
+end note
+
+@enduml

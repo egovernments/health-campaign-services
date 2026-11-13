@@ -2,22 +2,22 @@ package org.egov.common.models.project;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.core.AdditionalFields;
 import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 
 /**
 * TaskResource
 */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
+
 
 @Data
 @NoArgsConstructor
@@ -48,7 +48,7 @@ public class TaskResource   {
 
     @JsonProperty("quantity")
     @NotNull
-    private Long quantity = null;
+    private Double quantity = null;
 
     @JsonProperty("isDelivered")
     @NotNull
@@ -65,5 +65,11 @@ public class TaskResource   {
     @Valid
     private AuditDetails auditDetails = null;
 
+  /**
+   * Additional fields that may be used for extending the information stored with each task.
+   */
+  @JsonProperty("additionalFields")
+  @Valid
+  private AdditionalFields additionalFields = null;
 }
 

@@ -1,0 +1,42 @@
+@startuml
+title Plan Service - Plan Configuration Search
+!theme vibrant
+participant Client as c
+participant PlanService as s
+database Database as db
+
+c -> s : POST /plan-service/config/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(PlanConfigurationSearchCriteria required, tenantId required (2-256),\noffset >= 0, limit 1-50)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+s -> db: SELECT id FROM plan_configuration pc WHERE <criteria>\nORDER BY pc.last_modified_time DESC OFFSET ? LIMIT ?
+activate db
+db -> s: Plan configuration ids
+deactivate db
+note right
+    Criteria: tenantId, id, ids, campaignId,
+    name (ILIKE '%name%'), status (IN),
+    userUuid (created_by).
+    Default limit 10, offset 0, max limit 100
+end note
+
+opt ids found
+    s -> db: SELECT plan_configuration LEFT JOIN plan_configuration_files,\nplan_configuration_assumptions, plan_configuration_operations,\nplan_configuration_mapping WHERE pc.id IN (...)\nAND child.active = true OR child.active IS NULL
+    activate db
+    db -> s: Plan configurations (only active child rows)
+    deactivate db
+end
+
+s -> db: SELECT COUNT(*) FROM (SELECT id FROM plan_configuration WHERE <criteria>)
+activate db
+db -> s: TotalCount
+deactivate db
+
+s -> c: HttpStatus: 200 PlanConfiguration, TotalCount
+deactivate s
+
+@enduml

@@ -1,7 +1,9 @@
 package org.egov.individual.validator;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.AddressType;
 import org.egov.common.models.individual.Identifier;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyString;
@@ -46,44 +49,69 @@ public class RowVersionValidatorTest {
     private IndividualRepository individualRepository;
 
     @Test
-    void shouldNotGiveErrorWhenRowVersionMatches() {
-        Address address = Address.builder()
-                .id("some-Id")
-                .city("some-city")
-                .tenantId("some-tenant-id")
-                .type(AddressType.PERMANENT)
-                .isDeleted(false)
+    void shouldNotGiveErrorWhenRowVersionMatches() throws InvalidTenantIdException {
+        // Arrange
+        Individual individual = IndividualTestBuilder.builder()
+                .withId("some-id")
+                .withRowVersion(2) // same as request
                 .build();
-        Identifier identifier = Identifier.builder()
-                .identifierType("SYSTEM_GENERATED")
-                .identifierId("some-identifier-id")
-                .isDeleted(true)
-                .build();
-        Skill skill = Skill.builder().type("type").experience("exp").level("lvl").isDeleted(false).build();
-        Individual individual = IndividualTestBuilder.builder().withId("some-Id").withAddress(address).withIdentifiers(identifier).withSkills(skill).withRowVersion(1).build();
-        IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
-        List<Individual> existingIndividuals = new ArrayList<>();
-        existingIndividuals.add(individual);
-        lenient().when(individualRepository.findById(anyList(), anyString(), eq(false))).thenReturn(existingIndividuals);
-        assertTrue(rowVersionValidator.validate(individualBulkRequest).isEmpty());
 
+        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
+                .withIndividuals(IndividualTestBuilder.builder()
+                        .withId("some-id")
+                        .withRowVersion(2) // match row version
+                        .build())
+                .build();
+
+        // Stub repository with non-null return value
+        when(individualRepository.findById(any(), any(), any(), anyBoolean()))
+                .thenReturn(SearchResponse.<Individual>builder()
+                        .totalCount(1L)
+                        .response(Collections.singletonList(individual))
+                        .build());
+
+        // Act
+        Map<Individual, List<Error>> errorDetailsMap = rowVersionValidator.validate(request);
+        List<Error> errors = errorDetailsMap.values().stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+
+        // Assert
+        assertTrue(errors.isEmpty(), "Expected no errors when row version matches");
     }
 
+
     @Test
-    void shouldGiveErrorWhenRowVersionDoesNotMatch() {
+    void shouldGiveErrorWhenRowVersionDoesNotMatch() throws InvalidTenantIdException {
+        // Arrange
+        Individual individual = IndividualTestBuilder.builder()
+                .withId("some-id")
+                .withRowVersion(1) // actual row version in DB
+                .build();
+
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder()
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withId("some-id")
+                        .withRowVersion(2) // mismatched row version in request
                         .build())
                 .build();
-        individualBulkRequest.getIndividuals().get(0).setRowVersion(2);
-        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
-                .thenReturn(Collections.singletonList(IndividualTestBuilder.builder()
-                        .withId("some-id")
-                        .build()));
-        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
-        errorDetailsMap = rowVersionValidator.validate(individualBulkRequest);
-        List<Error> errorList = errorDetailsMap.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+
+        // Stub with any() to avoid argument mismatch issues
+        when(individualRepository.findById(any(), any(), any(), anyBoolean()))
+                .thenReturn(SearchResponse.<Individual>builder()
+                        .totalCount(1L)
+                        .response(Collections.singletonList(individual))
+                        .build());
+
+        // Act
+        Map<Individual, List<Error>> errorDetailsMap = rowVersionValidator.validate(individualBulkRequest);
+        List<Error> errorList = errorDetailsMap.values().stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+
+        // Assert
+        assertEquals(1, errorList.size());
         assertEquals("MISMATCHED_ROW_VERSION", errorList.get(0).getErrorCode());
     }
+
 }

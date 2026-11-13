@@ -14,6 +14,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+
 @Repository
 public class PGRQueryBuilder {
 	
@@ -34,14 +36,14 @@ public class PGRQueryBuilder {
 
 
     private static final String QUERY = "select ser.*,ads.*," + QUERY_ALIAS+
-                                        " from eg_pgr_service_v2 ser INNER JOIN eg_pgr_address_v2 ads" +
+                                        " from " + SCHEMA_REPLACE_STRING + ".eg_pgr_service_v2 ser INNER JOIN " + SCHEMA_REPLACE_STRING + ".eg_pgr_address_v2 ads" +
                                         " ON ads.parentId = ser.id ";
 
     private static final String COUNT_WRAPPER = "select count(*) from ({INTERNAL_QUERY}) as count";
     
-    private static final String RESOLVED_COMPLAINTS_QUERY = "select count(*) from eg_pgr_service_v2 where applicationstatus='CLOSEDAFTERRESOLUTION' and tenantid=? and lastmodifiedtime>? ";
+    private static final String RESOLVED_COMPLAINTS_QUERY = "select count(*) from " + SCHEMA_REPLACE_STRING + ".eg_pgr_service_v2 where applicationstatus='CLOSEDAFTERRESOLUTION' and tenantid=? and lastmodifiedtime>? ";
     
-    private static final String AVERAGE_RESOLUTION_TIME_QUERY = "select COALESCE(round(avg(lastmodifiedtime-createdtime)/86400000), -1) from eg_pgr_service_v2 where applicationstatus='CLOSEDAFTERRESOLUTION' and tenantid=? ";
+    private static final String AVERAGE_RESOLUTION_TIME_QUERY = "select COALESCE(round(avg(lastmodifiedtime-createdtime)/86400000), -1) from " + SCHEMA_REPLACE_STRING + ".eg_pgr_service_v2 where applicationstatus='CLOSEDAFTERRESOLUTION' and tenantid=? ";
     
 
 
@@ -79,6 +81,14 @@ public class PGRQueryBuilder {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" ser.serviceCode IN (").append(createQuery(serviceCodes)).append(")");
             addToPreparedStatement(preparedStmtList, serviceCodes);
+        }
+
+        //Optional filter. When not supplied the search stays backward compatible and also returns
+        //older complaints which were created before hierarchyType was introduced.
+        if (StringUtils.hasText(criteria.getHierarchyType())) {
+            addClauseIfRequired(preparedStmtList, builder);
+            builder.append(" ser.hierarchytype=? ");
+            preparedStmtList.add(criteria.getHierarchyType());
         }
 
         Set<String> applicationStatuses = criteria.getApplicationStatus();

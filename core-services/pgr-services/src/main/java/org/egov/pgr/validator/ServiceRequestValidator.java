@@ -2,6 +2,7 @@ package org.egov.pgr.validator;
 
 import com.jayway.jsonpath.JsonPath;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.repository.PGRRepository;
 import org.egov.pgr.util.HRMSUtil;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.egov.pgr.util.PGRConstants.INVALID_TENANT_ID_ERR_CODE;
 import static org.egov.pgr.util.PGRConstants.MDMS_DEPARTMENT_SEARCH;
 import static org.egov.pgr.util.PGRConstants.MDMS_SERVICEDEF_SEARCH;
 import static org.egov.pgr.util.PGRConstants.PGR_WF_REOPEN;
@@ -61,6 +64,7 @@ public class ServiceRequestValidator {
         Map<String,String> errorMap = new HashMap<>();
         validateUserData(request,errorMap);
         validateSource(request.getService().getSource());
+        validateHierarchyType(request.getService().getHierarchyType());
         validateMDMS(request, mdmsData);
         validateDepartment(request, mdmsData);
         if(!errorMap.isEmpty())
@@ -73,16 +77,24 @@ public class ServiceRequestValidator {
      * @param request The request to update complaint
      * @param mdmsData The master data for pgr
      */
-    public void validateUpdate(ServiceRequest request, Object mdmsData){
+    public void validateUpdate(ServiceRequest request, Object mdmsData) {
 
         String id = request.getService().getId();
+        String tenantId = request.getService().getTenantId();
         validateSource(request.getService().getSource());
+        validateHierarchyType(request.getService().getHierarchyType());
         validateMDMS(request, mdmsData);
         validateDepartment(request, mdmsData);
         validateReOpen(request);
         RequestSearchCriteria criteria = RequestSearchCriteria.builder().ids(Collections.singleton(id)).build();
         criteria.setIsPlainSearch(false);
-        List<ServiceWrapper> serviceWrappers = repository.getServiceWrappers(criteria);
+        criteria.setTenantId(tenantId);
+        List<ServiceWrapper> serviceWrappers = null;
+        try {
+            serviceWrappers = repository.getServiceWrappers(criteria);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
+        }
 
         if(CollectionUtils.isEmpty(serviceWrappers))
             throw new CustomException("INVALID_UPDATE","The record that you are trying to update does not exists");
@@ -157,12 +169,15 @@ public class ServiceRequestValidator {
     private void validateDepartment(ServiceRequest request, Object mdmsData){
 
         String serviceCode = request.getService().getServiceCode();
+        String tenantId = request.getService().getTenantId();
         List<String> assignes = request.getWorkflow().getAssignes();
+
+        List<String> hrmsAssignes = request.getWorkflow().getHrmsAssignees();
 
         if(CollectionUtils.isEmpty(assignes))
             return;
 
-        List<String> departments = hrmsUtil.getDepartment(assignes, request.getRequestInfo());
+        List<String> departments = hrmsUtil.getDepartment(tenantId, assignes, hrmsAssignes, request.getRequestInfo());
 
         String jsonPath = MDMS_DEPARTMENT_SEARCH.replace("{SERVICEDEF}",serviceCode);
 
@@ -291,6 +306,18 @@ public class ServiceRequestValidator {
 
         if(!allowedSourceStr.contains(source))
             throw new CustomException("INVALID_SOURCE","The source: "+source+" is not valid");
+
+    }
+
+    /**
+     * Validates that hierarchyType is provided in the create/update request. The boundary code sent in the
+     * address is resolved against this hierarchy, hence it is mandatory while raising or updating a complaint.
+     * @param hierarchyType
+     */
+    private void validateHierarchyType(String hierarchyType){
+
+        if(!StringUtils.hasText(hierarchyType))
+            throw new CustomException("INVALID_HIERARCHY_TYPE","HierarchyType is mandatory and cannot be null or empty");
 
     }
 

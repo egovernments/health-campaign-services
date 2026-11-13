@@ -1,0 +1,29 @@
+@startuml
+title PGR Services - Mock Request Test (HRMS department lookup)
+!theme vibrant
+participant Client as c
+participant PGRService as s
+participant HRMSService as hrms
+
+c -> s : POST /pgr-services/mock/requests/_test?tenantId&uuids
+activate s
+
+s -> hrms: /egov-hrms/employees/_search?uuids=<uuids>&tenantId
+activate hrms
+hrms -> s: Employees
+deactivate hrms
+alt HRMS response cannot be parsed
+    s -> c: HttpStatus: 400 PARSING_ERROR
+else no department found
+    s -> c: HttpStatus: 400 DEPARTMENT_NOT_FOUND
+end
+
+s -> c: HttpStatus: 200 [ department codes ]
+deactivate s
+
+note over s
+    Debug endpoint exposing HRMSUtil.getDepartment.
+    Body is a RequestInfoWrapper (not @Valid)
+end note
+
+@enduml

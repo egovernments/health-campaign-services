@@ -1,8 +1,11 @@
 package org.egov.facility.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.models.facility.FacilityRequest;
@@ -11,6 +14,8 @@ import org.egov.common.validator.Validator;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.repository.FacilityRepository;
 import org.egov.facility.service.enrichment.FacilityEnrichmentService;
+import org.egov.facility.validator.FBoundaryValidator;
+import org.egov.facility.validator.FOutsideHouseholdSiteValidator;
 import org.egov.facility.validator.FIsDeletedValidator;
 import org.egov.facility.validator.FNonExistentValidator;
 import org.egov.facility.validator.FNullIdValidator;
@@ -20,14 +25,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
@@ -52,12 +58,20 @@ public class FacilityService {
 
     private final FacilityEnrichmentService enrichmentService;
 
+    private final BoundaryDescendantService boundaryDescendantService;
+
+    private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForCreate =
+            validator -> validator.getClass().equals(FBoundaryValidator.class)
+                    || validator.getClass().equals(FOutsideHouseholdSiteValidator.class);
+
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForUpdate =
             validator -> validator.getClass().equals(FIsDeletedValidator.class)
-            || validator.getClass().equals(FNonExistentValidator.class)
-            || validator.getClass().equals(FNullIdValidator.class)
-            || validator.getClass().equals(FRowVersionValidator.class)
-            || validator.getClass().equals(FUniqueEntityValidator.class);
+                    || validator.getClass().equals(FBoundaryValidator.class)
+                    || validator.getClass().equals(FNonExistentValidator.class)
+                    || validator.getClass().equals(FNullIdValidator.class)
+                    || validator.getClass().equals(FRowVersionValidator.class)
+                    || validator.getClass().equals(FUniqueEntityValidator.class)
+                    || validator.getClass().equals(FOutsideHouseholdSiteValidator.class);
 
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForDelete =
             validator -> validator.getClass().equals(FNonExistentValidator.class)
@@ -66,11 +80,13 @@ public class FacilityService {
     public FacilityService(FacilityRepository facilityRepository, 
                            List<Validator<FacilityBulkRequest, Facility>> validators, 
                            FacilityConfiguration configuration, 
-                           FacilityEnrichmentService enrichmentService) {
+                           FacilityEnrichmentService enrichmentService,
+                           BoundaryDescendantService boundaryDescendantService) {
         this.facilityRepository = facilityRepository;
         this.validators = validators;
         this.configuration = configuration;
         this.enrichmentService = enrichmentService;
+        this.boundaryDescendantService = boundaryDescendantService;
     }
 
     public Facility create(FacilityRequest request) {
@@ -83,23 +99,78 @@ public class FacilityService {
 
     public List<Facility> create(FacilityBulkRequest request, boolean isBulk) {
         log.info("starting create method for facility");
-        Map<Facility, ErrorDetails> errorDetailsMap = new HashMap<>();
-        List<Facility> validEntities = request.getFacilities();
 
+        Tuple<List<Facility>, Map<Facility, ErrorDetails>> tuple = validate(validators,
+                isApplicableForCreate, request, SET_FACILITIES, GET_FACILITIES, VALIDATION_ERROR,
+                isBulk);
+        Map<Facility, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Facility> validEntities = tuple.getX();
+        Map<String, Facility> alreadySaved = Collections.emptyMap();
         try {
             if (!validEntities.isEmpty()) {
-                log.info("processing {} valid entities", validEntities.size());
-                enrichmentService.create(validEntities, request);
-                facilityRepository.save(validEntities, configuration.getCreateFacilityTopic());
+                alreadySaved = findAlreadySaved(validEntities);
+                List<Facility> newEntities = withoutAlreadySaved(validEntities, alreadySaved);
+                if (!newEntities.isEmpty()) {
+                    log.info("processing {} valid entities", newEntities.size());
+                    enrichmentService.create(newEntities, request);
+                    facilityRepository.save(newEntities, configuration.getCreateFacilityTopic());
+                }
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed create method for facility");
-        return validEntities;
+        return withSavedRecords(validEntities, alreadySaved);
+    }
+
+    /**
+     * The facilities of this create that are already saved, by clientReferenceId. A phone that lost the answer to an
+     * earlier create sends the same facility again; clientReferenceId is unique in the table, so a new id would never
+     * be stored. Empty when the switch is off, no entity has a clientReferenceId, or the lookup fails (create then
+     * goes on exactly as before).
+     */
+    private Map<String, Facility> findAlreadySaved(List<Facility> entities) {
+        if (!Boolean.TRUE.equals(configuration.getReturnExistingOnDuplicateClientReferenceId())) {
+            return Collections.emptyMap();
+        }
+        List<String> clientReferenceIds = entities.stream().map(Facility::getClientReferenceId)
+                .filter(StringUtils::isNotBlank).distinct().collect(Collectors.toList());
+        if (clientReferenceIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            Map<String, Facility> saved = facilityRepository
+                    .findByClientReferenceIdFromDb(getTenantId(entities), clientReferenceIds).stream()
+                    .collect(Collectors.toMap(Facility::getClientReferenceId, facility -> facility, (first, second) -> first));
+            if (!saved.isEmpty()) {
+                log.info("{} facilities are already saved with the same clientReferenceId; returning the saved records", saved.size());
+            }
+            return saved;
+        } catch (Exception exception) {
+            log.warn("could not look up saved facilities by clientReferenceId, creating all: {}", exception.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    /** The saved record for this entity: same clientReferenceId and same tenant, else null. */
+    private static Facility savedRecordOf(Facility entity, Map<String, Facility> alreadySaved) {
+        Facility saved = entity.getClientReferenceId() == null ? null : alreadySaved.get(entity.getClientReferenceId());
+        return saved != null && Objects.equals(saved.getTenantId(), entity.getTenantId()) ? saved : null;
+    }
+
+    private static List<Facility> withoutAlreadySaved(List<Facility> entities, Map<String, Facility> alreadySaved) {
+        return entities.stream().filter(entity -> savedRecordOf(entity, alreadySaved) == null).collect(Collectors.toList());
+    }
+
+    /** The entities in request order, each already-saved one swapped for its saved record. */
+    private static List<Facility> withSavedRecords(List<Facility> entities, Map<String, Facility> alreadySaved) {
+        return entities.stream().map(entity -> {
+            Facility saved = savedRecordOf(entity, alreadySaved);
+            return saved != null ? saved : entity;
+        }).collect(Collectors.toList());
     }
 
     public Facility update(FacilityRequest request) {
@@ -124,7 +195,7 @@ public class FacilityService {
                 facilityRepository.save(validEntities, configuration.getUpdateFacilityTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
@@ -155,7 +226,7 @@ public class FacilityService {
                 facilityRepository.save(validEntities, configuration.getDeleteFacilityTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
@@ -164,27 +235,68 @@ public class FacilityService {
         return validEntities;
     }
 
-    public List<Facility> search(FacilitySearchRequest facilitySearchRequest,
-                                 Integer limit,
-                                 Integer offset,
-                                 String tenantId,
-                                 Long lastChangedSince,
-                                 Boolean includeDeleted) throws Exception  {
+    public SearchResponse<Facility> search(FacilitySearchRequest facilitySearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted) throws Exception  {
+        return search(facilitySearchRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, false);
+    }
+
+    /**
+     * As above; with includeDescendants and a boundaryCode, facilities in that boundary and in every boundary below
+     * it are returned (e.g. a site at a village when searching its district). A search by id ignores it.
+     */
+    public SearchResponse<Facility> search(FacilitySearchRequest facilitySearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted,
+                                           boolean includeDescendants) throws Exception  {
+        return search(facilitySearchRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, includeDescendants, null);
+    }
+
+    /**
+     * As above; hierarchyType is the boundaryCode's hierarchy. Without it, the hierarchy is found when boundary-service
+     * needs one to place the boundary.
+     */
+    public SearchResponse<Facility> search(FacilitySearchRequest facilitySearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted,
+                                           boolean includeDescendants,
+                                           String hierarchyType) throws Exception  {
         log.info("starting search method for facility");
         String idFieldName = getIdFieldName(facilitySearchRequest.getFacility());
         if (isSearchByIdOnly(facilitySearchRequest.getFacility(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(facilitySearchRequest.getFacility())),
                     facilitySearchRequest.getFacility());
-            return facilityRepository.findById(ids, idFieldName, includeDeleted).stream()
+            SearchResponse<Facility> searchResponse = facilityRepository.findById(tenantId, ids, idFieldName, includeDeleted);
+            List<Facility> facilities = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            searchResponse.setResponse(facilities);
+
+            return searchResponse;
+        }
+
+        List<String> localityCodes = null;
+        String boundaryCode = facilitySearchRequest.getFacility() == null ? null : facilitySearchRequest.getFacility().getLocalityCode();
+        if (includeDescendants && StringUtils.isNotBlank(boundaryCode)) {
+            localityCodes = boundaryDescendantService.getCodesAtAndBelow(tenantId, boundaryCode.trim(), hierarchyType,
+                    facilitySearchRequest.getRequestInfo());
+            log.info("searching {} boundaries at and below {}", localityCodes.size(), boundaryCode);
         }
 
         log.info("completed search method for facility");
         return facilityRepository.find(facilitySearchRequest.getFacility(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+                limit, offset, tenantId, lastChangedSince, includeDeleted, localityCodes);
     }
 }
