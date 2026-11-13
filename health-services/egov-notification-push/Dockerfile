@@ -1,4 +1,4 @@
-FROM egovio/apline-jre:8u121
+FROM egovio/apline-jre:8u121@sha256:e663151c5fdfa89bda49af65b3d477fa1433491290cd35c8f09afa16072f35c4
 
 MAINTAINER eGov Foundation
 

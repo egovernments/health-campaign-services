@@ -1,5 +1,10 @@
 name: Enforce Branch Naming Convention
 
+# Least-privilege default for GITHUB_TOKEN. Jobs that need more must
+# request it explicitly at the job level.
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -14,7 +19,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Enforce branch naming convention
         run: |

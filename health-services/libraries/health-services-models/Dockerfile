@@ -1,4 +1,4 @@
-FROM egovio/amazoncorretto:17-alpine3.19 AS build
+FROM egovio/amazoncorretto:17-alpine3.19@sha256:9c747633ab8f4654b1c6735d9790993d7f68dcc05ef0372e1af36b186d28dd86 AS build
 ARG WORK_DIR
 ARG nexusUsername
 ARG nexusPassword
