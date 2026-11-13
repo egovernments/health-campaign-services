@@ -14,7 +14,7 @@
     "axios": "^1.6.8",
     "deasync": "^0.1.29",
     "express": "^4.17.1",
-    "express-http-proxy": "^1.6.2",
+    "express-http-proxy": "^2.1.2",
     "http-proxy": "^1.18.1",
     "request": "^2.88.2",
     "request-promise": "^4.2.6",
