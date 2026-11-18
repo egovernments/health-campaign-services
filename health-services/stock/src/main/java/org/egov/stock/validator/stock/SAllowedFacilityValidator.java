@@ -22,7 +22,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 @Component
-@Order(value = 0)
+@Order(value = 20)
 @Slf4j
 public class SAllowedFacilityValidator implements Validator<StockBulkRequest, Stock> {
 
