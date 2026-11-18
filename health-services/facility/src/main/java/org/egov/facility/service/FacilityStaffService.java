@@ -1,6 +1,7 @@
 package org.egov.facility.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.facility.Facility;
 import org.egov.facility.config.FacilityConfiguration;
@@ -11,6 +12,8 @@ import org.egov.facility.web.models.staff.FacilityStaffRequest;
 import org.egov.facility.web.models.staff.FacilityStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
+
+import static org.egov.facility.validator.FAllowedFacilityValidator.FACILITY_ACCESS_DENIED;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -37,15 +40,20 @@ public class FacilityStaffService {
 
     private final FacilityConfiguration configuration;
 
+    private final FacilityAccessService facilityAccessService;
+
     public FacilityStaffService(FacilityStaffRepository facilityStaffRepository,
                                 FacilityRepository facilityRepository,
-                                FacilityConfiguration configuration) {
+                                FacilityConfiguration configuration,
+                                FacilityAccessService facilityAccessService) {
         this.facilityStaffRepository = facilityStaffRepository;
         this.facilityRepository = facilityRepository;
         this.configuration = configuration;
+        this.facilityAccessService = facilityAccessService;
     }
 
     public List<FacilityStaff> create(FacilityStaffRequest request) throws Exception {
+        denyRestrictedCaller(request.getRequestInfo());
         List<FacilityStaff> entities = request.getFacilityStaff();
         String tenantId = singleTenantId(entities);
         validateFacilitiesExist(tenantId, entities);
@@ -56,6 +64,7 @@ public class FacilityStaffService {
     }
 
     public List<FacilityStaff> update(FacilityStaffRequest request) throws Exception {
+        denyRestrictedCaller(request.getRequestInfo());
         List<FacilityStaff> entities = request.getFacilityStaff();
         String tenantId = singleTenantId(entities);
         List<FacilityStaff> existing = fetchExisting(tenantId, entities);
@@ -75,6 +84,7 @@ public class FacilityStaffService {
     }
 
     public List<FacilityStaff> delete(FacilityStaffRequest request) throws Exception {
+        denyRestrictedCaller(request.getRequestInfo());
         List<FacilityStaff> entities = request.getFacilityStaff();
         String tenantId = singleTenantId(entities);
         List<FacilityStaff> existing = fetchExisting(tenantId, entities);
@@ -86,8 +96,17 @@ public class FacilityStaffService {
     public SearchResponse<FacilityStaff> search(FacilityStaffSearchRequest request, Integer limit, Integer offset,
                                                 String tenantId, Long lastChangedSince,
                                                 Boolean includeDeleted) throws Exception {
+        if (facilityAccessService.isRestricted(request.getRequestInfo())) {
+            request.getFacilityStaff().setStaffId(List.of(request.getRequestInfo().getUserInfo().getUuid()));
+        }
         return facilityStaffRepository.findWithCount(request.getFacilityStaff(), limit, offset, tenantId,
                 lastChangedSince, includeDeleted);
+    }
+
+    private void denyRestrictedCaller(RequestInfo requestInfo) {
+        if (facilityAccessService.isRestricted(requestInfo)) {
+            throw new CustomException(FACILITY_ACCESS_DENIED, "User is not allowed to manage facility staff mappings");
+        }
     }
 
     private String singleTenantId(List<FacilityStaff> entities) {

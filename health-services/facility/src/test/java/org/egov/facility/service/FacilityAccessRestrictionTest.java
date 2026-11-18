@@ -12,6 +12,11 @@ import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.repository.FacilityRepository;
 import org.egov.facility.repository.FacilityStaffRepository;
 import org.egov.facility.validator.FAllowedFacilityValidator;
+import org.egov.facility.web.models.staff.FacilityStaff;
+import org.egov.facility.web.models.staff.FacilityStaffRequest;
+import org.egov.facility.web.models.staff.FacilityStaffSearch;
+import org.egov.facility.web.models.staff.FacilityStaffSearchRequest;
+import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -123,5 +129,39 @@ class FacilityAccessRestrictionTest {
         assertEquals(1L, response.getTotalCount());
         verify(facilityRepository).find(search, 10, 0, "ng", null, false, null);
         verify(staffRepository, never()).findActiveFacilityIds(anyString(), anyString());
+    }
+
+    @Test
+    void restrictedCallerCannotManageStaffMappings() {
+        FacilityStaffService staffService = new FacilityStaffService(staffRepository, facilityRepository,
+                new FacilityConfiguration(), accessService);
+        FacilityStaffRequest request = FacilityStaffRequest.builder().requestInfo(requestInfo(ROLE))
+                .facilityStaff(List.of(FacilityStaff.builder().tenantId("ng").facilityId("F2").staffId("u1").build()))
+                .build();
+        CustomException exception = assertThrows(CustomException.class, () -> staffService.create(request));
+        assertEquals("FACILITY_ACCESS_DENIED", exception.getCode());
+        assertThrows(CustomException.class, () -> staffService.update(request));
+        assertThrows(CustomException.class, () -> staffService.delete(request));
+    }
+
+    @Test
+    void restrictedStaffSearchIsForcedToOwnMappings() throws Exception {
+        FacilityStaffService staffService = new FacilityStaffService(staffRepository, facilityRepository,
+                new FacilityConfiguration(), accessService);
+        FacilityStaffSearch search = FacilityStaffSearch.builder().staffId(List.of("someone-else")).build();
+        staffService.search(FacilityStaffSearchRequest.builder().requestInfo(requestInfo(ROLE))
+                .facilityStaff(search).build(), 10, 0, "ng", null, false);
+        assertEquals(List.of("u1"), search.getStaffId());
+        verify(staffRepository).findWithCount(search, 10, 0, "ng", null, false);
+    }
+
+    @Test
+    void unrestrictedStaffSearchIsUnchanged() throws Exception {
+        FacilityStaffService staffService = new FacilityStaffService(staffRepository, facilityRepository,
+                new FacilityConfiguration(), accessService);
+        FacilityStaffSearch search = FacilityStaffSearch.builder().staffId(List.of("someone-else")).build();
+        staffService.search(FacilityStaffSearchRequest.builder().requestInfo(requestInfo("SYSTEM_ADMINISTRATOR"))
+                .facilityStaff(search).build(), 10, 0, "ng", null, false);
+        assertEquals(List.of("someone-else"), search.getStaffId());
     }
 }
