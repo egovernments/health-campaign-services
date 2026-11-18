@@ -129,6 +129,12 @@ public class ProjectConfiguration {
     @Value("${egov.search.facility.url}")
     private String facilityServiceSearchUrl;
 
+    @Value("${egov.search.facility.staff.url:/facility/v1/staff/_search}")
+    private String facilityStaffSearchUrl;
+
+    @Value("${facility.restricted.access.role.code:FACILITY_RESTRICTED_ACCESS}")
+    private String facilityRestrictedAccessRoleCode;
+
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
 

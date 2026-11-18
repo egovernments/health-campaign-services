@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -31,6 +32,7 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectFacilityRepository;
 import org.egov.project.service.enrichment.ProjectFacilityEnrichmentService;
+import org.egov.project.validator.facility.PfAllowedFacilityValidator;
 import org.egov.project.validator.facility.PfFacilityIdValidator;
 import org.egov.project.validator.facility.PfIsDeletedValidator;
 import org.egov.project.validator.facility.PfNonExistentEntityValidator;
@@ -69,15 +71,19 @@ public class ProjectFacilityService {
 
     private final ProjectFacilityEnrichmentService enrichmentService;
 
+    private final FacilityAccessService facilityAccessService;
+
     private final List<Validator<ProjectFacilityBulkRequest, ProjectFacility>> validators;
 
     private final Predicate<Validator<ProjectFacilityBulkRequest, ProjectFacility>> isApplicableForCreate = validator ->
             validator.getClass().equals(PfFacilityIdValidator.class)
+                    || validator.getClass().equals(PfAllowedFacilityValidator.class)
                     || validator.getClass().equals(PfProjectIdValidator.class)
                     || validator.getClass().equals(PfUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectFacilityBulkRequest, ProjectFacility>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PfFacilityIdValidator.class)
+                    || validator.getClass().equals(PfAllowedFacilityValidator.class)
                     || validator.getClass().equals(PfProjectIdValidator.class)
                     || validator.getClass().equals(PfNullIdValidator.class)
                     || validator.getClass().equals(PfIsDeletedValidator.class)
@@ -88,6 +94,7 @@ public class ProjectFacilityService {
 
     private final Predicate<Validator<ProjectFacilityBulkRequest, ProjectFacility>> isApplicableForDelete = validator ->
             validator.getClass().equals(PfNullIdValidator.class)
+                    || validator.getClass().equals(PfAllowedFacilityValidator.class)
                     || validator.getClass().equals(PfNonExistentEntityValidator.class);
 
     @Autowired
@@ -97,13 +104,16 @@ public class ProjectFacilityService {
             ProjectService projectService,
             UserService userService,
             ProjectConfiguration projectConfiguration,
-            ProjectFacilityEnrichmentService enrichmentService, List<Validator<ProjectFacilityBulkRequest, ProjectFacility>> validators) {
+            ProjectFacilityEnrichmentService enrichmentService,
+            FacilityAccessService facilityAccessService,
+            List<Validator<ProjectFacilityBulkRequest, ProjectFacility>> validators) {
         this.idGenService = idGenService;
         this.projectFacilityRepository = projectFacilityRepository;
         this.projectService = projectService;
         this.userService = userService;
         this.projectConfiguration = projectConfiguration;
         this.enrichmentService = enrichmentService;
+        this.facilityAccessService = facilityAccessService;
         this.validators = validators;
     }
 
@@ -235,11 +245,71 @@ public class ProjectFacilityService {
             String tenantId,
             Long lastChangedSince,
             Boolean includeDeleted) throws Exception {
+        return searchFacilities(request, limit, offset, tenantId, lastChangedSince, includeDeleted, true);
+    }
+
+    public ProjectFacilityBulkResponse searchFacilities(
+            ProjectFacilitySearchRequest request,
+            Integer limit,
+            Integer offset,
+            String tenantId,
+            Long lastChangedSince,
+            Boolean includeDeleted,
+            boolean applyAccessRestriction) throws Exception {
 
         List<String> boundaryTypes = request.getProjectFacility().getBoundaryTypes();
         if (boundaryTypes != null && !boundaryTypes.isEmpty()) {
-            return searchByHierarchy(request, tenantId);
+            ProjectFacilityBulkResponse response = searchByHierarchy(request, tenantId);
+            if (applyAccessRestriction && facilityAccessService.isRestricted(request.getRequestInfo())) {
+                restrictHierarchyResponse(response,
+                        facilityAccessService.allowedFacilityIds(request.getRequestInfo(), tenantId));
+            }
+            return response;
         }
+        if (applyAccessRestriction && facilityAccessService.isRestricted(request.getRequestInfo())) {
+            return searchRestricted(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        }
+        return search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+    }
+
+    private void restrictHierarchyResponse(ProjectFacilityBulkResponse response, Set<String> allowed) {
+        List<ProjectFacility> permitted = response.getProjectFacilities().stream()
+                .filter(pf -> allowed.contains(pf.getFacilityId()))
+                .collect(Collectors.toList());
+        response.setProjectFacilities(permitted);
+        response.setTotalCount((long) permitted.size());
+        if (response.getFacilityMap() != null) {
+            Map<String, List<String>> facilityMap = new HashMap<>();
+            response.getFacilityMap().forEach((boundaryType, ids) -> facilityMap.put(boundaryType,
+                    ids.stream().filter(allowed::contains).collect(Collectors.toList())));
+            response.setFacilityMap(facilityMap);
+        }
+    }
+
+    private ProjectFacilityBulkResponse searchRestricted(ProjectFacilitySearchRequest request,
+                                                         Integer limit,
+                                                         Integer offset,
+                                                         String tenantId,
+                                                         Long lastChangedSince,
+                                                         Boolean includeDeleted) throws Exception {
+        Set<String> allowed = facilityAccessService.allowedFacilityIds(request.getRequestInfo(), tenantId);
+        ProjectFacilitySearch criteria = request.getProjectFacility();
+        List<String> requested = criteria.getFacilityId();
+        List<String> effective = allowed.stream()
+                .filter(id -> requested == null || requested.isEmpty() || requested.contains(id))
+                .collect(Collectors.toList());
+        if (effective.isEmpty()) {
+            log.info("restricted user has no accessible facilities for this search");
+            return buildResponse(new ArrayList<>(), 0L, null, request.getRequestInfo());
+        }
+        if (isSearchByIdOnly(criteria)) {
+            ProjectFacilityBulkResponse response = search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+            List<ProjectFacility> permitted = response.getProjectFacilities().stream()
+                    .filter(pf -> allowed.contains(pf.getFacilityId()))
+                    .collect(Collectors.toList());
+            return buildResponse(permitted, (long) permitted.size(), null, request.getRequestInfo());
+        }
+        criteria.setFacilityId(effective);
         return search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 

@@ -235,6 +235,23 @@ public class ProjectApiController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    @RequestMapping(value = "/facility/v1/internal/_search", method = RequestMethod.POST)
+    public ResponseEntity<ProjectFacilityBulkResponse> projectFacilityInternalSearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest
+    ) throws Exception {
+        ProjectFacilityBulkResponse response = projectFacilityService.searchFacilities(
+                projectFacilitySearchRequest,
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted(),
+                false
+        );
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
     @RequestMapping(value = "/facility/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectFacilityResponse> projectFacilityV1UpdatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacilityUpdateRequest) {
 

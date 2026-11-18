@@ -54,6 +54,9 @@ class ProjectFacilityServiceSearchTest {
     @Mock
     private ProjectService projectService;
 
+    @Mock
+    private FacilityAccessService facilityAccessService;
+
     private ArrayList<ProjectFacility> projectFacilities;
 
     @BeforeEach
