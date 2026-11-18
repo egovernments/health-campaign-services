@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
@@ -96,6 +97,10 @@ public class FacilityRepository extends GenericRepository<Facility> {
      * @throws InvalidTenantIdException   if the provided tenantId is invalid
      */
     public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
+        return find(searchObject, limit, offset, tenantId, lastChangedSince, includeDeleted, null);
+    }
+
+    public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Set<String> allowedIds) throws QueryBuilderException, InvalidTenantIdException {
         String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
@@ -113,6 +118,10 @@ public class FacilityRepository extends GenericRepository<Facility> {
 
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
+        }
+        if (allowedIds != null) {
+            query = query + "and f.id IN (:allowedIds) ";
+            paramsMap.put("allowedIds", allowedIds);
         }
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);

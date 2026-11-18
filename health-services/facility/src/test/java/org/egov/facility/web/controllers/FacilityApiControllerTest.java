@@ -11,6 +11,7 @@ import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
 import org.egov.facility.helper.FacilityRequestTestBuilder;
 import org.egov.facility.helper.FacilityTestBuilder;
 import org.egov.facility.service.FacilityService;
+import org.egov.facility.service.FacilityStaffService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,9 @@ public class FacilityApiControllerTest {
 
     @MockBean
     private FacilityService facilityService;
+
+    @MockBean
+    private FacilityStaffService facilityStaffService;
 
     @MockBean
     private Producer producer;

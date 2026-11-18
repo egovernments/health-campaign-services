@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
@@ -20,6 +21,11 @@ import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.service.FacilityService;
+import org.egov.facility.service.FacilityStaffService;
+import org.egov.facility.web.models.staff.FacilityStaff;
+import org.egov.facility.web.models.staff.FacilityStaffRequest;
+import org.egov.facility.web.models.staff.FacilityStaffResponse;
+import org.egov.facility.web.models.staff.FacilityStaffSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,17 +49,21 @@ public class FacilityApiController {
 
     private final FacilityConfiguration facilityConfiguration;
 
+    private final FacilityStaffService facilityStaffService;
+
     @Autowired
     public FacilityApiController(ObjectMapper objectMapper,
                                  HttpServletRequest httpServletRequest,
                                  FacilityService facilityService,
                                  Producer producer,
-                                 FacilityConfiguration facilityConfiguration) {
+                                 FacilityConfiguration facilityConfiguration,
+                                 FacilityStaffService facilityStaffService) {
         this.objectMapper = objectMapper;
         this.httpServletRequest = httpServletRequest;
         this.facilityService = facilityService;
         this.producer = producer;
         this.facilityConfiguration = facilityConfiguration;
+        this.facilityStaffService = facilityStaffService;
     }
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
@@ -112,13 +122,27 @@ public class FacilityApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilitySearchRequest request
     ) throws Exception {
+        return search(urlParams, request, true);
+    }
+
+    @RequestMapping(value = "/v1/internal/_search", method = RequestMethod.POST)
+    public ResponseEntity<FacilityBulkResponse> facilityV1InternalSearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @Valid @RequestBody FacilitySearchRequest request
+    ) throws Exception {
+        return search(urlParams, request, false);
+    }
+
+    private ResponseEntity<FacilityBulkResponse> search(URLParams urlParams, FacilitySearchRequest request,
+                                                        boolean applyAccessRestriction) throws Exception {
         SearchResponse<Facility> searchResponse = facilityService.search(
                 request,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
-                urlParams.getIncludeDeleted());
+                urlParams.getIncludeDeleted(),
+                applyAccessRestriction);
         FacilityBulkResponse response = FacilityBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true))
                 .facilities(searchResponse.getResponse())
@@ -139,4 +163,45 @@ public class FacilityApiController {
         return ResponseEntity.accepted().body(response);
     }
 
+    @RequestMapping(value = "/v1/staff/_create", method = RequestMethod.POST)
+    public ResponseEntity<FacilityStaffResponse> facilityStaffV1CreatePost(@Valid @RequestBody FacilityStaffRequest request) throws Exception {
+        return staffResponse(request.getRequestInfo(), facilityStaffService.create(request), HttpStatus.ACCEPTED);
+    }
+
+    @RequestMapping(value = "/v1/staff/_update", method = RequestMethod.POST)
+    public ResponseEntity<FacilityStaffResponse> facilityStaffV1UpdatePost(@Valid @RequestBody FacilityStaffRequest request) throws Exception {
+        return staffResponse(request.getRequestInfo(), facilityStaffService.update(request), HttpStatus.ACCEPTED);
+    }
+
+    @RequestMapping(value = "/v1/staff/_delete", method = RequestMethod.POST)
+    public ResponseEntity<FacilityStaffResponse> facilityStaffV1DeletePost(@Valid @RequestBody FacilityStaffRequest request) throws Exception {
+        return staffResponse(request.getRequestInfo(), facilityStaffService.delete(request), HttpStatus.ACCEPTED);
+    }
+
+    @RequestMapping(value = "/v1/staff/_search", method = RequestMethod.POST)
+    public ResponseEntity<FacilityStaffResponse> facilityStaffV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @Valid @RequestBody FacilityStaffSearchRequest request
+    ) throws Exception {
+        SearchResponse<FacilityStaff> searchResponse = facilityStaffService.search(request,
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted());
+        FacilityStaffResponse response = FacilityStaffResponse.builder()
+                .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
+                .facilityStaff(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
+                .build();
+        return ResponseEntity.ok(response);
+    }
+
+    private ResponseEntity<FacilityStaffResponse> staffResponse(RequestInfo requestInfo, List<FacilityStaff> staff,
+                                                                HttpStatus status) {
+        return ResponseEntity.status(status).body(FacilityStaffResponse.builder()
+                .responseInfo(ResponseInfoFactory.createResponseInfo(requestInfo, true))
+                .facilityStaff(staff)
+                .build());
+    }
 }

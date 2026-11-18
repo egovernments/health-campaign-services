@@ -41,4 +41,16 @@ public class FacilityConfiguration {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${facility.staff.kafka.create.topic}")
+    private String createFacilityStaffTopic;
+
+    @Value("${facility.staff.kafka.update.topic}")
+    private String updateFacilityStaffTopic;
+
+    @Value("${facility.staff.kafka.delete.topic}")
+    private String deleteFacilityStaffTopic;
+
+    @Value("${facility.restricted.access.role.code:FACILITY_RESTRICTED_ACCESS}")
+    private String restrictedAccessRoleCode;
 }

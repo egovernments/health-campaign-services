@@ -13,6 +13,7 @@ import org.egov.common.validator.Validator;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.repository.FacilityRepository;
 import org.egov.facility.service.enrichment.FacilityEnrichmentService;
+import org.egov.facility.validator.FAllowedFacilityValidator;
 import org.egov.facility.validator.FBoundaryValidator;
 import org.egov.facility.validator.FIsDeletedValidator;
 import org.egov.facility.validator.FNonExistentValidator;
@@ -22,9 +23,11 @@ import org.egov.facility.validator.FUniqueEntityValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -54,11 +57,15 @@ public class FacilityService {
 
     private final FacilityEnrichmentService enrichmentService;
 
+    private final FacilityAccessService facilityAccessService;
+
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForCreate =
-            validator -> validator.getClass().equals(FBoundaryValidator.class);
+            validator -> validator.getClass().equals(FBoundaryValidator.class)
+                    || validator.getClass().equals(FAllowedFacilityValidator.class);
 
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForUpdate =
             validator -> validator.getClass().equals(FIsDeletedValidator.class)
+                    || validator.getClass().equals(FAllowedFacilityValidator.class)
                     || validator.getClass().equals(FBoundaryValidator.class)
                     || validator.getClass().equals(FNonExistentValidator.class)
                     || validator.getClass().equals(FNullIdValidator.class)
@@ -67,16 +74,19 @@ public class FacilityService {
 
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForDelete =
             validator -> validator.getClass().equals(FNonExistentValidator.class)
-            || validator.getClass().equals(FNullIdValidator.class);
+            || validator.getClass().equals(FNullIdValidator.class)
+            || validator.getClass().equals(FAllowedFacilityValidator.class);
 
     public FacilityService(FacilityRepository facilityRepository, 
                            List<Validator<FacilityBulkRequest, Facility>> validators, 
                            FacilityConfiguration configuration, 
-                           FacilityEnrichmentService enrichmentService) {
+                           FacilityEnrichmentService enrichmentService,
+                           FacilityAccessService facilityAccessService) {
         this.facilityRepository = facilityRepository;
         this.validators = validators;
         this.configuration = configuration;
         this.enrichmentService = enrichmentService;
+        this.facilityAccessService = facilityAccessService;
     }
 
     public Facility create(FacilityRequest request) {
@@ -179,7 +189,25 @@ public class FacilityService {
                                            String tenantId,
                                            Long lastChangedSince,
                                            Boolean includeDeleted) throws Exception  {
+        return search(facilitySearchRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, true);
+    }
+
+    public SearchResponse<Facility> search(FacilitySearchRequest facilitySearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted,
+                                           boolean applyAccessRestriction) throws Exception  {
         log.info("starting search method for facility");
+        Set<String> allowedIds = null;
+        if (applyAccessRestriction && facilityAccessService.isRestricted(facilitySearchRequest.getRequestInfo())) {
+            allowedIds = facilityAccessService.allowedFacilityIds(facilitySearchRequest.getRequestInfo(), tenantId);
+            if (allowedIds.isEmpty()) {
+                return SearchResponse.<Facility>builder().response(new ArrayList<>()).totalCount(0L).build();
+            }
+        }
+        final Set<String> allowed = allowedIds;
         String idFieldName = getIdFieldName(facilitySearchRequest.getFacility());
         if (isSearchByIdOnly(facilitySearchRequest.getFacility(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
@@ -190,14 +218,18 @@ public class FacilityService {
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
+                    .filter(facility -> allowed == null || allowed.contains(facility.getId()))
                     .collect(Collectors.toList());
             searchResponse.setResponse(facilities);
+            if (allowed != null) {
+                searchResponse.setTotalCount((long) facilities.size());
+            }
 
             return searchResponse;
         }
 
         log.info("completed search method for facility");
         return facilityRepository.find(facilitySearchRequest.getFacility(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+                limit, offset, tenantId, lastChangedSince, includeDeleted, allowed);
     }
 }

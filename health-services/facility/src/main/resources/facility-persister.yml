@@ -232,3 +232,56 @@ serviceMaps:
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id
+    - version: 1.0
+      description: Saves a facility staff mapping
+      fromTopic: save-facility-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO public.FACILITY_STAFF(id, tenantId, facilityId, staffId, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.facilityId
+            - jsonPath: $.*.staffId
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates a facility staff mapping
+      fromTopic: update-facility-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.FACILITY_STAFF SET facilityId=?, staffId=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.facilityId
+            - jsonPath: $.*.staffId
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes a facility staff mapping
+      fromTopic: delete-facility-staff-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE public.FACILITY_STAFF SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
