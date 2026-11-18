@@ -169,6 +169,49 @@ SYNC_TABLES = [
 ]
 
 
+# -----------------------------------------------------------------------------
+# Snapshot DAG (hcm_dup_snapshot.py): a raw_<name> database loaded once (CSV exports), not synced from Postgres.
+# These are the defaults of the DAG's trigger params; every run can override them.
+# -----------------------------------------------------------------------------
+SNAPSHOT_DEFAULTS = {
+    "raw_db": "raw_bauchi_lga",             # input; results go to hcm_<name>
+    "timezone": "Africa/Lagos",
+    "boundary_tenant": "ba",
+    "boundary_hierarchy": "ADMIN",
+    "message_module": "hcm-boundary-admin",
+    "boundary_locales": ["en_NG"],
+    "block_level": "Health Facility",       # pairs are only searched within one boundary of this type
+    "target_members": 9_000_000,            # dataset size the report extrapolates the timings to
+    # Overrides of MATCH_DEFAULTS for this DAG: pairs are kept on the child criteria alone (DOBs up to ~5 months
+    # apart); the head-of-household similarity, gender and DOB gap are still stored on every pair, so the
+    # dup_scenarios that need a matching head still filter on them.
+    "match": {
+        "child_dob_max_days": 150,
+        "parent_name_min": 0,
+        "parent_gender_exact": 0,
+        "parent_dob_max_days": 36500,       # 100 years = no limit
+    },
+    # ClickHouse settings of the DAG's queries (not the live DAG's). grace_hash lets a join spill to disk once it
+    # holds max_bytes_in_join in memory (without that limit it never spills). Several joins of one query can each hold
+    # that much: 300 MB peaked at 2.75 GB on the Bauchi LGA data (1M members), 500 MB exceeded a 3.6 GB limit.
+    # max_threads is left to the server (= its CPU cores).
+    "ch_settings": {"join_algorithm": "grace_hash", "max_bytes_in_join": 300_000_000},
+}
+
+# Cycle windows found in the daily registration counts (client date, campaign timezone):
+#   busy day   >= min_day_records registrations
+#   burst      busy days with gaps of at most merge_gap_days, holding >= min_records registrations = one cycle
+#   peak       the burst's days with >= peak_share x its busiest day; peak start = first of them
+#   window     peak start - pad_days  ..  day before the next cycle's window (31 Dec for a year's last cycle)
+SNAPSHOT_CYCLE_DEFAULTS = {
+    "min_day_records": 100,
+    "merge_gap_days": 7,
+    "min_records": 500,
+    "peak_share": 0.3,
+    "pad_days": 3,
+}
+
+
 def enabled_tenants():
     """TENANTS entries that are enabled, with MATCH_DEFAULTS merged under each tenant's "match" overrides."""
     tenants = []
