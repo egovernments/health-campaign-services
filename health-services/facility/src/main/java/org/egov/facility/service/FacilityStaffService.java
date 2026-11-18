@@ -97,7 +97,7 @@ public class FacilityStaffService {
                                                 String tenantId, Long lastChangedSince,
                                                 Boolean includeDeleted) throws Exception {
         if (facilityAccessService.isRestricted(request.getRequestInfo())) {
-            request.getFacilityStaff().setStaffId(List.of(request.getRequestInfo().getUserInfo().getUuid()));
+            request.getFacilityStaff().setStaffId(new ArrayList<>(List.of(request.getRequestInfo().getUserInfo().getUuid())));
         }
         return facilityStaffRepository.findWithCount(request.getFacilityStaff(), limit, offset, tenantId,
                 lastChangedSince, includeDeleted);

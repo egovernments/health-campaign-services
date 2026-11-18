@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -152,6 +153,7 @@ class FacilityAccessRestrictionTest {
         staffService.search(FacilityStaffSearchRequest.builder().requestInfo(requestInfo(ROLE))
                 .facilityStaff(search).build(), 10, 0, "ng", null, false);
         assertEquals(List.of("u1"), search.getStaffId());
+        assertInstanceOf(java.util.ArrayList.class, search.getStaffId());
         verify(staffRepository).findWithCount(search, 10, 0, "ng", null, false);
     }
 

@@ -21,7 +21,7 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 @Component
 @Slf4j
-@Order(1)
+@Order(10)
 public class FAllowedFacilityValidator implements Validator<FacilityBulkRequest, Facility> {
 
     public static final String FACILITY_ACCESS_DENIED = "FACILITY_ACCESS_DENIED";
