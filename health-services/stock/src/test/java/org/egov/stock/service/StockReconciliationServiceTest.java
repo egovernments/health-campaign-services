@@ -52,6 +52,9 @@ class StockReconciliationServiceTest {
     private StockReconciliationService stockService;
 
     @Mock
+    private FacilityAccessService facilityAccessService;
+
+    @Mock
     private StockReconciliationRepository repository;
 
     @Mock

@@ -50,6 +50,9 @@ class StockServiceTest {
     private StockService stockService;
 
     @Mock
+    private FacilityAccessService facilityAccessService;
+
+    @Mock
     private StockRepository repository;
 
     @Mock

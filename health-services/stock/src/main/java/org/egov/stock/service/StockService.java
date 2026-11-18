@@ -3,6 +3,7 @@ package org.egov.stock.service;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -19,6 +20,7 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.service.enrichment.StockEnrichmentService;
+import org.egov.stock.validator.stock.SAllowedFacilityValidator;
 import org.egov.stock.validator.stock.SExistentEntityValidator;
 import org.egov.stock.validator.stock.SIsDeletedValidator;
 import org.egov.stock.validator.stock.SNonExistentValidator;
@@ -60,6 +62,7 @@ public class StockService {
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForCreate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
+                    || validator.getClass().equals(SAllowedFacilityValidator.class)
                     || validator.getClass().equals(SExistentEntityValidator.class)
                     || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
                     || validator.getClass().equals(SStockTransferPartiesValidator.class)
@@ -67,6 +70,7 @@ public class StockService {
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
+            || validator.getClass().equals(SAllowedFacilityValidator.class)
             || validator.getClass().equals(SIsDeletedValidator.class)
             || validator.getClass().equals(SNonExistentValidator.class)
             || validator.getClass().equals(SNullIdValidator.class)
@@ -78,14 +82,18 @@ public class StockService {
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForDelete =
             validator -> validator.getClass().equals(SNonExistentValidator.class)
+            || validator.getClass().equals(SAllowedFacilityValidator.class)
             || validator.getClass().equals(SNullIdValidator.class)
             || validator.getClass().equals(SRowVersionValidator.class);
 
-    public StockService(StockRepository stockRepository, List<Validator<StockBulkRequest, Stock>> validators, StockConfiguration configuration, StockEnrichmentService enrichmentService) {
+    private final FacilityAccessService facilityAccessService;
+
+    public StockService(StockRepository stockRepository, List<Validator<StockBulkRequest, Stock>> validators, StockConfiguration configuration, StockEnrichmentService enrichmentService, FacilityAccessService facilityAccessService) {
         this.stockRepository = stockRepository;
         this.validators = validators;
         this.configuration = configuration;
         this.enrichmentService = enrichmentService;
+        this.facilityAccessService = facilityAccessService;
     }
 
     public Stock create(StockRequest request) {
@@ -191,13 +199,23 @@ public class StockService {
                 ? stockSearchRequest.getStock().getLastSyncedTime()
                 : lastChangedSince;
 
+        Set<String> allowedFacilityIds = null;
+        if (facilityAccessService.isRestricted(stockSearchRequest.getRequestInfo())) {
+            allowedFacilityIds = facilityAccessService.allowedFacilityIds(stockSearchRequest.getRequestInfo(), tenantId);
+            if (allowedFacilityIds.isEmpty()) {
+                return SearchResponse.<Stock>builder().response(Collections.emptyList()).totalCount(0L).build();
+            }
+        }
+
         String idFieldName = getIdFieldName(stockSearchRequest.getStock());
         if (isSearchByIdOnly(stockSearchRequest.getStock(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(stockSearchRequest.getStock())),
                     stockSearchRequest.getStock());
             // fetching stock with ids
+            final Set<String> allowed = allowedFacilityIds;
             List<Stock> stocks = stockRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
+                    .filter(stock -> allowed == null || allowed.contains(stock.getSenderId()) || allowed.contains(stock.getReceiverId()))
                     .filter(lastChangedSince(effectiveLastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
@@ -206,6 +224,10 @@ public class StockService {
         }
 
         log.info("completed search method for stock");
+        if (allowedFacilityIds != null) {
+            return stockRepository.findWithCount(stockSearchRequest.getStock(),
+                    limit, offset, tenantId, effectiveLastChangedSince, includeDeleted, allowedFacilityIds);
+        }
         return stockRepository.findWithCount(stockSearchRequest.getStock(),
                 limit, offset, tenantId, effectiveLastChangedSince, includeDeleted);
     }

@@ -2,7 +2,9 @@ package org.egov.stock.service;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -19,6 +21,7 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.repository.StockReconciliationRepository;
 import org.egov.stock.service.enrichment.StockReconciliationEnrichmentService;
+import org.egov.stock.validator.stockreconciliation.SrAllowedFacilityValidator;
 import org.egov.stock.validator.stockreconciliation.SrExistentEntityValidator;
 import org.egov.stock.validator.stockreconciliation.SrFacilityIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrIsDeletedValidator;
@@ -57,9 +60,12 @@ public class StockReconciliationService {
 
     private final StockReconciliationEnrichmentService enrichmentService;
 
+    private final FacilityAccessService facilityAccessService;
+
     private final Predicate<Validator<StockReconciliationBulkRequest, StockReconciliation>> isApplicableForCreate =
             validator -> validator.getClass().equals(SrProductVariantIdValidator.class)
                     || validator.getClass().equals(SrExistentEntityValidator.class)
+                    || validator.getClass().equals(SrAllowedFacilityValidator.class)
                     || validator.getClass().equals(SrFacilityIdValidator.class)
                     || validator.getClass().equals(SrReferenceIdValidator.class);
 
@@ -70,18 +76,21 @@ public class StockReconciliationService {
                     || validator.getClass().equals(SrNullIdValidator.class)
                     || validator.getClass().equals(SrRowVersionValidator.class)
                     || validator.getClass().equals(SrUniqueEntityValidator.class)
+                    || validator.getClass().equals(SrAllowedFacilityValidator.class)
                     || validator.getClass().equals(SrFacilityIdValidator.class)
                     || validator.getClass().equals(SrReferenceIdValidator.class);
 
     private final Predicate<Validator<StockReconciliationBulkRequest, StockReconciliation>> isApplicableForDelete =
             validator -> validator.getClass().equals(SrNonExistentValidator.class)
+                    || validator.getClass().equals(SrAllowedFacilityValidator.class)
                     || validator.getClass().equals(SrNullIdValidator.class);
 
-    public StockReconciliationService(StockReconciliationRepository stockRepository, List<Validator<StockReconciliationBulkRequest, StockReconciliation>> validators, StockReconciliationConfiguration configuration, StockReconciliationEnrichmentService enrichmentService) {
+    public StockReconciliationService(StockReconciliationRepository stockRepository, List<Validator<StockReconciliationBulkRequest, StockReconciliation>> validators, StockReconciliationConfiguration configuration, StockReconciliationEnrichmentService enrichmentService, FacilityAccessService facilityAccessService) {
         this.stockRepository = stockRepository;
         this.validators = validators;
         this.configuration = configuration;
         this.enrichmentService = enrichmentService;
+        this.facilityAccessService = facilityAccessService;
     }
 
 
@@ -190,18 +199,38 @@ public class StockReconciliationService {
                                                       Long lastChangedSince,
                                                       Boolean includeDeleted) throws Exception  {
         log.info("starting search method for stock reconciliation");
+        Set<String> allowedFacilityIds = null;
+        if (facilityAccessService.isRestricted(request.getRequestInfo())) {
+            allowedFacilityIds = facilityAccessService.allowedFacilityIds(request.getRequestInfo(), tenantId);
+            if (allowedFacilityIds.isEmpty()) {
+                return SearchResponse.<StockReconciliation>builder().response(Collections.emptyList()).totalCount(0L).build();
+            }
+        }
+
         String idFieldName = getIdFieldName(request.getStockReconciliation());
         if (isSearchByIdOnly(request.getStockReconciliation(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(request.getStockReconciliation())),
                     request.getStockReconciliation());
             // fetch stock reconciliation by id
+            final Set<String> allowed = allowedFacilityIds;
             List<StockReconciliation> stockReconciliations = stockRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
+                    .filter(reconciliation -> allowed == null || allowed.contains(reconciliation.getFacilityId()))
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             return SearchResponse.<StockReconciliation>builder().response(stockReconciliations).build();
+        }
+        if (allowedFacilityIds != null) {
+            List<String> requestedFacilityIds = request.getStockReconciliation().getFacilityId();
+            List<String> effectiveFacilityIds = requestedFacilityIds == null || requestedFacilityIds.isEmpty()
+                    ? new ArrayList<>(allowedFacilityIds)
+                    : requestedFacilityIds.stream().filter(allowedFacilityIds::contains).collect(Collectors.toCollection(ArrayList::new));
+            if (effectiveFacilityIds.isEmpty()) {
+                return SearchResponse.<StockReconciliation>builder().response(Collections.emptyList()).totalCount(0L).build();
+            }
+            request.getStockReconciliation().setFacilityId(effectiveFacilityIds);
         }
         log.info("completed search method for stock reconciliation");
         return stockRepository.findWithCount(request.getStockReconciliation(),

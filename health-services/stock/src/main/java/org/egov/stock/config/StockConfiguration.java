@@ -54,5 +54,11 @@ public class StockConfiguration {
 
     @Value("${egov.search.project.facility.url}")
     private String projectFacilityServiceSearchUrl;
+
+    @Value("${egov.search.facility.staff.url}")
+    private String facilityStaffSearchUrl;
+
+    @Value("${facility.restricted.access.role.code:FACILITY_RESTRICTED_ACCESS}")
+    private String facilityRestrictedAccessRoleCode;
     
 }
