@@ -1,5 +1,5 @@
 # Use an official Node runtime as a parent image
-FROM node:14@sha256:a158d3b9b4e3fa813fa6c8c590b8f0a860e015ad4e59bbce5744d2f6fd8461aa
+FROM node:25@sha256:78839ac448c23517f8eab2e8f7943d9b4f73979eb7f8bed2c73dbf72ff869e7b
 
 ARG WORK_DIR
 
