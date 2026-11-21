@@ -1,7 +1,5 @@
 package org.egov.transformer;
 
-import org.apache.kafka.common.protocol.types.Field;
-
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
     String INDIVIDUAL = "INDIVIDUAL";
@@ -44,14 +42,10 @@ public interface Constants {
     String TOTAL_NO_CHECK = "totalNo";
     String TARGET_NO_CHECK = "targetNo";
     String HYPHEN = "-";
-    String LEVEL = "level";
     String LABEL = "label";
     String INDEX_LABEL = "indexLabel";
-    String BOUNDARY_HIERARCHY = "boundaryHierarchy";
-    String BOUNDARY_DATA = "boundaryData";
     String ID = "id";
     String COMMA = ",";
-    String TIME_STAMP_SPLIT = "T";
     Long DAY_MILLIS = 86400000L;
     String AGE = "age";
     String AGE_IN_MONTHS = "ageInMonths";
@@ -82,7 +76,6 @@ public interface Constants {
     String INHAND = "inHand";
     String HEIGHT = "height";
     String DISABILITY_TYPE = "disabilityType";
-    String LOCALIZATION_CODES_JSONPATH = "$.messages.*.code";
     String LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
     String LOCALIZATION_MESSAGES_JSONPATH = "$.messages";
     String BOUNDARY_LOCALIZATION_PREWARM_FAILED = "BOUNDARY_LOCALIZATION_PREWARM_FAILED|";
@@ -102,8 +95,6 @@ public interface Constants {
     String NO_OF_ROOMS= "noOfRooms";
     String MEN_COUNT = "menCount";
     String WOMEN_COUNT = "womenCount";
-    String PROJECT_ID = "projectId";
-    String PROJECT_TYPE_ID = "projectTypeId";
     String PROJECT_TARGET_NUMBER_TYPE_PER_DAY = "PER_DAY";
     String PROJECT_TARGET_NUMBER_TYPE_OVERALL = "OVERALL";
     String NO_OF_ROOMS_SPRAYED_KEY = "noOfRoomsSprayedKey";
@@ -124,5 +115,9 @@ public interface Constants {
 
     String ES_FIELD_EFFECTIVE_DATE = "effectiveDate";
 
+    String ACTUAL_BALES_RECEIVED = "actualBalesReceived";
+    String BALES_QUANTITY = "balesQuantity";
+    String ORIGINAL_QUANTITY_RECEIVED = "originalQuantityReceived";
+    String ACTUAL_QUANTITY_RECEIVED = "actualQuantityReceived";
 
 }

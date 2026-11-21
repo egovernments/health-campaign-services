@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -36,7 +37,16 @@ public class StockTransformationService {
     private final ObjectMapper objectMapper;
     private final BoundaryService boundaryService;
     private final ProductService productService;
-    private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(LAT, LNG));
+    private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(LAT, LNG, ACTUAL_BALES_RECEIVED, BALES_QUANTITY));
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(ORIGINAL_QUANTITY_RECEIVED, ACTUAL_QUANTITY_RECEIVED));
+
+    private static final Map<String, Pattern> SCANNED_STOCK_COUNT_PATTERNS = new LinkedHashMap<>();
+    static {
+        SCANNED_STOCK_COUNT_PATTERNS.put("balesScannedStock", Pattern.compile("^baleScannedStock\\d+$"));
+        SCANNED_STOCK_COUNT_PATTERNS.put("piecesScannedStock", Pattern.compile("^piecesScannedStock\\d+$"));
+        SCANNED_STOCK_COUNT_PATTERNS.put("baleScannedStockManual", Pattern.compile("^baleScannedStockManual\\d+$"));
+        SCANNED_STOCK_COUNT_PATTERNS.put("piecesScannedStockManual", Pattern.compile("^piecesScannedStockManual\\d+$"));
+    }
 
     public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService) {
         this.producer = producer;
@@ -138,6 +148,7 @@ public class StockTransformationService {
         if (ObjectUtils.isNotEmpty(stock.getAdditionalFields()) && !CollectionUtils.isEmpty(stock.getAdditionalFields().getFields())) {
             addAdditionalDetails(stock.getAdditionalFields(), additionalDetails);
         }
+        addScannedStockCounts(stock.getAdditionalFields(), additionalDetails);
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
@@ -245,6 +256,7 @@ public class StockTransformationService {
         if (ObjectUtils.isNotEmpty(stock.getAdditionalFields()) && !CollectionUtils.isEmpty(stock.getAdditionalFields().getFields())) {
             addAdditionalDetails(stock.getAdditionalFields(), additionalDetails);
         }
+        addScannedStockCounts(stock.getAdditionalFields(), additionalDetails);
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
@@ -319,12 +331,41 @@ public class StockTransformationService {
                 try {
                     additionalDetails.put(key, Double.valueOf(value));
                 } catch (NumberFormatException e) {
-                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                    log.warn("Invalid Double format for key '{}': value '{}'. Storing as null.", key, value);
                     additionalDetails.set(key, null);
                 }
-            } else {
+            } else if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Integer.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid Integer format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.set(key, null);
+                }
+            }
+            else {
                 additionalDetails.put(key, value);
             }
         });
+    }
+
+    private void addScannedStockCounts(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        SCANNED_STOCK_COUNT_PATTERNS.keySet().forEach(countKey -> counts.put(countKey, 0));
+
+        if (ObjectUtils.isNotEmpty(additionalFields) && !CollectionUtils.isEmpty(additionalFields.getFields())) {
+            additionalFields.getFields().forEach(field -> {
+                String key = field.getKey();
+                if (key == null || field.getValue() == null || field.getValue().trim().isEmpty()) {
+                    return;
+                }
+                SCANNED_STOCK_COUNT_PATTERNS.forEach((countKey, pattern) -> {
+                    if (pattern.matcher(key).matches()) {
+                        counts.merge(countKey, 1, Integer::sum);
+                    }
+                });
+            });
+        }
+
+        counts.forEach(additionalDetails::put);
     }
 }
