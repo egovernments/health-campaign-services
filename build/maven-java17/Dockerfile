@@ -1,5 +1,5 @@
 # ──────────────── BUILD STAGE ────────────────
-FROM maven:3.9-eclipse-temurin-17@sha256:4015718012bbf1113ec6cfae2b950be328d90265ceb60f92b26c3ea7c4d14ee8 AS build
+FROM maven:3.9-eclipse-temurin-26@sha256:b2c1ad85954592f9928e84327c65201f308ad9b5d8ed7d5b823717c97bf23fbb AS build
 ARG WORK_DIR
 WORKDIR /app
 
