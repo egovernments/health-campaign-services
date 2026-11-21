@@ -41,7 +41,7 @@
     "node-cache": "5.1.2",
     "node-gyp": "10.0.1",
     "opentracing": "^0.14.7",
-    "uuid": "9.0.1",
+    "uuid": "14.0.3",
     "winston": "3.12.0",
     "xlsx": "0.18.5",
     "xlsx-populate": "1.21.0",
